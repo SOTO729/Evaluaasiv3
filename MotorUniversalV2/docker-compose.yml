@@ -43,6 +43,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-jwt-secret-key-change-in-production}
+      CORS_ORIGINS: http://localhost:5173,https://bug-free-yodel-5gg9g5v5g4pvhpg75-5173.app.github.dev,https://bug-free-yodel-5gg9g5v5g4pvhpg75-5000.app.github.dev
     volumes:
       - ./backend:/app
       - /app/__pycache__

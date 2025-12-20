@@ -1,17 +1,17 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useAuthStore } from './store/authStore.tsx'
+import { useAuthStore } from './store/authStore'
 
 // Pages
-import LoginPage from './pages/auth/LoginPage.tsx'
-import RegisterPage from './pages/auth/RegisterPage.tsx'
-import DashboardPage from './pages/DashboardPage.tsx'
-import ExamsListPage from './pages/exams/ExamsListPage.tsx'
-import ExamCreatePage from './pages/exams/ExamCreatePage.tsx'
-import ExamEditPage from './pages/exams/ExamEditPage.tsx'
+import LoginPage from './pages/auth/LoginPage'
+import RegisterPage from './pages/auth/RegisterPage'
+import DashboardPage from './pages/DashboardPage'
+import ExamsListPage from './pages/exams/ExamsListPage'
+import ExamCreatePage from './pages/exams/ExamCreatePage'
+import ExamEditPage from './pages/exams/ExamEditPage'
 
 // Components
-import Layout from './components/layout/Layout.tsx'
-import ProtectedRoute from './components/auth/ProtectedRoute.tsx'
+import Layout from './components/layout/Layout'
+import ProtectedRoute from './components/auth/ProtectedRoute'
 
 function App() {
   const { isAuthenticated } = useAuthStore()
