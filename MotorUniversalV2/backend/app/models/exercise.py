@@ -9,6 +9,7 @@ class Exercise(db.Model):
     """Modelo de ejercicio"""
     
     __tablename__ = 'exercises'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.String(36), primary_key=True)
     topic_id = db.Column(db.Integer, db.ForeignKey('topics.id'), nullable=False)
