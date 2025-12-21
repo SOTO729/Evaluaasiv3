@@ -938,8 +938,8 @@ def create_exercise_step(exercise_id):
     
     data = request.get_json()
     
-    # Obtener el siguiente número de paso
-    last_step = exercise.steps.order_by(ExerciseStep.step_number.desc()).first()
+    # Obtener el siguiente número de paso (usar query directa para evitar conflicto de order_by)
+    last_step = ExerciseStep.query.filter_by(exercise_id=exercise_id).order_by(ExerciseStep.step_number.desc()).first()
     next_number = (last_step.step_number + 1) if last_step else 1
     
     # Procesar imagen si viene en base64
