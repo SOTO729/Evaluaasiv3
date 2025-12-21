@@ -26,6 +26,20 @@ class Category(db.Model):
     # Relaciones
     topics = db.relationship('Topic', backref='category', lazy='dynamic', cascade='all, delete-orphan', order_by='Topic.order')
     
+    def get_total_questions(self):
+        """Calcular total de preguntas de la categoría"""
+        total = 0
+        for topic in self.topics:
+            total += topic.questions.count()
+        return total
+    
+    def get_total_exercises(self):
+        """Calcular total de ejercicios de la categoría"""
+        total = 0
+        for topic in self.topics:
+            total += topic.exercises.count()
+        return total
+    
     def to_dict(self, include_details=False):
         """Convertir a diccionario"""
         data = {
@@ -36,6 +50,8 @@ class Category(db.Model):
             'percentage': self.percentage,
             'order': self.order,
             'total_topics': self.topics.count(),
+            'total_questions': self.get_total_questions(),
+            'total_exercises': self.get_total_exercises(),
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
         

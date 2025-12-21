@@ -7,6 +7,7 @@ from app.models.category import Category
 from app.models.topic import Topic
 from app.models.question import Question
 from app.models.answer import Answer
+from app.models.exercise import Exercise
 from app.models.voucher import Voucher
 from app.models.result import Result
 
@@ -17,6 +18,7 @@ __all__ = [
     'Topic',
     'Question',
     'Answer',
+    'Exercise',
     'Voucher',
     'Result'
 ]

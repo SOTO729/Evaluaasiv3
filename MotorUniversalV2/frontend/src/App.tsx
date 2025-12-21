@@ -9,6 +9,11 @@ import ExamsListPage from './pages/exams/ExamsListPage'
 import ExamCreatePage from './pages/exams/ExamCreatePage'
 import ExamEditPage from './pages/exams/ExamEditPage'
 import CategoryDetailPage from './pages/categories/CategoryDetailPage'
+import TopicDetailPage from './pages/topics/TopicDetailPage'
+import TrueFalseAnswerPage from './pages/answers/TrueFalseAnswerPage'
+import MultipleChoiceAnswerPage from './pages/answers/MultipleChoiceAnswerPage'
+import { MultipleSelectAnswerPage } from './pages/answers/MultipleSelectAnswerPage'
+import { OrderingAnswerPage } from './pages/answers/OrderingAnswerPage'
 
 // Components
 import Layout from './components/layout/Layout'
@@ -40,6 +45,15 @@ function App() {
             
             {/* Categories */}
             <Route path="/exams/:examId/categories/:categoryId" element={<CategoryDetailPage />} />
+            
+            {/* Topics */}
+            <Route path="/exams/:examId/categories/:categoryId/topics/:topicId" element={<TopicDetailPage />} />
+            
+            {/* Answers */}
+            <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/answer" element={<TrueFalseAnswerPage />} />
+            <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/multiple-choice" element={<MultipleChoiceAnswerPage />} />
+            <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/multiple-select" element={<MultipleSelectAnswerPage />} />
+            <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/ordering" element={<OrderingAnswerPage />} />
             
             {/* Redirect root to dashboard */}
             <Route path="/" element={<Navigate to="/dashboard" />} />

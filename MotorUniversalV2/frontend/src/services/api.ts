@@ -1,7 +1,11 @@
 import axios, { AxiosError } from 'axios'
 import { useAuthStore } from '../store/authStore'
 
-const API_URL = import.meta.env.VITE_API_URL || '/api'
+// Usar la URL del backend de Azure en producción
+const API_URL = import.meta.env.VITE_API_URL || 
+  (import.meta.env.MODE === 'production' 
+    ? 'https://evaluaasi-motorv2-api.azurewebsites.net/api' 
+    : '/api')
 
 // Debug: Log de la URL del API
 console.log('🔧 API Configuration:', {

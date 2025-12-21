@@ -23,8 +23,12 @@ def seed_database():
     # Tipos de preguntas
     question_types = [
         QuestionType(name='multiple_choice', description='Opción múltiple'),
+        QuestionType(name='multiple_select', description='Selección múltiple (varias respuestas correctas)'),
         QuestionType(name='true_false', description='Verdadero/Falso'),
-        QuestionType(name='fill_blank', description='Llenar el espacio')
+        QuestionType(name='ordering', description='Ordenar'),
+        QuestionType(name='fill_blank', description='Llenar el espacio'),
+        QuestionType(name='drag_drop', description='Arrastrar y soltar'),
+        QuestionType(name='drag_order', description='Arrastrar y ordenar')
     ]
     
     for qt in question_types:

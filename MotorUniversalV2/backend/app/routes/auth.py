@@ -294,3 +294,48 @@ def change_password():
     db.session.commit()
     
     return jsonify({'message': 'Contraseña actualizada exitosamente'}), 200
+
+
+@bp.route('/verify-password', methods=['POST'])
+@jwt_required()
+def verify_password():
+    """
+    Verificar contraseña del usuario actual
+    ---
+    tags:
+      - Authentication
+    security:
+      - Bearer: []
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - password
+          properties:
+            password:
+              type: string
+    responses:
+      200:
+        description: Contraseña verificada correctamente
+      401:
+        description: Contraseña incorrecta
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    
+    data = request.get_json()
+    password = data.get('password')
+    
+    if not password:
+        return jsonify({'error': 'Contraseña requerida'}), 400
+    
+    if not user.check_password(password):
+        return jsonify({'error': 'Contraseña incorrecta'}), 401
+    
+    return jsonify({'message': 'Contraseña verificada correctamente'}), 200

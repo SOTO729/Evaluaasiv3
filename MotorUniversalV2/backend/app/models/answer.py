@@ -12,7 +12,7 @@ class Answer(db.Model):
     
     id = db.Column(db.String(36), primary_key=True)
     question_id = db.Column(db.String(36), db.ForeignKey('questions.id'), nullable=False)
-    answer_number = db.Column(db.Integer, nullable=False)  # A, B, C, D (1, 2, 3, 4)
+    answer_number = db.Column(db.Integer)  # A, B, C, D (1, 2, 3, 4) - opcional para verdadero/falso
     answer_text = db.Column(db.Text, nullable=False)
     is_correct = db.Column(db.Boolean, default=False, nullable=False)
     explanation = db.Column(db.Text)  # Explicación de por qué es correcta/incorrecta

@@ -97,6 +97,16 @@ export interface Answer {
   explanation?: string
 }
 
+export interface Exercise {
+  id: string
+  topic_id: number
+  exercise_number: number
+  exercise_text: string
+  image_url?: string
+  is_complete: boolean
+  created_at: string
+}
+
 export interface AuthResponse {
   message: string
   access_token: string

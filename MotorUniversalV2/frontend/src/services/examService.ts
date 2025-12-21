@@ -1,5 +1,5 @@
 import api from './api'
-import type { Exam, Category, Topic, Question, PaginatedResponse } from '../types'
+import type { Exam, Category, Topic, Question, PaginatedResponse, QuestionType } from '../types'
 
 export const examService = {
   // Exams
@@ -54,7 +54,22 @@ export const examService = {
     return response.data
   },
 
+  updateTopic: async (topicId: number, data: Partial<Topic>): Promise<{ message: string; topic: Topic }> => {
+    const response = await api.put<{ message: string; topic: Topic }>(`/exams/topics/${topicId}`, data)
+    return response.data
+  },
+
+  deleteTopic: async (topicId: number): Promise<{ message: string }> => {
+    const response = await api.delete<{ message: string }>(`/exams/topics/${topicId}`)
+    return response.data
+  },
+
   // Questions
+  getQuestionTypes: async (): Promise<{ question_types: QuestionType[] }> => {
+    const response = await api.get<{ question_types: QuestionType[] }>('/exams/question-types')
+    return response.data
+  },
+
   getQuestions: async (topicId: number): Promise<{ questions: Question[] }> => {
     const response = await api.get<{ questions: Question[] }>(`/exams/topics/${topicId}/questions`)
     return response.data
@@ -62,6 +77,58 @@ export const examService = {
 
   createQuestion: async (topicId: number, data: Partial<Question>): Promise<{ message: string; question: Question }> => {
     const response = await api.post<{ message: string; question: Question }>(`/exams/topics/${topicId}/questions`, data)
+    return response.data
+  },
+
+  updateQuestion: async (id: string, data: Partial<Question>): Promise<{ message: string; question: Question }> => {
+    const response = await api.put<{ message: string; question: Question }>(`/exams/questions/${id}`, data)
+    return response.data
+  },
+
+  deleteQuestion: async (id: string): Promise<{ message: string }> => {
+    const response = await api.delete<{ message: string }>(`/exams/questions/${id}`)
+    return response.data
+  },
+
+  // Answers
+  getAnswers: async (questionId: string): Promise<{ answers: any[] }> => {
+    const response = await api.get<{ answers: any[] }>(`/exams/questions/${questionId}/answers`)
+    return response.data
+  },
+
+  createAnswer: async (questionId: string, data: { answer_text: string; is_correct: boolean }): Promise<{ message: string; answer: any }> => {
+    const response = await api.post<{ message: string; answer: any }>(`/exams/questions/${questionId}/answers`, data)
+    return response.data
+  },
+
+  updateAnswer: async (answerId: string, data: { answer_text?: string; is_correct?: boolean }): Promise<{ message: string; answer: any }> => {
+    const response = await api.put<{ message: string; answer: any }>(`/exams/answers/${answerId}`, data)
+    return response.data
+  },
+
+  deleteAnswer: async (answerId: string): Promise<{ message: string }> => {
+    const response = await api.delete<{ message: string }>(`/exams/answers/${answerId}`)
+    return response.data
+  },
+
+  // Exercises
+  getExercises: async (topicId: number): Promise<{ exercises: any[] }> => {
+    const response = await api.get<{ exercises: any[] }>(`/exams/topics/${topicId}/exercises`)
+    return response.data
+  },
+
+  createExercise: async (topicId: number, data: { exercise_text: string; is_complete?: boolean }): Promise<{ message: string; exercise: any }> => {
+    const response = await api.post<{ message: string; exercise: any }>(`/exams/topics/${topicId}/exercises`, data)
+    return response.data
+  },
+
+  updateExercise: async (id: string, data: { exercise_text?: string; is_complete?: boolean }): Promise<{ message: string; exercise: any }> => {
+    const response = await api.put<{ message: string; exercise: any }>(`/exams/exercises/${id}`, data)
+    return response.data
+  },
+
+  deleteExercise: async (id: string): Promise<{ message: string }> => {
+    const response = await api.delete<{ message: string }>(`/exams/exercises/${id}`)
     return response.data
   },
 }

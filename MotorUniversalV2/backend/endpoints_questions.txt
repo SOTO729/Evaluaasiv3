@@ -1,0 +1,50 @@
+# Endpoints para actualizar y eliminar preguntas
+# Agregar al archivo backend/app/routes/exams.py después del endpoint de create_question
+
+@bp.route('/questions/<question_id>', methods=['PUT'])
+@jwt_required()
+@require_permission('exams:update')
+def update_question(question_id):
+    """Actualizar pregunta"""
+    question = Question.query.get(question_id)
+    if not question:
+        return jsonify({'error': 'Pregunta no encontrada'}), 404
+    
+    data = request.get_json()
+    user_id = get_jwt_identity()
+    
+    # Actualizar campos
+    if 'question_type_id' in data:
+        question.question_type_id = data['question_type_id']
+    if 'question_text' in data:
+        question.question_text = data['question_text']
+    if 'image_url' in data:
+        question.image_url = data['image_url']
+    if 'points' in data:
+        question.points = data['points']
+    if 'difficulty' in data:
+        question.difficulty = data['difficulty']
+    
+    question.updated_by = user_id
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Pregunta actualizada exitosamente',
+        'question': question.to_dict(include_correct=True)
+    }), 200
+
+
+@bp.route('/questions/<question_id>', methods=['DELETE'])
+@jwt_required()
+@require_permission('exams:delete')
+def delete_question(question_id):
+    """Eliminar pregunta"""
+    question = Question.query.get(question_id)
+    if not question:
+        return jsonify({'error': 'Pregunta no encontrada'}), 404
+    
+    db.session.delete(question)
+    db.session.commit()
+    
+    return jsonify({'message': 'Pregunta eliminada exitosamente'}), 200

@@ -46,12 +46,15 @@ def create_app(config_name='development'):
          supports_credentials=app.config['CORS_SUPPORTS_CREDENTIALS'])
     
     # Registrar blueprints
-    from app.routes import auth, exams, users, health
+    from app.routes import auth, exams, users, health, init, reset, debug
     
     app.register_blueprint(auth.bp, url_prefix='/api/auth')
     app.register_blueprint(exams.bp, url_prefix='/api/exams')
     app.register_blueprint(users.bp, url_prefix='/api/users')
     app.register_blueprint(health.bp, url_prefix='/api')
+    app.register_blueprint(init.init_bp, url_prefix='/api')
+    app.register_blueprint(reset.reset_bp, url_prefix='/api')
+    app.register_blueprint(debug.debug_bp, url_prefix='/api')
     
     # Manejadores de errores
     register_error_handlers(app)
@@ -62,7 +65,7 @@ def create_app(config_name='development'):
     # Shell context
     @app.shell_context_processor
     def make_shell_context():
-        from app.models import User, Exam, Category, Topic, Question, Answer
+        from app.models import User, Exam, Category, Topic, Question, Answer, Exercise
         return {
             'db': db,
             'User': User,
@@ -70,7 +73,8 @@ def create_app(config_name='development'):
             'Category': Category,
             'Topic': Topic,
             'Question': Question,
-            'Answer': Answer
+            'Answer': Answer,
+            'Exercise': Exercise
         }
     
     return app

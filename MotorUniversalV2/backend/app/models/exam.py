@@ -12,13 +12,14 @@ class Exam(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
-    version = db.Column(db.String(10), nullable=False)
+    version = db.Column(db.String(50), nullable=False)  # Código ECM - ampliado para permitir códigos más largos
     standard = db.Column(db.String(15))
     stage_id = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text)
     instructions = db.Column(db.Text)
     duration_minutes = db.Column(db.Integer)  # Duración en minutos
     passing_score = db.Column(db.Integer, default=70)  # Puntaje mínimo para aprobar
+    image_url = db.Column(db.Text)  # URL o base64 de la imagen del examen
     
     # Estado
     is_active = db.Column(db.Boolean, default=True, nullable=False)
@@ -53,6 +54,9 @@ class Exam(db.Model):
     
     def to_dict(self, include_details=False):
         """Convertir a diccionario"""
+        # Obtener las categorías como lista (lazy='dynamic' devuelve una query)
+        categories_list = self.categories.all()
+        
         data = {
             'id': self.id,
             'name': self.name,
@@ -62,17 +66,20 @@ class Exam(db.Model):
             'description': self.description,
             'duration_minutes': self.duration_minutes,
             'passing_score': self.passing_score,
+            'image_url': self.image_url,
             'is_active': self.is_active,
             'is_published': self.is_published,
             'total_questions': self.get_total_questions(),
             'total_exercises': self.get_total_exercises(),
+            'total_categories': len(categories_list),
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'categories': [{'id': cat.id, 'name': cat.name, 'percentage': cat.percentage} for cat in categories_list]  # Siempre incluir resumen de categorías
         }
         
         if include_details:
             data['instructions'] = self.instructions
-            data['categories'] = [cat.to_dict(include_details=True) for cat in self.categories]
+            data['categories'] = [cat.to_dict(include_details=True) for cat in categories_list]
         
         return data
     
