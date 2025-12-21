@@ -93,6 +93,7 @@ const TopicDetailPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['exercises', topicId] })
       queryClient.invalidateQueries({ queryKey: ['topics', categoryId] })
+      queryClient.invalidateQueries({ queryKey: ['exams'] })
       setIsCreateExerciseModalOpen(false)
       setExerciseFormData({ exercise_text: '', is_complete: false })
     },
@@ -107,6 +108,7 @@ const TopicDetailPage = () => {
       examService.updateExercise(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['exercises', topicId] })
+      queryClient.invalidateQueries({ queryKey: ['exams'] })
       setIsEditExerciseModalOpen(false)
       setSelectedExercise(null)
       setExerciseFormData({ exercise_text: '', is_complete: false })
@@ -122,6 +124,7 @@ const TopicDetailPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['exercises', topicId] })
       queryClient.invalidateQueries({ queryKey: ['topics', categoryId] })
+      queryClient.invalidateQueries({ queryKey: ['exams'] })
       setIsDeleteExerciseModalOpen(false)
       setSelectedExercise(null)
     },
