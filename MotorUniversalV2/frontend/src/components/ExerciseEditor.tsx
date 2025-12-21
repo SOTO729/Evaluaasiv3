@@ -85,18 +85,22 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     mutationFn: (data: { title?: string; description?: string; image_url?: string; image_width?: number; image_height?: number }) => 
       examService.createExerciseStep(exercise.id, data),
     onSuccess: async (response) => {
+      console.log('Step created:', response)
       // Esperar a que se actualicen los datos
-      await refetch()
+      const result = await refetch()
+      console.log('Refetch result:', result.data)
       // Limpiar previsualización local
       setLocalPreviewImage(null)
       setIsCreatingStep(false)
       // Navegar al nuevo paso creado (usar step_number - 1 como índice)
       const newStepNumber = response.step?.step_number
+      console.log('New step number:', newStepNumber, 'Steps after refetch:', result.data?.exercise?.steps?.length)
       if (newStepNumber) {
         setCurrentStepIndex(newStepNumber - 1)
       }
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Error creating step:', error)
       setLocalPreviewImage(null)
       setIsCreatingStep(false)
     }
