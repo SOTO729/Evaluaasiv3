@@ -8,6 +8,7 @@ import DashboardPage from './pages/DashboardPage'
 import ExamsListPage from './pages/exams/ExamsListPage'
 import ExamCreatePage from './pages/exams/ExamCreatePage'
 import ExamEditPage from './pages/exams/ExamEditPage'
+import CategoryDetailPage from './pages/categories/CategoryDetailPage'
 
 // Components
 import Layout from './components/layout/Layout'
@@ -36,6 +37,9 @@ function App() {
             <Route path="/exams" element={<ExamsListPage />} />
             <Route path="/exams/create" element={<ExamCreatePage />} />
             <Route path="/exams/:id/edit" element={<ExamEditPage />} />
+            
+            {/* Categories */}
+            <Route path="/exams/:examId/categories/:categoryId" element={<CategoryDetailPage />} />
             
             {/* Redirect root to dashboard */}
             <Route path="/" element={<Navigate to="/dashboard" />} />

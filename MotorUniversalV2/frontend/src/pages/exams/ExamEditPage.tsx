@@ -117,14 +117,15 @@ const ExamEditPage = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Ejercicios
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Opciones
-                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {exam.categories.map((category, index) => (
-                  <tr key={category.id} className="hover:bg-gray-50">
+                  <tr 
+                    key={category.id} 
+                    onClick={() => navigate(`/exams/${id}/categories/${category.id}`)}
+                    className="hover:bg-primary-50 cursor-pointer transition-colors"
+                  >
                     <td className="px-4 py-4 whitespace-nowrap">
                       <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-semibold text-sm">
                         {index + 1}
@@ -146,36 +147,6 @@ const ExamEditPage = () => {
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                       <span className="font-medium">{category.total_exercises || 0}</span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => navigate(`/exams/${id}/categories/${category.id}`)}
-                          className="text-blue-600 hover:text-blue-800 font-medium"
-                          title="Ver detalles"
-                        >
-                          Detalles
-                        </button>
-                        <button
-                          onClick={() => navigate(`/exams/${id}/categories/${category.id}/edit`)}
-                          className="text-primary-600 hover:text-primary-800 font-medium"
-                          title="Editar categoría"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`¿Estás seguro de eliminar la categoría "${category.name}"?`)) {
-                              // TODO: Implementar eliminación
-                              console.log('Eliminar categoría', category.id)
-                            }
-                          }}
-                          className="text-red-600 hover:text-red-800 font-medium"
-                          title="Eliminar categoría"
-                        >
-                          Borrar
-                        </button>
-                      </div>
                     </td>
                   </tr>
                 ))}
