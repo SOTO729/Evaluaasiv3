@@ -80,12 +80,14 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   const createStepMutation = useMutation({
     mutationFn: (data: { title?: string; description?: string; image_url?: string; image_width?: number; image_height?: number }) => 
       examService.createExerciseStep(exercise.id, data),
-    onSuccess: () => {
-      refetch()
-      // Navegar al nuevo paso creado
-      setTimeout(() => {
-        setCurrentStepIndex(steps.length)
-      }, 100)
+    onSuccess: async (response) => {
+      // Esperar a que se actualicen los datos
+      await refetch()
+      // Navegar al nuevo paso creado (usar step_number - 1 como índice)
+      const newStepNumber = response.step?.step_number
+      if (newStepNumber) {
+        setCurrentStepIndex(newStepNumber - 1)
+      }
     },
   })
 
