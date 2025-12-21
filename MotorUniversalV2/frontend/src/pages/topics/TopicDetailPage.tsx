@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 import { examService } from '../../services/examService'
 import type { Question, Exercise } from '../../types'
+import RichTextEditor from '../../components/RichTextEditor'
 
 const TopicDetailPage = () => {
   const { examId, categoryId, topicId } = useParams<{ examId: string; categoryId: string; topicId: string }>()
@@ -513,7 +514,10 @@ const TopicDetailPage = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <p className="text-gray-900 font-medium">{exercise.exercise_text}</p>
+                          <div 
+                            className="text-gray-900 prose prose-sm max-w-none"
+                            dangerouslySetInnerHTML={{ __html: exercise.exercise_text }}
+                          />
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           {exercise.is_complete ? (
@@ -736,33 +740,19 @@ const TopicDetailPage = () => {
 
       {/* Modal de Crear Ejercicio */}
       {isCreateExerciseModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-semibold mb-4">Crear Nuevo Ejercicio</h3>
             <form onSubmit={handleSubmitExercise}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Ejercicio *
-                </label>
-                <textarea
-                  value={exerciseFormData.exercise_text}
-                  onChange={(e) => setExerciseFormData({ ...exerciseFormData, exercise_text: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  rows={4}
-                  required
-                  placeholder="Escribe el ejercicio aquí..."
-                />
-              </div>
               <div className="mb-6">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={exerciseFormData.is_complete}
-                    onChange={(e) => setExerciseFormData({ ...exerciseFormData, is_complete: e.target.checked })}
-                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Marcar como completo</span>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Contenido del Ejercicio *
                 </label>
+                <RichTextEditor
+                  value={exerciseFormData.exercise_text}
+                  onChange={(value) => setExerciseFormData({ ...exerciseFormData, exercise_text: value })}
+                  placeholder="Escribe el contenido del ejercicio aquí..."
+                />
               </div>
               <div className="flex gap-3 justify-end">
                 <button
@@ -790,33 +780,19 @@ const TopicDetailPage = () => {
 
       {/* Modal de Editar Ejercicio */}
       {isEditExerciseModalOpen && selectedExercise && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-semibold mb-4">Editar Ejercicio</h3>
             <form onSubmit={handleUpdateExerciseSubmit}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Ejercicio *
-                </label>
-                <textarea
-                  value={exerciseFormData.exercise_text}
-                  onChange={(e) => setExerciseFormData({ ...exerciseFormData, exercise_text: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  rows={4}
-                  required
-                  placeholder="Escribe el ejercicio aquí..."
-                />
-              </div>
               <div className="mb-6">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={exerciseFormData.is_complete}
-                    onChange={(e) => setExerciseFormData({ ...exerciseFormData, is_complete: e.target.checked })}
-                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Marcar como completo</span>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Contenido del Ejercicio *
                 </label>
+                <RichTextEditor
+                  value={exerciseFormData.exercise_text}
+                  onChange={(value) => setExerciseFormData({ ...exerciseFormData, exercise_text: value })}
+                  placeholder="Escribe el contenido del ejercicio aquí..."
+                />
               </div>
               <div className="flex gap-3 justify-end">
                 <button
