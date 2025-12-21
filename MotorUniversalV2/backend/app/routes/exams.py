@@ -930,6 +930,7 @@ def create_exercise_step(exercise_id):
     Crear un nuevo paso para un ejercicio
     """
     import uuid
+    from app.utils.azure_storage import azure_storage
     
     exercise = Exercise.query.get(exercise_id)
     if not exercise:
@@ -941,13 +942,24 @@ def create_exercise_step(exercise_id):
     last_step = exercise.steps.order_by(ExerciseStep.step_number.desc()).first()
     next_number = (last_step.step_number + 1) if last_step else 1
     
+    # Procesar imagen si viene en base64
+    image_url = data.get('image_url')
+    if image_url and image_url.startswith('data:image'):
+        # Subir a Azure Blob Storage
+        blob_url = azure_storage.upload_base64_image(image_url, folder='exercise-steps')
+        if blob_url:
+            image_url = blob_url
+        else:
+            # Si falla blob storage, guardar en BD (fallback)
+            print("Warning: Blob storage no disponible, guardando base64 en BD")
+    
     step = ExerciseStep(
         id=str(uuid.uuid4()),
         exercise_id=exercise_id,
         step_number=next_number,
         title=data.get('title'),
         description=data.get('description'),
-        image_url=data.get('image_url'),
+        image_url=image_url,
         image_width=data.get('image_width'),
         image_height=data.get('image_height')
     )
@@ -1220,6 +1232,7 @@ def upload_step_image(step_id):
     Subir imagen para un paso (como base64)
     """
     from datetime import datetime
+    from app.utils.azure_storage import azure_storage
     
     step = ExerciseStep.query.get(step_id)
     if not step:
@@ -1230,7 +1243,17 @@ def upload_step_image(step_id):
     if 'image_data' not in data:
         return jsonify({'error': 'Se requiere image_data (base64)'}), 400
     
-    step.image_url = data['image_data']
+    image_data = data['image_data']
+    
+    # Subir a Azure Blob Storage si es base64
+    if image_data.startswith('data:image'):
+        blob_url = azure_storage.upload_base64_image(image_data, folder='exercise-steps')
+        if blob_url:
+            image_data = blob_url
+        else:
+            print("Warning: Blob storage no disponible, guardando base64 en BD")
+    
+    step.image_url = image_data
     step.image_width = data.get('image_width')
     step.image_height = data.get('image_height')
     step.updated_at = datetime.utcnow()

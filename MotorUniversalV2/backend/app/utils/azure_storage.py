@@ -119,6 +119,72 @@ class AzureStorageService:
         except:
             return None
 
+    def upload_base64_image(self, base64_data, folder='images'):
+        """
+        Subir imagen desde base64 a Azure Blob Storage
+        
+        Args:
+            base64_data: String base64 de la imagen (puede incluir prefijo data:image/...)
+            folder: Carpeta en el contenedor
+        
+        Returns:
+            str: URL del archivo subido o None si falla
+        """
+        import base64
+        
+        if not self.blob_service_client:
+            print("Azure Blob Storage no configurado")
+            return None
+        
+        try:
+            # Extraer el tipo de imagen y los datos del base64
+            if ',' in base64_data:
+                header, data = base64_data.split(',', 1)
+                # Extraer extensión del header (data:image/png;base64 -> png)
+                if 'image/' in header:
+                    ext = header.split('image/')[1].split(';')[0]
+                else:
+                    ext = 'png'
+            else:
+                data = base64_data
+                ext = 'png'
+            
+            # Decodificar base64
+            image_bytes = base64.b64decode(data)
+            
+            # Generar nombre único
+            unique_filename = f"{uuid.uuid4().hex}.{ext}"
+            blob_name = f"{folder}/{unique_filename}"
+            
+            # Determinar content type
+            content_types = {
+                'png': 'image/png',
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'gif': 'image/gif',
+                'webp': 'image/webp'
+            }
+            content_type = content_types.get(ext.lower(), 'image/png')
+            
+            # Subir archivo
+            blob_client = self.blob_service_client.get_blob_client(
+                container=self.container_name,
+                blob=blob_name
+            )
+            
+            blob_client.upload_blob(
+                image_bytes,
+                overwrite=True,
+                content_settings=ContentSettings(content_type=content_type)
+            )
+            
+            print(f"Imagen subida exitosamente: {blob_client.url}")
+            return blob_client.url
+        
+        except Exception as e:
+            print(f"Error uploading base64 image to Azure: {str(e)}")
+            return None
+
 
 # Instancia global
 azure_storage = AzureStorageService()
