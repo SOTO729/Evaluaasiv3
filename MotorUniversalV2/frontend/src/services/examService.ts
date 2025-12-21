@@ -17,7 +17,7 @@ export const examService = {
     return response.data
   },
 
-  createExam: async (data: Partial<Exam>): Promise<{ message: string; exam: Exam }> => {
+  createExam: async (data: Partial<Exam> | any): Promise<{ message: string; exam: Exam }> => {
     const response = await api.post<{ message: string; exam: Exam }>('/exams', data)
     return response.data
   },

@@ -36,9 +36,11 @@ export interface Exam {
   is_published: boolean
   total_questions: number
   total_exercises: number
+  total_categories: number
   created_at: string
   updated_at?: string
   categories?: Category[]
+  image_url?: string
 }
 
 export interface Category {
@@ -49,6 +51,8 @@ export interface Category {
   percentage: number
   order: number
   total_topics: number
+  total_questions?: number
+  total_exercises?: number
   created_at: string
   topics?: Topic[]
 }
@@ -100,6 +104,25 @@ export interface AuthResponse {
   user: User
 }
 
+export interface CreateExamData {
+  name: string
+  version: string  // Código ECM - exactamente 7 caracteres
+  standard?: string  // Nombre del estándar (opcional, por defecto 'ECM')
+  stage_id: number
+  description?: string
+  instructions?: string
+  duration_minutes?: number
+  passing_score?: number
+  image_url?: string  // URL o base64 de la imagen del examen
+  categories: CreateCategoryData[]
+}
+
+export interface CreateCategoryData {
+  name: string
+  description?: string
+  percentage: number
+}
+
 export interface LoginCredentials {
   username: string
   password: string
@@ -125,6 +148,8 @@ export interface PaginatedResponse<T> {
   users?: T[]
   total: number
   pages: number
+  page?: number
+  per_page?: number
   current_page: number
   has_next?: boolean
   has_prev?: boolean

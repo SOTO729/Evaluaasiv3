@@ -1,10 +1,11 @@
-import { Outlet, Link, useNavigate } from 'react-router-dom'
+import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { authService } from '../../services/authService'
 
 const Layout = () => {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const handleLogout = async () => {
     try {
@@ -28,11 +29,25 @@ const Layout = () => {
                 Evaluaasi
               </Link>
               <nav className="ml-10 flex space-x-8">
-                <Link to="/dashboard" className="text-gray-900 hover:text-primary-600">
+                <Link 
+                  to="/dashboard" 
+                  className={`px-3 py-2 rounded-md transition-all ${
+                    location.pathname === '/dashboard' 
+                      ? 'text-primary-600 font-medium' 
+                      : 'text-gray-900 hover:text-primary-600'
+                  } hover:shadow-sm hover:bg-gray-50`}
+                >
                   Dashboard
                 </Link>
                 {user?.role !== 'alumno' && (
-                  <Link to="/exams" className="text-gray-900 hover:text-primary-600">
+                  <Link 
+                    to="/exams" 
+                    className={`px-3 py-2 rounded-md transition-all ${
+                      location.pathname.startsWith('/exams') 
+                        ? 'text-primary-600 font-medium' 
+                        : 'text-gray-900 hover:text-primary-600'
+                    } hover:shadow-sm hover:bg-gray-50`}
+                  >
                     Exámenes
                   </Link>
                 )}
