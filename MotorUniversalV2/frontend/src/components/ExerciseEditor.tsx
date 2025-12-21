@@ -38,6 +38,10 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   const [selectedTool, setSelectedTool] = useState<Tool>('select')
   const [selectedAction, setSelectedAction] = useState<ExerciseAction | null>(null)
   
+  // Estado para previsualización local de imagen mientras se guarda
+  const [localPreviewImage, setLocalPreviewImage] = useState<string | null>(null)
+  const [isCreatingStep, setIsCreatingStep] = useState(false)
+  
   // Estados para drag & resize
   const [dragState, setDragState] = useState<DragState>({
     isDragging: false,
@@ -83,12 +87,19 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     onSuccess: async (response) => {
       // Esperar a que se actualicen los datos
       await refetch()
+      // Limpiar previsualización local
+      setLocalPreviewImage(null)
+      setIsCreatingStep(false)
       // Navegar al nuevo paso creado (usar step_number - 1 como índice)
       const newStepNumber = response.step?.step_number
       if (newStepNumber) {
         setCurrentStepIndex(newStepNumber - 1)
       }
     },
+    onError: () => {
+      setLocalPreviewImage(null)
+      setIsCreatingStep(false)
+    }
   })
 
   const deleteStepMutation = useMutation({
@@ -317,19 +328,26 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     const file = e.target.files?.[0]
     if (!file) return
 
+    setIsCreatingStep(true)
+    
     const reader = new FileReader()
     reader.onload = (event) => {
+      const imageDataUrl = event.target?.result as string
+      
+      // Mostrar previsualización inmediata
+      setLocalPreviewImage(imageDataUrl)
+      
       const img = new Image()
       img.onload = () => {
         // Crear el paso con la imagen directamente
         createStepMutation.mutate({
           title: `Paso ${steps.length + 1}`,
-          image_url: event.target?.result as string,
+          image_url: imageDataUrl,
           image_width: img.width,
           image_height: img.height
         })
       }
-      img.src = event.target?.result as string
+      img.src = imageDataUrl
     }
     reader.readAsDataURL(file)
     
@@ -488,7 +506,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
             </div>
             
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
-              {steps.length === 0 ? (
+              {steps.length === 0 && !isCreatingStep ? (
                 <div className="text-center py-8">
                   <svg className="w-12 h-12 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -541,6 +559,29 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                   </div>
                 ))
               )}
+              
+              {/* Mostrar previsualización del nuevo paso mientras se crea */}
+              {isCreatingStep && localPreviewImage && (
+                <div className="rounded-lg ring-2 ring-primary-500 shadow-md animate-pulse">
+                  <div className="p-3 rounded-lg bg-primary-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-primary-700">
+                        Paso {steps.length + 1}
+                      </span>
+                      <svg className="animate-spin h-4 w-4 text-primary-600" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    </div>
+                    <div className="aspect-video bg-gray-100 rounded overflow-hidden">
+                      <img src={localPreviewImage} alt="Nuevo paso" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="mt-2 text-xs text-primary-600 font-medium text-center">
+                      Guardando...
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="p-3 border-t bg-white">
@@ -571,7 +612,30 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
 
           {/* Canvas area */}
           <div className="flex-1 overflow-auto bg-gray-100 p-6">
-            {currentStep ? (
+            {/* Mostrar previsualización mientras se crea el paso */}
+            {isCreatingStep && localPreviewImage ? (
+              <div className="max-w-5xl mx-auto">
+                <div className="relative bg-white shadow-xl rounded-lg overflow-hidden">
+                  <img
+                    src={localPreviewImage}
+                    alt="Previsualización"
+                    className="w-full h-auto"
+                    draggable={false}
+                  />
+                  {/* Overlay de cargando */}
+                  <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+                    <div className="bg-white rounded-lg p-6 shadow-xl text-center">
+                      <svg className="animate-spin h-10 w-10 text-primary-600 mx-auto" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <p className="mt-3 text-gray-700 font-medium">Guardando imagen...</p>
+                      <p className="text-sm text-gray-500">Por favor espera</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : currentStep ? (
               <div className="max-w-5xl mx-auto">
                 {currentStep.image_url ? (
                   <>
