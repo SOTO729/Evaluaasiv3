@@ -117,6 +117,11 @@ export const examService = {
     return response.data
   },
 
+  getExerciseDetails: async (exerciseId: string): Promise<{ exercise: any }> => {
+    const response = await api.get<{ exercise: any }>(`/exams/exercises/${exerciseId}/details`)
+    return response.data
+  },
+
   createExercise: async (topicId: number, data: { exercise_text: string; is_complete?: boolean }): Promise<{ message: string; exercise: any }> => {
     const response = await api.post<{ message: string; exercise: any }>(`/exams/topics/${topicId}/exercises`, data)
     return response.data
@@ -129,6 +134,78 @@ export const examService = {
 
   deleteExercise: async (id: string): Promise<{ message: string }> => {
     const response = await api.delete<{ message: string }>(`/exams/exercises/${id}`)
+    return response.data
+  },
+
+  // Exercise Steps
+  getExerciseSteps: async (exerciseId: string): Promise<{ steps: any[] }> => {
+    const response = await api.get<{ steps: any[] }>(`/exams/exercises/${exerciseId}/steps`)
+    return response.data
+  },
+
+  createExerciseStep: async (exerciseId: string, data: { title?: string; description?: string; image_url?: string; image_width?: number; image_height?: number }): Promise<{ message: string; step: any }> => {
+    const response = await api.post<{ message: string; step: any }>(`/exams/exercises/${exerciseId}/steps`, data)
+    return response.data
+  },
+
+  updateExerciseStep: async (stepId: string, data: { title?: string; description?: string; image_url?: string; image_width?: number; image_height?: number; step_number?: number }): Promise<{ message: string; step: any }> => {
+    const response = await api.put<{ message: string; step: any }>(`/exams/steps/${stepId}`, data)
+    return response.data
+  },
+
+  deleteExerciseStep: async (stepId: string): Promise<{ message: string }> => {
+    const response = await api.delete<{ message: string }>(`/exams/steps/${stepId}`)
+    return response.data
+  },
+
+  uploadStepImage: async (stepId: string, imageData: string, width?: number, height?: number): Promise<{ message: string; step: any }> => {
+    const response = await api.post<{ message: string; step: any }>(`/exams/steps/${stepId}/upload-image`, {
+      image_data: imageData,
+      image_width: width,
+      image_height: height
+    })
+    return response.data
+  },
+
+  // Exercise Actions
+  getStepActions: async (stepId: string): Promise<{ actions: any[] }> => {
+    const response = await api.get<{ actions: any[] }>(`/exams/steps/${stepId}/actions`)
+    return response.data
+  },
+
+  createStepAction: async (stepId: string, data: {
+    action_type: 'button' | 'textbox'
+    position_x: number
+    position_y: number
+    width: number
+    height: number
+    label?: string
+    placeholder?: string
+    correct_answer?: string
+    is_case_sensitive?: boolean
+  }): Promise<{ message: string; action: any }> => {
+    const response = await api.post<{ message: string; action: any }>(`/exams/steps/${stepId}/actions`, data)
+    return response.data
+  },
+
+  updateStepAction: async (actionId: string, data: {
+    action_type?: 'button' | 'textbox'
+    position_x?: number
+    position_y?: number
+    width?: number
+    height?: number
+    label?: string
+    placeholder?: string
+    correct_answer?: string
+    is_case_sensitive?: boolean
+    action_number?: number
+  }): Promise<{ message: string; action: any }> => {
+    const response = await api.put<{ message: string; action: any }>(`/exams/actions/${actionId}`, data)
+    return response.data
+  },
+
+  deleteStepAction: async (actionId: string): Promise<{ message: string }> => {
+    const response = await api.delete<{ message: string }>(`/exams/actions/${actionId}`)
     return response.data
   },
 }

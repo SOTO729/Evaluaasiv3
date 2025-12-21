@@ -101,10 +101,45 @@ export interface Exercise {
   id: string
   topic_id: number
   exercise_number: number
+  title?: string
   exercise_text: string
   image_url?: string
   is_complete: boolean
+  total_steps: number
+  steps?: ExerciseStep[]
   created_at: string
+}
+
+export interface ExerciseStep {
+  id: string
+  exercise_id: string
+  step_number: number
+  title?: string
+  description?: string
+  image_url?: string
+  image_width?: number
+  image_height?: number
+  total_actions: number
+  actions?: ExerciseAction[]
+  created_at: string
+  updated_at?: string
+}
+
+export interface ExerciseAction {
+  id: string
+  step_id: string
+  action_number: number
+  action_type: 'button' | 'textbox'
+  position_x: number  // Porcentaje desde la izquierda (0-100)
+  position_y: number  // Porcentaje desde arriba (0-100)
+  width: number       // Ancho en porcentaje
+  height: number      // Alto en porcentaje
+  label?: string
+  placeholder?: string
+  correct_answer?: string
+  is_case_sensitive: boolean
+  created_at: string
+  updated_at?: string
 }
 
 export interface AuthResponse {

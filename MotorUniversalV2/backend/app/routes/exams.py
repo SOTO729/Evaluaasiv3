@@ -10,7 +10,7 @@ from app.models.category import Category
 from app.models.topic import Topic
 from app.models.question import Question, QuestionType
 from app.models.answer import Answer
-from app.models.exercise import Exercise
+from app.models.exercise import Exercise, ExerciseStep, ExerciseAction
 
 bp = Blueprint('exams', __name__)
 
@@ -38,6 +38,29 @@ def require_permission(permission):
 @bp.route('/exercises/ping', methods=['GET', 'OPTIONS'])
 def exercises_ping():
     return jsonify({'status': 'ok', 'message': 'exercises routes loaded'}), 200
+
+
+# Endpoint temporal para crear las tablas de ejercicios
+@bp.route('/migrate-exercise-tables', methods=['POST', 'OPTIONS'])
+def migrate_exercise_tables():
+    """Crear tablas exercise_steps y exercise_actions si no existen"""
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
+    try:
+        # Importar db para crear tablas
+        db.create_all()
+        return jsonify({
+            'status': 'ok',
+            'message': 'Tablas creadas/verificadas correctamente',
+            'tables': ['exercise_steps', 'exercise_actions']
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 
 @bp.route('', methods=['GET'])
 @jwt_required()
@@ -860,4 +883,370 @@ def options_exercise_item(exercise_id):
     response.headers['Access-Control-Allow-Methods'] = 'PUT,DELETE,OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
     response.headers['Access-Control-Max-Age'] = '600'
+    return response
+
+
+# ============= EJERCICIO DETALLE (con steps) =============
+
+@bp.route('/exercises/<exercise_id>/details', methods=['GET'])
+@jwt_required()
+def get_exercise_details(exercise_id):
+    """
+    Obtener ejercicio con todos sus pasos y acciones
+    """
+    exercise = Exercise.query.get(exercise_id)
+    if not exercise:
+        return jsonify({'error': 'Ejercicio no encontrado'}), 404
+    
+    return jsonify({
+        'exercise': exercise.to_dict(include_steps=True)
+    }), 200
+
+
+# ============= PASOS DE EJERCICIO (STEPS) =============
+
+@bp.route('/exercises/<exercise_id>/steps', methods=['GET'])
+@jwt_required()
+def get_exercise_steps(exercise_id):
+    """
+    Listar todos los pasos de un ejercicio
+    """
+    exercise = Exercise.query.get(exercise_id)
+    if not exercise:
+        return jsonify({'error': 'Ejercicio no encontrado'}), 404
+    
+    steps = exercise.steps.order_by(ExerciseStep.step_number).all()
+    
+    return jsonify({
+        'steps': [step.to_dict(include_actions=True) for step in steps]
+    }), 200
+
+
+@bp.route('/exercises/<exercise_id>/steps', methods=['POST'])
+@jwt_required()
+@require_permission('exams:update')
+def create_exercise_step(exercise_id):
+    """
+    Crear un nuevo paso para un ejercicio
+    """
+    import uuid
+    
+    exercise = Exercise.query.get(exercise_id)
+    if not exercise:
+        return jsonify({'error': 'Ejercicio no encontrado'}), 404
+    
+    data = request.get_json()
+    
+    # Obtener el siguiente número de paso
+    last_step = exercise.steps.order_by(ExerciseStep.step_number.desc()).first()
+    next_number = (last_step.step_number + 1) if last_step else 1
+    
+    step = ExerciseStep(
+        id=str(uuid.uuid4()),
+        exercise_id=exercise_id,
+        step_number=next_number,
+        title=data.get('title'),
+        description=data.get('description'),
+        image_url=data.get('image_url'),
+        image_width=data.get('image_width'),
+        image_height=data.get('image_height')
+    )
+    
+    db.session.add(step)
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Paso creado exitosamente',
+        'step': step.to_dict(include_actions=True)
+    }), 201
+
+
+@bp.route('/exercises/<exercise_id>/steps', methods=['OPTIONS'])
+def options_exercise_steps(exercise_id):
+    response = jsonify({'status': 'ok'})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
+    return response
+
+
+@bp.route('/steps/<step_id>', methods=['GET'])
+@jwt_required()
+def get_step(step_id):
+    """
+    Obtener un paso específico
+    """
+    step = ExerciseStep.query.get(step_id)
+    if not step:
+        return jsonify({'error': 'Paso no encontrado'}), 404
+    
+    return jsonify({
+        'step': step.to_dict(include_actions=True)
+    }), 200
+
+
+@bp.route('/steps/<step_id>', methods=['PUT'])
+@jwt_required()
+@require_permission('exams:update')
+def update_step(step_id):
+    """
+    Actualizar un paso
+    """
+    from datetime import datetime
+    
+    step = ExerciseStep.query.get(step_id)
+    if not step:
+        return jsonify({'error': 'Paso no encontrado'}), 404
+    
+    data = request.get_json()
+    
+    if 'title' in data:
+        step.title = data['title']
+    if 'description' in data:
+        step.description = data['description']
+    if 'image_url' in data:
+        step.image_url = data['image_url']
+    if 'image_width' in data:
+        step.image_width = data['image_width']
+    if 'image_height' in data:
+        step.image_height = data['image_height']
+    if 'step_number' in data:
+        step.step_number = data['step_number']
+    
+    step.updated_at = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Paso actualizado exitosamente',
+        'step': step.to_dict(include_actions=True)
+    }), 200
+
+
+@bp.route('/steps/<step_id>', methods=['DELETE'])
+@jwt_required()
+@require_permission('exams:delete')
+def delete_step(step_id):
+    """
+    Eliminar un paso
+    """
+    step = ExerciseStep.query.get(step_id)
+    if not step:
+        return jsonify({'error': 'Paso no encontrado'}), 404
+    
+    db.session.delete(step)
+    db.session.commit()
+    
+    return jsonify({'message': 'Paso eliminado exitosamente'}), 200
+
+
+@bp.route('/steps/<step_id>', methods=['OPTIONS'])
+def options_step_item(step_id):
+    response = jsonify({'status': 'ok'})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,DELETE,OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
+    return response
+
+
+# ============= ACCIONES DE PASO (ACTIONS) =============
+
+@bp.route('/steps/<step_id>/actions', methods=['GET'])
+@jwt_required()
+def get_step_actions(step_id):
+    """
+    Listar todas las acciones de un paso
+    """
+    step = ExerciseStep.query.get(step_id)
+    if not step:
+        return jsonify({'error': 'Paso no encontrado'}), 404
+    
+    actions = step.actions.order_by(ExerciseAction.action_number).all()
+    
+    return jsonify({
+        'actions': [action.to_dict() for action in actions]
+    }), 200
+
+
+@bp.route('/steps/<step_id>/actions', methods=['POST'])
+@jwt_required()
+@require_permission('exams:update')
+def create_step_action(step_id):
+    """
+    Crear una nueva acción para un paso
+    """
+    import uuid
+    
+    step = ExerciseStep.query.get(step_id)
+    if not step:
+        return jsonify({'error': 'Paso no encontrado'}), 404
+    
+    data = request.get_json()
+    
+    # Validar tipo de acción
+    action_type = data.get('action_type')
+    if action_type not in ['button', 'textbox']:
+        return jsonify({'error': 'Tipo de acción inválido. Debe ser "button" o "textbox"'}), 400
+    
+    # Obtener el siguiente número de acción
+    last_action = step.actions.order_by(ExerciseAction.action_number.desc()).first()
+    next_number = (last_action.action_number + 1) if last_action else 1
+    
+    action = ExerciseAction(
+        id=str(uuid.uuid4()),
+        step_id=step_id,
+        action_number=next_number,
+        action_type=action_type,
+        position_x=data.get('position_x', 0),
+        position_y=data.get('position_y', 0),
+        width=data.get('width', 10),
+        height=data.get('height', 5),
+        label=data.get('label'),
+        placeholder=data.get('placeholder'),
+        correct_answer=data.get('correct_answer'),
+        is_case_sensitive=data.get('is_case_sensitive', False)
+    )
+    
+    db.session.add(action)
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Acción creada exitosamente',
+        'action': action.to_dict()
+    }), 201
+
+
+@bp.route('/steps/<step_id>/actions', methods=['OPTIONS'])
+def options_step_actions(step_id):
+    response = jsonify({'status': 'ok'})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
+    return response
+
+
+@bp.route('/actions/<action_id>', methods=['GET'])
+@jwt_required()
+def get_action(action_id):
+    """
+    Obtener una acción específica
+    """
+    action = ExerciseAction.query.get(action_id)
+    if not action:
+        return jsonify({'error': 'Acción no encontrada'}), 404
+    
+    return jsonify({
+        'action': action.to_dict()
+    }), 200
+
+
+@bp.route('/actions/<action_id>', methods=['PUT'])
+@jwt_required()
+@require_permission('exams:update')
+def update_action(action_id):
+    """
+    Actualizar una acción
+    """
+    from datetime import datetime
+    
+    action = ExerciseAction.query.get(action_id)
+    if not action:
+        return jsonify({'error': 'Acción no encontrada'}), 404
+    
+    data = request.get_json()
+    
+    if 'action_type' in data and data['action_type'] in ['button', 'textbox']:
+        action.action_type = data['action_type']
+    if 'position_x' in data:
+        action.position_x = data['position_x']
+    if 'position_y' in data:
+        action.position_y = data['position_y']
+    if 'width' in data:
+        action.width = data['width']
+    if 'height' in data:
+        action.height = data['height']
+    if 'label' in data:
+        action.label = data['label']
+    if 'placeholder' in data:
+        action.placeholder = data['placeholder']
+    if 'correct_answer' in data:
+        action.correct_answer = data['correct_answer']
+    if 'is_case_sensitive' in data:
+        action.is_case_sensitive = data['is_case_sensitive']
+    if 'action_number' in data:
+        action.action_number = data['action_number']
+    
+    action.updated_at = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Acción actualizada exitosamente',
+        'action': action.to_dict()
+    }), 200
+
+
+@bp.route('/actions/<action_id>', methods=['DELETE'])
+@jwt_required()
+@require_permission('exams:delete')
+def delete_action(action_id):
+    """
+    Eliminar una acción
+    """
+    action = ExerciseAction.query.get(action_id)
+    if not action:
+        return jsonify({'error': 'Acción no encontrada'}), 404
+    
+    db.session.delete(action)
+    db.session.commit()
+    
+    return jsonify({'message': 'Acción eliminada exitosamente'}), 200
+
+
+@bp.route('/actions/<action_id>', methods=['OPTIONS'])
+def options_action_item(action_id):
+    response = jsonify({'status': 'ok'})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,DELETE,OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
+    return response
+
+
+# ============= UPLOAD DE IMAGEN PARA STEP =============
+
+@bp.route('/steps/<step_id>/upload-image', methods=['POST'])
+@jwt_required()
+@require_permission('exams:update')
+def upload_step_image(step_id):
+    """
+    Subir imagen para un paso (como base64)
+    """
+    from datetime import datetime
+    
+    step = ExerciseStep.query.get(step_id)
+    if not step:
+        return jsonify({'error': 'Paso no encontrado'}), 404
+    
+    data = request.get_json()
+    
+    if 'image_data' not in data:
+        return jsonify({'error': 'Se requiere image_data (base64)'}), 400
+    
+    step.image_url = data['image_data']
+    step.image_width = data.get('image_width')
+    step.image_height = data.get('image_height')
+    step.updated_at = datetime.utcnow()
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Imagen subida exitosamente',
+        'step': step.to_dict()
+    }), 200
+
+
+@bp.route('/steps/<step_id>/upload-image', methods=['OPTIONS'])
+def options_upload_step_image(step_id):
+    response = jsonify({'status': 'ok'})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'POST,OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
     return response

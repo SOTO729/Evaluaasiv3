@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { examService } from '../../services/examService'
 import type { Question, Exercise } from '../../types'
 import RichTextEditor from '../../components/RichTextEditor'
+import ExerciseEditor from '../../components/ExerciseEditor'
 
 const TopicDetailPage = () => {
   const { examId, categoryId, topicId } = useParams<{ examId: string; categoryId: string; topicId: string }>()
@@ -22,6 +23,7 @@ const TopicDetailPage = () => {
   const [isEditExerciseModalOpen, setIsEditExerciseModalOpen] = useState(false)
   const [isDeleteExerciseModalOpen, setIsDeleteExerciseModalOpen] = useState(false)
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null)
+  const [isExerciseEditorOpen, setIsExerciseEditorOpen] = useState(false)
   
   const [formData, setFormData] = useState({
     question_type_id: '',
@@ -196,6 +198,12 @@ const TopicDetailPage = () => {
       is_complete: exercise.is_complete,
     })
     setIsEditExerciseModalOpen(true)
+  }
+
+  // Abrir editor visual de ejercicios
+  const handleOpenExerciseEditor = (exercise: Exercise) => {
+    setSelectedExercise(exercise)
+    setIsExerciseEditorOpen(true)
   }
 
   const handleUpdateExerciseSubmit = (e: React.FormEvent) => {
@@ -500,17 +508,24 @@ const TopicDetailPage = () => {
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Ejercicio
                       </th>
-                      <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
-                        Ejercicio Completo
+                      <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                        Pasos
                       </th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                      <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
+                        Estado
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-48">
                         Acciones
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {exercises.map((exercise: any, index: number) => (
-                      <tr key={exercise.id} className="hover:bg-gray-50">
+                      <tr 
+                        key={exercise.id} 
+                        className="hover:bg-gray-50 cursor-pointer"
+                        onClick={() => handleOpenExerciseEditor(exercise)}
+                      >
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-semibold text-sm">
                             {index + 1}
@@ -521,6 +536,11 @@ const TopicDetailPage = () => {
                             className="text-gray-900 prose prose-sm max-w-none"
                             dangerouslySetInnerHTML={{ __html: exercise.exercise_text }}
                           />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {exercise.total_steps || 0} paso(s)
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           {exercise.is_complete ? (
@@ -538,16 +558,34 @@ const TopicDetailPage = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <button
-                            onClick={() => handleEditExercise(exercise)}
-                            className="text-primary-600 hover:text-primary-900 mr-4"
-                            title="Editar ejercicio"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOpenExerciseEditor(exercise)
+                            }}
+                            className="text-blue-600 hover:text-blue-900 mr-3"
+                            title="Abrir editor de ejercicio"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleEditExercise(exercise)
+                            }}
+                            className="text-primary-600 hover:text-primary-900 mr-3"
+                            title="Editar descripción"
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
                           <button
-                            onClick={() => handleDeleteExercise(exercise)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteExercise(exercise)
+                            }}
                             className="text-red-600 hover:text-red-900"
                             title="Eliminar ejercicio"
                           >
@@ -844,6 +882,19 @@ const TopicDetailPage = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Editor de Ejercicios */}
+      {isExerciseEditorOpen && selectedExercise && (
+        <ExerciseEditor
+          exercise={selectedExercise}
+          onClose={() => {
+            setIsExerciseEditorOpen(false)
+            setSelectedExercise(null)
+            // Refrescar la lista de ejercicios
+            queryClient.invalidateQueries({ queryKey: ['exercises', topicId] })
+          }}
+        />
       )}
     </div>
   )
