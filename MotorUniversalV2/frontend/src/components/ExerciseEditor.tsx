@@ -29,6 +29,15 @@ interface ResizeState {
   startHeight: number
 }
 
+// Estado para crear área con arrastre (rubber band selection)
+interface DrawingState {
+  isDrawing: boolean
+  startX: number
+  startY: number
+  currentX: number
+  currentY: number
+}
+
 const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   const imageContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -61,6 +70,15 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     startWidth: 0,
     startHeight: 0
   })
+
+  // Estado para dibujar área con arrastre (rubber band)
+  const [drawingState, setDrawingState] = useState<DrawingState>({
+    isDrawing: false,
+    startX: 0,
+    startY: 0,
+    currentX: 0,
+    currentY: 0
+  })
   
   // Modal para editar acción
   const [isEditActionModalOpen, setIsEditActionModalOpen] = useState(false)
@@ -71,6 +89,21 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     is_case_sensitive: false
   })
 
+  // Modal de confirmación para eliminar paso
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{
+    isOpen: boolean
+    stepId: string | null
+    stepNumber: number | null
+    hasImage: boolean
+    actionsCount: number
+  }>({
+    isOpen: false,
+    stepId: null,
+    stepNumber: null,
+    hasImage: false,
+    actionsCount: 0
+  })
+
   // Query para obtener los detalles del ejercicio con steps y actions
   const { data: exerciseData, isLoading, refetch } = useQuery({
     queryKey: ['exercise-details', exercise.id],
@@ -79,6 +112,9 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
 
   const steps = exerciseData?.exercise?.steps || []
   const currentStep = steps[currentStepIndex] as ExerciseStep | undefined
+
+  // Debug: Log cuando cambian los datos
+  console.log('ExerciseEditor - steps:', steps.length, 'currentStep:', currentStep?.id, 'actions:', currentStep?.actions?.length || 0)
 
   // Mutations
   const createStepMutation = useMutation({
@@ -107,13 +143,23 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   })
 
   const deleteStepMutation = useMutation({
-    mutationFn: (stepId: string) => examService.deleteExerciseStep(stepId),
-    onSuccess: () => {
+    mutationFn: (stepId: string) => {
+      console.log('Deleting step:', stepId)
+      return examService.deleteExerciseStep(stepId)
+    },
+    onSuccess: (response) => {
+      console.log('Step deleted successfully:', response)
+      setDeleteConfirmModal({ isOpen: false, stepId: null, stepNumber: null, hasImage: false, actionsCount: 0 })
       refetch()
       if (currentStepIndex >= steps.length - 1 && currentStepIndex > 0) {
         setCurrentStepIndex(currentStepIndex - 1)
       }
     },
+    onError: (error) => {
+      console.error('Error deleting step:', error)
+      setDeleteConfirmModal({ isOpen: false, stepId: null, stepNumber: null, hasImage: false, actionsCount: 0 })
+      alert('Error al eliminar el paso. Por favor intente de nuevo.')
+    }
   })
 
   const uploadImageMutation = useMutation({
@@ -123,9 +169,17 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   })
 
   const createActionMutation = useMutation({
-    mutationFn: ({ stepId, data }: { stepId: string; data: any }) =>
-      examService.createStepAction(stepId, data),
-    onSuccess: () => refetch(),
+    mutationFn: ({ stepId, data }: { stepId: string; data: any }) => {
+      console.log('Creating action for step:', stepId, 'data:', data)
+      return examService.createStepAction(stepId, data)
+    },
+    onSuccess: (response) => {
+      console.log('Action created successfully:', response)
+      refetch()
+    },
+    onError: (error) => {
+      console.error('Error creating action:', error)
+    }
   })
 
   const updateActionMutation = useMutation({
@@ -163,28 +217,83 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     reader.readAsDataURL(file)
   }
 
-  // Handler para clic en la imagen (crear nueva acción)
-  const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  // Handler para iniciar dibujo de área (rubber band) - mousedown
+  const handleImageMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (selectedTool === 'select' || !currentStep || !imageContainerRef.current) return
-
+    
+    e.preventDefault()
     const rect = imageContainerRef.current.getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * 100
     const y = ((e.clientY - rect.top) / rect.height) * 100
 
-    const newAction = {
-      action_type: selectedTool as 'button' | 'textbox',
-      position_x: Math.max(0, Math.min(90, x - 5)), // Centrar el elemento
-      position_y: Math.max(0, Math.min(90, y - 2.5)),
-      width: selectedTool === 'button' ? 10 : 15,
-      height: selectedTool === 'button' ? 5 : 4,
-      label: selectedTool === 'button' ? 'Clic aquí' : '',
-      placeholder: selectedTool === 'textbox' ? 'Escribe aquí...' : '',
-      correct_answer: '',
-      is_case_sensitive: false
+    setDrawingState({
+      isDrawing: true,
+      startX: x,
+      startY: y,
+      currentX: x,
+      currentY: y
+    })
+  }
+
+  // Handler para actualizar área mientras arrastra - mousemove
+  const handleImageMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!drawingState.isDrawing || !imageContainerRef.current) return
+
+    const rect = imageContainerRef.current.getBoundingClientRect()
+    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))
+    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100))
+
+    setDrawingState(prev => ({
+      ...prev,
+      currentX: x,
+      currentY: y
+    }))
+  }
+
+  // Handler para finalizar dibujo y crear acción - mouseup
+  const handleImageMouseUp = () => {
+    if (!drawingState.isDrawing || !currentStep) {
+      setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
+      return
     }
 
-    createActionMutation.mutate({ stepId: currentStep.id, data: newAction })
-    setSelectedTool('select')
+    // Calcular posición y tamaño del área
+    const left = Math.min(drawingState.startX, drawingState.currentX)
+    const top = Math.min(drawingState.startY, drawingState.currentY)
+    const width = Math.abs(drawingState.currentX - drawingState.startX)
+    const height = Math.abs(drawingState.currentY - drawingState.startY)
+
+    // Solo crear si el área tiene un tamaño mínimo (evitar clics accidentales)
+    if (width > 2 && height > 2) {
+      const newAction = {
+        action_type: selectedTool as 'button' | 'textbox',
+        position_x: left,
+        position_y: top,
+        width: width,
+        height: height,
+        label: selectedTool === 'button' ? 'Clic aquí' : '',
+        placeholder: selectedTool === 'textbox' ? 'Escribe aquí...' : '',
+        correct_answer: '',
+        is_case_sensitive: false
+      }
+
+      createActionMutation.mutate({ stepId: currentStep.id, data: newAction })
+    }
+
+    // Resetear estado de dibujo
+    setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
+  }
+
+  // Calcular rectángulo de selección para mostrar mientras dibuja
+  const getDrawingRect = () => {
+    if (!drawingState.isDrawing) return null
+    
+    return {
+      left: Math.min(drawingState.startX, drawingState.currentX),
+      top: Math.min(drawingState.startY, drawingState.currentY),
+      width: Math.abs(drawingState.currentX - drawingState.startX),
+      height: Math.abs(drawingState.currentY - drawingState.startY)
+    }
   }
 
   // Handlers para drag
@@ -466,9 +575,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
               </button>
               <button
                 onClick={() => {
-                  if (confirm('¿Eliminar esta acción?')) {
-                    deleteActionMutation.mutate(selectedAction.id)
-                  }
+                  deleteActionMutation.mutate(selectedAction.id)
                 }}
                 className="px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium"
               >
@@ -537,9 +644,13 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            if (confirm('¿Eliminar este paso y todas sus acciones?')) {
-                              deleteStepMutation.mutate(step.id)
-                            }
+                            setDeleteConfirmModal({
+                              isOpen: true,
+                              stepId: step.id,
+                              stepNumber: step.step_number,
+                              hasImage: !!step.image_url,
+                              actionsCount: step.total_actions || step.actions?.length || 0
+                            })
                           }}
                           className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
                         >
@@ -645,23 +756,53 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                   <>
                     <div
                       ref={imageContainerRef}
-                      className="relative bg-white shadow-xl rounded-lg overflow-hidden"
-                      onClick={handleImageClick}
+                      className="relative bg-white shadow-xl rounded-lg select-none"
+                      onMouseDown={handleImageMouseDown}
+                      onMouseMove={handleImageMouseMove}
+                      onMouseUp={handleImageMouseUp}
+                      onMouseLeave={handleImageMouseUp}
                       style={{ cursor: selectedTool !== 'select' ? 'crosshair' : 'default' }}
                     >
                       <img
                         src={currentStep.image_url}
                         alt={`Paso ${currentStep.step_number}`}
-                        className="w-full h-auto"
+                        className="w-full h-auto pointer-events-none"
                         draggable={false}
                       />
+
+                      {/* Rubber band selection mientras dibuja */}
+                      {drawingState.isDrawing && (() => {
+                        const rect = getDrawingRect()
+                        if (!rect) return null
+                        return (
+                          <div
+                            className={`absolute border-2 border-dashed rounded pointer-events-none z-20 ${
+                              selectedTool === 'button'
+                                ? 'border-blue-500 bg-blue-200 bg-opacity-30'
+                                : 'border-green-500 bg-green-200 bg-opacity-30'
+                            }`}
+                            style={{
+                              left: `${rect.left}%`,
+                              top: `${rect.top}%`,
+                              width: `${rect.width}%`,
+                              height: `${rect.height}%`,
+                            }}
+                          >
+                            <div className="absolute inset-0 flex items-center justify-center text-xs font-medium">
+                              <span className={selectedTool === 'button' ? 'text-blue-700' : 'text-green-700'}>
+                                {rect.width.toFixed(0)}% × {rect.height.toFixed(0)}%
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })()}
                       
                       {/* Actions overlay */}
                       {currentStep.actions?.map((action: ExerciseAction) => (
                         <div
                           key={action.id}
                           data-action-id={action.id}
-                          className={`absolute border-2 rounded cursor-move transition-all ${
+                          className={`absolute border-2 rounded cursor-move transition-all z-10 ${
                             selectedAction?.id === action.id
                               ? 'border-primary-500 bg-primary-200 bg-opacity-50 shadow-lg'
                               : action.action_type === 'button'
@@ -935,6 +1076,93 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                 disabled={updateActionMutation.isPending}
               >
                 {updateActionMutation.isPending ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación para eliminar paso */}
+      {deleteConfirmModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200">
+            {/* Icono de advertencia */}
+            <div className="flex items-center justify-center w-16 h-16 mx-auto bg-red-100 rounded-full mb-4">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+            
+            {/* Título */}
+            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+              ¿Eliminar Paso {deleteConfirmModal.stepNumber}?
+            </h3>
+            
+            {/* Descripción */}
+            <p className="text-gray-600 text-center mb-4">
+              Esta acción no se puede deshacer. Se eliminará permanentemente:
+            </p>
+            
+            {/* Lista de elementos a eliminar */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-6 space-y-2">
+              {deleteConfirmModal.hasImage && (
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span>La imagen asociada al paso</span>
+                </div>
+              )}
+              {deleteConfirmModal.actionsCount > 0 && (
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                  </svg>
+                  <span>{deleteConfirmModal.actionsCount} área(s) interactiva(s)</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>Los datos del paso en la base de datos</span>
+              </div>
+            </div>
+
+            {/* Botones */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirmModal({ isOpen: false, stepId: null, stepNumber: null, hasImage: false, actionsCount: 0 })}
+                className="flex-1 px-4 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  if (deleteConfirmModal.stepId) {
+                    console.log('Button clicked, deleting step:', deleteConfirmModal.stepId)
+                    deleteStepMutation.mutate(deleteConfirmModal.stepId)
+                  }
+                }}
+                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                disabled={deleteStepMutation.isPending}
+              >
+                {deleteStepMutation.isPending ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Eliminando...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Sí, Eliminar
+                  </>
+                )}
               </button>
             </div>
           </div>
