@@ -1250,7 +1250,13 @@ def create_step_action(step_id):
         label=data.get('label'),
         placeholder=data.get('placeholder'),
         correct_answer=data.get('correct_answer'),
-        is_case_sensitive=data.get('is_case_sensitive', False)
+        is_case_sensitive=data.get('is_case_sensitive', False),
+        scoring_mode=data.get('scoring_mode', 'exact'),
+        on_error_action=data.get('on_error_action', 'next_step'),
+        error_message=data.get('error_message'),
+        max_attempts=data.get('max_attempts', 3),
+        text_color=data.get('text_color', '#000000'),
+        font_family=data.get('font_family', 'Arial')
     )
     
     db.session.add(action)
@@ -1329,6 +1335,18 @@ def update_action(action_id):
         action.is_case_sensitive = data['is_case_sensitive']
     if 'action_number' in data:
         action.action_number = data['action_number']
+    if 'scoring_mode' in data:
+        action.scoring_mode = data['scoring_mode']
+    if 'on_error_action' in data:
+        action.on_error_action = data['on_error_action']
+    if 'error_message' in data:
+        action.error_message = data['error_message']
+    if 'max_attempts' in data:
+        action.max_attempts = data['max_attempts']
+    if 'text_color' in data:
+        action.text_color = data['text_color']
+    if 'font_family' in data:
+        action.font_family = data['font_family']
     
     action.updated_at = datetime.utcnow()
     db.session.commit()

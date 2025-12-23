@@ -119,6 +119,16 @@ class ExerciseAction(db.Model):
     correct_answer = db.Column(db.Text)  # Respuesta correcta (para textbox) o identificador del clic correcto
     is_case_sensitive = db.Column(db.Boolean, default=False)  # Para comparación de texto
     
+    # Scoring y manejo de errores
+    scoring_mode = db.Column(db.String(20), default='exact')  # 'exact' o 'similarity'
+    on_error_action = db.Column(db.String(20), default='next_step')  # 'show_message', 'next_step', 'next_exercise'
+    error_message = db.Column(db.Text)  # Mensaje personalizado cuando hay error
+    max_attempts = db.Column(db.Integer, default=3)  # Intentos máximos permitidos
+    
+    # Personalización de textbox
+    text_color = db.Column(db.String(20), default='#000000')  # Color del texto para textbox
+    font_family = db.Column(db.String(50), default='Arial')  # Fuente del texto para textbox
+    
     # Auditoría
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -138,6 +148,12 @@ class ExerciseAction(db.Model):
             'placeholder': self.placeholder,
             'correct_answer': self.correct_answer,
             'is_case_sensitive': self.is_case_sensitive,
+            'scoring_mode': self.scoring_mode,
+            'on_error_action': self.on_error_action,
+            'error_message': self.error_message,
+            'max_attempts': self.max_attempts,
+            'text_color': self.text_color,
+            'font_family': self.font_family,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
