@@ -864,54 +864,70 @@ def delete_exercise(exercise_id):
     """
     Eliminar un ejercicio, todos sus pasos, acciones e imágenes del blob storage
     """
+    import sys
     from app.utils.azure_storage import AzureStorageService
     
-    print(f"\n=== ELIMINAR EJERCICIO ===")
-    print(f"Exercise ID: {exercise_id}")
+    # Forzar flush para que los logs se muestren inmediatamente
+    def log(msg):
+        print(msg, flush=True)
+        sys.stdout.flush()
+    
+    log(f"\n{'='*50}")
+    log(f"=== ELIMINAR EJERCICIO ===")
+    log(f"{'='*50}")
+    log(f"Exercise ID: {exercise_id}")
     
     exercise = Exercise.query.get(exercise_id)
     if not exercise:
-        print(f"ERROR: Ejercicio {exercise_id} no encontrado")
+        log(f"ERROR: Ejercicio {exercise_id} no encontrado")
         return jsonify({'error': 'Ejercicio no encontrado'}), 404
     
     # Obtener todos los pasos para eliminar sus imágenes
     steps = exercise.steps.all()
-    print(f"Ejercicio tiene {len(steps)} pasos")
+    log(f"📊 Ejercicio tiene {len(steps)} pasos")
     
     # Eliminar imágenes de blob storage
     storage = AzureStorageService()
     images_deleted = 0
     images_failed = 0
     
-    for step in steps:
-        if step.image_url:
-            print(f"Eliminando imagen del paso {step.step_number}: {step.image_url}")
-            try:
-                if storage.delete_file(step.image_url):
-                    images_deleted += 1
-                    print(f"  ✓ Imagen eliminada")
-                else:
+    if len(steps) > 0:
+        log(f"\n🗑️  ELIMINANDO IMÁGENES DEL BLOB STORAGE:")
+        for step in steps:
+            if step.image_url:
+                log(f"  → Eliminando imagen del paso {step.step_number}: {step.image_url[:80]}...")
+                try:
+                    if storage.delete_file(step.image_url):
+                        images_deleted += 1
+                        log(f"    ✓ Imagen eliminada exitosamente")
+                    else:
+                        images_failed += 1
+                        log(f"    ✗ No se pudo eliminar imagen")
+                except Exception as e:
                     images_failed += 1
-                    print(f"  ✗ No se pudo eliminar imagen")
-            except Exception as e:
-                images_failed += 1
-                print(f"  ✗ Error al eliminar imagen: {str(e)}")
+                    log(f"    ✗ Error al eliminar imagen: {str(e)}")
     
     # Contar acciones antes de eliminar
     total_actions = sum(step.actions.count() for step in steps)
-    print(f"Ejercicio tiene {total_actions} acciones en total")
+    log(f"\n📊 Ejercicio tiene {total_actions} acciones en total")
     
     # Eliminar ejercicio (cascade eliminará pasos y acciones automáticamente)
+    log(f"\n🗑️  ELIMINANDO EJERCICIO DE LA BASE DE DATOS...")
     db.session.delete(exercise)
     db.session.commit()
     
-    print(f"✓ Ejercicio eliminado de la base de datos")
-    print(f"✓ {len(steps)} pasos eliminados (cascade)")
-    print(f"✓ {total_actions} acciones eliminadas (cascade)")
-    print(f"✓ {images_deleted} imágenes eliminadas del blob storage")
+    log(f"\n{'='*50}")
+    log(f"✅ RESUMEN DE ELIMINACIÓN:")
+    log(f"{'='*50}")
+    log(f"✓ Ejercicio eliminado de la base de datos")
+    log(f"✓ {len(steps)} pasos eliminados (cascade)")
+    log(f"✓ {total_actions} acciones eliminadas (cascade)")
+    log(f"✓ {images_deleted} imágenes eliminadas del blob storage")
     if images_failed > 0:
-        print(f"✗ {images_failed} imágenes no se pudieron eliminar")
-    print(f"=== FIN ELIMINAR EJERCICIO ===")
+        log(f"✗ {images_failed} imágenes no se pudieron eliminar")
+    log(f"{'='*50}")
+    log(f"=== FIN ELIMINAR EJERCICIO ===")
+    log(f"{'='*50}\n")
     
     return jsonify({
         'message': 'Ejercicio eliminado exitosamente',
