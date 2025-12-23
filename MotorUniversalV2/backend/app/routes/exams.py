@@ -1466,125 +1466,134 @@ def validate_exam(exam_id):
     - Los ejercicios tienen al menos un paso
     - Los pasos tienen imagen y al menos una acción
     """
-    print(f"\n=== VALIDAR EXAMEN {exam_id} ===")
-    
-    exam = Exam.query.get(exam_id)
-    if not exam:
-        return jsonify({'error': 'Examen no encontrado'}), 404
-    
-    errors = []
-    warnings = []
-    
-    # 1. Verificar que tenga categorías
-    categories = Category.query.filter_by(exam_id=exam_id).all()
-    if not categories:
-        errors.append({
-            'type': 'exam',
-            'message': 'El examen no tiene categorías',
-            'details': 'Debes agregar al menos una categoría al examen'
-        })
-    else:
-        # 2. Verificar que las categorías sumen 100%
-        total_percentage = sum(c.percentage or 0 for c in categories)
-        if total_percentage != 100:
-            errors.append({
-                'type': 'categories',
-                'message': f'Las categorías suman {total_percentage}%, deben sumar 100%',
-                'details': 'Ajusta los porcentajes de las categorías para que sumen exactamente 100%'
-            })
+    try:
+        print(f"\n=== VALIDAR EXAMEN {exam_id} ===")
         
-        # 3. Verificar cada categoría
-        for category in categories:
-            topics = Topic.query.filter_by(category_id=category.id).all()
-            
-            if not topics:
+        exam = Exam.query.get(exam_id)
+        if not exam:
+            return jsonify({'error': 'Examen no encontrado'}), 404
+        
+        errors = []
+        warnings = []
+        
+        # 1. Verificar que tenga categorías
+        categories = Category.query.filter_by(exam_id=exam_id).all()
+        if not categories:
+            errors.append({
+                'type': 'exam',
+                'message': 'El examen no tiene categorías',
+                'details': 'Debes agregar al menos una categoría al examen'
+            })
+        else:
+            # 2. Verificar que las categorías sumen 100%
+            total_percentage = sum(c.percentage or 0 for c in categories)
+            if total_percentage != 100:
                 errors.append({
-                    'type': 'category',
-                    'message': f'La categoría "{category.name}" no tiene temas',
-                    'details': f'Agrega al menos un tema a la categoría "{category.name}"'
+                    'type': 'categories',
+                    'message': f'Las categorías suman {total_percentage}%, deben sumar 100%',
+                    'details': 'Ajusta los porcentajes de las categorías para que sumen exactamente 100%'
                 })
-                continue
             
-            # 4. Verificar cada tema
-            for topic in topics:
-                questions = Question.query.filter_by(topic_id=topic.id).all()
-                exercises = Exercise.query.filter_by(topic_id=topic.id).all()
+            # 3. Verificar cada categoría
+            for category in categories:
+                topics = Topic.query.filter_by(category_id=category.id).all()
                 
-                if not questions and not exercises:
+                if not topics:
                     errors.append({
-                        'type': 'topic',
-                        'message': f'El tema "{topic.name}" no tiene preguntas ni ejercicios',
-                        'details': f'Agrega al menos una pregunta o ejercicio al tema "{topic.name}" en la categoría "{category.name}"'
+                        'type': 'category',
+                        'message': f'La categoría "{category.name}" no tiene temas',
+                        'details': f'Agrega al menos un tema a la categoría "{category.name}"'
                     })
                     continue
                 
-                # 5. Verificar preguntas
-                for question in questions:
-                    from app.models.answer import Answer
-                    answers = Answer.query.filter_by(question_id=question.id).all()
+                # 4. Verificar cada tema
+                for topic in topics:
+                    questions = Question.query.filter_by(topic_id=topic.id).all()
+                    exercises = Exercise.query.filter_by(topic_id=topic.id).all()
                     
-                    if not answers:
+                    if not questions and not exercises:
                         errors.append({
-                            'type': 'question',
-                            'message': f'La pregunta #{question.question_number} en "{topic.name}" no tiene respuestas',
-                            'details': f'Configura las respuestas para la pregunta #{question.question_number}'
+                            'type': 'topic',
+                            'message': f'El tema "{topic.name}" no tiene preguntas ni ejercicios',
+                            'details': f'Agrega al menos una pregunta o ejercicio al tema "{topic.name}" en la categoría "{category.name}"'
                         })
-                    else:
-                        # Verificar que tenga al menos una respuesta correcta
-                        correct_answers = [a for a in answers if a.is_correct]
-                        if not correct_answers:
+                        continue
+                    
+                    # 5. Verificar preguntas
+                    for question in questions:
+                        answers = Answer.query.filter_by(question_id=question.id).all()
+                        
+                        if not answers:
                             errors.append({
                                 'type': 'question',
-                                'message': f'La pregunta #{question.question_number} en "{topic.name}" no tiene respuesta correcta',
-                                'details': f'Marca al menos una respuesta como correcta para la pregunta #{question.question_number}'
+                                'message': f'La pregunta #{question.question_number} en "{topic.name}" no tiene respuestas',
+                                'details': f'Configura las respuestas para la pregunta #{question.question_number}'
                             })
-                
-                # 6. Verificar ejercicios
-                for exercise in exercises:
-                    steps = ExerciseStep.query.filter_by(exercise_id=exercise.id).all()
+                        else:
+                            # Verificar que tenga al menos una respuesta correcta
+                            correct_answers = [a for a in answers if a.is_correct]
+                            if not correct_answers:
+                                errors.append({
+                                    'type': 'question',
+                                    'message': f'La pregunta #{question.question_number} en "{topic.name}" no tiene respuesta correcta',
+                                    'details': f'Marca al menos una respuesta como correcta para la pregunta #{question.question_number}'
+                                })
                     
-                    if not steps:
-                        errors.append({
-                            'type': 'exercise',
-                            'message': f'El ejercicio "{exercise.title or f"#{exercise.exercise_number}"}" en "{topic.name}" no tiene pasos',
-                            'details': f'Agrega al menos un paso al ejercicio'
-                        })
-                    else:
-                        for step in steps:
-                            # Verificar que el paso tenga imagen
-                            if not step.image_url:
-                                warnings.append({
-                                    'type': 'step',
-                                    'message': f'El paso #{step.step_number} del ejercicio "{exercise.title or f"#{exercise.exercise_number}"}" no tiene imagen',
-                                    'details': 'Es recomendable agregar una imagen al paso'
-                                })
-                            
-                            # Verificar que el paso tenga acciones
-                            actions = ExerciseAction.query.filter_by(step_id=step.id).all()
-                            if not actions:
-                                warnings.append({
-                                    'type': 'step',
-                                    'message': f'El paso #{step.step_number} del ejercicio "{exercise.title or f"#{exercise.exercise_number}"}" no tiene acciones',
-                                    'details': 'Es recomendable agregar al menos una acción (botón o campo de texto) al paso'
-                                })
+                    # 6. Verificar ejercicios
+                    for exercise in exercises:
+                        steps = ExerciseStep.query.filter_by(exercise_id=exercise.id).all()
+                        
+                        if not steps:
+                            errors.append({
+                                'type': 'exercise',
+                                'message': f'El ejercicio "{exercise.title or f"#{exercise.exercise_number}"}" en "{topic.name}" no tiene pasos',
+                                'details': f'Agrega al menos un paso al ejercicio'
+                            })
+                        else:
+                            for step in steps:
+                                # Verificar que el paso tenga imagen
+                                if not step.image_url:
+                                    warnings.append({
+                                        'type': 'step',
+                                        'message': f'El paso #{step.step_number} del ejercicio "{exercise.title or f"#{exercise.exercise_number}"}" no tiene imagen',
+                                        'details': 'Es recomendable agregar una imagen al paso'
+                                    })
+                                
+                                # Verificar que el paso tenga acciones
+                                actions = ExerciseAction.query.filter_by(step_id=step.id).all()
+                                if not actions:
+                                    warnings.append({
+                                        'type': 'step',
+                                        'message': f'El paso #{step.step_number} del ejercicio "{exercise.title or f"#{exercise.exercise_number}"}" no tiene acciones',
+                                        'details': 'Es recomendable agregar al menos una acción (botón o campo de texto) al paso'
+                                    })
+        
+        is_valid = len(errors) == 0
+        
+        print(f"Validación completada: {'VÁLIDO' if is_valid else 'INVÁLIDO'}")
+        print(f"Errores: {len(errors)}, Advertencias: {len(warnings)}")
+        print(f"=== FIN VALIDAR EXAMEN ===")
+        
+        return jsonify({
+            'is_valid': is_valid,
+            'errors': errors,
+            'warnings': warnings,
+            'summary': {
+                'total_categories': len(categories) if categories else 0,
+                'total_topics': sum(Topic.query.filter_by(category_id=c.id).count() for c in categories) if categories else 0,
+                'total_questions': exam.total_questions or 0,
+                'total_exercises': exam.total_exercises or 0
+            }
+        }), 200
     
-    is_valid = len(errors) == 0
-    
-    print(f"Validación completada: {'VÁLIDO' if is_valid else 'INVÁLIDO'}")
-    print(f"Errores: {len(errors)}, Advertencias: {len(warnings)}")
-    print(f"=== FIN VALIDAR EXAMEN ===")
-    
-    return jsonify({
-        'is_valid': is_valid,
-        'errors': errors,
-        'warnings': warnings,
-        'summary': {
-            'total_categories': len(categories) if categories else 0,
-            'total_topics': sum(Topic.query.filter_by(category_id=c.id).count() for c in categories) if categories else 0,
-            'total_questions': exam.total_questions or 0,
-            'total_exercises': exam.total_exercises or 0
-        }
-    }), 200
+    except Exception as e:
+        print(f"ERROR en validación: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'error': 'Error al validar el examen',
+            'message': str(e)
+        }), 500
 
 
 @bp.route('/<int:exam_id>/validate', methods=['OPTIONS'])
