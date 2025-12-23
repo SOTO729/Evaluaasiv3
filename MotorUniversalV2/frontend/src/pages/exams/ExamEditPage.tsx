@@ -1,10 +1,55 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { examService } from '../../services/examService'
 import { useAuthStore } from '../../store/authStore'
 import api from '../../services/api'
 import LoadingSpinner from '../../components/LoadingSpinner'
+
+// Componente de notificación toast
+interface ToastProps {
+  message: string
+  type: 'success' | 'error'
+  onClose: () => void
+}
+
+const Toast = ({ message, type, onClose }: ToastProps) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose()
+    }, 5000)
+    return () => clearTimeout(timer)
+  }, [onClose])
+
+  return (
+    <div className="fixed top-4 right-4 z-50 animate-slide-in">
+      <div className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${
+        type === 'success' 
+          ? 'bg-green-600 text-white' 
+          : 'bg-red-600 text-white'
+      }`}>
+        {type === 'success' ? (
+          <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        ) : (
+          <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )}
+        <span className="font-medium">{message}</span>
+        <button
+          onClick={onClose}
+          className="ml-2 hover:opacity-80 transition-opacity"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  )
+}
 
 interface ValidationError {
   type: string
@@ -29,6 +74,7 @@ const ExamEditPage = () => {
     summary: { total_categories: number; total_topics: number; total_questions: number; total_exercises: number }
   } | null>(null)
   const [isValidating, setIsValidating] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   
   const { data: exam, isLoading, error } = useQuery({
     queryKey: ['exam', id],
@@ -65,11 +111,14 @@ const ExamEditPage = () => {
       queryClient.invalidateQueries({ queryKey: ['exams'] })
       setShowPublishModal(false)
       setValidationResult(null)
-      alert('¡Examen publicado exitosamente!')
+      setToast({ message: '¡Examen publicado exitosamente! Ya está disponible para los estudiantes.', type: 'success' })
     },
     onError: (error: any) => {
       console.error('Error publishing exam:', error)
-      alert(`Error al publicar el examen: ${error.response?.data?.error || error.message || 'Error desconocido'}`)
+      setToast({ 
+        message: `Error al publicar: ${error.response?.data?.message || error.response?.data?.error || error.message || 'Error desconocido'}`, 
+        type: 'error' 
+      })
     },
   })
 
@@ -535,6 +584,15 @@ const ExamEditPage = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Toast de notificación */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   )
