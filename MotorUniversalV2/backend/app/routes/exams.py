@@ -199,9 +199,6 @@ def create_exam():
     if not categories:
         return jsonify({'error': 'Debe incluir al menos un módulo'}), 400
     
-    if len(categories) > 5:
-        return jsonify({'error': 'Máximo 5 módulos permitidos'}), 400
-    
     # Validar que la suma de porcentajes sea 100
     total_percentage = sum(cat.get('percentage', 0) for cat in categories)
     if total_percentage != 100:
