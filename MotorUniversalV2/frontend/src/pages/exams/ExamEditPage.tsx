@@ -82,8 +82,9 @@ const ExamEditPage = () => {
       const result = await examService.validateExam(Number(id))
       setValidationResult(result)
       setShowPublishModal(true)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error validating exam:', error)
+      alert(`Error al validar el examen: ${error.response?.data?.error || error.message || 'Error desconocido'}`)
     } finally {
       setIsValidating(false)
     }
