@@ -623,7 +623,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
             <h1 className="text-xl font-semibold text-gray-900">Editor de Ejercicio</h1>
             <div className="flex items-center gap-2 mt-0.5">
               <p className="text-sm text-gray-500">
-                {exercise.title || exercise.exercise_text?.replace(/<[^>]*>/g, '').substring(0, 50) || 'Sin título'}
+                Ejercicio #{exercise.exercise_number || 'N/A'}
               </p>
               {exercise.exercise_text && (
                 <button
@@ -632,14 +632,14 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                 >
                   {showExerciseDescription ? (
                     <>
-                      Ocultar descripción
+                      Ocultar vista
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                       </svg>
                     </>
                   ) : (
                     <>
-                      Ver descripción completa
+                      Vista del ejercicio
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
