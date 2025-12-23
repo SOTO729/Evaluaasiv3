@@ -862,16 +862,64 @@ def update_exercise(exercise_id):
 @require_permission('exams:delete')
 def delete_exercise(exercise_id):
     """
-    Eliminar un ejercicio
+    Eliminar un ejercicio, todos sus pasos, acciones e imágenes del blob storage
     """
+    from app.utils.azure_storage import AzureStorageService
+    
+    print(f"\n=== ELIMINAR EJERCICIO ===")
+    print(f"Exercise ID: {exercise_id}")
+    
     exercise = Exercise.query.get(exercise_id)
     if not exercise:
+        print(f"ERROR: Ejercicio {exercise_id} no encontrado")
         return jsonify({'error': 'Ejercicio no encontrado'}), 404
     
+    # Obtener todos los pasos para eliminar sus imágenes
+    steps = exercise.steps.all()
+    print(f"Ejercicio tiene {len(steps)} pasos")
+    
+    # Eliminar imágenes de blob storage
+    storage = AzureStorageService()
+    images_deleted = 0
+    images_failed = 0
+    
+    for step in steps:
+        if step.image_url:
+            print(f"Eliminando imagen del paso {step.step_number}: {step.image_url}")
+            try:
+                if storage.delete_file(step.image_url):
+                    images_deleted += 1
+                    print(f"  ✓ Imagen eliminada")
+                else:
+                    images_failed += 1
+                    print(f"  ✗ No se pudo eliminar imagen")
+            except Exception as e:
+                images_failed += 1
+                print(f"  ✗ Error al eliminar imagen: {str(e)}")
+    
+    # Contar acciones antes de eliminar
+    total_actions = sum(step.actions.count() for step in steps)
+    print(f"Ejercicio tiene {total_actions} acciones en total")
+    
+    # Eliminar ejercicio (cascade eliminará pasos y acciones automáticamente)
     db.session.delete(exercise)
     db.session.commit()
     
-    return jsonify({'message': 'Ejercicio eliminado exitosamente'}), 200
+    print(f"✓ Ejercicio eliminado de la base de datos")
+    print(f"✓ {len(steps)} pasos eliminados (cascade)")
+    print(f"✓ {total_actions} acciones eliminadas (cascade)")
+    print(f"✓ {images_deleted} imágenes eliminadas del blob storage")
+    if images_failed > 0:
+        print(f"✗ {images_failed} imágenes no se pudieron eliminar")
+    print(f"=== FIN ELIMINAR EJERCICIO ===")
+    
+    return jsonify({
+        'message': 'Ejercicio eliminado exitosamente',
+        'steps_deleted': len(steps),
+        'actions_deleted': total_actions,
+        'images_deleted': images_deleted,
+        'images_failed': images_failed
+    }), 200
 
 
 @bp.route('/exercises/<exercise_id>', methods=['OPTIONS'])
