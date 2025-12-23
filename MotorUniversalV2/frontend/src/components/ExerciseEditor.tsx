@@ -8,7 +8,7 @@ interface ExerciseEditorProps {
   onClose: () => void
 }
 
-type Tool = 'select' | 'button' | 'textbox'
+type Tool = 'select' | 'button' | 'button-wrong' | 'textbox'
 
 interface DragState {
   isDragging: boolean
@@ -86,7 +86,13 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     label: '',
     placeholder: '',
     correct_answer: '',
-    is_case_sensitive: false
+    scoring_mode: 'exact',
+    showPlaceholder: false,
+    on_error_action: 'next_step',
+    error_message: '',
+    max_attempts: 3,
+    text_color: '#000000',
+    font_family: 'Arial'
   })
 
   // Modal de confirmación para eliminar paso
@@ -265,16 +271,24 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
 
     // Solo crear si el área tiene un tamaño mínimo (evitar clics accidentales)
     if (width > 2 && height > 2) {
+      // Calcular el número de la nueva acción
+      const currentActions = currentStep.actions || []
+      const nextActionNumber = currentActions.length + 1
+      
+      // Determinar el tipo de acción y configuración
+      const isButton = selectedTool === 'button' || selectedTool === 'button-wrong'
+      const isCorrectButton = selectedTool === 'button'
+      
       const newAction = {
-        action_type: selectedTool as 'button' | 'textbox',
+        action_type: isButton ? 'button' : 'textbox',
         position_x: left,
         position_y: top,
         width: width,
         height: height,
-        label: selectedTool === 'button' ? 'Clic aquí' : '',
-        placeholder: selectedTool === 'textbox' ? 'Escribe aquí...' : '',
-        correct_answer: '',
-        is_case_sensitive: false
+        label: isButton ? `Botón ${nextActionNumber}` : '',
+        placeholder: '',
+        correct_answer: isButton ? (isCorrectButton ? 'correct' : 'wrong') : '',
+        scoring_mode: 'exact'
       }
 
       createActionMutation.mutate({ stepId: currentStep.id, data: newAction })
@@ -421,7 +435,13 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       label: action.label || '',
       placeholder: action.placeholder || '',
       correct_answer: action.correct_answer || '',
-      is_case_sensitive: action.is_case_sensitive
+      scoring_mode: (action as any).scoring_mode || 'exact',
+      showPlaceholder: !!(action.placeholder && action.placeholder.trim() !== ''),
+      on_error_action: (action as any).on_error_action || 'next_step',
+      error_message: (action as any).error_message || '',
+      max_attempts: (action as any).max_attempts || 3,
+      text_color: (action as any).text_color || '#000000',
+      font_family: (action as any).font_family || 'Arial'
     })
     setIsEditActionModalOpen(true)
   }
@@ -429,9 +449,18 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   const handleSaveAction = () => {
     if (!selectedAction) return
     
+    // Preparar los datos, eliminando el placeholder si showPlaceholder es false
+    const dataToSend = {
+      ...actionFormData,
+      placeholder: actionFormData.showPlaceholder ? actionFormData.placeholder : ''
+    }
+    
+    // Eliminar showPlaceholder ya que no es un campo del backend
+    const { showPlaceholder, ...backendData } = dataToSend
+    
     updateActionMutation.mutate({
       actionId: selectedAction.id,
-      data: actionFormData
+      data: backendData
     })
     setIsEditActionModalOpen(false)
   }
@@ -522,8 +551,24 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
             {steps.length} paso(s) • {currentStep?.actions?.length || 0} acción(es) en paso actual
           </span>
           <button
-            onClick={onClose}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+            onClick={() => {
+              // Actualizar el ejercicio como completo antes de cerrar
+              examService.updateExercise(exercise.id, { is_complete: true })
+                .then(() => {
+                  onClose()
+                })
+                .catch((error) => {
+                  console.error('Error al actualizar ejercicio:', error)
+                  onClose()
+                })
+            }}
+            disabled={steps.length === 0}
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              steps.length === 0 
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                : 'bg-primary-600 text-white hover:bg-primary-700'
+            }`}
+            title={steps.length === 0 ? 'Debes crear al menos un paso antes de guardar' : ''}
           >
             Guardar y Salir
           </button>
@@ -546,10 +591,19 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
             <button
               onClick={() => setSelectedTool('button')}
               className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'button' ? 'bg-blue-600 text-white' : 'bg-white border hover:bg-gray-100'}`}
-              title="Agregar Botón (área de clic)"
+              title="Agregar Botón Correcto"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setSelectedTool('button-wrong')}
+              className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'button-wrong' ? 'bg-orange-600 text-white' : 'bg-white border hover:bg-gray-100'}`}
+              title="Agregar Botón Incorrecto/Erróneo"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </button>
             <button
@@ -589,12 +643,17 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
           <div className="flex items-center gap-2 text-sm">
             {selectedTool === 'button' && (
               <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg">
-                🖱️ Haz clic en la imagen para agregar un área de clic
+                ✅ Dibuja un área en la imagen para agregar un botón correcto
+              </span>
+            )}
+            {selectedTool === 'button-wrong' && (
+              <span className="px-3 py-1.5 bg-orange-50 text-orange-700 rounded-lg">
+                ❌ Dibuja un área en la imagen para agregar un botón incorrecto
               </span>
             )}
             {selectedTool === 'textbox' && (
               <span className="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg">
-                ✏️ Haz clic en la imagen para agregar un campo de texto
+                ✏️ Dibuja un área en la imagen para agregar un campo de texto
               </span>
             )}
             {selectedTool === 'select' && currentStep?.image_url && (
@@ -779,6 +838,8 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                             className={`absolute border-2 border-dashed rounded pointer-events-none z-20 ${
                               selectedTool === 'button'
                                 ? 'border-blue-500 bg-blue-200 bg-opacity-30'
+                                : selectedTool === 'button-wrong'
+                                ? 'border-orange-500 bg-orange-200 bg-opacity-30'
                                 : 'border-green-500 bg-green-200 bg-opacity-30'
                             }`}
                             style={{
@@ -789,7 +850,13 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                             }}
                           >
                             <div className="absolute inset-0 flex items-center justify-center text-xs font-medium">
-                              <span className={selectedTool === 'button' ? 'text-blue-700' : 'text-green-700'}>
+                              <span className={
+                                selectedTool === 'button' 
+                                  ? 'text-blue-700' 
+                                  : selectedTool === 'button-wrong' 
+                                  ? 'text-orange-700' 
+                                  : 'text-green-700'
+                              }>
                                 {rect.width.toFixed(0)}% × {rect.height.toFixed(0)}%
                               </span>
                             </div>
@@ -798,15 +865,26 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                       })()}
                       
                       {/* Actions overlay */}
-                      {currentStep.actions?.map((action: ExerciseAction) => (
+                      {currentStep.actions?.map((action: ExerciseAction) => {
+                        // Determinar si es un textbox sin respuesta definida
+                        const isTextboxWithoutAnswer = action.action_type === 'textbox' && (!action.correct_answer || action.correct_answer.trim() === '')
+                        // Determinar si es un botón incorrecto
+                        const isWrongButton = action.action_type === 'button' && action.correct_answer === 'wrong'
+                        const isCorrectButton = action.action_type === 'button' && action.correct_answer === 'correct'
+                        
+                        return (
                         <div
                           key={action.id}
                           data-action-id={action.id}
                           className={`absolute border-2 rounded cursor-move transition-all z-10 ${
                             selectedAction?.id === action.id
                               ? 'border-primary-500 bg-primary-200 bg-opacity-50 shadow-lg'
-                              : action.action_type === 'button'
+                              : isCorrectButton
                               ? 'border-blue-500 bg-blue-200 bg-opacity-40 hover:bg-opacity-60'
+                              : isWrongButton
+                              ? 'border-orange-500 bg-orange-200 bg-opacity-40 hover:bg-opacity-60'
+                              : isTextboxWithoutAnswer
+                              ? 'border-red-500 bg-red-200 bg-opacity-40 hover:bg-opacity-60'
                               : 'border-green-500 bg-green-200 bg-opacity-40 hover:bg-opacity-60'
                           }`}
                           style={{
@@ -821,9 +899,15 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                         >
                           <div className="absolute inset-0 flex items-center justify-center text-xs font-medium truncate px-1">
                             {action.action_type === 'button' ? (
-                              <span className="text-blue-800">{action.label || 'Clic'}</span>
+                              <span className={isWrongButton ? 'text-orange-800' : 'text-blue-800'}>
+                                {action.placeholder ? action.placeholder : `(${action.label || 'Botón'})`}
+                              </span>
+                            ) : isTextboxWithoutAnswer ? (
+                              <span className="text-red-800 italic font-semibold">Sin respuesta</span>
                             ) : (
-                              <span className="text-green-800 italic">{action.placeholder || 'Texto'}</span>
+                              <span className="text-green-800 italic">
+                                {action.placeholder || '(Campo de texto)'}
+                              </span>
                             )}
                           </div>
                           
@@ -837,12 +921,18 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                           
                           {/* Action number badge */}
                           <div className={`absolute -top-3 -left-3 w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold shadow ${
-                            action.action_type === 'button' ? 'bg-blue-600' : 'bg-green-600'
+                            isCorrectButton 
+                              ? 'bg-blue-600' 
+                              : isWrongButton 
+                              ? 'bg-orange-600' 
+                              : isTextboxWithoutAnswer 
+                              ? 'bg-red-600' 
+                              : 'bg-green-600'
                           }`}>
                             {action.action_number}
                           </div>
                         </div>
-                      ))}
+                      )})}
                     </div>
                     
                     {/* Botón para cambiar imagen */}
@@ -931,7 +1021,11 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {currentStep.actions.map((action: ExerciseAction) => (
+                    {currentStep.actions.map((action: ExerciseAction) => {
+                      const isTextboxWithoutAnswer = action.action_type === 'textbox' && (!action.correct_answer || action.correct_answer.trim() === '')
+                      const isWrongButton = action.action_type === 'button' && action.correct_answer === 'wrong'
+                      const isCorrectButton = action.action_type === 'button' && action.correct_answer === 'correct'
+                      return (
                       <div
                         key={action.id}
                         onClick={() => setSelectedAction(action)}
@@ -943,26 +1037,48 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                       >
                         <div className="flex items-center gap-2 mb-2">
                           <span className={`w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold ${
-                            action.action_type === 'button' ? 'bg-blue-600' : 'bg-green-600'
+                            isCorrectButton 
+                              ? 'bg-blue-600' 
+                              : isWrongButton 
+                              ? 'bg-orange-600' 
+                              : isTextboxWithoutAnswer 
+                              ? 'bg-red-600' 
+                              : 'bg-green-600'
                           }`}>
                             {action.action_number}
                           </span>
                           <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                            action.action_type === 'button'
+                            isCorrectButton
                               ? 'bg-blue-100 text-blue-700'
+                              : isWrongButton
+                              ? 'bg-orange-100 text-orange-700'
+                              : isTextboxWithoutAnswer
+                              ? 'bg-red-100 text-red-700'
                               : 'bg-green-100 text-green-700'
                           }`}>
-                            {action.action_type === 'button' ? 'Botón' : 'Campo de Texto'}
+                            {action.action_type === 'button' 
+                              ? (isCorrectButton ? 'Botón Correcto' : 'Botón Incorrecto') 
+                              : 'Campo de Texto'}
                           </span>
                         </div>
                         <div className="text-sm">
                           {action.action_type === 'button' ? (
-                            <p className="text-gray-700">{action.label || 'Sin etiqueta'}</p>
+                            <div>
+                              <p className="text-gray-700">{action.label || 'Sin etiqueta'}</p>
+                              {isWrongButton && (
+                                <p className="text-xs text-orange-600 mt-1">⚠️ Respuesta incorrecta</p>
+                              )}
+                              {isCorrectButton && (
+                                <p className="text-xs text-blue-600 mt-1">✓ Respuesta correcta</p>
+                              )}
+                            </div>
                           ) : (
                             <>
                               <p className="text-gray-500 italic text-xs">{action.placeholder || 'Sin placeholder'}</p>
-                              <p className="text-gray-700 mt-1">
-                                Respuesta: <span className="font-medium text-green-700">{action.correct_answer || '(no definida)'}</span>
+                              <p className={`mt-1 ${isTextboxWithoutAnswer ? 'text-red-700 font-semibold' : 'text-gray-700'}`}>
+                                Respuesta: <span className={`font-medium ${isTextboxWithoutAnswer ? 'text-red-700' : 'text-green-700'}`}>
+                                  {action.correct_answer || 'Sin definir'}
+                                </span>
                               </p>
                             </>
                           )}
@@ -977,7 +1093,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                           Editar configuración →
                         </button>
                       </div>
-                    ))}
+                    )})}
                   </div>
                 )}
               </div>
@@ -1002,43 +1118,182 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
 
       {/* Modal para editar acción */}
       {isEditActionModalOpen && selectedAction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl my-8">
             <h3 className="text-lg font-semibold mb-4">
               Editar {selectedAction.action_type === 'button' ? 'Botón' : 'Campo de Texto'}
             </h3>
             
             <div className="space-y-4">
-              {selectedAction.action_type === 'button' ? (
+              {/* Checkbox para mostrar texto indicativo (común para botones y textbox) */}
+              <div>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={actionFormData.showPlaceholder}
+                    onChange={(e) => setActionFormData({ ...actionFormData, showPlaceholder: e.target.checked })}
+                    className="w-4 h-4 text-primary-600 rounded"
+                  />
+                  <span className="text-sm text-gray-700 font-medium">Mostrar texto indicativo en la acción</span>
+                </label>
+                <p className="text-xs text-gray-500 ml-6 mt-1">
+                  El texto indicativo ayuda al estudiante a entender qué hacer
+                </p>
+              </div>
+
+              {/* Campo de texto indicativo (si está activado) */}
+              {actionFormData.showPlaceholder && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Etiqueta del Botón
+                    Texto Indicativo
                   </label>
                   <input
                     type="text"
-                    value={actionFormData.label}
-                    onChange={(e) => setActionFormData({ ...actionFormData, label: e.target.value })}
+                    value={actionFormData.placeholder}
+                    onChange={(e) => setActionFormData({ ...actionFormData, placeholder: e.target.value })}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
-                    placeholder="Ej: Clic aquí"
+                    placeholder={selectedAction.action_type === 'button' ? 'Ej: Haz clic aquí' : 'Ej: Escribe tu respuesta aquí'}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Este texto aparecerá {selectedAction.action_type === 'button' ? 'dentro del botón' : 'como guía en el campo de texto'}
+                  </p>
                 </div>
+              )}
+
+              {/* Campos específicos según el tipo */}
+              {selectedAction.action_type === 'button' ? (
+                <>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div>
+                        <p className="text-sm font-medium text-blue-900 mb-1">
+                          Etiqueta automática: {actionFormData.label || `Botón ${selectedAction.action_number}`}
+                        </p>
+                        <p className="text-xs text-blue-700">
+                          La etiqueta se asigna automáticamente y se usa para identificar el botón en los reportes
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tipo de Respuesta
+                    </label>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-blue-50 ${actionFormData.correct_answer === 'correct' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}">
+                        <input
+                          type="radio"
+                          name="button-type"
+                          value="correct"
+                          checked={actionFormData.correct_answer === 'correct'}
+                          onChange={(e) => setActionFormData({ ...actionFormData, correct_answer: e.target.value })}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="font-medium text-gray-900">Botón Correcto</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1 ml-7">Este botón representa una acción correcta</p>
+                        </div>
+                      </label>
+                      
+                      <label className="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-orange-50 ${actionFormData.correct_answer === 'wrong' ? 'border-orange-500 bg-orange-50' : 'border-gray-200'}">
+                        <input
+                          type="radio"
+                          name="button-type"
+                          value="wrong"
+                          checked={actionFormData.correct_answer === 'wrong'}
+                          onChange={(e) => setActionFormData({ ...actionFormData, correct_answer: e.target.value })}
+                          className="w-4 h-4 text-orange-600"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="font-medium text-gray-900">Botón Incorrecto</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1 ml-7">Este botón representa una acción incorrecta o errónea</p>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                  
+                  {/* Configuración de acción en error (solo para botones incorrectos) */}
+                  {actionFormData.correct_answer === 'wrong' && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-orange-900 mb-3 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Acción cuando se seleccione este botón incorrecto
+                      </h4>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            ¿Qué hacer al seleccionar?
+                          </label>
+                          <select
+                            value={actionFormData.on_error_action}
+                            onChange={(e) => setActionFormData({ ...actionFormData, on_error_action: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                          >
+                            <option value="show_message">Mostrar mensaje de error y permitir reintentar</option>
+                            <option value="next_step">Pasar al siguiente paso</option>
+                            <option value="next_exercise">Pasar al siguiente ejercicio</option>
+                          </select>
+                        </div>
+                        
+                        {actionFormData.on_error_action === 'show_message' && (
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Mensaje de error
+                              </label>
+                              <textarea
+                                value={actionFormData.error_message}
+                                onChange={(e) => setActionFormData({ ...actionFormData, error_message: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                                rows={2}
+                                placeholder="Ej: Respuesta incorrecta. Inténtalo de nuevo."
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Número máximo de intentos
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={actionFormData.max_attempts}
+                                onChange={(e) => setActionFormData({ ...actionFormData, max_attempts: parseInt(e.target.value) || 1 })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">
+                                Después de este número de intentos, se terminará el ejercicio
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Placeholder
-                    </label>
-                    <input
-                      type="text"
-                      value={actionFormData.placeholder}
-                      onChange={(e) => setActionFormData({ ...actionFormData, placeholder: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
-                      placeholder="Texto que verá el alumno"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Respuesta Correcta *
+                      Respuesta Correcta <span className="text-red-600">*</span>
                     </label>
                     <input
                       type="text"
@@ -1049,15 +1304,160 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                     />
                   </div>
                   <div>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={actionFormData.is_case_sensitive}
-                        onChange={(e) => setActionFormData({ ...actionFormData, is_case_sensitive: e.target.checked })}
-                        className="w-4 h-4 text-primary-600 rounded"
-                      />
-                      <span className="text-sm text-gray-700">Sensible a mayúsculas/minúsculas</span>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Modo de evaluación
                     </label>
+                    <select
+                      value={actionFormData.scoring_mode}
+                      onChange={(e) => setActionFormData({ ...actionFormData, scoring_mode: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
+                    >
+                      <option value="exact">Exacta (0% o 100%) - La respuesta debe ser idéntica</option>
+                      <option value="similarity">Por similitud - Se calcula el porcentaje de similitud como puntuación</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {actionFormData.scoring_mode === 'exact' 
+                        ? 'La respuesta debe coincidir exactamente. Puntuación: 0% (incorrecta) o 100% (correcta).'
+                        : 'El sistema calculará qué tan similar es la respuesta del alumno y guardará ese porcentaje como puntuación.'}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Color de texto
+                    </label>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setActionFormData({ ...actionFormData, text_color: '#000000' })}
+                          className={`px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${
+                            actionFormData.text_color === '#000000' 
+                              ? 'bg-gray-900 text-white border-gray-900' 
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          Negro
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActionFormData({ ...actionFormData, text_color: '#ffffff' })}
+                          className={`px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${
+                            actionFormData.text_color === '#ffffff' 
+                              ? 'bg-white text-gray-900 border-gray-900 ring-2 ring-gray-900' 
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          Blanco
+                        </button>
+                        <div className="flex items-center gap-2 flex-1">
+                          <input
+                            type="color"
+                            value={actionFormData.text_color}
+                            onChange={(e) => setActionFormData({ ...actionFormData, text_color: e.target.value })}
+                            className="h-10 w-16 rounded border border-gray-300 cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={actionFormData.text_color}
+                            onChange={(e) => {
+                              const value = e.target.value
+                              if (/^#[0-9A-Fa-f]{0,6}$/.test(value)) {
+                                setActionFormData({ ...actionFormData, text_color: value })
+                              }
+                            }}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm font-mono"
+                            placeholder="#000000"
+                            maxLength={7}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Color del texto que el alumno verá al escribir en el examen</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tipo de letra
+                    </label>
+                    <select
+                      value={actionFormData.font_family}
+                      onChange={(e) => setActionFormData({ ...actionFormData, font_family: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
+                    >
+                      <option value="Arial" style={{ fontFamily: 'Arial' }}>Arial</option>
+                      <option value="Helvetica" style={{ fontFamily: 'Helvetica' }}>Helvetica</option>
+                      <option value="Times New Roman" style={{ fontFamily: 'Times New Roman' }}>Times New Roman</option>
+                      <option value="Georgia" style={{ fontFamily: 'Georgia' }}>Georgia</option>
+                      <option value="Courier New" style={{ fontFamily: 'Courier New' }}>Courier New</option>
+                      <option value="Verdana" style={{ fontFamily: 'Verdana' }}>Verdana</option>
+                      <option value="Comic Sans MS" style={{ fontFamily: 'Comic Sans MS' }}>Comic Sans MS</option>
+                      <option value="Impact" style={{ fontFamily: 'Impact' }}>Impact</option>
+                      <option value="Trebuchet MS" style={{ fontFamily: 'Trebuchet MS' }}>Trebuchet MS</option>
+                      <option value="monospace" style={{ fontFamily: 'monospace' }}>Monospace</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Fuente que verá el alumno al escribir su respuesta</p>
+                  </div>
+                  
+                  {/* Configuración de acción en error para textbox */}
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Acción cuando la respuesta sea incorrecta
+                    </h4>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          ¿Qué hacer con respuesta incorrecta?
+                        </label>
+                        <select
+                          value={actionFormData.on_error_action}
+                          onChange={(e) => setActionFormData({ ...actionFormData, on_error_action: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
+                        >
+                          <option value="show_message">Mostrar mensaje de error y permitir reintentar</option>
+                          <option value="next_step">Pasar al siguiente paso</option>
+                          <option value="next_exercise">Pasar al siguiente ejercicio</option>
+                        </select>
+                      </div>
+                      
+                      {actionFormData.on_error_action === 'show_message' && (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Mensaje de error
+                            </label>
+                            <textarea
+                              value={actionFormData.error_message}
+                              onChange={(e) => setActionFormData({ ...actionFormData, error_message: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
+                              rows={2}
+                              placeholder="Ej: Respuesta incorrecta. Revisa tu respuesta."
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Número máximo de intentos
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="10"
+                              value={actionFormData.max_attempts}
+                              onChange={(e) => setActionFormData({ ...actionFormData, max_attempts: parseInt(e.target.value) || 1 })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Después de este número de intentos, se terminará el ejercicio
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </>
               )}

@@ -93,12 +93,17 @@ const TopicDetailPage = () => {
   const createExerciseMutation = useMutation({
     mutationFn: (data: { exercise_text: string; is_complete: boolean }) => 
       examService.createExercise(Number(topicId), data),
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['exercises', topicId] })
       queryClient.invalidateQueries({ queryKey: ['topics', categoryId] })
       queryClient.invalidateQueries({ queryKey: ['exams'] })
       setIsCreateExerciseModalOpen(false)
       setExerciseFormData({ exercise_text: '', is_complete: false })
+      
+      // Abrir automáticamente el editor del ejercicio recién creado
+      const newExercise = response.exercise
+      setSelectedExercise(newExercise)
+      setIsExerciseEditorOpen(true)
     },
     onError: (error: any) => {
       console.error('Error al crear ejercicio:', error)

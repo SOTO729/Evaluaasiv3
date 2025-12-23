@@ -932,15 +932,21 @@ def create_exercise_step(exercise_id):
     import uuid
     from app.utils.azure_storage import azure_storage
     
+    print(f"\n=== CREAR PASO DE EJERCICIO ===")
+    print(f"Exercise ID: {exercise_id}")
+    
     exercise = Exercise.query.get(exercise_id)
     if not exercise:
+        print(f"ERROR: Ejercicio {exercise_id} no encontrado")
         return jsonify({'error': 'Ejercicio no encontrado'}), 404
     
     data = request.get_json()
+    print(f"Datos recibidos: {data}")
     
     # Obtener el siguiente número de paso (usar query directa para evitar conflicto de order_by)
     last_step = ExerciseStep.query.filter_by(exercise_id=exercise_id).order_by(ExerciseStep.step_number.desc()).first()
     next_number = (last_step.step_number + 1) if last_step else 1
+    print(f"Número de paso asignado: {next_number}")
     
     # Procesar imagen si viene en base64
     image_url = data.get('image_url')
@@ -953,8 +959,9 @@ def create_exercise_step(exercise_id):
             # Si falla blob storage, guardar en BD (fallback)
             print("Warning: Blob storage no disponible, guardando base64 en BD")
     
+    step_id = str(uuid.uuid4())
     step = ExerciseStep(
-        id=str(uuid.uuid4()),
+        id=step_id,
         exercise_id=exercise_id,
         step_number=next_number,
         title=data.get('title'),
@@ -966,6 +973,9 @@ def create_exercise_step(exercise_id):
     
     db.session.add(step)
     db.session.commit()
+    
+    print(f"✓ Paso creado exitosamente: ID={step_id}, Número={next_number}")
+    print(f"=== FIN CREAR PASO ===")
     
     return jsonify({
         'message': 'Paso creado exitosamente',
@@ -1006,11 +1016,16 @@ def update_step(step_id):
     """
     from datetime import datetime
     
+    print(f"\n=== ACTUALIZAR PASO ===")
+    print(f"Step ID: {step_id}")
+    
     step = ExerciseStep.query.get(step_id)
     if not step:
+        print(f"ERROR: Paso {step_id} no encontrado")
         return jsonify({'error': 'Paso no encontrado'}), 404
     
     data = request.get_json()
+    print(f"Datos a actualizar: {data}")
     
     if 'title' in data:
         step.title = data['title']
@@ -1028,6 +1043,9 @@ def update_step(step_id):
     step.updated_at = datetime.utcnow()
     db.session.commit()
     
+    print(f"✓ Paso actualizado exitosamente: ID={step_id}")
+    print(f"=== FIN ACTUALIZAR PASO ===")
+    
     return jsonify({
         'message': 'Paso actualizado exitosamente',
         'step': step.to_dict(include_actions=True)
@@ -1039,16 +1057,60 @@ def update_step(step_id):
 @require_permission('exams:delete')
 def delete_step(step_id):
     """
-    Eliminar un paso
+    Eliminar un paso y su imagen del blob storage
     """
+    from app.utils.azure_storage import AzureStorageService
+    
+    print(f"\n=== ELIMINAR PASO ===")
+    print(f"Step ID: {step_id}")
+    
     step = ExerciseStep.query.get(step_id)
     if not step:
+        print(f"ERROR: Paso {step_id} no encontrado")
         return jsonify({'error': 'Paso no encontrado'}), 404
+    
+    # Guardar info del paso antes de eliminarlo
+    exercise_id = step.exercise_id
+    deleted_step_number = step.step_number
+    print(f"Eliminando paso #{deleted_step_number} del ejercicio {exercise_id}")
+    
+    # Si tiene imagen, eliminarla del blob storage
+    image_deleted = False
+    if step.image_url:
+        try:
+            storage = AzureStorageService()
+            image_deleted = storage.delete_file(step.image_url)
+            if image_deleted:
+                print(f"Imagen eliminada del blob: {step.image_url}")
+            else:
+                print(f"No se pudo eliminar imagen del blob: {step.image_url}")
+        except Exception as e:
+            print(f"Error al eliminar imagen del blob: {str(e)}")
     
     db.session.delete(step)
     db.session.commit()
+    print(f"✓ Paso eliminado de la base de datos")
     
-    return jsonify({'message': 'Paso eliminado exitosamente'}), 200
+    # Renumerar los pasos restantes del ejercicio
+    remaining_steps = ExerciseStep.query.filter(
+        ExerciseStep.exercise_id == exercise_id,
+        ExerciseStep.step_number > deleted_step_number
+    ).order_by(ExerciseStep.step_number).all()
+    
+    print(f"Renumerando {len(remaining_steps)} pasos restantes...")
+    for remaining_step in remaining_steps:
+        old_number = remaining_step.step_number
+        remaining_step.step_number -= 1
+        print(f"  Paso {remaining_step.id}: #{old_number} → #{remaining_step.step_number}")
+    
+    db.session.commit()
+    print(f"✓ Renumeración completada")
+    print(f"=== FIN ELIMINAR PASO ===")
+    
+    return jsonify({
+        'message': 'Paso eliminado exitosamente',
+        'image_deleted': image_deleted
+    }), 200
 
 
 @bp.route('/steps/<step_id>', methods=['OPTIONS'])
@@ -1072,7 +1134,8 @@ def get_step_actions(step_id):
     if not step:
         return jsonify({'error': 'Paso no encontrado'}), 404
     
-    actions = step.actions.order_by(ExerciseAction.action_number).all()
+    # Usar query directa para evitar ORDER BY duplicado (la relación ya tiene order_by)
+    actions = ExerciseAction.query.filter_by(step_id=step_id).order_by(ExerciseAction.action_number).all()
     
     return jsonify({
         'actions': [action.to_dict() for action in actions]
@@ -1088,23 +1151,31 @@ def create_step_action(step_id):
     """
     import uuid
     
+    print(f"\n=== CREAR ACCIÓN ===")
+    print(f"Step ID: {step_id}")
+    
     step = ExerciseStep.query.get(step_id)
     if not step:
+        print(f"ERROR: Paso {step_id} no encontrado")
         return jsonify({'error': 'Paso no encontrado'}), 404
     
     data = request.get_json()
+    print(f"Datos recibidos: {data}")
     
     # Validar tipo de acción
     action_type = data.get('action_type')
     if action_type not in ['button', 'textbox']:
+        print(f"ERROR: Tipo de acción inválido: {action_type}")
         return jsonify({'error': 'Tipo de acción inválido. Debe ser "button" o "textbox"'}), 400
     
-    # Obtener el siguiente número de acción
-    last_action = step.actions.order_by(ExerciseAction.action_number.desc()).first()
+    # Obtener el siguiente número de acción (usar query directa para evitar ORDER BY duplicado)
+    last_action = ExerciseAction.query.filter_by(step_id=step_id).order_by(ExerciseAction.action_number.desc()).first()
     next_number = (last_action.action_number + 1) if last_action else 1
+    print(f"Número de acción asignado: {next_number}")
     
+    action_id = str(uuid.uuid4())
     action = ExerciseAction(
-        id=str(uuid.uuid4()),
+        id=action_id,
         step_id=step_id,
         action_number=next_number,
         action_type=action_type,
@@ -1120,6 +1191,9 @@ def create_step_action(step_id):
     
     db.session.add(action)
     db.session.commit()
+    
+    print(f"✓ Acción creada exitosamente: ID={action_id}, Tipo={action_type}, Número={next_number}")
+    print(f"=== FIN CREAR ACCIÓN ===")
     
     return jsonify({
         'message': 'Acción creada exitosamente',
@@ -1160,11 +1234,16 @@ def update_action(action_id):
     """
     from datetime import datetime
     
+    print(f"\n=== ACTUALIZAR ACCIÓN ===")
+    print(f"Action ID: {action_id}")
+    
     action = ExerciseAction.query.get(action_id)
     if not action:
+        print(f"ERROR: Acción {action_id} no encontrada")
         return jsonify({'error': 'Acción no encontrada'}), 404
     
     data = request.get_json()
+    print(f"Datos a actualizar: {data}")
     
     if 'action_type' in data and data['action_type'] in ['button', 'textbox']:
         action.action_type = data['action_type']
@@ -1190,6 +1269,9 @@ def update_action(action_id):
     action.updated_at = datetime.utcnow()
     db.session.commit()
     
+    print(f"✓ Acción actualizada exitosamente: ID={action_id}")
+    print(f"=== FIN ACTUALIZAR ACCIÓN ===")
+    
     return jsonify({
         'message': 'Acción actualizada exitosamente',
         'action': action.to_dict()
@@ -1203,12 +1285,20 @@ def delete_action(action_id):
     """
     Eliminar una acción
     """
+    print(f"\n=== ELIMINAR ACCIÓN ===")
+    print(f"Action ID: {action_id}")
+    
     action = ExerciseAction.query.get(action_id)
     if not action:
+        print(f"ERROR: Acción {action_id} no encontrada")
         return jsonify({'error': 'Acción no encontrada'}), 404
     
+    print(f"Eliminando acción tipo '{action.action_type}' del paso {action.step_id}")
     db.session.delete(action)
     db.session.commit()
+    
+    print(f"✓ Acción eliminada exitosamente")
+    print(f"=== FIN ELIMINAR ACCIÓN ===")
     
     return jsonify({'message': 'Acción eliminada exitosamente'}), 200
 
