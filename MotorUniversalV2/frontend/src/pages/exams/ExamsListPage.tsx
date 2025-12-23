@@ -13,19 +13,19 @@ const ExamCard = ({ exam }: { exam: any }) => (
         <img 
           src={exam.image_url} 
           alt={exam.name}
-          className="w-full h-28 object-cover rounded-t-lg"
+          className="w-full h-32 object-cover rounded-t-lg"
         />
       </div>
     )}
     <div className="flex justify-between items-start mb-3">
       <div className="flex-1 min-w-0">
-        <h3 className="text-base font-semibold text-gray-900 truncate">
+        <h3 className="text-lg font-semibold text-gray-900 truncate">
           {exam.name}
         </h3>
-        <p className="text-xs text-gray-500 font-mono">{exam.version}</p>
+        <p className="text-sm text-gray-500 font-mono">{exam.version}</p>
       </div>
       <span
-        className={`px-2 py-0.5 text-xs rounded-full whitespace-nowrap ml-2 ${
+        className={`px-2 py-1 text-xs rounded-full whitespace-nowrap ml-2 ${
           exam.is_published
             ? 'bg-green-100 text-green-800'
             : 'bg-gray-100 text-gray-800'
@@ -35,43 +35,43 @@ const ExamCard = ({ exam }: { exam: any }) => (
       </span>
     </div>
 
-    <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 mb-3 pb-3 border-b">
+    <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 mb-4 pb-4 border-b">
       <div className="flex items-center">
-        <svg className="w-3.5 h-3.5 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <span>{exam.passing_score}%</span>
+        <span>Puntaje: {exam.passing_score}%</span>
       </div>
       <div className="flex items-center">
-        <svg className="w-3.5 h-3.5 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <span>{exam.duration_minutes || 0} min</span>
       </div>
       <div className="flex items-center">
-        <svg className="w-3.5 h-3.5 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <span>{exam.total_questions} preg.</span>
+        <span>{exam.total_questions} preguntas</span>
       </div>
       <div className="flex items-center">
-        <svg className="w-3.5 h-3.5 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
         </svg>
-        <span>{exam.total_exercises} ejer.</span>
+        <span>{exam.total_exercises} ejercicios</span>
       </div>
     </div>
 
     <div className="flex items-center justify-between">
       <div className="flex items-center text-sm text-gray-600">
-        <svg className="w-3.5 h-3.5 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
         </svg>
-        <span>{exam.total_categories || 0} cat.</span>
+        <span>{exam.total_categories || 0} categorías</span>
       </div>
       <Link
         to={`/exams/${exam.id}/edit`}
-        className="px-3 py-1.5 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors"
+        className="px-4 py-2 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors"
       >
         Editar
       </Link>
@@ -120,7 +120,7 @@ const ExamsListPage = () => {
                   Publicados ({publishedExams.length})
                 </h2>
               </div>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {publishedExams.map((exam: any) => (
                   <ExamCard key={exam.id} exam={exam} />
                 ))}
@@ -137,7 +137,7 @@ const ExamsListPage = () => {
                   Borradores ({draftExams.length})
                 </h2>
               </div>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {draftExams.map((exam: any) => (
                   <ExamCard key={exam.id} exam={exam} />
                 ))}
