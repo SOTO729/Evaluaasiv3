@@ -1088,6 +1088,9 @@ def update_step(step_id):
     data = request.get_json()
     print(f"Datos a actualizar: {data}")
     
+    # Guardar el step_number anterior para logging
+    old_step_number = step.step_number
+    
     if 'title' in data:
         step.title = data['title']
     if 'description' in data:
@@ -1099,12 +1102,14 @@ def update_step(step_id):
     if 'image_height' in data:
         step.image_height = data['image_height']
     if 'step_number' in data:
-        step.step_number = data['step_number']
+        new_step_number = data['step_number']
+        print(f"⚠️ REORDENANDO PASO: {old_step_number} → {new_step_number}")
+        step.step_number = new_step_number
     
     step.updated_at = datetime.utcnow()
     db.session.commit()
     
-    print(f"✓ Paso actualizado exitosamente: ID={step_id}")
+    print(f"✓ Paso actualizado exitosamente: ID={step_id}, step_number={step.step_number}")
     print(f"=== FIN ACTUALIZAR PASO ===")
     
     return jsonify({
