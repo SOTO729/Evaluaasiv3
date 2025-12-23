@@ -129,7 +129,8 @@ const ExamTestListPage: React.FC = () => {
     queryFn: () => examService.getExams(1, 100)
   });
 
-  const exams = examsData?.items || [];
+  // Filtrar solo exámenes publicados
+  const exams = (examsData?.items || []).filter((exam: any) => exam.is_published);
 
   const handleTestExam = (examId: number, examTitle: string, questionCount: number, exerciseCount: number) => {
     setSelectedExam({
@@ -174,49 +175,80 @@ const ExamTestListPage: React.FC = () => {
       {exams && exams.length === 0 ? (
         <div className="text-center py-12">
           <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No hay exámenes</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No hay exámenes publicados</h3>
           <p className="mt-1 text-sm text-gray-500">
-            Crea un examen para poder probarlo
+            Los exámenes deben estar publicados para poder probarlos
           </p>
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {exams?.map((exam: any) => {
-            const totalQuestions = exam.categories?.reduce(
-              (sum: number, cat: any) => sum + (cat.questions?.length || 0),
-              0
-            ) || 0;
-            const totalExercises = exam.exercises?.length || 0;
+            const totalQuestions = exam.total_questions || 0;
+            const totalExercises = exam.total_exercises || 0;
 
             return (
               <div
                 key={exam.id}
                 className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow p-6"
               >
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {exam.name}
-                </h3>
-                
-                {exam.description && (
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                    {exam.description}
-                  </p>
+                {/* Header con imagen */}
+                {exam.image_url && (
+                  <div className="-m-6 mb-4">
+                    <img 
+                      src={exam.image_url} 
+                      alt={exam.name}
+                      className="w-full h-32 object-cover rounded-t-lg"
+                    />
+                  </div>
                 )}
+                
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                      {exam.name}
+                    </h3>
+                    <p className="text-sm text-gray-500 font-mono">{exam.version}</p>
+                  </div>
+                  <span className="px-2 py-1 text-xs rounded-full whitespace-nowrap ml-2 bg-green-100 text-green-800">
+                    Publicado
+                  </span>
+                </div>
 
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center text-sm text-gray-700">
+                <div className="grid grid-cols-2 gap-3 text-sm text-gray-600 mb-4 pb-4 border-b">
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="font-medium">Puntaje: {exam.passing_score}%</span>
+                  </div>
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{exam.duration_minutes || 0} min</span>
+                  </div>
+                  <div className="flex items-center">
                     <FileQuestion className="w-4 h-4 mr-2 text-gray-400" />
                     <span>{totalQuestions} preguntas</span>
                   </div>
-                  <div className="flex items-center text-sm text-gray-700">
+                  <div className="flex items-center">
                     <ClipboardList className="w-4 h-4 mr-2 text-gray-400" />
                     <span>{totalExercises} ejercicios</span>
                   </div>
                 </div>
 
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                    </svg>
+                    <span className="font-medium">{exam.total_categories || 0} categoría{exam.total_categories !== 1 ? 's' : ''}</span>
+                  </div>
+                </div>
+
                 <button
                   onClick={() => handleTestExam(exam.id, exam.name, totalQuestions, totalExercises)}
-                  className="w-full px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 flex items-center justify-center"
+                  className="w-full px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 flex items-center justify-center transition-colors"
                 >
                   <Play className="w-4 h-4 mr-2" />
                   Probar Examen
