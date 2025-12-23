@@ -23,7 +23,7 @@ const ExamCreatePage = () => {
   
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   
-  // Módulos/Categorías (máximo 5)
+  // Módulos/Categorías
   const [modules, setModules] = useState<CreateCategoryData[]>([
     { name: '', description: '', percentage: 0 }
   ])
@@ -144,11 +144,6 @@ const ExamCreatePage = () => {
   
   // Agregar categoría
   const addModule = () => {
-    if (modules.length >= 5) {
-      setError('Máximo 5 categorías permitidas')
-      return
-    }
-    
     setModules([...modules, { name: '', description: '', percentage: 0 }])
     setModuleErrors([...moduleErrors, {}])
   }
@@ -456,7 +451,7 @@ const ExamCreatePage = () => {
           <div className="flex justify-between items-center mb-4">
             <div>
               <h2 className="text-xl font-semibold">Categorías del Examen</h2>
-              <p className="text-sm text-gray-600">Máximo 5 categorías, la suma de porcentajes debe ser 100%</p>
+              <p className="text-sm text-gray-600">La suma de porcentajes debe ser 100%</p>
             </div>
             <button
               type="button"
@@ -552,15 +547,13 @@ const ExamCreatePage = () => {
             ))}
           </div>
           
-          {modules.length < 5 && (
-            <button
-              type="button"
-              onClick={addModule}
-              className="btn btn-secondary w-full mt-4"
-            >
+          <button
+            type="button"
+            onClick={addModule}
+            className="btn btn-secondary w-full mt-4"
+          >
               + Agregar Categoría
             </button>
-          )}
           
           {/* Resumen de Porcentajes */}
           <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded">
