@@ -127,6 +127,14 @@ const ExamEditPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['exam', id] })
       queryClient.invalidateQueries({ queryKey: ['exams'] })
+      setToast({ message: 'El examen ha sido cambiado a borrador.', type: 'success' })
+    },
+    onError: (error: any) => {
+      console.error('Error unpublishing exam:', error)
+      setToast({ 
+        message: `Error al cambiar a borrador: ${error.response?.data?.error || error.message || 'Error desconocido'}`, 
+        type: 'error' 
+      })
     },
   })
 
@@ -138,7 +146,10 @@ const ExamEditPage = () => {
       setShowPublishModal(true)
     } catch (error: any) {
       console.error('Error validating exam:', error)
-      alert(`Error al validar el examen: ${error.response?.data?.error || error.message || 'Error desconocido'}`)
+      setToast({ 
+        message: `Error al validar el examen: ${error.response?.data?.error || error.message || 'Error desconocido'}`, 
+        type: 'error' 
+      })
     } finally {
       setIsValidating(false)
     }
@@ -205,12 +216,12 @@ const ExamEditPage = () => {
               <button
                 onClick={handleUnpublish}
                 disabled={unpublishExamMutation.isPending}
-                className="px-4 py-2 bg-yellow-600 text-white hover:bg-yellow-700 rounded-lg transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
+                className="px-4 py-2 bg-gray-600 text-white hover:bg-gray-700 rounded-lg transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
-                {unpublishExamMutation.isPending ? 'Despublicando...' : 'Despublicar'}
+                {unpublishExamMutation.isPending ? 'Cambiando...' : 'Cambiar a Borrador'}
               </button>
             ) : (
               <button
