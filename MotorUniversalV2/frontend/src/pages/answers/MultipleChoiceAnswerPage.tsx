@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 import { examService } from '../../services/examService'
+import LoadingSpinner from '../../components/LoadingSpinner'
 
 interface AnswerOption {
   id?: string
@@ -166,8 +167,8 @@ const MultipleChoiceAnswerPage = () => {
 
   const question = questionsData?.questions.find((q: any) => q.id === questionId)
 
-  if (isLoading || isLoadingAnswers) return <div>Cargando...</div>
-  if (!question) return <div>Pregunta no encontrada</div>
+  if (isLoading || isLoadingAnswers) return <LoadingSpinner message="Cargando pregunta..." fullScreen />
+  if (!question) return <div className="text-center py-12 text-gray-600">Pregunta no encontrada</div>
 
   return (
     <div className="max-w-4xl mx-auto">

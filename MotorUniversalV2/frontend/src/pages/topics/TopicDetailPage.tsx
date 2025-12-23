@@ -5,6 +5,7 @@ import { examService } from '../../services/examService'
 import type { Question, Exercise } from '../../types'
 import RichTextEditor from '../../components/RichTextEditor'
 import ExerciseEditor from '../../components/ExerciseEditor'
+import LoadingSpinner from '../../components/LoadingSpinner'
 
 const TopicDetailPage = () => {
   const { examId, categoryId, topicId } = useParams<{ examId: string; categoryId: string; topicId: string }>()
@@ -274,8 +275,8 @@ const TopicDetailPage = () => {
     fetchAnswersForQuestions()
   }, [questions])
 
-  if (isLoading) return <div>Cargando tema...</div>
-  if (!topic) return <div>Tema no encontrado</div>
+  if (isLoading) return <LoadingSpinner message="Cargando tema..." fullScreen />
+  if (!topic) return <div className="text-center py-12 text-gray-600">Tema no encontrado</div>
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -365,7 +366,7 @@ const TopicDetailPage = () => {
             </div>
 
             {isLoadingQuestions ? (
-              <div className="text-center py-12 text-gray-500">Cargando preguntas...</div>
+              <LoadingSpinner message="Cargando preguntas..." />
             ) : questions.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -493,7 +494,7 @@ const TopicDetailPage = () => {
             </div>
 
             {isLoadingExercises ? (
-              <div className="text-center py-12 text-gray-500">Cargando ejercicios...</div>
+              <LoadingSpinner message="Cargando ejercicios..." />
             ) : exercises.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

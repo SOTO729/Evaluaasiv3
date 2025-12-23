@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { examService } from '../../services/examService'
 import type { Topic } from '../../types'
+import LoadingSpinner from '../../components/LoadingSpinner'
 
 const CategoryDetailPage = () => {
   const { examId, categoryId } = useParams<{ examId: string; categoryId: string }>()
@@ -108,9 +109,9 @@ const CategoryDetailPage = () => {
     handleOpenEditModal(topic)
   }
 
-  if (isLoading) return <div>Cargando categoría...</div>
-  if (error) return <div>Error al cargar la categoría</div>
-  if (!category) return <div>Categoría no encontrada</div>
+  if (isLoading) return <LoadingSpinner message="Cargando categoría..." fullScreen />
+  if (error) return <div className="text-center py-12 text-red-600">Error al cargar la categoría</div>
+  if (!category) return <div className="text-center py-12 text-gray-600">Categoría no encontrada</div>
 
   const topics = topicsData?.topics || []
 

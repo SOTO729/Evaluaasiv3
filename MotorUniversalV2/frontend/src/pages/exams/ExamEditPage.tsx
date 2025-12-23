@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { examService } from '../../services/examService'
 import { useAuthStore } from '../../store/authStore'
 import api from '../../services/api'
+import LoadingSpinner from '../../components/LoadingSpinner'
 
 const ExamEditPage = () => {
   const { id } = useParams<{ id: string }>()
@@ -56,9 +57,9 @@ const ExamEditPage = () => {
   console.log('Categories:', exam?.categories)
   console.log('Categories length:', exam?.categories?.length)
 
-  if (isLoading) return <div>Cargando examen...</div>
-  if (error) return <div>Error al cargar el examen</div>
-  if (!exam) return <div>Examen no encontrado</div>
+  if (isLoading) return <LoadingSpinner message="Cargando examen..." fullScreen />
+  if (error) return <div className="text-center py-12 text-red-600">Error al cargar el examen</div>
+  if (!exam) return <div className="text-center py-12 text-gray-600">Examen no encontrado</div>
 
   return (
     <div className="max-w-4xl mx-auto">
