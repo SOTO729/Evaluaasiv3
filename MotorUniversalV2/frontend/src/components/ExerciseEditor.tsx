@@ -202,6 +202,57 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     },
   })
 
+  // Mutation para reordenar pasos
+  const reorderStepMutation = useMutation({
+    mutationFn: async ({ stepId, newStepNumber }: { stepId: string; newStepNumber: number }) => {
+      return examService.updateExerciseStep(stepId, { step_number: newStepNumber })
+    },
+    onSuccess: () => {
+      refetch()
+    },
+    onError: (error) => {
+      console.error('Error reordering step:', error)
+    }
+  })
+
+  // Función para mover un paso hacia arriba
+  const handleMoveStepUp = async (e: React.MouseEvent, index: number) => {
+    e.stopPropagation()
+    if (index === 0 || !exerciseData?.exercise?.steps) return
+
+    const currentStep = exerciseData.exercise.steps[index]
+    const previousStep = exerciseData.exercise.steps[index - 1]
+
+    // Intercambiar step_number
+    await reorderStepMutation.mutateAsync({
+      stepId: currentStep.id,
+      newStepNumber: previousStep.step_number
+    })
+    await reorderStepMutation.mutateAsync({
+      stepId: previousStep.id,
+      newStepNumber: currentStep.step_number
+    })
+  }
+
+  // Función para mover un paso hacia abajo
+  const handleMoveStepDown = async (e: React.MouseEvent, index: number) => {
+    e.stopPropagation()
+    if (!exerciseData?.exercise?.steps || index === exerciseData.exercise.steps.length - 1) return
+
+    const currentStep = exerciseData.exercise.steps[index]
+    const nextStep = exerciseData.exercise.steps[index + 1]
+
+    // Intercambiar step_number
+    await reorderStepMutation.mutateAsync({
+      stepId: currentStep.id,
+      newStepNumber: nextStep.step_number
+    })
+    await reorderStepMutation.mutateAsync({
+      stepId: nextStep.id,
+      newStepNumber: currentStep.step_number
+    })
+  }
+
   // Handlers para subir imagen
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -700,23 +751,57 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                         <span className={`text-sm font-medium ${currentStepIndex === index ? 'text-primary-700' : 'text-gray-700'}`}>
                           Paso {step.step_number}
                         </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setDeleteConfirmModal({
-                              isOpen: true,
-                              stepId: step.id,
-                              stepNumber: step.step_number,
-                              hasImage: !!step.image_url,
-                              actionsCount: step.total_actions || step.actions?.length || 0
-                            })
-                          }}
-                          className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                        <div className="flex items-center gap-1">
+                          {/* Botón para mover hacia arriba */}
+                          <button
+                            onClick={(e) => handleMoveStepUp(e, index)}
+                            disabled={index === 0}
+                            className={`p-1 rounded ${
+                              index === 0
+                                ? 'text-gray-300 cursor-not-allowed'
+                                : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50'
+                            }`}
+                            title="Mover paso arriba"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                          </button>
+                          {/* Botón para mover hacia abajo */}
+                          <button
+                            onClick={(e) => handleMoveStepDown(e, index)}
+                            disabled={index === steps.length - 1}
+                            className={`p-1 rounded ${
+                              index === steps.length - 1
+                                ? 'text-gray-300 cursor-not-allowed'
+                                : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50'
+                            }`}
+                            title="Mover paso abajo"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          {/* Botón para eliminar */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setDeleteConfirmModal({
+                                isOpen: true,
+                                stepId: step.id,
+                                stepNumber: step.step_number,
+                                hasImage: !!step.image_url,
+                                actionsCount: step.total_actions || step.actions?.length || 0
+                              })
+                            }}
+                            className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
+                            title="Eliminar paso"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                       {step.image_url && (
                         <div className="aspect-video bg-gray-100 rounded overflow-hidden">
