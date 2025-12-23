@@ -338,13 +338,14 @@ const ExamEditPage = () => {
                 {exam.categories.map((category, index) => (
                   <tr 
                     key={category.id} 
-                    onClick={() => !exam.is_published && navigate(`/exams/${id}/categories/${category.id}`)}
-                    className={`transition-colors ${
-                      exam.is_published 
-                        ? 'cursor-not-allowed opacity-75' 
-                        : 'hover:bg-primary-50 cursor-pointer'
-                    }`}
-                    title={exam.is_published ? 'Cambie el examen a borrador para editar las categorías' : 'Clic para editar'}
+                    onClick={() => {
+                      if (exam.is_published) {
+                        setToast({ message: 'Cambie el examen a borrador para editar las categorías', type: 'error' })
+                      } else {
+                        navigate(`/exams/${id}/categories/${category.id}`)
+                      }
+                    }}
+                    className="hover:bg-primary-50 cursor-pointer transition-colors"
                   >
                     <td className="px-4 py-4 whitespace-nowrap">
                       <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-semibold text-sm">
