@@ -130,7 +130,7 @@ const ExamTestListPage: React.FC = () => {
   });
 
   // Filtrar solo exámenes publicados
-  const exams = (examsData?.items || []).filter((exam: any) => exam.is_published);
+  const exams = (examsData?.exams || []).filter((exam: any) => exam.is_published);
 
   const handleTestExam = (examId: number, examTitle: string, questionCount: number, exerciseCount: number) => {
     setSelectedExam({
