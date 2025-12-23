@@ -6,7 +6,7 @@ interface QuestionPreviewProps {
 }
 
 const QuestionPreview = ({ questionText, className = '' }: QuestionPreviewProps) => {
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(true)
   
   // Extraer texto plano para la vista colapsada
   const plainText = questionText.replace(/<[^>]*>/g, '')
