@@ -57,6 +57,9 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   
+  // Estado para mostrar/ocultar descripción del ejercicio
+  const [showExerciseDescription, setShowExerciseDescription] = useState(false)
+  
   // Estados para drag & resize
   const [dragState, setDragState] = useState<DragState>({
     isDragging: false,
@@ -618,9 +621,33 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
           </button>
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Editor de Ejercicio</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {exercise.title || exercise.exercise_text?.replace(/<[^>]*>/g, '').substring(0, 50) || 'Sin título'}
-            </p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-sm text-gray-500">
+                {exercise.title || exercise.exercise_text?.replace(/<[^>]*>/g, '').substring(0, 50) || 'Sin título'}
+              </p>
+              {exercise.exercise_text && (
+                <button
+                  onClick={() => setShowExerciseDescription(!showExerciseDescription)}
+                  className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                >
+                  {showExerciseDescription ? (
+                    <>
+                      Ocultar descripción
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      </svg>
+                    </>
+                  ) : (
+                    <>
+                      Ver descripción completa
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         </div>
         
@@ -675,6 +702,47 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
           </button>
         </div>
       </div>
+
+      {/* Panel expandible con la descripción del ejercicio */}
+      {showExerciseDescription && exercise.exercise_text && (
+        <div className="border-b bg-gradient-to-r from-primary-50 to-blue-50 px-6 py-4 animate-fadeIn">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center gap-2 mb-3">
+              <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 className="font-semibold text-gray-800">Descripción del Ejercicio</h3>
+            </div>
+            <div 
+              className="prose prose-sm max-w-none bg-white rounded-lg p-4 shadow-sm border"
+              dangerouslySetInnerHTML={{ __html: exercise.exercise_text }}
+              style={{
+                maxHeight: '300px',
+                overflowY: 'auto'
+              }}
+            />
+            <style>{`
+              .prose h1 { font-size: 1.5em; font-weight: bold; margin: 0.5em 0; }
+              .prose h2 { font-size: 1.3em; font-weight: bold; margin: 0.5em 0; }
+              .prose h3 { font-size: 1.1em; font-weight: bold; margin: 0.5em 0; }
+              .prose p { margin: 0.5em 0; line-height: 1.6; }
+              .prose ul, .prose ol { margin: 0.5em 0; padding-left: 1.5em; }
+              .prose li { margin: 0.25em 0; }
+              .prose strong { font-weight: 600; }
+              .prose em { font-style: italic; }
+              .prose a { color: #2563eb; text-decoration: underline; }
+              .prose img { max-width: 100%; height: auto; margin: 1em 0; border-radius: 0.5rem; }
+              .prose table { width: 100%; border-collapse: collapse; margin: 1em 0; }
+              .prose th, .prose td { border: 1px solid #e5e7eb; padding: 0.5em; }
+              .prose th { background-color: #f3f4f6; font-weight: 600; }
+              .prose blockquote { border-left: 4px solid #e5e7eb; padding-left: 1em; margin: 1em 0; color: #6b7280; }
+              .prose code { background-color: #f3f4f6; padding: 0.2em 0.4em; border-radius: 0.25rem; font-family: monospace; font-size: 0.9em; }
+              .prose pre { background-color: #1f2937; color: #f3f4f6; padding: 1em; border-radius: 0.5rem; overflow-x: auto; }
+              .prose pre code { background-color: transparent; padding: 0; }
+            `}</style>
+          </div>
+        </div>
+      )}
 
         {/* Toolbar */}
         <div className="flex items-center gap-4 px-6 py-3 border-b bg-gray-50">
