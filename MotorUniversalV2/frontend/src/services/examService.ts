@@ -208,4 +208,30 @@ export const examService = {
     const response = await api.delete<{ message: string }>(`/exams/actions/${actionId}`)
     return response.data
   },
+
+  // Validación y Publicación
+  validateExam: async (examId: number): Promise<{
+    is_valid: boolean
+    errors: Array<{ type: string; message: string; details: string }>
+    warnings: Array<{ type: string; message: string; details: string }>
+    summary: {
+      total_categories: number
+      total_topics: number
+      total_questions: number
+      total_exercises: number
+    }
+  }> => {
+    const response = await api.get(`/exams/${examId}/validate`)
+    return response.data
+  },
+
+  publishExam: async (examId: number): Promise<{ message: string; exam: Exam }> => {
+    const response = await api.post<{ message: string; exam: Exam }>(`/exams/${examId}/publish`)
+    return response.data
+  },
+
+  unpublishExam: async (examId: number): Promise<{ message: string; exam: Exam }> => {
+    const response = await api.post<{ message: string; exam: Exam }>(`/exams/${examId}/unpublish`)
+    return response.data
+  },
 }

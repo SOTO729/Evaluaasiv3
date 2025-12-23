@@ -6,6 +6,12 @@ import { useAuthStore } from '../../store/authStore'
 import api from '../../services/api'
 import LoadingSpinner from '../../components/LoadingSpinner'
 
+interface ValidationError {
+  type: string
+  message: string
+  details: string
+}
+
 const ExamEditPage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -13,8 +19,16 @@ const ExamEditPage = () => {
   const { user } = useAuthStore()
   
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showPublishModal, setShowPublishModal] = useState(false)
   const [password, setPassword] = useState('')
   const [deleteError, setDeleteError] = useState('')
+  const [validationResult, setValidationResult] = useState<{
+    is_valid: boolean
+    errors: ValidationError[]
+    warnings: ValidationError[]
+    summary: { total_categories: number; total_topics: number; total_questions: number; total_exercises: number }
+  } | null>(null)
+  const [isValidating, setIsValidating] = useState(false)
   
   const { data: exam, isLoading, error } = useQuery({
     queryKey: ['exam', id],
@@ -43,6 +57,47 @@ const ExamEditPage = () => {
       setDeleteError(error.message || 'Error al eliminar el examen')
     },
   })
+
+  const publishExamMutation = useMutation({
+    mutationFn: () => examService.publishExam(Number(id)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['exam', id] })
+      queryClient.invalidateQueries({ queryKey: ['exams'] })
+      setShowPublishModal(false)
+      setValidationResult(null)
+    },
+  })
+
+  const unpublishExamMutation = useMutation({
+    mutationFn: () => examService.unpublishExam(Number(id)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['exam', id] })
+      queryClient.invalidateQueries({ queryKey: ['exams'] })
+    },
+  })
+
+  const handleValidateAndPublish = async () => {
+    setIsValidating(true)
+    try {
+      const result = await examService.validateExam(Number(id))
+      setValidationResult(result)
+      setShowPublishModal(true)
+    } catch (error) {
+      console.error('Error validating exam:', error)
+    } finally {
+      setIsValidating(false)
+    }
+  }
+
+  const handlePublish = () => {
+    if (validationResult?.is_valid) {
+      publishExamMutation.mutate()
+    }
+  }
+
+  const handleUnpublish = () => {
+    unpublishExamMutation.mutate()
+  }
 
   const handleDeleteExam = (e: React.FormEvent) => {
     e.preventDefault()
@@ -75,18 +130,55 @@ const ExamEditPage = () => {
           Volver a Exámenes
         </button>
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-900">Editar Examen</h1>
-          {user?.role === 'admin' && (
-            <button
-              onClick={() => setShowDeleteModal(true)}
-              className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors font-medium flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Eliminar Examen
-            </button>
-          )}
+          <div className="flex items-center gap-4">
+            <h1 className="text-3xl font-bold text-gray-900">Editar Examen</h1>
+            <span className={`px-3 py-1 text-sm rounded-full ${
+              exam.is_published 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-gray-100 text-gray-800'
+            }`}>
+              {exam.is_published ? 'Publicado' : 'Borrador'}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Botón Publicar/Despublicar */}
+            {exam.is_published ? (
+              <button
+                onClick={handleUnpublish}
+                disabled={unpublishExamMutation.isPending}
+                className="px-4 py-2 bg-yellow-600 text-white hover:bg-yellow-700 rounded-lg transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                </svg>
+                {unpublishExamMutation.isPending ? 'Despublicando...' : 'Despublicar'}
+              </button>
+            ) : (
+              <button
+                onClick={handleValidateAndPublish}
+                disabled={isValidating}
+                className="px-4 py-2 bg-green-600 text-white hover:bg-green-700 rounded-lg transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {isValidating ? 'Validando...' : 'Publicar'}
+              </button>
+            )}
+            
+            {/* Botón Eliminar (solo admin) */}
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors font-medium flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Eliminar Examen
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -296,6 +388,141 @@ const ExamEditPage = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Validación y Publicación */}
+      {showPublishModal && validationResult && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center mr-4 ${
+                  validationResult.is_valid ? 'bg-green-100' : 'bg-red-100'
+                }`}>
+                  {validationResult.is_valid ? (
+                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    {validationResult.is_valid ? 'Examen listo para publicar' : 'El examen tiene errores'}
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {validationResult.is_valid 
+                      ? 'Todas las validaciones han pasado correctamente'
+                      : 'Corrige los siguientes errores antes de publicar'
+                    }
+                  </p>
+                </div>
+              </div>
+
+              {/* Resumen */}
+              <div className="grid grid-cols-4 gap-3 mb-6 bg-gray-50 p-4 rounded-lg">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-primary-600">{validationResult.summary.total_categories}</p>
+                  <p className="text-xs text-gray-600">Categorías</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-primary-600">{validationResult.summary.total_topics}</p>
+                  <p className="text-xs text-gray-600">Temas</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-primary-600">{validationResult.summary.total_questions}</p>
+                  <p className="text-xs text-gray-600">Preguntas</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-primary-600">{validationResult.summary.total_exercises}</p>
+                  <p className="text-xs text-gray-600">Ejercicios</p>
+                </div>
+              </div>
+
+              {/* Errores */}
+              {validationResult.errors.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-red-800 mb-3 flex items-center">
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Errores ({validationResult.errors.length})
+                  </h4>
+                  <div className="space-y-3">
+                    {validationResult.errors.map((error, index) => (
+                      <div key={index} className="bg-red-50 border-l-4 border-red-500 p-3 rounded-r">
+                        <p className="text-sm font-medium text-red-800">{error.message}</p>
+                        <p className="text-xs text-red-600 mt-1">{error.details}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Advertencias */}
+              {validationResult.warnings.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-yellow-800 mb-3 flex items-center">
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    Advertencias ({validationResult.warnings.length})
+                  </h4>
+                  <div className="space-y-3">
+                    {validationResult.warnings.map((warning, index) => (
+                      <div key={index} className="bg-yellow-50 border-l-4 border-yellow-500 p-3 rounded-r">
+                        <p className="text-sm font-medium text-yellow-800">{warning.message}</p>
+                        <p className="text-xs text-yellow-600 mt-1">{warning.details}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Mensaje de éxito */}
+              {validationResult.is_valid && validationResult.warnings.length === 0 && (
+                <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded-r">
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <p className="text-sm font-medium text-green-800">
+                      El examen está completo y listo para ser publicado
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3 justify-end pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPublishModal(false)
+                    setValidationResult(null)
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  {validationResult.is_valid ? 'Cancelar' : 'Cerrar'}
+                </button>
+                {validationResult.is_valid && (
+                  <button
+                    onClick={handlePublish}
+                    disabled={publishExamMutation.isPending}
+                    className="px-4 py-2 bg-green-600 text-white hover:bg-green-700 rounded-lg transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    {publishExamMutation.isPending ? 'Publicando...' : 'Confirmar Publicación'}
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

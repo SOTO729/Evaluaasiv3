@@ -1447,3 +1447,254 @@ def options_upload_step_image(step_id):
     response.headers['Access-Control-Allow-Methods'] = 'POST,OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
     return response
+
+
+# ============= VALIDAR Y PUBLICAR EXAMEN =============
+
+@bp.route('/<int:exam_id>/validate', methods=['GET'])
+@jwt_required()
+@require_permission('exams:read')
+def validate_exam(exam_id):
+    """
+    Validar que un examen esté completo antes de publicar
+    Verifica:
+    - El examen tiene al menos una categoría
+    - Las categorías suman 100%
+    - Cada categoría tiene al menos un tema
+    - Cada tema tiene al menos una pregunta con respuestas válidas O un ejercicio
+    - Las preguntas tienen respuestas correctas configuradas
+    - Los ejercicios tienen al menos un paso
+    - Los pasos tienen imagen y al menos una acción
+    """
+    print(f"\n=== VALIDAR EXAMEN {exam_id} ===")
+    
+    exam = Exam.query.get(exam_id)
+    if not exam:
+        return jsonify({'error': 'Examen no encontrado'}), 404
+    
+    errors = []
+    warnings = []
+    
+    # 1. Verificar que tenga categorías
+    categories = Category.query.filter_by(exam_id=exam_id).all()
+    if not categories:
+        errors.append({
+            'type': 'exam',
+            'message': 'El examen no tiene categorías',
+            'details': 'Debes agregar al menos una categoría al examen'
+        })
+    else:
+        # 2. Verificar que las categorías sumen 100%
+        total_percentage = sum(c.percentage or 0 for c in categories)
+        if total_percentage != 100:
+            errors.append({
+                'type': 'categories',
+                'message': f'Las categorías suman {total_percentage}%, deben sumar 100%',
+                'details': 'Ajusta los porcentajes de las categorías para que sumen exactamente 100%'
+            })
+        
+        # 3. Verificar cada categoría
+        for category in categories:
+            topics = Topic.query.filter_by(category_id=category.id).all()
+            
+            if not topics:
+                errors.append({
+                    'type': 'category',
+                    'message': f'La categoría "{category.name}" no tiene temas',
+                    'details': f'Agrega al menos un tema a la categoría "{category.name}"'
+                })
+                continue
+            
+            # 4. Verificar cada tema
+            for topic in topics:
+                questions = Question.query.filter_by(topic_id=topic.id).all()
+                exercises = Exercise.query.filter_by(topic_id=topic.id).all()
+                
+                if not questions and not exercises:
+                    errors.append({
+                        'type': 'topic',
+                        'message': f'El tema "{topic.name}" no tiene preguntas ni ejercicios',
+                        'details': f'Agrega al menos una pregunta o ejercicio al tema "{topic.name}" en la categoría "{category.name}"'
+                    })
+                    continue
+                
+                # 5. Verificar preguntas
+                for question in questions:
+                    from app.models.answer import Answer
+                    answers = Answer.query.filter_by(question_id=question.id).all()
+                    
+                    if not answers:
+                        errors.append({
+                            'type': 'question',
+                            'message': f'La pregunta #{question.question_number} en "{topic.name}" no tiene respuestas',
+                            'details': f'Configura las respuestas para la pregunta #{question.question_number}'
+                        })
+                    else:
+                        # Verificar que tenga al menos una respuesta correcta
+                        correct_answers = [a for a in answers if a.is_correct]
+                        if not correct_answers:
+                            errors.append({
+                                'type': 'question',
+                                'message': f'La pregunta #{question.question_number} en "{topic.name}" no tiene respuesta correcta',
+                                'details': f'Marca al menos una respuesta como correcta para la pregunta #{question.question_number}'
+                            })
+                
+                # 6. Verificar ejercicios
+                for exercise in exercises:
+                    steps = ExerciseStep.query.filter_by(exercise_id=exercise.id).all()
+                    
+                    if not steps:
+                        errors.append({
+                            'type': 'exercise',
+                            'message': f'El ejercicio "{exercise.title or f"#{exercise.exercise_number}"}" en "{topic.name}" no tiene pasos',
+                            'details': f'Agrega al menos un paso al ejercicio'
+                        })
+                    else:
+                        for step in steps:
+                            # Verificar que el paso tenga imagen
+                            if not step.image_url:
+                                warnings.append({
+                                    'type': 'step',
+                                    'message': f'El paso #{step.step_number} del ejercicio "{exercise.title or f"#{exercise.exercise_number}"}" no tiene imagen',
+                                    'details': 'Es recomendable agregar una imagen al paso'
+                                })
+                            
+                            # Verificar que el paso tenga acciones
+                            actions = ExerciseAction.query.filter_by(step_id=step.id).all()
+                            if not actions:
+                                warnings.append({
+                                    'type': 'step',
+                                    'message': f'El paso #{step.step_number} del ejercicio "{exercise.title or f"#{exercise.exercise_number}"}" no tiene acciones',
+                                    'details': 'Es recomendable agregar al menos una acción (botón o campo de texto) al paso'
+                                })
+    
+    is_valid = len(errors) == 0
+    
+    print(f"Validación completada: {'VÁLIDO' if is_valid else 'INVÁLIDO'}")
+    print(f"Errores: {len(errors)}, Advertencias: {len(warnings)}")
+    print(f"=== FIN VALIDAR EXAMEN ===")
+    
+    return jsonify({
+        'is_valid': is_valid,
+        'errors': errors,
+        'warnings': warnings,
+        'summary': {
+            'total_categories': len(categories) if categories else 0,
+            'total_topics': sum(Topic.query.filter_by(category_id=c.id).count() for c in categories) if categories else 0,
+            'total_questions': exam.total_questions or 0,
+            'total_exercises': exam.total_exercises or 0
+        }
+    }), 200
+
+
+@bp.route('/<int:exam_id>/validate', methods=['OPTIONS'])
+def options_validate_exam(exam_id):
+    response = jsonify({'status': 'ok'})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
+    return response
+
+
+@bp.route('/<int:exam_id>/publish', methods=['POST'])
+@jwt_required()
+@require_permission('exams:update')
+def publish_exam(exam_id):
+    """
+    Publicar un examen después de validarlo
+    """
+    print(f"\n=== PUBLICAR EXAMEN {exam_id} ===")
+    
+    exam = Exam.query.get(exam_id)
+    if not exam:
+        return jsonify({'error': 'Examen no encontrado'}), 404
+    
+    # Primero validar el examen
+    categories = Category.query.filter_by(exam_id=exam_id).all()
+    
+    if not categories:
+        return jsonify({
+            'error': 'No se puede publicar',
+            'message': 'El examen no tiene categorías'
+        }), 400
+    
+    total_percentage = sum(c.percentage or 0 for c in categories)
+    if total_percentage != 100:
+        return jsonify({
+            'error': 'No se puede publicar',
+            'message': f'Las categorías suman {total_percentage}%, deben sumar 100%'
+        }), 400
+    
+    # Verificar que tenga al menos una pregunta o ejercicio
+    if (exam.total_questions or 0) == 0 and (exam.total_exercises or 0) == 0:
+        return jsonify({
+            'error': 'No se puede publicar',
+            'message': 'El examen no tiene preguntas ni ejercicios'
+        }), 400
+    
+    # Publicar el examen
+    from datetime import datetime
+    exam.is_published = True
+    exam.updated_at = datetime.utcnow()
+    
+    user_id = get_jwt_identity()
+    exam.updated_by = user_id
+    
+    db.session.commit()
+    
+    print(f"✓ Examen publicado exitosamente")
+    print(f"=== FIN PUBLICAR EXAMEN ===")
+    
+    return jsonify({
+        'message': 'Examen publicado exitosamente',
+        'exam': exam.to_dict()
+    }), 200
+
+
+@bp.route('/<int:exam_id>/publish', methods=['OPTIONS'])
+def options_publish_exam(exam_id):
+    response = jsonify({'status': 'ok'})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'POST,OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
+    return response
+
+
+@bp.route('/<int:exam_id>/unpublish', methods=['POST'])
+@jwt_required()
+@require_permission('exams:update')
+def unpublish_exam(exam_id):
+    """
+    Despublicar un examen
+    """
+    print(f"\n=== DESPUBLICAR EXAMEN {exam_id} ===")
+    
+    exam = Exam.query.get(exam_id)
+    if not exam:
+        return jsonify({'error': 'Examen no encontrado'}), 404
+    
+    from datetime import datetime
+    exam.is_published = False
+    exam.updated_at = datetime.utcnow()
+    
+    user_id = get_jwt_identity()
+    exam.updated_by = user_id
+    
+    db.session.commit()
+    
+    print(f"✓ Examen despublicado exitosamente")
+    print(f"=== FIN DESPUBLICAR EXAMEN ===")
+    
+    return jsonify({
+        'message': 'Examen despublicado exitosamente',
+        'exam': exam.to_dict()
+    }), 200
+
+
+@bp.route('/<int:exam_id>/unpublish', methods=['OPTIONS'])
+def options_unpublish_exam(exam_id):
+    response = jsonify({'status': 'ok'})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'POST,OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
+    return response
