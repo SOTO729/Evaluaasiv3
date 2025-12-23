@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { examService } from '../../services/examService'
 import { useAuthStore } from '../../store/authStore'
+import LoadingSpinner from '../../components/LoadingSpinner'
 
 const ExamsListPage = () => {
   const { user } = useAuthStore()
@@ -12,8 +13,8 @@ const ExamsListPage = () => {
     staleTime: 30000, // Cachear por 30 segundos
   })
 
-  if (isLoading) return <div>Cargando exámenes...</div>
-  if (error) return <div>Error al cargar exámenes</div>
+  if (isLoading) return <LoadingSpinner message="Cargando exámenes..." fullScreen />
+  if (error) return <div className="text-center py-12 text-red-600">Error al cargar exámenes</div>
 
   const canCreateExam = user?.role === 'admin' || user?.role === 'editor'
 

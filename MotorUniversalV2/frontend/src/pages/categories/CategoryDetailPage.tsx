@@ -174,7 +174,7 @@ const CategoryDetailPage = () => {
         </div>
 
         {isLoadingTopics ? (
-          <div className="text-center py-12 text-gray-500">Cargando temas...</div>
+          <LoadingSpinner message="Cargando temas..." />
         ) : topics.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
