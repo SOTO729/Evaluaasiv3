@@ -20,6 +20,9 @@ const TrueFalseAnswerPage = lazy(() => import('./pages/answers/TrueFalseAnswerPa
 const MultipleChoiceAnswerPage = lazy(() => import('./pages/answers/MultipleChoiceAnswerPage'))
 const MultipleSelectAnswerPage = lazy(() => import('./pages/answers/MultipleSelectAnswerPage').then(module => ({ default: module.MultipleSelectAnswerPage })))
 const OrderingAnswerPage = lazy(() => import('./pages/answers/OrderingAnswerPage').then(module => ({ default: module.OrderingAnswerPage })))
+const ExamTestListPage = lazy(() => import('./pages/ExamTestListPage'))
+const ExamTestRunPage = lazy(() => import('./pages/ExamTestRunPage'))
+const ExamTestResultsPage = lazy(() => import('./pages/ExamTestResultsPage'))
 
 function App() {
   const { isAuthenticated } = useAuthStore()
@@ -45,6 +48,11 @@ function App() {
               <Route path="/exams" element={<ExamsListPage />} />
               <Route path="/exams/create" element={<ExamCreatePage />} />
               <Route path="/exams/:id/edit" element={<ExamEditPage />} />
+              
+              {/* Exam Testing */}
+              <Route path="/test-exams" element={<ExamTestListPage />} />
+              <Route path="/test-exams/:examId/run" element={<ExamTestRunPage />} />
+              <Route path="/test-exams/:examId/results" element={<ExamTestResultsPage />} />
               
               {/* Categories */}
               <Route path="/exams/:examId/categories/:categoryId" element={<CategoryDetailPage />} />
