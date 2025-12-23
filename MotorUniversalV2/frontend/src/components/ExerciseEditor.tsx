@@ -51,6 +51,12 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   const [localPreviewImage, setLocalPreviewImage] = useState<string | null>(null)
   const [isCreatingStep, setIsCreatingStep] = useState(false)
   
+  // Estado para cambios pendientes (sin guardar)
+  const [pendingChanges, setPendingChanges] = useState<any[]>([])
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  
   // Estados para drag & resize
   const [dragState, setDragState] = useState<DragState>({
     isDragging: false,
@@ -109,6 +115,12 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     hasImage: false,
     actionsCount: 0
   })
+
+  // Función para agregar cambio pendiente
+  const addPendingChange = (change: any) => {
+    setPendingChanges(prev => [...prev, change])
+    setHasUnsavedChanges(true)
+  }
 
   // Query para obtener los detalles del ejercicio con steps y actions
   const { data: exerciseData, isLoading, refetch } = useQuery({
@@ -171,7 +183,10 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   const uploadImageMutation = useMutation({
     mutationFn: ({ stepId, imageData, width, height }: { stepId: string; imageData: string; width: number; height: number }) =>
       examService.uploadStepImage(stepId, imageData, width, height),
-    onSuccess: () => refetch(),
+    onSuccess: (_response, variables) => {
+      addPendingChange({ type: 'upload_image', stepId: variables.stepId })
+      refetch()
+    },
   })
 
   const createActionMutation = useMutation({
@@ -181,6 +196,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     },
     onSuccess: (response) => {
       console.log('Action created successfully:', response)
+      addPendingChange({ type: 'create_action', stepId: response.action?.step_id, actionId: response.action?.id })
       refetch()
     },
     onError: (error) => {
@@ -191,12 +207,16 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   const updateActionMutation = useMutation({
     mutationFn: ({ actionId, data }: { actionId: string; data: any }) =>
       examService.updateStepAction(actionId, data),
-    onSuccess: () => refetch(),
+    onSuccess: (_response, variables) => {
+      addPendingChange({ type: 'update_action', actionId: variables.actionId, data: variables.data })
+      refetch()
+    },
   })
 
   const deleteActionMutation = useMutation({
     mutationFn: (actionId: string) => examService.deleteStepAction(actionId),
-    onSuccess: () => {
+    onSuccess: (_response, actionId) => {
+      addPendingChange({ type: 'delete_action', actionId })
       refetch()
       setSelectedAction(null)
     },
@@ -207,7 +227,8 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     mutationFn: async ({ stepId, newStepNumber }: { stepId: string; newStepNumber: number }) => {
       return examService.updateExerciseStep(stepId, { step_number: newStepNumber })
     },
-    onSuccess: () => {
+    onSuccess: (_response, variables) => {
+      addPendingChange({ type: 'reorder_step', stepId: variables.stepId, stepNumber: variables.newStepNumber })
       refetch()
     },
     onError: (error) => {
@@ -581,7 +602,13 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       <div className="flex items-center justify-between px-6 py-4 border-b bg-white shadow-sm">
         <div className="flex items-center gap-4">
           <button
-            onClick={onClose}
+            onClick={() => {
+              if (hasUnsavedChanges) {
+                setShowUnsavedWarning(true)
+              } else {
+                onClose()
+              }
+            }}
             className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
             title="Volver"
           >
@@ -598,30 +625,53 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
         </div>
         
         <div className="flex items-center gap-3">
+          {hasUnsavedChanges && (
+            <span className="flex items-center gap-2 text-sm text-orange-600 bg-orange-50 px-3 py-1.5 rounded-lg">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              {pendingChanges.length} cambio(s) sin guardar
+            </span>
+          )}
           <span className="text-sm text-gray-500">
             {steps.length} paso(s) • {currentStep?.actions?.length || 0} acción(es) en paso actual
           </span>
           <button
-            onClick={() => {
-              // Actualizar el ejercicio como completo antes de cerrar
-              examService.updateExercise(exercise.id, { is_complete: true })
-                .then(() => {
-                  onClose()
-                })
-                .catch((error) => {
-                  console.error('Error al actualizar ejercicio:', error)
-                  onClose()
-                })
+            onClick={async () => {
+              setIsSaving(true)
+              try {
+                // Actualizar el ejercicio como completo
+                await examService.updateExercise(exercise.id, { is_complete: true })
+                // Limpiar cambios pendientes
+                setPendingChanges([])
+                setHasUnsavedChanges(false)
+                onClose()
+              } catch (error) {
+                console.error('Error al guardar ejercicio:', error)
+                alert('Error al guardar. Por favor intente de nuevo.')
+              } finally {
+                setIsSaving(false)
+              }
             }}
-            disabled={steps.length === 0}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              steps.length === 0 
+            disabled={steps.length === 0 || isSaving}
+            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+              steps.length === 0 || isSaving
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
                 : 'bg-primary-600 text-white hover:bg-primary-700'
             }`}
             title={steps.length === 0 ? 'Debes crear al menos un paso antes de guardar' : ''}
           >
-            Guardar y Salir
+            {isSaving ? (
+              <>
+                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Guardando...
+              </>
+            ) : (
+              'Guardar y Salir'
+            )}
           </button>
         </div>
       </div>
@@ -1648,6 +1698,73 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                     Sí, Eliminar
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de advertencia de cambios sin guardar */}
+      {showUnsavedWarning && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <svg className="w-12 h-12 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Cambios sin guardar
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Tienes <strong>{pendingChanges.length} cambio(s)</strong> que no se guardarán hasta que hagas clic en <strong>"Guardar y Salir"</strong>.
+                </p>
+                <p className="text-sm text-gray-500 mb-4">
+                  Si abandonas el editor ahora, perderás todos los cambios realizados.
+                </p>
+
+                {/* Lista de cambios */}
+                <div className="mb-4 p-3 bg-gray-50 rounded-lg max-h-32 overflow-y-auto">
+                  <p className="text-xs font-medium text-gray-700 mb-2">Cambios pendientes:</p>
+                  <ul className="text-xs text-gray-600 space-y-1">
+                    {pendingChanges.slice(0, 5).map((change, idx) => (
+                      <li key={idx} className="flex items-center gap-2">
+                        <span className="w-1 h-1 bg-orange-500 rounded-full"></span>
+                        {change.type === 'create_action' && 'Acción creada'}
+                        {change.type === 'update_action' && 'Acción actualizada'}
+                        {change.type === 'delete_action' && 'Acción eliminada'}
+                        {change.type === 'reorder_step' && 'Paso reordenado'}
+                        {change.type === 'upload_image' && 'Imagen subida'}
+                      </li>
+                    ))}
+                    {pendingChanges.length > 5 && (
+                      <li className="text-gray-400">+ {pendingChanges.length - 5} cambios más...</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Botones */}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowUnsavedWarning(false)}
+                className="flex-1 px-4 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+              >
+                Continuar Editando
+              </button>
+              <button
+                onClick={() => {
+                  setShowUnsavedWarning(false)
+                  setPendingChanges([])
+                  setHasUnsavedChanges(false)
+                  onClose()
+                }}
+                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+              >
+                Salir sin Guardar
               </button>
             </div>
           </div>
