@@ -1574,6 +1574,10 @@ def validate_exam(exam_id):
         print(f"Errores: {len(errors)}, Advertencias: {len(warnings)}")
         print(f"=== FIN VALIDAR EXAMEN ===")
         
+        # Calcular totales usando los métodos del modelo
+        total_questions = exam.get_total_questions() if hasattr(exam, 'get_total_questions') else 0
+        total_exercises = exam.get_total_exercises() if hasattr(exam, 'get_total_exercises') else 0
+        
         return jsonify({
             'is_valid': is_valid,
             'errors': errors,
@@ -1581,8 +1585,8 @@ def validate_exam(exam_id):
             'summary': {
                 'total_categories': len(categories) if categories else 0,
                 'total_topics': sum(Topic.query.filter_by(category_id=c.id).count() for c in categories) if categories else 0,
-                'total_questions': exam.total_questions or 0,
-                'total_exercises': exam.total_exercises or 0
+                'total_questions': total_questions,
+                'total_exercises': total_exercises
             }
         }), 200
     

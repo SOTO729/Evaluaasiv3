@@ -1,0 +1,38 @@
+<step title="BackgroundTrace" date="2025-12-21T19:36:51.442" instance="f83f3e" url="/api/publish" method="POST" >
+  <step title="Creating temporary deployment - FetchDeploymentManager" date="2025-12-21T19:36:51.520" /><!-- duration: 2ms -->
+  <step title="Creating temporary deployment" date="2025-12-21T19:36:51.529" /><!-- duration: 118ms -->
+  <step title="Performing fetch based deployment" date="2025-12-21T19:36:51.831" >
+    <step title="Cleaning up temp folders from previous zip deployments and extracting pushed zip file /tmp/zipdeploy/3cd3f5f9-274b-4291-9dcc-03ed2ba6d478.zip (0.04 MB) to /tmp/zipdeploy/extracted" date="2025-12-21T19:36:53.024" >
+      <step title="ChmodRecursive Process exited with total time taken in ms: 70" date="2025-12-21T19:36:53.190" /><!-- duration: 20ms -->
+    </step><!-- duration: 196ms -->
+    <step title="Deployment timer started" date="2025-12-21T19:36:55.250" >
+      <step title="DeploymentManager.Deploy(id:4d4b4d12-2773-4002-8081-a560de53c243)" date="2025-12-21T19:36:55.258" >
+        <step title="Collecting changeset information" date="2025-12-21T19:36:55.291" /><!-- duration: 111ms -->
+        <step title="Updating submodules" date="2025-12-21T19:36:55.413" /><!-- duration: 1127ms -->
+        <step title="Determining deployment builder" date="2025-12-21T19:36:56.774" >
+          <step title="Builder is OryxBuilder" date="2025-12-21T19:36:56.812" /><!-- duration: 10ms -->
+        </step><!-- duration: 59ms -->
+        <step title="PreDeployment: context.CleanOutputPath False" date="2025-12-21T19:36:56.900" >
+          <step title="PreDeployment: context.OutputPath /home/site/wwwroot" date="2025-12-21T19:36:57.006" >
+            <step title="Building" date="2025-12-21T19:36:57.134" >
+              <step title="Executing external process" date="2025-12-21T19:36:58.065" type="process" path="starter.sh" arguments="kudusync -v 50 -f /tmp/zipdeploy/extracted -t /home/site/wwwroot -n /home/site/deployments/4d4b4d12-2773-4002-8081-a560de53c243/manifest -p /opt/Kudu/Scripts/firstDeploymentManifest -i &quot;.git;.hg;.deployment;.deploy.sh&quot;" /><!-- duration: 2408ms -->
+              <step title="Modified file to trigger a restart of the app container." date="2025-12-21T19:37:01.265" /><!-- duration: 3ms -->
+              <step title="Skip function trigger and logicapp sync because function is not enabled." date="2025-12-21T19:37:01.273" /><!-- duration: 10ms -->
+              <step title="Purge deployment items" date="2025-12-21T19:37:02.334" >
+                <step title="Remove 56bf212a-, Failed, received at 12/20/2025 22:51:22" date="2025-12-21T19:37:02.455" /><!-- duration: 12ms -->
+                <step title="Remove temp-843b, Failed, received at 12/20/2025 22:51:17" date="2025-12-21T19:37:02.589" /><!-- duration: 9ms -->
+                <step title="Remove 724b78b1-, Failed, received at 12/20/2025 22:48:12" date="2025-12-21T19:37:02.751" /><!-- duration: 7ms -->
+                <step title="Remove temp-bf24, Failed, received at 12/20/2025 22:48:04" date="2025-12-21T19:37:02.856" /><!-- duration: 3ms -->
+                <step title="Remove d7269dae-, Failed, received at 12/20/2025 22:38:41" date="2025-12-21T19:37:02.962" /><!-- duration: 9ms -->
+                <step title="Remove temp-d9c4, Failed, received at 12/20/2025 22:38:37" date="2025-12-21T19:37:03.062" /><!-- duration: 2ms -->
+              </step><!-- duration: 733ms -->
+            </step><!-- duration: 5994ms -->
+          </step><!-- duration: 6125ms -->
+          <step title="Cleaning up temp files" date="2025-12-21T19:37:03.134" /><!-- duration: 5ms -->
+          <step title="Cleaning up temp files" date="2025-12-21T19:37:03.146" /><!-- duration: 536ms -->
+          <step title="Reloading status file with latest updates" date="2025-12-21T19:37:03.717" >
+            <step title="WebHooksManager.PublishEventAsync: PostDeployment" date="2025-12-21T19:37:03.721" /><!-- duration: 87ms -->
+          </step><!-- duration: 95ms -->
+          <step title="Cleaning up temporary deployment - fetch deployment was successful" date="2025-12-21T19:37:03.816" /><!-- duration: 3ms -->
+        </step><!-- duration: 6987ms -->
+      </step><!-- duration: 8643ms -->

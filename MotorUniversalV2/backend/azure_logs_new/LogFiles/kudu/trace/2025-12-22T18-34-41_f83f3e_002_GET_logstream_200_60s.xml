@@ -1,0 +1,5 @@
+<step title="Incoming Request" date="2025-12-22T18:34:41.197" instance="f83f3e" url="/logstream" method="GET" type="request" pid="769,1,16" Host="evaluaasi-motorv2-api.scm.azurewebsites.net" User-Agent="AZURECLI/2.81.0 (DEB)" Accept-Encoding="identity" Authorization="Bea..." x-ms-client-request-id="dd83fa54-df64-11f0-a4d0-7c1e523e1c95" X-ARR-LOG-ID="dd83fa54-df64-11f0-a4d0-7c1e523e1c95" CLIENT-IP="20.163.40.130:46609" X-SITE-DEPLOYMENT-ID="evaluaasi-motorv2-api" WAS-DEFAULT-HOSTNAME="evaluaasi-motorv2-api.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/logstream" X-Client-IP="20.163.40.130" X-Client-Port="46609" >
+  <step title="LogStreamHandlerMiddleware.Invoke" date="2025-12-22T18:34:41.346" /><!-- duration: 76ms -->
+  <step title="Error occurred" date="2025-12-22T18:35:41.422" type="error" text="LogStreamManager: ProcessRequest end" /><!-- duration: 6ms -->
+  <step title="Outgoing response" date="2025-12-22T18:35:41.483" type="response" statusCode="200" statusText="OK" /><!-- duration: 45ms -->
+</step><!-- duration: 60337ms -->

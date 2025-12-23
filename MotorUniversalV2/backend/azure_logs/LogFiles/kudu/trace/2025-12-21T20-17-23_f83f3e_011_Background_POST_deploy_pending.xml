@@ -1,0 +1,28 @@
+<step title="BackgroundTrace" date="2025-12-21T20:17:23.707" instance="f83f3e" url="/deploy" method="POST" >
+  <step title="Creating temporary deployment - FetchDeploymentManager" date="2025-12-21T20:17:23.999" /><!-- duration: 7ms -->
+  <step title="Creating temporary deployment" date="2025-12-21T20:17:24.026" /><!-- duration: 145ms -->
+  <step title="Performing fetch based deployment" date="2025-12-21T20:17:24.573" >
+    <step title="Deployment timer started" date="2025-12-21T20:17:31.917" >
+      <step title="DeploymentManager.Deploy(id:10a06693d8318e765c4a526c010959f62d04c0e8)" date="2025-12-21T20:17:31.947" >
+        <step title="Collecting changeset information" date="2025-12-21T20:17:31.986" /><!-- duration: 201ms -->
+        <step title="Updating submodules" date="2025-12-21T20:17:32.323" /><!-- duration: 1341ms -->
+        <step title="Determining deployment builder" date="2025-12-21T20:17:34.061" >
+          <step title="Builder is BasicBuilder" date="2025-12-21T20:17:34.175" /><!-- duration: 3ms -->
+        </step><!-- duration: 121ms -->
+        <step title="PreDeployment: context.CleanOutputPath False" date="2025-12-21T20:17:34.223" >
+          <step title="PreDeployment: context.OutputPath /home/site/wwwroot" date="2025-12-21T20:17:34.372" >
+            <step title="Building" date="2025-12-21T20:17:34.530" >
+              <step title="Executing external process" date="2025-12-21T20:17:34.783" type="process" path="starter.sh" arguments="/opt/Kudu/Scripts/parallel_rsync.sh /home/site/repository /home/site/wwwroot 8 /tmp/ False True  " /><!-- duration: 8765ms -->
+              <step title="Triggering recycle (preview mode disabled)." date="2025-12-21T20:17:44.178" /><!-- duration: 30ms -->
+              <step title="Modified file to trigger a restart of the app container." date="2025-12-21T20:17:44.273" /><!-- duration: 27ms -->
+              <step title="Skip function trigger and logicapp sync because function is not enabled." date="2025-12-21T20:17:44.314" /><!-- duration: 17ms -->
+            </step><!-- duration: 11718ms -->
+          </step><!-- duration: 11893ms -->
+          <step title="Cleaning up temp files" date="2025-12-21T20:17:46.289" /><!-- duration: 19ms -->
+          <step title="Cleaning up temp files" date="2025-12-21T20:17:46.318" /><!-- duration: 537ms -->
+          <step title="Reloading status file with latest updates" date="2025-12-21T20:17:46.902" >
+            <step title="WebHooksManager.PublishEventAsync: PostDeployment" date="2025-12-21T20:17:46.914" /><!-- duration: 114ms -->
+          </step><!-- duration: 129ms -->
+          <step title="Cleaning up temporary deployment - fetch deployment was successful" date="2025-12-21T20:17:47.050" /><!-- duration: 10ms -->
+        </step><!-- duration: 12982ms -->
+      </step><!-- duration: 15299ms -->

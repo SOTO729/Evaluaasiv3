@@ -1,0 +1,3 @@
+2025-12-21T21:32:57  Startup Request, url: /logstream, method: GET, type: request, pid: 772,1,25, SCM_DO_BUILD_DURING_DEPLOYMENT: true, ScmType: ExternalGit
+2025-12-21T21:32:57      Error occurred, type: error, text: LogStreamManager: ProcessRequest end
+2025-12-21T21:32:57  Error occurred, type: error, text: LogStreamManager: Inside Reset

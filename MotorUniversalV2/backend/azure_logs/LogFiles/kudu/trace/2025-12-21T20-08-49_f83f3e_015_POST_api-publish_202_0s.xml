@@ -1,0 +1,13 @@
+<step title="Incoming Request" date="2025-12-21T20:08:49.232" instance="f83f3e" url="/api/publish?type=zip&amp;async=True" method="POST" type="request" pid="768,1,25" Accept="*/*" Host="evaluaasi-motorv2-api.scm.azurewebsites.net" User-Agent="AZURECLI/2.81.0 (DEB)" Accept-Encoding="gzip, deflate" Authorization="Bea..." Cache-Control="no-cache" Content-Type="application/octet-stream" Cookie="ARRAffinity=f83f3ee9d12286f77233e42da2051dc9f32cd9fc92bde9436ebe04cf374c5900; ARRAffinitySameSite=f83f3ee9d12286f77233e42da2051dc9f32cd9fc92bde9436ebe04cf374c5900" Content-Length="46588" x-ms-client-request-id="d85e97ee-dea8-11f0-a84d-7c1e52257deb" x-ms-artifact-checksum="0f8b56981291f45dc618d9140a189271335458ffb0fd4a0565d713ea3416fbd9" X-ARR-LOG-ID="d85e97ee-dea8-11f0-a84d-7c1e52257deb" CLIENT-IP="172.182.200.129:51724" X-SITE-DEPLOYMENT-ID="evaluaasi-motorv2-api" WAS-DEFAULT-HOSTNAME="evaluaasi-motorv2-api.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/publish?type=zip&amp;async=True" X-Client-IP="172.182.200.129" X-Client-Port="51724" >
+  <step title="OneDeploy" date="2025-12-21T20:08:49.242" >
+    <step title="Starting PushDeployAsync" date="2025-12-21T20:08:49.247" /><!-- duration: 3ms -->
+    <step title="Writing artifact to /tmp/zipdeploy/2c914d71-c879-43c6-bbd0-fdd847581f13.zip" date="2025-12-21T20:08:49.259" >
+      <step title="Writing multipart request body to /tmp/zipdeploy/2c914d71-c879-43c6-bbd0-fdd847581f13.zip" date="2025-12-21T20:08:49.266" /><!-- duration: 9ms -->
+    </step><!-- duration: 37ms -->
+    <step title="Start deployment in the background" date="2025-12-21T20:08:49.309" >
+      <step title="Acquiring Deployment Lock" date="2025-12-21T20:08:49.335" /><!-- duration: 9ms -->
+      <step title="Acquired Deployment Lock" date="2025-12-21T20:08:49.369" /><!-- duration: 3ms -->
+    </step><!-- duration: 139ms -->
+  </step><!-- duration: 218ms -->
+  <step title="Outgoing response" date="2025-12-21T20:08:49.464" type="response" statusCode="202" statusText="Accepted" /><!-- duration: 4ms -->
+</step><!-- duration: 238ms -->

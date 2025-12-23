@@ -1,0 +1,21 @@
+2025-12-23T18:33:32  Fetching changes.
+2025-12-23T18:33:32    Starting  LocalZipHandler
+2025-12-23T18:33:32    Cleaning up temp folders from previous zip deployments and extracting pushed zip file /tmp/zipdeploy/4566f7d8-2045-4782-ab24-8066d65b826d.zip (0.06 MB) to /tmp/zipdeploy/extracted
+2025-12-23T18:33:36  Updating submodules.
+2025-12-23T18:33:36  Preparing deployment for commit id 'eee58411-5'.
+2025-12-23T18:33:37  PreDeployment: context.CleanOutputPath False
+2025-12-23T18:33:37  PreDeployment: context.OutputPath /home/site/wwwroot
+2025-12-23T18:33:37  Repository path is /tmp/zipdeploy/extracted
+2025-12-23T18:33:37  Oryx-Build: Running kudu sync...
+2025-12-23T18:33:38    Command: kudusync -v 50 -f /tmp/zipdeploy/extracted -t /home/site/wwwroot -n /home/site/deployments/eee58411-5771-4191-b19e-8666668c344f/manifest -p /home/site/deployments/8f9c3746-de92-4351-986e-9d75d8181153/manifest -i ".git;.hg;.deployment;.deploy.sh"
+2025-12-23T18:33:39    Kudu sync from: '/tmp/zipdeploy/extracted' to: '/home/site/wwwroot'
+2025-12-23T18:33:39    Ignoring: .deployment
+2025-12-23T18:33:39    Deleting file: 'backend_logs.zip'
+2025-12-23T18:33:39    Copying file: 'app/routes/exams.py'
+2025-12-23T18:33:39  Running post deployment command(s)...
+2025-12-23T18:33:40  
+2025-12-23T18:33:40  Generating summary of Oryx build
+2025-12-23T18:33:40  Deployment Log file does not exist in /tmp/oryx-build.log
+2025-12-23T18:33:40  The logfile at /tmp/oryx-build.log is empty. Unable to fetch the summary of build
+2025-12-23T18:33:40  Triggering container recycle for OneDeploy by adding/updating restartTrigger.txt to the site root path
+2025-12-23T18:33:41  Deployment successful. deployer = OneDeploy deploymentPath = OneDeploy

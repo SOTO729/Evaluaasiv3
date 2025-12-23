@@ -1,0 +1,68 @@
+2025-12-23T18:27:20  Fetching changes.
+2025-12-23T18:27:20    Starting  LocalZipHandler
+2025-12-23T18:27:20    Cleaning up temp folders from previous zip deployments and extracting pushed zip file /tmp/zipdeploy/44d85987-7f53-463c-aee3-e71f17e942c2.zip (0.11 MB) to /tmp/zipdeploy/extracted
+2025-12-23T18:27:25  Updating submodules.
+2025-12-23T18:27:25  Preparing deployment for commit id '8f9c3746-d'.
+2025-12-23T18:27:26  PreDeployment: context.CleanOutputPath False
+2025-12-23T18:27:26  PreDeployment: context.OutputPath /home/site/wwwroot
+2025-12-23T18:27:26  Repository path is /tmp/zipdeploy/extracted
+2025-12-23T18:27:26  Oryx-Build: Running kudu sync...
+2025-12-23T18:27:26    Command: kudusync -v 50 -f /tmp/zipdeploy/extracted -t /home/site/wwwroot -n /home/site/deployments/8f9c3746-de92-4351-986e-9d75d8181153/manifest -p /home/site/deployments/10a06693d8318e765c4a526c010959f62d04c0e8/manifest -i ".git;.hg;.deployment;.deploy.sh"
+2025-12-23T18:27:27    Kudu sync from: '/tmp/zipdeploy/extracted' to: '/home/site/wwwroot'
+2025-12-23T18:27:28    Ignoring: .deployment
+2025-12-23T18:27:28    Copying file: '.env.example'
+2025-12-23T18:27:28    Copying file: 'Dockerfile'
+2025-12-23T18:27:28    Copying file: 'README.md'
+2025-12-23T18:27:28    Copying file: 'add_image_column.py'
+2025-12-23T18:27:28    Copying file: 'add_multiple_select.py'
+2025-12-23T18:27:28    Copying file: 'add_question_types.py'
+2025-12-23T18:27:28    Copying file: 'add_types_direct.py'
+2025-12-23T18:27:28    Copying file: 'apply_action_fields_migration.py'
+2025-12-23T18:27:28    Copying file: 'apply_cascade_fix.py'
+2025-12-23T18:27:28    Copying file: 'backend_logs.zip'
+2025-12-23T18:27:28    Copying file: 'config.py'
+2025-12-23T18:27:28    Copying file: 'create_exercise_tables.py'
+2025-12-23T18:27:28    Copying file: 'create_exercises_table.py'
+2025-12-23T18:27:28    Copying file: 'endpoints_questions.txt'
+2025-12-23T18:27:28    Copying file: 'fix_answer_number.py'
+2025-12-23T18:27:28    Copying file: 'fix_cascade_delete.sql'
+2025-12-23T18:27:29    Copying file: 'migrate_db.py'
+2025-12-23T18:27:29    Copying file: 'requirements.txt'
+2025-12-23T18:27:29    Copying file: 'run.py'
+2025-12-23T18:27:29    Copying file: 'run_migration.sh'
+2025-12-23T18:27:29    Copying file: 'seed.py'
+2025-12-23T18:27:29    Copying file: 'startup.sh'
+2025-12-23T18:27:29    Copying file: 'test_login.py'
+2025-12-23T18:27:29    Copying file: 'test_step_reorder.py'
+2025-12-23T18:27:29    Copying file: 'update_question_types.py'
+2025-12-23T18:27:29    Deleting file: '.git/FETCH_HEAD'
+2025-12-23T18:27:29    Deleting file: '.git/HEAD'
+2025-12-23T18:27:29    Deleting file: '.git/config'
+2025-12-23T18:27:29    Deleting file: '.git/description'
+2025-12-23T18:27:29    Deleting file: '.git/index'
+2025-12-23T18:27:29    Deleting file: '.git/packed-refs'
+2025-12-23T18:27:29    Deleting file: '.git/web.config'
+2025-12-23T18:27:29    Deleting file: '.git/hooks/applypatch-msg.sample'
+2025-12-23T18:27:29    Deleting file: '.git/hooks/commit-msg.sample'
+2025-12-23T18:27:29    Deleting file: '.git/hooks/fsmonitor-watchman.sample'
+2025-12-23T18:27:29    Deleting file: '.git/hooks/git-credential-invalid.sh'
+2025-12-23T18:27:29    Deleting file: '.git/hooks/post-receive'
+2025-12-23T18:27:29    Deleting file: '.git/hooks/post-update.sample'
+2025-12-23T18:27:29    Deleting file: '.git/hooks/pre-applypatch.sample'
+2025-12-23T18:27:30    Deleting file: '.git/hooks/pre-commit.sample'
+2025-12-23T18:27:30    Deleting file: '.git/hooks/pre-merge-commit.sample'
+2025-12-23T18:27:30    Deleting file: '.git/hooks/pre-push.sample'
+2025-12-23T18:27:30    Deleting file: '.git/hooks/pre-rebase.sample'
+2025-12-23T18:27:30    Deleting file: '.git/hooks/pre-receive.sample'
+2025-12-23T18:27:30    Deleting file: '.git/hooks/prepare-commit-msg.sample'
+2025-12-23T18:27:30    Deleting file: '.git/hooks/push-to-checkout.sample'
+2025-12-23T18:27:30    Deleting file: '.git/hooks/update.sample'
+2025-12-23T18:27:30    Deleting directory: '.git/hooks'
+2025-12-23T18:27:30    Omitting next output lines...
+2025-12-23T18:27:32  Running post deployment command(s)...
+2025-12-23T18:27:32  
+2025-12-23T18:27:32  Generating summary of Oryx build
+2025-12-23T18:27:33  Deployment Log file does not exist in /tmp/oryx-build.log
+2025-12-23T18:27:33  The logfile at /tmp/oryx-build.log is empty. Unable to fetch the summary of build
+2025-12-23T18:27:33  Triggering container recycle for OneDeploy by adding/updating restartTrigger.txt to the site root path
+2025-12-23T18:27:34  Deployment successful. deployer = OneDeploy deploymentPath = OneDeploy

@@ -1,0 +1,16 @@
+<step title="Incoming Request" date="2025-12-21T19:36:51.110" instance="f83f3e" url="/api/publish?type=zip&amp;async=True" method="POST" type="request" pid="768,1,5" Accept="*/*" Host="evaluaasi-motorv2-api.scm.azurewebsites.net" User-Agent="AZURECLI/2.81.0 (DEB)" Accept-Encoding="gzip, deflate" Authorization="Bea..." Cache-Control="no-cache" Content-Type="application/octet-stream" Cookie="ARRAffinity=f83f3ee9d12286f77233e42da2051dc9f32cd9fc92bde9436ebe04cf374c5900; ARRAffinitySameSite=f83f3ee9d12286f77233e42da2051dc9f32cd9fc92bde9436ebe04cf374c5900" Content-Length="46404" x-ms-client-request-id="5119b9e8-dea4-11f0-84e0-7c1e52257deb" x-ms-artifact-checksum="f2422adc5a3a5b1bbcea8d55e58c357c687b9dae47af309868b31d7404db0a47" X-ARR-LOG-ID="5119b9e8-dea4-11f0-84e0-7c1e52257deb" CLIENT-IP="172.182.200.129:51721" X-SITE-DEPLOYMENT-ID="evaluaasi-motorv2-api" WAS-DEFAULT-HOSTNAME="evaluaasi-motorv2-api.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/publish?type=zip&amp;async=True" X-Client-IP="172.182.200.129" X-Client-Port="51721" >
+  <step title="OneDeploy" date="2025-12-21T19:36:51.213" >
+    <step title="None repository commit" date="2025-12-21T19:36:51.225" >
+      <step title="Commit id: 4d4b4d12-2773-4002-8081-a560de53c243" date="2025-12-21T19:36:51.230" Message="N/A" AuthorName="N/A" AuthorEmail="N/A" /><!-- duration: 2ms -->
+    </step><!-- duration: 10ms -->
+    <step title="Starting PushDeployAsync" date="2025-12-21T19:36:51.238" /><!-- duration: 3ms -->
+    <step title="Writing artifact to /tmp/zipdeploy/3cd3f5f9-274b-4291-9dcc-03ed2ba6d478.zip" date="2025-12-21T19:36:51.261" >
+      <step title="Writing multipart request body to /tmp/zipdeploy/3cd3f5f9-274b-4291-9dcc-03ed2ba6d478.zip" date="2025-12-21T19:36:51.274" /><!-- duration: 16ms -->
+    </step><!-- duration: 126ms -->
+    <step title="Start deployment in the background" date="2025-12-21T19:36:51.423" >
+      <step title="Acquiring Deployment Lock" date="2025-12-21T19:36:51.472" /><!-- duration: 2ms -->
+      <step title="Acquired Deployment Lock" date="2025-12-21T19:36:51.515" /><!-- duration: 3ms -->
+    </step><!-- duration: 243ms -->
+  </step><!-- duration: 510ms -->
+  <step title="Outgoing response" date="2025-12-21T19:36:51.753" type="response" statusCode="202" statusText="Accepted" /><!-- duration: 16ms -->
+</step><!-- duration: 681ms -->

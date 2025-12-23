@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<deployment>
+  <id>10a06693d8318e765c4a526c010959f62d04c0e8</id>
+  <author>Diego Soto</author>
+  <deployer>GitHub</deployer>
+  <authorEmail>154265732+SOTO729@users.noreply.github.com</authorEmail>
+  <message>Add exercise endpoints with OPTIONS handlers</message>
+  <progress></progress>
+  <status>Success</status>
+  <statusText></statusText>
+  <lastSuccessEndTime>2025-12-21T20:17:44.8687152Z</lastSuccessEndTime>
+  <receivedTime>2025-12-21T20:16:42.932518Z</receivedTime>
+  <startTime>2025-12-21T20:17:33.9656277Z</startTime>
+  <endTime>2025-12-21T20:17:44.8687152Z</endTime>
+  <complete>True</complete>
+  <is_temp>False</is_temp>
+  <is_readonly>False</is_readonly>
+  <buildSummary />
+</deployment>

@@ -1,0 +1,30 @@
+<step title="BackgroundTrace" date="2025-12-21T20:11:01.604" instance="f83f3e" url="/api/publish" method="POST" >
+  <step title="Creating temporary deployment - FetchDeploymentManager" date="2025-12-21T20:11:01.660" /><!-- duration: 3ms -->
+  <step title="Creating temporary deployment" date="2025-12-21T20:11:01.666" /><!-- duration: 117ms -->
+  <step title="Performing fetch based deployment" date="2025-12-21T20:11:01.808" >
+    <step title="Cleaning up temp folders from previous zip deployments and extracting pushed zip file /tmp/zipdeploy/bfa1e1b9-00ce-4cd6-9542-c9d01ed1b3e7.zip (0.04 MB) to /tmp/zipdeploy/extracted" date="2025-12-21T20:11:02.988" >
+      <step title="ChmodRecursive Process exited with total time taken in ms: 80" date="2025-12-21T20:11:03.259" /><!-- duration: 9ms -->
+    </step><!-- duration: 287ms -->
+    <step title="Deployment timer started" date="2025-12-21T20:11:05.300" >
+      <step title="DeploymentManager.Deploy(id:5a5e8eda-608c-419d-a5f7-e7012c4df417)" date="2025-12-21T20:11:05.306" >
+        <step title="Collecting changeset information" date="2025-12-21T20:11:05.331" /><!-- duration: 114ms -->
+        <step title="Updating submodules" date="2025-12-21T20:11:05.450" /><!-- duration: 1112ms -->
+        <step title="Determining deployment builder" date="2025-12-21T20:11:06.806" >
+          <step title="Builder is OryxBuilder" date="2025-12-21T20:11:06.834" /><!-- duration: 10ms -->
+        </step><!-- duration: 40ms -->
+        <step title="PreDeployment: context.CleanOutputPath False" date="2025-12-21T20:11:06.896" >
+          <step title="PreDeployment: context.OutputPath /home/site/wwwroot" date="2025-12-21T20:11:07.001" >
+            <step title="Building" date="2025-12-21T20:11:07.130" >
+              <step title="Executing external process" date="2025-12-21T20:11:07.434" type="process" path="starter.sh" arguments="kudusync -v 50 -f /tmp/zipdeploy/extracted -t /home/site/wwwroot -n /home/site/deployments/5a5e8eda-608c-419d-a5f7-e7012c4df417/manifest -p /home/site/deployments/2b20b9b6-5dc9-434f-b9b1-12802fd7572c/manifest -i &quot;.git;.hg;.deployment;.deploy.sh&quot;" /><!-- duration: 746ms -->
+              <step title="Modified file to trigger a restart of the app container." date="2025-12-21T20:11:08.886" /><!-- duration: 3ms -->
+              <step title="Skip function trigger and logicapp sync because function is not enabled." date="2025-12-21T20:11:08.893" /><!-- duration: 11ms -->
+            </step><!-- duration: 2823ms -->
+          </step><!-- duration: 2957ms -->
+          <step title="Cleaning up temp files" date="2025-12-21T20:11:09.965" /><!-- duration: 10ms -->
+          <step title="Cleaning up temp files" date="2025-12-21T20:11:09.991" /><!-- duration: 521ms -->
+          <step title="Reloading status file with latest updates" date="2025-12-21T20:11:10.571" >
+            <step title="WebHooksManager.PublishEventAsync: PostDeployment" date="2025-12-21T20:11:10.589" /><!-- duration: 60ms -->
+          </step><!-- duration: 88ms -->
+          <step title="Cleaning up temporary deployment - fetch deployment was successful" date="2025-12-21T20:11:10.686" /><!-- duration: 19ms -->
+        </step><!-- duration: 3976ms -->
+      </step><!-- duration: 5662ms -->
