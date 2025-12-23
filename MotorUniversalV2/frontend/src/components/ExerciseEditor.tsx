@@ -785,19 +785,19 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
           </div>
 
           {/* Canvas area */}
-          <div className="flex-1 overflow-auto bg-gray-100 p-6">
+          <div className="flex-1 overflow-auto bg-gray-50 p-8">
             {/* Mostrar previsualización mientras se crea el paso */}
             {isCreatingStep && localPreviewImage ? (
-              <div className="max-w-5xl mx-auto">
-                <div className="relative bg-white shadow-xl rounded-lg overflow-hidden">
+              <div className="w-full mx-auto" style={{ maxWidth: '1400px' }}>
+                <div className="relative bg-white shadow-2xl rounded-lg overflow-hidden">
                   <img
                     src={localPreviewImage}
                     alt="Previsualización"
-                    className="w-full h-auto"
+                    className="w-full h-auto rounded-lg"
                     draggable={false}
                   />
                   {/* Overlay de cargando */}
-                  <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center rounded-lg">
                     <div className="bg-white rounded-lg p-6 shadow-xl text-center">
                       <svg className="animate-spin h-10 w-10 text-primary-600 mx-auto" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -810,22 +810,22 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                 </div>
               </div>
             ) : currentStep ? (
-              <div className="max-w-5xl mx-auto">
+              <div className="w-full">
                 {currentStep.image_url ? (
                   <>
                     <div
                       ref={imageContainerRef}
-                      className="relative bg-white shadow-xl rounded-lg select-none"
+                      className="relative bg-white shadow-2xl rounded-lg select-none mx-auto"
                       onMouseDown={handleImageMouseDown}
                       onMouseMove={handleImageMouseMove}
                       onMouseUp={handleImageMouseUp}
                       onMouseLeave={handleImageMouseUp}
-                      style={{ cursor: selectedTool !== 'select' ? 'crosshair' : 'default' }}
+                      style={{ cursor: selectedTool !== 'select' ? 'crosshair' : 'default', maxWidth: '1400px' }}
                     >
                       <img
                         src={currentStep.image_url}
                         alt={`Paso ${currentStep.step_number}`}
-                        className="w-full h-auto pointer-events-none"
+                        className="w-full h-auto pointer-events-none rounded-lg"
                         draggable={false}
                       />
 
