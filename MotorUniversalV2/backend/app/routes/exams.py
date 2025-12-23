@@ -1638,8 +1638,11 @@ def publish_exam(exam_id):
             'message': f'Las categorías suman {total_percentage}%, deben sumar 100%'
         }), 400
     
-    # Verificar que tenga al menos una pregunta o ejercicio
-    if (exam.total_questions or 0) == 0 and (exam.total_exercises or 0) == 0:
+    # Verificar que tenga al menos una pregunta o ejercicio usando los métodos del modelo
+    total_questions = exam.get_total_questions() if hasattr(exam, 'get_total_questions') else 0
+    total_exercises = exam.get_total_exercises() if hasattr(exam, 'get_total_exercises') else 0
+    
+    if total_questions == 0 and total_exercises == 0:
         return jsonify({
             'error': 'No se puede publicar',
             'message': 'El examen no tiene preguntas ni ejercicios'

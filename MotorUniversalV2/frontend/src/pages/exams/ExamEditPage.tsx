@@ -65,6 +65,11 @@ const ExamEditPage = () => {
       queryClient.invalidateQueries({ queryKey: ['exams'] })
       setShowPublishModal(false)
       setValidationResult(null)
+      alert('¡Examen publicado exitosamente!')
+    },
+    onError: (error: any) => {
+      console.error('Error publishing exam:', error)
+      alert(`Error al publicar el examen: ${error.response?.data?.error || error.message || 'Error desconocido'}`)
     },
   })
 
@@ -91,8 +96,12 @@ const ExamEditPage = () => {
   }
 
   const handlePublish = () => {
+    console.log('handlePublish called, validationResult:', validationResult)
     if (validationResult?.is_valid) {
+      console.log('Calling publishExamMutation.mutate()')
       publishExamMutation.mutate()
+    } else {
+      console.log('Cannot publish: validation is not valid')
     }
   }
 
