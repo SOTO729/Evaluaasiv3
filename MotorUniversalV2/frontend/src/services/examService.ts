@@ -234,4 +234,67 @@ export const examService = {
     const response = await api.post<{ message: string; exam: Exam }>(`/exams/${examId}/unpublish`)
     return response.data
   },
+
+  // Evaluación de examen
+  evaluateExam: async (examId: number, data: {
+    answers: Record<string, any>;
+    exerciseResponses: Record<string, Record<string, any>>;
+    items: any[];
+  }): Promise<{
+    results: {
+      questions: Array<{
+        question_id: string;
+        question_type: string;
+        question_text: string;
+        user_answer: any;
+        is_correct: boolean;
+        score: number;
+        correct_answer: any;
+        correct_answer_text?: string;
+        correct_answers_text?: string[];
+        explanation?: string;
+        answers: any[];
+      }>;
+      exercises: Array<{
+        exercise_id: string;
+        title: string;
+        is_correct: boolean;
+        total_score: number;
+        max_score: number;
+        steps: Array<{
+          step_id: string;
+          step_number: number;
+          title: string;
+          is_correct: boolean;
+          actions: Array<{
+            action_id: string;
+            action_number: number;
+            action_type: string;
+            user_response: any;
+            is_correct: boolean;
+            score: number;
+            correct_answer: string;
+            similarity?: number;
+            explanation?: string;
+          }>;
+        }>;
+      }>;
+      summary: {
+        total_items: number;
+        total_questions: number;
+        total_exercises: number;
+        correct_questions: number;
+        correct_exercises: number;
+        question_score: number;
+        exercise_score: number;
+        max_exercise_score: number;
+        total_points: number;
+        earned_points: number;
+        percentage: number;
+      };
+    };
+  }> => {
+    const response = await api.post(`/exams/${examId}/evaluate`, data)
+    return response.data
+  },
 }
