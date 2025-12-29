@@ -1,7 +1,23 @@
 import { useState, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { examService } from '../../services/examService'
 import type { CreateExamData, CreateCategoryData } from '../../types'
+
+type CreationMode = 'scratch' | 'copy'
+
+interface ExamListItem {
+  id: number
+  name: string
+  version: string
+  is_published: boolean
+  total_questions: number
+  total_exercises: number
+  total_categories: number
+  duration_minutes?: number
+  passing_score?: number
+  image_url?: string
+}
 
 interface ModuleInputErrors {
   name?: string
@@ -12,6 +28,17 @@ const ExamCreatePage = () => {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Modo de creación
+  const [creationMode, setCreationMode] = useState<CreationMode>('scratch')
+  const [selectedExamToCopy, setSelectedExamToCopy] = useState<ExamListItem | null>(null)
+  
+  // Cargar lista de exámenes para copiar
+  const { data: examsData } = useQuery({
+    queryKey: ['exams'],
+    queryFn: () => examService.getExams(),
+    enabled: true,
+  })
   
   // Datos del formulario
   const [formData, setFormData] = useState<Omit<CreateExamData, 'stage_id' | 'categories' | 'standard'>>({
@@ -209,7 +236,7 @@ const ExamCreatePage = () => {
     e.preventDefault()
     setError(null)
     
-    // Validaciones
+    // Validaciones comunes
     if (!validateVersion(formData.version)) {
       return
     }
@@ -218,6 +245,30 @@ const ExamCreatePage = () => {
       return
     }
     
+    // Modo copia: solo necesita nombre y código ECM
+    if (creationMode === 'copy') {
+      if (!selectedExamToCopy) {
+        setError('Debe seleccionar un examen para copiar')
+        return
+      }
+      
+      try {
+        setLoading(true)
+        await examService.cloneExam(selectedExamToCopy.id, {
+          name: formData.name,
+          version: formData.version
+        })
+        // Redirigir a la lista de exámenes para ver el nuevo examen
+        navigate('/exams')
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Error al copiar el examen')
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+    
+    // Modo desde cero: validaciones adicionales
     if (!validateDuration(formData.duration_minutes ?? 0)) {
       return
     }
@@ -253,19 +304,46 @@ const ExamCreatePage = () => {
       
       const examData: CreateExamData = {
         ...formData,
-        standard: 'ECM', // Estándar fijo
-        stage_id: 1, // Por defecto, se puede hacer dinámico después
+        standard: 'ECM',
+        stage_id: 1,
         categories: modules
       }
       
       await examService.createExam(examData)
-      
-      // Redirigir a la lista de exámenes
       navigate('/exams')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al crear el examen')
     } finally {
       setLoading(false)
+    }
+  }
+  
+  // Manejar selección de examen para copiar
+  const handleSelectExamToCopy = (exam: ExamListItem) => {
+    setSelectedExamToCopy(exam)
+    // Pre-llenar campos con datos del examen seleccionado
+    setFormData({
+      ...formData,
+      name: `${exam.name} (Copia)`,
+      version: '',
+      duration_minutes: exam.duration_minutes || 60,
+      passing_score: exam.passing_score || 70,
+    })
+  }
+  
+  // Limpiar al cambiar modo
+  const handleModeChange = (mode: CreationMode) => {
+    setCreationMode(mode)
+    setSelectedExamToCopy(null)
+    if (mode === 'scratch') {
+      setFormData({
+        name: '',
+        version: '',
+        duration_minutes: 60,
+        passing_score: 70,
+      })
+      setImagePreview(null)
+      setModules([{ name: '', description: '', percentage: 0 }])
     }
   }
   
@@ -282,10 +360,157 @@ const ExamCreatePage = () => {
         </div>
       )}
       
+      {/* Selector de modo de creación */}
+      <div className="card mb-6">
+        <h2 className="text-xl font-semibold mb-4">Modo de Creación</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Opción: Desde cero */}
+          <div
+            onClick={() => handleModeChange('scratch')}
+            className={`cursor-pointer border-2 rounded-lg p-4 transition-all ${
+              creationMode === 'scratch'
+                ? 'border-primary-600 bg-primary-50'
+                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                creationMode === 'scratch' ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'
+              }`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className={`font-semibold ${creationMode === 'scratch' ? 'text-primary-900' : 'text-gray-900'}`}>
+                  Crear desde cero
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Crear un nuevo examen vacío y agregar categorías manualmente
+                </p>
+              </div>
+              {creationMode === 'scratch' && (
+                <svg className="w-6 h-6 text-primary-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              )}
+            </div>
+          </div>
+          
+          {/* Opción: Desde copia */}
+          <div
+            onClick={() => handleModeChange('copy')}
+            className={`cursor-pointer border-2 rounded-lg p-4 transition-all ${
+              creationMode === 'copy'
+                ? 'border-blue-600 bg-blue-50'
+                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                creationMode === 'copy' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+              }`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className={`font-semibold ${creationMode === 'copy' ? 'text-blue-900' : 'text-gray-900'}`}>
+                  Copiar examen existente
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Duplicar un examen con todas sus categorías, temas, preguntas y ejercicios
+                </p>
+              </div>
+              {creationMode === 'copy' && (
+                <svg className="w-6 h-6 text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        {/* Lista de exámenes para copiar */}
+        {creationMode === 'copy' && (
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Seleccionar examen a copiar <span className="text-red-600">*</span>
+            </label>
+            <div className="border border-gray-300 rounded-lg max-h-64 overflow-y-auto">
+              {examsData?.exams && examsData.exams.length > 0 ? (
+                examsData.exams.map((exam: ExamListItem) => (
+                  <div
+                    key={exam.id}
+                    onClick={() => handleSelectExamToCopy(exam)}
+                    className={`p-3 cursor-pointer border-b last:border-b-0 transition-colors ${
+                      selectedExamToCopy?.id === exam.id
+                        ? 'bg-blue-50 border-l-4 border-l-blue-500'
+                        : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{exam.name}</p>
+                        <p className="text-sm text-gray-500 font-mono">{exam.version}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 text-xs rounded-full ${
+                          exam.is_published ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {exam.is_published ? 'Publicado' : 'Borrador'}
+                        </span>
+                        {selectedExamToCopy?.id === exam.id && (
+                          <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                      <span>{exam.total_categories} categorías</span>
+                      <span>{exam.total_questions} preguntas</span>
+                      <span>{exam.total_exercises} ejercicios</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-4 text-center text-gray-500">
+                  No hay exámenes disponibles para copiar
+                </div>
+              )}
+            </div>
+            
+            {/* Info del examen seleccionado */}
+            {selectedExamToCopy && (
+              <div className="mt-3 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-blue-800">
+                      <strong>Se copiará:</strong> {selectedExamToCopy.name}
+                    </p>
+                    <p className="text-xs text-blue-700 mt-1">
+                      {selectedExamToCopy.total_categories} categorías, {selectedExamToCopy.total_questions} preguntas y {selectedExamToCopy.total_exercises} ejercicios
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Información General */}
         <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Información General</h2>
+          <h2 className="text-xl font-semibold mb-4">
+            {creationMode === 'copy' ? 'Datos del Nuevo Examen' : 'Información General'}
+          </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Código ECM */}
@@ -342,112 +567,119 @@ const ExamCreatePage = () => {
               )}
             </div>
             
-            {/* Duración */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Duración (minutos) <span className="text-red-600">*</span>
-              </label>
-              <input
-                type="number"
-                value={formData.duration_minutes}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value) || 0
-                  setFormData({ ...formData, duration_minutes: value })
-                  if (value > 0) {
-                    setDurationError(null)
-                  }
-                }}
-                onBlur={(e) => validateDuration(parseInt(e.target.value) || 0)}
-                className={`input ${durationError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
-                min="1"
-                required
-              />
-              {durationError && (
-                <p className="text-red-600 text-xs mt-1 font-medium">{durationError}</p>
-              )}
-              {!durationError && (formData.duration_minutes ?? 0) > 0 && (
-                <p className="text-green-600 text-xs mt-1 font-medium">✓ Duración válida</p>
-              )}
-            </div>
-            
-            {/* Puntaje Mínimo */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Puntaje Mínimo para Aprobar (%) <span className="text-red-600">*</span>
-              </label>
-              <input
-                type="number"
-                value={formData.passing_score}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value)
-                  setFormData({ ...formData, passing_score: isNaN(value) ? 0 : value })
-                  if (!isNaN(value) && value >= 0 && value <= 100) {
-                    setPassingScoreError(null)
-                  }
-                }}
-                onBlur={(e) => validatePassingScore(parseInt(e.target.value) || 0)}
-                className={`input ${passingScoreError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
-                min="0"
-                max="100"
-                required
-              />
-              {passingScoreError && (
-                <p className="text-red-600 text-xs mt-1 font-medium">{passingScoreError}</p>
-              )}
-              {!passingScoreError && (formData.passing_score ?? 0) >= 0 && (formData.passing_score ?? 0) <= 100 && (
-                <p className="text-green-600 text-xs mt-1 font-medium">✓ Puntaje válido</p>
-              )}
-            </div>
-          </div>
-          
-          {/* Imagen del Examen */}
-          <div className="mt-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Imagen del Examen (opcional)
-            </label>
-            
-            {imagePreview ? (
-              <div className="relative inline-block">
-                <img 
-                  src={imagePreview} 
-                  alt="Vista previa" 
-                  className="w-full max-w-4xl h-64 object-cover rounded-lg border-2 border-gray-300"
-                />
-                <button
-                  type="button"
-                  onClick={handleRemoveImage}
-                  className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full hover:bg-red-700 shadow-lg"
-                  title="Eliminar imagen"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center w-full">
-                <label className="flex flex-col items-center justify-center w-full max-w-4xl h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <svg className="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click para cargar</span> o arrastra y suelta</p>
-                    <p className="text-xs text-gray-500">PNG, JPG o JPEG (Máx. 2MB)</p>
-                  </div>
-                  <input 
-                    type="file" 
-                    className="hidden" 
-                    accept="image/png,image/jpeg,image/jpg"
-                    onChange={handleImageChange}
-                  />
+            {/* Duración - Solo en modo desde cero */}
+            {creationMode === 'scratch' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Duración (minutos) <span className="text-red-600">*</span>
                 </label>
+                <input
+                  type="number"
+                  value={formData.duration_minutes}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 0
+                    setFormData({ ...formData, duration_minutes: value })
+                    if (value > 0) {
+                      setDurationError(null)
+                    }
+                  }}
+                  onBlur={(e) => validateDuration(parseInt(e.target.value) || 0)}
+                  className={`input ${durationError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                  min="1"
+                  required
+                />
+                {durationError && (
+                  <p className="text-red-600 text-xs mt-1 font-medium">{durationError}</p>
+                )}
+                {!durationError && (formData.duration_minutes ?? 0) > 0 && (
+                  <p className="text-green-600 text-xs mt-1 font-medium">✓ Duración válida</p>
+                )}
+              </div>
+            )}
+            
+            {/* Puntaje Mínimo - Solo en modo desde cero */}
+            {creationMode === 'scratch' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Puntaje Mínimo para Aprobar (%) <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={formData.passing_score}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value)
+                    setFormData({ ...formData, passing_score: isNaN(value) ? 0 : value })
+                    if (!isNaN(value) && value >= 0 && value <= 100) {
+                      setPassingScoreError(null)
+                    }
+                  }}
+                  onBlur={(e) => validatePassingScore(parseInt(e.target.value) || 0)}
+                  className={`input ${passingScoreError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                  min="0"
+                  max="100"
+                  required
+                />
+                {passingScoreError && (
+                  <p className="text-red-600 text-xs mt-1 font-medium">{passingScoreError}</p>
+                )}
+                {!passingScoreError && (formData.passing_score ?? 0) >= 0 && (formData.passing_score ?? 0) <= 100 && (
+                  <p className="text-green-600 text-xs mt-1 font-medium">✓ Puntaje válido</p>
+                )}
               </div>
             )}
           </div>
+          
+          {/* Imagen del Examen - Solo en modo desde cero */}
+          {creationMode === 'scratch' && (
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Imagen del Examen (opcional)
+              </label>
+              
+              {imagePreview ? (
+                <div className="relative inline-block">
+                  <img 
+                    src={imagePreview} 
+                    alt="Vista previa" 
+                    className="w-full max-w-4xl h-64 object-cover rounded-lg border-2 border-gray-300"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full hover:bg-red-700 shadow-lg"
+                    title="Eliminar imagen"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full max-w-4xl h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <svg className="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click para cargar</span> o arrastra y suelta</p>
+                      <p className="text-xs text-gray-500">PNG, JPG o JPEG (Máx. 2MB)</p>
+                    </div>
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/png,image/jpeg,image/jpg"
+                      onChange={handleImageChange}
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         
-        {/* Categorías */}
-        <div className="card">
+        {/* Categorías - Solo en modo desde cero */}
+        {creationMode === 'scratch' && (
+          <div className="card">
           <div className="flex justify-between items-center mb-4">
             <div>
               <h2 className="text-xl font-semibold">Categorías del Examen</h2>
@@ -575,7 +807,8 @@ const ExamCreatePage = () => {
               ⚠️ {percentageError}
             </div>
           )}
-        </div>
+          </div>
+        )}
         
         {/* Botones de Acción */}
         <div className="flex justify-end gap-3">
@@ -590,9 +823,18 @@ const ExamCreatePage = () => {
           <button
             type="submit"
             className="btn btn-primary"
-            disabled={loading || !!versionError || !!nameError || !!durationError || !!passingScoreError || !!percentageError}
+            disabled={
+              loading || 
+              !!versionError || 
+              !!nameError || 
+              (creationMode === 'scratch' && (!!durationError || !!passingScoreError || !!percentageError)) ||
+              (creationMode === 'copy' && !selectedExamToCopy)
+            }
           >
-            {loading ? 'Creando...' : 'Crear Examen'}
+            {loading 
+              ? (creationMode === 'copy' ? 'Copiando...' : 'Creando...') 
+              : (creationMode === 'copy' ? 'Crear Copia' : 'Crear Examen')
+            }
           </button>
         </div>
       </form>

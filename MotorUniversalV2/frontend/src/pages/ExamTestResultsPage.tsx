@@ -344,6 +344,7 @@ const ExamTestResultsPage: React.FC = () => {
     }
     yPos += 12;
 
+    // ===== RESULTADOS POR CATEGORÍA Y TEMA =====
     // Calcular resultados por categoría y tema
     const categoryResults: Record<string, {
       topics: Record<string, { correct: number; total: number }>;
@@ -353,7 +354,12 @@ const ExamTestResultsPage: React.FC = () => {
 
     // Debug: Log de items
     console.log('📋 PDF - Items recibidos:', items);
-    console.log('📋 PDF - Items con topic_name:', items.map((i: any) => ({ type: i.type, category_name: i.category_name, topic_name: i.topic_name })));
+    console.log('📋 PDF - Estructura de items:', items.map((i: any) => ({ 
+      type: i.type, 
+      category_name: i.category_name, 
+      topic_name: i.topic_name,
+      id: i.id || i.question_id || i.exercise_id
+    })));
 
     // Procesar items para agrupar por categoría y tema
     items.forEach((item: any) => {
@@ -389,97 +395,132 @@ const ExamTestResultsPage: React.FC = () => {
       }
     });
 
-    // Título de sección
-    doc.setFontSize(14);
+    console.log('📊 PDF - Resultados calculados por categoría:', categoryResults);
+
+    // Título de sección con línea decorativa
+    doc.setDrawColor(59, 130, 246);
+    doc.setLineWidth(0.3);
+    doc.line(margin, yPos, pageWidth - margin, yPos);
+    yPos += 8;
+    
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(33, 37, 41);
-    doc.text('RESULTADOS POR CATEGORÍA', margin, yPos);
-    yPos += 10;
+    doc.setTextColor(30, 64, 175);
+    doc.text('DESGLOSE DE CALIFICACIONES', margin, yPos);
+    yPos += 3;
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(107, 114, 128);
+    doc.text('Examen > Categoría > Tema', margin, yPos + 5);
+    yPos += 12;
 
     // Iterar sobre cada categoría
-    Object.entries(categoryResults).forEach(([categoryName, categoryData]) => {
-      checkNewPage(40);
-      
-      // Calcular porcentaje de la categoría
-      const categoryPercentage = categoryData.total > 0 
-        ? Math.round((categoryData.correct / categoryData.total) * 100) 
-        : 0;
-
-      // Header de categoría
-      if (categoryPercentage >= 60) {
-        doc.setFillColor(220, 252, 231);
-      } else {
-        doc.setFillColor(254, 226, 226);
-      }
-      doc.roundedRect(margin, yPos, pageWidth - 2 * margin, 12, 2, 2, 'F');
-      yPos += 8;
-      
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      if (categoryPercentage >= 60) {
-        doc.setTextColor(21, 128, 61);
-      } else {
-        doc.setTextColor(185, 28, 28);
-      }
-      doc.text(categoryName.toUpperCase(), margin + 5, yPos);
-      
-      doc.setFont('helvetica', 'normal');
-      doc.text(`${categoryPercentage}%`, pageWidth - margin - 20, yPos);
-      yPos += 12;
-
-      // Temas dentro de la categoría
-      Object.entries(categoryData.topics).forEach(([topicName, topicData]) => {
-        checkNewPage(15);
+    const categoryEntries = Object.entries(categoryResults);
+    
+    if (categoryEntries.length === 0) {
+      doc.setFontSize(10);
+      doc.setTextColor(107, 114, 128);
+      doc.text('No hay datos de categorías disponibles', margin, yPos);
+      yPos += 10;
+    } else {
+      categoryEntries.forEach(([categoryName, categoryData], catIndex) => {
+        checkNewPage(45);
         
-        const topicPercentage = topicData.total > 0 
-          ? Math.round((topicData.correct / topicData.total) * 100) 
+        // Calcular porcentaje de la categoría
+        const categoryPercentage = categoryData.total > 0 
+          ? Math.round((categoryData.correct / categoryData.total) * 100) 
           : 0;
 
-        // Indicador de color según porcentaje
-        if (topicPercentage >= 80) {
-          doc.setFillColor(34, 197, 94);
-        } else if (topicPercentage >= 60) {
-          doc.setFillColor(234, 179, 8);
+        // Header de categoría con fondo
+        if (categoryPercentage >= passingScore) {
+          doc.setFillColor(220, 252, 231); // green-100
         } else {
-          doc.setFillColor(239, 68, 68);
+          doc.setFillColor(254, 226, 226); // red-100
         }
-        doc.circle(margin + 8, yPos - 2, 2, 'F');
-
-        // Nombre del tema
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(55, 65, 81);
+        doc.roundedRect(margin, yPos, pageWidth - 2 * margin, 14, 2, 2, 'F');
+        yPos += 10;
         
-        // Truncar nombre si es muy largo
-        const maxTopicWidth = pageWidth - 2 * margin - 80;
-        let displayTopicName = stripHtml(topicName);
-        while (doc.getTextWidth(displayTopicName) > maxTopicWidth && displayTopicName.length > 10) {
-          displayTopicName = displayTopicName.slice(0, -1);
-        }
-        if (displayTopicName !== topicName) displayTopicName += '...';
-        
-        doc.text(`  ${displayTopicName}`, margin + 12, yPos);
-        
-        // Porcentaje y aciertos
-        if (topicPercentage >= 80) {
-          doc.setTextColor(21, 128, 61);
-        } else if (topicPercentage >= 60) {
-          doc.setTextColor(161, 98, 7);
-        } else {
-          doc.setTextColor(185, 28, 28);
-        }
+        // Nombre de la categoría
+        doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
-        doc.text(`${topicPercentage}%`, pageWidth - margin - 35, yPos);
+        if (categoryPercentage >= passingScore) {
+          doc.setTextColor(21, 128, 61); // green-700
+        } else {
+          doc.setTextColor(185, 28, 28); // red-700
+        }
         
+        const catDisplayName = stripHtml(categoryName).toUpperCase();
+        doc.text(`${catIndex + 1}. ${catDisplayName}`, margin + 5, yPos);
+        
+        // Porcentaje de la categoría
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${categoryPercentage}%`, pageWidth - margin - 30, yPos);
+        
+        // Aciertos
+        doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(107, 114, 128);
-        doc.text(`(${topicData.correct}/${topicData.total})`, pageWidth - margin - 15, yPos);
+        doc.text(`(${categoryData.correct}/${categoryData.total})`, pageWidth - margin - 8, yPos);
         
-        yPos += 8;
-      });
+        yPos += 12;
 
-      yPos += 5;
-    });
+        // Temas dentro de la categoría
+        const topicEntries = Object.entries(categoryData.topics);
+        topicEntries.forEach(([topicName, topicData], topicIndex) => {
+          checkNewPage(12);
+          
+          const topicPercentage = topicData.total > 0 
+            ? Math.round((topicData.correct / topicData.total) * 100) 
+            : 0;
+
+          // Indicador visual (círculo de color)
+          if (topicPercentage >= 80) {
+            doc.setFillColor(34, 197, 94); // green-500
+          } else if (topicPercentage >= passingScore) {
+            doc.setFillColor(234, 179, 8); // yellow-500
+          } else {
+            doc.setFillColor(239, 68, 68); // red-500
+          }
+          doc.circle(margin + 10, yPos - 2, 2, 'F');
+
+          // Nombre del tema
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(55, 65, 81);
+          
+          // Truncar nombre si es muy largo
+          const maxTopicWidth = pageWidth - 2 * margin - 90;
+          let displayTopicName = stripHtml(topicName);
+          while (doc.getTextWidth(displayTopicName) > maxTopicWidth && displayTopicName.length > 10) {
+            displayTopicName = displayTopicName.slice(0, -1);
+          }
+          if (displayTopicName !== stripHtml(topicName)) displayTopicName += '...';
+          
+          doc.text(`${catIndex + 1}.${topicIndex + 1} ${displayTopicName}`, margin + 16, yPos);
+          
+          // Porcentaje del tema
+          if (topicPercentage >= 80) {
+            doc.setTextColor(21, 128, 61);
+          } else if (topicPercentage >= passingScore) {
+            doc.setTextColor(161, 98, 7);
+          } else {
+            doc.setTextColor(185, 28, 28);
+          }
+          doc.setFont('helvetica', 'bold');
+          doc.text(`${topicPercentage}%`, pageWidth - margin - 30, yPos);
+          
+          // Aciertos del tema
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(107, 114, 128);
+          doc.text(`(${topicData.correct}/${topicData.total})`, pageWidth - margin - 8, yPos);
+          
+          yPos += 8;
+        });
+
+        yPos += 6; // Espacio entre categorías
+      });
+    }
 
     // Pie de página
     checkNewPage(25);
@@ -496,7 +537,7 @@ const ExamTestResultsPage: React.FC = () => {
     doc.text(fecha, pageWidth / 2, yPos, { align: 'center' });
 
     // Descargar el PDF
-    doc.save(`Resultados_Examen_${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`Constancia_${referenceNumber}.pdf`);
   };
 
   const renderUserAnswer = (result: QuestionResult) => {

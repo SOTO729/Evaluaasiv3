@@ -185,6 +185,30 @@ def init_database():
         }), 500
 
 
+@init_bp.route('/migrate-tables', methods=['POST'])
+def migrate_tables():
+    """
+    Endpoint para crear tablas nuevas sin borrar las existentes
+    """
+    token = request.headers.get('X-Init-Token') or request.args.get('token')
+    if token != INIT_TOKEN:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    try:
+        # Crear todas las tablas que no existan
+        db.create_all()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Tablas creadas/actualizadas exitosamente'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
 @init_bp.route('/health-db', methods=['GET'])
 def health_db():
     """Verificar estado de la base de datos"""
@@ -199,6 +223,60 @@ def health_db():
             'initialized': user_count > 0
         }), 200
     except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@init_bp.route('/recreate-study-tables', methods=['POST'])
+def recreate_study_tables():
+    """
+    Elimina y recrea las tablas de study_content
+    """
+    token = request.headers.get('X-Init-Token') or request.args.get('token')
+    if token != INIT_TOKEN:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    try:
+        from app.models.study_content import (
+            StudyMaterial, StudySession, StudyTopic,
+            StudyReading, StudyVideo, StudyDownloadableExercise,
+            StudyInteractiveExercise, StudyInteractiveExerciseStep,
+            StudyInteractiveExerciseAction
+        )
+        
+        # Lista de tablas en orden de eliminación (por dependencias)
+        tables_to_drop = [
+            'study_interactive_exercise_actions',
+            'study_interactive_exercise_steps',
+            'study_interactive_exercises',
+            'study_downloadable_exercises',
+            'study_videos',
+            'study_readings',
+            'study_topics',
+            'study_sessions',
+            'study_materials'
+        ]
+        
+        # Eliminar tablas existentes
+        for table_name in tables_to_drop:
+            try:
+                db.session.execute(db.text(f"DROP TABLE IF EXISTS {table_name}"))
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                # Continuar si la tabla no existe
+        
+        # Crear todas las tablas
+        db.create_all()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Tablas de study_content recreadas exitosamente'
+        }), 200
+    except Exception as e:
+        db.session.rollback()
         return jsonify({
             'status': 'error',
             'message': str(e)

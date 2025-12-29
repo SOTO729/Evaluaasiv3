@@ -24,6 +24,11 @@ const ExamTestListPage = lazy(() => import('./pages/ExamTestListPage'))
 const ExamTestRunPage = lazy(() => import('./pages/ExamTestRunPage'))
 const ExamTestResultsPage = lazy(() => import('./pages/ExamTestResultsPage'))
 
+// Study Contents
+const StudyContentsListPage = lazy(() => import('./pages/study-contents/StudyContentsListPage'))
+const StudyContentCreatePage = lazy(() => import('./pages/study-contents/StudyContentCreatePage'))
+const StudyContentDetailPage = lazy(() => import('./pages/study-contents/StudyContentDetailPage'))
+
 function App() {
   const { isAuthenticated } = useAuthStore()
 
@@ -65,6 +70,12 @@ function App() {
               <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/multiple-choice" element={<MultipleChoiceAnswerPage />} />
               <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/multiple-select" element={<MultipleSelectAnswerPage />} />
               <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/ordering" element={<OrderingAnswerPage />} />
+              
+              {/* Study Contents */}
+              <Route path="/study-contents" element={<StudyContentsListPage />} />
+              <Route path="/study-contents/create" element={<StudyContentCreatePage />} />
+              <Route path="/study-contents/:id" element={<StudyContentDetailPage />} />
+              <Route path="/study-contents/:id/edit" element={<StudyContentCreatePage />} />
               
               {/* Redirect root to dashboard */}
               <Route path="/" element={<Navigate to="/dashboard" />} />

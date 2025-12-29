@@ -1,0 +1,935 @@
+"""
+Rutas de Contenidos de Estudio
+Estructura: Material de Estudio → Sesiones → Temas → (4 elementos)
+"""
+import uuid
+import os
+from functools import wraps
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from app import db
+from app.models.user import User
+from app.models.study_content import (
+    StudyMaterial,
+    StudySession,
+    StudyTopic,
+    StudyReading,
+    StudyVideo,
+    StudyDownloadableExercise,
+    StudyInteractiveExercise,
+    StudyInteractiveExerciseStep,
+    StudyInteractiveExerciseAction
+)
+from app.utils.azure_storage import azure_storage
+
+study_contents_bp = Blueprint('study_contents', __name__)
+
+
+def admin_or_editor_required(fn):
+    """Decorador para verificar que el usuario sea admin o editor"""
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user or user.role not in ['admin', 'editor']:
+            return jsonify({'error': 'Permiso denegado'}), 403
+        
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def get_current_user():
+    """Obtener el usuario actual"""
+    user_id = get_jwt_identity()
+    return User.query.get(user_id)
+
+
+# ==================== CRUD de Materiales de Estudio ====================
+
+@study_contents_bp.route('', methods=['GET'])
+@jwt_required()
+def get_materials():
+    """Obtener todos los materiales de estudio"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        search = request.args.get('search', '')
+        
+        query = StudyMaterial.query
+        
+        if search:
+            query = query.filter(StudyMaterial.title.ilike(f'%{search}%'))
+        
+        query = query.order_by(StudyMaterial.order, StudyMaterial.created_at.desc())
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        return jsonify({
+            'materials': [m.to_dict() for m in pagination.items],
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'current_page': page
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>', methods=['GET'])
+@jwt_required()
+def get_material(material_id):
+    """Obtener un material de estudio por ID"""
+    try:
+        material = StudyMaterial.query.get_or_404(material_id)
+        return jsonify(material.to_dict(include_sessions=True)), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('', methods=['POST'])
+@jwt_required()
+@admin_or_editor_required
+def create_material():
+    """Crear un nuevo material de estudio"""
+    try:
+        data = request.get_json()
+        user = get_current_user()
+        
+        material = StudyMaterial(
+            title=data.get('title'),
+            description=data.get('description'),
+            image_url=data.get('image_url'),
+            is_published=data.get('is_published', False),
+            order=data.get('order', 0),
+            exam_id=data.get('exam_id'),
+            created_by=user.id
+        )
+        
+        db.session.add(material)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Material de estudio creado exitosamente',
+            'material': material.to_dict()
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>', methods=['PUT'])
+@jwt_required()
+@admin_or_editor_required
+def update_material(material_id):
+    """Actualizar un material de estudio"""
+    try:
+        material = StudyMaterial.query.get_or_404(material_id)
+        data = request.get_json()
+        user = get_current_user()
+        
+        material.title = data.get('title', material.title)
+        material.description = data.get('description', material.description)
+        material.image_url = data.get('image_url', material.image_url)
+        material.is_published = data.get('is_published', material.is_published)
+        material.order = data.get('order', material.order)
+        material.exam_id = data.get('exam_id', material.exam_id)
+        material.updated_by = user.id
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Material actualizado exitosamente',
+            'material': material.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>', methods=['DELETE'])
+@jwt_required()
+@admin_or_editor_required
+def delete_material(material_id):
+    """Eliminar un material de estudio"""
+    try:
+        material = StudyMaterial.query.get_or_404(material_id)
+        db.session.delete(material)
+        db.session.commit()
+        
+        return jsonify({'message': 'Material eliminado exitosamente'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# ==================== CRUD de Sesiones ====================
+
+@study_contents_bp.route('/<int:material_id>/sessions', methods=['GET'])
+@jwt_required()
+def get_sessions(material_id):
+    """Obtener todas las sesiones de un material"""
+    try:
+        material = StudyMaterial.query.get_or_404(material_id)
+        sessions = material.sessions.all()
+        return jsonify([s.to_dict(include_topics=True) for s in sessions]), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions', methods=['POST'])
+@jwt_required()
+@admin_or_editor_required
+def create_session(material_id):
+    """Crear una nueva sesión"""
+    try:
+        material = StudyMaterial.query.get_or_404(material_id)
+        data = request.get_json()
+        
+        # Obtener el máximo número de sesión
+        max_number = db.session.query(db.func.max(StudySession.session_number)).filter_by(material_id=material_id).scalar() or 0
+        
+        session = StudySession(
+            material_id=material_id,
+            session_number=data.get('session_number', max_number + 1),
+            title=data.get('title'),
+            description=data.get('description')
+        )
+        
+        db.session.add(session)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Sesión creada exitosamente',
+            'session': session.to_dict()
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>', methods=['GET'])
+@jwt_required()
+def get_session(material_id, session_id):
+    """Obtener una sesión por ID"""
+    try:
+        session = StudySession.query.filter_by(id=session_id, material_id=material_id).first_or_404()
+        return jsonify(session.to_dict(include_topics=True)), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>', methods=['PUT'])
+@jwt_required()
+@admin_or_editor_required
+def update_session(material_id, session_id):
+    """Actualizar una sesión"""
+    try:
+        session = StudySession.query.filter_by(id=session_id, material_id=material_id).first_or_404()
+        data = request.get_json()
+        
+        session.title = data.get('title', session.title)
+        session.description = data.get('description', session.description)
+        session.session_number = data.get('session_number', session.session_number)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Sesión actualizada exitosamente',
+            'session': session.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>', methods=['DELETE'])
+@jwt_required()
+@admin_or_editor_required
+def delete_session(material_id, session_id):
+    """Eliminar una sesión"""
+    try:
+        session = StudySession.query.filter_by(id=session_id, material_id=material_id).first_or_404()
+        db.session.delete(session)
+        db.session.commit()
+        
+        return jsonify({'message': 'Sesión eliminada exitosamente'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# ==================== CRUD de Temas ====================
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics', methods=['GET'])
+@jwt_required()
+def get_topics(material_id, session_id):
+    """Obtener todos los temas de una sesión"""
+    try:
+        session = StudySession.query.filter_by(id=session_id, material_id=material_id).first_or_404()
+        topics = session.topics.all()
+        return jsonify([t.to_dict(include_elements=True) for t in topics]), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics', methods=['POST'])
+@jwt_required()
+@admin_or_editor_required
+def create_topic(material_id, session_id):
+    """Crear un nuevo tema"""
+    try:
+        session = StudySession.query.filter_by(id=session_id, material_id=material_id).first_or_404()
+        data = request.get_json()
+        
+        max_order = db.session.query(db.func.max(StudyTopic.order)).filter_by(session_id=session_id).scalar() or 0
+        
+        topic = StudyTopic(
+            session_id=session_id,
+            title=data.get('title'),
+            description=data.get('description'),
+            order=data.get('order', max_order + 1)
+        )
+        
+        db.session.add(topic)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Tema creado exitosamente',
+            'topic': topic.to_dict()
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>', methods=['GET'])
+@jwt_required()
+def get_topic(material_id, session_id, topic_id):
+    """Obtener un tema por ID"""
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        return jsonify(topic.to_dict(include_elements=True)), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>', methods=['PUT'])
+@jwt_required()
+@admin_or_editor_required
+def update_topic(material_id, session_id, topic_id):
+    """Actualizar un tema"""
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        data = request.get_json()
+        
+        topic.title = data.get('title', topic.title)
+        topic.description = data.get('description', topic.description)
+        topic.order = data.get('order', topic.order)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Tema actualizado exitosamente',
+            'topic': topic.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>', methods=['DELETE'])
+@jwt_required()
+@admin_or_editor_required
+def delete_topic(material_id, session_id, topic_id):
+    """Eliminar un tema"""
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        db.session.delete(topic)
+        db.session.commit()
+        
+        return jsonify({'message': 'Tema eliminado exitosamente'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# ==================== Elementos del Tema ====================
+
+# --- Lectura ---
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/reading', methods=['POST', 'PUT'])
+@jwt_required()
+@admin_or_editor_required
+def upsert_reading(material_id, session_id, topic_id):
+    """Crear o actualizar la lectura de un tema"""
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        data = request.get_json()
+        
+        if topic.reading:
+            # Actualizar
+            topic.reading.title = data.get('title', topic.reading.title)
+            topic.reading.content = data.get('content', topic.reading.content)
+            topic.reading.estimated_time_minutes = data.get('estimated_time_minutes', topic.reading.estimated_time_minutes)
+        else:
+            # Crear
+            reading = StudyReading(
+                topic_id=topic_id,
+                title=data.get('title'),
+                content=data.get('content'),
+                estimated_time_minutes=data.get('estimated_time_minutes')
+            )
+            db.session.add(reading)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Lectura guardada exitosamente',
+            'reading': topic.reading.to_dict() if topic.reading else None
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/reading', methods=['DELETE'])
+@jwt_required()
+@admin_or_editor_required
+def delete_reading(material_id, session_id, topic_id):
+    """Eliminar la lectura de un tema"""
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        if topic.reading:
+            db.session.delete(topic.reading)
+            db.session.commit()
+        
+        return jsonify({'message': 'Lectura eliminada exitosamente'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# --- Video ---
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/video', methods=['POST', 'PUT'])
+@jwt_required()
+@admin_or_editor_required
+def upsert_video(material_id, session_id, topic_id):
+    """Crear o actualizar el video de un tema"""
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        data = request.get_json()
+        
+        if topic.video:
+            topic.video.title = data.get('title', topic.video.title)
+            topic.video.description = data.get('description', topic.video.description)
+            topic.video.video_url = data.get('video_url', topic.video.video_url)
+            topic.video.video_type = data.get('video_type', topic.video.video_type)
+            topic.video.thumbnail_url = data.get('thumbnail_url', topic.video.thumbnail_url)
+            topic.video.duration_minutes = data.get('duration_minutes', topic.video.duration_minutes)
+        else:
+            video = StudyVideo(
+                topic_id=topic_id,
+                title=data.get('title'),
+                description=data.get('description'),
+                video_url=data.get('video_url'),
+                video_type=data.get('video_type', 'youtube'),
+                thumbnail_url=data.get('thumbnail_url'),
+                duration_minutes=data.get('duration_minutes')
+            )
+            db.session.add(video)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Video guardado exitosamente',
+            'video': topic.video.to_dict() if topic.video else None
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/video', methods=['DELETE'])
+@jwt_required()
+@admin_or_editor_required
+def delete_video(material_id, session_id, topic_id):
+    """Eliminar el video de un tema"""
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        if topic.video:
+            # Eliminar archivo de Azure si existe
+            if topic.video.video_url and 'blob.core.windows.net' in topic.video.video_url:
+                azure_storage.delete_file(topic.video.video_url)
+            db.session.delete(topic.video)
+            db.session.commit()
+        
+        return jsonify({'message': 'Video eliminado exitosamente'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/video/upload', methods=['POST'])
+@jwt_required()
+@admin_or_editor_required
+def upload_video(material_id, session_id, topic_id):
+    """Subir un archivo de video para un tema"""
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        
+        if 'video' not in request.files:
+            return jsonify({'error': 'No se proporcionó archivo de video'}), 400
+        
+        file = request.files['video']
+        
+        if file.filename == '':
+            return jsonify({'error': 'Nombre de archivo vacío'}), 400
+        
+        # Validar extensión
+        allowed_extensions = {'mp4', 'webm', 'ogg', 'mov', 'avi'}
+        ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+        if ext not in allowed_extensions:
+            return jsonify({'error': f'Extensión no permitida. Use: {", ".join(allowed_extensions)}'}), 400
+        
+        # Validar tamaño (máximo 500MB)
+        file.seek(0, 2)  # Ir al final
+        file_size = file.tell()
+        file.seek(0)  # Volver al inicio
+        
+        max_size = 500 * 1024 * 1024  # 500MB
+        if file_size > max_size:
+            return jsonify({'error': 'El video excede el tamaño máximo de 500MB'}), 400
+        
+        # Subir a Azure Blob Storage
+        video_url = azure_storage.upload_file(file, folder='study-videos')
+        
+        if not video_url:
+            return jsonify({'error': 'Error al subir el video. Verifique la configuración de Azure Storage.'}), 500
+        
+        # Obtener metadatos del request
+        title = request.form.get('title', file.filename)
+        description = request.form.get('description', '')
+        duration_minutes = request.form.get('duration_minutes', type=int)
+        
+        # Actualizar o crear el video en la BD
+        if topic.video:
+            # Eliminar video anterior de Azure
+            if topic.video.video_url and 'blob.core.windows.net' in topic.video.video_url:
+                azure_storage.delete_file(topic.video.video_url)
+            topic.video.title = title
+            topic.video.description = description
+            topic.video.video_url = video_url
+            topic.video.video_type = 'uploaded'
+            topic.video.duration_minutes = duration_minutes
+        else:
+            video = StudyVideo(
+                topic_id=topic_id,
+                title=title,
+                description=description,
+                video_url=video_url,
+                video_type='uploaded',
+                duration_minutes=duration_minutes
+            )
+            db.session.add(video)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Video subido exitosamente',
+            'video': topic.video.to_dict() if topic.video else None
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# Endpoint genérico para subir archivos (útil para ejercicios descargables también)
+@study_contents_bp.route('/upload-file', methods=['POST'])
+@jwt_required()
+@admin_or_editor_required
+def upload_file():
+    """Subir un archivo genérico a Azure Storage"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No se proporcionó archivo'}), 400
+        
+        file = request.files['file']
+        folder = request.form.get('folder', 'general')
+        
+        if file.filename == '':
+            return jsonify({'error': 'Nombre de archivo vacío'}), 400
+        
+        # Subir a Azure Blob Storage
+        file_url = azure_storage.upload_file(file, folder=folder)
+        
+        if not file_url:
+            return jsonify({'error': 'Error al subir el archivo. Verifique la configuración de Azure Storage.'}), 500
+        
+        return jsonify({
+            'message': 'Archivo subido exitosamente',
+            'url': file_url,
+            'filename': file.filename
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# --- Ejercicio Descargable ---
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/downloadable', methods=['POST', 'PUT'])
+@jwt_required()
+@admin_or_editor_required
+def upsert_downloadable(material_id, session_id, topic_id):
+    """Crear o actualizar el ejercicio descargable de un tema"""
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        data = request.get_json()
+        
+        if topic.downloadable_exercise:
+            topic.downloadable_exercise.title = data.get('title', topic.downloadable_exercise.title)
+            topic.downloadable_exercise.description = data.get('description', topic.downloadable_exercise.description)
+            topic.downloadable_exercise.file_url = data.get('file_url', topic.downloadable_exercise.file_url)
+            topic.downloadable_exercise.file_name = data.get('file_name', topic.downloadable_exercise.file_name)
+            topic.downloadable_exercise.file_type = data.get('file_type', topic.downloadable_exercise.file_type)
+            topic.downloadable_exercise.file_size_bytes = data.get('file_size_bytes', topic.downloadable_exercise.file_size_bytes)
+        else:
+            downloadable = StudyDownloadableExercise(
+                topic_id=topic_id,
+                title=data.get('title'),
+                description=data.get('description'),
+                file_url=data.get('file_url'),
+                file_name=data.get('file_name'),
+                file_type=data.get('file_type'),
+                file_size_bytes=data.get('file_size_bytes')
+            )
+            db.session.add(downloadable)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Ejercicio descargable guardado exitosamente',
+            'downloadable_exercise': topic.downloadable_exercise.to_dict() if topic.downloadable_exercise else None
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/downloadable', methods=['DELETE'])
+@jwt_required()
+@admin_or_editor_required
+def delete_downloadable(material_id, session_id, topic_id):
+    """Eliminar el ejercicio descargable de un tema"""
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        if topic.downloadable_exercise:
+            db.session.delete(topic.downloadable_exercise)
+            db.session.commit()
+        
+        return jsonify({'message': 'Ejercicio descargable eliminado exitosamente'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# --- Ejercicio Interactivo ---
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/interactive', methods=['POST'])
+@jwt_required()
+@admin_or_editor_required
+def create_interactive(material_id, session_id, topic_id):
+    """Crear el ejercicio interactivo de un tema"""
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        
+        if topic.interactive_exercise:
+            return jsonify({'error': 'El tema ya tiene un ejercicio interactivo'}), 400
+        
+        data = request.get_json()
+        user = get_current_user()
+        
+        interactive = StudyInteractiveExercise(
+            id=str(uuid.uuid4()),
+            topic_id=topic_id,
+            title=data.get('title', 'Ejercicio Interactivo'),
+            description=data.get('description'),
+            is_active=True,
+            created_by=user.id
+        )
+        
+        db.session.add(interactive)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Ejercicio interactivo creado exitosamente',
+            'interactive_exercise': interactive.to_dict()
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/interactive', methods=['PUT'])
+@jwt_required()
+@admin_or_editor_required
+def update_interactive(material_id, session_id, topic_id):
+    """Actualizar el ejercicio interactivo de un tema"""
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        
+        if not topic.interactive_exercise:
+            return jsonify({'error': 'El tema no tiene un ejercicio interactivo'}), 404
+        
+        data = request.get_json()
+        user = get_current_user()
+        
+        topic.interactive_exercise.title = data.get('title', topic.interactive_exercise.title)
+        topic.interactive_exercise.description = data.get('description', topic.interactive_exercise.description)
+        topic.interactive_exercise.is_active = data.get('is_active', topic.interactive_exercise.is_active)
+        topic.interactive_exercise.updated_by = user.id
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Ejercicio interactivo actualizado exitosamente',
+            'interactive_exercise': topic.interactive_exercise.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/interactive', methods=['DELETE'])
+@jwt_required()
+@admin_or_editor_required
+def delete_interactive(material_id, session_id, topic_id):
+    """Eliminar el ejercicio interactivo de un tema"""
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        if topic.interactive_exercise:
+            db.session.delete(topic.interactive_exercise)
+            db.session.commit()
+        
+        return jsonify({'message': 'Ejercicio interactivo eliminado exitosamente'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# ==================== Pasos y Acciones de Ejercicios Interactivos ====================
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/interactive/steps', methods=['POST'])
+@jwt_required()
+@admin_or_editor_required
+def create_step(material_id, session_id, topic_id):
+    """Crear un paso en el ejercicio interactivo"""
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        
+        if not topic.interactive_exercise:
+            return jsonify({'error': 'El tema no tiene un ejercicio interactivo'}), 404
+        
+        data = request.get_json()
+        exercise_id = topic.interactive_exercise.id
+        
+        max_number = db.session.query(db.func.max(StudyInteractiveExerciseStep.step_number)).filter_by(exercise_id=exercise_id).scalar() or 0
+        
+        step = StudyInteractiveExerciseStep(
+            id=str(uuid.uuid4()),
+            exercise_id=exercise_id,
+            step_number=data.get('step_number', max_number + 1),
+            title=data.get('title'),
+            description=data.get('description'),
+            image_url=data.get('image_url'),
+            image_width=data.get('image_width'),
+            image_height=data.get('image_height')
+        )
+        
+        db.session.add(step)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Paso creado exitosamente',
+            'step': step.to_dict()
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/interactive/steps/<string:step_id>', methods=['PUT'])
+@jwt_required()
+@admin_or_editor_required
+def update_step(material_id, session_id, topic_id, step_id):
+    """Actualizar un paso"""
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        
+        if not topic.interactive_exercise:
+            return jsonify({'error': 'El tema no tiene un ejercicio interactivo'}), 404
+        
+        step = StudyInteractiveExerciseStep.query.filter_by(id=step_id, exercise_id=topic.interactive_exercise.id).first_or_404()
+        data = request.get_json()
+        
+        step.title = data.get('title', step.title)
+        step.description = data.get('description', step.description)
+        step.step_number = data.get('step_number', step.step_number)
+        step.image_url = data.get('image_url', step.image_url)
+        step.image_width = data.get('image_width', step.image_width)
+        step.image_height = data.get('image_height', step.image_height)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Paso actualizado exitosamente',
+            'step': step.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/interactive/steps/<string:step_id>', methods=['DELETE'])
+@jwt_required()
+@admin_or_editor_required
+def delete_step(material_id, session_id, topic_id, step_id):
+    """Eliminar un paso"""
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        
+        if not topic.interactive_exercise:
+            return jsonify({'error': 'El tema no tiene un ejercicio interactivo'}), 404
+        
+        step = StudyInteractiveExerciseStep.query.filter_by(id=step_id, exercise_id=topic.interactive_exercise.id).first_or_404()
+        db.session.delete(step)
+        db.session.commit()
+        
+        return jsonify({'message': 'Paso eliminado exitosamente'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/interactive/steps/<string:step_id>/actions', methods=['POST'])
+@jwt_required()
+@admin_or_editor_required
+def create_action(material_id, session_id, topic_id, step_id):
+    """Crear una acción en un paso"""
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        
+        if not topic.interactive_exercise:
+            return jsonify({'error': 'El tema no tiene un ejercicio interactivo'}), 404
+        
+        step = StudyInteractiveExerciseStep.query.filter_by(id=step_id, exercise_id=topic.interactive_exercise.id).first_or_404()
+        data = request.get_json()
+        
+        max_number = db.session.query(db.func.max(StudyInteractiveExerciseAction.action_number)).filter_by(step_id=step_id).scalar() or 0
+        
+        action = StudyInteractiveExerciseAction(
+            id=str(uuid.uuid4()),
+            step_id=step_id,
+            action_number=data.get('action_number', max_number + 1),
+            action_type=data.get('action_type', 'button'),
+            position_x=data.get('position_x', 0),
+            position_y=data.get('position_y', 0),
+            width=data.get('width', 10),
+            height=data.get('height', 10),
+            label=data.get('label'),
+            placeholder=data.get('placeholder'),
+            correct_answer=data.get('correct_answer'),
+            is_case_sensitive=data.get('is_case_sensitive', False),
+            scoring_mode=data.get('scoring_mode', 'exact'),
+            on_error_action=data.get('on_error_action', 'next_step'),
+            error_message=data.get('error_message'),
+            max_attempts=data.get('max_attempts', 3),
+            text_color=data.get('text_color', '#000000'),
+            font_family=data.get('font_family', 'Arial')
+        )
+        
+        db.session.add(action)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Acción creada exitosamente',
+            'action': action.to_dict()
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/interactive/steps/<string:step_id>/actions/<string:action_id>', methods=['PUT'])
+@jwt_required()
+@admin_or_editor_required
+def update_action(material_id, session_id, topic_id, step_id, action_id):
+    """Actualizar una acción"""
+    try:
+        action = StudyInteractiveExerciseAction.query.filter_by(id=action_id, step_id=step_id).first_or_404()
+        data = request.get_json()
+        
+        action.action_type = data.get('action_type', action.action_type)
+        action.action_number = data.get('action_number', action.action_number)
+        action.position_x = data.get('position_x', action.position_x)
+        action.position_y = data.get('position_y', action.position_y)
+        action.width = data.get('width', action.width)
+        action.height = data.get('height', action.height)
+        action.label = data.get('label', action.label)
+        action.placeholder = data.get('placeholder', action.placeholder)
+        action.correct_answer = data.get('correct_answer', action.correct_answer)
+        action.is_case_sensitive = data.get('is_case_sensitive', action.is_case_sensitive)
+        action.scoring_mode = data.get('scoring_mode', action.scoring_mode)
+        action.on_error_action = data.get('on_error_action', action.on_error_action)
+        action.error_message = data.get('error_message', action.error_message)
+        action.max_attempts = data.get('max_attempts', action.max_attempts)
+        action.text_color = data.get('text_color', action.text_color)
+        action.font_family = data.get('font_family', action.font_family)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Acción actualizada exitosamente',
+            'action': action.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/interactive/steps/<string:step_id>/actions/<string:action_id>', methods=['DELETE'])
+@jwt_required()
+@admin_or_editor_required
+def delete_action(material_id, session_id, topic_id, step_id, action_id):
+    """Eliminar una acción"""
+    try:
+        action = StudyInteractiveExerciseAction.query.filter_by(id=action_id, step_id=step_id).first_or_404()
+        db.session.delete(action)
+        db.session.commit()
+        
+        return jsonify({'message': 'Acción eliminada exitosamente'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500

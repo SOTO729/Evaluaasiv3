@@ -47,6 +47,7 @@ def create_app(config_name='development'):
     
     # Registrar blueprints
     from app.routes import auth, exams, users, health, init, reset, debug
+    from app.routes.study_contents import study_contents_bp
     
     app.register_blueprint(auth.bp, url_prefix='/api/auth')
     app.register_blueprint(exams.bp, url_prefix='/api/exams')
@@ -55,6 +56,7 @@ def create_app(config_name='development'):
     app.register_blueprint(init.init_bp, url_prefix='/api')
     app.register_blueprint(reset.reset_bp, url_prefix='/api')
     app.register_blueprint(debug.debug_bp, url_prefix='/api')
+    app.register_blueprint(study_contents_bp, url_prefix='/api/study-contents')
     
     # Manejadores de errores
     register_error_handlers(app)

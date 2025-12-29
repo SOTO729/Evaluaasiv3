@@ -10,6 +10,17 @@ from app.models.answer import Answer
 from app.models.exercise import Exercise, ExerciseStep, ExerciseAction
 from app.models.voucher import Voucher
 from app.models.result import Result
+from app.models.study_content import (
+    StudyMaterial,
+    StudySession,
+    StudyTopic,
+    StudyReading,
+    StudyVideo,
+    StudyDownloadableExercise,
+    StudyInteractiveExercise,
+    StudyInteractiveExerciseStep,
+    StudyInteractiveExerciseAction
+)
 
 __all__ = [
     'User',
@@ -22,5 +33,14 @@ __all__ = [
     'ExerciseStep',
     'ExerciseAction',
     'Voucher',
-    'Result'
+    'Result',
+    'StudyMaterial',
+    'StudySession',
+    'StudyTopic',
+    'StudyReading',
+    'StudyVideo',
+    'StudyDownloadableExercise',
+    'StudyInteractiveExercise',
+    'StudyInteractiveExerciseStep',
+    'StudyInteractiveExerciseAction'
 ]

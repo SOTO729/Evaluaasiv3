@@ -3,7 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../services/examService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { Play, BookOpen, FileQuestion, ClipboardList, X, Settings, Zap, Target, HelpCircle } from 'lucide-react';
+import { 
+  Play, 
+  BookOpen, 
+  FileQuestion, 
+  ClipboardList, 
+  X, 
+  Settings, 
+  Zap, 
+  Target, 
+  HelpCircle,
+  Clock,
+  Layers,
+  FileText
+} from 'lucide-react';
 
 interface ExamConfigModalProps {
   examId: number;
@@ -329,27 +342,28 @@ const ExamTestListPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="p-6">
+      {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-          <Play className="w-8 h-8 mr-3 text-primary-600" />
+        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+          <Play className="h-7 w-7 text-emerald-600" />
           Probar Exámenes
         </h1>
-        <p className="mt-2 text-gray-600">
+        <p className="text-gray-600 mt-1">
           Selecciona un examen para probarlo desde la perspectiva del alumno
         </p>
       </div>
 
       {exams && exams.length === 0 ? (
-        <div className="text-center py-12">
-          <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No hay exámenes publicados</h3>
-          <p className="mt-1 text-sm text-gray-500">
+        <div className="bg-white rounded-lg shadow p-8 text-center">
+          <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-700 mb-2">No hay exámenes publicados</h3>
+          <p className="text-gray-500">
             Los exámenes deben estar publicados para poder probarlos
           </p>
         </div>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {exams?.map((exam: any) => {
             const totalQuestions = exam.total_questions || 0;
             const totalExercises = exam.total_exercises || 0;
@@ -357,70 +371,83 @@ const ExamTestListPage: React.FC = () => {
             return (
               <div
                 key={exam.id}
-                className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow p-6"
+                className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 group"
               >
-                {/* Header con imagen */}
-                {exam.image_url && (
-                  <div className="-m-6 mb-4">
-                    <img 
-                      src={exam.image_url} 
+                {/* Card Image */}
+                <div className="relative h-40 bg-gradient-to-br from-emerald-500 to-teal-600">
+                  {exam.image_url ? (
+                    <img
+                      src={exam.image_url}
                       alt={exam.name}
-                      className="w-full h-32 object-cover rounded-t-lg"
+                      className="w-full h-full object-cover"
                     />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <FileText className="h-16 w-16 text-white/50" />
+                    </div>
+                  )}
+                  
+                  {/* Version Badge */}
+                  <div className="absolute top-3 left-3">
+                    <span className="px-2 py-1 rounded-full text-xs font-mono bg-black/30 text-white">
+                      {exam.version}
+                    </span>
                   </div>
-                )}
-                
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                      {exam.name}
-                    </h3>
-                    <p className="text-sm text-gray-500 font-mono">{exam.version}</p>
-                  </div>
-                  <span className="px-2 py-1 text-xs rounded-full whitespace-nowrap ml-2 bg-green-100 text-green-800">
-                    Publicado
-                  </span>
-                </div>
 
-                <div className="grid grid-cols-2 gap-3 text-sm text-gray-600 mb-4 pb-4 border-b">
-                  <div className="flex items-center">
-                    <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span className="font-medium">Puntaje: {exam.passing_score}%</span>
-                  </div>
-                  <div className="flex items-center">
-                    <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>{exam.duration_minutes || 0} min</span>
-                  </div>
-                  <div className="flex items-center">
-                    <FileQuestion className="w-4 h-4 mr-2 text-gray-400" />
-                    <span>{totalQuestions} preguntas</span>
-                  </div>
-                  <div className="flex items-center">
-                    <ClipboardList className="w-4 h-4 mr-2 text-gray-400" />
-                    <span>{totalExercises} ejercicios</span>
+                  {/* Play Button Overlay */}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                    <button
+                      onClick={() => handleTestExam(exam.id, exam.name, totalQuestions, totalExercises)}
+                      className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-90 group-hover:scale-100 bg-white rounded-full p-4 shadow-lg hover:shadow-xl"
+                    >
+                      <Play className="h-8 w-8 text-emerald-600 ml-1" />
+                    </button>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                    </svg>
-                    <span className="font-medium">{exam.total_categories || 0} categoría{exam.total_categories !== 1 ? 's' : ''}</span>
+                {/* Card Content */}
+                <div className="p-4">
+                  <h3 className="font-semibold text-gray-900 mb-2 line-clamp-1">
+                    {exam.name}
+                  </h3>
+                  
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-2 gap-2 mb-3 text-xs text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <Target className="h-3.5 w-3.5 text-green-500" />
+                      <span>{exam.passing_score}% aprobación</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5 text-blue-500" />
+                      <span>{exam.duration_minutes || 0} min</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <FileQuestion className="h-3.5 w-3.5 text-purple-500" />
+                      <span>{totalQuestions} preguntas</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <ClipboardList className="h-3.5 w-3.5 text-amber-500" />
+                      <span>{totalExercises} ejercicios</span>
+                    </div>
                   </div>
-                </div>
+                  
+                  {/* Card Footer */}
+                  <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t mb-4">
+                    <div className="flex items-center gap-1">
+                      <Layers className="h-3.5 w-3.5" />
+                      <span>{exam.total_categories || 0} categorías</span>
+                    </div>
+                  </div>
 
-                <button
-                  onClick={() => handleTestExam(exam.id, exam.name, totalQuestions, totalExercises)}
-                  className="w-full px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 flex items-center justify-center transition-colors"
-                >
-                  <Play className="w-4 h-4 mr-2" />
-                  Probar Examen
-                </button>
+                  {/* Action Button */}
+                  <button
+                    onClick={() => handleTestExam(exam.id, exam.name, totalQuestions, totalExercises)}
+                    className="w-full px-4 py-2.5 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <Play className="h-4 w-4" />
+                    Probar Examen
+                  </button>
+                </div>
               </div>
             );
           })}

@@ -254,6 +254,179 @@ def create_exam():
         return jsonify({'error': f'Error al crear el examen: {str(e)}'}), 500
 
 
+@bp.route('/<int:exam_id>/clone', methods=['POST'])
+@jwt_required()
+@require_permission('exams:create')
+def clone_exam(exam_id):
+    """
+    Clonar un examen existente
+    ---
+    tags:
+      - Exams
+    security:
+      - Bearer: []
+    parameters:
+      - name: exam_id
+        in: path
+        type: integer
+        required: true
+        description: ID del examen a clonar
+    responses:
+      201:
+        description: Examen clonado exitosamente
+      404:
+        description: Examen no encontrado
+    """
+    import uuid
+    
+    # Obtener el examen original
+    original_exam = Exam.query.get(exam_id)
+    if not original_exam:
+        return jsonify({'error': 'Examen no encontrado'}), 404
+    
+    data = request.get_json() or {}
+    user_id = get_jwt_identity()
+    
+    try:
+        # Crear el nuevo examen (copia)
+        new_exam = Exam(
+            name=data.get('name', f"{original_exam.name} (Copia)"),
+            version=data.get('version', f"{original_exam.version}-COPY"),
+            standard=original_exam.standard,
+            stage_id=original_exam.stage_id,
+            description=original_exam.description,
+            instructions=original_exam.instructions,
+            duration_minutes=original_exam.duration_minutes,
+            passing_score=original_exam.passing_score,
+            image_url=original_exam.image_url,
+            is_active=True,
+            is_published=False,  # Siempre como borrador
+            created_by=user_id
+        )
+        db.session.add(new_exam)
+        db.session.flush()  # Obtener el ID del nuevo examen
+        
+        # Clonar categorías
+        for original_category in original_exam.categories:
+            new_category = Category(
+                exam_id=new_exam.id,
+                name=original_category.name,
+                description=original_category.description,
+                percentage=original_category.percentage,
+                order=original_category.order,
+                created_by=user_id
+            )
+            db.session.add(new_category)
+            db.session.flush()
+            
+            # Clonar temas de esta categoría
+            for original_topic in original_category.topics:
+                new_topic = Topic(
+                    category_id=new_category.id,
+                    name=original_topic.name,
+                    description=original_topic.description,
+                    order=original_topic.order,
+                    created_by=user_id
+                )
+                db.session.add(new_topic)
+                db.session.flush()
+                
+                # Clonar preguntas de este tema
+                for original_question in original_topic.questions:
+                    new_question_id = str(uuid.uuid4())
+                    new_question = Question(
+                        id=new_question_id,
+                        topic_id=new_topic.id,
+                        question_type_id=original_question.question_type_id,
+                        question_number=original_question.question_number,
+                        question_text=original_question.question_text,
+                        image_url=original_question.image_url,
+                        points=original_question.points,
+                        difficulty=original_question.difficulty,
+                        created_by=user_id
+                    )
+                    db.session.add(new_question)
+                    
+                    # Clonar respuestas de esta pregunta
+                    for original_answer in original_question.answers:
+                        new_answer = Answer(
+                            id=str(uuid.uuid4()),
+                            question_id=new_question_id,
+                            answer_number=original_answer.answer_number,
+                            answer_text=original_answer.answer_text,
+                            is_correct=original_answer.is_correct,
+                            explanation=original_answer.explanation,
+                            created_by=user_id
+                        )
+                        db.session.add(new_answer)
+                
+                # Clonar ejercicios de este tema
+                for original_exercise in original_topic.exercises:
+                    new_exercise_id = str(uuid.uuid4())
+                    new_exercise = Exercise(
+                        id=new_exercise_id,
+                        topic_id=new_topic.id,
+                        exercise_number=original_exercise.exercise_number,
+                        title=original_exercise.title,
+                        description=original_exercise.description,
+                        is_active=original_exercise.is_active,
+                        created_by=user_id
+                    )
+                    db.session.add(new_exercise)
+                    db.session.flush()
+                    
+                    # Clonar pasos del ejercicio
+                    for original_step in original_exercise.steps:
+                        new_step_id = str(uuid.uuid4())
+                        new_step = ExerciseStep(
+                            id=new_step_id,
+                            exercise_id=new_exercise_id,
+                            step_number=original_step.step_number,
+                            title=original_step.title,
+                            description=original_step.description,
+                            image_url=original_step.image_url,
+                            image_width=original_step.image_width,
+                            image_height=original_step.image_height
+                        )
+                        db.session.add(new_step)
+                        db.session.flush()
+                        
+                        # Clonar acciones del paso
+                        for original_action in original_step.actions:
+                            new_action = ExerciseAction(
+                                id=str(uuid.uuid4()),
+                                step_id=new_step_id,
+                                action_number=original_action.action_number,
+                                action_type=original_action.action_type,
+                                position_x=original_action.position_x,
+                                position_y=original_action.position_y,
+                                width=original_action.width,
+                                height=original_action.height,
+                                label=original_action.label,
+                                placeholder=original_action.placeholder,
+                                correct_answer=original_action.correct_answer,
+                                is_case_sensitive=original_action.is_case_sensitive,
+                                scoring_mode=original_action.scoring_mode,
+                                on_error_action=original_action.on_error_action,
+                                error_message=original_action.error_message,
+                                max_attempts=original_action.max_attempts,
+                                text_color=original_action.text_color,
+                                font_family=original_action.font_family
+                            )
+                            db.session.add(new_action)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Examen clonado exitosamente',
+            'exam': new_exam.to_dict(include_details=True)
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al clonar el examen: {str(e)}'}), 500
+
+
 @bp.route('/<int:exam_id>', methods=['GET'])
 @jwt_required()
 def get_exam(exam_id):
@@ -322,7 +495,7 @@ def update_exam(exam_id):
     # Actualizar campos permitidos
     updatable_fields = [
         'name', 'version', 'standard', 'description', 'instructions',
-        'duration_minutes', 'passing_score', 'is_active', 'is_published'
+        'duration_minutes', 'passing_score', 'is_active', 'is_published', 'image_url'
     ]
     
     for field in updatable_fields:
@@ -398,6 +571,10 @@ def create_category(exam_id):
     if not exam:
         return jsonify({'error': 'Examen no encontrado'}), 404
     
+    # Verificar que el examen esté en borrador
+    if exam.is_published:
+        return jsonify({'error': 'No se puede agregar categorías a un examen publicado'}), 400
+    
     data = request.get_json()
     user_id = get_jwt_identity()
     
@@ -417,6 +594,79 @@ def create_category(exam_id):
         'message': 'Categoría creada exitosamente',
         'category': category.to_dict()
     }), 201
+
+
+@bp.route('/<int:exam_id>/categories/<int:category_id>', methods=['DELETE'])
+@jwt_required()
+@require_permission('exams:delete')
+def delete_category(exam_id, category_id):
+    """Eliminar categoría"""
+    exam = Exam.query.get(exam_id)
+    if not exam:
+        return jsonify({'error': 'Examen no encontrado'}), 404
+    
+    # Verificar que el examen esté en borrador
+    if exam.is_published:
+        return jsonify({'error': 'No se puede eliminar categorías de un examen publicado'}), 400
+    
+    category = Category.query.get(category_id)
+    if not category:
+        return jsonify({'error': 'Categoría no encontrada'}), 404
+    
+    # Verificar que la categoría pertenece al examen
+    if category.exam_id != exam_id:
+        return jsonify({'error': 'La categoría no pertenece a este examen'}), 400
+    
+    db.session.delete(category)
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Categoría eliminada exitosamente'
+    }), 200
+
+
+@bp.route('/<int:exam_id>/categories/<int:category_id>', methods=['PUT'])
+@jwt_required()
+@require_permission('exams:update')
+def update_category(exam_id, category_id):
+    """Actualizar categoría"""
+    exam = Exam.query.get(exam_id)
+    if not exam:
+        return jsonify({'error': 'Examen no encontrado'}), 404
+    
+    # Verificar que el examen esté en borrador
+    if exam.is_published:
+        return jsonify({'error': 'No se puede modificar categorías de un examen publicado'}), 400
+    
+    category = Category.query.get(category_id)
+    if not category:
+        return jsonify({'error': 'Categoría no encontrada'}), 404
+    
+    # Verificar que la categoría pertenece al examen
+    if category.exam_id != exam_id:
+        return jsonify({'error': 'La categoría no pertenece a este examen'}), 400
+    
+    data = request.get_json()
+    user_id = get_jwt_identity()
+    
+    # Actualizar campos
+    if 'name' in data:
+        category.name = data['name']
+    if 'description' in data:
+        category.description = data['description']
+    if 'percentage' in data:
+        category.percentage = data['percentage']
+    if 'order' in data:
+        category.order = data['order']
+    
+    category.updated_by = user_id
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Categoría actualizada exitosamente',
+        'category': category.to_dict()
+    }), 200
 
 
 # ============= TEMAS =============
@@ -1709,6 +1959,388 @@ def unpublish_exam(exam_id):
 
 @bp.route('/<int:exam_id>/unpublish', methods=['OPTIONS'])
 def options_unpublish_exam(exam_id):
+    response = jsonify({'status': 'ok'})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'POST,OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
+    return response
+
+
+# ============= EVALUACIÓN DE EXAMEN =============
+
+def calculate_text_similarity(user_answer: str, correct_answer: str) -> float:
+    """
+    Calcula la similitud entre dos textos usando distancia de Levenshtein normalizada
+    """
+    if not user_answer or not correct_answer:
+        return 0.0
+    
+    # Normalizar textos
+    s1 = user_answer.lower().strip()
+    s2 = correct_answer.lower().strip()
+    
+    if s1 == s2:
+        return 1.0
+    
+    # Calcular distancia de Levenshtein
+    len1, len2 = len(s1), len(s2)
+    
+    # Crear matriz de distancias
+    dp = [[0] * (len2 + 1) for _ in range(len1 + 1)]
+    
+    for i in range(len1 + 1):
+        dp[i][0] = i
+    for j in range(len2 + 1):
+        dp[0][j] = j
+    
+    for i in range(1, len1 + 1):
+        for j in range(1, len2 + 1):
+            if s1[i-1] == s2[j-1]:
+                dp[i][j] = dp[i-1][j-1]
+            else:
+                dp[i][j] = 1 + min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])
+    
+    distance = dp[len1][len2]
+    max_len = max(len1, len2)
+    
+    return 1.0 - (distance / max_len) if max_len > 0 else 1.0
+
+
+def evaluate_question(question_data: dict, user_answer: any) -> dict:
+    """
+    Evalúa la respuesta de una pregunta
+    
+    Args:
+        question_data: Diccionario con datos de la pregunta (incluye answers con is_correct)
+        user_answer: Respuesta del usuario
+    
+    Returns:
+        dict con is_correct, score, correct_answer, user_answer, explanation
+    """
+    result = {
+        'question_id': question_data.get('id'),
+        'question_type': question_data.get('question_type', {}).get('name') if isinstance(question_data.get('question_type'), dict) else question_data.get('question_type'),
+        'question_text': question_data.get('question_text'),
+        'user_answer': user_answer,
+        'is_correct': False,
+        'score': 0,
+        'correct_answer': None,
+        'explanation': None,
+        'answers': question_data.get('answers', [])
+    }
+    
+    q_type = result['question_type']
+    answers = question_data.get('answers', [])
+    
+    if user_answer is None:
+        result['explanation'] = 'Pregunta sin responder'
+        return result
+    
+    if q_type == 'true_false':
+        # Para verdadero/falso, buscar la respuesta correcta
+        correct_answer_obj = next((a for a in answers if a.get('is_correct')), None)
+        if correct_answer_obj:
+            # El answer_text contiene 'true' o 'false' o similar
+            correct_text = correct_answer_obj.get('answer_text', '').lower()
+            correct_value = correct_text in ['true', 'verdadero', '1', 'si', 'sí']
+            
+            result['is_correct'] = user_answer == correct_value
+            result['correct_answer'] = correct_value
+            result['score'] = 1 if result['is_correct'] else 0
+            result['explanation'] = correct_answer_obj.get('explanation')
+    
+    elif q_type == 'multiple_choice':
+        # Para opción múltiple, comparar ID de respuesta
+        correct_answer_obj = next((a for a in answers if a.get('is_correct')), None)
+        if correct_answer_obj:
+            result['is_correct'] = str(user_answer) == str(correct_answer_obj.get('id'))
+            result['correct_answer'] = correct_answer_obj.get('id')
+            result['correct_answer_text'] = correct_answer_obj.get('answer_text')
+            result['score'] = 1 if result['is_correct'] else 0
+            result['explanation'] = correct_answer_obj.get('explanation')
+    
+    elif q_type == 'multiple_select':
+        # Para selección múltiple, verificar que todas las correctas estén seleccionadas
+        correct_answer_ids = [str(a.get('id')) for a in answers if a.get('is_correct')]
+        user_answer_ids = [str(a) for a in (user_answer if isinstance(user_answer, list) else [])]
+        
+        # Ordenar para comparar
+        correct_answer_ids.sort()
+        user_answer_ids.sort()
+        
+        result['is_correct'] = correct_answer_ids == user_answer_ids
+        result['correct_answer'] = correct_answer_ids
+        result['correct_answers_text'] = [a.get('answer_text') for a in answers if a.get('is_correct')]
+        
+        # Puntaje parcial: calcular proporción de respuestas correctas
+        if len(correct_answer_ids) > 0:
+            correct_selections = len(set(user_answer_ids) & set(correct_answer_ids))
+            wrong_selections = len(set(user_answer_ids) - set(correct_answer_ids))
+            result['score'] = max(0, (correct_selections - wrong_selections) / len(correct_answer_ids))
+        
+    elif q_type == 'ordering':
+        # Para ordenamiento, verificar el orden de los IDs
+        # Manejar None en answer_number usando 0 como default
+        def get_order_key(a):
+            num = a.get('answer_number')
+            return num if num is not None else 0
+        
+        sorted_answers = sorted(answers, key=get_order_key)
+        correct_order = [str(a.get('id')) for a in sorted_answers]
+        user_order = [str(a) for a in (user_answer if isinstance(user_answer, list) else [])]
+        
+        result['is_correct'] = correct_order == user_order
+        result['correct_answer'] = correct_order
+        result['correct_answers_text'] = [a.get('answer_text') for a in sorted_answers]
+        result['score'] = 1 if result['is_correct'] else 0
+    
+    return result
+
+
+def evaluate_exercise(exercise_data: dict, exercise_responses: dict) -> dict:
+    """
+    Evalúa las respuestas de un ejercicio
+    
+    Args:
+        exercise_data: Diccionario con datos del ejercicio (incluye steps y actions)
+        exercise_responses: Dict con respuestas del usuario {stepId_actionId: value}
+    
+    Returns:
+        dict con resultados de evaluación por paso y acción
+    """
+    result = {
+        'exercise_id': exercise_data.get('id'),
+        'title': exercise_data.get('title'),
+        'is_correct': True,
+        'total_score': 0,
+        'max_score': 0,
+        'steps': []
+    }
+    
+    steps = exercise_data.get('steps', [])
+    
+    for step in steps:
+        step_result = {
+            'step_id': step.get('id'),
+            'step_number': step.get('step_number'),
+            'title': step.get('title'),
+            'is_correct': True,
+            'actions': []
+        }
+        
+        actions = step.get('actions', [])
+        
+        for action in actions:
+            action_id = action.get('id')
+            step_id = step.get('id')
+            response_key = f"{step_id}_{action_id}"
+            user_response = exercise_responses.get(response_key)
+            
+            action_result = {
+                'action_id': action_id,
+                'action_number': action.get('action_number'),
+                'action_type': action.get('action_type'),
+                'user_response': user_response,
+                'is_correct': False,
+                'score': 0,
+                'correct_answer': action.get('correct_answer'),
+                'explanation': None
+            }
+            
+            result['max_score'] += 1
+            
+            if action.get('action_type') == 'button':
+                # Para botones, verificar si fue clickeado (cualquier valor truthy)
+                action_result['is_correct'] = bool(user_response)
+                action_result['score'] = 1 if action_result['is_correct'] else 0
+                
+            elif action.get('action_type') == 'textbox':
+                correct_answer = action.get('correct_answer', '')
+                scoring_mode = action.get('scoring_mode', 'exact')
+                is_case_sensitive = action.get('is_case_sensitive', False)
+                
+                if user_response is None:
+                    user_response = ''
+                
+                if scoring_mode == 'exact':
+                    # Comparación exacta
+                    if is_case_sensitive:
+                        action_result['is_correct'] = str(user_response).strip() == str(correct_answer).strip()
+                    else:
+                        action_result['is_correct'] = str(user_response).strip().lower() == str(correct_answer).strip().lower()
+                    action_result['score'] = 1 if action_result['is_correct'] else 0
+                    
+                elif scoring_mode == 'similarity':
+                    # Comparación por similitud
+                    if is_case_sensitive:
+                        similarity = calculate_text_similarity(str(user_response), str(correct_answer))
+                    else:
+                        similarity = calculate_text_similarity(str(user_response).lower(), str(correct_answer).lower())
+                    
+                    # Consideramos correcto si la similitud es >= 80%
+                    action_result['is_correct'] = similarity >= 0.8
+                    action_result['score'] = similarity
+                    action_result['similarity'] = round(similarity * 100, 1)
+                
+                if action.get('error_message'):
+                    action_result['explanation'] = action.get('error_message')
+            
+            if not action_result['is_correct']:
+                step_result['is_correct'] = False
+                result['is_correct'] = False
+            
+            result['total_score'] += action_result['score']
+            step_result['actions'].append(action_result)
+        
+        result['steps'].append(step_result)
+    
+    return result
+
+
+@bp.route('/<int:exam_id>/evaluate', methods=['POST'])
+@jwt_required()
+def evaluate_exam(exam_id):
+    """
+    Evalúa las respuestas de un examen
+    
+    Request body:
+    {
+        "answers": {"question_id": answer_value, ...},
+        "exerciseResponses": {"exercise_id": {"stepId_actionId": value, ...}, ...},
+        "items": [lista de items del test con datos completos]
+    }
+    
+    Returns:
+    {
+        "results": {
+            "questions": [resultados evaluados de preguntas],
+            "exercises": [resultados evaluados de ejercicios],
+            "summary": {
+                "total_items": N,
+                "total_questions": N,
+                "total_exercises": N,
+                "correct_questions": N,
+                "correct_exercises": N,
+                "question_score": X,
+                "exercise_score": X,
+                "total_score": X,
+                "percentage": X
+            }
+        }
+    }
+    """
+    print(f"\n=== EVALUAR EXAMEN {exam_id} ===")
+    
+    try:
+        # Verificar que el examen existe
+        exam = Exam.query.get(exam_id)
+        if not exam:
+            return jsonify({'error': 'Examen no encontrado'}), 404
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No se proporcionaron datos'}), 400
+        
+        answers = data.get('answers', {})
+        exercise_responses = data.get('exerciseResponses', {})
+        items = data.get('items', [])
+        
+        print(f"Recibido: {len(answers)} respuestas de preguntas, {len(exercise_responses)} respuestas de ejercicios, {len(items)} items")
+        
+        question_results = []
+        exercise_results = []
+        
+        for item in items:
+            if item.get('type') == 'question':
+                question_id = str(item.get('question_id') or item.get('id'))
+                user_answer = answers.get(question_id)
+                
+                # Obtener la pregunta de la BD con respuestas correctas
+                question = Question.query.get(question_id)
+                if question:
+                    question_data = question.to_dict(include_answers=True, include_correct=True)
+                    result = evaluate_question(question_data, user_answer)
+                    question_results.append(result)
+                    print(f"  Pregunta {question_id}: {'✓' if result['is_correct'] else '✗'}")
+                else:
+                    # Si no encontramos en BD, usar datos del item
+                    item_with_answers = item.copy()
+                    # Intentar obtener respuestas de la BD
+                    answers_from_db = Answer.query.filter_by(question_id=question_id).all()
+                    if answers_from_db:
+                        item_with_answers['answers'] = [a.to_dict(include_correct=True) for a in answers_from_db]
+                    result = evaluate_question(item_with_answers, user_answer)
+                    question_results.append(result)
+                    print(f"  Pregunta {question_id} (sin BD): {'✓' if result['is_correct'] else '✗'}")
+            
+            elif item.get('type') == 'exercise':
+                exercise_id = str(item.get('exercise_id') or item.get('id'))
+                ex_responses = exercise_responses.get(exercise_id, {})
+                
+                # Obtener ejercicio de la BD con pasos y acciones
+                exercise = Exercise.query.get(exercise_id)
+                if exercise:
+                    exercise_data = exercise.to_dict(include_steps=True)
+                else:
+                    # Usar datos del item
+                    exercise_data = item
+                
+                result = evaluate_exercise(exercise_data, ex_responses)
+                exercise_results.append(result)
+                print(f"  Ejercicio {exercise_id}: {'✓' if result['is_correct'] else '✗'} ({result['total_score']}/{result['max_score']})")
+        
+        # Calcular resumen
+        total_questions = len(question_results)
+        total_exercises = len(exercise_results)
+        correct_questions = sum(1 for r in question_results if r['is_correct'])
+        correct_exercises = sum(1 for r in exercise_results if r['is_correct'])
+        
+        question_score = sum(r['score'] for r in question_results) if question_results else 0
+        exercise_score = sum(r['total_score'] for r in exercise_results) if exercise_results else 0
+        max_exercise_score = sum(r['max_score'] for r in exercise_results) if exercise_results else 0
+        
+        total_points = total_questions + max_exercise_score
+        earned_points = question_score + exercise_score
+        
+        percentage = (earned_points / total_points * 100) if total_points > 0 else 0
+        
+        summary = {
+            'total_items': len(items),
+            'total_questions': total_questions,
+            'total_exercises': total_exercises,
+            'correct_questions': correct_questions,
+            'correct_exercises': correct_exercises,
+            'question_score': round(question_score, 2),
+            'exercise_score': round(exercise_score, 2),
+            'max_exercise_score': max_exercise_score,
+            'total_points': total_points,
+            'earned_points': round(earned_points, 2),
+            'percentage': round(percentage, 1)
+        }
+        
+        print(f"Resumen: {correct_questions}/{total_questions} preguntas, {correct_exercises}/{total_exercises} ejercicios, {percentage:.1f}%")
+        print(f"=== FIN EVALUAR EXAMEN ===\n")
+        
+        return jsonify({
+            'results': {
+                'questions': question_results,
+                'exercises': exercise_results,
+                'summary': summary
+            }
+        }), 200
+        
+    except Exception as e:
+        import traceback
+        print(f"ERROR en evaluate_exam: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            'error': 'Error al evaluar el examen',
+            'message': str(e)
+        }), 500
+
+
+@bp.route('/<int:exam_id>/evaluate', methods=['OPTIONS'])
+def options_evaluate_exam(exam_id):
     response = jsonify({'status': 'ok'})
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'POST,OPTIONS'

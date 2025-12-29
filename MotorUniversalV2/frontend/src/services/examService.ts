@@ -32,6 +32,11 @@ export const examService = {
     return response.data
   },
 
+  cloneExam: async (id: number, data?: { name?: string; version?: string }): Promise<{ message: string; exam: Exam }> => {
+    const response = await api.post<{ message: string; exam: Exam }>(`/exams/${id}/clone`, data || {})
+    return response.data
+  },
+
   // Categories
   getCategories: async (examId: number): Promise<{ categories: Category[] }> => {
     const response = await api.get<{ categories: Category[] }>(`/exams/${examId}/categories`)
@@ -40,6 +45,16 @@ export const examService = {
 
   createCategory: async (examId: number, data: Partial<Category>): Promise<{ message: string; category: Category }> => {
     const response = await api.post<{ message: string; category: Category }>(`/exams/${examId}/categories`, data)
+    return response.data
+  },
+
+  deleteCategory: async (examId: number, categoryId: number): Promise<{ message: string }> => {
+    const response = await api.delete<{ message: string }>(`/exams/${examId}/categories/${categoryId}`)
+    return response.data
+  },
+
+  updateCategory: async (examId: number, categoryId: number, data: Partial<Category>): Promise<{ message: string; category: Category }> => {
+    const response = await api.put<{ message: string; category: Category }>(`/exams/${examId}/categories/${categoryId}`, data)
     return response.data
   },
 

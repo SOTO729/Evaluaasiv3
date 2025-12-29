@@ -105,3 +105,71 @@
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
 }
+
+/* Estilos para el editor Quill */
+.ql-container {
+  font-family: inherit;
+  font-size: 1rem;
+  min-height: 250px;
+}
+
+.ql-editor {
+  min-height: 250px;
+  padding: 1rem;
+}
+
+.ql-editor p {
+  margin-bottom: 0.5em;
+}
+
+.ql-editor h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.5em;
+}
+
+.ql-editor h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5em;
+}
+
+.ql-editor h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5em;
+}
+
+.ql-editor ul, .ql-editor ol {
+  padding-left: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.ql-editor blockquote {
+  border-left: 4px solid #3b82f6;
+  padding-left: 1rem;
+  margin: 1em 0;
+  color: #4b5563;
+  background-color: #f3f4f6;
+  padding: 0.5rem 1rem;
+  border-radius: 0 0.25rem 0.25rem 0;
+}
+
+.ql-editor pre {
+  background-color: #1f2937;
+  color: #e5e7eb;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+
+.ql-toolbar.ql-snow {
+  border: none;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.ql-container.ql-snow {
+  border: none;
+}
