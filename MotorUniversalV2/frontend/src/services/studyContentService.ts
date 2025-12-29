@@ -450,6 +450,43 @@ export const deleteDownloadable = async (
   );
 };
 
+export const uploadDownloadable = async (
+  materialId: number,
+  sessionId: number,
+  topicId: number,
+  files: File[],
+  title: string,
+  description?: string,
+  onProgress?: (progress: number) => void
+): Promise<StudyDownloadableExercise> => {
+  const formData = new FormData();
+  
+  // Agregar archivos (soporta múltiples)
+  files.forEach((file) => {
+    formData.append('files', file);
+  });
+  
+  formData.append('title', title);
+  if (description) formData.append('description', description);
+  
+  const response = await api.post(
+    `/study-contents/${materialId}/sessions/${sessionId}/topics/${topicId}/downloadable/upload`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        if (onProgress && progressEvent.total) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(progress);
+        }
+      },
+    }
+  );
+  return response.data.downloadable_exercise;
+};
+
 // --- Ejercicio Interactivo ---
 export const createInteractive = async (
   materialId: number,
@@ -595,6 +632,7 @@ export default {
   uploadVideo,
   deleteVideo,
   upsertDownloadable,
+  uploadDownloadable,
   deleteDownloadable,
   createInteractive,
   updateInteractive,
