@@ -28,6 +28,7 @@ const ExamTestResultsPage = lazy(() => import('./pages/ExamTestResultsPage'))
 const StudyContentsListPage = lazy(() => import('./pages/study-contents/StudyContentsListPage'))
 const StudyContentCreatePage = lazy(() => import('./pages/study-contents/StudyContentCreatePage'))
 const StudyContentDetailPage = lazy(() => import('./pages/study-contents/StudyContentDetailPage'))
+const StudyInteractiveExercisePage = lazy(() => import('./pages/study-contents/StudyInteractiveExercisePage'))
 
 function App() {
   const { isAuthenticated } = useAuthStore()
@@ -76,6 +77,7 @@ function App() {
               <Route path="/study-contents/create" element={<StudyContentCreatePage />} />
               <Route path="/study-contents/:id" element={<StudyContentDetailPage />} />
               <Route path="/study-contents/:id/edit" element={<StudyContentCreatePage />} />
+              <Route path="/study-contents/:id/sessions/:sessionId/topics/:topicId/interactive" element={<StudyInteractiveExercisePage />} />
               
               {/* Redirect root to dashboard */}
               <Route path="/" element={<Navigate to="/dashboard" />} />

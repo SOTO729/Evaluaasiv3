@@ -122,7 +122,7 @@ const Layout = () => {
                           : 'text-gray-900 hover:text-primary-600'
                       } hover:shadow-sm hover:bg-gray-50`}
                     >
-                      Contenidos de Estudio
+                      Materiales de Estudio
                     </Link>
                   </>
                 )}

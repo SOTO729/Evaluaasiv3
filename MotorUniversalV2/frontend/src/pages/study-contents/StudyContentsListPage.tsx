@@ -103,7 +103,7 @@ const StudyContentsListPage = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
             <BookOpen className="h-7 w-7 text-blue-600" />
-            Contenidos de Estudio
+            Materiales de Estudio
           </h1>
           <p className="text-gray-600 mt-1">
             Gestiona los materiales de estudio organizados por sesiones y temas

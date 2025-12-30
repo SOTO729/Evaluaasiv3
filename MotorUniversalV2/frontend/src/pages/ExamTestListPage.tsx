@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../services/examService';
-import LoadingSpinner from '../components/LoadingSpinner';
 import { 
   Play, 
   BookOpen, 
@@ -15,7 +14,11 @@ import {
   HelpCircle,
   Clock,
   Layers,
-  FileText
+  FileText,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Calendar
 } from 'lucide-react';
 
 interface ExamConfigModalProps {
@@ -298,6 +301,9 @@ const ExamConfigModal: React.FC<ExamConfigModalProps> = ({
 
 const ExamTestListPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 12;
   const [selectedExam, setSelectedExam] = useState<{
     id: number;
     title: string;
@@ -305,13 +311,20 @@ const ExamTestListPage: React.FC = () => {
     exerciseCount: number;
   } | null>(null);
 
+  // Reset page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
   const { data: examsData, isLoading } = useQuery({
-    queryKey: ['exams'],
-    queryFn: () => examService.getExams(1, 100)
+    queryKey: ['exams-test', currentPage, searchTerm],
+    queryFn: () => examService.getExams(currentPage, ITEMS_PER_PAGE, searchTerm)
   });
 
-  // Filtrar solo exámenes publicados
+  // Filtrar solo exámenes publicados (la paginación viene del servidor)
   const exams = (examsData?.exams || []).filter((exam: any) => exam.is_published);
+  const totalPages = examsData?.pages || 1;
+  const total = examsData?.total || 0;
 
   const handleTestExam = (examId: number, examTitle: string, questionCount: number, exerciseCount: number) => {
     setSelectedExam({
@@ -333,28 +346,49 @@ const ExamTestListPage: React.FC = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Play className="h-7 w-7 text-emerald-600" />
-          Probar Exámenes
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Selecciona un examen para probarlo desde la perspectiva del alumno
-        </p>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <Play className="h-7 w-7 text-emerald-600" />
+            Probar Exámenes
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Selecciona un examen para probarlo desde la perspectiva del alumno
+          </p>
+        </div>
       </div>
 
-      {exams && exams.length === 0 ? (
+      {/* Search */}
+      <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <div className="flex gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar exámenes..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            />
+          </div>
+          <button
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors"
+          >
+            Buscar
+          </button>
+        </div>
+      </div>
+
+      {/* Exams Grid */}
+      {isLoading ? (
+        <div className="bg-white rounded-lg shadow p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Cargando exámenes...</p>
+        </div>
+      ) : exams.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center">
           <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-700 mb-2">No hay exámenes publicados</h3>
@@ -363,95 +397,131 @@ const ExamTestListPage: React.FC = () => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {exams?.map((exam: any) => {
-            const totalQuestions = exam.total_questions || 0;
-            const totalExercises = exam.total_exercises || 0;
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {exams.map((exam: any) => {
+              const totalQuestions = exam.total_questions || 0;
+              const totalExercises = exam.total_exercises || 0;
 
-            return (
-              <div
-                key={exam.id}
-                className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 group"
-              >
-                {/* Card Image */}
-                <div className="relative h-40 bg-gradient-to-br from-emerald-500 to-teal-600">
-                  {exam.image_url ? (
-                    <img
-                      src={exam.image_url}
-                      alt={exam.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <FileText className="h-16 w-16 text-white/50" />
-                    </div>
-                  )}
-                  
-                  {/* Version Badge */}
-                  <div className="absolute top-3 left-3">
-                    <span className="px-2 py-1 rounded-full text-xs font-mono bg-black/30 text-white">
-                      {exam.version}
-                    </span>
-                  </div>
-
-                  {/* Play Button Overlay */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                    <button
-                      onClick={() => handleTestExam(exam.id, exam.name, totalQuestions, totalExercises)}
-                      className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-90 group-hover:scale-100 bg-white rounded-full p-4 shadow-lg hover:shadow-xl"
-                    >
-                      <Play className="h-8 w-8 text-emerald-600 ml-1" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Card Content */}
-                <div className="p-4">
-                  <h3 className="font-semibold text-gray-900 mb-2 line-clamp-1">
-                    {exam.name}
-                  </h3>
-                  
-                  {/* Stats Grid */}
-                  <div className="grid grid-cols-2 gap-2 mb-3 text-xs text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <Target className="h-3.5 w-3.5 text-green-500" />
-                      <span>{exam.passing_score}% aprobación</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5 text-blue-500" />
-                      <span>{exam.duration_minutes || 0} min</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <FileQuestion className="h-3.5 w-3.5 text-purple-500" />
-                      <span>{totalQuestions} preguntas</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <ClipboardList className="h-3.5 w-3.5 text-amber-500" />
-                      <span>{totalExercises} ejercicios</span>
-                    </div>
-                  </div>
-                  
-                  {/* Card Footer */}
-                  <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t mb-4">
-                    <div className="flex items-center gap-1">
-                      <Layers className="h-3.5 w-3.5" />
-                      <span>{exam.total_categories || 0} categorías</span>
-                    </div>
-                  </div>
-
-                  {/* Action Button */}
-                  <button
+              return (
+                <div
+                  key={exam.id}
+                  className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 group"
+                >
+                  {/* Card Image */}
+                  <div 
+                    className="relative h-40 bg-gradient-to-br from-emerald-500 to-teal-600 cursor-pointer"
                     onClick={() => handleTestExam(exam.id, exam.name, totalQuestions, totalExercises)}
-                    className="w-full px-4 py-2.5 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-2 transition-colors"
                   >
-                    <Play className="h-4 w-4" />
-                    Probar Examen
-                  </button>
+                    {exam.image_url ? (
+                      <img
+                        src={exam.image_url}
+                        alt={exam.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <FileText className="h-16 w-16 text-white/50" />
+                      </div>
+                    )}
+                    
+                    {/* Version Badge */}
+                    <div className="absolute top-3 left-3">
+                      <span className="px-2 py-1 rounded-full text-xs font-mono bg-black/30 text-white">
+                        {exam.version}
+                      </span>
+                    </div>
+
+                    {/* Play Button Overlay */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                      <button
+                        onClick={() => handleTestExam(exam.id, exam.name, totalQuestions, totalExercises)}
+                        className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-90 group-hover:scale-100 bg-white rounded-full p-4 shadow-lg hover:shadow-xl"
+                      >
+                        <Play className="h-8 w-8 text-emerald-600 ml-1" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Card Content */}
+                  <div className="p-4">
+                    <h3 
+                      className="font-semibold text-gray-900 mb-2 line-clamp-1 cursor-pointer hover:text-emerald-600 transition-colors"
+                      onClick={() => handleTestExam(exam.id, exam.name, totalQuestions, totalExercises)}
+                    >
+                      {exam.name}
+                    </h3>
+                    
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 gap-2 mb-3 text-xs text-gray-500">
+                      <div className="flex items-center gap-1">
+                        <Target className="h-3.5 w-3.5 text-green-500" />
+                        <span>{exam.passing_score}% aprobación</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5 text-blue-500" />
+                        <span>{exam.duration_minutes || 0} min</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <FileQuestion className="h-3.5 w-3.5 text-purple-500" />
+                        <span>{totalQuestions} preguntas</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <ClipboardList className="h-3.5 w-3.5 text-amber-500" />
+                        <span>{totalExercises} ejercicios</span>
+                      </div>
+                    </div>
+                    
+                    {/* Card Footer */}
+                    <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t">
+                      <div className="flex items-center gap-1">
+                        <Layers className="h-3.5 w-3.5" />
+                        <span>{exam.total_categories || 0} categorías</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3.5 w-3.5" />
+                        <span>
+                          {new Date(exam.created_at).toLocaleDateString('es-ES', {
+                            day: 'numeric',
+                            month: 'short',
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-6 flex items-center justify-between bg-white rounded-lg shadow px-6 py-4">
+              <p className="text-sm text-gray-600">
+                Mostrando {exams.length} de {total} exámenes
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <span className="px-3 py-1 text-sm">
+                  Página {currentPage} de {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          )}
+        </>
       )}
 
       {selectedExam && (

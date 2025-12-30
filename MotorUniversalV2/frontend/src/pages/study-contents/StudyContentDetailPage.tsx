@@ -22,6 +22,8 @@ import {
   deleteVideo,
   uploadDownloadable,
   deleteDownloadable,
+  createInteractive,
+  updateInteractive,
   StudyMaterial,
   StudySession,
   StudyTopic,
@@ -180,6 +182,19 @@ const StudyContentDetailPage = () => {
   // Success modal state
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successModalData, setSuccessModalData] = useState<{ title: string; fileName: string; fileSize: string; contentType?: 'video' | 'file' } | null>(null);
+
+  // Interactive exercise config modal state
+  const [interactiveConfigOpen, setInteractiveConfigOpen] = useState(false);
+  const [interactiveConfigData, setInteractiveConfigData] = useState<{
+    topicId: number;
+    sessionId: number;
+    isNew: boolean;
+  } | null>(null);
+  const [interactiveForm, setInteractiveForm] = useState({
+    title: '',
+    description: ''
+  });
+  const [savingInteractive, setSavingInteractive] = useState(false);
 
   useEffect(() => {
     if (materialId) {
@@ -395,7 +410,19 @@ const StudyContentDetailPage = () => {
     } catch (error: any) {
       console.error('Error saving video:', error);
       setIsUploading(false);
-      const errorMessage = error.response?.data?.error || 'Error al subir el video. Por favor intenta de nuevo.';
+      // Mostrar error detallado del servidor
+      let errorMessage = 'Error al subir el video. Por favor intenta de nuevo.';
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = 'La subida tardó demasiado tiempo. Verifica tu conexión a internet.';
+      } else if (error.message === 'Network Error') {
+        errorMessage = 'Error de red al subir el video. Esto puede deberse a un problema de conexión. Por favor intenta de nuevo.';
+      } else if (error.response?.status === 413) {
+        errorMessage = 'El servidor rechazó el archivo por ser muy grande. Contacta al administrador.';
+      } else if (error.response?.data?.error) {
+        errorMessage = `Error: ${error.response.data.error}`;
+      } else if (error.message) {
+        errorMessage = `Error: ${error.message}`;
+      }
       setToast({ message: errorMessage, type: 'error' });
     } finally {
       setSaving(false);
@@ -406,15 +433,16 @@ const StudyContentDetailPage = () => {
     const file = e.target.files?.[0];
     if (file) {
       // Validar tipo de archivo
-      const validTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo'];
+      const validTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo', 'video/mpeg', 'video/3gpp', 'video/x-matroska'];
       if (!validTypes.includes(file.type)) {
-        alert('Tipo de archivo no válido. Use MP4, WebM, OGG, MOV o AVI.');
+        alert('Tipo de archivo no válido. Use MP4, WebM, OGG, MOV, AVI, MKV o MPEG.');
         return;
       }
-      // Validar tamaño (máximo 500MB)
-      const maxSize = 500 * 1024 * 1024;
+      // Validar tamaño (máximo 2GB)
+      const maxSize = 2 * 1024 * 1024 * 1024;
       if (file.size > maxSize) {
-        alert('El archivo es demasiado grande. El tamaño máximo es 500MB.');
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(0);
+        alert(`El archivo es demasiado grande (${fileSizeMB}MB). El tamaño máximo es 2GB.`);
         return;
       }
       setSelectedVideoFile(file);
@@ -648,7 +676,7 @@ const StudyContentDetailPage = () => {
           <h2 className="text-lg font-semibold text-gray-800">Sesiones</h2>
           <button
             onClick={() => openSessionModal()}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm"
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-1.5 text-sm font-medium transition-colors shadow-sm"
           >
             <Plus className="h-4 w-4" />
             Nueva Sesión
@@ -718,7 +746,7 @@ const StudyContentDetailPage = () => {
                       <span className="text-sm font-medium text-gray-600">Temas de la sesión</span>
                       <button
                         onClick={() => openTopicModal(session.id)}
-                        className="px-2 py-1 text-blue-600 hover:bg-blue-50 rounded flex items-center gap-1 text-sm"
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-1.5 text-sm font-medium transition-colors shadow-sm"
                       >
                         <Plus className="h-4 w-4" />
                         Nuevo Tema
@@ -830,7 +858,18 @@ const StudyContentDetailPage = () => {
 
                                 {/* Interactivo */}
                                 <div
-                                  onClick={() => navigate(`/study-contents/${materialId}/sessions/${session.id}/topics/${topic.id}/interactive`)}
+                                  onClick={() => {
+                                    setInteractiveConfigData({
+                                      topicId: topic.id,
+                                      sessionId: session.id,
+                                      isNew: !topic.interactive_exercise
+                                    });
+                                    setInteractiveForm({
+                                      title: topic.interactive_exercise?.title || 'Ejercicio Interactivo',
+                                      description: topic.interactive_exercise?.description || ''
+                                    });
+                                    setInteractiveConfigOpen(true);
+                                  }}
                                   className={`p-3 rounded-lg border cursor-pointer transition-colors ${
                                     topic.interactive_exercise ? 'bg-green-50 border-green-200 hover:bg-green-100' : 'bg-white hover:bg-gray-100'
                                   }`}
@@ -944,22 +983,44 @@ const StudyContentDetailPage = () => {
       <Modal
         isOpen={readingModalOpen}
         onClose={() => setReadingModalOpen(false)}
-        title="Lectura"
+        title={readingForm.title ? "Editar Material de Lectura" : "Crear Material de Lectura"}
         size="lg"
       >
-        <div className="space-y-4">
+        <div className="space-y-5">
+          {/* Header descriptivo */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <FileText className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-medium text-blue-800">Material de Lectura</h4>
+                <p className="text-sm text-blue-600 mt-1">
+                  Crea contenido de lectura enriquecido con formato, imágenes y enlaces para que los estudiantes puedan estudiar el tema.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Título *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Título de la lectura <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
               value={readingForm.title}
               onChange={(e) => setReadingForm({ ...readingForm, title: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              placeholder="Ej: Introducción a los conceptos básicos"
             />
           </div>
+          
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Contenido *</label>
-            <div className="border rounded-lg overflow-hidden">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Contenido <span className="text-red-500">*</span>
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              Utiliza el editor para dar formato al texto, agregar imágenes, enlaces y más.
+            </p>
+            <div className="border border-gray-300 rounded-lg overflow-hidden shadow-sm">
               <ReactQuill
                 theme="snow"
                 value={readingForm.content}
@@ -991,26 +1052,39 @@ const StudyContentDetailPage = () => {
               />
             </div>
           </div>
+          
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tiempo estimado (minutos)</label>
-            <input
-              type="number"
-              value={readingForm.estimated_time_minutes || ''}
-              onChange={(e) => setReadingForm({ ...readingForm, estimated_time_minutes: parseInt(e.target.value) || undefined })}
-              className="w-32 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tiempo estimado de lectura
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="1"
+                value={readingForm.estimated_time_minutes || ''}
+                onChange={(e) => setReadingForm({ ...readingForm, estimated_time_minutes: parseInt(e.target.value) || undefined })}
+                className="w-24 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                placeholder="15"
+              />
+              <span className="text-sm text-gray-500">minutos</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Tiempo aproximado que tomará leer este material</p>
           </div>
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <button onClick={() => setReadingModalOpen(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">
+          
+          <div className="flex justify-end gap-3 pt-5 border-t border-gray-200">
+            <button 
+              onClick={() => setReadingModalOpen(false)} 
+              className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+            >
               Cancelar
             </button>
             <button
               onClick={handleSaveReading}
               disabled={saving || !readingForm.title.trim() || !readingForm.content.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+              className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors shadow-sm"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Guardar
+              Guardar Lectura
             </button>
           </div>
         </div>
@@ -1020,85 +1094,109 @@ const StudyContentDetailPage = () => {
       <Modal
         isOpen={videoModalOpen}
         onClose={() => setVideoModalOpen(false)}
-        title="Video"
+        title={videoForm.title ? "Editar Video Educativo" : "Crear Video Educativo"}
+        size="lg"
       >
-        <div className="space-y-4">
+        <div className="space-y-5">
+          {/* Header descriptivo */}
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <Video className="h-5 w-5 text-purple-600 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-medium text-purple-800">Video Educativo</h4>
+                <p className="text-sm text-purple-600 mt-1">
+                  Agrega videos de YouTube, Vimeo o sube tu propio archivo de video para enriquecer el contenido del tema.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Título *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Título del video <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
               value={videoForm.title}
               onChange={(e) => setVideoForm({ ...videoForm, title: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              placeholder="Ej: Tutorial paso a paso del proceso"
             />
           </div>
           
           {/* Tabs para elegir entre URL o Subir archivo */}
-          <div className="border-b border-gray-200">
-            <nav className="flex -mb-px">
-              <button
-                onClick={() => setVideoMode('url')}
-                className={`px-4 py-2 text-sm font-medium flex items-center gap-2 border-b-2 ${
-                  videoMode === 'url'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <Link className="h-4 w-4" />
-                URL
-              </button>
-              <button
-                onClick={() => setVideoMode('upload')}
-                className={`px-4 py-2 text-sm font-medium flex items-center gap-2 border-b-2 ${
-                  videoMode === 'upload'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <Upload className="h-4 w-4" />
-                Subir archivo
-              </button>
-            </nav>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Fuente del video</label>
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <nav className="flex bg-gray-50">
+                <button
+                  onClick={() => setVideoMode('url')}
+                  className={`flex-1 px-4 py-2.5 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                    videoMode === 'url'
+                      ? 'bg-white text-blue-600 border-b-2 border-blue-500 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <Link className="h-4 w-4" />
+                  Enlace URL
+                </button>
+                <button
+                  onClick={() => setVideoMode('upload')}
+                  className={`flex-1 px-4 py-2.5 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                    videoMode === 'upload'
+                      ? 'bg-white text-blue-600 border-b-2 border-blue-500 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <Upload className="h-4 w-4" />
+                  Subir archivo
+                </button>
+              </nav>
+            </div>
           </div>
           
           {/* Contenido según el modo seleccionado */}
           {videoMode === 'url' ? (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">URL del video *</label>
-                <input
-                  type="url"
-                  value={videoForm.video_url}
-                  onChange={(e) => setVideoForm({ ...videoForm, video_url: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="https://youtube.com/watch?v=..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de video</label>
-                <select
-                  value={videoForm.video_type || 'youtube'}
-                  onChange={(e) => setVideoForm({ ...videoForm, video_type: e.target.value as any })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="youtube">YouTube</option>
-                  <option value="vimeo">Vimeo</option>
-                  <option value="direct">Enlace Directo</option>
-                </select>
-              </div>
-            </>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                URL del video <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="url"
+                value={videoForm.video_url}
+                onChange={(e) => {
+                  const url = e.target.value;
+                  // Auto-detectar plataforma
+                  let detectedType = 'direct';
+                  if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                    detectedType = 'youtube';
+                  } else if (url.includes('vimeo.com')) {
+                    detectedType = 'vimeo';
+                  }
+                  setVideoForm({ ...videoForm, video_url: url, video_type: detectedType as any });
+                }}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                placeholder="https://youtube.com/watch?v=... o https://vimeo.com/..."
+              />
+              <p className="text-xs text-gray-400 mt-1">Soporta YouTube, Vimeo y enlaces directos a video (MP4, WebM)</p>
+            </div>
           ) : (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Archivo de video *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Archivo de video <span className="text-red-500">*</span>
+              </label>
               <div className="mt-1">
                 {!selectedVideoFile ? (
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                      <p className="text-sm text-gray-500">
-                        <span className="font-medium text-blue-600">Click para seleccionar</span> o arrastre un archivo
+                  <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-purple-400 hover:bg-purple-50 transition-colors">
+                    <div className="flex flex-col items-center justify-center py-6">
+                      <div className="p-3 bg-purple-100 rounded-full mb-3">
+                        <Upload className="h-8 w-8 text-purple-500" />
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium text-purple-600">Haz clic para seleccionar</span> o arrastra un archivo
                       </p>
-                      <p className="text-xs text-gray-400 mt-1">MP4, WebM, OGG, MOV, AVI (máx. 500MB)</p>
+                      <p className="text-xs text-gray-400 mt-2">Formatos: MP4, WebM, OGG, MOV, AVI</p>
+                      <p className="text-xs text-gray-400">Tamaño máximo: 500MB</p>
                     </div>
                     <input
                       type="file"
@@ -1145,31 +1243,58 @@ const StudyContentDetailPage = () => {
           )}
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-            <textarea
-              value={videoForm.description || ''}
-              onChange={(e) => setVideoForm({ ...videoForm, description: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              rows={3}
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Descripción del video</label>
+            <p className="text-xs text-gray-500 mb-2">
+              Agrega información adicional sobre el contenido del video.
+            </p>
+            <div className="border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+              <ReactQuill
+                theme="snow"
+                value={videoForm.description || ''}
+                onChange={(content) => setVideoForm({ ...videoForm, description: content })}
+                modules={{
+                  toolbar: [
+                    [{ 'header': [1, 2, 3, false] }],
+                    ['bold', 'italic', 'underline'],
+                    [{ 'color': [] }],
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    ['link'],
+                    ['clean']
+                  ],
+                }}
+                formats={[
+                  'header',
+                  'bold', 'italic', 'underline',
+                  'color',
+                  'list', 'bullet',
+                  'link'
+                ]}
+                placeholder="Describe brevemente de qué trata el video, qué aprenderán los estudiantes..."
+                style={{ minHeight: '120px' }}
+              />
+            </div>
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Duración (minutos)</label>
-            <input
-              type="number"
-              min="0"
-              value={videoForm.duration_minutes || ''}
-              onChange={(e) => setVideoForm({ ...videoForm, duration_minutes: parseInt(e.target.value) || 0 })}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="Ej: 15"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Duración del video</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                value={videoForm.duration_minutes || ''}
+                onChange={(e) => setVideoForm({ ...videoForm, duration_minutes: parseInt(e.target.value) || 0 })}
+                className="w-24 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                placeholder="15"
+              />
+              <span className="text-sm text-gray-500">minutos</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Duración aproximada del video</p>
           </div>
           
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="flex justify-end gap-3 pt-5 border-t border-gray-200">
             <button 
               onClick={() => setVideoModalOpen(false)} 
-              className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+              className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
               disabled={isUploading}
             >
               Cancelar
@@ -1177,10 +1302,10 @@ const StudyContentDetailPage = () => {
             <button
               onClick={handleSaveVideo}
               disabled={saving || isUploading || !videoForm.title.trim() || (videoMode === 'url' ? !videoForm.video_url.trim() : !selectedVideoFile)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+              className="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors shadow-sm"
             >
               {saving || isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {isUploading ? 'Subiendo...' : 'Guardar'}
+              {isUploading ? 'Subiendo...' : 'Guardar Video'}
             </button>
           </div>
         </div>
@@ -1190,19 +1315,34 @@ const StudyContentDetailPage = () => {
       <Modal
         isOpen={downloadableModalOpen}
         onClose={() => setDownloadableModalOpen(false)}
-        title="Ejercicio Descargable"
+        title={downloadableForm.title ? "Editar Ejercicio Descargable" : "Crear Ejercicio Descargable"}
         size="lg"
       >
         <div className="space-y-5">
+          {/* Header descriptivo */}
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <Download className="h-5 w-5 text-orange-600 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-medium text-orange-800">Ejercicio Descargable</h4>
+                <p className="text-sm text-orange-600 mt-1">
+                  Sube archivos como PDF, Word, Excel o ZIP para que los estudiantes puedan descargar y completar ejercicios prácticos.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Título */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Título del ejercicio *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Título del ejercicio <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
               value={downloadableForm.title}
               onChange={(e) => setDownloadableForm({ ...downloadableForm, title: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="Nombre del ejercicio"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              placeholder="Ej: Ejercicio práctico - Cálculos básicos"
             />
           </div>
           
@@ -1263,18 +1403,19 @@ const StudyContentDetailPage = () => {
           {/* Área de subida de archivos */}
           <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Archivos {!downloadableForm.file_url && '*'} <span className="text-gray-400 text-xs">(Máximo 100MB total. Múltiples archivos se comprimen en ZIP)</span>
+                Archivos {!downloadableForm.file_url && <span className="text-red-500">*</span>}
               </label>
+              <p className="text-xs text-gray-500 mb-2">Máximo 100MB total. Si subes múltiples archivos se comprimirán automáticamente en ZIP.</p>
               
               {/* Área de drop */}
               <div
-                className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-orange-400 hover:bg-orange-50 transition-colors cursor-pointer"
                 onClick={() => document.getElementById('downloadable-file-input')?.click()}
-                onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-blue-400', 'bg-blue-50'); }}
-                onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50'); }}
+                onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-orange-400', 'bg-orange-50'); }}
+                onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-orange-400', 'bg-orange-50'); }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
+                  e.currentTarget.classList.remove('border-orange-400', 'bg-orange-50');
                   const files = Array.from(e.dataTransfer.files);
                   if (files.length > 0) {
                     const totalSize = files.reduce((acc, file) => acc + file.size, 0);
@@ -1289,9 +1430,11 @@ const StudyContentDetailPage = () => {
                   }
                 }}
               >
-                <Upload className="h-10 w-10 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-600">Arrastra archivos aquí o haz clic para seleccionar</p>
-                <p className="text-gray-400 text-sm mt-1">PDF, DOC, XLS, ZIP, etc.</p>
+                <div className="p-3 bg-orange-100 rounded-full mx-auto mb-3 w-fit">
+                  <Upload className="h-8 w-8 text-orange-500" />
+                </div>
+                <p className="text-gray-600 font-medium">Arrastra archivos aquí o haz clic para seleccionar</p>
+                <p className="text-gray-400 text-sm mt-2">Formatos: PDF, DOC, DOCX, XLS, XLSX, PPT, ZIP, RAR</p>
                 <input
                   id="downloadable-file-input"
                   type="file"
@@ -1345,10 +1488,10 @@ const StudyContentDetailPage = () => {
               )}
             </div>
           
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="flex justify-end gap-3 pt-5 border-t border-gray-200">
             <button 
               onClick={() => setDownloadableModalOpen(false)} 
-              className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+              className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
               disabled={isUploadingDownloadable}
             >
               Cancelar
@@ -1356,10 +1499,10 @@ const StudyContentDetailPage = () => {
             <button
               onClick={handleSaveDownloadable}
               disabled={saving || isUploadingDownloadable || !downloadableForm.title.trim() || (selectedDownloadableFiles.length === 0 && !downloadableForm.file_url)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+              className="px-5 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors shadow-sm"
             >
               {saving || isUploadingDownloadable ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {isUploadingDownloadable ? 'Subiendo...' : 'Guardar'}
+              {isUploadingDownloadable ? 'Subiendo...' : 'Guardar Ejercicio'}
             </button>
           </div>
         </div>
@@ -1446,6 +1589,190 @@ const StudyContentDetailPage = () => {
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
               Eliminar
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Interactive Exercise Config Modal */}
+      <Modal
+        isOpen={interactiveConfigOpen}
+        onClose={() => {
+          setInteractiveConfigOpen(false);
+          setInteractiveConfigData(null);
+        }}
+        title={interactiveConfigData?.isNew ? "Crear Ejercicio Interactivo" : "Configurar Ejercicio Interactivo"}
+        size="lg"
+      >
+        <div className="space-y-5">
+          {/* Header descriptivo */}
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <Gamepad2 className="h-5 w-5 text-indigo-600 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-medium text-indigo-800">Ejercicio Interactivo</h4>
+                <p className="text-sm text-indigo-600 mt-1">
+                  Configura el título y las instrucciones que verán los estudiantes antes de realizar el ejercicio.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Título */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Título del ejercicio <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={interactiveForm.title}
+              onChange={(e) => setInteractiveForm({ ...interactiveForm, title: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+              placeholder="Ej: Identifica las partes del motor"
+            />
+          </div>
+
+          {/* Instrucciones con editor de texto enriquecido */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Instrucciones del ejercicio
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              Describe qué debe hacer el estudiante para completar el ejercicio.
+            </p>
+            <div className="border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+              <ReactQuill
+                theme="snow"
+                value={interactiveForm.description}
+                onChange={(content) => setInteractiveForm({ ...interactiveForm, description: content })}
+                modules={{
+                  toolbar: [
+                    [{ 'header': [1, 2, 3, false] }],
+                    ['bold', 'italic', 'underline'],
+                    [{ 'color': [] }],
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    ['link'],
+                    ['clean']
+                  ],
+                }}
+                formats={[
+                  'header',
+                  'bold', 'italic', 'underline',
+                  'color',
+                  'list', 'bullet',
+                  'link'
+                ]}
+                placeholder="Ej: Haz clic en cada parte señalada para identificar correctamente los componentes..."
+                style={{ minHeight: '150px' }}
+              />
+            </div>
+          </div>
+
+          {/* Botones de acción */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-5 border-t border-gray-200">
+            <button
+              onClick={() => {
+                setInteractiveConfigOpen(false);
+                setInteractiveConfigData(null);
+              }}
+              className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={async () => {
+                if (!interactiveForm.title.trim()) {
+                  alert('El título es requerido');
+                  return;
+                }
+                if (!interactiveConfigData) return;
+                
+                setSavingInteractive(true);
+                try {
+                  if (interactiveConfigData.isNew) {
+                    // Crear nuevo ejercicio
+                    await createInteractive(
+                      materialId,
+                      interactiveConfigData.sessionId,
+                      interactiveConfigData.topicId,
+                      { title: interactiveForm.title, description: interactiveForm.description }
+                    );
+                  } else {
+                    // Actualizar existente
+                    await updateInteractive(
+                      materialId,
+                      interactiveConfigData.sessionId,
+                      interactiveConfigData.topicId,
+                      { title: interactiveForm.title, description: interactiveForm.description }
+                    );
+                  }
+                  await loadMaterial();
+                  setInteractiveConfigOpen(false);
+                  setInteractiveConfigData(null);
+                  setToast({ message: 'Ejercicio guardado correctamente', type: 'success' });
+                } catch (error) {
+                  console.error('Error saving interactive:', error);
+                  setToast({ message: 'Error al guardar el ejercicio', type: 'error' });
+                } finally {
+                  setSavingInteractive(false);
+                }
+              }}
+              disabled={savingInteractive || !interactiveForm.title.trim()}
+              className="flex-1 px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium transition-colors shadow-sm"
+            >
+              {savingInteractive ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Guardar Configuración
+                </>
+              )}
+            </button>
+            <button
+              onClick={async () => {
+                if (!interactiveConfigData) return;
+                
+                // Si es nuevo o hay cambios, primero guardar
+                setSavingInteractive(true);
+                try {
+                  if (interactiveConfigData.isNew) {
+                    // Crear nuevo ejercicio antes de ir al editor
+                    await createInteractive(
+                      materialId,
+                      interactiveConfigData.sessionId,
+                      interactiveConfigData.topicId,
+                      { title: interactiveForm.title, description: interactiveForm.description }
+                    );
+                  } else {
+                    // Actualizar existente antes de ir al editor
+                    await updateInteractive(
+                      materialId,
+                      interactiveConfigData.sessionId,
+                      interactiveConfigData.topicId,
+                      { title: interactiveForm.title, description: interactiveForm.description }
+                    );
+                  }
+                  // Navegar al editor
+                  navigate(`/study-contents/${materialId}/sessions/${interactiveConfigData.sessionId}/topics/${interactiveConfigData.topicId}/interactive`);
+                  setInteractiveConfigOpen(false);
+                  setInteractiveConfigData(null);
+                } catch (error) {
+                  console.error('Error saving interactive:', error);
+                  setToast({ message: 'Error al guardar el ejercicio', type: 'error' });
+                } finally {
+                  setSavingInteractive(false);
+                }
+              }}
+              disabled={savingInteractive || !interactiveForm.title.trim() || !interactiveForm.description.trim() || interactiveForm.description === '<p><br></p>'}
+              className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors flex items-center justify-center gap-2 shadow-sm"
+              title={!interactiveForm.title.trim() || !interactiveForm.description.trim() || interactiveForm.description === '<p><br></p>' ? 'Debes completar el título y las instrucciones para continuar' : ''}
+            >
+              <Edit2 className="h-4 w-4" />
+              Ir al Editor de Pasos
             </button>
           </div>
         </div>

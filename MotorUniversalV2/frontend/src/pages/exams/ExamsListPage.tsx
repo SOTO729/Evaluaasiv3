@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { examService } from '../../services/examService'
 import { useAuthStore } from '../../store/authStore'
-import LoadingSpinner from '../../components/LoadingSpinner'
 import { 
   FileText, 
   Plus, 
@@ -17,7 +16,10 @@ import {
   Target,
   MoreVertical,
   Layers,
-  Calendar
+  Calendar,
+  Search,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 
 // Componente de tarjeta de examen con nuevo diseño
@@ -183,12 +185,20 @@ const ExamsListPage = () => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [examToDelete, setExamToDelete] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 12;
   
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['exams'],
-    queryFn: () => examService.getExams(),
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['exams', currentPage, searchTerm],
+    queryFn: () => examService.getExams(currentPage, ITEMS_PER_PAGE, searchTerm),
     staleTime: 30000,
   })
+
+  // Reset page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -220,15 +230,12 @@ const ExamsListPage = () => {
     setDeleteModalOpen(true);
   };
 
-  if (isLoading) return <LoadingSpinner message="Cargando exámenes..." fullScreen />
-  if (error) return <div className="text-center py-12 text-red-600">Error al cargar exámenes</div>
-
   const canCreateExam = user?.role === 'admin' || user?.role === 'editor'
 
-  // Separar exámenes publicados y borradores
-  const publishedExams = data?.exams?.filter((exam: any) => exam.is_published) || []
-  const draftExams = data?.exams?.filter((exam: any) => !exam.is_published) || []
-  const hasExams = (data?.exams?.length || 0) > 0
+  // Datos de paginación del servidor
+  const allExams = data?.exams || [];
+  const totalPages = data?.pages || 1;
+  const total = data?.total || 0;
 
   return (
     <div className="p-6">
@@ -244,81 +251,102 @@ const ExamsListPage = () => {
           </p>
         </div>
         {canCreateExam && (
-          <Link 
-            to="/exams/create" 
+          <button 
+            onClick={() => navigate('/exams/create')}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
           >
             <Plus className="h-5 w-5" />
             Nuevo Examen
-          </Link>
+          </button>
         )}
       </div>
 
-      {hasExams ? (
-        <>
-          {/* Sección de Exámenes Publicados */}
-          {publishedExams.length > 0 && (
-            <div className="mb-8">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-                  Publicados ({publishedExams.length})
-                </h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {publishedExams.map((exam: any) => (
-                  <ExamCard 
-                    key={exam.id} 
-                    exam={exam} 
-                    onEdit={handleEdit}
-                    onDelete={openDeleteModal}
-                    activeMenu={activeMenu}
-                    setActiveMenu={setActiveMenu}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+      {/* Search */}
+      <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <div className="flex gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar exámenes..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <button
+            onClick={() => refetch()}
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors"
+          >
+            Buscar
+          </button>
+        </div>
+      </div>
 
-          {/* Sección de Borradores */}
-          {draftExams.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-                  Borradores ({draftExams.length})
-                </h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {draftExams.map((exam: any) => (
-                  <ExamCard 
-                    key={exam.id} 
-                    exam={exam}
-                    onEdit={handleEdit}
-                    onDelete={openDeleteModal}
-                    activeMenu={activeMenu}
-                    setActiveMenu={setActiveMenu}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      ) : (
+      {/* Exams Grid */}
+      {isLoading ? (
+        <div className="bg-white rounded-lg shadow p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Cargando exámenes...</p>
+        </div>
+      ) : allExams.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center">
           <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-700 mb-2">No hay exámenes</h3>
           <p className="text-gray-500 mb-4">Crea tu primer examen para comenzar</p>
           {canCreateExam && (
-            <Link 
-              to="/exams/create" 
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+            <button
+              onClick={() => navigate('/exams/create')}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg inline-flex items-center gap-2"
             >
               <Plus className="h-5 w-5" />
               Crear Examen
-            </Link>
+            </button>
           )}
         </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {allExams.map((exam: any) => (
+              <ExamCard 
+                key={exam.id} 
+                exam={exam} 
+                onEdit={handleEdit}
+                onDelete={openDeleteModal}
+                activeMenu={activeMenu}
+                setActiveMenu={setActiveMenu}
+              />
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-6 flex items-center justify-between bg-white rounded-lg shadow px-6 py-4">
+              <p className="text-sm text-gray-600">
+                Mostrando {allExams.length} de {total} exámenes
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <span className="px-3 py-1 text-sm">
+                  Página {currentPage} de {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Delete Modal */}

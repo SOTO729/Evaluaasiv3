@@ -3,9 +3,9 @@ import type { Exam, Category, Topic, Question, PaginatedResponse, QuestionType }
 
 export const examService = {
   // Exams
-  getExams: async (page = 1, perPage = 20): Promise<PaginatedResponse<Exam>> => {
+  getExams: async (page = 1, perPage = 20, search = ''): Promise<PaginatedResponse<Exam>> => {
     const response = await api.get<PaginatedResponse<Exam>>('/exams', {
-      params: { page, per_page: perPage },
+      params: { page, per_page: perPage, search: search || undefined },
     })
     return response.data
   },

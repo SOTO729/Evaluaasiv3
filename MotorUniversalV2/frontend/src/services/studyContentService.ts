@@ -392,28 +392,55 @@ export const uploadVideo = async (
   durationMinutes?: number,
   onProgress?: (progress: number) => void
 ): Promise<StudyVideo> => {
-  const formData = new FormData();
-  formData.append('video', file);
-  formData.append('title', title);
-  if (description) formData.append('description', description);
-  if (durationMinutes) formData.append('duration_minutes', durationMinutes.toString());
+  // Paso 1: Obtener URL de subida con SAS token del backend
+  const sasResponse = await api.post(
+    `/study-contents/${materialId}/sessions/${sessionId}/topics/${topicId}/video/get-upload-url`,
+    { filename: file.name }
+  );
   
-  const response = await api.post(
-    `/study-contents/${materialId}/sessions/${sessionId}/topics/${topicId}/video/upload`,
-    formData,
+  const { upload_url, download_url } = sasResponse.data;
+  
+  // Paso 2: Subir directamente a Azure Blob Storage (sin límite de tamaño)
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', upload_url, true);
+    xhr.setRequestHeader('x-ms-blob-type', 'BlockBlob');
+    xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+    
+    xhr.upload.onprogress = (event) => {
+      if (onProgress && event.lengthComputable) {
+        const progress = Math.round((event.loaded * 100) / event.total);
+        onProgress(progress);
+      }
+    };
+    
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(new Error(`Error al subir: ${xhr.status} ${xhr.statusText}`));
+      }
+    };
+    
+    xhr.onerror = () => reject(new Error('Error de red al subir el video'));
+    xhr.ontimeout = () => reject(new Error('Tiempo de espera agotado'));
+    xhr.timeout = 1800000; // 30 minutos
+    
+    xhr.send(file);
+  });
+  
+  // Paso 3: Confirmar en el backend
+  const confirmResponse = await api.post(
+    `/study-contents/${materialId}/sessions/${sessionId}/topics/${topicId}/video/confirm-upload`,
     {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-      onUploadProgress: (progressEvent) => {
-        if (onProgress && progressEvent.total) {
-          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          onProgress(progress);
-        }
-      },
+      video_url: download_url,
+      title,
+      description: description || '',
+      duration_minutes: durationMinutes || 0
     }
   );
-  return response.data.video;
+  
+  return confirmResponse.data.video;
 };
 
 export const deleteVideo = async (
