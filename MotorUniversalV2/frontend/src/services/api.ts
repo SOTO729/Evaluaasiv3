@@ -31,6 +31,11 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${accessToken}`
     }
     
+    // Si es FormData, eliminar Content-Type para que axios lo configure automáticamente
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type']
+    }
+    
     return config
   },
   (error) => {

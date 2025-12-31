@@ -14,6 +14,7 @@ export interface StudyMaterial {
   is_published: boolean;
   order: number;
   exam_id?: number;
+  exam_ids?: number[];
   sessions_count?: number;
   created_at: string;
   updated_at?: string;
@@ -130,6 +131,7 @@ export interface CreateMaterialData {
   is_published?: boolean;
   order?: number;
   exam_id?: number;
+  exam_ids?: number[];
 }
 
 export interface CreateSessionData {
@@ -246,6 +248,18 @@ export const updateMaterial = async (
 
 export const deleteMaterial = async (materialId: number): Promise<void> => {
   await api.delete(`/study-contents/${materialId}`);
+};
+
+// Subir imagen de portada para material de estudio
+export const uploadMaterialCoverImage = async (file: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append('image', file);
+  
+  // No establecer Content-Type manualmente, axios lo hace automaticamente con el boundary correcto
+  
+  const response = await api.post('/study-contents/upload-cover-image', formData);
+  
+  return response.data.url;
 };
 
 // ==================== Servicios de Sesiones ====================

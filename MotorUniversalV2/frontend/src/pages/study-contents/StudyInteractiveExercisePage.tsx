@@ -246,7 +246,7 @@ const StudyInteractiveExercisePage = () => {
       Number(topicId),
       data
     ),
-    onSuccess: (updatedData) => {
+    onSuccess: (updatedData: StudyInteractiveExercise) => {
       if (exercise) {
         setExercise({ ...exercise, title: updatedData.title, description: updatedData.description })
       }
@@ -315,9 +315,9 @@ const StudyInteractiveExercisePage = () => {
       Number(topicId),
       stepId
     ),
-    onSuccess: (_, stepId) => {
+    onSuccess: (_, stepId: string) => {
       if (exercise && exercise.steps) {
-        const updatedSteps = exercise.steps.filter(s => s.id !== stepId)
+        const updatedSteps = exercise.steps.filter((s: StudyInteractiveExerciseStep) => s.id !== stepId)
         setExercise({ ...exercise, steps: updatedSteps })
         if (currentStepIndex >= updatedSteps.length) {
           setCurrentStepIndex(Math.max(0, updatedSteps.length - 1))
@@ -336,9 +336,9 @@ const StudyInteractiveExercisePage = () => {
       stepId,
       data
     ),
-    onSuccess: (newAction) => {
+    onSuccess: (newAction: StudyInteractiveExerciseAction) => {
       if (exercise && exercise.steps) {
-        const updatedSteps = exercise.steps.map(step => {
+        const updatedSteps = exercise.steps.map((step: StudyInteractiveExerciseStep) => {
           if (step.id === newAction.step_id) {
             return { ...step, actions: [...(step.actions || []), newAction] }
           }
@@ -355,13 +355,13 @@ const StudyInteractiveExercisePage = () => {
   const updateActionMutation = useMutation({
     mutationFn: ({ stepId, actionId, data }: { stepId: string; actionId: string; data: any }) => 
       updateAction(Number(materialId), Number(sessionId), Number(topicId), stepId, actionId, data),
-    onSuccess: (updatedAction) => {
+    onSuccess: (updatedAction: StudyInteractiveExerciseAction) => {
       if (exercise && exercise.steps) {
-        const updatedSteps = exercise.steps.map(step => {
+        const updatedSteps = exercise.steps.map((step: StudyInteractiveExerciseStep) => {
           if (step.id === updatedAction.step_id) {
             return {
               ...step,
-              actions: (step.actions || []).map(a => a.id === updatedAction.id ? updatedAction : a)
+              actions: (step.actions || []).map((a: StudyInteractiveExerciseAction) => a.id === updatedAction.id ? updatedAction : a)
             }
           }
           return step
@@ -377,11 +377,11 @@ const StudyInteractiveExercisePage = () => {
   const deleteActionMutation = useMutation({
     mutationFn: ({ stepId, actionId }: { stepId: string; actionId: string }) => 
       deleteAction(Number(materialId), Number(sessionId), Number(topicId), stepId, actionId),
-    onSuccess: (_, { stepId, actionId }) => {
+    onSuccess: (_, { stepId, actionId }: { stepId: string; actionId: string }) => {
       if (exercise && exercise.steps) {
-        const updatedSteps = exercise.steps.map(step => {
+        const updatedSteps = exercise.steps.map((step: StudyInteractiveExerciseStep) => {
           if (step.id === stepId) {
-            return { ...step, actions: (step.actions || []).filter(a => a.id !== actionId) }
+            return { ...step, actions: (step.actions || []).filter((a: StudyInteractiveExerciseAction) => a.id !== actionId) }
           }
           return step
         })
@@ -1002,7 +1002,7 @@ const StudyInteractiveExercisePage = () => {
                 <p className="text-xs text-gray-400">Agrega un paso con una imagen</p>
               </div>
             ) : (
-              steps.map((step, index) => (
+              steps.map((step: StudyInteractiveExerciseStep, index: number) => (
                 <div
                   key={step.id}
                   onClick={() => setCurrentStepIndex(index)}

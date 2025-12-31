@@ -5,6 +5,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import DOMPurify from 'dompurify';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import {
@@ -647,7 +648,12 @@ const StudyContentDetailPage = () => {
             )}
             <div>
               <h1 className="text-2xl font-bold text-gray-800">{material.title}</h1>
-              {material.description && <p className="text-gray-600 mt-1">{material.description}</p>}
+              {material.description && (
+                <div 
+                  className="text-gray-600 mt-1 prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(material.description) }}
+                />
+              )}
               <div className="flex items-center gap-4 mt-2">
                 <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${material.is_published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                   {material.is_published ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}

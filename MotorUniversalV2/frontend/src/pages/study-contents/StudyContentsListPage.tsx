@@ -3,6 +3,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import DOMPurify from 'dompurify';
 import { 
   getMaterials, 
   deleteMaterial, 
@@ -288,9 +289,12 @@ const StudyContentsListPage = () => {
                     {material.title}
                   </h3>
                   {material.description && (
-                    <p className="text-sm text-gray-500 line-clamp-2 mb-3">
-                      {material.description}
-                    </p>
+                    <p 
+                      className="text-sm text-gray-500 line-clamp-2 mb-3"
+                      dangerouslySetInnerHTML={{ 
+                        __html: DOMPurify.sanitize(material.description, { ALLOWED_TAGS: [] }) 
+                      }}
+                    />
                   )}
                   
                   {/* Card Footer */}

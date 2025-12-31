@@ -1,6 +1,7 @@
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { ArrowLeft } from 'lucide-react'
 import { examService } from '../../services/examService'
 import type { CreateExamData, CreateCategoryData } from '../../types'
 
@@ -49,6 +50,7 @@ const ExamCreatePage = () => {
   })
   
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [dragActive, setDragActive] = useState(false)
   
   // Módulos/Categorías
   const [modules, setModules] = useState<CreateCategoryData[]>([
@@ -155,6 +157,41 @@ const ExamCreatePage = () => {
     setFormData({ ...formData, image_url: undefined })
     setImagePreview(null)
   }
+
+  // Funciones para drag & drop
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true)
+    } else if (e.type === 'dragleave') {
+      setDragActive(false)
+    }
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+    
+    const file = e.dataTransfer.files?.[0]
+    if (file && file.type.startsWith('image/')) {
+      // Validar tamaño (máximo 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        setError('La imagen no debe superar los 2MB')
+        return
+      }
+      
+      // Convertir a base64
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const base64String = reader.result as string
+        setFormData({ ...formData, image_url: base64String })
+        setImagePreview(base64String)
+      }
+      reader.readAsDataURL(file)
+    }
+  }, [formData])
   
   // Validar suma de porcentajes
   const validatePercentages = (): boolean => {
@@ -350,6 +387,14 @@ const ExamCreatePage = () => {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
+        <button
+          onClick={() => navigate('/exams')}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4 transition-colors"
+        >
+          <ArrowLeft className="h-5 w-5" />
+          <span>Volver a la lista</span>
+        </button>
+        
         <h1 className="text-3xl font-bold mb-2">Crear Examen</h1>
         <p className="text-gray-600">Complete los datos del nuevo examen y sus módulos</p>
       </div>
@@ -655,8 +700,18 @@ const ExamCreatePage = () => {
                   </button>
                 </div>
               ) : (
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full max-w-4xl h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                <div 
+                  className="flex items-center justify-center w-full"
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  <label className={`flex flex-col items-center justify-center w-full max-w-4xl h-64 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                    dragActive 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
+                  }`}>
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                       <svg className="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
