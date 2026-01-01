@@ -1,8 +1,10 @@
 """
 Utilidades para Azure Storage
+Soporta múltiples cuentas: una general y una optimizada para videos (Cool tier)
 """
-from azure.storage.blob import BlobServiceClient, ContentSettings
+from azure.storage.blob import BlobServiceClient, ContentSettings, StandardBlobTier, generate_blob_sas, BlobSasPermissions
 from azure.core.exceptions import AzureError
+from datetime import datetime, timedelta, timezone
 import os
 import uuid
 from werkzeug.utils import secure_filename
@@ -12,9 +14,18 @@ class AzureStorageService:
     """Servicio para subir archivos a Azure Blob Storage"""
     
     def __init__(self):
+        # Cuenta general (Hot tier)
         self.connection_string = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
         self.container_name = os.getenv('AZURE_STORAGE_CONTAINER', 'evaluaasi-files')
         
+        # Cuenta de videos (Cool tier - más económica)
+        self.video_connection_string = os.getenv(
+            'AZURE_VIDEO_STORAGE_CONNECTION_STRING',
+            'DefaultEndpointsProtocol=https;EndpointSuffix=core.windows.net;AccountName=evaluaasivideos;AccountKey=r9C4hrfzCHwUjbFY2reYY3spGvPjTKV0oBPDmB2sDqhkBI4whu1NkmwAlEp+bRzwmeBxUK0dP3WD+AStEbwldw=='
+        )
+        self.video_container_name = os.getenv('AZURE_VIDEO_CONTAINER', 'videos')
+        
+        # Inicializar cliente general
         if self.connection_string:
             try:
                 self.blob_service_client = BlobServiceClient.from_connection_string(self.connection_string)
@@ -23,11 +34,30 @@ class AzureStorageService:
                 self.blob_service_client = None
         else:
             self.blob_service_client = None
+        
+        # Inicializar cliente de videos
+        if self.video_connection_string:
+            try:
+                self.video_blob_client = BlobServiceClient.from_connection_string(self.video_connection_string)
+                self._ensure_video_container_exists()
+            except AzureError:
+                self.video_blob_client = None
+        else:
+            self.video_blob_client = None
     
     def _ensure_container_exists(self):
-        """Crear contenedor si no existe"""
+        """Crear contenedor general si no existe"""
         try:
             container_client = self.blob_service_client.get_container_client(self.container_name)
+            if not container_client.exists():
+                container_client.create_container(public_access='blob')
+        except AzureError:
+            pass
+    
+    def _ensure_video_container_exists(self):
+        """Crear contenedor de videos si no existe"""
+        try:
+            container_client = self.video_blob_client.get_container_client(self.video_container_name)
             if not container_client.exists():
                 container_client.create_container(public_access='blob')
         except AzureError:
@@ -75,6 +105,213 @@ class AzureStorageService:
         except AzureError as e:
             print(f"Error uploading to Azure: {str(e)}")
             return None
+    
+    def upload_video(self, file_or_path, original_filename=None):
+        """
+        Subir video a la cuenta de almacenamiento Cool tier (optimizada para costos)
+        Soporta tanto FileStorage como path de archivo
+        
+        Args:
+            file_or_path: FileStorage de Flask o path a archivo en disco
+            original_filename: Nombre original del archivo (requerido si es path)
+        
+        Returns:
+            str: URL del video subido con SAS token o None si falla
+        """
+        if not self.video_blob_client:
+            print("Cliente de videos no configurado, usando almacenamiento general")
+            if hasattr(file_or_path, 'read'):
+                return self.upload_file(file_or_path, folder='study-videos')
+            return None
+        
+        try:
+            # Determinar si es FileStorage o path
+            is_file_storage = hasattr(file_or_path, 'read')
+            
+            if is_file_storage:
+                filename = secure_filename(file_or_path.filename)
+            else:
+                filename = secure_filename(original_filename or os.path.basename(file_or_path))
+            
+            # Generar nombre único (siempre .mp4 porque comprimimos a mp4)
+            unique_filename = f"{uuid.uuid4().hex}.mp4"
+            blob_name = unique_filename
+            
+            # Subir archivo
+            blob_client = self.video_blob_client.get_blob_client(
+                container=self.video_container_name,
+                blob=blob_name
+            )
+            
+            if is_file_storage:
+                blob_client.upload_blob(
+                    file_or_path,
+                    overwrite=True,
+                    content_settings=ContentSettings(content_type='video/mp4'),
+                    standard_blob_tier=StandardBlobTier.COOL  # Tier Cool explícito
+                )
+            else:
+                # Es un path a archivo
+                with open(file_or_path, 'rb') as f:
+                    blob_client.upload_blob(
+                        f,
+                        overwrite=True,
+                        content_settings=ContentSettings(content_type='video/mp4'),
+                        standard_blob_tier=StandardBlobTier.COOL
+                    )
+            
+            # Generar URL con SAS token (válido por 10 años)
+            sas_token = generate_blob_sas(
+                account_name='evaluaasivideos',
+                container_name=self.video_container_name,
+                blob_name=blob_name,
+                account_key='r9C4hrfzCHwUjbFY2reYY3spGvPjTKV0oBPDmB2sDqhkBI4whu1NkmwAlEp+bRzwmeBxUK0dP3WD+AStEbwldw==',
+                permission=BlobSasPermissions(read=True),
+                expiry=datetime.now(timezone.utc) + timedelta(days=3650)  # 10 años
+            )
+            
+            sas_url = f"{blob_client.url}?{sas_token}"
+            print(f"Video subido a Cool tier: {sas_url}")
+            return sas_url
+        
+        except AzureError as e:
+            print(f"Error uploading video to Azure Cool tier: {str(e)}")
+            return None
+    
+    def delete_video(self, blob_url):
+        """
+        Eliminar video de la cuenta de videos (Cool tier)
+        
+        Args:
+            blob_url: URL completa del blob
+        
+        Returns:
+            bool: True si se eliminó correctamente
+        """
+        # Determinar qué cuenta usar basado en la URL
+        if 'evaluaasivideos' in blob_url:
+            client = self.video_blob_client
+            container = self.video_container_name
+        else:
+            client = self.blob_service_client
+            container = self.container_name
+        
+        if not client:
+            return False
+        
+        try:
+            # Extraer nombre del blob de la URL
+            blob_name = blob_url.split(f'{container}/')[-1]
+            
+            blob_client = client.get_blob_client(
+                container=container,
+                blob=blob_name
+            )
+            
+            blob_client.delete_blob()
+            return True
+        
+        except AzureError as e:
+            print(f"Error deleting video from Azure: {str(e)}")
+            return False
+    
+    def upload_downloadable(self, file_or_path, original_filename=None, content_type=None):
+        """
+        Subir archivo descargable a la cuenta Cool tier
+        Soporta tanto FileStorage como path de archivo (para ZIPs generados)
+        
+        Args:
+            file_or_path: FileStorage de Flask o path a archivo en disco
+            original_filename: Nombre original del archivo
+            content_type: Tipo MIME del archivo
+        
+        Returns:
+            tuple: (url, None) si éxito, (None, error_message) si falla
+        """
+        if not self.video_blob_client:
+            print("Cliente Cool tier no configurado, intentando almacenamiento general")
+            if hasattr(file_or_path, 'read'):
+                result = self.upload_file(file_or_path, folder='downloadables')
+                if result:
+                    return result, None
+                return None, "No hay almacenamiento configurado"
+            return None, "Cliente de almacenamiento no disponible"
+        
+        try:
+            is_file_storage = hasattr(file_or_path, 'read')
+            
+            if is_file_storage:
+                filename = secure_filename(file_or_path.filename)
+                content_type = content_type or file_or_path.content_type or 'application/octet-stream'
+            else:
+                filename = secure_filename(original_filename or os.path.basename(file_or_path))
+                content_type = content_type or 'application/octet-stream'
+            
+            # Generar nombre único manteniendo extensión
+            ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+            unique_filename = f"downloadables/{uuid.uuid4().hex}.{ext}"
+            
+            blob_client = self.video_blob_client.get_blob_client(
+                container=self.video_container_name,
+                blob=unique_filename
+            )
+            
+            if is_file_storage:
+                blob_client.upload_blob(
+                    file_or_path,
+                    overwrite=True,
+                    content_settings=ContentSettings(
+                        content_type=content_type,
+                        content_disposition=f'attachment; filename="{filename}"'
+                    ),
+                    standard_blob_tier=StandardBlobTier.COOL
+                )
+            else:
+                with open(file_or_path, 'rb') as f:
+                    blob_client.upload_blob(
+                        f,
+                        overwrite=True,
+                        content_settings=ContentSettings(
+                            content_type=content_type,
+                            content_disposition=f'attachment; filename="{filename}"'
+                        ),
+                        standard_blob_tier=StandardBlobTier.COOL
+                    )
+            
+            # Generar URL con SAS token (válido por 10 años)
+            sas_token = generate_blob_sas(
+                account_name='evaluaasivideos',
+                container_name=self.video_container_name,
+                blob_name=unique_filename,
+                account_key='r9C4hrfzCHwUjbFY2reYY3spGvPjTKV0oBPDmB2sDqhkBI4whu1NkmwAlEp+bRzwmeBxUK0dP3WD+AStEbwldw==',
+                permission=BlobSasPermissions(read=True),
+                expiry=datetime.now(timezone.utc) + timedelta(days=3650)  # 10 años
+            )
+            
+            sas_url = f"{blob_client.url}?{sas_token}"
+            print(f"Archivo descargable subido a Cool tier: {sas_url}")
+            return sas_url, None
+        
+        except AzureError as e:
+            error_msg = f"Error de Azure: {str(e)}"
+            print(f"Error uploading downloadable to Azure Cool tier: {error_msg}")
+            return None, error_msg
+        except Exception as e:
+            error_msg = f"Error inesperado: {str(e)}"
+            print(f"Error uploading downloadable: {error_msg}")
+            return None, error_msg
+    
+    def delete_downloadable(self, blob_url):
+        """
+        Eliminar archivo descargable de la cuenta Cool tier
+        
+        Args:
+            blob_url: URL completa del blob
+        
+        Returns:
+            bool: True si se eliminó correctamente
+        """
+        return self.delete_video(blob_url)  # Usa la misma lógica
     
     def delete_file(self, blob_url):
         """
@@ -183,6 +420,53 @@ class AzureStorageService:
         
         except Exception as e:
             print(f"Error uploading base64 image to Azure: {str(e)}")
+            return None
+
+    def generate_video_upload_sas(self, filename):
+        """
+        Generar SAS token para upload directo de video desde el browser
+        Evita pasar el archivo por el backend (límite de Azure App Service)
+        
+        Args:
+            filename: Nombre original del archivo
+        
+        Returns:
+            dict: {blob_name, upload_url, download_url} o None si falla
+        """
+        try:
+            # Generar nombre único
+            ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else 'mp4'
+            blob_name = f"{uuid.uuid4().hex}.{ext}"
+            
+            # SAS para upload (write) - válido 1 hora
+            upload_sas = generate_blob_sas(
+                account_name='evaluaasivideos',
+                container_name=self.video_container_name,
+                blob_name=blob_name,
+                account_key='r9C4hrfzCHwUjbFY2reYY3spGvPjTKV0oBPDmB2sDqhkBI4whu1NkmwAlEp+bRzwmeBxUK0dP3WD+AStEbwldw==',
+                permission=BlobSasPermissions(write=True, create=True),
+                expiry=datetime.now(timezone.utc) + timedelta(hours=1)
+            )
+            
+            # SAS para download (read) - válido 10 años
+            download_sas = generate_blob_sas(
+                account_name='evaluaasivideos',
+                container_name=self.video_container_name,
+                blob_name=blob_name,
+                account_key='r9C4hrfzCHwUjbFY2reYY3spGvPjTKV0oBPDmB2sDqhkBI4whu1NkmwAlEp+bRzwmeBxUK0dP3WD+AStEbwldw==',
+                permission=BlobSasPermissions(read=True),
+                expiry=datetime.now(timezone.utc) + timedelta(days=3650)
+            )
+            
+            base_url = f"https://evaluaasivideos.blob.core.windows.net/{self.video_container_name}/{blob_name}"
+            
+            return {
+                'blob_name': blob_name,
+                'upload_url': f"{base_url}?{upload_sas}",
+                'download_url': f"{base_url}?{download_sas}"
+            }
+        except Exception as e:
+            print(f"Error generating upload SAS: {str(e)}")
             return None
 
 

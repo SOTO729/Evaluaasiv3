@@ -77,6 +77,29 @@
   animation: bounce-once 0.6s ease-in-out;
 }
 
+/* Animación de gradiente para botón Probar Examen */
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.btn-animated-gradient {
+  background: linear-gradient(270deg, #0ea5e9, #06b6d4, #22d3ee, #38bdf8, #0284c7, #0369a1, #0ea5e9);
+  background-size: 400% 400%;
+  animation: gradient-shift 4s ease infinite;
+}
+
+.btn-animated-gradient:hover {
+  animation: gradient-shift 2s ease infinite;
+}
+
 /* Animaciones para modales */
 @keyframes fade-in {
   from {

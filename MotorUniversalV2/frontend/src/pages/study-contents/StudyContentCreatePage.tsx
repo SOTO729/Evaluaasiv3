@@ -25,6 +25,7 @@ import {
   Search,
   Plus
 } from 'lucide-react';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 interface ExamListItem {
   id: number;
@@ -299,10 +300,7 @@ const StudyContentCreatePage = () => {
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto p-6 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
-          <p className="mt-4 text-gray-600">Cargando material...</p>
-        </div>
+        <LoadingSpinner message="Cargando material..." />
       </div>
     );
   }

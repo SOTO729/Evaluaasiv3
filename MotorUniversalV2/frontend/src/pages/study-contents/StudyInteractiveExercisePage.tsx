@@ -22,6 +22,7 @@ import {
 import api from '../../services/api'
 import ReactQuill from 'react-quill-new'
 import 'react-quill-new/dist/quill.snow.css'
+import LoadingSpinner from '../../components/LoadingSpinner'
 
 // Modal genérico
 interface ModalProps {
@@ -799,7 +800,7 @@ const StudyInteractiveExercisePage = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <LoadingSpinner message="Cargando editor..." />
       </div>
     )
   }

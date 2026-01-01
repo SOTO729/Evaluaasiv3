@@ -2,7 +2,7 @@
  * Página de lista de Materiales de Estudio
  */
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, NavigateFunction } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import { 
   getMaterials, 
@@ -22,9 +22,180 @@ import {
   ChevronLeft,
   ChevronRight,
   Layers,
+  FileText,
   Calendar,
   MoreVertical
 } from 'lucide-react';
+import LoadingSpinner from '../../components/LoadingSpinner';
+
+// Componente de tarjeta de material
+interface MaterialCardProps {
+  material: StudyMaterial;
+  navigate: NavigateFunction;
+  activeMenu: number | null;
+  setActiveMenu: (id: number | null) => void;
+  handleTogglePublish: (material: StudyMaterial) => void;
+  openDeleteModal: (material: StudyMaterial) => void;
+}
+
+const MaterialCard = ({ material, navigate, activeMenu, setActiveMenu, handleTogglePublish, openDeleteModal }: MaterialCardProps) => (
+  <div
+    className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 group"
+  >
+    {/* Card Image */}
+    <div 
+      className="relative h-40 bg-gradient-to-br from-blue-500 to-blue-700 cursor-pointer"
+      onClick={() => navigate(`/study-contents/${material.id}`)}
+    >
+      {material.image_url ? (
+        <img
+          src={material.image_url}
+          alt={material.title}
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center">
+          <BookOpen className="h-16 w-16 text-white/50" />
+        </div>
+      )}
+      
+      {/* Status Badge */}
+      <div className="absolute top-3 left-3">
+        <span
+          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+            material.is_published
+              ? 'bg-green-500 text-white'
+              : 'bg-gray-800/70 text-white'
+          }`}
+        >
+          {material.is_published ? (
+            <>
+              <Eye className="h-3 w-3" />
+              Publicado
+            </>
+          ) : (
+            <>
+              <EyeOff className="h-3 w-3" />
+              Borrador
+            </>
+          )}
+        </span>
+      </div>
+
+      {/* Menu Button */}
+      <div className="absolute top-3 right-3">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setActiveMenu(activeMenu === material.id ? null : material.id);
+          }}
+          className="p-1.5 rounded-full bg-black/30 hover:bg-black/50 text-white transition-colors"
+        >
+          <MoreVertical className="h-4 w-4" />
+        </button>
+        
+        {/* Dropdown Menu */}
+        {activeMenu === material.id && (
+          <div className="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border py-1 z-10">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/study-contents/${material.id}`);
+              }}
+              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+            >
+              <Eye className="h-4 w-4" />
+              Ver detalles
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/study-contents/${material.id}/edit`);
+              }}
+              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+            >
+              <Edit2 className="h-4 w-4" />
+              Editar
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleTogglePublish(material);
+                setActiveMenu(null);
+              }}
+              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+            >
+              {material.is_published ? (
+                <>
+                  <EyeOff className="h-4 w-4" />
+                  Cambiar a Borrador
+                </>
+              ) : (
+                <>
+                  <Eye className="h-4 w-4" />
+                  Publicar
+                </>
+              )}
+            </button>
+            <hr className="my-1" />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openDeleteModal(material);
+                setActiveMenu(null);
+              }}
+              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              Eliminar
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+
+    {/* Card Content */}
+    <div className="p-4">
+      <h3 
+        className="font-semibold text-gray-900 mb-1 line-clamp-1 cursor-pointer hover:text-blue-600 transition-colors"
+        onClick={() => navigate(`/study-contents/${material.id}`)}
+      >
+        {material.title}
+      </h3>
+      {material.description && (
+        <p 
+          className="text-sm text-gray-500 line-clamp-2 mb-3"
+          dangerouslySetInnerHTML={{ 
+            __html: DOMPurify.sanitize(material.description, { ALLOWED_TAGS: [] }) 
+          }}
+        />
+      )}
+      
+      {/* Card Footer */}
+      <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1" title="Sesiones">
+            <Layers className="h-3.5 w-3.5" />
+            <span>{material.sessions_count || 0}</span>
+          </div>
+          <div className="flex items-center gap-1" title="Temas">
+            <FileText className="h-3.5 w-3.5" />
+            <span>{material.topics_count || 0}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <Calendar className="h-3.5 w-3.5" />
+          <span>
+            {new Date(material.created_at).toLocaleDateString('es-ES', {
+              day: 'numeric',
+              month: 'short',
+            })}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 const StudyContentsListPage = () => {
   const navigate = useNavigate();
@@ -143,9 +314,8 @@ const StudyContentsListPage = () => {
 
       {/* Materials Grid */}
       {loading ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Cargando materiales...</p>
+        <div className="bg-white rounded-lg shadow p-8">
+          <LoadingSpinner message="Cargando materiales..." />
         </div>
       ) : materials.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center">
@@ -162,161 +332,57 @@ const StudyContentsListPage = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {materials.map((material) => (
-              <div
-                key={material.id}
-                className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 group"
-              >
-                {/* Card Image */}
-                <div 
-                  className="relative h-40 bg-gradient-to-br from-blue-500 to-blue-700 cursor-pointer"
-                  onClick={() => navigate(`/study-contents/${material.id}`)}
-                >
-                  {material.image_url ? (
-                    <img
-                      src={material.image_url}
-                      alt={material.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <BookOpen className="h-16 w-16 text-white/50" />
-                    </div>
-                  )}
-                  
-                  {/* Status Badge */}
-                  <div className="absolute top-3 left-3">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                        material.is_published
-                          ? 'bg-green-500 text-white'
-                          : 'bg-gray-800/70 text-white'
-                      }`}
-                    >
-                      {material.is_published ? (
-                        <>
-                          <Eye className="h-3 w-3" />
-                          Publicado
-                        </>
-                      ) : (
-                        <>
-                          <EyeOff className="h-3 w-3" />
-                          Borrador
-                        </>
-                      )}
-                    </span>
-                  </div>
-
-                  {/* Menu Button */}
-                  <div className="absolute top-3 right-3">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveMenu(activeMenu === material.id ? null : material.id);
-                      }}
-                      className="p-1.5 rounded-full bg-black/30 hover:bg-black/50 text-white transition-colors"
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
-                    
-                    {/* Dropdown Menu */}
-                    {activeMenu === material.id && (
-                      <div className="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border py-1 z-10">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/study-contents/${material.id}`);
-                          }}
-                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                        >
-                          <Eye className="h-4 w-4" />
-                          Ver detalles
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/study-contents/${material.id}/edit`);
-                          }}
-                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                          Editar
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleTogglePublish(material);
-                            setActiveMenu(null);
-                          }}
-                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                        >
-                          {material.is_published ? (
-                            <>
-                              <EyeOff className="h-4 w-4" />
-                              Despublicar
-                            </>
-                          ) : (
-                            <>
-                              <Eye className="h-4 w-4" />
-                              Publicar
-                            </>
-                          )}
-                        </button>
-                        <hr className="my-1" />
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openDeleteModal(material);
-                            setActiveMenu(null);
-                          }}
-                          className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Eliminar
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Card Content */}
-                <div className="p-4">
-                  <h3 
-                    className="font-semibold text-gray-900 mb-1 line-clamp-1 cursor-pointer hover:text-blue-600 transition-colors"
-                    onClick={() => navigate(`/study-contents/${material.id}`)}
-                  >
-                    {material.title}
-                  </h3>
-                  {material.description && (
-                    <p 
-                      className="text-sm text-gray-500 line-clamp-2 mb-3"
-                      dangerouslySetInnerHTML={{ 
-                        __html: DOMPurify.sanitize(material.description, { ALLOWED_TAGS: [] }) 
-                      }}
-                    />
-                  )}
-                  
-                  {/* Card Footer */}
-                  <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t">
-                    <div className="flex items-center gap-1">
-                      <Layers className="h-3.5 w-3.5" />
-                      <span>{material.sessions_count || 0} sesiones</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-3.5 w-3.5" />
-                      <span>
-                        {new Date(material.created_at).toLocaleDateString('es-ES', {
-                          day: 'numeric',
-                          month: 'short',
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+          {/* Sección de Publicados */}
+          {materials.filter(m => m.is_published).length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <Eye className="h-5 w-5 text-green-600" />
+                <h2 className="text-lg font-semibold text-gray-800">Publicados</h2>
+                <span className="bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                  {materials.filter(m => m.is_published).length}
+                </span>
               </div>
-            ))}
-          </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {materials.filter(m => m.is_published).map((material) => (
+                  <MaterialCard 
+                    key={material.id} 
+                    material={material} 
+                    navigate={navigate}
+                    activeMenu={activeMenu}
+                    setActiveMenu={setActiveMenu}
+                    handleTogglePublish={handleTogglePublish}
+                    openDeleteModal={openDeleteModal}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Sección de Borradores */}
+          {materials.filter(m => !m.is_published).length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <EyeOff className="h-5 w-5 text-gray-500" />
+                <h2 className="text-lg font-semibold text-gray-800">Borradores</h2>
+                <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded-full">
+                  {materials.filter(m => !m.is_published).length}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {materials.filter(m => !m.is_published).map((material) => (
+                  <MaterialCard 
+                    key={material.id} 
+                    material={material} 
+                    navigate={navigate}
+                    activeMenu={activeMenu}
+                    setActiveMenu={setActiveMenu}
+                    handleTogglePublish={handleTogglePublish}
+                    openDeleteModal={openDeleteModal}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Pagination */}
           {totalPages > 1 && (

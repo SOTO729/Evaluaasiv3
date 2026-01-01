@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { examService } from '../services/examService'
 import type { Exercise, ExerciseStep, ExerciseAction } from '../types'
+import LoadingSpinner from './LoadingSpinner'
 
 interface ExerciseEditorProps {
   exercise: Exercise
@@ -582,10 +583,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   if (isLoading) {
     return (
       <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 text-lg">Cargando editor...</p>
-        </div>
+        <LoadingSpinner message="Cargando editor..." />
       </div>
     )
   }

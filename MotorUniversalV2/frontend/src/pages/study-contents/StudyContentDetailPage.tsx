@@ -10,6 +10,7 @@ import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import {
   getMaterial,
+  updateMaterial,
   createSession,
   updateSession,
   deleteSession,
@@ -35,7 +36,6 @@ import {
   CreateDownloadableData,
 } from '../../services/studyContentService';
 import {
-  BookOpen,
   ArrowLeft,
   Edit2,
   Plus,
@@ -49,13 +49,14 @@ import {
   Download,
   Gamepad2,
   Loader2,
-  Save,
   X,
   Eye,
   EyeOff,
   Upload,
+  ClipboardList,
   Link,
 } from 'lucide-react';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 // Modal genérico
 interface ModalProps {
@@ -142,6 +143,62 @@ const StudyContentDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [expandedSessions, setExpandedSessions] = useState<Set<number>>(new Set());
   const [expandedTopics, setExpandedTopics] = useState<Set<number>>(new Set());
+  const [dominantColor, setDominantColor] = useState<string>('#1e3a5f');
+
+  // Function to extract dominant color from image
+  const extractDominantColor = (imageUrl: string) => {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+
+      // Sample from the bottom half of the image (where the gradient will blend)
+      const startY = Math.floor(img.height * 0.5);
+      const imageData = ctx.getImageData(0, startY, img.width, img.height - startY);
+      const data = imageData.data;
+
+      let r = 0, g = 0, b = 0, count = 0;
+
+      // Sample every 10th pixel for performance
+      for (let i = 0; i < data.length; i += 40) {
+        r += data[i];
+        g += data[i + 1];
+        b += data[i + 2];
+        count++;
+      }
+
+      if (count > 0) {
+        r = Math.floor(r / count);
+        g = Math.floor(g / count);
+        b = Math.floor(b / count);
+        
+        // Darken the color to 60% for better contrast with white text
+        const darkenFactor = 0.6;
+        r = Math.floor(r * darkenFactor);
+        g = Math.floor(g * darkenFactor);
+        b = Math.floor(b * darkenFactor);
+        
+        setDominantColor(`rgb(${r}, ${g}, ${b})`);
+      }
+    };
+    img.onerror = () => {
+      setDominantColor('#1e3a5f'); // Fallback to dark blue
+    };
+    img.src = imageUrl;
+  };
+
+  // Extract dominant color when material image changes
+  useEffect(() => {
+    if (material?.image_url) {
+      extractDominantColor(material.image_url);
+    }
+  }, [material?.image_url]);
 
   // Modals
   const [sessionModalOpen, setSessionModalOpen] = useState(false);
@@ -217,6 +274,14 @@ const StudyContentDetailPage = () => {
   };
 
   const toggleSession = (sessionId: number) => {
+    // Siempre hacer scroll al elemento
+    setTimeout(() => {
+      const element = document.getElementById(`session-${sessionId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+    
     setExpandedSessions((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(sessionId)) {
@@ -229,6 +294,14 @@ const StudyContentDetailPage = () => {
   };
 
   const toggleTopic = (topicId: number) => {
+    // Siempre hacer scroll al elemento
+    setTimeout(() => {
+      const element = document.getElementById(`topic-${topicId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+    
     setExpandedTopics((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(topicId)) {
@@ -600,10 +673,7 @@ const StudyContentDetailPage = () => {
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
-          <p className="mt-4 text-gray-600">Cargando material...</p>
-        </div>
+        <LoadingSpinner message="Cargando material..." />
       </div>
     );
   }
@@ -627,52 +697,139 @@ const StudyContentDetailPage = () => {
         />
       )}
       
-      {/* Header */}
+      {/* Back button */}
       <div className="mb-6">
         <button
           onClick={() => navigate('/study-contents')}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4"
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
         >
           <ArrowLeft className="h-5 w-5" />
           Volver a la lista
         </button>
+      </div>
 
-        <div className="flex justify-between items-start">
-          <div className="flex gap-4">
-            {material.image_url ? (
-              <img src={material.image_url} alt={material.title} className="h-20 w-20 rounded-lg object-cover" />
-            ) : (
-              <div className="h-20 w-20 rounded-lg bg-blue-100 flex items-center justify-center">
-                <BookOpen className="h-10 w-10 text-blue-600" />
-              </div>
-            )}
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">{material.title}</h1>
-              {material.description && (
-                <div 
-                  className="text-gray-600 mt-1 prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(material.description) }}
-                />
+      {/* Header with Image Background */}
+      <div className="relative rounded-xl overflow-hidden mb-6 shadow-lg">
+        {/* Background Image */}
+        {material.image_url ? (
+          <div className="absolute inset-0">
+            <img 
+              src={material.image_url} 
+              alt={material.title}
+              className="w-full h-full object-cover"
+            />
+            <div 
+              className="absolute inset-0"
+              style={{
+                background: `linear-gradient(to top, ${dominantColor} 0%, ${dominantColor}99 30%, transparent 100%)`
+              }}
+            />
+          </div>
+        ) : (
+          <div 
+            className="absolute inset-0"
+            style={{
+              background: `linear-gradient(135deg, ${dominantColor} 0%, ${dominantColor}dd 100%)`
+            }}
+          />
+        )}
+
+        {/* Content */}
+        <div className="relative z-10 p-6">
+          {/* Top row with status and actions */}
+          <div className="flex justify-between items-start mb-20">
+            <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium ${material.is_published ? 'bg-green-500/90 text-white' : 'bg-white/90 text-gray-700'}`}>
+              {material.is_published ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+              {material.is_published ? 'Publicado' : 'Borrador'}
+            </span>
+            <div className="flex items-center gap-3">
+              {/* Botón Publicar/Cambiar a Borrador */}
+              {material.is_published ? (
+                <button
+                  onClick={async () => {
+                    try {
+                      await updateMaterial(Number(materialId), { is_published: false });
+                      setToast({ message: 'El material ha sido cambiado a borrador.', type: 'success' });
+                      loadMaterial();
+                    } catch (error) {
+                      console.error('Error updating material:', error);
+                      setToast({ message: 'Error al cambiar a borrador', type: 'error' });
+                    }
+                  }}
+                  className="px-4 py-2 bg-white/90 text-gray-700 hover:bg-white rounded-lg transition-colors font-medium flex items-center gap-2 shadow-sm"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Cambiar a Borrador
+                </button>
+              ) : (
+                <button
+                  onClick={async () => {
+                    try {
+                      await updateMaterial(Number(materialId), { is_published: true });
+                      setToast({ message: '¡Material publicado exitosamente! Ya está disponible para los estudiantes.', type: 'success' });
+                      loadMaterial();
+                    } catch (error) {
+                      console.error('Error updating material:', error);
+                      setToast({ message: 'Error al publicar el material', type: 'error' });
+                    }
+                  }}
+                  className="px-4 py-2 bg-green-500 text-white hover:bg-green-600 rounded-lg transition-colors font-medium flex items-center gap-2 shadow-sm"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Publicar
+                </button>
               )}
-              <div className="flex items-center gap-4 mt-2">
-                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${material.is_published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                  {material.is_published ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-                  {material.is_published ? 'Publicado' : 'Borrador'}
-                </span>
-                <span className="text-sm text-gray-500 flex items-center gap-1">
-                  <Layers className="h-4 w-4" />
-                  {material.sessions?.length || 0} sesiones
-                </span>
-              </div>
+              <button
+                onClick={() => navigate(`/study-contents/${materialId}/edit`)}
+                className="px-4 py-2 bg-white/90 text-gray-700 hover:bg-white rounded-lg transition-colors font-medium flex items-center gap-2 shadow-sm"
+              >
+                <Edit2 className="h-5 w-5" />
+                Editar Material
+              </button>
             </div>
           </div>
-          <button
-            onClick={() => navigate(`/study-contents/${materialId}/edit`)}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
-          >
-            <Edit2 className="h-5 w-5" />
-            Editar Material
-          </button>
+
+          {/* Title and description */}
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-white mb-2 drop-shadow-md">{material.title}</h1>
+            {material.description && (
+              <div 
+                className="text-white/90 prose prose-sm max-w-none prose-invert drop-shadow"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(material.description) }}
+              />
+            )}
+          </div>
+
+          {/* Statistics Grid */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Layers className="h-5 w-5 text-white/80" />
+                <span className="text-white/80 text-sm">Sesiones</span>
+              </div>
+              <span className="text-2xl font-bold text-white">{material.sessions?.length || 0}</span>
+            </div>
+            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <FileText className="h-5 w-5 text-white/80" />
+                <span className="text-white/80 text-sm">Temas</span>
+              </div>
+              <span className="text-2xl font-bold text-white">
+                {material.sessions?.reduce((acc, s) => acc + (s.topics?.length || 0), 0) || 0}
+              </span>
+            </div>
+            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <ClipboardList className="h-5 w-5 text-white/80" />
+                <span className="text-white/80 text-sm">Exámenes</span>
+              </div>
+              <span className="text-2xl font-bold text-white">{material.linked_exams?.length || 0}</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -704,23 +861,23 @@ const StudyContentDetailPage = () => {
         ) : (
           <div className="divide-y">
             {material.sessions.map((session) => (
-              <div key={session.id} className="border-b last:border-b-0">
+              <div id={`session-${session.id}`} key={session.id} className={`border-b last:border-b-0 scroll-mt-24 ${expandedSessions.has(session.id) ? 'ring-2 ring-blue-500 ring-inset bg-blue-50/30' : ''}`}>
                 {/* Session Header */}
                 <div
-                  className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50"
+                  className={`flex items-center justify-between p-4 cursor-pointer transition-colors ${expandedSessions.has(session.id) ? 'bg-blue-100/50 hover:bg-blue-100' : 'hover:bg-gray-50'}`}
                   onClick={() => toggleSession(session.id)}
                 >
                   <div className="flex items-center gap-3">
                     {expandedSessions.has(session.id) ? (
-                      <ChevronDown className="h-5 w-5 text-gray-400" />
+                      <ChevronDown className="h-5 w-5 text-blue-600" />
                     ) : (
                       <ChevronRight className="h-5 w-5 text-gray-400" />
                     )}
-                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                      <Hash className="h-4 w-4 text-blue-600" />
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${expandedSessions.has(session.id) ? 'bg-blue-600' : 'bg-blue-100'}`}>
+                      <Hash className={`h-4 w-4 ${expandedSessions.has(session.id) ? 'text-white' : 'text-blue-600'}`} />
                     </div>
                     <div>
-                      <h3 className="font-medium text-gray-900">
+                      <h3 className={`font-medium ${expandedSessions.has(session.id) ? 'text-blue-900' : 'text-gray-900'}`}>
                         Sesión {session.session_number}: {session.title}
                       </h3>
                       {session.description && (
@@ -732,15 +889,21 @@ const StudyContentDetailPage = () => {
                     <span className="text-sm text-gray-500">{session.topics?.length || 0} temas</span>
                     <button
                       onClick={() => openSessionModal(session)}
-                      className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                      className="p-2 text-primary-600 hover:bg-primary-100 rounded-lg transition-colors"
+                      title="Editar sesión"
                     >
-                      <Edit2 className="h-4 w-4" />
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
                     </button>
                     <button
                       onClick={() => openDeleteModal('session', session.id, session.title)}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                      title="Eliminar sesión"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
                     </button>
                   </div>
                 </div>
@@ -766,19 +929,19 @@ const StudyContentDetailPage = () => {
                     ) : (
                       <div className="divide-y divide-gray-200">
                         {session.topics.map((topic) => (
-                          <div key={topic.id} className="bg-white">
+                          <div id={`topic-${topic.id}`} key={topic.id} className={`scroll-mt-24 ${expandedTopics.has(topic.id) ? 'ring-2 ring-slate-300 ring-inset bg-slate-50' : 'bg-white'}`}>
                             {/* Topic Header */}
                             <div
-                              className="flex items-center justify-between p-3 pl-8 cursor-pointer hover:bg-gray-50"
+                              className={`flex items-center justify-between p-3 pl-8 cursor-pointer transition-colors ${expandedTopics.has(topic.id) ? 'bg-slate-100 hover:bg-slate-200' : 'hover:bg-gray-50'}`}
                               onClick={() => toggleTopic(topic.id)}
                             >
                               <div className="flex items-center gap-3">
                                 {expandedTopics.has(topic.id) ? (
-                                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                                  <ChevronDown className="h-4 w-4 text-slate-600" />
                                 ) : (
                                   <ChevronRight className="h-4 w-4 text-gray-400" />
                                 )}
-                                <span className="font-medium text-gray-800">{topic.title}</span>
+                                <span className={`font-medium ${expandedTopics.has(topic.id) ? 'text-slate-900' : 'text-gray-800'}`}>{topic.title}</span>
                               </div>
                               <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                 {/* Element indicators */}
@@ -798,15 +961,21 @@ const StudyContentDetailPage = () => {
                                 </div>
                                 <button
                                   onClick={() => openTopicModal(session.id, topic)}
-                                  className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                                  className="p-2 text-primary-600 hover:bg-primary-100 rounded-lg transition-colors"
+                                  title="Editar tema"
                                 >
-                                  <Edit2 className="h-4 w-4" />
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
                                 </button>
                                 <button
                                   onClick={() => openDeleteModal('topic', topic.id, topic.title, session.id)}
-                                  className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                  className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                  title="Eliminar tema"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
                                 </button>
                               </div>
                             </div>
@@ -937,7 +1106,7 @@ const StudyContentDetailPage = () => {
               disabled={saving || !sessionForm.title.trim()}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
             >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               Guardar
             </button>
           </div>
@@ -978,7 +1147,7 @@ const StudyContentDetailPage = () => {
               disabled={saving || !topicForm.title.trim()}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
             >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               Guardar
             </button>
           </div>
@@ -1089,8 +1258,8 @@ const StudyContentDetailPage = () => {
               disabled={saving || !readingForm.title.trim() || !readingForm.content.trim()}
               className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors shadow-sm"
             >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Guardar Lectura
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              {saving ? 'Guardando...' : 'Guardar Lectura'}
             </button>
           </div>
         </div>
@@ -1310,8 +1479,8 @@ const StudyContentDetailPage = () => {
               disabled={saving || isUploading || !videoForm.title.trim() || (videoMode === 'url' ? !videoForm.video_url.trim() : !selectedVideoFile)}
               className="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors shadow-sm"
             >
-              {saving || isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {isUploading ? 'Subiendo...' : 'Guardar Video'}
+              {(saving || isUploading) && <Loader2 className="h-4 w-4 animate-spin" />}
+              {isUploading ? 'Subiendo...' : saving ? 'Guardando...' : 'Guardar Video'}
             </button>
           </div>
         </div>
@@ -1507,8 +1676,8 @@ const StudyContentDetailPage = () => {
               disabled={saving || isUploadingDownloadable || !downloadableForm.title.trim() || (selectedDownloadableFiles.length === 0 && !downloadableForm.file_url)}
               className="px-5 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors shadow-sm"
             >
-              {saving || isUploadingDownloadable ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {isUploadingDownloadable ? 'Subiendo...' : 'Guardar Ejercicio'}
+              {(saving || isUploadingDownloadable) && <Loader2 className="h-4 w-4 animate-spin" />}
+              {isUploadingDownloadable ? 'Subiendo...' : saving ? 'Guardando...' : 'Guardar Ejercicio'}
             </button>
           </div>
         </div>
@@ -1726,17 +1895,8 @@ const StudyContentDetailPage = () => {
               disabled={savingInteractive || !interactiveForm.title.trim()}
               className="flex-1 px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium transition-colors shadow-sm"
             >
-              {savingInteractive ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Guardando...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  Guardar Configuración
-                </>
-              )}
+              {savingInteractive && <Loader2 className="h-4 w-4 animate-spin" />}
+              {savingInteractive ? 'Guardando...' : 'Guardar Configuración'}
             </button>
             <button
               onClick={async () => {

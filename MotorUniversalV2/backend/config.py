@@ -45,7 +45,7 @@ class Config:
     AZURE_KEY_VAULT_URL = os.getenv('AZURE_KEY_VAULT_URL', '')
     
     # Upload
-    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))  # 16MB
+    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 2 * 1024 * 1024 * 1024))  # 2GB para videos
     ALLOWED_EXTENSIONS = set(os.getenv('ALLOWED_EXTENSIONS', 'png,jpg,jpeg,gif,pdf').split(','))
     
     # Pagination

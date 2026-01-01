@@ -16,6 +16,8 @@ export interface StudyMaterial {
   exam_id?: number;
   exam_ids?: number[];
   sessions_count?: number;
+  topics_count?: number;
+  linked_exams?: { id: number; name: string; version: string }[];
   created_at: string;
   updated_at?: string;
   created_by?: number;

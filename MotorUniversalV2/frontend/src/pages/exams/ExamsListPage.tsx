@@ -21,6 +21,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react'
+import LoadingSpinner from '../../components/LoadingSpinner'
 
 // Componente de tarjeta de examen con nuevo diseño
 const ExamCard = ({ 
@@ -285,9 +286,8 @@ const ExamsListPage = () => {
 
       {/* Exams Grid */}
       {isLoading ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Cargando exámenes...</p>
+        <div className="bg-white rounded-lg shadow p-8">
+          <LoadingSpinner message="Cargando exámenes..." />
         </div>
       ) : allExams.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center">
@@ -306,18 +306,55 @@ const ExamsListPage = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {allExams.map((exam: any) => (
-              <ExamCard 
-                key={exam.id} 
-                exam={exam} 
-                onEdit={handleEdit}
-                onDelete={openDeleteModal}
-                activeMenu={activeMenu}
-                setActiveMenu={setActiveMenu}
-              />
-            ))}
-          </div>
+          {/* Sección de Publicados */}
+          {allExams.filter((e: any) => e.is_published).length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <Eye className="h-5 w-5 text-green-600" />
+                <h2 className="text-lg font-semibold text-gray-800">Publicados</h2>
+                <span className="bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                  {allExams.filter((e: any) => e.is_published).length}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {allExams.filter((e: any) => e.is_published).map((exam: any) => (
+                  <ExamCard 
+                    key={exam.id} 
+                    exam={exam} 
+                    onEdit={handleEdit}
+                    onDelete={openDeleteModal}
+                    activeMenu={activeMenu}
+                    setActiveMenu={setActiveMenu}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Sección de Borradores */}
+          {allExams.filter((e: any) => !e.is_published).length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <EyeOff className="h-5 w-5 text-gray-500" />
+                <h2 className="text-lg font-semibold text-gray-800">Borradores</h2>
+                <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded-full">
+                  {allExams.filter((e: any) => !e.is_published).length}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {allExams.filter((e: any) => !e.is_published).map((exam: any) => (
+                  <ExamCard 
+                    key={exam.id} 
+                    exam={exam} 
+                    onEdit={handleEdit}
+                    onDelete={openDeleteModal}
+                    activeMenu={activeMenu}
+                    setActiveMenu={setActiveMenu}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Pagination */}
           {totalPages > 1 && (

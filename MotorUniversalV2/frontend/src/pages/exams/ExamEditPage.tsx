@@ -5,6 +5,7 @@ import { examService } from '../../services/examService'
 import { useAuthStore } from '../../store/authStore'
 import api from '../../services/api'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import ExamTestConfigModal from '../../components/ExamTestConfigModal'
 
 // Componente de notificación toast
 interface ToastProps {
@@ -94,12 +95,82 @@ const ExamEditPage = () => {
   } | null>(null)
   const [isValidating, setIsValidating] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-  
+  const [showTestModal, setShowTestModal] = useState(false)
+  const [testQuestionCount, setTestQuestionCount] = useState(0)
+  const [testExerciseCount, setTestExerciseCount] = useState(0)
+  const [dominantColor, setDominantColor] = useState<string | null>(null)
+
   const { data: exam, isLoading, error } = useQuery({
     queryKey: ['exam', id],
     queryFn: () => examService.getExam(Number(id), true), // Incluir detalles completos
     enabled: !!id,
   })
+
+  // Función para extraer el color dominante de una imagen
+  const extractDominantColor = (imageUrl: string) => {
+    const img = new Image()
+    img.crossOrigin = 'Anonymous'
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      // Escalar la imagen para analizar menos píxeles (más rápido)
+      const scale = 0.1
+      canvas.width = img.width * scale
+      canvas.height = img.height * scale
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+      try {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        const data = imageData.data
+
+        let r = 0, g = 0, b = 0, count = 0
+
+        // Analizar los píxeles de la parte inferior de la imagen (donde va el texto)
+        const startY = Math.floor(canvas.height * 0.5) // Solo la mitad inferior
+        for (let y = startY; y < canvas.height; y++) {
+          for (let x = 0; x < canvas.width; x++) {
+            const i = (y * canvas.width + x) * 4
+            // Ignorar píxeles muy claros o muy oscuros
+            const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3
+            if (brightness > 30 && brightness < 230) {
+              r += data[i]
+              g += data[i + 1]
+              b += data[i + 2]
+              count++
+            }
+          }
+        }
+
+        if (count > 0) {
+          r = Math.round(r / count)
+          g = Math.round(g / count)
+          b = Math.round(b / count)
+          
+          // Oscurecer el color para mejor contraste con texto blanco
+          r = Math.round(r * 0.6)
+          g = Math.round(g * 0.6)
+          b = Math.round(b * 0.6)
+          
+          setDominantColor(`rgb(${r}, ${g}, ${b})`)
+        }
+      } catch (e) {
+        // Si hay error de CORS, usar color por defecto
+        console.log('No se pudo extraer el color de la imagen')
+      }
+    }
+    img.src = imageUrl
+  }
+
+  // Extraer color cuando cambia la imagen del examen
+  useEffect(() => {
+    if (exam?.image_url) {
+      extractDominantColor(exam.image_url)
+    } else {
+      setDominantColor(null)
+    }
+  }, [exam?.image_url])
 
   const deleteExamMutation = useMutation({
     mutationFn: async (password: string) => {
@@ -264,6 +335,34 @@ const ExamEditPage = () => {
 
   const handleUnpublish = () => {
     unpublishExamMutation.mutate()
+  }
+
+  const handleOpenTestModal = () => {
+    // Calcular totales
+    let totalQuestions = 0
+    let totalExercises = 0
+    
+    if (exam?.categories) {
+      exam.categories.forEach((cat: any) => {
+        cat.topics?.forEach((topic: any) => {
+          totalQuestions += topic.questions?.length || 0
+          totalExercises += topic.exercises?.length || 0
+        })
+      })
+    }
+    
+    setTestQuestionCount(totalQuestions)
+    setTestExerciseCount(totalExercises)
+    setShowTestModal(true)
+  }
+
+  const handleStartTest = (questionCount: number, exerciseCount: number) => {
+    navigate(`/test-exams/${id}/run`, {
+      state: {
+        questionCount,
+        exerciseCount
+      }
+    })
   }
 
   const handleDeleteExam = (e: React.FormEvent) => {
@@ -452,6 +551,20 @@ const ExamEditPage = () => {
             </span>
           </div>
           <div className="flex items-center gap-3">
+            {/* Botón Probar Examen - solo visible cuando está publicado */}
+            {exam.is_published && (
+              <button
+                onClick={handleOpenTestModal}
+                className="px-4 py-2 btn-animated-gradient text-white rounded-lg font-medium flex items-center gap-2 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:scale-105 transition-all duration-300"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Probar Examen
+              </button>
+            )}
+
             {/* Botón Publicar/Despublicar */}
             {exam.is_published ? (
               <button
@@ -494,88 +607,103 @@ const ExamEditPage = () => {
       </div>
 
       {/* Información General del Examen */}
-      <div className="card mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Información General</h2>
-          <button
-            onClick={openEditExamModal}
-            disabled={exam.is_published}
-            className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
-              exam.is_published
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-            title={exam.is_published ? 'Cambie a borrador para editar' : 'Editar información del examen'}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            Modificar Examen
-          </button>
-        </div>
-        
-        {/* Imagen del examen - ancho completo */}
-        <div className="mb-6">
+      <div className="card mb-6 overflow-hidden p-0">
+        {/* Header con imagen de fondo */}
+        <div className="relative">
           {exam.image_url ? (
-            <img 
-              src={exam.image_url} 
-              alt={exam.name}
-              className="w-full h-48 object-cover rounded-lg border border-gray-200"
-            />
+            <div className="relative h-40">
+              <img 
+                src={exam.image_url} 
+                alt={exam.name}
+                className="w-full h-full object-cover"
+              />
+              <div 
+                className="absolute inset-0 transition-colors duration-500"
+                style={{
+                  background: dominantColor 
+                    ? `linear-gradient(to top, ${dominantColor} 0%, ${dominantColor}99 30%, transparent 100%)`
+                    : 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 30%, transparent 100%)'
+                }}
+              />
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <div className="flex justify-between items-end">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white drop-shadow-lg mb-1">{exam.name}</h2>
+                    <p className="text-lg font-mono font-semibold text-primary-300">{exam.version}</p>
+                  </div>
+                  <button
+                    onClick={openEditExamModal}
+                    disabled={exam.is_published}
+                    className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors backdrop-blur-sm ${
+                      exam.is_published
+                        ? 'bg-white/20 text-white/50 cursor-not-allowed'
+                        : 'bg-white/20 text-white hover:bg-white/30'
+                    }`}
+                    title={exam.is_published ? 'Cambie a borrador para editar' : 'Editar información del examen'}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Modificar
+                  </button>
+                </div>
+              </div>
+            </div>
           ) : (
-            <div className="w-full h-48 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
-              <div className="text-center">
-                <svg className="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <p className="text-sm text-gray-500">Sin imagen de identidad gráfica</p>
+            <div className="bg-gradient-to-r from-primary-600 to-primary-800 p-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-1">{exam.name}</h2>
+                  <p className="text-lg font-mono font-semibold text-primary-200">{exam.version}</p>
+                </div>
+                <button
+                  onClick={openEditExamModal}
+                  disabled={exam.is_published}
+                  className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
+                    exam.is_published
+                      ? 'bg-white/20 text-white/50 cursor-not-allowed'
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                  title={exam.is_published ? 'Cambie a borrador para editar' : 'Editar información del examen'}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Modificar
+                </button>
               </div>
             </div>
           )}
         </div>
         
-        <div className="space-y-4">
-          {/* Nombre del Examen */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nombre del Examen
-            </label>
-            <p className="text-lg font-semibold text-gray-900">{exam.name}</p>
-          </div>
-
-          {/* Código ECM */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Código ECM
-            </label>
-            <p className="text-lg font-mono font-semibold text-primary-600">{exam.version}</p>
-          </div>
-
-          {/* Información adicional en grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t">
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">
-                Duración
-              </label>
-              <p className="text-base font-semibold">{exam.duration_minutes || 0} min</p>
+        {/* Estadísticas en grid */}
+        <div className="p-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="text-center p-3 bg-gray-50 rounded-lg">
+              <p className="text-2xl font-bold text-gray-900">{exam.duration_minutes || 0}</p>
+              <p className="text-sm text-gray-600">Minutos</p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">
-                Puntaje Mínimo
-              </label>
-              <p className="text-base font-semibold">{exam.passing_score}%</p>
+            <div className="text-center p-3 bg-gray-50 rounded-lg">
+              <p className="text-2xl font-bold text-gray-900">{exam.passing_score}%</p>
+              <p className="text-sm text-gray-600">Puntaje Mínimo</p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">
-                Preguntas
-              </label>
-              <p className="text-base font-semibold">{exam.total_questions}</p>
+            <div className="text-center p-3 bg-primary-50 rounded-lg">
+              <p className="text-2xl font-bold text-primary-600">{exam.total_categories || 0}</p>
+              <p className="text-sm text-gray-600">Categorías</p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">
-                Ejercicios
-              </label>
-              <p className="text-base font-semibold">{exam.total_exercises}</p>
+            <div className="text-center p-3 bg-blue-50 rounded-lg">
+              <p className="text-2xl font-bold text-blue-600">
+                {exam.categories?.reduce((acc, cat) => acc + (cat.total_topics || 0), 0) || 0}
+              </p>
+              <p className="text-sm text-gray-600">Temas</p>
+            </div>
+            <div className="text-center p-3 bg-green-50 rounded-lg">
+              <p className="text-2xl font-bold text-green-600">{exam.total_questions}</p>
+              <p className="text-sm text-gray-600">Preguntas</p>
+            </div>
+            <div className="text-center p-3 bg-purple-50 rounded-lg">
+              <p className="text-2xl font-bold text-purple-600">{exam.total_exercises}</p>
+              <p className="text-sm text-gray-600">Ejercicios</p>
             </div>
           </div>
         </div>
@@ -622,10 +750,13 @@ const ExamEditPage = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Porcentaje
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Temas
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Preguntas
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Ejercicios
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -637,32 +768,21 @@ const ExamEditPage = () => {
                 {exam.categories.map((category, index) => (
                   <tr 
                     key={category.id} 
-                    className="hover:bg-primary-50 transition-colors"
+                    className="hover:bg-primary-50 transition-colors cursor-pointer"
+                    onClick={() => {
+                      if (exam.is_published) {
+                        setToast({ message: 'Cambie el examen a borrador para editar las categorías', type: 'error' })
+                      } else {
+                        navigate(`/exams/${id}/categories/${category.id}`)
+                      }
+                    }}
                   >
-                    <td 
-                      className="px-4 py-4 whitespace-nowrap cursor-pointer"
-                      onClick={() => {
-                        if (exam.is_published) {
-                          setToast({ message: 'Cambie el examen a borrador para editar las categorías', type: 'error' })
-                        } else {
-                          navigate(`/exams/${id}/categories/${category.id}`)
-                        }
-                      }}
-                    >
+                    <td className="px-4 py-4 whitespace-nowrap">
                       <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-semibold text-sm">
                         {index + 1}
                       </span>
                     </td>
-                    <td 
-                      className="px-4 py-4 cursor-pointer"
-                      onClick={() => {
-                        if (exam.is_published) {
-                          setToast({ message: 'Cambie el examen a borrador para editar las categorías', type: 'error' })
-                        } else {
-                          navigate(`/exams/${id}/categories/${category.id}`)
-                        }
-                      }}
-                    >
+                    <td className="px-4 py-4">
                       <div className="text-sm font-medium text-gray-900">{category.name}</div>
                       {category.description && (
                         <div className="text-sm text-gray-500 mt-1">{category.description}</div>
@@ -673,13 +793,16 @@ const ExamEditPage = () => {
                         {category.percentage}%
                       </span>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                      <span className="font-medium">{category.total_topics || 0}</span>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                       <span className="font-medium">{category.total_questions || 0}</span>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                       <span className="font-medium">{category.total_exercises || 0}</span>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
+                    <td className="px-4 py-4 whitespace-nowrap text-sm" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
                         <button
                           onClick={(e) => {
@@ -1335,6 +1458,33 @@ const ExamEditPage = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Estadísticas del examen (solo lectura) */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Contenido del Examen
+                  </label>
+                  <div className="grid grid-cols-4 gap-3 text-center">
+                    <div className="bg-white rounded-lg p-2 border border-gray-200">
+                      <div className="text-lg font-bold text-primary-600">{exam?.total_categories || 0}</div>
+                      <div className="text-xs text-gray-500">Categorías</div>
+                    </div>
+                    <div className="bg-white rounded-lg p-2 border border-gray-200">
+                      <div className="text-lg font-bold text-blue-600">
+                        {exam?.categories?.reduce((acc, cat) => acc + (cat.total_topics || 0), 0) || 0}
+                      </div>
+                      <div className="text-xs text-gray-500">Temas</div>
+                    </div>
+                    <div className="bg-white rounded-lg p-2 border border-gray-200">
+                      <div className="text-lg font-bold text-green-600">{exam?.total_questions || 0}</div>
+                      <div className="text-xs text-gray-500">Preguntas</div>
+                    </div>
+                    <div className="bg-white rounded-lg p-2 border border-gray-200">
+                      <div className="text-lg font-bold text-purple-600">{exam?.total_exercises || 0}</div>
+                      <div className="text-xs text-gray-500">Ejercicios</div>
+                    </div>
+                  </div>
+                </div>
               </div>
               
               <div className="flex justify-end gap-3 mt-6">
@@ -1399,6 +1549,35 @@ const ExamEditPage = () => {
               </div>
             </div>
 
+            {/* Botón para distribuir equitativamente */}
+            <div className="mb-4">
+              <button
+                type="button"
+                onClick={() => {
+                  const categories = exam?.categories || []
+                  if (categories.length === 0) return
+                  
+                  const equalPercentage = Math.floor(100 / categories.length)
+                  const remainder = 100 - (equalPercentage * categories.length)
+                  
+                  const newAdjustments: { [key: number]: string } = {}
+                  categories.forEach((cat: any, index: number) => {
+                    // Dar el residuo a la primera categoría
+                    const percentage = index === 0 ? equalPercentage + remainder : equalPercentage
+                    newAdjustments[cat.id] = percentage.toString()
+                  })
+                  
+                  setPercentageAdjustments(newAdjustments)
+                }}
+                className="w-full px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors font-medium flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Distribuir Equitativamente
+              </button>
+            </div>
+
             <div className="space-y-3 max-h-60 overflow-y-auto">
               {exam?.categories?.map((category: any) => (
                 <div key={category.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
@@ -1447,6 +1626,17 @@ const ExamEditPage = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de Configuración de Prueba */}
+      {showTestModal && (
+        <ExamTestConfigModal
+          examTitle={exam.name}
+          totalQuestions={testQuestionCount}
+          totalExercises={testExerciseCount}
+          onClose={() => setShowTestModal(false)}
+          onStart={handleStartTest}
+        />
       )}
 
       {/* Toast de notificación */}

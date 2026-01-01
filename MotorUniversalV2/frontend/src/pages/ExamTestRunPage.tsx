@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../services/examService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, BookOpen, Target } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, BookOpen, Target, ArrowLeft } from 'lucide-react';
 
 // Tipo para representar un ítem del test (pregunta o ejercicio)
 interface TestItem {
@@ -44,6 +44,9 @@ const ExamTestRunPage: React.FC = () => {
   
   // Estado para trackear preguntas de ordenamiento que han sido interactuadas
   const [orderingInteracted, setOrderingInteracted] = useState<Record<string, boolean>>({});
+  
+  // Estado para modal de confirmación de salida
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   const { data: exam, isLoading } = useQuery({
     queryKey: ['exam', examId],
@@ -409,17 +412,17 @@ const ExamTestRunPage: React.FC = () => {
 
       case 'multiple_choice':
         return (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {currentItem.options?.map((option: any, index: number) => (
               <label
                 key={option.id}
-                className={`group flex items-center p-5 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+                className={`group flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
                   currentAnswer === option.id 
                     ? 'border-primary-500 bg-gradient-to-r from-primary-50 to-blue-50 shadow-md shadow-primary-100' 
                     : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
                 }`}
               >
-                <div className={`flex items-center justify-center w-10 h-10 rounded-xl font-bold text-lg flex-shrink-0 transition-all ${
+                <div className={`flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm flex-shrink-0 transition-all ${
                   currentAnswer === option.id 
                     ? 'bg-primary-500 text-white' 
                     : 'bg-gray-100 text-gray-500 group-hover:bg-primary-100 group-hover:text-primary-600'
@@ -435,11 +438,11 @@ const ExamTestRunPage: React.FC = () => {
                   className="hidden"
                 />
                 <div
-                  className="ml-4 text-gray-800 prose prose-sm max-w-none flex-1"
+                  className="ml-3 text-sm text-gray-800 prose prose-sm max-w-none flex-1"
                   dangerouslySetInnerHTML={{ __html: option.answer_text }}
                 />
                 {currentAnswer === option.id && (
-                  <CheckCircle className="w-6 h-6 text-primary-500 flex-shrink-0 ml-3" />
+                  <CheckCircle className="w-5 h-5 text-primary-500 flex-shrink-0 ml-2" />
                 )}
               </label>
             ))}
@@ -448,8 +451,8 @@ const ExamTestRunPage: React.FC = () => {
 
       case 'multiple_select':
         return (
-          <div className="space-y-3">
-            <div className="flex items-center space-x-2 text-sm text-gray-600 mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2 text-xs text-gray-600 mb-3 p-2 bg-blue-50 rounded-lg border border-blue-100">
               <span className="text-blue-500">ℹ️</span>
               <span>Selecciona todas las opciones correctas</span>
             </div>
@@ -460,18 +463,18 @@ const ExamTestRunPage: React.FC = () => {
               return (
                 <label
                   key={option.id}
-                  className={`group flex items-center p-5 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+                  className={`group flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
                     isChecked 
                       ? 'border-primary-500 bg-gradient-to-r from-primary-50 to-blue-50 shadow-md shadow-primary-100' 
                       : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
                   }`}
                 >
-                  <div className={`flex items-center justify-center w-10 h-10 rounded-lg font-bold flex-shrink-0 transition-all ${
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm flex-shrink-0 transition-all ${
                     isChecked 
                       ? 'bg-primary-500 text-white' 
                       : 'bg-gray-100 text-gray-500 group-hover:bg-primary-100 group-hover:text-primary-600'
                   }`}>
-                    {isChecked ? <CheckCircle className="w-6 h-6" /> : String.fromCharCode(65 + index)}
+                    {isChecked ? <CheckCircle className="w-5 h-5" /> : String.fromCharCode(65 + index)}
                   </div>
                   <input
                     type="checkbox"
@@ -485,11 +488,11 @@ const ExamTestRunPage: React.FC = () => {
                     className="hidden"
                   />
                   <div
-                    className="ml-4 text-gray-800 prose prose-sm max-w-none flex-1"
+                    className="ml-3 text-sm text-gray-800 prose prose-sm max-w-none flex-1"
                     dangerouslySetInnerHTML={{ __html: option.answer_text }}
                   />
                   {isChecked && (
-                    <CheckCircle className="w-6 h-6 text-primary-500 flex-shrink-0 ml-3" />
+                    <CheckCircle className="w-5 h-5 text-primary-500 flex-shrink-0 ml-2" />
                   )}
                 </label>
               );
@@ -529,8 +532,8 @@ const ExamTestRunPage: React.FC = () => {
         };
 
         return (
-          <div className="space-y-3">
-            <div className="flex items-center space-x-2 text-sm text-gray-600 mb-4 p-3 bg-amber-50 rounded-lg border border-amber-100">
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2 text-xs text-gray-600 mb-3 p-2 bg-amber-50 rounded-lg border border-amber-100">
               <GripVertical className="w-4 h-4 text-amber-500" />
               <span>Arrastra los elementos para ordenarlos correctamente</span>
             </div>
@@ -541,18 +544,18 @@ const ExamTestRunPage: React.FC = () => {
                 onDragStart={() => handleDragStart(index)}
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDragEnd={handleDragEnd}
-                className={`group flex items-center p-5 border-2 rounded-xl cursor-move transition-all duration-200 ${
+                className={`group flex items-center p-3 border-2 rounded-lg cursor-move transition-all duration-200 ${
                   draggedIndex === index 
                     ? 'border-primary-500 bg-gradient-to-r from-primary-50 to-blue-50 shadow-xl scale-[1.02]' 
                     : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50 hover:shadow-md'
                 }`}
               >
-                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-white font-bold text-lg flex-shrink-0 shadow-md">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 text-white font-bold text-sm flex-shrink-0 shadow-md">
                   {index + 1}
                 </div>
-                <GripVertical className="w-6 h-6 text-gray-300 group-hover:text-primary-400 flex-shrink-0 mx-3 transition-colors" />
+                <GripVertical className="w-5 h-5 text-gray-300 group-hover:text-primary-400 flex-shrink-0 mx-2 transition-colors" />
                 <div
-                  className="text-gray-800 prose prose-sm max-w-none flex-1"
+                  className="text-sm text-gray-800 prose prose-sm max-w-none flex-1"
                   dangerouslySetInnerHTML={{ __html: option.answer_text }}
                 />
               </div>
@@ -573,9 +576,9 @@ const ExamTestRunPage: React.FC = () => {
     
     if (steps.length === 0) {
       return (
-        <div className="text-center py-8">
-          <Image className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500">Este ejercicio no tiene pasos configurados</p>
+        <div className="text-center py-6">
+          <Image className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+          <p className="text-gray-500 text-sm">Este ejercicio no tiene pasos configurados</p>
         </div>
       );
     }
@@ -585,13 +588,32 @@ const ExamTestRunPage: React.FC = () => {
     const isStepDone = stepCompleted[`${currentItem.exercise_id}_${currentStepIndex}`];
 
     return (
-      <div className="space-y-6">
-        {/* Imagen con acciones superpuestas */}
+      <div className="space-y-4">
+        {/* Indicador de pasos */}
+        {steps.length > 1 && (
+          <div className="flex items-center justify-center gap-1 mb-2">
+            {steps.map((_: any, idx: number) => (
+              <div
+                key={idx}
+                className={`h-1.5 rounded-full transition-all ${
+                  idx === currentStepIndex 
+                    ? 'w-6 bg-primary-500' 
+                    : idx < currentStepIndex 
+                    ? 'w-3 bg-green-400' 
+                    : 'w-3 bg-gray-300'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Imagen con acciones superpuestas - adaptada a la pantalla */}
         <div 
           ref={imageContainerRef}
           className="relative mx-auto border border-gray-300 rounded-lg overflow-hidden bg-gray-100"
           style={{ 
-            maxWidth: currentStep.image_width ? `${currentStep.image_width}px` : '100%',
+            maxWidth: '100%',
+            maxHeight: 'calc(100vh - 340px)',
             aspectRatio: currentStep.image_width && currentStep.image_height 
               ? `${currentStep.image_width} / ${currentStep.image_height}` 
               : 'auto'
@@ -601,11 +623,12 @@ const ExamTestRunPage: React.FC = () => {
             <img
               src={currentStep.image_url}
               alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
-              className="w-full h-auto"
+              className="w-full h-full object-contain"
+              style={{ maxHeight: 'calc(100vh - 340px)' }}
             />
           ) : (
-            <div className="flex items-center justify-center h-64 bg-gray-200">
-              <Image className="w-16 h-16 text-gray-400" />
+            <div className="flex items-center justify-center h-48 bg-gray-200">
+              <Image className="w-12 h-12 text-gray-400" />
             </div>
           )}
 
@@ -626,12 +649,13 @@ const ExamTestRunPage: React.FC = () => {
 
         {/* Navegación de pasos */}
         {!isLastStep && (
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-end pt-2">
             <button
               onClick={() => setCurrentStepIndex(currentStepIndex + 1)}
-              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700"
+              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 flex items-center gap-1"
             >
               Siguiente Paso
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         )}
@@ -643,10 +667,7 @@ const ExamTestRunPage: React.FC = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 flex flex-col justify-center items-center">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-4">
-          <LoadingSpinner />
-          <p className="text-gray-600 text-center mt-4">
-            {loadingExercises ? 'Cargando ejercicios...' : 'Cargando examen...'}
-          </p>
+          <LoadingSpinner message={loadingExercises ? 'Cargando ejercicios...' : 'Cargando examen...'} />
         </div>
       </div>
     );
@@ -682,17 +703,60 @@ const ExamTestRunPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
-      {/* Header con gradiente */}
-      <div className="bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      {/* Modal de confirmación de salida */}
+      {showExitConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-white/20 rounded-xl">
+                  <AlertCircle className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-white">¿Salir de la prueba?</h3>
+              </div>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-600 mb-6">
+                Si sales ahora, perderás todo el progreso de esta prueba. ¿Estás seguro de que deseas volver al editor del examen?
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowExitConfirm(false)}
+                  className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Continuar prueba
+                </button>
+                <button
+                  onClick={() => navigate(`/exams/${examId}/edit`)}
+                  className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all"
+                >
+                  Sí, salir
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header con gradiente - FIJO */}
+      <div className="fixed top-0 left-0 right-0 z-40 bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
+              {/* Botón volver */}
+              <button
+                onClick={() => setShowExitConfirm(true)}
+                className="p-2 bg-white/20 hover:bg-white/30 rounded-xl transition-colors"
+                title="Volver al editor"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
               <div className="bg-white/20 rounded-xl p-2">
-                <BookOpen className="w-6 h-6" />
+                <BookOpen className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="text-lg font-bold truncate max-w-[200px] sm:max-w-none">{exam.name}</h1>
-                <p className="text-sm text-primary-100">
+                <h1 className="text-base font-bold truncate max-w-[150px] sm:max-w-none">{exam.name}</h1>
+                <p className="text-xs text-primary-100">
                   Pregunta {currentItemIndex + 1} de {selectedItems.length}
                 </p>
               </div>
@@ -700,29 +764,29 @@ const ExamTestRunPage: React.FC = () => {
             
             <div className="flex items-center space-x-4">
               {/* Timer */}
-              <div className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-medium transition-all ${
+              <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl font-medium transition-all ${
                 isTimeCritical 
                   ? 'bg-red-500 animate-pulse' 
                   : isTimeWarning 
                   ? 'bg-amber-500' 
                   : 'bg-white/20'
               }`}>
-                <Clock className="w-5 h-5" />
-                <span className="font-mono text-lg">
+                <Clock className="w-4 h-4" />
+                <span className="font-mono text-base">
                   {String(displayMinutes).padStart(2, '0')}:{String(displaySeconds).padStart(2, '0')}
                 </span>
               </div>
               
               {/* Contador de respondidas */}
-              <div className="hidden sm:flex items-center space-x-2 bg-green-500/80 px-4 py-2 rounded-xl">
-                <Target className="w-5 h-5" />
-                <span className="font-medium">{getAnsweredCount()} / {selectedItems.length}</span>
+              <div className="hidden sm:flex items-center space-x-2 bg-green-500/80 px-3 py-1.5 rounded-xl">
+                <Target className="w-4 h-4" />
+                <span className="font-medium text-sm">{getAnsweredCount()} / {selectedItems.length}</span>
               </div>
             </div>
           </div>
           
           {/* Barra de progreso */}
-          <div className="mt-4 bg-white/20 rounded-full h-2 overflow-hidden">
+          <div className="mt-2 bg-white/20 rounded-full h-1.5 overflow-hidden">
             <div
               className="h-full bg-white rounded-full transition-all duration-500 ease-out"
               style={{ width: `${((currentItemIndex + 1) / selectedItems.length) * 100}%` }}
@@ -731,10 +795,10 @@ const ExamTestRunPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Navegación de ítems (mini thumbnails) */}
-      <div className="bg-white shadow-sm border-b border-gray-100">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+      {/* Navegación de ítems (mini thumbnails) - FIJO debajo del header */}
+      <div className="fixed top-[88px] left-0 right-0 z-30 bg-white shadow-sm border-b border-gray-100">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
             {selectedItems.map((item, idx) => {
               const isAnswered = item.type === 'question' 
                 ? (item.question_type === 'ordering' 
@@ -755,7 +819,7 @@ const ExamTestRunPage: React.FC = () => {
                     setCurrentItemIndex(idx);
                     setCurrentStepIndex(0);
                   }}
-                  className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold transition-all duration-200 ${
+                  className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all duration-200 ${
                     isCurrent
                       ? 'bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-md'
                       : isAnswered
@@ -771,20 +835,21 @@ const ExamTestRunPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Contenido principal */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-          {/* Header del ítem */}
-          <div className="px-8 py-5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  currentItem?.type === 'question' ? 'bg-primary-100 text-primary-600' : 'bg-purple-100 text-purple-600'
-                }`}>
-                  {currentItem?.type === 'question' ? (
-                    <BookOpen className="w-5 h-5" />
-                  ) : (
-                    <Target className="w-5 h-5" />
+      {/* Contenido principal - con padding para header y footer fijos */}
+      <div className="pt-[140px] pb-[80px] min-h-screen">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+            {/* Header del ítem */}
+            <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                    currentItem?.type === 'question' ? 'bg-primary-100 text-primary-600' : 'bg-purple-100 text-purple-600'
+                  }`}>
+                    {currentItem?.type === 'question' ? (
+                      <BookOpen className="w-4 h-4" />
+                    ) : (
+                      <Target className="w-4 h-4" />
                   )}
                 </div>
                 <div>
@@ -822,14 +887,14 @@ const ExamTestRunPage: React.FC = () => {
           </div>
           
           {/* Contenido */}
-          <div className="p-8">
+          <div className="p-5">
             {currentItem?.type === 'question' ? (
               <>
                 <div
-                  className="prose prose-lg max-w-none mb-8 text-gray-800"
+                  className="prose prose-sm max-w-none mb-4 text-gray-800"
                   dangerouslySetInnerHTML={{ __html: currentItem.question_text || '' }}
                 />
-                <div className="mt-6">
+                <div className="mt-4">
                   {renderQuestionInput()}
                 </div>
               </>
@@ -849,36 +914,41 @@ const ExamTestRunPage: React.FC = () => {
             )}
           </div>
         </div>
+        </div>
+      </div>
 
-        {/* Botones de navegación */}
-        <div className="flex justify-between items-center mt-8">
-          <button
-            onClick={handlePrevious}
-            disabled={currentItemIndex === 0}
-            className="flex items-center px-6 py-3 text-sm font-semibold text-gray-700 bg-white border-2 border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
-          >
-            <ChevronLeft className="w-5 h-5 mr-2" />
-            Anterior
-          </button>
+      {/* Barra de navegación inferior - FIJA */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-lg">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div className="flex justify-between items-center">
+            <button
+              onClick={handlePrevious}
+              disabled={currentItemIndex === 0}
+              className="flex items-center px-5 py-2.5 text-sm font-semibold text-gray-700 bg-white border-2 border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+            >
+              <ChevronLeft className="w-5 h-5 mr-1" />
+              Anterior
+            </button>
 
-          <div className="flex items-center space-x-4">
-            {currentItemIndex === selectedItems.length - 1 ? (
-              <button
-                onClick={() => setShowConfirmSubmit(true)}
-                className="flex items-center px-8 py-3 text-sm font-bold text-white bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg shadow-green-200"
-              >
-                <CheckCircle className="w-5 h-5 mr-2" />
-                Finalizar Examen
-              </button>
-            ) : (
-              <button
-                onClick={handleNext}
-                className="flex items-center px-8 py-3 text-sm font-bold text-white bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg shadow-primary-200"
-              >
-                Siguiente
-                <ChevronRight className="w-5 h-5 ml-2" />
-              </button>
-            )}
+            <div className="flex items-center space-x-3">
+              {currentItemIndex === selectedItems.length - 1 ? (
+                <button
+                  onClick={() => setShowConfirmSubmit(true)}
+                  className="flex items-center px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg shadow-green-200"
+                >
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  Finalizar
+                </button>
+              ) : (
+                <button
+                  onClick={handleNext}
+                  className="flex items-center px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg shadow-primary-200"
+                >
+                  Siguiente
+                  <ChevronRight className="w-5 h-5 ml-1" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

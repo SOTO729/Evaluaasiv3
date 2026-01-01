@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Calendar
 } from 'lucide-react';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 interface ExamConfigModalProps {
   examId: number;
@@ -384,9 +385,8 @@ const ExamTestListPage: React.FC = () => {
 
       {/* Exams Grid */}
       {isLoading ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Cargando exámenes...</p>
+        <div className="bg-white rounded-lg shadow p-8">
+          <LoadingSpinner message="Cargando exámenes..." />
         </div>
       ) : exams.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center">

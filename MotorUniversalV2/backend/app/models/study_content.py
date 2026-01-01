@@ -6,10 +6,18 @@ from datetime import datetime
 from app import db
 
 
+# Tabla de asociación para relación muchos a muchos entre materiales y exámenes
+study_material_exams = db.Table('study_material_exams',
+    db.Column('study_material_id', db.Integer, db.ForeignKey('study_contents.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('exam_id', db.Integer, db.ForeignKey('exams.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('created_at', db.DateTime, default=datetime.utcnow)
+)
+
+
 class StudyMaterial(db.Model):
     """Modelo de material de estudio (curso principal)"""
     
-    __tablename__ = 'study_materials'
+    __tablename__ = 'study_contents'
     __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
@@ -19,7 +27,7 @@ class StudyMaterial(db.Model):
     is_published = db.Column(db.Boolean, default=False, nullable=False)
     order = db.Column(db.Integer, default=0)
     
-    # Relación opcional con un examen
+    # Campo legacy para compatibilidad (se mantiene por ahora)
     exam_id = db.Column(db.Integer, db.ForeignKey('exams.id'), nullable=True)
     
     # Auditoría
@@ -30,10 +38,34 @@ class StudyMaterial(db.Model):
     
     # Relaciones
     sessions = db.relationship('StudySession', backref='material', lazy='dynamic', cascade='all, delete-orphan', order_by='StudySession.session_number')
-    exam = db.relationship('Exam', backref='study_materials')
+    exam = db.relationship('Exam', backref='study_materials', foreign_keys=[exam_id])
+    # Nueva relación muchos a muchos
+    exams = db.relationship('Exam', secondary=study_material_exams, backref=db.backref('linked_study_materials', lazy='dynamic'))
     
     def to_dict(self, include_sessions=False):
         """Convierte el material a diccionario"""
+        # Obtener lista de exámenes vinculados (con manejo de error si la tabla no existe)
+        linked_exams = []
+        exam_ids = []
+        try:
+            if self.exams:
+                linked_exams = [{
+                    'id': e.id,
+                    'name': e.title,
+                    'version': e.version
+                } for e in self.exams]
+                exam_ids = [e.id for e in self.exams]
+        except Exception:
+            # La tabla study_material_exams puede no existir aún
+            pass
+        
+        # Calcular total de sesiones y temas
+        sessions_count = self.sessions.count() if self.sessions else 0
+        topics_count = 0
+        if self.sessions:
+            for session in self.sessions.all():
+                topics_count += session.topics.count() if session.topics else 0
+        
         data = {
             'id': self.id,
             'title': self.title,
@@ -43,7 +75,11 @@ class StudyMaterial(db.Model):
             'order': self.order,
             'exam_id': self.exam_id,
             'exam_title': self.exam.title if self.exam else None,
-            'total_sessions': self.sessions.count() if self.sessions else 0,
+            'exam_ids': exam_ids,
+            'linked_exams': linked_exams,
+            'sessions_count': sessions_count,
+            'topics_count': topics_count,
+            'total_sessions': sessions_count,  # Para compatibilidad
             'created_by': self.created_by,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_by': self.updated_by,
@@ -63,7 +99,7 @@ class StudySession(db.Model):
     __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
-    material_id = db.Column(db.Integer, db.ForeignKey('study_materials.id', ondelete='CASCADE'), nullable=False)
+    material_id = db.Column(db.Integer, db.ForeignKey('study_contents.id', ondelete='CASCADE'), nullable=False)
     session_number = db.Column(db.Integer, nullable=False)
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
@@ -267,7 +303,8 @@ class StudyInteractiveExercise(db.Model):
             'id': self.id,
             'topic_id': self.topic_id,
             'title': self.title or '',
-            'exercise_text': self.description or '',
+            'description': self.description or '',
+            'is_active': self.is_active,
             'is_complete': not self.is_active if self.is_active is not None else False,
             'total_steps': self.steps.count() if self.steps else 0,
             'created_by': self.created_by,

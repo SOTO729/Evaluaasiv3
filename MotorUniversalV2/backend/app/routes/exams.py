@@ -84,6 +84,10 @@ def get_exams():
       - name: is_published
         in: query
         type: boolean
+      - name: search
+        in: query
+        type: string
+        description: Buscar por nombre o descripción
     responses:
       200:
         description: Lista de exámenes
@@ -91,8 +95,19 @@ def get_exams():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     is_published = request.args.get('is_published', type=bool)
+    search = request.args.get('search', '', type=str).strip()
     
     query = Exam.query
+    
+    # Filtrar por búsqueda
+    if search:
+        search_filter = f'%{search}%'
+        query = query.filter(
+            db.or_(
+                Exam.name.ilike(search_filter),
+                Exam.description.ilike(search_filter)
+            )
+        )
     
     # Filtrar por publicado si se especifica
     if is_published is not None:

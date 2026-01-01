@@ -105,16 +105,6 @@ const Layout = () => {
                       Exámenes
                     </Link>
                     <Link 
-                      to="/test-exams" 
-                      className={`px-3 py-2 rounded-md transition-all ${
-                        location.pathname.startsWith('/test-exams') 
-                          ? 'text-primary-600 font-medium' 
-                          : 'text-gray-900 hover:text-primary-600'
-                      } hover:shadow-sm hover:bg-gray-50`}
-                    >
-                      Probar Exámenes
-                    </Link>
-                    <Link 
                       to="/study-contents" 
                       className={`px-3 py-2 rounded-md transition-all ${
                         location.pathname.startsWith('/study-contents') 

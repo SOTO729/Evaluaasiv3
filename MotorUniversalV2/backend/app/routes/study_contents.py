@@ -7,6 +7,7 @@ import os
 from functools import wraps
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy import text
 from app import db
 from app.models.user import User
 from app.models.study_content import (
@@ -18,8 +19,10 @@ from app.models.study_content import (
     StudyDownloadableExercise,
     StudyInteractiveExercise,
     StudyInteractiveExerciseStep,
-    StudyInteractiveExerciseAction
+    StudyInteractiveExerciseAction,
+    study_material_exams
 )
+from app.models.exam import Exam
 from app.utils.azure_storage import azure_storage
 
 study_contents_bp = Blueprint('study_contents', __name__)
@@ -43,6 +46,217 @@ def get_current_user():
     """Obtener el usuario actual"""
     user_id = get_jwt_identity()
     return User.query.get(user_id)
+
+
+def ensure_study_material_exams_table():
+    """Asegurar que la tabla study_material_exams existe"""
+    try:
+        # Verificar si la tabla existe
+        result = db.session.execute(text("""
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_NAME = 'study_material_exams'
+        """))
+        exists = result.scalar() > 0
+        
+        if not exists:
+            # Crear la tabla si no existe
+            db.session.execute(text("""
+                CREATE TABLE study_material_exams (
+                    study_material_id INT NOT NULL,
+                    exam_id INT NOT NULL,
+                    created_at DATETIME DEFAULT GETDATE(),
+                    PRIMARY KEY (study_material_id, exam_id),
+                    FOREIGN KEY (study_material_id) REFERENCES study_contents(id) ON DELETE CASCADE,
+                    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
+                )
+            """))
+            db.session.commit()
+            print("✅ Tabla study_material_exams creada exitosamente")
+            return True
+        return False
+    except Exception as e:
+        print(f"Error verificando/creando tabla: {e}")
+        db.session.rollback()
+        return False
+
+
+# Endpoint para crear la tabla manualmente (solo admin)
+@study_contents_bp.route('/migrate-exams-table', methods=['POST'])
+@jwt_required()
+@admin_or_editor_required
+def migrate_exams_table():
+    """Crear la tabla study_material_exams si no existe"""
+    try:
+        created = ensure_study_material_exams_table()
+        if created:
+            return jsonify({'message': 'Tabla study_material_exams creada exitosamente'}), 201
+        else:
+            return jsonify({'message': 'La tabla ya existe o hubo un error'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# Endpoint público temporal para crear la tabla (ELIMINAR DESPUÉS DE USAR)
+@study_contents_bp.route('/setup-exams-table', methods=['GET'])
+def setup_exams_table_public():
+    """Crear la tabla study_material_exams - endpoint público temporal"""
+    try:
+        created = ensure_study_material_exams_table()
+        if created:
+            return jsonify({'message': 'Tabla study_material_exams creada exitosamente', 'created': True}), 201
+        else:
+            return jsonify({'message': 'La tabla ya existe', 'created': False}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# Endpoint público de diagnóstico para verificar relaciones de exámenes
+@study_contents_bp.route('/debug-exams/<int:material_id>', methods=['GET'])
+def debug_material_exams(material_id):
+    """Verificar las relaciones de exámenes de un material - endpoint público de diagnóstico"""
+    try:
+        material = StudyMaterial.query.get_or_404(material_id)
+        
+        # Verificar directamente en la tabla de relación
+        direct_query = db.session.execute(text("""
+            SELECT sme.exam_id, e.title as exam_title
+            FROM study_material_exams sme
+            JOIN exams e ON sme.exam_id = e.id
+            WHERE sme.study_material_id = :material_id
+        """), {'material_id': material_id})
+        direct_exams = [{'exam_id': row[0], 'exam_title': row[1]} for row in direct_query.fetchall()]
+        
+        # Verificar a través de SQLAlchemy
+        orm_exams = []
+        try:
+            orm_exams = [{'id': e.id, 'title': e.title} for e in material.exams]
+        except Exception as orm_error:
+            orm_exams = f"Error: {str(orm_error)}"
+        
+        return jsonify({
+            'material_id': material_id,
+            'material_title': material.title,
+            'exam_id_legacy': material.exam_id,
+            'direct_query_exams': direct_exams,
+            'orm_exams': orm_exams,
+            'linked_exams_from_to_dict': material.to_dict().get('linked_exams', [])
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# Endpoint público temporal para crear tablas de sesiones y temas
+@study_contents_bp.route('/setup-sessions-tables', methods=['GET'])
+def setup_sessions_tables_public():
+    """Crear las tablas study_sessions y study_topics - endpoint público temporal"""
+    try:
+        results = []
+        
+        # Verificar y crear tabla study_sessions
+        result = db.session.execute(text("""
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_NAME = 'study_sessions'
+        """))
+        sessions_exists = result.scalar() > 0
+        
+        if not sessions_exists:
+            db.session.execute(text("""
+                CREATE TABLE study_sessions (
+                    id INT IDENTITY(1,1) PRIMARY KEY,
+                    material_id INT NOT NULL,
+                    session_number INT NOT NULL,
+                    title NVARCHAR(255) NOT NULL,
+                    description NVARCHAR(MAX),
+                    created_at DATETIME DEFAULT GETDATE() NOT NULL,
+                    updated_at DATETIME DEFAULT GETDATE(),
+                    FOREIGN KEY (material_id) REFERENCES study_contents(id) ON DELETE CASCADE
+                )
+            """))
+            db.session.commit()
+            results.append('study_sessions creada')
+        else:
+            results.append('study_sessions ya existe')
+        
+        # Verificar y crear tabla study_topics
+        result = db.session.execute(text("""
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_NAME = 'study_topics'
+        """))
+        topics_exists = result.scalar() > 0
+        
+        if not topics_exists:
+            db.session.execute(text("""
+                CREATE TABLE study_topics (
+                    id INT IDENTITY(1,1) PRIMARY KEY,
+                    session_id INT NOT NULL,
+                    title NVARCHAR(255) NOT NULL,
+                    description NVARCHAR(MAX),
+                    [order] INT DEFAULT 0,
+                    created_at DATETIME DEFAULT GETDATE() NOT NULL,
+                    updated_at DATETIME DEFAULT GETDATE(),
+                    FOREIGN KEY (session_id) REFERENCES study_sessions(id) ON DELETE CASCADE
+                )
+            """))
+            db.session.commit()
+            results.append('study_topics creada')
+        else:
+            results.append('study_topics ya existe')
+        
+        return jsonify({'message': 'Proceso completado', 'results': results}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# Endpoint para corregir la FK de study_sessions
+@study_contents_bp.route('/fix-sessions-fk', methods=['GET'])
+def fix_sessions_fk():
+    """Corregir la FK de study_sessions para que apunte a study_contents"""
+    try:
+        results = []
+        
+        # 1. Verificar FKs existentes
+        fk_result = db.session.execute(text("""
+            SELECT fk.name 
+            FROM sys.foreign_keys fk
+            INNER JOIN sys.tables t ON fk.parent_object_id = t.object_id
+            WHERE t.name = 'study_sessions'
+        """))
+        fk_names = [row[0] for row in fk_result.fetchall()]
+        results.append(f'FKs encontradas: {fk_names}')
+        
+        for fk_name in fk_names:
+            try:
+                db.session.execute(text(f"ALTER TABLE study_sessions DROP CONSTRAINT [{fk_name}]"))
+                db.session.commit()
+                results.append(f'FK {fk_name} eliminada')
+            except Exception as e:
+                results.append(f'Error eliminando {fk_name}: {str(e)}')
+        
+        # 2. Eliminar registros huérfanos
+        delete_result = db.session.execute(text("""
+            DELETE FROM study_sessions 
+            WHERE material_id NOT IN (SELECT id FROM study_contents)
+        """))
+        db.session.commit()
+        results.append(f'Registros huérfanos eliminados: {delete_result.rowcount}')
+        
+        # 3. Intentar crear la FK
+        try:
+            db.session.execute(text("""
+                ALTER TABLE study_sessions 
+                ADD CONSTRAINT FK_study_sessions_study_contents 
+                FOREIGN KEY (material_id) REFERENCES study_contents(id) ON DELETE CASCADE
+            """))
+            db.session.commit()
+            results.append('Nueva FK creada exitosamente')
+        except Exception as e:
+            results.append(f'Error creando FK: {str(e)}')
+        
+        return jsonify({'message': 'Proceso completado', 'results': results}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 
 # ==================== CRUD de Materiales de Estudio ====================
@@ -106,6 +320,18 @@ def create_material():
         )
         
         db.session.add(material)
+        db.session.flush()  # Para obtener el ID del material
+        
+        # Manejar múltiples exámenes
+        exam_ids = data.get('exam_ids', [])
+        if exam_ids:
+            # Asegurar que la tabla existe antes de usarla
+            ensure_study_material_exams_table()
+            for exam_id in exam_ids:
+                exam = Exam.query.get(exam_id)
+                if exam:
+                    material.exams.append(exam)
+        
         db.session.commit()
         
         return jsonify({
@@ -136,6 +362,19 @@ def update_material(material_id):
         material.exam_id = data.get('exam_id', material.exam_id)
         material.updated_by = user.id
         
+        # Manejar múltiples exámenes
+        if 'exam_ids' in data:
+            # Asegurar que la tabla existe
+            ensure_study_material_exams_table()
+            # Limpiar exámenes actuales
+            material.exams = []
+            # Agregar nuevos exámenes
+            exam_ids = data.get('exam_ids', [])
+            for exam_id in exam_ids:
+                exam = Exam.query.get(exam_id)
+                if exam:
+                    material.exams.append(exam)
+        
         db.session.commit()
         
         return jsonify({
@@ -162,6 +401,46 @@ def delete_material(material_id):
         
     except Exception as e:
         db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# ==================== Upload de Imagen de Portada ====================
+
+@study_contents_bp.route('/upload-cover-image', methods=['POST'])
+@jwt_required()
+@admin_or_editor_required
+def upload_cover_image():
+    """
+    Subir imagen de portada para materiales de estudio a Azure Blob Storage (Hot tier)
+    Acepta FormData con campo 'image'
+    """
+    try:
+        if 'image' not in request.files:
+            return jsonify({'error': 'No se proporcionó imagen'}), 400
+        
+        file = request.files['image']
+        
+        if file.filename == '':
+            return jsonify({'error': 'Nombre de archivo vacío'}), 400
+        
+        # Validar que es una imagen
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+        if ext not in allowed_extensions:
+            return jsonify({'error': 'Tipo de archivo no permitido. Use: png, jpg, jpeg, gif, webp'}), 400
+        
+        # Subir a Azure Blob Storage (Hot tier - carpeta study-materials/covers)
+        file_url = azure_storage.upload_file(file, folder='study-materials/covers')
+        
+        if not file_url:
+            return jsonify({'error': 'Error al subir la imagen. Verifique la configuración de Azure Storage.'}), 500
+        
+        return jsonify({
+            'message': 'Imagen subida exitosamente',
+            'url': file_url
+        }), 200
+        
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
@@ -251,9 +530,19 @@ def update_session(material_id, session_id):
 @jwt_required()
 @admin_or_editor_required
 def delete_session(material_id, session_id):
-    """Eliminar una sesión"""
+    """Eliminar una sesión y todos sus archivos de Azure Storage"""
     try:
         session = StudySession.query.filter_by(id=session_id, material_id=material_id).first_or_404()
+        
+        # Eliminar archivos de Azure Storage antes de borrar la sesión
+        for topic in session.topics:
+            # Eliminar archivo de video si existe
+            if topic.video and topic.video.video_url and 'blob.core.windows.net' in topic.video.video_url:
+                azure_storage.delete_video(topic.video.video_url)
+            # Eliminar archivo descargable si existe
+            if topic.downloadable_exercise and topic.downloadable_exercise.file_url and 'blob.core.windows.net' in topic.downloadable_exercise.file_url:
+                azure_storage.delete_downloadable(topic.downloadable_exercise.file_url)
+        
         db.session.delete(session)
         db.session.commit()
         
@@ -349,9 +638,18 @@ def update_topic(material_id, session_id, topic_id):
 @jwt_required()
 @admin_or_editor_required
 def delete_topic(material_id, session_id, topic_id):
-    """Eliminar un tema"""
+    """Eliminar un tema y sus archivos de Azure Storage"""
     try:
         topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        
+        # Eliminar archivos de Azure Storage antes de borrar el tema
+        # Eliminar video si existe
+        if topic.video and topic.video.video_url and 'blob.core.windows.net' in topic.video.video_url:
+            azure_storage.delete_video(topic.video.video_url)
+        # Eliminar archivo descargable si existe
+        if topic.downloadable_exercise and topic.downloadable_exercise.file_url and 'blob.core.windows.net' in topic.downloadable_exercise.file_url:
+            azure_storage.delete_downloadable(topic.downloadable_exercise.file_url)
+        
         db.session.delete(topic)
         db.session.commit()
         
@@ -481,11 +779,99 @@ def delete_video(material_id, session_id, topic_id):
         return jsonify({'error': str(e)}), 500
 
 
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/video/get-upload-url', methods=['POST'])
+@jwt_required()
+@admin_or_editor_required
+def get_video_upload_url(material_id, session_id, topic_id):
+    """
+    Obtener URL con SAS token para subir video directamente a Azure
+    Esto evita el límite de 30MB de Azure App Service
+    """
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        
+        data = request.get_json()
+        filename = data.get('filename', 'video.mp4')
+        
+        result = azure_storage.generate_video_upload_sas(filename)
+        
+        if not result:
+            return jsonify({'error': 'No se pudo generar la URL de subida'}), 500
+        
+        return jsonify({
+            'upload_url': result['upload_url'],
+            'download_url': result['download_url'],
+            'blob_name': result['blob_name']
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/video/confirm-upload', methods=['POST'])
+@jwt_required()
+@admin_or_editor_required
+def confirm_video_upload(material_id, session_id, topic_id):
+    """
+    Confirmar que el video se subió correctamente y guardar en BD
+    """
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        
+        data = request.get_json()
+        video_url = data.get('video_url')
+        title = data.get('title', 'Video')
+        description = data.get('description', '')
+        duration_minutes = data.get('duration_minutes')
+        
+        if not video_url:
+            return jsonify({'error': 'URL del video es requerida'}), 400
+        
+        # Eliminar video anterior si existe
+        if topic.video:
+            if topic.video.video_url and 'blob.core.windows.net' in topic.video.video_url:
+                azure_storage.delete_video(topic.video.video_url)
+            topic.video.title = title
+            topic.video.description = description
+            topic.video.video_url = video_url
+            if duration_minutes:
+                topic.video.duration_minutes = duration_minutes
+        else:
+            video = StudyVideo(
+                topic_id=topic.id,
+                title=title,
+                description=description,
+                video_url=video_url,
+                duration_minutes=duration_minutes
+            )
+            db.session.add(video)
+        
+        db.session.commit()
+        
+        # Recargar el video
+        db.session.refresh(topic)
+        
+        return jsonify({
+            'message': 'Video guardado exitosamente',
+            'video': topic.video.to_dict() if topic.video else None
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
 @study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/video/upload', methods=['POST'])
 @jwt_required()
 @admin_or_editor_required
 def upload_video(material_id, session_id, topic_id):
-    """Subir un archivo de video para un tema"""
+    """
+    Subir un archivo de video para un tema
+    - Comprime el video con FFmpeg (~60% reducción)
+    - Lo sube a cuenta Azure Cool tier (~50% más barato)
+    """
+    from app.utils.video_compressor import video_compressor
+    
     try:
         topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
         
@@ -498,22 +884,46 @@ def upload_video(material_id, session_id, topic_id):
             return jsonify({'error': 'Nombre de archivo vacío'}), 400
         
         # Validar extensión
-        allowed_extensions = {'mp4', 'webm', 'ogg', 'mov', 'avi'}
+        allowed_extensions = {'mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv', 'mpeg', '3gp'}
         ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
         if ext not in allowed_extensions:
             return jsonify({'error': f'Extensión no permitida. Use: {", ".join(allowed_extensions)}'}), 400
         
-        # Validar tamaño (máximo 500MB)
+        # Validar tamaño (máximo 2GB)
         file.seek(0, 2)  # Ir al final
         file_size = file.tell()
         file.seek(0)  # Volver al inicio
         
-        max_size = 500 * 1024 * 1024  # 500MB
+        max_size = 2 * 1024 * 1024 * 1024  # 2GB
         if file_size > max_size:
-            return jsonify({'error': 'El video excede el tamaño máximo de 500MB'}), 400
+            return jsonify({'error': 'El video excede el tamaño máximo de 2GB'}), 400
         
-        # Subir a Azure Blob Storage
-        video_url = azure_storage.upload_file(file, folder='study-videos')
+        original_filename = file.filename
+        compression_info = {}
+        
+        # Intentar comprimir el video
+        compressed_path, original_size, compressed_size = video_compressor.compress_video(file)
+        
+        if compressed_path:
+            # Usar video comprimido
+            video_url = azure_storage.upload_video(compressed_path, original_filename)
+            compression_info = {
+                'original_size_mb': round(original_size / (1024 * 1024), 2),
+                'compressed_size_mb': round(compressed_size / (1024 * 1024), 2),
+                'reduction_percent': round((1 - compressed_size / original_size) * 100, 1),
+                'compressed': True
+            }
+            # Limpiar archivo temporal
+            video_compressor.cleanup_temp_file(compressed_path)
+        else:
+            # Subir archivo original si compresión falló
+            file.seek(0)
+            video_url = azure_storage.upload_video(file, original_filename)
+            compression_info = {
+                'original_size_mb': round(file_size / (1024 * 1024), 2),
+                'compressed': False,
+                'reason': 'FFmpeg no disponible o compresión no significativa'
+            }
         
         if not video_url:
             return jsonify({'error': 'Error al subir el video. Verifique la configuración de Azure Storage.'}), 500
@@ -527,7 +937,7 @@ def upload_video(material_id, session_id, topic_id):
         if topic.video:
             # Eliminar video anterior de Azure
             if topic.video.video_url and 'blob.core.windows.net' in topic.video.video_url:
-                azure_storage.delete_file(topic.video.video_url)
+                azure_storage.delete_video(topic.video.video_url)
             topic.video.title = title
             topic.video.description = description
             topic.video.video_url = video_url
@@ -548,7 +958,9 @@ def upload_video(material_id, session_id, topic_id):
         
         return jsonify({
             'message': 'Video subido exitosamente',
-            'video': topic.video.to_dict() if topic.video else None
+            'video': topic.video.to_dict() if topic.video else None,
+            'compression': compression_info,
+            'storage_tier': 'Cool (optimizado para costos)'
         }), 200
         
     except Exception as e:
@@ -637,10 +1049,142 @@ def delete_downloadable(material_id, session_id, topic_id):
     try:
         topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
         if topic.downloadable_exercise:
+            # Eliminar archivo de Azure si existe
+            if topic.downloadable_exercise.file_url and 'blob.core.windows.net' in topic.downloadable_exercise.file_url:
+                azure_storage.delete_downloadable(topic.downloadable_exercise.file_url)
             db.session.delete(topic.downloadable_exercise)
             db.session.commit()
         
         return jsonify({'message': 'Ejercicio descargable eliminado exitosamente'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/downloadable/upload', methods=['POST'])
+@jwt_required()
+@admin_or_editor_required
+def upload_downloadable(material_id, session_id, topic_id):
+    """
+    Subir archivo(s) para ejercicio descargable
+    - Si se sube un archivo: se guarda directamente
+    - Si se suben múltiples archivos: se comprimen en ZIP
+    - Almacena en Cool tier para optimizar costos
+    """
+    from app.utils.file_compressor import file_compressor
+    
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        
+        if 'files' not in request.files and 'file' not in request.files:
+            return jsonify({'error': 'No se proporcionaron archivos'}), 400
+        
+        # Obtener archivos (soporta tanto 'file' como 'files')
+        files = request.files.getlist('files') or [request.files.get('file')]
+        files = [f for f in files if f and f.filename]  # Filtrar vacíos
+        
+        if not files:
+            return jsonify({'error': 'No se proporcionaron archivos válidos'}), 400
+        
+        # Validar tamaño total (máximo 100MB)
+        max_size = 100 * 1024 * 1024
+        total_size = 0
+        for f in files:
+            f.seek(0, 2)
+            total_size += f.tell()
+            f.seek(0)
+        
+        if total_size > max_size:
+            return jsonify({'error': 'Los archivos exceden el tamaño máximo de 100MB'}), 400
+        
+        # Obtener metadatos
+        title = request.form.get('title', files[0].filename if len(files) == 1 else 'Ejercicio descargable')
+        description = request.form.get('description', '')
+        
+        compression_info = {}
+        
+        if len(files) == 1:
+            # Un solo archivo - subir directamente
+            file = files[0]
+            file_info = file_compressor.get_file_info(file)
+            
+            file_url, upload_error = azure_storage.upload_downloadable(file, file.filename, file_info['content_type'])
+            
+            if not file_url:
+                error_msg = upload_error or 'Error desconocido al subir el archivo'
+                return jsonify({'error': error_msg}), 500
+            
+            final_filename = file_info['filename']
+            final_size = file_info['size_bytes']
+            final_type = file_info['content_type']
+            
+            compression_info = {
+                'files_count': 1,
+                'original_size_mb': file_info['size_mb'],
+                'compressed': False
+            }
+        else:
+            # Múltiples archivos - comprimir en ZIP
+            zip_filename = f"{title.replace(' ', '_')}.zip" if title else 'ejercicio.zip'
+            zip_path, original_size, zip_size = file_compressor.compress_files_to_zip(files, zip_filename)
+            
+            if not zip_path:
+                return jsonify({'error': 'Error al comprimir archivos'}), 500
+            
+            file_url, upload_error = azure_storage.upload_downloadable(zip_path, zip_filename, 'application/zip')
+            
+            # Limpiar archivo temporal
+            file_compressor.cleanup_temp_file(zip_path)
+            
+            if not file_url:
+                error_msg = upload_error or 'Error desconocido al subir el archivo ZIP'
+                return jsonify({'error': error_msg}), 500
+            
+            final_filename = zip_filename
+            final_size = zip_size
+            final_type = 'application/zip'
+            
+            compression_info = {
+                'files_count': len(files),
+                'original_size_mb': round(original_size / (1024 * 1024), 2),
+                'compressed_size_mb': round(zip_size / (1024 * 1024), 2),
+                'reduction_percent': round((1 - zip_size / original_size) * 100, 1) if original_size > 0 else 0,
+                'compressed': True
+            }
+        
+        # Actualizar o crear el ejercicio descargable
+        if topic.downloadable_exercise:
+            # Eliminar archivo anterior
+            if topic.downloadable_exercise.file_url and 'blob.core.windows.net' in topic.downloadable_exercise.file_url:
+                azure_storage.delete_downloadable(topic.downloadable_exercise.file_url)
+            
+            topic.downloadable_exercise.title = title
+            topic.downloadable_exercise.description = description
+            topic.downloadable_exercise.file_url = file_url
+            topic.downloadable_exercise.file_name = final_filename
+            topic.downloadable_exercise.file_type = final_type
+            topic.downloadable_exercise.file_size_bytes = final_size
+        else:
+            downloadable = StudyDownloadableExercise(
+                topic_id=topic_id,
+                title=title,
+                description=description,
+                file_url=file_url,
+                file_name=final_filename,
+                file_type=final_type,
+                file_size_bytes=final_size
+            )
+            db.session.add(downloadable)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Archivo(s) subido(s) exitosamente',
+            'downloadable_exercise': topic.downloadable_exercise.to_dict() if topic.downloadable_exercise else None,
+            'compression': compression_info,
+            'storage_tier': 'Cool (optimizado para costos)'
+        }), 200
         
     except Exception as e:
         db.session.rollback()
@@ -932,4 +1476,44 @@ def delete_action(material_id, session_id, topic_id, step_id, action_id):
         
     except Exception as e:
         db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# ==================== Upload de Imagen para Ejercicios Interactivos ====================
+
+@study_contents_bp.route('/upload-image', methods=['POST'])
+@jwt_required()
+@admin_or_editor_required
+def upload_interactive_image():
+    """
+    Subir imagen para ejercicios interactivos a Azure Blob Storage (Hot tier)
+    Acepta FormData con campo 'image'
+    """
+    try:
+        if 'image' not in request.files:
+            return jsonify({'error': 'No se proporcionó imagen'}), 400
+        
+        file = request.files['image']
+        
+        if file.filename == '':
+            return jsonify({'error': 'Nombre de archivo vacío'}), 400
+        
+        # Validar que es una imagen
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+        if ext not in allowed_extensions:
+            return jsonify({'error': 'Tipo de archivo no permitido. Use: png, jpg, jpeg, gif, webp'}), 400
+        
+        # Subir a Azure Blob Storage (Hot tier - carpeta interactive-exercises)
+        file_url = azure_storage.upload_file(file, folder='interactive-exercises')
+        
+        if not file_url:
+            return jsonify({'error': 'Error al subir la imagen. Verifique la configuración de Azure Storage.'}), 500
+        
+        return jsonify({
+            'message': 'Imagen subida exitosamente',
+            'url': file_url
+        }), 200
+        
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
