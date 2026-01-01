@@ -11,6 +11,7 @@ import 'react-quill-new/dist/quill.snow.css';
 import {
   getMaterial,
   updateMaterial,
+  deleteMaterial,
   createSession,
   updateSession,
   deleteSession,
@@ -55,8 +56,13 @@ import {
   Upload,
   ClipboardList,
   Link,
+  AlertCircle,
+  BookOpen,
+  PlayCircle,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { useAuthStore } from '../../store/authStore';
+import api from '../../services/api';
 
 // Modal genérico
 interface ModalProps {
@@ -105,7 +111,7 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
   }, [onClose]);
 
   return (
-    <div className="fixed top-4 right-4 z-[100] animate-pulse">
+    <div className="fixed top-4 right-4 z-[100] animate-slide-in">
       <div className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${
         type === 'success' 
           ? 'bg-green-600 text-white' 
@@ -237,6 +243,15 @@ const StudyContentDetailPage = () => {
   // Toast notification state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   
+  // Delete material modal state
+  const [showDeleteMaterialModal, setShowDeleteMaterialModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Auth store
+  const { user } = useAuthStore();
+  
   // Success modal state
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successModalData, setSuccessModalData] = useState<{ title: string; fileName: string; fileSize: string; contentType?: 'video' | 'file' } | null>(null);
@@ -253,6 +268,135 @@ const StudyContentDetailPage = () => {
     description: ''
   });
   const [savingInteractive, setSavingInteractive] = useState(false);
+
+  // Validation modal state
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [validationResult, setValidationResult] = useState<{
+    is_valid: boolean;
+    errors: { session: string; topic: string; element: string; message: string }[];
+    summary: {
+      total_sessions: number;
+      total_topics: number;
+      complete_topics: number;
+      incomplete_topics: number;
+    };
+  } | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  // Validation function
+  const validateMaterialForPublish = () => {
+    if (!material) return null;
+
+    const errors: { session: string; topic: string; element: string; message: string }[] = [];
+    let totalTopics = 0;
+    let completeTopics = 0;
+    let incompleteTopics = 0;
+
+    // Check if there are sessions
+    if (!material.sessions || material.sessions.length === 0) {
+      errors.push({
+        session: 'General',
+        topic: '',
+        element: 'Sesiones',
+        message: 'El material debe tener al menos una sesión'
+      });
+    } else {
+      material.sessions.forEach((session) => {
+        // Check if session has topics
+        if (!session.topics || session.topics.length === 0) {
+          errors.push({
+            session: `Sesión ${session.session_number}: ${session.title}`,
+            topic: '',
+            element: 'Temas',
+            message: 'La sesión debe tener al menos un tema'
+          });
+        } else {
+          session.topics.forEach((topic) => {
+            totalTopics++;
+            const missingElements: string[] = [];
+
+            if (!topic.reading) missingElements.push('Lectura');
+            if (!topic.video) missingElements.push('Video');
+            if (!topic.downloadable_exercise) missingElements.push('Ejercicio Descargable');
+            if (!topic.interactive_exercise) missingElements.push('Ejercicio Interactivo');
+
+            if (missingElements.length > 0) {
+              incompleteTopics++;
+              errors.push({
+                session: `Sesión ${session.session_number}: ${session.title}`,
+                topic: topic.title,
+                element: missingElements.join(', '),
+                message: `Faltan elementos: ${missingElements.join(', ')}`
+              });
+            } else {
+              completeTopics++;
+            }
+          });
+        }
+      });
+    }
+
+    return {
+      is_valid: errors.length === 0,
+      errors,
+      summary: {
+        total_sessions: material.sessions?.length || 0,
+        total_topics: totalTopics,
+        complete_topics: completeTopics,
+        incomplete_topics: incompleteTopics
+      }
+    };
+  };
+
+  // Handle validate and publish
+  const handleValidateAndPublish = () => {
+    const result = validateMaterialForPublish();
+    setValidationResult(result);
+    setShowValidationModal(true);
+  };
+
+  // Handle publish
+  const handlePublish = async () => {
+    if (!validationResult?.is_valid) return;
+    
+    setIsPublishing(true);
+    try {
+      await updateMaterial(Number(materialId), { is_published: true });
+      setShowValidationModal(false);
+      setToast({ message: '¡Material publicado exitosamente! Ya está disponible para los estudiantes.', type: 'success' });
+      loadMaterial();
+    } catch (error) {
+      console.error('Error publishing material:', error);
+      setToast({ message: 'Error al publicar el material', type: 'error' });
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  // Handle delete material
+  const handleDeleteMaterial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleteError('');
+    
+    if (!deletePassword.trim()) return;
+    
+    setIsDeleting(true);
+    try {
+      // Verify password first
+      await api.post('/auth/verify-password', { password: deletePassword });
+      
+      // Delete material
+      await deleteMaterial(materialId);
+      
+      // Redirect to materials list
+      navigate('/study-contents');
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error || 'Contraseña incorrecta';
+      setDeleteError(errorMsg);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   useEffect(() => {
     if (materialId) {
@@ -765,16 +909,7 @@ const StudyContentDetailPage = () => {
                 </button>
               ) : (
                 <button
-                  onClick={async () => {
-                    try {
-                      await updateMaterial(Number(materialId), { is_published: true });
-                      setToast({ message: '¡Material publicado exitosamente! Ya está disponible para los estudiantes.', type: 'success' });
-                      loadMaterial();
-                    } catch (error) {
-                      console.error('Error updating material:', error);
-                      setToast({ message: 'Error al publicar el material', type: 'error' });
-                    }
-                  }}
+                  onClick={handleValidateAndPublish}
                   className="px-4 py-2 bg-green-500 text-white hover:bg-green-600 rounded-lg transition-colors font-medium flex items-center gap-2 shadow-sm"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -790,6 +925,16 @@ const StudyContentDetailPage = () => {
                 <Edit2 className="h-5 w-5" />
                 Editar Material
               </button>
+              {/* Botón Eliminar Material (solo admin) */}
+              {user?.role === 'admin' && (
+                <button
+                  onClick={() => setShowDeleteMaterialModal(true)}
+                  className="px-4 py-2 bg-red-500/90 text-white hover:bg-red-600 rounded-lg transition-colors font-medium flex items-center gap-2 shadow-sm"
+                >
+                  <Trash2 className="h-5 w-5" />
+                  Eliminar
+                </button>
+              )}
             </div>
           </div>
 
@@ -833,13 +978,31 @@ const StudyContentDetailPage = () => {
         </div>
       </div>
 
+      {/* Warning when published */}
+      {material.is_published && (
+        <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center gap-3">
+          <svg className="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div>
+            <p className="text-amber-800 font-medium">Contenido publicado</p>
+            <p className="text-amber-700 text-sm">Para editar el contenido, primero cambia el material a borrador.</p>
+          </div>
+        </div>
+      )}
+
       {/* Sessions */}
       <div className="bg-white rounded-lg shadow">
         <div className="p-4 border-b flex justify-between items-center">
           <h2 className="text-lg font-semibold text-gray-800">Sesiones</h2>
           <button
             onClick={() => openSessionModal()}
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-1.5 text-sm font-medium transition-colors shadow-sm"
+            disabled={material.is_published}
+            className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-sm font-medium transition-colors shadow-sm ${
+              material.is_published
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}
           >
             <Plus className="h-4 w-4" />
             Nueva Sesión
@@ -852,7 +1015,12 @@ const StudyContentDetailPage = () => {
             <p className="text-gray-500">No hay sesiones aún</p>
             <button
               onClick={() => openSessionModal()}
-              className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-2"
+              disabled={material.is_published}
+              className={`mt-3 px-4 py-2 rounded-lg inline-flex items-center gap-2 ${
+                material.is_published
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
             >
               <Plus className="h-5 w-5" />
               Crear Primera Sesión
@@ -887,24 +1055,28 @@ const StudyContentDetailPage = () => {
                   </div>
                   <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                     <span className="text-sm text-gray-500">{session.topics?.length || 0} temas</span>
-                    <button
-                      onClick={() => openSessionModal(session)}
-                      className="p-2 text-primary-600 hover:bg-primary-100 rounded-lg transition-colors"
-                      title="Editar sesión"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => openDeleteModal('session', session.id, session.title)}
-                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                      title="Eliminar sesión"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    {!material.is_published && (
+                      <>
+                        <button
+                          onClick={() => openSessionModal(session)}
+                          className="p-2 text-primary-600 hover:bg-primary-100 rounded-lg transition-colors"
+                          title="Editar sesión"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => openDeleteModal('session', session.id, session.title)}
+                          className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                          title="Eliminar sesión"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -915,7 +1087,12 @@ const StudyContentDetailPage = () => {
                       <span className="text-sm font-medium text-gray-600">Temas de la sesión</span>
                       <button
                         onClick={() => openTopicModal(session.id)}
-                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-1.5 text-sm font-medium transition-colors shadow-sm"
+                        disabled={material.is_published}
+                        className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-sm font-medium transition-colors shadow-sm ${
+                          material.is_published
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        }`}
                       >
                         <Plus className="h-4 w-4" />
                         Nuevo Tema
@@ -959,24 +1136,28 @@ const StudyContentDetailPage = () => {
                                     <Gamepad2 className="h-3.5 w-3.5" />
                                   </span>
                                 </div>
-                                <button
-                                  onClick={() => openTopicModal(session.id, topic)}
-                                  className="p-2 text-primary-600 hover:bg-primary-100 rounded-lg transition-colors"
-                                  title="Editar tema"
-                                >
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={() => openDeleteModal('topic', topic.id, topic.title, session.id)}
-                                  className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                                  title="Eliminar tema"
-                                >
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                </button>
+                                {!material.is_published && (
+                                  <>
+                                    <button
+                                      onClick={() => openTopicModal(session.id, topic)}
+                                      className="p-2 text-primary-600 hover:bg-primary-100 rounded-lg transition-colors"
+                                      title="Editar tema"
+                                    >
+                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      onClick={() => openDeleteModal('topic', topic.id, topic.title, session.id)}
+                                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                      title="Eliminar tema"
+                                    >
+                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             </div>
 
@@ -985,9 +1166,21 @@ const StudyContentDetailPage = () => {
                               <div className="bg-gray-50 p-4 pl-16 grid grid-cols-2 gap-3">
                                 {/* Lectura */}
                                 <div
-                                  onClick={() => openReadingModal(session.id, topic)}
-                                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                                    topic.reading ? 'bg-green-50 border-green-200 hover:bg-green-100' : 'bg-white hover:bg-gray-100'
+                                  onClick={() => {
+                                    if (material.is_published) {
+                                      setToast({ message: 'Cambie el material a borrador para editar el contenido', type: 'error' });
+                                      return;
+                                    }
+                                    openReadingModal(session.id, topic);
+                                  }}
+                                  className={`p-3 rounded-lg border transition-colors ${
+                                    material.is_published
+                                      ? 'cursor-not-allowed opacity-60'
+                                      : 'cursor-pointer'
+                                  } ${
+                                    topic.reading ? 'bg-green-50 border-green-200' : 'bg-white'
+                                  } ${
+                                    !material.is_published && (topic.reading ? 'hover:bg-green-100' : 'hover:bg-gray-100')
                                   }`}
                                 >
                                   <div className="flex items-center gap-2 mb-1">
@@ -1001,9 +1194,21 @@ const StudyContentDetailPage = () => {
 
                                 {/* Video */}
                                 <div
-                                  onClick={() => openVideoModal(session.id, topic)}
-                                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                                    topic.video ? 'bg-green-50 border-green-200 hover:bg-green-100' : 'bg-white hover:bg-gray-100'
+                                  onClick={() => {
+                                    if (material.is_published) {
+                                      setToast({ message: 'Cambie el material a borrador para editar el contenido', type: 'error' });
+                                      return;
+                                    }
+                                    openVideoModal(session.id, topic);
+                                  }}
+                                  className={`p-3 rounded-lg border transition-colors ${
+                                    material.is_published
+                                      ? 'cursor-not-allowed opacity-60'
+                                      : 'cursor-pointer'
+                                  } ${
+                                    topic.video ? 'bg-green-50 border-green-200' : 'bg-white'
+                                  } ${
+                                    !material.is_published && (topic.video ? 'hover:bg-green-100' : 'hover:bg-gray-100')
                                   }`}
                                 >
                                   <div className="flex items-center gap-2 mb-1">
@@ -1017,9 +1222,21 @@ const StudyContentDetailPage = () => {
 
                                 {/* Descargable */}
                                 <div
-                                  onClick={() => openDownloadableModal(session.id, topic)}
-                                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                                    topic.downloadable_exercise ? 'bg-green-50 border-green-200 hover:bg-green-100' : 'bg-white hover:bg-gray-100'
+                                  onClick={() => {
+                                    if (material.is_published) {
+                                      setToast({ message: 'Cambie el material a borrador para editar el contenido', type: 'error' });
+                                      return;
+                                    }
+                                    openDownloadableModal(session.id, topic);
+                                  }}
+                                  className={`p-3 rounded-lg border transition-colors ${
+                                    material.is_published
+                                      ? 'cursor-not-allowed opacity-60'
+                                      : 'cursor-pointer'
+                                  } ${
+                                    topic.downloadable_exercise ? 'bg-green-50 border-green-200' : 'bg-white'
+                                  } ${
+                                    !material.is_published && (topic.downloadable_exercise ? 'hover:bg-green-100' : 'hover:bg-gray-100')
                                   }`}
                                 >
                                   <div className="flex items-center gap-2 mb-1">
@@ -1034,6 +1251,10 @@ const StudyContentDetailPage = () => {
                                 {/* Interactivo */}
                                 <div
                                   onClick={() => {
+                                    if (material.is_published) {
+                                      setToast({ message: 'Cambie el material a borrador para editar el contenido', type: 'error' });
+                                      return;
+                                    }
                                     setInteractiveConfigData({
                                       topicId: topic.id,
                                       sessionId: session.id,
@@ -1045,8 +1266,14 @@ const StudyContentDetailPage = () => {
                                     });
                                     setInteractiveConfigOpen(true);
                                   }}
-                                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                                    topic.interactive_exercise ? 'bg-green-50 border-green-200 hover:bg-green-100' : 'bg-white hover:bg-gray-100'
+                                  className={`p-3 rounded-lg border transition-colors ${
+                                    material.is_published
+                                      ? 'cursor-not-allowed opacity-60'
+                                      : 'cursor-pointer'
+                                  } ${
+                                    topic.interactive_exercise ? 'bg-green-50 border-green-200' : 'bg-white'
+                                  } ${
+                                    !material.is_published && (topic.interactive_exercise ? 'hover:bg-green-100' : 'hover:bg-gray-100')
                                   }`}
                                 >
                                   <div className="flex items-center gap-2 mb-1">
@@ -1943,6 +2170,251 @@ const StudyContentDetailPage = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Modal de Validación para Publicar */}
+      <Modal
+        isOpen={showValidationModal}
+        onClose={() => !isPublishing && setShowValidationModal(false)}
+        title={validationResult?.is_valid ? '¡Material Listo para Publicar!' : 'Validación del Material'}
+        size="lg"
+      >
+        <div className="space-y-4">
+          {validationResult && (
+            <>
+              {/* Resumen */}
+              <div className={`p-4 rounded-xl ${validationResult.is_valid ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'}`}>
+                <div className="flex items-center gap-3 mb-3">
+                  {validationResult.is_valid ? (
+                    <>
+                      <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                        <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-green-800">Todo el contenido está completo</h3>
+                        <p className="text-sm text-green-600">El material cumple con todos los requisitos para ser publicado</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                        <AlertCircle className="w-6 h-6 text-amber-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-amber-800">Contenido incompleto</h3>
+                        <p className="text-sm text-amber-600">Completa todos los elementos antes de publicar</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  <div className="bg-white/60 rounded-lg p-2">
+                    <div className="text-lg font-bold text-gray-800">{validationResult.summary.total_sessions}</div>
+                    <div className="text-xs text-gray-500">Sesiones</div>
+                  </div>
+                  <div className="bg-white/60 rounded-lg p-2">
+                    <div className="text-lg font-bold text-gray-800">{validationResult.summary.total_topics}</div>
+                    <div className="text-xs text-gray-500">Temas</div>
+                  </div>
+                  <div className="bg-white/60 rounded-lg p-2">
+                    <div className="text-lg font-bold text-green-600">{validationResult.summary.complete_topics}</div>
+                    <div className="text-xs text-gray-500">Completos</div>
+                  </div>
+                  <div className="bg-white/60 rounded-lg p-2">
+                    <div className={`text-lg font-bold ${validationResult.summary.incomplete_topics > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
+                      {validationResult.summary.incomplete_topics}
+                    </div>
+                    <div className="text-xs text-gray-500">Incompletos</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lista de errores */}
+              {!validationResult.is_valid && validationResult.errors.length > 0 && (
+                <div className="max-h-64 overflow-y-auto space-y-2">
+                  <h4 className="text-sm font-medium text-gray-700 sticky top-0 bg-white pb-2">
+                    Elementos faltantes ({validationResult.errors.length})
+                  </h4>
+                  {validationResult.errors.map((error, index) => (
+                    <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                      <div className="flex items-start gap-2">
+                        <div className="w-5 h-5 rounded-full bg-amber-100 flex-shrink-0 flex items-center justify-center mt-0.5">
+                          <span className="text-xs font-medium text-amber-600">{index + 1}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-800 truncate">{error.session}</div>
+                          {error.topic && (
+                            <div className="text-sm text-gray-600 truncate">Tema: {error.topic}</div>
+                          )}
+                          <div className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {error.element}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Leyenda de elementos */}
+              {!validationResult.is_valid && (
+                <div className="pt-2 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 mb-2">Cada tema debe incluir:</p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <BookOpen className="w-4 h-4 text-blue-500" />
+                      <span>Lectura</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <PlayCircle className="w-4 h-4 text-red-500" />
+                      <span>Video</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Download className="w-4 h-4 text-green-500" />
+                      <span>Ejercicio Descargable</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Gamepad2 className="w-4 h-4 text-purple-500" />
+                      <span>Ejercicio Interactivo</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowValidationModal(false)}
+                  disabled={isPublishing}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium disabled:opacity-50"
+                >
+                  {validationResult.is_valid ? 'Cancelar' : 'Cerrar'}
+                </button>
+                {validationResult.is_valid && (
+                  <button
+                    onClick={handlePublish}
+                    disabled={isPublishing}
+                    className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isPublishing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Publicando...
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="h-4 w-4" />
+                        Publicar Ahora
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
+
+      {/* Modal de Confirmación de Eliminación del Material */}
+      {showDeleteMaterialModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mr-4">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900">
+                Confirmar Eliminación del Material
+              </h3>
+            </div>
+            
+            <p className="text-gray-700 mb-2">
+              ¿Estás seguro de que deseas eliminar el material <strong>"{material?.title}"</strong>?
+            </p>
+            
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-red-800 font-medium">
+                    Esta acción no se puede deshacer. Se eliminarán permanentemente:
+                  </p>
+                  <ul className="list-disc list-inside text-sm text-red-700 mt-2">
+                    <li>Todas las sesiones ({material?.sessions?.length || 0})</li>
+                    <li>Todos los temas, lecturas, videos y ejercicios</li>
+                    <li>Todos los archivos descargables asociados</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleDeleteMaterial}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Para confirmar, ingresa tu contraseña:
+                </label>
+                <input
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => {
+                    setDeletePassword(e.target.value);
+                    setDeleteError('');
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  placeholder="Tu contraseña"
+                  required
+                  autoFocus
+                />
+                {deleteError && (
+                  <p className="mt-2 text-sm text-red-600">{deleteError}</p>
+                )}
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteMaterialModal(false);
+                    setDeletePassword('');
+                    setDeleteError('');
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  disabled={isDeleting}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors font-medium disabled:opacity-50 flex items-center gap-2"
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Eliminando...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4" />
+                      Eliminar Material
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

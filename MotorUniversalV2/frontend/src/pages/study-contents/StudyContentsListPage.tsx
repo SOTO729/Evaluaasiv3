@@ -7,7 +7,6 @@ import DOMPurify from 'dompurify';
 import { 
   getMaterials, 
   deleteMaterial, 
-  updateMaterial,
   StudyMaterial, 
   MaterialsResponse 
 } from '../../services/studyContentService';
@@ -15,16 +14,13 @@ import {
   BookOpen, 
   Plus, 
   Search, 
-  Edit2, 
-  Trash2, 
   Eye, 
   EyeOff,
   ChevronLeft,
   ChevronRight,
   Layers,
   FileText,
-  Calendar,
-  MoreVertical
+  Calendar
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
@@ -32,13 +28,9 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 interface MaterialCardProps {
   material: StudyMaterial;
   navigate: NavigateFunction;
-  activeMenu: number | null;
-  setActiveMenu: (id: number | null) => void;
-  handleTogglePublish: (material: StudyMaterial) => void;
-  openDeleteModal: (material: StudyMaterial) => void;
 }
 
-const MaterialCard = ({ material, navigate, activeMenu, setActiveMenu, handleTogglePublish, openDeleteModal }: MaterialCardProps) => (
+const MaterialCard = ({ material, navigate }: MaterialCardProps) => (
   <div
     className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 group"
   >
@@ -80,77 +72,6 @@ const MaterialCard = ({ material, navigate, activeMenu, setActiveMenu, handleTog
             </>
           )}
         </span>
-      </div>
-
-      {/* Menu Button */}
-      <div className="absolute top-3 right-3">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setActiveMenu(activeMenu === material.id ? null : material.id);
-          }}
-          className="p-1.5 rounded-full bg-black/30 hover:bg-black/50 text-white transition-colors"
-        >
-          <MoreVertical className="h-4 w-4" />
-        </button>
-        
-        {/* Dropdown Menu */}
-        {activeMenu === material.id && (
-          <div className="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border py-1 z-10">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/study-contents/${material.id}`);
-              }}
-              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-            >
-              <Eye className="h-4 w-4" />
-              Ver detalles
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/study-contents/${material.id}/edit`);
-              }}
-              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-            >
-              <Edit2 className="h-4 w-4" />
-              Editar
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleTogglePublish(material);
-                setActiveMenu(null);
-              }}
-              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-            >
-              {material.is_published ? (
-                <>
-                  <EyeOff className="h-4 w-4" />
-                  Cambiar a Borrador
-                </>
-              ) : (
-                <>
-                  <Eye className="h-4 w-4" />
-                  Publicar
-                </>
-              )}
-            </button>
-            <hr className="my-1" />
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                openDeleteModal(material);
-                setActiveMenu(null);
-              }}
-              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-            >
-              <Trash2 className="h-4 w-4" />
-              Eliminar
-            </button>
-          </div>
-        )}
       </div>
     </div>
 
@@ -207,7 +128,6 @@ const StudyContentsListPage = () => {
   const [total, setTotal] = useState(0);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [materialToDelete, setMaterialToDelete] = useState<StudyMaterial | null>(null);
-  const [activeMenu, setActiveMenu] = useState<number | null>(null);
 
   const fetchMaterials = async () => {
     setLoading(true);
@@ -227,28 +147,10 @@ const StudyContentsListPage = () => {
     fetchMaterials();
   }, [currentPage, searchTerm]);
 
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = () => setActiveMenu(null);
-    if (activeMenu !== null) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [activeMenu]);
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setCurrentPage(1);
     fetchMaterials();
-  };
-
-  const handleTogglePublish = async (material: StudyMaterial) => {
-    try {
-      await updateMaterial(material.id, { is_published: !material.is_published });
-      fetchMaterials();
-    } catch (error) {
-      console.error('Error al actualizar material:', error);
-    }
   };
 
   const handleDelete = async () => {
@@ -263,10 +165,11 @@ const StudyContentsListPage = () => {
     }
   };
 
-  const openDeleteModal = (material: StudyMaterial) => {
-    setMaterialToDelete(material);
-    setDeleteModalOpen(true);
-  };
+  // La función de eliminar se mantiene comentada por si se necesita en el futuro
+  // const openDeleteModal = (material: StudyMaterial) => {
+  //   setMaterialToDelete(material);
+  //   setDeleteModalOpen(true);
+  // };
 
   return (
     <div className="p-6">
@@ -348,10 +251,6 @@ const StudyContentsListPage = () => {
                     key={material.id} 
                     material={material} 
                     navigate={navigate}
-                    activeMenu={activeMenu}
-                    setActiveMenu={setActiveMenu}
-                    handleTogglePublish={handleTogglePublish}
-                    openDeleteModal={openDeleteModal}
                   />
                 ))}
               </div>
@@ -374,10 +273,6 @@ const StudyContentsListPage = () => {
                     key={material.id} 
                     material={material} 
                     navigate={navigate}
-                    activeMenu={activeMenu}
-                    setActiveMenu={setActiveMenu}
-                    handleTogglePublish={handleTogglePublish}
-                    openDeleteModal={openDeleteModal}
                   />
                 ))}
               </div>

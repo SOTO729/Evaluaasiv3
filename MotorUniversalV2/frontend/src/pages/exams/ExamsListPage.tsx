@@ -8,34 +8,23 @@ import {
   Plus, 
   Eye, 
   EyeOff, 
-  Edit2, 
-  Trash2, 
-  Clock, 
   HelpCircle,
-  ClipboardList,
   Target,
-  MoreVertical,
   Layers,
   Calendar,
   Search,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Award,
+  Timer
 } from 'lucide-react'
 import LoadingSpinner from '../../components/LoadingSpinner'
 
 // Componente de tarjeta de examen con nuevo diseño
 const ExamCard = ({ 
-  exam, 
-  onEdit, 
-  onDelete,
-  activeMenu,
-  setActiveMenu
+  exam
 }: { 
   exam: any;
-  onEdit: (id: string) => void;
-  onDelete: (exam: any) => void;
-  activeMenu: string | null;
-  setActiveMenu: (id: string | null) => void;
 }) => {
   const navigate = useNavigate();
 
@@ -82,51 +71,10 @@ const ExamCard = ({
         </div>
 
         {/* Version Badge */}
-        <div className="absolute top-3 right-12">
+        <div className="absolute top-3 right-3">
           <span className="px-2 py-1 rounded-full text-xs font-mono bg-black/30 text-white">
             {exam.version}
           </span>
-        </div>
-
-        {/* Menu Button */}
-        <div className="absolute top-3 right-3">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setActiveMenu(activeMenu === exam.id ? null : exam.id);
-            }}
-            className="p-1.5 rounded-full bg-black/30 hover:bg-black/50 text-white transition-colors"
-          >
-            <MoreVertical className="h-4 w-4" />
-          </button>
-          
-          {/* Dropdown Menu */}
-          {activeMenu === exam.id && (
-            <div className="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border py-1 z-10">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(exam.id);
-                }}
-                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-              >
-                <Edit2 className="h-4 w-4" />
-                Editar
-              </button>
-              <hr className="my-1" />
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(exam);
-                  setActiveMenu(null);
-                }}
-                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                Eliminar
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
@@ -142,20 +90,20 @@ const ExamCard = ({
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-2 mb-3 text-xs text-gray-500">
           <div className="flex items-center gap-1">
-            <Target className="h-3.5 w-3.5 text-green-500" />
-            <span>{exam.passing_score}% aprobación</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5 text-blue-500" />
-            <span>{exam.duration_minutes || 0} min</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <HelpCircle className="h-3.5 w-3.5 text-purple-500" />
+            <HelpCircle className="h-3.5 w-3.5 text-blue-500" />
             <span>{exam.total_questions} preguntas</span>
           </div>
           <div className="flex items-center gap-1">
-            <ClipboardList className="h-3.5 w-3.5 text-amber-500" />
+            <Target className="h-3.5 w-3.5 text-purple-500" />
             <span>{exam.total_exercises} ejercicios</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Timer className="h-3.5 w-3.5 text-slate-500" />
+            <span>{exam.duration_minutes || 0} min</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Award className="h-3.5 w-3.5 text-emerald-500" />
+            <span>Mínimo {exam.passing_score}%</span>
           </div>
         </div>
         
@@ -183,7 +131,6 @@ const ExamCard = ({
 const ExamsListPage = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore()
-  const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [examToDelete, setExamToDelete] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -201,18 +148,7 @@ const ExamsListPage = () => {
     setCurrentPage(1);
   }, [searchTerm]);
 
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = () => setActiveMenu(null);
-    if (activeMenu !== null) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [activeMenu]);
 
-  const handleEdit = (id: string) => {
-    navigate(`/exams/${id}/edit`);
-  };
 
   const handleDelete = async () => {
     if (!examToDelete) return;
@@ -226,10 +162,11 @@ const ExamsListPage = () => {
     }
   };
 
-  const openDeleteModal = (exam: any) => {
-    setExamToDelete(exam);
-    setDeleteModalOpen(true);
-  };
+  // La función de eliminar se mantiene comentada por si se necesita en el futuro
+  // const openDeleteModal = (exam: any) => {
+  //   setExamToDelete(exam);
+  //   setDeleteModalOpen(true);
+  // };
 
   const canCreateExam = user?.role === 'admin' || user?.role === 'editor'
 
@@ -321,10 +258,6 @@ const ExamsListPage = () => {
                   <ExamCard 
                     key={exam.id} 
                     exam={exam} 
-                    onEdit={handleEdit}
-                    onDelete={openDeleteModal}
-                    activeMenu={activeMenu}
-                    setActiveMenu={setActiveMenu}
                   />
                 ))}
               </div>
@@ -346,10 +279,6 @@ const ExamsListPage = () => {
                   <ExamCard 
                     key={exam.id} 
                     exam={exam} 
-                    onEdit={handleEdit}
-                    onDelete={openDeleteModal}
-                    activeMenu={activeMenu}
-                    setActiveMenu={setActiveMenu}
                   />
                 ))}
               </div>

@@ -4,8 +4,6 @@ import {
   Settings, 
   Zap, 
   Target, 
-  FileQuestion, 
-  ClipboardList, 
   HelpCircle,
   Play
 } from 'lucide-react';
@@ -34,9 +32,9 @@ const ExamTestConfigModal: React.FC<ExamTestConfigModalProps> = ({
 
   // Presets rápidos
   const presets = [
-    { label: 'Rápido', description: 'Solo preguntas', questions: Math.min(5, totalQuestions), exercises: 0, icon: Zap, color: 'amber' },
-    { label: 'Práctico', description: 'Solo ejercicios', questions: 0, exercises: totalExercises, icon: ClipboardList, color: 'purple', hidden: totalExercises === 0 },
-    { label: 'Completo', description: 'Todo incluido', questions: totalQuestions, exercises: totalExercises, icon: Target, color: 'green' },
+    { label: 'Rápido', description: 'Solo preguntas', questions: Math.min(5, totalQuestions), exercises: 0, icon: HelpCircle, color: 'blue' },
+    { label: 'Práctico', description: 'Solo ejercicios', questions: 0, exercises: totalExercises, icon: Target, color: 'purple', hidden: totalExercises === 0 },
+    { label: 'Completo', description: 'Todo incluido', questions: totalQuestions, exercises: totalExercises, icon: Zap, color: 'green' },
   ].filter(p => !p.hidden);
 
   const handlePreset = (questions: number, exercises: number) => {
@@ -130,7 +128,7 @@ const ExamTestConfigModal: React.FC<ExamTestConfigModalProps> = ({
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center">
                   <div className="p-2 bg-blue-100 rounded-lg mr-3">
-                    <FileQuestion className="w-4 h-4 text-blue-600" />
+                    <HelpCircle className="w-4 h-4 text-blue-600" />
                   </div>
                   <div>
                     <label className="text-sm font-semibold text-gray-800">
@@ -189,7 +187,7 @@ const ExamTestConfigModal: React.FC<ExamTestConfigModalProps> = ({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center">
                     <div className="p-2 bg-purple-100 rounded-lg mr-3">
-                      <ClipboardList className="w-4 h-4 text-purple-600" />
+                      <Target className="w-4 h-4 text-purple-600" />
                     </div>
                     <div>
                       <label className="text-sm font-semibold text-gray-800">

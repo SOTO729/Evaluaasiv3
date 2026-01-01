@@ -679,26 +679,26 @@ const ExamEditPage = () => {
         {/* Estadísticas en grid */}
         <div className="p-6">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <div className="text-center p-3 bg-gray-50 rounded-lg">
-              <p className="text-2xl font-bold text-gray-900">{exam.duration_minutes || 0}</p>
+            <div className="text-center p-3 bg-slate-50 rounded-lg">
+              <p className="text-2xl font-bold text-slate-600">{exam.duration_minutes || 0}</p>
               <p className="text-sm text-gray-600">Minutos</p>
             </div>
-            <div className="text-center p-3 bg-gray-50 rounded-lg">
-              <p className="text-2xl font-bold text-gray-900">{exam.passing_score}%</p>
+            <div className="text-center p-3 bg-emerald-50 rounded-lg">
+              <p className="text-2xl font-bold text-emerald-600">{exam.passing_score}%</p>
               <p className="text-sm text-gray-600">Puntaje Mínimo</p>
             </div>
             <div className="text-center p-3 bg-primary-50 rounded-lg">
               <p className="text-2xl font-bold text-primary-600">{exam.total_categories || 0}</p>
               <p className="text-sm text-gray-600">Categorías</p>
             </div>
-            <div className="text-center p-3 bg-blue-50 rounded-lg">
-              <p className="text-2xl font-bold text-blue-600">
+            <div className="text-center p-3 bg-indigo-50 rounded-lg">
+              <p className="text-2xl font-bold text-indigo-600">
                 {exam.categories?.reduce((acc, cat) => acc + (cat.total_topics || 0), 0) || 0}
               </p>
               <p className="text-sm text-gray-600">Temas</p>
             </div>
-            <div className="text-center p-3 bg-green-50 rounded-lg">
-              <p className="text-2xl font-bold text-green-600">{exam.total_questions}</p>
+            <div className="text-center p-3 bg-blue-50 rounded-lg">
+              <p className="text-2xl font-bold text-blue-600">{exam.total_questions}</p>
               <p className="text-sm text-gray-600">Preguntas</p>
             </div>
             <div className="text-center p-3 bg-purple-50 rounded-lg">
@@ -708,6 +708,19 @@ const ExamEditPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Advertencia de contenido publicado */}
+      {exam.is_published && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center gap-3">
+          <svg className="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div>
+            <p className="text-amber-800 font-medium">Contenido publicado</p>
+            <p className="text-amber-700 text-sm">Para editar el contenido, primero cambia el examen a borrador.</p>
+          </div>
+        </div>
+      )}
 
       {/* Categorías del Examen */}
       <div className="card">

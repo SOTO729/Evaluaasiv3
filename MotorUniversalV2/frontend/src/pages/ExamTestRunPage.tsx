@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../services/examService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, BookOpen, Target, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, HelpCircle, Target, ArrowLeft, ClipboardList } from 'lucide-react';
 
 // Tipo para representar un ítem del test (pregunta o ejercicio)
 interface TestItem {
@@ -752,7 +752,7 @@ const ExamTestRunPage: React.FC = () => {
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div className="bg-white/20 rounded-xl p-2">
-                <BookOpen className="w-5 h-5" />
+                <ClipboardList className="w-5 h-5" />
               </div>
               <div>
                 <h1 className="text-base font-bold truncate max-w-[150px] sm:max-w-none">{exam.name}</h1>
@@ -847,7 +847,7 @@ const ExamTestRunPage: React.FC = () => {
                     currentItem?.type === 'question' ? 'bg-primary-100 text-primary-600' : 'bg-purple-100 text-purple-600'
                   }`}>
                     {currentItem?.type === 'question' ? (
-                      <BookOpen className="w-4 h-4" />
+                      <HelpCircle className="w-4 h-4" />
                     ) : (
                       <Target className="w-4 h-4" />
                   )}
