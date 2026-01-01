@@ -402,9 +402,33 @@ def update_material(material_id):
 @jwt_required()
 @admin_or_editor_required
 def delete_material(material_id):
-    """Eliminar un material de estudio"""
+    """Eliminar un material de estudio y todos sus archivos de Azure Storage"""
     try:
         material = StudyMaterial.query.get_or_404(material_id)
+        
+        # Eliminar archivos de Azure Storage antes de borrar el material
+        for session in material.sessions:
+            for topic in session.topics:
+                # Eliminar archivo de video si existe
+                if topic.video and topic.video.video_url and 'blob.core.windows.net' in topic.video.video_url:
+                    try:
+                        azure_storage.delete_video(topic.video.video_url)
+                    except Exception as e:
+                        print(f"Error eliminando video {topic.video.video_url}: {e}")
+                # Eliminar archivo descargable si existe
+                if topic.downloadable_exercise and topic.downloadable_exercise.file_url and 'blob.core.windows.net' in topic.downloadable_exercise.file_url:
+                    try:
+                        azure_storage.delete_downloadable(topic.downloadable_exercise.file_url)
+                    except Exception as e:
+                        print(f"Error eliminando descargable {topic.downloadable_exercise.file_url}: {e}")
+        
+        # Eliminar imagen de portada si existe
+        if material.image_url and 'blob.core.windows.net' in material.image_url:
+            try:
+                azure_storage.delete_file(material.image_url)
+            except Exception as e:
+                print(f"Error eliminando imagen de portada {material.image_url}: {e}")
+        
         db.session.delete(material)
         db.session.commit()
         
