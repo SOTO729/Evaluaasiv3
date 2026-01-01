@@ -110,6 +110,17 @@ def setup_exams_table_public():
         return jsonify({'error': str(e)}), 500
 
 
+# Endpoint público para listar materiales (solo IDs y títulos) - diagnóstico
+@study_contents_bp.route('/list-materials', methods=['GET'])
+def list_materials_public():
+    """Listar todos los materiales - endpoint público de diagnóstico"""
+    try:
+        materials = StudyMaterial.query.all()
+        return jsonify([{'id': m.id, 'title': m.title, 'exam_ids': m.to_dict().get('exam_ids', [])} for m in materials]), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # Endpoint público de diagnóstico para verificar relaciones de exámenes
 @study_contents_bp.route('/debug-exams/<int:material_id>', methods=['GET'])
 def debug_material_exams(material_id):

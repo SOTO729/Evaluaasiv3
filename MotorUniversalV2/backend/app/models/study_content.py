@@ -51,7 +51,7 @@ class StudyMaterial(db.Model):
             if self.exams:
                 linked_exams = [{
                     'id': e.id,
-                    'name': e.title,
+                    'name': e.name,
                     'version': e.version
                 } for e in self.exams]
                 exam_ids = [e.id for e in self.exams]

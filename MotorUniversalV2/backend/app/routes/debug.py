@@ -52,3 +52,72 @@ def debug_code():
         return jsonify({'file_exists': False})
     except Exception as e:
         return jsonify({'error': str(e)})
+
+
+@debug_bp.route('/exam-relations', methods=['GET'])
+def debug_exam_relations():
+    """Verificar relaciones de exámenes en materiales"""
+    try:
+        from app import db
+        from sqlalchemy import text
+        
+        # Verificar si la tabla existe
+        check_table = db.session.execute(text("""
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_NAME = 'study_material_exams'
+        """))
+        table_exists = check_table.scalar() > 0
+        
+        if not table_exists:
+            return jsonify({
+                'table_exists': False,
+                'message': 'La tabla study_material_exams no existe'
+            })
+        
+        # Contar relaciones
+        count_result = db.session.execute(text("""
+            SELECT COUNT(*) FROM study_material_exams
+        """))
+        relation_count = count_result.scalar()
+        
+        # Obtener algunas relaciones de ejemplo
+        sample_result = db.session.execute(text("""
+            SELECT TOP 10 sme.study_material_id, sc.title as material_title, 
+                   sme.exam_id, e.name as exam_name
+            FROM study_material_exams sme
+            JOIN study_contents sc ON sme.study_material_id = sc.id
+            JOIN exams e ON sme.exam_id = e.id
+        """))
+        samples = [{'material_id': r[0], 'material_title': r[1], 'exam_id': r[2], 'exam_name': r[3]} for r in sample_result.fetchall()]
+        
+        # Listar materiales
+        materials_result = db.session.execute(text("""
+            SELECT id, title, exam_id FROM study_contents
+        """))
+        materials = [{'id': r[0], 'title': r[1], 'legacy_exam_id': r[2]} for r in materials_result.fetchall()]
+        
+        return jsonify({
+            'table_exists': True,
+            'relation_count': relation_count,
+            'sample_relations': samples,
+            'materials': materials
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+
+@debug_bp.route('/material-detail/<int:material_id>', methods=['GET'])
+def debug_material_detail(material_id):
+    """Verificar el to_dict de un material específico"""
+    try:
+        from app.models.study_content import StudyMaterial
+        material = StudyMaterial.query.get_or_404(material_id)
+        return jsonify({
+            'material_id': material_id,
+            'to_dict_result': material.to_dict(include_sessions=False),
+            'exam_ids_direct': [e.id for e in material.exams] if material.exams else [],
+            'exams_count': len(material.exams) if material.exams else 0
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()})
