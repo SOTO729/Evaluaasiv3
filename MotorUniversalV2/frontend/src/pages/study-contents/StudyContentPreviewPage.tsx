@@ -1453,16 +1453,17 @@ const StudyContentPreviewPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Respuesta incorrecta</h3>
                 <p className="text-gray-600 mb-3">{showErrorModal.message}</p>
                 {(() => {
-                  // max_attempts son intentos ADICIONALES después del primer error
+                  // max_attempts son oportunidades ADICIONALES después del primer error
                   const action = currentTopic?.interactive_exercise?.steps
                     ?.flatMap(s => s.actions || [])
                     ?.find(a => `${a.step_id}_${a.id}` === showErrorModal.actionKey);
                   const additionalAttempts = action?.max_attempts ?? 1;
                   const usedAttempts = actionErrors[showErrorModal.actionKey]?.attempts || 0;
-                  const remaining = additionalAttempts - usedAttempts;
+                  // El error actual (oportunidad 0) no cuenta, las oportunidades adicionales empiezan después
+                  const remaining = additionalAttempts - usedAttempts + 1;
                   
                   return (
-                    <p className="text-xs text-gray-400 mb-4">
+                    <p className="text-xs text-amber-600 mb-4">
                       {remaining > 0 
                         ? `Te ${remaining === 1 ? 'queda' : 'quedan'} ${remaining} ${remaining === 1 ? 'oportunidad' : 'oportunidades'}`
                         : 'No te quedan más oportunidades'
