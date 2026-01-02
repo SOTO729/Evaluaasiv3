@@ -1472,9 +1472,17 @@ const StudyInteractiveExercisePage = () => {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
-                                if (confirm('¿Eliminar esta acción?')) {
-                                  deleteActionMutation.mutate({ stepId: currentStep!.id, actionId: action.id })
-                                }
+                                // Determinar si es la respuesta correcta
+                                const actionIsCorrect = action.action_type === 'button' 
+                                  ? action.correct_answer === 'correct'
+                                  : (action.correct_answer && action.correct_answer.trim() !== '')
+                                
+                                setDeleteActionModal({
+                                  isOpen: true,
+                                  actionId: action.id,
+                                  actionType: action.action_type,
+                                  isCorrect: !!actionIsCorrect
+                                })
                               }}
                               className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                               title="Eliminar acción"
