@@ -158,6 +158,17 @@ const StudyInteractiveExercisePage = () => {
     font_family: 'Arial'
   })
 
+  // Modal de advertencia para validaciones
+  const [warningModal, setWarningModal] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+  }>({
+    isOpen: false,
+    title: '',
+    message: ''
+  })
+
   // Modal de confirmación para eliminar paso
   const [deleteConfirmModal, setDeleteConfirmModal] = useState<{
     isOpen: boolean
@@ -609,7 +620,11 @@ const StudyInteractiveExercisePage = () => {
       )
       
       if ((isCorrectButton || isTextInput) && hasCorrectAnswer) {
-        alert('Este paso ya tiene una respuesta correcta. Solo puede haber un botón correcto o un campo de texto con respuesta por paso.')
+        setWarningModal({
+          isOpen: true,
+          title: 'Respuesta correcta ya existe',
+          message: 'Este paso ya tiene una respuesta correcta configurada. Solo puede haber un botón correcto o un campo de texto con respuesta por cada paso del ejercicio.'
+        })
         setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
         return
       }
@@ -2140,6 +2155,40 @@ const StudyInteractiveExercisePage = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Modal de advertencia */}
+      {warningModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200">
+            <div className="flex flex-col items-center text-center">
+              {/* Icono de advertencia */}
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              
+              {/* Título */}
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {warningModal.title}
+              </h3>
+              
+              {/* Mensaje */}
+              <p className="text-gray-600 mb-6">
+                {warningModal.message}
+              </p>
+              
+              {/* Botón */}
+              <button
+                onClick={() => setWarningModal({ isOpen: false, title: '', message: '' })}
+                className="px-6 py-2.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
