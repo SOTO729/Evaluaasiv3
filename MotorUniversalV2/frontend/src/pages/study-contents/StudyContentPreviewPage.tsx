@@ -8,7 +8,6 @@ import DOMPurify from 'dompurify';
 import {
   getMaterial,
   StudyMaterial,
-  StudyInteractiveExerciseStep,
   StudyInteractiveExerciseAction,
 } from '../../services/studyContentService';
 import {
@@ -50,12 +49,19 @@ const StudyContentPreviewPage: React.FC = () => {
   const [actionResponses, setActionResponses] = useState<Record<string, any>>({});
   const [exerciseCompleted, setExerciseCompleted] = useState(false);
   const [exerciseScore, setExerciseScore] = useState<{ score: number; maxScore: number; percentage: number } | null>(null);
+  const [actionErrors, setActionErrors] = useState<Record<string, { message: string; attempts: number }>>({});
+  const [showErrorModal, setShowErrorModal] = useState<{ message: string; actionKey: string } | null>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
   const exerciseContainerRef = useRef<HTMLDivElement>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const instructionsRef = useRef<HTMLDivElement>(null);
   const startExerciseRef = useRef<HTMLDivElement>(null);
+  const downloadButtonRef = useRef<HTMLDivElement>(null);
   const [showScrollHint, setShowScrollHint] = useState(false);
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [showDownloadScrollHint, setShowDownloadScrollHint] = useState(false);
+  const [instructionsExpanded, setInstructionsExpanded] = useState(false);
 
   // Cargar material
   useEffect(() => {
@@ -114,28 +120,62 @@ const StudyContentPreviewPage: React.FC = () => {
   const currentSession = material?.sessions?.[currentSessionIndex];
   const currentTopic = currentSession?.topics?.[currentTopicIndex];
 
-  // Detectar si las instrucciones del ejercicio son largas y la sección de inicio no es visible
+  // Detectar si el botón de iniciar ejercicio no está visible en pantalla
   useEffect(() => {
-    const checkInstructionsHeight = () => {
-      if (activeTab === 'interactive' && !exerciseStarted && instructionsRef.current && startExerciseRef.current) {
+    const checkStartButtonVisibility = () => {
+      if (activeTab === 'interactive' && !exerciseStarted && startExerciseRef.current) {
         const startRect = startExerciseRef.current.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
-        // Mostrar el hint si la sección de inicio no está visible en el viewport
-        setShowScrollHint(startRect.top > viewportHeight - 100);
+        // Mostrar el hint si el botón de inicio NO está visible en el viewport
+        // El botón está visible si su parte superior está dentro del viewport
+        const isButtonVisible = startRect.top < viewportHeight && startRect.bottom > 0;
+        setShowScrollHint(!isButtonVisible);
       } else {
         setShowScrollHint(false);
       }
     };
 
-    checkInstructionsHeight();
-    window.addEventListener('scroll', checkInstructionsHeight);
-    window.addEventListener('resize', checkInstructionsHeight);
+    // Ejecutar después de un delay para asegurar que el DOM está renderizado
+    const timeoutId = setTimeout(checkStartButtonVisibility, 300);
+    
+    // También ejecutar inmediatamente
+    checkStartButtonVisibility();
+    
+    window.addEventListener('scroll', checkStartButtonVisibility);
+    window.addEventListener('resize', checkStartButtonVisibility);
 
     return () => {
-      window.removeEventListener('scroll', checkInstructionsHeight);
-      window.removeEventListener('resize', checkInstructionsHeight);
+      clearTimeout(timeoutId);
+      window.removeEventListener('scroll', checkStartButtonVisibility);
+      window.removeEventListener('resize', checkStartButtonVisibility);
     };
   }, [activeTab, exerciseStarted, currentTopic]);
+
+  // Detectar si el botón de descarga no está visible en pantalla
+  useEffect(() => {
+    const checkDownloadButtonVisibility = () => {
+      if (activeTab === 'downloadable' && downloadButtonRef.current) {
+        const downloadRect = downloadButtonRef.current.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const isButtonVisible = downloadRect.top < viewportHeight && downloadRect.bottom > 0;
+        setShowDownloadScrollHint(!isButtonVisible);
+      } else {
+        setShowDownloadScrollHint(false);
+      }
+    };
+
+    const timeoutId = setTimeout(checkDownloadButtonVisibility, 300);
+    checkDownloadButtonVisibility();
+    
+    window.addEventListener('scroll', checkDownloadButtonVisibility);
+    window.addEventListener('resize', checkDownloadButtonVisibility);
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('scroll', checkDownloadButtonVisibility);
+      window.removeEventListener('resize', checkDownloadButtonVisibility);
+    };
+  }, [activeTab, currentTopic]);
 
   // Calcular progreso
   const getTotalTopics = () => {
@@ -178,7 +218,40 @@ const StudyContentPreviewPage: React.FC = () => {
     setActionResponses({});
     setExerciseCompleted(false);
     setExerciseScore(null);
+    setActionErrors({});
+    setShowErrorModal(null);
+    setImageDimensions(null);
   };
+
+  // Función para calcular las dimensiones reales de la imagen renderizada
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    // Obtener las dimensiones renderizadas de la imagen (no las naturales)
+    setImageDimensions({
+      width: img.clientWidth,
+      height: img.clientHeight
+    });
+  };
+
+  // Recalcular dimensiones cuando cambia el tamaño de la ventana
+  useEffect(() => {
+    const handleResize = () => {
+      if (imageRef.current) {
+        setImageDimensions({
+          width: imageRef.current.clientWidth,
+          height: imageRef.current.clientHeight
+        });
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Resetear dimensiones cuando cambia el paso
+  useEffect(() => {
+    setImageDimensions(null);
+  }, [currentStepIndex]);
 
   const startExercise = () => {
     resetExerciseState();
@@ -199,15 +272,24 @@ const StudyContentPreviewPage: React.FC = () => {
 
     exercise.steps.forEach(step => {
       step.actions?.forEach(action => {
-        maxScore += 1;
         const responseKey = `${step.id}_${action.id}`;
         const userResponse = actionResponses[responseKey];
 
         if (action.action_type === 'button') {
-          // Para botones, verificar si fue clickeado
-          if (userResponse) score += 1;
+          // Para botones, solo suma puntos si el botón es correcto (correct_answer = "true", "1", "correct")
+          const isCorrectButton = action.correct_answer && 
+            ['true', '1', 'correct', 'yes', 'si', 'sí'].includes(String(action.correct_answer).toLowerCase().trim());
+          
+          if (isCorrectButton) {
+            // Este botón es correcto, suma al maxScore
+            maxScore += 1;
+            // Si el usuario lo clickeó, suma puntos
+            if (userResponse) score += 1;
+          }
+          // Los botones incorrectos no suman al maxScore ni al score
         } else if (action.action_type === 'text_input') {
           // Para inputs de texto, comparar con respuesta correcta
+          maxScore += 1;
           const correctAnswer = action.correct_answer || '';
           const isCaseSensitive = action.is_case_sensitive;
           const scoringMode = action.scoring_mode || 'exact';
@@ -246,22 +328,95 @@ const StudyContentPreviewPage: React.FC = () => {
     const exerciseId = currentTopic?.interactive_exercise?.id;
     if (!exerciseId) return;
 
-    // Guardar respuesta
-    setActionResponses(prev => ({
-      ...prev,
-      [`${action.step_id}_${action.id}`]: true
-    }));
+    const actionKey = `${action.step_id}_${action.id}`;
+    
+    // Verificar si el botón es correcto
+    const isCorrectButton = action.correct_answer && 
+      ['true', '1', 'correct', 'yes', 'si', 'sí'].includes(String(action.correct_answer).toLowerCase().trim());
 
-    // Marcar paso como completado
-    setStepCompleted(prev => ({
-      ...prev,
-      [`${exerciseId}_${stepIndex}`]: true
-    }));
+    if (isCorrectButton) {
+      // Botón correcto - guardar respuesta y avanzar
+      setActionResponses(prev => ({
+        ...prev,
+        [actionKey]: true
+      }));
 
-    // Avanzar al siguiente paso
-    const steps = currentTopic?.interactive_exercise?.steps || [];
-    if (stepIndex < steps.length - 1) {
-      setTimeout(() => setCurrentStepIndex(stepIndex + 1), 300);
+      // Marcar paso como completado
+      setStepCompleted(prev => ({
+        ...prev,
+        [`${exerciseId}_${stepIndex}`]: true
+      }));
+
+      // Avanzar al siguiente paso
+      const steps = currentTopic?.interactive_exercise?.steps || [];
+      if (stepIndex < steps.length - 1) {
+        setTimeout(() => setCurrentStepIndex(stepIndex + 1), 300);
+      }
+    } else {
+      // Botón incorrecto - manejar según configuración
+      const currentError = actionErrors[actionKey] || { message: '', attempts: 0 };
+      const newAttempts = currentError.attempts + 1;
+      // max_attempts son intentos ADICIONALES (el primer intento es el 0)
+      const additionalAttempts = action.max_attempts || 1;
+      const errorMessage = action.error_message || 'Respuesta incorrecta. Inténtalo de nuevo.';
+      const onErrorAction = (action.on_error_action || 'next_step') as string;
+
+      // Verificar si la acción es terminar ejercicio inmediatamente
+      // Soportar ambos valores: 'end_exercise' (legacy) y 'next_exercise' (actual)
+      if (onErrorAction === 'end_exercise' || onErrorAction === 'next_exercise') {
+        // Cerrar modal y terminar ejercicio inmediatamente
+        setShowErrorModal(null);
+        setActionResponses(prev => ({ ...prev, [actionKey]: false }));
+        setStepCompleted(prev => ({ ...prev, [`${exerciseId}_${stepIndex}`]: true }));
+        setTimeout(() => completeExercise(), 300);
+        return;
+      }
+
+      // Si la acción es pasar al siguiente paso (sin reintentos)
+      if (onErrorAction === 'next_step') {
+        // Marcar como completado (aunque incorrecto) y avanzar
+        setActionResponses(prev => ({ ...prev, [actionKey]: false }));
+        setStepCompleted(prev => ({ ...prev, [`${exerciseId}_${stepIndex}`]: true }));
+        
+        const steps = currentTopic?.interactive_exercise?.steps || [];
+        if (stepIndex < steps.length - 1) {
+          setTimeout(() => setCurrentStepIndex(stepIndex + 1), 300);
+        } else {
+          setTimeout(() => completeExercise(), 300);
+        }
+        return;
+      }
+
+      // Si es 'show_message' o cualquier otro valor - mostrar error con reintentos
+
+      // Actualizar contador de intentos
+      setActionErrors(prev => ({
+        ...prev,
+        [actionKey]: { message: errorMessage, attempts: newAttempts }
+      }));
+
+      // Mostrar modal de error
+      setShowErrorModal({ message: errorMessage, actionKey });
+
+      // Manejar acción si se agotaron los intentos adicionales
+      // newAttempts > additionalAttempts porque el primer intento (0) no cuenta
+      if (newAttempts > additionalAttempts) {
+        // Cerrar modal inmediatamente
+        setShowErrorModal(null);
+        
+        // Marcar como completado (aunque incorrecto)
+        setActionResponses(prev => ({ ...prev, [actionKey]: false }));
+        setStepCompleted(prev => ({ ...prev, [`${exerciseId}_${stepIndex}`]: true }));
+        
+        const steps = currentTopic?.interactive_exercise?.steps || [];
+        if (stepIndex < steps.length - 1) {
+          // Hay más pasos, avanzar al siguiente
+          setTimeout(() => setCurrentStepIndex(stepIndex + 1), 300);
+        } else {
+          // Es el último paso, concluir ejercicio inmediatamente
+          setTimeout(() => completeExercise(), 300);
+        }
+      }
     }
   };
 
@@ -387,40 +542,6 @@ const StudyContentPreviewPage: React.FC = () => {
     const availableTabs = getAvailableTabs(currentTopic);
     const currentTabIndex = availableTabs.indexOf(activeTab);
     return currentTabIndex > 0 || hasPreviousTopic();
-  };
-
-  // Obtener el texto del botón siguiente
-  const getNextButtonText = () => {
-    const availableTabs = getAvailableTabs(currentTopic);
-    const currentTabIndex = availableTabs.indexOf(activeTab);
-    if (currentTabIndex < availableTabs.length - 1) {
-      const nextTab = availableTabs[currentTabIndex + 1];
-      switch (nextTab) {
-        case 'reading': return 'Ir a Lectura';
-        case 'video': return 'Ir a Video';
-        case 'downloadable': return 'Ir a Descargable';
-        case 'interactive': return 'Ir a Ejercicio';
-        default: return 'Siguiente';
-      }
-    }
-    return 'Siguiente tema';
-  };
-
-  // Obtener el texto del botón anterior
-  const getPreviousButtonText = () => {
-    const availableTabs = getAvailableTabs(currentTopic);
-    const currentTabIndex = availableTabs.indexOf(activeTab);
-    if (currentTabIndex > 0) {
-      const prevTab = availableTabs[currentTabIndex - 1];
-      switch (prevTab) {
-        case 'reading': return 'Ir a Lectura';
-        case 'video': return 'Ir a Video';
-        case 'downloadable': return 'Ir a Descargable';
-        case 'interactive': return 'Ir a Ejercicio';
-        default: return 'Anterior';
-      }
-    }
-    return 'Tema anterior';
   };
 
   const toggleSession = (idx: number) => {
@@ -594,22 +715,22 @@ const StudyContentPreviewPage: React.FC = () => {
 
         {/* Contenido principal */}
         <main className="flex-1 overflow-y-auto bg-white">
-          <div className="max-w-4xl mx-auto px-4 sm:px-8 py-8">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-5">
             {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-              <span>Sesión {currentSession?.session_number} - {currentSession?.title}</span>
+            <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
+              <span>{currentSession?.title}</span>
               <ChevronRight className="w-4 h-4" />
               <span className="text-gray-900 font-medium">{currentTopic?.title}</span>
             </div>
 
             {/* Título del tema */}
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{currentTopic?.title}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">{currentTopic?.title}</h1>
             {currentTopic?.description && (
-              <p className="text-gray-600 text-lg mb-8">{currentTopic.description}</p>
+              <p className="text-gray-600 text-base mb-6">{currentTopic.description}</p>
             )}
 
             {/* Tabs de contenido */}
-            <div className="border-b border-gray-200 mb-8">
+            <div className="border-b border-gray-200 mb-5 mt-4">
               <nav className="flex gap-8">
                 {currentTopic?.allow_reading !== false && (
                   <button
@@ -680,23 +801,23 @@ const StudyContentPreviewPage: React.FC = () => {
               {activeTab === 'video' && (
                 <div ref={videoContainerRef}>
                   {currentTopic?.video ? (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {/* Título del video - arriba */}
-                      <h2 className="text-xl font-semibold text-gray-900">{currentTopic.video.title}</h2>
+                      <h2 className="text-xl font-semibold text-gray-900 pb-3 border-b border-gray-300">{currentTopic.video.title}</h2>
                       
                       {/* Video container - usa video nativo para archivos blob */}
                       {currentTopic.video.video_url?.includes('blob.core.windows.net') ? (
                         // Reproductor personalizado para archivos de Azure Blob
                         <CustomVideoPlayer
                           src={currentTopic.video.video_url}
-                          className="w-full shadow-lg"
+                          className="w-full shadow-md"
                         />
                       ) : (
                         // iframe para YouTube/Vimeo
                         <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
                           <iframe
                             src={getVideoEmbedUrl(currentTopic.video.video_url)}
-                            className="absolute top-0 left-0 w-full h-full rounded-lg shadow-lg"
+                            className="absolute top-0 left-0 w-full h-full rounded-lg shadow-md"
                             style={{ border: 'none' }}
                             allowFullScreen
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -707,15 +828,15 @@ const StudyContentPreviewPage: React.FC = () => {
                       {/* Descripción del video - abajo */}
                       {currentTopic.video.description && (
                         <div 
-                          className="pt-4 text-gray-600 prose prose-sm max-w-none"
+                          className="pt-3 text-gray-600 prose prose-sm max-w-none"
                           dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.video.description) }}
                         />
                       )}
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                      <Video className="w-16 h-16 mb-4 text-gray-300" />
-                      <p className="text-lg">No hay video disponible para este tema</p>
+                    <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                      <Video className="w-12 h-12 mb-3 text-gray-300" />
+                      <p className="text-base">No hay video disponible para este tema</p>
                     </div>
                   )}
                 </div>
@@ -726,9 +847,9 @@ const StudyContentPreviewPage: React.FC = () => {
                 <div>
                   {currentTopic?.reading ? (
                     <article className="w-full">
-                      <h2 className="text-2xl font-semibold text-gray-900 mb-6">{currentTopic.reading.title}</h2>
+                      <h2 className="text-xl font-semibold text-gray-900 pb-3 mb-4 border-b border-gray-300">{currentTopic.reading.title}</h2>
                       <div 
-                        className="reading-content prose prose-lg prose-gray max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 prose-img:max-w-full prose-pre:max-w-full prose-pre:overflow-x-auto"
+                        className="reading-content prose prose-sm prose-gray max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 prose-img:max-w-full prose-pre:max-w-full prose-pre:overflow-x-auto"
                         dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.reading.content || '') }}
                       />
                     </article>
@@ -745,37 +866,64 @@ const StudyContentPreviewPage: React.FC = () => {
               {activeTab === 'downloadable' && (
                 <div>
                   {currentTopic?.downloadable_exercise ? (
-                    <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-                      <h2 className="text-xl font-semibold text-gray-900 mb-4">Ejercicio descargable</h2>
+                    <article className="w-full">
+                      <h2 className="text-xl font-semibold text-gray-900 pb-3 mb-4 border-b border-gray-300">{currentTopic.downloadable_exercise.title}</h2>
                       
-                      {/* Instrucciones del ejercicio */}
+                      {/* Instrucciones */}
                       {currentTopic.downloadable_exercise.description && (
-                        <div 
-                          className="text-gray-600 mb-5 text-sm leading-relaxed prose prose-sm max-w-none break-words"
-                          style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.downloadable_exercise.description) }}
-                        />
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 mb-5">
+                          <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+                            <FileText className="w-3 h-3" />
+                            Instrucciones
+                          </h3>
+                          <div 
+                            className="reading-content prose prose-sm prose-gray max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400"
+                            style={{ wordBreak: 'normal', overflowWrap: 'anywhere' }}
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.downloadable_exercise.description.replace(/\u00a0/g, ' ')) }}
+                          />
+                        </div>
                       )}
                       
-                      <div className="flex items-center gap-4 p-4 bg-white rounded-lg border border-gray-200 mx-1 mb-1">
-                        <div className="p-3 bg-blue-100 rounded-lg flex-shrink-0">
-                          <Download className="w-6 h-6 text-blue-600" />
+                      {/* Botón circular para scroll hacia abajo */}
+                      {showDownloadScrollHint && (
+                        <div className="fixed bottom-32 right-8 z-50">
+                          <button
+                            onClick={() => {
+                              downloadButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }}
+                            className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white"
+                            style={{ animation: 'bounce 2s ease-in-out infinite' }}
+                            title="Ver sección de descarga"
+                          >
+                            <ChevronDown className="w-5 h-5" />
+                          </button>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 truncate">{currentTopic.downloadable_exercise.title}</p>
-                          <p className="text-sm text-gray-500 truncate">{currentTopic.downloadable_exercise.file_name}</p>
+                      )}
+                      
+                      {/* Botón de descarga */}
+                      <div ref={downloadButtonRef} className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-blue-100 rounded-lg">
+                              <Download className="w-5 h-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-blue-900 text-sm">Archivo listo para descargar</p>
+                              <p className="text-xs text-blue-600">{currentTopic.downloadable_exercise.file_name}</p>
+                            </div>
+                          </div>
+                          <a
+                            href={currentTopic.downloadable_exercise.file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
+                          >
+                            <Download className="w-4 h-4" />
+                            Descargar
+                          </a>
                         </div>
-                        <a
-                          href={currentTopic.downloadable_exercise.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 flex-shrink-0"
-                        >
-                          <Download className="w-4 h-4" />
-                          Descargar
-                        </a>
                       </div>
-                    </div>
+                    </article>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-20 text-gray-400">
                       <Download className="w-16 h-16 mb-4 text-gray-300" />
@@ -790,110 +938,101 @@ const StudyContentPreviewPage: React.FC = () => {
                 <div ref={exerciseContainerRef}>
                   {currentTopic?.interactive_exercise ? (
                     !exerciseStarted ? (
-                      // Vista inicial - Comenzar ejercicio (estilo profesional)
-                      <div className="space-y-6">
-                        {/* Header del ejercicio */}
-                        <div className="border-b border-gray-200 pb-4">
-                          <div className="flex items-start gap-4">
-                            <div className="p-3 bg-blue-100 rounded-xl">
-                              <Gamepad2 className="w-6 h-6 text-blue-600" />
-                            </div>
-                            <div className="flex-1">
-                              <h2 className="text-2xl font-bold text-gray-900">{currentTopic.interactive_exercise.title}</h2>
-                              <p className="text-gray-500 mt-1">
-                                Ejercicio interactivo · {currentTopic.interactive_exercise.steps?.length || 0} pasos
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Descripción/Instrucciones */}
+                      // Vista inicial - Comenzar ejercicio (estilo minimalista)
+                      <article className="w-full">
+                        <h2 className="text-xl font-semibold text-gray-900 pb-3 mb-4 border-b border-gray-300">{currentTopic.interactive_exercise.title}</h2>
+                        
+                        {/* Instrucciones */}
                         {currentTopic.interactive_exercise.description && (
-                          <div ref={instructionsRef} className="bg-gray-50 rounded-xl p-6 border border-gray-200 relative">
-                            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2">
-                              <FileText className="w-4 h-4" />
+                          <div ref={instructionsRef} className="bg-gray-50 rounded-lg p-4 border border-gray-200 mb-5 relative">
+                            <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+                              <FileText className="w-3 h-3" />
                               Instrucciones
                             </h3>
                             <div 
-                              className="prose prose-sm max-w-none text-gray-600 reading-content"
+                              className="reading-content prose prose-sm prose-gray max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400"
                               style={{ wordBreak: 'normal', overflowWrap: 'anywhere' }}
                               dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.interactive_exercise.description.replace(/\u00a0/g, ' ')) }}
                             />
-                            
-                            {/* Botón circular para scroll hacia abajo */}
-                            {showScrollHint && (
-                              <button
-                                onClick={() => {
-                                  startExerciseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                }}
-                                className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 animate-bounce z-10"
-                                title="Ver sección para iniciar ejercicio"
-                              >
-                                <ChevronDown className="w-5 h-5" />
-                              </button>
-                            )}
                           </div>
                         )}
-
-                        {/* Información del ejercicio */}
-                        <div ref={startExerciseRef} className="bg-blue-50 rounded-xl p-6 border border-blue-100">
+                        
+                        {/* Botón circular para scroll hacia abajo - posición fija a la derecha */}
+                        {showScrollHint && (
+                          <div className="fixed bottom-32 right-8 z-50">
+                            <button
+                              onClick={() => {
+                                startExerciseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }}
+                              className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white"
+                              style={{ animation: 'bounce 2s ease-in-out infinite' }}
+                              title="Ver sección para iniciar ejercicio"
+                            >
+                              <ChevronDown className="w-5 h-5" />
+                            </button>
+                          </div>
+                        )}
+                        
+                        {/* Botón para comenzar - Diseño llamativo */}
+                        <div ref={startExerciseRef} className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                              <div className="flex items-center gap-2 text-blue-700">
-                                <PlayCircle className="w-5 h-5" />
-                                <span className="font-medium">Listo para comenzar</span>
+                              <div className="p-2 bg-blue-100 rounded-lg">
+                                <Gamepad2 className="w-5 h-5 text-blue-600" />
                               </div>
+                              <p className="font-medium text-blue-900 text-sm">Listo para comenzar</p>
                             </div>
                             <button
                               onClick={startExercise}
                               disabled={!currentTopic.interactive_exercise.steps?.length}
-                              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors inline-flex items-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              <PlayCircle className="w-5 h-5" />
-                              Comenzar ejercicio
+                              <PlayCircle className="w-4 h-4" />
+                              Comenzar
                             </button>
                           </div>
-                          {!currentTopic.interactive_exercise.steps?.length && (
-                            <p className="text-amber-600 text-sm mt-3 flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
-                              Este ejercicio aún no tiene pasos configurados
-                            </p>
-                          )}
                         </div>
-                      </div>
+                        
+                        {!currentTopic.interactive_exercise.steps?.length && (
+                          <p className="text-amber-600 text-sm mt-3 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
+                            Este ejercicio aún no tiene pasos configurados
+                          </p>
+                        )}
+                      </article>
                     ) : exerciseCompleted ? (
                       // Vista de ejercicio completado con calificación
-                      <div className={`rounded-xl p-8 text-center ${
+                      <div className={`rounded-lg p-6 text-center ${
                         exerciseScore && exerciseScore.percentage >= 70 
                           ? 'bg-gradient-to-br from-green-50 to-emerald-50' 
                           : 'bg-gradient-to-br from-amber-50 to-orange-50'
                       }`}>
                         {/* Círculo con calificación */}
-                        <div className="relative inline-flex items-center justify-center mb-6">
-                          <svg className="w-32 h-32 transform -rotate-90">
+                        <div className="relative inline-flex items-center justify-center mb-4">
+                          <svg className="w-24 h-24 transform -rotate-90">
                             <circle
-                              cx="64"
-                              cy="64"
-                              r="56"
+                              cx="48"
+                              cy="48"
+                              r="42"
                               stroke="currentColor"
-                              strokeWidth="8"
+                              strokeWidth="6"
                               fill="none"
                               className="text-gray-200"
                             />
                             <circle
-                              cx="64"
-                              cy="64"
-                              r="56"
+                              cx="48"
+                              cy="48"
+                              r="42"
                               stroke="currentColor"
-                              strokeWidth="8"
+                              strokeWidth="6"
                               fill="none"
-                              strokeDasharray={`${(exerciseScore?.percentage || 0) * 3.52} 352`}
+                              strokeDasharray={`${(exerciseScore?.percentage || 0) * 2.64} 264`}
                               className={exerciseScore && exerciseScore.percentage >= 70 ? 'text-green-500' : 'text-amber-500'}
                               strokeLinecap="round"
                             />
                           </svg>
                           <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className={`text-3xl font-bold ${
+                            <span className={`text-2xl font-bold ${
                               exerciseScore && exerciseScore.percentage >= 70 ? 'text-green-600' : 'text-amber-600'
                             }`}>
                               {exerciseScore?.percentage || 0}%
@@ -904,15 +1043,15 @@ const StudyContentPreviewPage: React.FC = () => {
                           </div>
                         </div>
 
-                        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                        <h2 className="text-xl font-bold text-gray-900 mb-1">
                           {exerciseScore && exerciseScore.percentage >= 70 
                             ? '¡Excelente trabajo!' 
                             : 'Sigue practicando'}
                         </h2>
-                        <p className="text-gray-600 mb-2">
+                        <p className="text-gray-600 text-sm mb-1">
                           Has completado el ejercicio "{currentTopic.interactive_exercise.title}"
                         </p>
-                        <p className={`text-sm mb-6 ${
+                        <p className={`text-xs mb-4 ${
                           exerciseScore && exerciseScore.percentage >= 70 ? 'text-green-600' : 'text-amber-600'
                         }`}>
                           {exerciseScore && exerciseScore.percentage >= 100 
@@ -922,32 +1061,32 @@ const StudyContentPreviewPage: React.FC = () => {
                             : 'Puedes mejorar practicando más'}
                         </p>
 
-                        <div className="flex flex-col sm:flex-row justify-center gap-3">
+                        <div className="flex flex-col sm:flex-row justify-center gap-2">
                           <button
                             onClick={resetExerciseState}
-                            className="px-6 py-3 bg-white text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition-colors inline-flex items-center justify-center gap-2 border border-gray-300"
+                            className="px-4 py-2 bg-white text-gray-700 text-sm rounded-lg font-medium hover:bg-gray-100 transition-colors inline-flex items-center justify-center gap-2 border border-gray-300"
                           >
-                            <RotateCcw className="w-5 h-5" />
+                            <RotateCcw className="w-4 h-4" />
                             Practicar de nuevo
                           </button>
                           {hasNextTopic() && (
                             <button
                               onClick={goToNextTopic}
-                              className={`px-6 py-3 text-white rounded-lg font-semibold transition-colors inline-flex items-center justify-center gap-2 ${
+                              className={`px-4 py-2 text-white text-sm rounded-lg font-medium transition-colors inline-flex items-center justify-center gap-2 ${
                                 exerciseScore && exerciseScore.percentage >= 70 
                                   ? 'bg-green-600 hover:bg-green-700' 
                                   : 'bg-amber-500 hover:bg-amber-600'
                               }`}
                             >
-                              Continuar con el material
-                              <ChevronRight className="w-5 h-5" />
+                              Continuar
+                              <ChevronRight className="w-4 h-4" />
                             </button>
                           )}
                         </div>
                       </div>
                     ) : (
                       // Vista de ejecución del ejercicio - Pasos (diseño profesional)
-                      <div className="space-y-5">
+                      <div className="flex flex-col gap-3" style={{ height: 'calc(100vh - 200px)' }}>
                         {(() => {
                           const steps = currentTopic.interactive_exercise.steps || [];
                           const currentStep = steps[currentStepIndex];
@@ -966,19 +1105,13 @@ const StudyContentPreviewPage: React.FC = () => {
                           return (
                             <>
                               {/* Header del ejercicio con progreso */}
-                              <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                                <div className="flex items-center justify-between px-5 py-4">
+                              <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex-shrink-0">
+                                <div className="flex items-center justify-between px-5 py-3">
                                   <div className="flex items-center gap-3">
                                     <div className="p-2 bg-blue-100 rounded-lg">
                                       <Gamepad2 className="w-5 h-5 text-blue-600" />
                                     </div>
-                                    <div>
-                                      <h3 className="font-semibold text-gray-900">{currentTopic.interactive_exercise.title}</h3>
-                                      <p className="text-sm text-gray-500">
-                                        Paso {currentStepIndex + 1} de {steps.length}
-                                        {currentStep.title && <span className="text-blue-600 font-medium"> · {currentStep.title}</span>}
-                                      </p>
-                                    </div>
+                                    <h3 className="font-semibold text-gray-900">{currentTopic.interactive_exercise.title}</h3>
                                   </div>
                                   <button
                                     onClick={resetExerciseState}
@@ -988,89 +1121,82 @@ const StudyContentPreviewPage: React.FC = () => {
                                     <X className="w-5 h-5" />
                                   </button>
                                 </div>
-                                
-                                {/* Indicador de pasos dentro del header */}
-                                {steps.length > 1 && (
-                                  <div className="px-5 py-3 bg-gray-50 border-t border-gray-100">
-                                    <div className="flex items-center justify-center gap-2">
-                                      {steps.map((_: StudyInteractiveExerciseStep, idx: number) => (
-                                        <div
-                                          key={idx}
-                                          className={`h-2 rounded-full transition-all ${
-                                            idx === currentStepIndex 
-                                              ? 'w-10 bg-blue-500 shadow-sm' 
-                                              : idx < currentStepIndex || stepCompleted[`${exerciseId}_${idx}`]
-                                              ? 'w-5 bg-green-400' 
-                                              : 'w-5 bg-gray-300'
-                                          }`}
-                                        />
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
                               </div>
 
-                              {/* Descripción del paso - Instrucciones */}
-                              {currentStep.description && (
-                                <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
-                                  <div className="flex items-start gap-3">
-                                    <div className="p-2 bg-amber-100 rounded-lg flex-shrink-0">
-                                      <FileText className="w-4 h-4 text-amber-600" />
+                              {/* Instrucciones del ejercicio - colapsables */}
+                              {currentTopic.interactive_exercise.description && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-xl overflow-hidden flex-shrink-0">
+                                  <button
+                                    onClick={() => setInstructionsExpanded(!instructionsExpanded)}
+                                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-100/50 transition-colors"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <FileText className="w-4 h-4 text-blue-600" />
+                                      <span className="text-sm font-medium text-blue-800">Instrucciones</span>
                                     </div>
-                                    <div className="flex-1">
-                                      <h4 className="text-sm font-semibold text-amber-800 mb-2">Instrucciones del paso</h4>
+                                    <ChevronDown className={`w-4 h-4 text-blue-600 transition-transform ${instructionsExpanded ? 'rotate-180' : ''}`} />
+                                  </button>
+                                  {instructionsExpanded && (
+                                    <div className="px-4 pb-4 border-t border-blue-200">
                                       <div 
-                                        className="prose prose-sm max-w-none text-amber-900 reading-content"
-                                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentStep.description.replace(/\u00a0/g, ' ')) }}
+                                        className="prose prose-sm max-w-none text-blue-900 reading-content pt-3"
+                                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.interactive_exercise.description.replace(/\u00a0/g, ' ')) }}
                                       />
                                     </div>
-                                  </div>
+                                  )}
                                 </div>
                               )}
 
                               {/* Área de la imagen con acciones superpuestas */}
-                              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex-1 min-h-0">
                                 <div 
                                   ref={imageContainerRef}
-                                  className="relative mx-auto bg-gray-50"
-                                  style={{ 
-                                    maxWidth: '100%',
-                                    maxHeight: 'calc(100vh - 400px)',
-                                    aspectRatio: currentStep.image_width && currentStep.image_height 
-                                      ? `${currentStep.image_width} / ${currentStep.image_height}` 
-                                      : 'auto'
-                                  }}
+                                  className="relative mx-auto bg-gray-50 h-full flex items-center justify-center"
                                 >
                                   {currentStep.image_url ? (
-                                    <img
-                                      src={currentStep.image_url}
-                                      alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
-                                      className="w-full h-full object-contain"
-                                      style={{ maxHeight: 'calc(100vh - 400px)' }}
-                                    />
+                                    <>
+                                      <img
+                                        ref={imageRef}
+                                        src={currentStep.image_url}
+                                        alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
+                                        className="max-w-full max-h-full object-contain"
+                                        onLoad={handleImageLoad}
+                                      />
+                                      {/* Contenedor de acciones que coincide exactamente con la imagen */}
+                                      {imageDimensions && (
+                                        <div
+                                          style={{
+                                            position: 'absolute',
+                                            width: imageDimensions.width,
+                                            height: imageDimensions.height,
+                                            pointerEvents: 'none',
+                                          }}
+                                        >
+                                          {/* Acciones superpuestas sobre la imagen */}
+                                          {currentStep.actions?.map((action: StudyInteractiveExerciseAction) => (
+                                            <ExerciseActionOverlay
+                                              key={action.id}
+                                              action={action}
+                                              stepIndex={currentStepIndex}
+                                              isStepCompleted={isStepDone}
+                                              currentValue={actionResponses[`${action.step_id}_${action.id}`]}
+                                              onButtonClick={handleActionClick}
+                                              onTextSubmit={handleTextSubmit}
+                                            />
+                                          ))}
+                                        </div>
+                                      )}
+                                    </>
                                   ) : (
                                     <div className="flex items-center justify-center h-48 bg-gray-100">
                                       <Image className="w-12 h-12 text-gray-300" />
                                     </div>
                                   )}
-
-                                  {/* Acciones superpuestas sobre la imagen */}
-                                  {currentStep.actions?.map((action: StudyInteractiveExerciseAction) => (
-                                    <ExerciseActionOverlay
-                                      key={action.id}
-                                      action={action}
-                                      stepIndex={currentStepIndex}
-                                      isStepCompleted={isStepDone}
-                                      currentValue={actionResponses[`${action.step_id}_${action.id}`]}
-                                      onButtonClick={handleActionClick}
-                                      onTextSubmit={handleTextSubmit}
-                                    />
-                                  ))}
                                 </div>
                               </div>
 
                               {/* Navegación de pasos - estilo profesional */}
-                              <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 flex justify-between items-center shadow-sm">
+                              <div className="bg-white border border-gray-200 rounded-xl px-5 py-3 flex justify-between items-center shadow-sm flex-shrink-0">
                                 <button
                                   onClick={() => setCurrentStepIndex(Math.max(0, currentStepIndex - 1))}
                                   disabled={currentStepIndex === 0}
@@ -1108,9 +1234,9 @@ const StudyContentPreviewPage: React.FC = () => {
                       </div>
                     )
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                      <Gamepad2 className="w-16 h-16 mb-4 text-gray-300" />
-                      <p className="text-lg">No hay ejercicio interactivo para este tema</p>
+                    <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                      <Gamepad2 className="w-12 h-12 mb-3 text-gray-300" />
+                      <p className="text-base">No hay ejercicio interactivo para este tema</p>
                     </div>
                   )}
                 </div>
@@ -1118,57 +1244,80 @@ const StudyContentPreviewPage: React.FC = () => {
             </div>
 
             {/* Espaciado para la barra fija inferior */}
-            <div className="h-20" />
+            <div className="h-14" />
           </div>
         </main>
       </div>
 
       {/* Barra de navegación fija inferior */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div className="flex items-center justify-end gap-4">
             <button
               onClick={goToPreviousContent}
               disabled={!hasPreviousContent()}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors ${
+              className={`flex items-center gap-2 px-6 py-2.5 text-sm rounded-lg font-medium transition-colors ${
                 hasPreviousContent()
-                  ? 'text-gray-700 hover:bg-gray-100'
-                  : 'text-gray-300 cursor-not-allowed'
+                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
+                  : 'bg-gray-50 text-gray-300 border border-gray-200 cursor-not-allowed'
               }`}
             >
-              <ArrowLeft className="w-5 h-5" />
-              <span className="hidden sm:inline">{getPreviousButtonText()}</span>
+              <ArrowLeft className="w-4 h-4" />
+              <span>Atrás</span>
             </button>
-
-            {/* Indicador de progreso central */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500 hidden sm:inline">
-                {getCurrentTopicGlobalIndex()} / {getTotalTopics()}
-              </span>
-              <div className="w-20 sm:w-32 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-blue-600 rounded-full transition-all duration-500"
-                  style={{ width: `${getProgressPercentage()}%` }}
-                />
-              </div>
-              <span className="text-sm font-medium text-blue-600">{getProgressPercentage()}%</span>
-            </div>
 
             <button
               onClick={goToNextContent}
               disabled={!hasNextContent()}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors ${
+              className={`flex items-center gap-2 px-6 py-2.5 text-sm rounded-lg font-medium transition-colors ${
                 hasNextContent()
-                  ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
                   : 'bg-gray-100 text-gray-300 cursor-not-allowed'
               }`}
             >
-              <span className="hidden sm:inline">{getNextButtonText()}</span>
-              <ChevronRight className="w-5 h-5" />
+              <span>Siguiente</span>
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
+
+      {/* Modal de error para ejercicio interactivo */}
+      {showErrorModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md mx-4 p-6 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <X className="w-6 h-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Respuesta incorrecta</h3>
+                <p className="text-gray-600 mb-4">{showErrorModal.message}</p>
+                {actionErrors[showErrorModal.actionKey] && (() => {
+                  // max_attempts son intentos adicionales (el primer intento no cuenta)
+                  const additionalAttempts = currentTopic?.interactive_exercise?.steps
+                    ?.flatMap(s => s.actions || [])
+                    ?.find(a => `${a.step_id}_${a.id}` === showErrorModal.actionKey)
+                    ?.max_attempts || 1;
+                  const usedAttempts = actionErrors[showErrorModal.actionKey].attempts;
+                  const remaining = additionalAttempts - usedAttempts + 1; // +1 porque el primero no cuenta
+                  return remaining > 0 ? (
+                    <p className="text-sm text-amber-600 mb-4">
+                      Te {remaining === 1 ? 'queda' : 'quedan'} {remaining} {remaining === 1 ? 'intento' : 'intentos'}
+                    </p>
+                  ) : null;
+                })()}
+                <button
+                  onClick={() => setShowErrorModal(null)}
+                  className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                >
+                  Intentar de nuevo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1194,21 +1343,23 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
   const [textValue, setTextValue] = useState(currentValue || '');
   const [showFeedback, setShowFeedback] = useState(false);
 
-  // Estilo para posicionar la acción sobre la imagen
-  const style: React.CSSProperties = {
+  // Estilo base para posicionar la acción sobre la imagen
+  const baseStyle: React.CSSProperties = {
     position: 'absolute',
     left: `${action.position_x}%`,
     top: `${action.position_y}%`,
     width: `${action.width}%`,
     height: `${action.height}%`,
     pointerEvents: isStepCompleted ? 'none' : 'auto',
-    opacity: 0, // Invisible para que el usuario descubra dónde hacer clic
   };
 
   if (action.action_type === 'button') {
     return (
       <button
-        style={style}
+        style={{
+          ...baseStyle,
+          opacity: 0, // Invisible para que el usuario descubra dónde hacer clic
+        }}
         onClick={() => {
           setShowFeedback(true);
           setTimeout(() => {
@@ -1236,7 +1387,13 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
 
   if (action.action_type === 'text_input') {
     return (
-      <div style={style} className="flex items-center">
+      <div 
+        style={{
+          ...baseStyle,
+          overflow: 'hidden', // Evitar que el texto se desborde del área
+        }} 
+        className="flex items-center"
+      >
         <input
           type="text"
           value={textValue}
@@ -1251,17 +1408,19 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
               onTextSubmit(action, stepIndex, textValue);
             }
           }}
-          placeholder={action.placeholder || 'Escribe aquí...'}
+          placeholder=""
           disabled={isStepCompleted}
-          className={`w-full h-full px-2 text-sm border-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            currentValue 
-              ? 'bg-green-50 border-green-500' 
-              : 'border-gray-400 bg-white'
-          }`}
+          className="w-full h-full focus:outline-none"
           style={{
             color: action.text_color || '#000000',
             fontFamily: action.font_family || 'Arial',
-            opacity: 1, // El input sí debe ser visible
+            fontSize: 'inherit',
+            background: 'transparent',
+            border: 'none',
+            padding: '0 4px',
+            caretColor: action.text_color || '#000000',
+            overflow: 'hidden', // El texto no desborda
+            textOverflow: 'clip', // Cortar texto que exceda
           }}
         />
       </div>

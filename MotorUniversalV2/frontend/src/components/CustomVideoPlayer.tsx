@@ -159,8 +159,8 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
           className="absolute inset-0 flex items-center justify-center bg-black/20 cursor-pointer"
           onClick={togglePlay}
         >
-          <div className="w-20 h-20 bg-white/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors">
-            <Play className="w-10 h-10 text-gray-800 ml-1" fill="currentColor" />
+          <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-700 transition-colors">
+            <Play className="w-10 h-10 text-white ml-1" fill="currentColor" />
           </div>
         </div>
       )}
