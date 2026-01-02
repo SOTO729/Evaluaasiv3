@@ -169,6 +169,19 @@ const StudyInteractiveExercisePage = () => {
     message: ''
   })
 
+  // Modal de confirmación para eliminar acción
+  const [deleteActionModal, setDeleteActionModal] = useState<{
+    isOpen: boolean
+    actionId: string | null
+    actionType: string | null
+    isCorrect: boolean
+  }>({
+    isOpen: false,
+    actionId: null,
+    actionType: null,
+    isCorrect: false
+  })
+
   // Modal de confirmación para eliminar paso
   const [deleteConfirmModal, setDeleteConfirmModal] = useState<{
     isOpen: boolean
@@ -819,10 +832,28 @@ const StudyInteractiveExercisePage = () => {
     setIsEditActionModalOpen(false)
   }
 
-  // Eliminar acción seleccionada
+  // Mostrar modal de confirmación para eliminar acción
   const handleDeleteAction = () => {
     if (!selectedAction || !currentStep) return
-    deleteActionMutation.mutate({ stepId: currentStep.id, actionId: selectedAction.id })
+    
+    // Determinar si es la respuesta correcta
+    const isCorrect = selectedAction.action_type === 'button' 
+      ? selectedAction.correct_answer === 'correct'
+      : (selectedAction.correct_answer && selectedAction.correct_answer.trim() !== '')
+    
+    setDeleteActionModal({
+      isOpen: true,
+      actionId: selectedAction.id,
+      actionType: selectedAction.action_type,
+      isCorrect: !!isCorrect
+    })
+  }
+
+  // Confirmar eliminación de acción
+  const confirmDeleteAction = () => {
+    if (!deleteActionModal.actionId || !currentStep) return
+    deleteActionMutation.mutate({ stepId: currentStep.id, actionId: deleteActionModal.actionId })
+    setDeleteActionModal({ isOpen: false, actionId: null, actionType: null, isCorrect: false })
   }
 
   if (isLoading) {
@@ -2155,6 +2186,55 @@ const StudyInteractiveExercisePage = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Modal de confirmación para eliminar acción */}
+      {deleteActionModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200">
+            <div className="flex flex-col items-center text-center">
+              {/* Icono de eliminación */}
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              
+              {/* Título */}
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Eliminar {deleteActionModal.actionType === 'button' ? 'Botón' : 'Campo de Texto'}
+              </h3>
+              
+              {/* Mensaje */}
+              <p className="text-gray-600 mb-2">
+                ¿Estás seguro de que deseas eliminar esta acción?
+              </p>
+              <p className="text-sm text-gray-500 mb-6">
+                {deleteActionModal.isCorrect ? (
+                  <span className="text-green-600 font-medium">Esta es la respuesta correcta del paso.</span>
+                ) : (
+                  <span className="text-orange-600 font-medium">Esta es una opción incorrecta.</span>
+                )}
+              </p>
+              
+              {/* Botones */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteActionModal({ isOpen: false, actionId: null, actionType: null, isCorrect: false })}
+                  className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDeleteAction}
+                  className="px-5 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de advertencia */}
       {warningModal.isOpen && (
