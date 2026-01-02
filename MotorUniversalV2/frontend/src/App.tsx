@@ -27,6 +27,7 @@ const ExamTestResultsPage = lazy(() => import('./pages/ExamTestResultsPage'))
 const StudyContentsListPage = lazy(() => import('./pages/study-contents/StudyContentsListPage'))
 const StudyContentCreatePage = lazy(() => import('./pages/study-contents/StudyContentCreatePage'))
 const StudyContentDetailPage = lazy(() => import('./pages/study-contents/StudyContentDetailPage'))
+const StudyContentPreviewPage = lazy(() => import('./pages/study-contents/StudyContentPreviewPage'))
 const StudyInteractiveExercisePage = lazy(() => import('./pages/study-contents/StudyInteractiveExercisePage'))
 
 function App() {
@@ -49,6 +50,7 @@ function App() {
             {/* Rutas de pantalla completa (sin navbar) */}
             <Route path="/test-exams/:examId/run" element={<ExamTestRunPage />} />
             <Route path="/test-exams/:examId/results" element={<ExamTestResultsPage />} />
+            <Route path="/study-contents/:id/preview" element={<StudyContentPreviewPage />} />
             
             <Route element={<Layout />}>
               <Route path="/dashboard" element={<DashboardPage />} />

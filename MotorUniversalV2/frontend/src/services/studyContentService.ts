@@ -41,6 +41,10 @@ export interface StudyTopic {
   title: string;
   description?: string;
   order: number;
+  allow_reading?: boolean;
+  allow_video?: boolean;
+  allow_downloadable?: boolean;
+  allow_interactive?: boolean;
   created_at: string;
   // Los 4 elementos
   reading?: StudyReading;
@@ -146,6 +150,10 @@ export interface CreateTopicData {
   title: string;
   description?: string;
   order?: number;
+  allow_reading?: boolean;
+  allow_video?: boolean;
+  allow_downloadable?: boolean;
+  allow_interactive?: boolean;
 }
 
 export interface CreateReadingData {
@@ -493,6 +501,19 @@ export const deleteDownloadable = async (
   );
 };
 
+export const updateDownloadable = async (
+  materialId: number,
+  sessionId: number,
+  topicId: number,
+  data: { title: string; description?: string }
+): Promise<StudyDownloadableExercise> => {
+  const response = await api.put(
+    `/study-contents/${materialId}/sessions/${sessionId}/topics/${topicId}/downloadable`,
+    data
+  );
+  return response.data.downloadable_exercise;
+};
+
 export const uploadDownloadable = async (
   materialId: number,
   sessionId: number,
@@ -676,6 +697,7 @@ export default {
   deleteVideo,
   upsertDownloadable,
   uploadDownloadable,
+  updateDownloadable,
   deleteDownloadable,
   createInteractive,
   updateInteractive,

@@ -24,6 +24,7 @@ import {
   uploadVideo,
   deleteVideo,
   uploadDownloadable,
+  updateDownloadable,
   deleteDownloadable,
   createInteractive,
   updateInteractive,
@@ -44,7 +45,7 @@ import {
   ChevronDown,
   ChevronRight,
   Layers,
-  Hash,
+  FolderOpen,
   FileText,
   Video,
   Download,
@@ -315,10 +316,11 @@ const StudyContentDetailPage = () => {
             totalTopics++;
             const missingElements: string[] = [];
 
-            if (!topic.reading) missingElements.push('Lectura');
-            if (!topic.video) missingElements.push('Video');
-            if (!topic.downloadable_exercise) missingElements.push('Ejercicio Descargable');
-            if (!topic.interactive_exercise) missingElements.push('Ejercicio Interactivo');
+            // Solo validar los tipos de contenido que están activos para este tema
+            if (topic.allow_reading !== false && !topic.reading) missingElements.push('Lectura');
+            if (topic.allow_video !== false && !topic.video) missingElements.push('Video');
+            if (topic.allow_downloadable !== false && !topic.downloadable_exercise) missingElements.push('Ejercicio Descargable');
+            if (topic.allow_interactive !== false && !topic.interactive_exercise) missingElements.push('Ejercicio Interactivo');
 
             if (missingElements.length > 0) {
               incompleteTopics++;
@@ -461,10 +463,16 @@ const StudyContentDetailPage = () => {
   const openSessionModal = (session?: StudySession) => {
     if (session) {
       setEditingSession(session);
-      setSessionForm({ title: session.title, description: session.description });
+      setSessionForm({ 
+        title: session.title, 
+        description: session.description
+      });
     } else {
       setEditingSession(null);
-      setSessionForm({ title: '', description: '' });
+      setSessionForm({ 
+        title: '', 
+        description: ''
+      });
     }
     setSessionModalOpen(true);
   };
@@ -492,16 +500,43 @@ const StudyContentDetailPage = () => {
     setSelectedSessionId(sessionId);
     if (topic) {
       setEditingTopic(topic);
-      setTopicForm({ title: topic.title, description: topic.description });
+      setTopicForm({ 
+        title: topic.title, 
+        description: topic.description,
+        allow_reading: topic.allow_reading ?? true,
+        allow_video: topic.allow_video ?? true,
+        allow_downloadable: topic.allow_downloadable ?? true,
+        allow_interactive: topic.allow_interactive ?? true
+      });
     } else {
       setEditingTopic(null);
-      setTopicForm({ title: '', description: '' });
+      setTopicForm({ 
+        title: '', 
+        description: '',
+        allow_reading: true,
+        allow_video: true,
+        allow_downloadable: true,
+        allow_interactive: true
+      });
     }
     setTopicModalOpen(true);
   };
 
   const handleSaveTopic = async () => {
     if (!topicForm.title.trim() || !selectedSessionId) return;
+    
+    // DEBUG: Mostrar qué datos se envían
+    const dataToSend = {
+      title: topicForm.title,
+      description: topicForm.description,
+      allow_reading: topicForm.allow_reading,
+      allow_video: topicForm.allow_video,
+      allow_downloadable: topicForm.allow_downloadable,
+      allow_interactive: topicForm.allow_interactive
+    };
+    console.log('=== DATOS A ENVIAR ===');
+    console.log(JSON.stringify(dataToSend, null, 2));
+    
     setSaving(true);
     try {
       if (editingTopic) {
@@ -708,34 +743,50 @@ const StudyContentDetailPage = () => {
     
     setSaving(true);
     try {
-      // Subir archivos
-      setIsUploadingDownloadable(true);
-      
-      // Calcular tamaño total para mostrar en el modal de éxito
-      const totalSize = selectedDownloadableFiles.reduce((acc, file) => acc + file.size, 0);
-      const filesCount = selectedDownloadableFiles.length;
-      
-      await uploadDownloadable(
-        materialId,
-        selectedSessionId,
-        selectedTopicId,
-        selectedDownloadableFiles,
-        downloadableForm.title,
-        downloadableForm.description || '',
-        (progress) => setDownloadableUploadProgress(progress)
-      );
-      setIsUploadingDownloadable(false);
-      await loadMaterial();
-      setDownloadableModalOpen(false);
-      
-      // Mostrar modal de éxito
-      setSuccessModalData({
-        title: downloadableForm.title,
-        fileName: filesCount === 1 ? selectedDownloadableFiles[0].name : `${filesCount} archivos (ZIP)`,
-        fileSize: formatFileSize(totalSize),
-        contentType: 'file'
-      });
-      setSuccessModalOpen(true);
+      // Si no hay archivos nuevos pero ya existe un archivo, solo actualizar título/descripción
+      if (selectedDownloadableFiles.length === 0 && downloadableForm.file_url) {
+        await updateDownloadable(
+          materialId,
+          selectedSessionId,
+          selectedTopicId,
+          {
+            title: downloadableForm.title,
+            description: downloadableForm.description || ''
+          }
+        );
+        await loadMaterial();
+        setDownloadableModalOpen(false);
+        setToast({ message: 'Ejercicio actualizado exitosamente', type: 'success' });
+      } else {
+        // Subir archivos nuevos
+        setIsUploadingDownloadable(true);
+        
+        // Calcular tamaño total para mostrar en el modal de éxito
+        const totalSize = selectedDownloadableFiles.reduce((acc, file) => acc + file.size, 0);
+        const filesCount = selectedDownloadableFiles.length;
+        
+        await uploadDownloadable(
+          materialId,
+          selectedSessionId,
+          selectedTopicId,
+          selectedDownloadableFiles,
+          downloadableForm.title,
+          downloadableForm.description || '',
+          (progress) => setDownloadableUploadProgress(progress)
+        );
+        setIsUploadingDownloadable(false);
+        await loadMaterial();
+        setDownloadableModalOpen(false);
+        
+        // Mostrar modal de éxito
+        setSuccessModalData({
+          title: downloadableForm.title,
+          fileName: filesCount === 1 ? selectedDownloadableFiles[0].name : `${filesCount} archivos (ZIP)`,
+          fileSize: formatFileSize(totalSize),
+          contentType: 'file'
+        });
+        setSuccessModalOpen(true);
+      }
     } catch (error: any) {
       console.error('Error saving downloadable:', error);
       setIsUploadingDownloadable(false);
@@ -880,62 +931,12 @@ const StudyContentDetailPage = () => {
 
         {/* Content */}
         <div className="relative z-10 p-6">
-          {/* Top row with status and actions */}
+          {/* Top row with status badge only */}
           <div className="flex justify-between items-start mb-20">
             <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium ${material.is_published ? 'bg-green-500/90 text-white' : 'bg-white/90 text-gray-700'}`}>
               {material.is_published ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               {material.is_published ? 'Publicado' : 'Borrador'}
             </span>
-            <div className="flex items-center gap-3">
-              {/* Botón Publicar/Cambiar a Borrador */}
-              {material.is_published ? (
-                <button
-                  onClick={async () => {
-                    try {
-                      await updateMaterial(Number(materialId), { is_published: false });
-                      setToast({ message: 'El material ha sido cambiado a borrador.', type: 'success' });
-                      loadMaterial();
-                    } catch (error) {
-                      console.error('Error updating material:', error);
-                      setToast({ message: 'Error al cambiar a borrador', type: 'error' });
-                    }
-                  }}
-                  className="px-4 py-2 bg-white/90 text-gray-700 hover:bg-white rounded-lg transition-colors font-medium flex items-center gap-2 shadow-sm"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  Cambiar a Borrador
-                </button>
-              ) : (
-                <button
-                  onClick={handleValidateAndPublish}
-                  className="px-4 py-2 bg-green-500 text-white hover:bg-green-600 rounded-lg transition-colors font-medium flex items-center gap-2 shadow-sm"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Publicar
-                </button>
-              )}
-              <button
-                onClick={() => navigate(`/study-contents/${materialId}/edit`)}
-                className="px-4 py-2 bg-white/90 text-gray-700 hover:bg-white rounded-lg transition-colors font-medium flex items-center gap-2 shadow-sm"
-              >
-                <Edit2 className="h-5 w-5" />
-                Editar Material
-              </button>
-              {/* Botón Eliminar Material (solo admin) */}
-              {user?.role === 'admin' && (
-                <button
-                  onClick={() => setShowDeleteMaterialModal(true)}
-                  className="px-4 py-2 bg-red-500/90 text-white hover:bg-red-600 rounded-lg transition-colors font-medium flex items-center gap-2 shadow-sm"
-                >
-                  <Trash2 className="h-5 w-5" />
-                  Eliminar
-                </button>
-              )}
-            </div>
           </div>
 
           {/* Title and description */}
@@ -970,11 +971,99 @@ const StudyContentDetailPage = () => {
             <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4">
               <div className="flex items-center gap-2 mb-1">
                 <ClipboardList className="h-5 w-5 text-white/80" />
-                <span className="text-white/80 text-sm">Exámenes</span>
+                <span className="text-white/80 text-sm">Exámenes vinculados</span>
               </div>
               <span className="text-2xl font-bold text-white">{material.linked_exams?.length || 0}</span>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Action buttons bar - Fondo blanco */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Botón Probar Contenido - solo visible cuando está publicado */}
+          {material.is_published && material.sessions && material.sessions.length > 0 && material.sessions[0].topics && material.sessions[0].topics.length > 0 && (
+            <button
+              onClick={() => navigate(`/study-contents/${materialId}/preview`)}
+              className="px-4 py-2 btn-animated-gradient text-white rounded-lg font-medium flex items-center gap-2 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:scale-105 transition-all duration-300"
+            >
+              <PlayCircle className="w-5 h-5" />
+              Probar Contenido
+            </button>
+          )}
+          {/* Botón Publicar/Cambiar a Borrador */}
+          {material.is_published ? (
+            <button
+              onClick={async () => {
+                try {
+                  await updateMaterial(Number(materialId), { is_published: false });
+                  setToast({ message: 'El material ha sido cambiado a borrador.', type: 'success' });
+                  loadMaterial();
+                } catch (error) {
+                  console.error('Error updating material:', error);
+                  setToast({ message: 'Error al cambiar a borrador', type: 'error' });
+                }
+              }}
+              className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors font-medium flex items-center gap-2 border border-gray-300"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Cambiar a Borrador
+            </button>
+          ) : (
+            <button
+              onClick={handleValidateAndPublish}
+              className="px-4 py-2 bg-green-500 text-white hover:bg-green-600 rounded-lg transition-colors font-medium flex items-center gap-2 shadow-sm"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Publicar
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => {
+              if (material.is_published) {
+                setToast({ message: 'Cambie el material a borrador para poder editarlo', type: 'error' });
+                return;
+              }
+              navigate(`/study-contents/${materialId}/edit`);
+            }}
+            disabled={material.is_published}
+            className={`px-4 py-2 rounded-lg transition-colors font-medium flex items-center gap-2 border ${
+              material.is_published
+                ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
+            }`}
+          >
+            <Edit2 className="h-5 w-5" />
+            Editar Material
+          </button>
+          {/* Botón Eliminar Material (solo admin) */}
+          {user?.role === 'admin' && (
+            <button
+              onClick={() => {
+                if (material.is_published) {
+                  setToast({ message: 'Cambie el material a borrador para poder eliminarlo', type: 'error' });
+                  return;
+                }
+                setShowDeleteMaterialModal(true);
+              }}
+              disabled={material.is_published}
+              className={`px-4 py-2 rounded-lg transition-colors font-medium flex items-center gap-2 ${
+                material.is_published
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-red-500 text-white hover:bg-red-600'
+              }`}
+            >
+              <Trash2 className="h-5 w-5" />
+              Eliminar
+            </button>
+          )}
         </div>
       </div>
 
@@ -1041,8 +1130,8 @@ const StudyContentDetailPage = () => {
                     ) : (
                       <ChevronRight className="h-5 w-5 text-gray-400" />
                     )}
-                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${expandedSessions.has(session.id) ? 'bg-blue-600' : 'bg-blue-100'}`}>
-                      <Hash className={`h-4 w-4 ${expandedSessions.has(session.id) ? 'text-white' : 'text-blue-600'}`} />
+                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${expandedSessions.has(session.id) ? 'bg-blue-600' : 'bg-blue-100'}`}>
+                      <FolderOpen className={`h-4 w-4 ${expandedSessions.has(session.id) ? 'text-white' : 'text-blue-600'}`} />
                     </div>
                     <div>
                       <h3 className={`font-medium ${expandedSessions.has(session.id) ? 'text-blue-900' : 'text-gray-900'}`}>
@@ -1121,20 +1210,28 @@ const StudyContentDetailPage = () => {
                                 <span className={`font-medium ${expandedTopics.has(topic.id) ? 'text-slate-900' : 'text-gray-800'}`}>{topic.title}</span>
                               </div>
                               <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                {/* Element indicators */}
+                                {/* Element indicators - solo mostrar los tipos permitidos */}
                                 <div className="flex gap-1">
-                                  <span className={`p-1 rounded ${topic.reading ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Lectura">
-                                    <FileText className="h-3.5 w-3.5" />
-                                  </span>
-                                  <span className={`p-1 rounded ${topic.video ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Video">
-                                    <Video className="h-3.5 w-3.5" />
-                                  </span>
-                                  <span className={`p-1 rounded ${topic.downloadable_exercise ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Descargable">
-                                    <Download className="h-3.5 w-3.5" />
-                                  </span>
-                                  <span className={`p-1 rounded ${topic.interactive_exercise ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Interactivo">
-                                    <Gamepad2 className="h-3.5 w-3.5" />
-                                  </span>
+                                  {topic.allow_reading !== false && (
+                                    <span className={`p-1 rounded ${topic.reading ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Lectura">
+                                      <FileText className="h-3.5 w-3.5" />
+                                    </span>
+                                  )}
+                                  {topic.allow_video !== false && (
+                                    <span className={`p-1 rounded ${topic.video ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Video">
+                                      <Video className="h-3.5 w-3.5" />
+                                    </span>
+                                  )}
+                                  {topic.allow_downloadable !== false && (
+                                    <span className={`p-1 rounded ${topic.downloadable_exercise ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Descargable">
+                                      <Download className="h-3.5 w-3.5" />
+                                    </span>
+                                  )}
+                                  {topic.allow_interactive !== false && (
+                                    <span className={`p-1 rounded ${topic.interactive_exercise ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Interactivo">
+                                      <Gamepad2 className="h-3.5 w-3.5" />
+                                    </span>
+                                  )}
                                 </div>
                                 {!material.is_published && (
                                   <>
@@ -1164,126 +1261,134 @@ const StudyContentDetailPage = () => {
                             {/* Topic Elements */}
                             {expandedTopics.has(topic.id) && (
                               <div className="bg-gray-50 p-4 pl-16 grid grid-cols-2 gap-3">
-                                {/* Lectura */}
-                                <div
-                                  onClick={() => {
-                                    if (material.is_published) {
-                                      setToast({ message: 'Cambie el material a borrador para editar el contenido', type: 'error' });
-                                      return;
-                                    }
-                                    openReadingModal(session.id, topic);
-                                  }}
-                                  className={`p-3 rounded-lg border transition-colors ${
-                                    material.is_published
-                                      ? 'cursor-not-allowed opacity-60'
-                                      : 'cursor-pointer'
-                                  } ${
-                                    topic.reading ? 'bg-green-50 border-green-200' : 'bg-white'
-                                  } ${
-                                    !material.is_published && (topic.reading ? 'hover:bg-green-100' : 'hover:bg-gray-100')
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <FileText className={`h-5 w-5 ${topic.reading ? 'text-green-600' : 'text-gray-400'}`} />
-                                    <span className="font-medium text-sm">Lectura</span>
+                                {/* Lectura - solo si allow_reading es true */}
+                                {(topic.allow_reading !== false) && (
+                                  <div
+                                    onClick={() => {
+                                      if (material.is_published) {
+                                        setToast({ message: 'Cambie el material a borrador para editar el contenido', type: 'error' });
+                                        return;
+                                      }
+                                      openReadingModal(session.id, topic);
+                                    }}
+                                    className={`p-3 rounded-lg border transition-colors ${
+                                      material.is_published
+                                        ? 'cursor-not-allowed opacity-60'
+                                        : 'cursor-pointer'
+                                    } ${
+                                      topic.reading ? 'bg-green-50 border-green-200' : 'bg-white'
+                                    } ${
+                                      !material.is_published && (topic.reading ? 'hover:bg-green-100' : 'hover:bg-gray-100')
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <FileText className={`h-5 w-5 ${topic.reading ? 'text-green-600' : 'text-gray-400'}`} />
+                                      <span className="font-medium text-sm">Lectura</span>
+                                    </div>
+                                    <p className="text-xs text-gray-500">
+                                      {topic.reading ? topic.reading.title : 'Sin contenido'}
+                                    </p>
                                   </div>
-                                  <p className="text-xs text-gray-500">
-                                    {topic.reading ? topic.reading.title : 'Sin contenido'}
-                                  </p>
-                                </div>
+                                )}
 
-                                {/* Video */}
-                                <div
-                                  onClick={() => {
-                                    if (material.is_published) {
-                                      setToast({ message: 'Cambie el material a borrador para editar el contenido', type: 'error' });
-                                      return;
-                                    }
-                                    openVideoModal(session.id, topic);
-                                  }}
-                                  className={`p-3 rounded-lg border transition-colors ${
-                                    material.is_published
-                                      ? 'cursor-not-allowed opacity-60'
-                                      : 'cursor-pointer'
-                                  } ${
-                                    topic.video ? 'bg-green-50 border-green-200' : 'bg-white'
-                                  } ${
-                                    !material.is_published && (topic.video ? 'hover:bg-green-100' : 'hover:bg-gray-100')
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <Video className={`h-5 w-5 ${topic.video ? 'text-green-600' : 'text-gray-400'}`} />
-                                    <span className="font-medium text-sm">Video</span>
+                                {/* Video - solo si allow_video es true */}
+                                {(topic.allow_video !== false) && (
+                                  <div
+                                    onClick={() => {
+                                      if (material.is_published) {
+                                        setToast({ message: 'Cambie el material a borrador para editar el contenido', type: 'error' });
+                                        return;
+                                      }
+                                      openVideoModal(session.id, topic);
+                                    }}
+                                    className={`p-3 rounded-lg border transition-colors ${
+                                      material.is_published
+                                        ? 'cursor-not-allowed opacity-60'
+                                        : 'cursor-pointer'
+                                    } ${
+                                      topic.video ? 'bg-green-50 border-green-200' : 'bg-white'
+                                    } ${
+                                      !material.is_published && (topic.video ? 'hover:bg-green-100' : 'hover:bg-gray-100')
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Video className={`h-5 w-5 ${topic.video ? 'text-green-600' : 'text-gray-400'}`} />
+                                      <span className="font-medium text-sm">Video</span>
+                                    </div>
+                                    <p className="text-xs text-gray-500">
+                                      {topic.video ? topic.video.title : 'Sin contenido'}
+                                    </p>
                                   </div>
-                                  <p className="text-xs text-gray-500">
-                                    {topic.video ? topic.video.title : 'Sin contenido'}
-                                  </p>
-                                </div>
+                                )}
 
-                                {/* Descargable */}
-                                <div
-                                  onClick={() => {
-                                    if (material.is_published) {
-                                      setToast({ message: 'Cambie el material a borrador para editar el contenido', type: 'error' });
-                                      return;
-                                    }
-                                    openDownloadableModal(session.id, topic);
-                                  }}
-                                  className={`p-3 rounded-lg border transition-colors ${
-                                    material.is_published
-                                      ? 'cursor-not-allowed opacity-60'
-                                      : 'cursor-pointer'
-                                  } ${
-                                    topic.downloadable_exercise ? 'bg-green-50 border-green-200' : 'bg-white'
-                                  } ${
-                                    !material.is_published && (topic.downloadable_exercise ? 'hover:bg-green-100' : 'hover:bg-gray-100')
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <Download className={`h-5 w-5 ${topic.downloadable_exercise ? 'text-green-600' : 'text-gray-400'}`} />
-                                    <span className="font-medium text-sm">Ejercicio Descargable</span>
+                                {/* Descargable - solo si allow_downloadable es true */}
+                                {(topic.allow_downloadable !== false) && (
+                                  <div
+                                    onClick={() => {
+                                      if (material.is_published) {
+                                        setToast({ message: 'Cambie el material a borrador para editar el contenido', type: 'error' });
+                                        return;
+                                      }
+                                      openDownloadableModal(session.id, topic);
+                                    }}
+                                    className={`p-3 rounded-lg border transition-colors ${
+                                      material.is_published
+                                        ? 'cursor-not-allowed opacity-60'
+                                        : 'cursor-pointer'
+                                    } ${
+                                      topic.downloadable_exercise ? 'bg-green-50 border-green-200' : 'bg-white'
+                                    } ${
+                                      !material.is_published && (topic.downloadable_exercise ? 'hover:bg-green-100' : 'hover:bg-gray-100')
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Download className={`h-5 w-5 ${topic.downloadable_exercise ? 'text-green-600' : 'text-gray-400'}`} />
+                                      <span className="font-medium text-sm">Ejercicio Descargable</span>
+                                    </div>
+                                    <p className="text-xs text-gray-500">
+                                      {topic.downloadable_exercise ? topic.downloadable_exercise.title : 'Sin contenido'}
+                                    </p>
                                   </div>
-                                  <p className="text-xs text-gray-500">
-                                    {topic.downloadable_exercise ? topic.downloadable_exercise.title : 'Sin contenido'}
-                                  </p>
-                                </div>
+                                )}
 
-                                {/* Interactivo */}
-                                <div
-                                  onClick={() => {
-                                    if (material.is_published) {
-                                      setToast({ message: 'Cambie el material a borrador para editar el contenido', type: 'error' });
-                                      return;
-                                    }
-                                    setInteractiveConfigData({
-                                      topicId: topic.id,
-                                      sessionId: session.id,
-                                      isNew: !topic.interactive_exercise
-                                    });
-                                    setInteractiveForm({
-                                      title: topic.interactive_exercise?.title || 'Ejercicio Interactivo',
-                                      description: topic.interactive_exercise?.description || ''
-                                    });
-                                    setInteractiveConfigOpen(true);
-                                  }}
-                                  className={`p-3 rounded-lg border transition-colors ${
-                                    material.is_published
-                                      ? 'cursor-not-allowed opacity-60'
-                                      : 'cursor-pointer'
-                                  } ${
-                                    topic.interactive_exercise ? 'bg-green-50 border-green-200' : 'bg-white'
-                                  } ${
-                                    !material.is_published && (topic.interactive_exercise ? 'hover:bg-green-100' : 'hover:bg-gray-100')
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <Gamepad2 className={`h-5 w-5 ${topic.interactive_exercise ? 'text-green-600' : 'text-gray-400'}`} />
-                                    <span className="font-medium text-sm">Ejercicio Interactivo</span>
+                                {/* Interactivo - solo si allow_interactive es true */}
+                                {(topic.allow_interactive !== false) && (
+                                  <div
+                                    onClick={() => {
+                                      if (material.is_published) {
+                                        setToast({ message: 'Cambie el material a borrador para editar el contenido', type: 'error' });
+                                        return;
+                                      }
+                                      setInteractiveConfigData({
+                                        topicId: topic.id,
+                                        sessionId: session.id,
+                                        isNew: !topic.interactive_exercise
+                                      });
+                                      setInteractiveForm({
+                                        title: topic.interactive_exercise?.title || 'Ejercicio Interactivo',
+                                        description: topic.interactive_exercise?.description || ''
+                                      });
+                                      setInteractiveConfigOpen(true);
+                                    }}
+                                    className={`p-3 rounded-lg border transition-colors ${
+                                      material.is_published
+                                        ? 'cursor-not-allowed opacity-60'
+                                        : 'cursor-pointer'
+                                    } ${
+                                      topic.interactive_exercise ? 'bg-green-50 border-green-200' : 'bg-white'
+                                    } ${
+                                      !material.is_published && (topic.interactive_exercise ? 'hover:bg-green-100' : 'hover:bg-gray-100')
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Gamepad2 className={`h-5 w-5 ${topic.interactive_exercise ? 'text-green-600' : 'text-gray-400'}`} />
+                                      <span className="font-medium text-sm">Ejercicio Interactivo</span>
+                                    </div>
+                                    <p className="text-xs text-gray-500">
+                                      {topic.interactive_exercise ? topic.interactive_exercise.title : 'Sin contenido'}
+                                    </p>
                                   </div>
-                                  <p className="text-xs text-gray-500">
-                                    {topic.interactive_exercise ? topic.interactive_exercise.title : 'Sin contenido'}
-                                  </p>
-                                </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -1365,6 +1470,86 @@ const StudyContentDetailPage = () => {
               rows={3}
             />
           </div>
+          
+          {/* Tipos de contenido permitidos */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Tipos de contenido para este tema
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                topicForm.allow_reading 
+                  ? 'border-blue-500 bg-blue-50' 
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={topicForm.allow_reading ?? true}
+                  onChange={(e) => setTopicForm({ ...topicForm, allow_reading: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                />
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                  <span className="font-medium text-gray-700">Lectura</span>
+                </div>
+              </label>
+              
+              <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                topicForm.allow_video 
+                  ? 'border-red-500 bg-red-50' 
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={topicForm.allow_video ?? true}
+                  onChange={(e) => setTopicForm({ ...topicForm, allow_video: e.target.checked })}
+                  className="w-4 h-4 text-red-600 rounded focus:ring-red-500"
+                />
+                <div className="flex items-center gap-2">
+                  <Video className="h-5 w-5 text-red-600" />
+                  <span className="font-medium text-gray-700">Video</span>
+                </div>
+              </label>
+              
+              <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                topicForm.allow_downloadable 
+                  ? 'border-green-500 bg-green-50' 
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={topicForm.allow_downloadable ?? true}
+                  onChange={(e) => setTopicForm({ ...topicForm, allow_downloadable: e.target.checked })}
+                  className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                />
+                <div className="flex items-center gap-2">
+                  <Download className="h-5 w-5 text-green-600" />
+                  <span className="font-medium text-gray-700">Ejercicio Descargable</span>
+                </div>
+              </label>
+              
+              <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                topicForm.allow_interactive 
+                  ? 'border-purple-500 bg-purple-50' 
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={topicForm.allow_interactive ?? true}
+                  onChange={(e) => setTopicForm({ ...topicForm, allow_interactive: e.target.checked })}
+                  className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                />
+                <div className="flex items-center gap-2">
+                  <Gamepad2 className="h-5 w-5 text-purple-600" />
+                  <span className="font-medium text-gray-700">Ejercicio Interactivo</span>
+                </div>
+              </label>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Solo se mostrarán los tipos de contenido seleccionados en la lista del tema.
+            </p>
+          </div>
+          
           <div className="flex justify-end gap-3 pt-4 border-t">
             <button onClick={() => setTopicModalOpen(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">
               Cancelar

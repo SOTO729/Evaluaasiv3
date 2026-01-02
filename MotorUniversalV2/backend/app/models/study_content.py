@@ -4,6 +4,20 @@ Estructura: Material de Estudio → Sesiones → Temas → (Lectura, Video, Ejer
 """
 from datetime import datetime
 from app import db
+import re
+
+
+def normalize_html_spaces(html_content: str) -> str:
+    """
+    Normaliza espacios no rompibles (\xa0, &nbsp;) a espacios normales.
+    Esto permite que el CSS del navegador maneje el ajuste de línea automáticamente.
+    """
+    if not html_content:
+        return html_content
+    
+    # Reemplazar espacios no rompibles con espacios normales
+    # Esto permite el ajuste de línea natural por el navegador
+    return html_content.replace('\xa0', ' ').replace('&nbsp;', ' ')
 
 
 # Tabla de asociación para relación muchos a muchos entre materiales y exámenes
@@ -142,6 +156,12 @@ class StudyTopic(db.Model):
     description = db.Column(db.Text)
     order = db.Column(db.Integer, default=0)
     
+    # Tipos de elementos permitidos (por defecto todos habilitados)
+    allow_reading = db.Column(db.Boolean, default=True, nullable=False)
+    allow_video = db.Column(db.Boolean, default=True, nullable=False)
+    allow_downloadable = db.Column(db.Boolean, default=True, nullable=False)
+    allow_interactive = db.Column(db.Boolean, default=True, nullable=False)
+    
     # Auditoría
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -160,6 +180,10 @@ class StudyTopic(db.Model):
             'title': self.title,
             'description': self.description,
             'order': self.order,
+            'allow_reading': self.allow_reading if self.allow_reading is not None else True,
+            'allow_video': self.allow_video if self.allow_video is not None else True,
+            'allow_downloadable': self.allow_downloadable if self.allow_downloadable is not None else True,
+            'allow_interactive': self.allow_interactive if self.allow_interactive is not None else True,
             'has_reading': self.reading is not None,
             'has_video': self.video is not None,
             'has_downloadable': self.downloadable_exercise is not None,
@@ -193,13 +217,16 @@ class StudyReading(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    def to_dict(self):
+    def to_dict(self, wrap_content: bool = True):
         """Convierte la lectura a diccionario"""
+        # Normalizar espacios para permitir ajuste de línea automático por CSS
+        processed_content = normalize_html_spaces(self.content) if self.content else self.content
+        
         return {
             'id': self.id,
             'topic_id': self.topic_id,
             'title': self.title,
-            'content': self.content,
+            'content': processed_content,
             'estimated_time_minutes': self.estimated_time_minutes,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
@@ -220,6 +247,8 @@ class StudyVideo(db.Model):
     video_type = db.Column(db.String(50), default='youtube')
     thumbnail_url = db.Column(db.Text)
     duration_minutes = db.Column(db.Integer)
+    video_width = db.Column(db.Integer)  # Ancho del video en pixels
+    video_height = db.Column(db.Integer)  # Alto del video en pixels
     
     # Auditoría
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -230,12 +259,14 @@ class StudyVideo(db.Model):
         return {
             'id': self.id,
             'topic_id': self.topic_id,
-            'title': self.title,
-            'description': self.description,
+            'title': normalize_html_spaces(self.title) if self.title else self.title,
+            'description': normalize_html_spaces(self.description) if self.description else self.description,
             'video_url': self.video_url,
             'video_type': self.video_type,
             'thumbnail_url': self.thumbnail_url,
             'duration_minutes': self.duration_minutes,
+            'video_width': self.video_width,
+            'video_height': self.video_height,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
@@ -265,8 +296,8 @@ class StudyDownloadableExercise(db.Model):
         return {
             'id': self.id,
             'topic_id': self.topic_id,
-            'title': self.title,
-            'description': self.description,
+            'title': normalize_html_spaces(self.title) if self.title else self.title,
+            'description': normalize_html_spaces(self.description) if self.description else self.description,
             'file_url': self.file_url,
             'file_name': self.file_name,
             'file_type': self.file_type,
@@ -302,8 +333,8 @@ class StudyInteractiveExercise(db.Model):
         data = {
             'id': self.id,
             'topic_id': self.topic_id,
-            'title': self.title or '',
-            'description': self.description or '',
+            'title': normalize_html_spaces(self.title) if self.title else '',
+            'description': normalize_html_spaces(self.description) if self.description else '',
             'is_active': self.is_active,
             'is_complete': not self.is_active if self.is_active is not None else False,
             'total_steps': self.steps.count() if self.steps else 0,
@@ -347,8 +378,8 @@ class StudyInteractiveExerciseStep(db.Model):
             'id': self.id,
             'exercise_id': self.exercise_id,
             'step_number': self.step_number,
-            'title': self.title,
-            'description': self.description,
+            'title': normalize_html_spaces(self.title) if self.title else self.title,
+            'description': normalize_html_spaces(self.description) if self.description else self.description,
             'image_url': self.image_url,
             'image_width': self.image_width,
             'image_height': self.image_height,
@@ -411,13 +442,13 @@ class StudyInteractiveExerciseAction(db.Model):
             'position_y': self.position_y,
             'width': self.width,
             'height': self.height,
-            'label': self.label,
-            'placeholder': self.placeholder,
+            'label': normalize_html_spaces(self.label) if self.label else self.label,
+            'placeholder': normalize_html_spaces(self.placeholder) if self.placeholder else self.placeholder,
             'correct_answer': self.correct_answer,
             'is_case_sensitive': self.is_case_sensitive,
             'scoring_mode': self.scoring_mode,
             'on_error_action': self.on_error_action,
-            'error_message': self.error_message,
+            'error_message': normalize_html_spaces(self.error_message) if self.error_message else self.error_message,
             'max_attempts': self.max_attempts,
             'text_color': self.text_color,
             'font_family': self.font_family,

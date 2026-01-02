@@ -611,13 +611,34 @@ def create_topic(material_id, session_id):
         session = StudySession.query.filter_by(id=session_id, material_id=material_id).first_or_404()
         data = request.get_json()
         
+        # DEBUG: Log de datos recibidos
+        import logging
+        logging.warning(f"=== CREATE TOPIC - DATA RECEIVED ===")
+        logging.warning(f"Raw data: {data}")
+        logging.warning(f"allow_reading: {data.get('allow_reading')} (type: {type(data.get('allow_reading'))})")
+        logging.warning(f"allow_video: {data.get('allow_video')} (type: {type(data.get('allow_video'))})")
+        logging.warning(f"allow_downloadable: {data.get('allow_downloadable')} (type: {type(data.get('allow_downloadable'))})")
+        logging.warning(f"allow_interactive: {data.get('allow_interactive')} (type: {type(data.get('allow_interactive'))})")
+        
         max_order = db.session.query(db.func.max(StudyTopic.order)).filter_by(session_id=session_id).scalar() or 0
+        
+        # Extraer valores explícitamente
+        allow_reading = data.get('allow_reading') if data.get('allow_reading') is not None else True
+        allow_video = data.get('allow_video') if data.get('allow_video') is not None else True
+        allow_downloadable = data.get('allow_downloadable') if data.get('allow_downloadable') is not None else True
+        allow_interactive = data.get('allow_interactive') if data.get('allow_interactive') is not None else True
+        
+        logging.warning(f"Final values - reading: {allow_reading}, video: {allow_video}, downloadable: {allow_downloadable}, interactive: {allow_interactive}")
         
         topic = StudyTopic(
             session_id=session_id,
             title=data.get('title'),
             description=data.get('description'),
-            order=data.get('order', max_order + 1)
+            order=data.get('order', max_order + 1),
+            allow_reading=allow_reading,
+            allow_video=allow_video,
+            allow_downloadable=allow_downloadable,
+            allow_interactive=allow_interactive
         )
         
         db.session.add(topic)
@@ -656,6 +677,16 @@ def update_topic(material_id, session_id, topic_id):
         topic.title = data.get('title', topic.title)
         topic.description = data.get('description', topic.description)
         topic.order = data.get('order', topic.order)
+        
+        # Actualizar campos allow_* si se proporcionan
+        if 'allow_reading' in data:
+            topic.allow_reading = data.get('allow_reading')
+        if 'allow_video' in data:
+            topic.allow_video = data.get('allow_video')
+        if 'allow_downloadable' in data:
+            topic.allow_downloadable = data.get('allow_downloadable')
+        if 'allow_interactive' in data:
+            topic.allow_interactive = data.get('allow_interactive')
         
         db.session.commit()
         
@@ -904,6 +935,7 @@ def upload_video(material_id, session_id, topic_id):
     Subir un archivo de video para un tema
     - Comprime el video con FFmpeg (~60% reducción)
     - Lo sube a cuenta Azure Cool tier (~50% más barato)
+    - Extrae y guarda las dimensiones del video
     """
     from app.utils.video_compressor import video_compressor
     
@@ -935,29 +967,53 @@ def upload_video(material_id, session_id, topic_id):
         
         original_filename = file.filename
         compression_info = {}
+        video_width = None
+        video_height = None
         
         # Intentar comprimir el video
         compressed_path, original_size, compressed_size = video_compressor.compress_video(file)
         
         if compressed_path:
+            # Obtener dimensiones del video comprimido
+            video_width, video_height = video_compressor.get_video_dimensions(compressed_path)
+            
             # Usar video comprimido
             video_url = azure_storage.upload_video(compressed_path, original_filename)
             compression_info = {
                 'original_size_mb': round(original_size / (1024 * 1024), 2),
                 'compressed_size_mb': round(compressed_size / (1024 * 1024), 2),
                 'reduction_percent': round((1 - compressed_size / original_size) * 100, 1),
-                'compressed': True
+                'compressed': True,
+                'video_width': video_width,
+                'video_height': video_height
             }
             # Limpiar archivo temporal
             video_compressor.cleanup_temp_file(compressed_path)
         else:
+            # Guardar archivo temporal para obtener dimensiones
+            import tempfile
+            import os
+            temp_dir = tempfile.mkdtemp()
+            temp_path = os.path.join(temp_dir, 'temp_video')
+            file.save(temp_path)
+            file.seek(0)
+            
+            # Obtener dimensiones del video original
+            video_width, video_height = video_compressor.get_video_dimensions(temp_path)
+            
+            # Limpiar temp
+            import shutil
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            
             # Subir archivo original si compresión falló
             file.seek(0)
             video_url = azure_storage.upload_video(file, original_filename)
             compression_info = {
                 'original_size_mb': round(file_size / (1024 * 1024), 2),
                 'compressed': False,
-                'reason': 'FFmpeg no disponible o compresión no significativa'
+                'reason': 'FFmpeg no disponible o compresión no significativa',
+                'video_width': video_width,
+                'video_height': video_height
             }
         
         if not video_url:
@@ -978,6 +1034,8 @@ def upload_video(material_id, session_id, topic_id):
             topic.video.video_url = video_url
             topic.video.video_type = 'uploaded'
             topic.video.duration_minutes = duration_minutes
+            topic.video.video_width = video_width
+            topic.video.video_height = video_height
         else:
             video = StudyVideo(
                 topic_id=topic_id,
@@ -985,7 +1043,9 @@ def upload_video(material_id, session_id, topic_id):
                 description=description,
                 video_url=video_url,
                 video_type='uploaded',
-                duration_minutes=duration_minutes
+                duration_minutes=duration_minutes,
+                video_width=video_width,
+                video_height=video_height
             )
             db.session.add(video)
         

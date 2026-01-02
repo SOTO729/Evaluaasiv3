@@ -196,3 +196,32 @@
 .ql-container.ql-snow {
   border: none;
 }
+
+/* Estilos para contenido de lectura en preview - evitar que las palabras se corten */
+.reading-content,
+.reading-content * {
+  word-break: normal !important;
+  overflow-wrap: anywhere !important;
+  word-wrap: break-word !important;
+  hyphens: none !important;
+  -webkit-hyphens: none !important;
+  -moz-hyphens: none !important;
+  -ms-hyphens: none !important;
+}
+
+.reading-content p,
+.reading-content span,
+.reading-content div,
+.reading-content li,
+.reading-content td,
+.reading-content th,
+.reading-content h1,
+.reading-content h2,
+.reading-content h3,
+.reading-content h4,
+.reading-content h5,
+.reading-content h6 {
+  word-break: normal !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+}

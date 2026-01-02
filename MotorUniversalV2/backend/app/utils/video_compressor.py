@@ -149,6 +149,24 @@ class VideoCompressor:
         except Exception:
             return None
     
+    def get_video_dimensions(self, file_path):
+        """Obtener ancho y alto del video"""
+        info = self.get_video_info(file_path)
+        if not info:
+            return None, None
+        
+        try:
+            # Buscar el stream de video
+            for stream in info.get('streams', []):
+                if stream.get('codec_type') == 'video':
+                    width = stream.get('width')
+                    height = stream.get('height')
+                    if width and height:
+                        return int(width), int(height)
+            return None, None
+        except Exception:
+            return None, None
+    
     def cleanup_temp_file(self, file_path):
         """Limpiar archivo temporal y su directorio"""
         if file_path and os.path.exists(file_path):
