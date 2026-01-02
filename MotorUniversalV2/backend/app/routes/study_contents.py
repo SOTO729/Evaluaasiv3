@@ -1535,7 +1535,9 @@ def update_action(material_id, session_id, topic_id, step_id, action_id):
         action.width = data.get('width', action.width)
         action.height = data.get('height', action.height)
         action.label = data.get('label', action.label)
-        action.placeholder = data.get('placeholder', action.placeholder)
+        # Placeholder: si se envía (incluso vacío), usar el valor enviado
+        if 'placeholder' in data:
+            action.placeholder = data['placeholder'] if data['placeholder'] else None
         action.correct_answer = data.get('correct_answer', action.correct_answer)
         action.is_case_sensitive = data.get('is_case_sensitive', action.is_case_sensitive)
         action.scoring_mode = data.get('scoring_mode', action.scoring_mode)

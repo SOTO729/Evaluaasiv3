@@ -15,9 +15,9 @@ export interface StudyMaterial {
   order: number;
   exam_id?: number;
   exam_ids?: number[];
+  linked_exams?: { id: number; name: string; version: string }[];
   sessions_count?: number;
   topics_count?: number;
-  linked_exams?: { id: number; name: string; version: string }[];
   created_at: string;
   updated_at?: string;
   created_by?: number;
@@ -30,6 +30,10 @@ export interface StudySession {
   session_number: number;
   title: string;
   description?: string;
+  allow_reading?: boolean;
+  allow_video?: boolean;
+  allow_downloadable?: boolean;
+  allow_interactive?: boolean;
   topics_count?: number;
   created_at: string;
   topics?: StudyTopic[];
@@ -41,11 +45,12 @@ export interface StudyTopic {
   title: string;
   description?: string;
   order: number;
+  created_at: string;
+  // Tipos de contenido permitidos
   allow_reading?: boolean;
   allow_video?: boolean;
   allow_downloadable?: boolean;
   allow_interactive?: boolean;
-  created_at: string;
   // Los 4 elementos
   reading?: StudyReading;
   video?: StudyVideo;
@@ -121,8 +126,8 @@ export interface StudyInteractiveExerciseAction {
   placeholder?: string;
   correct_answer?: string;
   is_case_sensitive: boolean;
-  scoring_mode: 'exact' | 'contains' | 'regex';
-  on_error_action: 'retry' | 'next_step' | 'show_hint' | 'end_exercise';
+  scoring_mode: 'exact' | 'contains' | 'regex' | 'similarity';
+  on_error_action: 'retry' | 'next_step' | 'show_hint' | 'end_exercise' | 'show_message' | 'next_exercise';
   error_message?: string;
   max_attempts: number;
   text_color?: string;
@@ -144,6 +149,10 @@ export interface CreateSessionData {
   title: string;
   description?: string;
   session_number?: number;
+  allow_reading?: boolean;
+  allow_video?: boolean;
+  allow_downloadable?: boolean;
+  allow_interactive?: boolean;
 }
 
 export interface CreateTopicData {
@@ -205,8 +214,8 @@ export interface CreateActionData {
   placeholder?: string;
   correct_answer?: string;
   is_case_sensitive?: boolean;
-  scoring_mode?: 'exact' | 'contains' | 'regex';
-  on_error_action?: 'retry' | 'next_step' | 'show_hint' | 'end_exercise';
+  scoring_mode?: 'exact' | 'contains' | 'regex' | 'similarity';
+  on_error_action?: 'retry' | 'next_step' | 'show_hint' | 'end_exercise' | 'show_message' | 'next_exercise';
   error_message?: string;
   max_attempts?: number;
   text_color?: string;
@@ -265,8 +274,8 @@ export const uploadMaterialCoverImage = async (file: File): Promise<string> => {
   const formData = new FormData();
   formData.append('image', file);
   
-  // No establecer Content-Type manualmente, axios lo hace automaticamente con el boundary correcto
-  
+  // Usar la instancia api que maneja refresh token automáticamente
+  // El interceptor elimina Content-Type cuando detecta FormData
   const response = await api.post('/study-contents/upload-cover-image', formData);
   
   return response.data.url;
@@ -336,6 +345,7 @@ export const createTopic = async (
   sessionId: number,
   data: CreateTopicData
 ): Promise<StudyTopic> => {
+  console.log('Creating topic with data:', JSON.stringify(data, null, 2));
   const response = await api.post(
     `/study-contents/${materialId}/sessions/${sessionId}/topics`,
     data

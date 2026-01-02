@@ -29,6 +29,43 @@ import {
 import LoadingSpinner from '../../components/LoadingSpinner';
 import CustomVideoPlayer from '../../components/CustomVideoPlayer';
 
+// Función para calcular similitud entre dos strings (algoritmo de Levenshtein)
+const calculateSimilarity = (str1: string, str2: string): number => {
+  if (!str1 || !str2) return 0;
+  if (str1 === str2) return 100;
+  
+  const len1 = str1.length;
+  const len2 = str2.length;
+  
+  // Crear matriz de distancias
+  const matrix: number[][] = [];
+  for (let i = 0; i <= len1; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= len2; j++) {
+    matrix[0][j] = j;
+  }
+  
+  // Llenar la matriz
+  for (let i = 1; i <= len1; i++) {
+    for (let j = 1; j <= len2; j++) {
+      const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,      // eliminación
+        matrix[i][j - 1] + 1,      // inserción
+        matrix[i - 1][j - 1] + cost // sustitución
+      );
+    }
+  }
+  
+  // Calcular porcentaje de similitud
+  const distance = matrix[len1][len2];
+  const maxLen = Math.max(len1, len2);
+  const similarity = Math.round(((maxLen - distance) / maxLen) * 100);
+  
+  return similarity;
+};
+
 const StudyContentPreviewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -295,18 +332,27 @@ const StudyContentPreviewPage: React.FC = () => {
           const scoringMode = action.scoring_mode || 'exact';
 
           if (userResponse && correctAnswer) {
-            if (scoringMode === 'exact') {
-              const userText = String(userResponse).trim();
+            // Verificar si la respuesta tiene formato de similitud (objeto con value y similarity)
+            if (scoringMode === 'similarity' && typeof userResponse === 'object' && userResponse.similarity !== undefined) {
+              // Usar el porcentaje de similitud guardado directamente
+              score += userResponse.similarity / 100;
+            } else {
+              // Para otros modos, calcular normalmente
+              const userText = typeof userResponse === 'object' ? String(userResponse.value).trim() : String(userResponse).trim();
               const correctText = String(correctAnswer).trim();
-              if (isCaseSensitive) {
-                if (userText === correctText) score += 1;
-              } else {
-                if (userText.toLowerCase() === correctText.toLowerCase()) score += 1;
+              const compareUser = isCaseSensitive ? userText : userText.toLowerCase();
+              const compareCorrect = isCaseSensitive ? correctText : correctText.toLowerCase();
+
+              if (scoringMode === 'exact') {
+                // 0% o 100% - debe coincidir exactamente
+                if (compareUser === compareCorrect) score += 1;
+              } else if (scoringMode === 'similarity') {
+                // Fallback: calcular similitud si no se guardó
+                const similarity = calculateSimilarity(compareUser, compareCorrect);
+                score += similarity / 100;
+              } else if (scoringMode === 'contains') {
+                if (compareUser.includes(compareCorrect)) score += 1;
               }
-            } else if (scoringMode === 'contains') {
-              const userText = isCaseSensitive ? String(userResponse) : String(userResponse).toLowerCase();
-              const correctText = isCaseSensitive ? String(correctAnswer) : String(correctAnswer).toLowerCase();
-              if (userText.includes(correctText)) score += 1;
             }
           }
         }
@@ -424,22 +470,134 @@ const StudyContentPreviewPage: React.FC = () => {
     const exerciseId = currentTopic?.interactive_exercise?.id;
     if (!exerciseId || !value.trim()) return;
 
-    // Guardar respuesta
-    setActionResponses(prev => ({
-      ...prev,
-      [`${action.step_id}_${action.id}`]: value
-    }));
+    const actionKey = `${action.step_id}_${action.id}`;
+    const correctAnswer = action.correct_answer || '';
+    const isCaseSensitive = action.is_case_sensitive;
+    const scoringMode = action.scoring_mode || 'exact';
 
-    // Marcar paso como completado
-    setStepCompleted(prev => ({
-      ...prev,
-      [`${exerciseId}_${stepIndex}`]: true
-    }));
+    const userText = value.trim();
+    const correctText = correctAnswer.trim();
+    const compareUser = isCaseSensitive ? userText : userText.toLowerCase();
+    const compareCorrect = isCaseSensitive ? correctText : correctText.toLowerCase();
 
-    // Avanzar al siguiente paso
-    const steps = currentTopic?.interactive_exercise?.steps || [];
-    if (stepIndex < steps.length - 1) {
-      setTimeout(() => setCurrentStepIndex(stepIndex + 1), 300);
+    // Modo similitud: siempre acepta la respuesta y guarda el porcentaje de similitud
+    if (scoringMode === 'similarity' && correctText) {
+      const similarityScore = calculateSimilarity(compareUser, compareCorrect);
+      
+      // Guardar respuesta con el porcentaje de similitud
+      setActionResponses(prev => ({
+        ...prev,
+        [actionKey]: { value, similarity: similarityScore }
+      }));
+
+      // Marcar paso como completado
+      setStepCompleted(prev => ({
+        ...prev,
+        [`${exerciseId}_${stepIndex}`]: true
+      }));
+
+      // Avanzar al siguiente paso
+      const steps = currentTopic?.interactive_exercise?.steps || [];
+      if (stepIndex < steps.length - 1) {
+        setTimeout(() => setCurrentStepIndex(stepIndex + 1), 300);
+      }
+      return;
+    }
+
+    // Para otros modos: verificar si la respuesta es correcta
+    let isCorrect = false;
+
+    if (correctText) {
+      if (scoringMode === 'exact') {
+        // 0% o 100% - debe coincidir exactamente
+        isCorrect = compareUser === compareCorrect;
+      } else if (scoringMode === 'contains') {
+        isCorrect = compareUser.includes(compareCorrect);
+      } else if (scoringMode === 'regex') {
+        try {
+          const regex = new RegExp(correctText, isCaseSensitive ? '' : 'i');
+          isCorrect = regex.test(userText);
+        } catch {
+          isCorrect = false;
+        }
+      }
+    } else {
+      // Si no hay respuesta correcta definida, cualquier respuesta es válida
+      isCorrect = true;
+    }
+
+    if (isCorrect) {
+      // Respuesta correcta - guardar y avanzar
+      setActionResponses(prev => ({
+        ...prev,
+        [actionKey]: value
+      }));
+
+      // Marcar paso como completado
+      setStepCompleted(prev => ({
+        ...prev,
+        [`${exerciseId}_${stepIndex}`]: true
+      }));
+
+      // Avanzar al siguiente paso
+      const steps = currentTopic?.interactive_exercise?.steps || [];
+      if (stepIndex < steps.length - 1) {
+        setTimeout(() => setCurrentStepIndex(stepIndex + 1), 300);
+      }
+    } else {
+      // Respuesta incorrecta - manejar según configuración
+      const currentError = actionErrors[actionKey] || { message: '', attempts: 0 };
+      const newAttempts = currentError.attempts + 1;
+      const additionalAttempts = action.max_attempts || 1;
+      const errorMessage = action.error_message || 'Respuesta incorrecta. Inténtalo de nuevo.';
+      const onErrorAction = (action.on_error_action || 'next_step') as string;
+
+      // Verificar si la acción es terminar ejercicio inmediatamente
+      if (onErrorAction === 'end_exercise' || onErrorAction === 'next_exercise') {
+        setShowErrorModal(null);
+        setActionResponses(prev => ({ ...prev, [actionKey]: value }));
+        setStepCompleted(prev => ({ ...prev, [`${exerciseId}_${stepIndex}`]: true }));
+        setTimeout(() => completeExercise(), 300);
+        return;
+      }
+
+      // Si la acción es pasar al siguiente paso (sin reintentos)
+      if (onErrorAction === 'next_step') {
+        setActionResponses(prev => ({ ...prev, [actionKey]: value }));
+        setStepCompleted(prev => ({ ...prev, [`${exerciseId}_${stepIndex}`]: true }));
+        
+        const steps = currentTopic?.interactive_exercise?.steps || [];
+        if (stepIndex < steps.length - 1) {
+          setTimeout(() => setCurrentStepIndex(stepIndex + 1), 300);
+        } else {
+          setTimeout(() => completeExercise(), 300);
+        }
+        return;
+      }
+
+      // Si es 'show_message' o cualquier otro valor - mostrar error con reintentos
+      setActionErrors(prev => ({
+        ...prev,
+        [actionKey]: { message: errorMessage, attempts: newAttempts }
+      }));
+
+      // Mostrar modal de error
+      setShowErrorModal({ message: errorMessage, actionKey });
+
+      // Manejar acción si se agotaron los intentos adicionales
+      if (newAttempts > additionalAttempts) {
+        setShowErrorModal(null);
+        
+        setActionResponses(prev => ({ ...prev, [actionKey]: value }));
+        setStepCompleted(prev => ({ ...prev, [`${exerciseId}_${stepIndex}`]: true }));
+        
+        const steps = currentTopic?.interactive_exercise?.steps || [];
+        if (stepIndex < steps.length - 1) {
+          setTimeout(() => setCurrentStepIndex(stepIndex + 1), 300);
+        } else {
+          setTimeout(() => completeExercise(), 300);
+        }
+      }
     }
   };
 
@@ -1354,11 +1512,15 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
   };
 
   if (action.action_type === 'button') {
+    // Si hay placeholder, el botón debe ser visible con el texto
+    const hasPlaceholder = action.placeholder && action.placeholder.trim() !== '';
+    
     return (
       <button
         style={{
           ...baseStyle,
-          opacity: 0, // Invisible para que el usuario descubra dónde hacer clic
+          opacity: hasPlaceholder ? 1 : 0, // Visible si hay placeholder, invisible si no
+          backgroundColor: hasPlaceholder ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
         }}
         onClick={() => {
           setShowFeedback(true);
@@ -1373,12 +1535,14 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
             ? 'bg-green-100 border-green-500 text-green-700' 
             : showFeedback
             ? 'bg-blue-200 border-blue-600 scale-95'
-            : 'bg-blue-100 border-blue-400 text-blue-700 hover:bg-blue-200 hover:border-blue-500'
+            : hasPlaceholder
+            ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100 hover:border-blue-400'
+            : 'border-transparent hover:bg-blue-100 hover:border-blue-400'
         }`}
-        title={action.label || 'Clic aquí'}
+        title={action.placeholder || action.label || 'Clic aquí'}
       >
-        {action.label && (
-          <span className="truncate px-1">{action.label}</span>
+        {hasPlaceholder && (
+          <span className="truncate px-2 text-sm">{action.placeholder}</span>
         )}
         {currentValue && <span className="ml-1">✓</span>}
       </button>
@@ -1386,6 +1550,9 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
   }
 
   if (action.action_type === 'text_input') {
+    // Si hay placeholder, mostrarlo como guía
+    const placeholderText = action.placeholder && action.placeholder.trim() !== '' ? action.placeholder : '';
+    
     return (
       <div 
         style={{
@@ -1408,7 +1575,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
               onTextSubmit(action, stepIndex, textValue);
             }
           }}
-          placeholder=""
+          placeholder={placeholderText}
           disabled={isStepCompleted}
           className="w-full h-full focus:outline-none"
           style={{
