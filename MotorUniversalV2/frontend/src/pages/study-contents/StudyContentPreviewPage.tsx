@@ -1452,15 +1452,6 @@ const StudyContentPreviewPage: React.FC = () => {
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Respuesta incorrecta</h3>
                 <p className="text-gray-600 mb-4">{showErrorModal.message}</p>
-                {/* Información de paso actual */}
-                {(() => {
-                  const totalSteps = currentTopic?.interactive_exercise?.steps?.length || 0;
-                  return totalSteps > 1 ? (
-                    <p className="text-sm text-gray-500 mb-2">
-                      Paso {currentStepIndex + 1} de {totalSteps}
-                    </p>
-                  ) : null;
-                })()}
                 {actionErrors[showErrorModal.actionKey] && (() => {
                   // max_attempts son intentos ADICIONALES después del primer error
                   const additionalAttempts = currentTopic?.interactive_exercise?.steps
@@ -1470,7 +1461,7 @@ const StudyContentPreviewPage: React.FC = () => {
                   const usedAttempts = actionErrors[showErrorModal.actionKey].attempts;
                   const remaining = additionalAttempts - usedAttempts; // Intentos adicionales restantes
                   return remaining > 0 ? (
-                    <p className="text-sm text-amber-600 mb-4">
+                    <p className="text-xs text-gray-400 mb-4">
                       Te {remaining === 1 ? 'queda' : 'quedan'} {remaining} {remaining === 1 ? 'oportunidad' : 'oportunidades'}
                     </p>
                   ) : null;
