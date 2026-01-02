@@ -402,8 +402,8 @@ const StudyContentPreviewPage: React.FC = () => {
       // Botón incorrecto - manejar según configuración
       const currentError = actionErrors[actionKey] || { message: '', attempts: 0 };
       const newAttempts = currentError.attempts + 1;
-      // max_attempts son intentos ADICIONALES (el primer intento es el 0)
-      const additionalAttempts = action.max_attempts || 1;
+      // max_attempts son intentos ADICIONALES después del primer error
+      const additionalAttempts = action.max_attempts ?? 1;
       const errorMessage = action.error_message || 'Respuesta incorrecta. Inténtalo de nuevo.';
       const onErrorAction = (action.on_error_action || 'next_step') as string;
 
@@ -445,7 +445,7 @@ const StudyContentPreviewPage: React.FC = () => {
       setShowErrorModal({ message: errorMessage, actionKey });
 
       // Manejar acción si se agotaron los intentos adicionales
-      // newAttempts > additionalAttempts porque el primer intento (0) no cuenta
+      // Agotar intentos cuando newAttempts supera los adicionales permitidos
       if (newAttempts > additionalAttempts) {
         // Cerrar modal inmediatamente
         setShowErrorModal(null);
@@ -548,7 +548,8 @@ const StudyContentPreviewPage: React.FC = () => {
       // Respuesta incorrecta - manejar según configuración
       const currentError = actionErrors[actionKey] || { message: '', attempts: 0 };
       const newAttempts = currentError.attempts + 1;
-      const additionalAttempts = action.max_attempts || 1;
+      // max_attempts son intentos ADICIONALES después del primer error
+      const additionalAttempts = action.max_attempts ?? 1;
       const errorMessage = action.error_message || 'Respuesta incorrecta. Inténtalo de nuevo.';
       const onErrorAction = (action.on_error_action || 'next_step') as string;
 
@@ -1452,13 +1453,13 @@ const StudyContentPreviewPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Respuesta incorrecta</h3>
                 <p className="text-gray-600 mb-4">{showErrorModal.message}</p>
                 {actionErrors[showErrorModal.actionKey] && (() => {
-                  // max_attempts son intentos adicionales (el primer intento no cuenta)
+                  // max_attempts son intentos ADICIONALES después del primer error
                   const additionalAttempts = currentTopic?.interactive_exercise?.steps
                     ?.flatMap(s => s.actions || [])
                     ?.find(a => `${a.step_id}_${a.id}` === showErrorModal.actionKey)
-                    ?.max_attempts || 1;
+                    ?.max_attempts ?? 1;
                   const usedAttempts = actionErrors[showErrorModal.actionKey].attempts;
-                  const remaining = additionalAttempts - usedAttempts + 1; // +1 porque el primero no cuenta
+                  const remaining = additionalAttempts - usedAttempts; // Intentos adicionales restantes
                   return remaining > 0 ? (
                     <p className="text-sm text-amber-600 mb-4">
                       Te {remaining === 1 ? 'queda' : 'quedan'} {remaining} {remaining === 1 ? 'intento' : 'intentos'}
