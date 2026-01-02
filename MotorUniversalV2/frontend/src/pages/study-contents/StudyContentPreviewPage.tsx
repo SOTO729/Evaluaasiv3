@@ -1471,7 +1471,7 @@ const StudyContentPreviewPage: React.FC = () => {
                   const remaining = additionalAttempts - usedAttempts; // Intentos adicionales restantes
                   return remaining > 0 ? (
                     <p className="text-sm text-amber-600 mb-4">
-                      Te {remaining === 1 ? 'queda' : 'quedan'} {remaining} {remaining === 1 ? 'intento' : 'intentos'}
+                      Te {remaining === 1 ? 'queda' : 'quedan'} {remaining} {remaining === 1 ? 'oportunidad' : 'oportunidades'}
                     </p>
                   ) : null;
                 })()}
