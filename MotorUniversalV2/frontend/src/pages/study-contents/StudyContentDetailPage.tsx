@@ -58,7 +58,6 @@ import {
   ClipboardList,
   Link,
   AlertCircle,
-  BookOpen,
   PlayCircle,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -2419,53 +2418,32 @@ const StudyContentDetailPage = () => {
 
               {/* Lista de errores */}
               {!validationResult.is_valid && validationResult.errors.length > 0 && (
-                <div className="max-h-64 overflow-y-auto space-y-2">
-                  <h4 className="text-sm font-medium text-gray-700 sticky top-0 bg-white pb-2">
-                    Elementos faltantes ({validationResult.errors.length})
-                  </h4>
-                  {validationResult.errors.map((error, index) => (
-                    <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                      <div className="flex items-start gap-2">
-                        <div className="w-5 h-5 rounded-full bg-amber-100 flex-shrink-0 flex items-center justify-center mt-0.5">
-                          <span className="text-xs font-medium text-amber-600">{index + 1}</span>
+                <div className="border-2 border-red-200 rounded-xl overflow-hidden">
+                  <div className="bg-red-50 px-4 py-3 border-b border-red-200">
+                    <h4 className="text-sm font-bold text-red-700 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
+                      ⚠️ Material Incompleto - {validationResult.errors.length} elemento{validationResult.errors.length > 1 ? 's' : ''} faltante{validationResult.errors.length > 1 ? 's' : ''}
+                    </h4>
+                    <p className="text-xs text-red-600 mt-1">Debes completar los siguientes elementos antes de publicar:</p>
+                  </div>
+                  <div className="max-h-52 overflow-y-auto bg-white">
+                    {validationResult.errors.map((error, index) => (
+                      <div key={index} className={`p-3 flex items-start gap-3 ${index > 0 ? 'border-t border-red-100' : ''}`}>
+                        <div className="w-6 h-6 rounded-full bg-red-500 flex-shrink-0 flex items-center justify-center">
+                          <span className="text-xs font-bold text-white">{index + 1}</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-gray-800 truncate">{error.session}</div>
+                          <div className="text-sm font-semibold text-gray-900">{error.session}</div>
                           {error.topic && (
-                            <div className="text-sm text-gray-600 truncate">Tema: {error.topic}</div>
+                            <div className="text-sm text-gray-600">→ {error.topic}</div>
                           )}
-                          <div className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" />
-                            {error.element}
+                          <div className="text-sm text-red-600 mt-1 font-medium flex items-center gap-1.5 bg-red-50 px-2 py-1 rounded inline-flex">
+                            <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+                            Falta: {error.element}
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Leyenda de elementos */}
-              {!validationResult.is_valid && (
-                <div className="pt-2 border-t border-gray-100">
-                  <p className="text-xs text-gray-500 mb-2">Cada tema debe incluir:</p>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <BookOpen className="w-4 h-4 text-blue-500" />
-                      <span>Lectura</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <PlayCircle className="w-4 h-4 text-red-500" />
-                      <span>Video</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Download className="w-4 h-4 text-green-500" />
-                      <span>Ejercicio Descargable</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Gamepad2 className="w-4 h-4 text-purple-500" />
-                      <span>Ejercicio Interactivo</span>
-                    </div>
+                    ))}
                   </div>
                 </div>
               )}

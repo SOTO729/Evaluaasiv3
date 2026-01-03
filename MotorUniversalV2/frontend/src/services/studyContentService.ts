@@ -723,16 +723,18 @@ export interface MaterialProgressResponse {
         reading: number[];
         video: number[];
         downloadable: number[];
-        interactive: number[];
+        interactive: string[];
       };
+      interactive_scores?: Record<string, number>;
     }>;
   }>;
   all_completed_contents: {
     reading: number[];
     video: number[];
     downloadable: number[];
-    interactive: number[];
+    interactive: string[];
   };
+  interactive_scores?: Record<string, number>;
 }
 
 /**

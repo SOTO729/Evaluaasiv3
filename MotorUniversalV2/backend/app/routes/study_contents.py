@@ -1906,7 +1906,9 @@ def register_content_progress(content_type, content_id):
         
         # Para interactivos, verificar si la calificación es >= 80%
         if content_type == 'interactive' and score is not None:
-            progress.score = score
+            # Solo actualizar el score si es mayor al existente (guardar la mejor calificación)
+            if progress.score is None or score > progress.score:
+                progress.score = score
             if score >= 80:
                 is_completed = True
         
@@ -2088,6 +2090,9 @@ def get_material_progress(material_id):
             'interactive': []
         }
         
+        # Diccionario para almacenar scores de ejercicios interactivos
+        all_interactive_scores = {}
+        
         # No usar order_by aquí porque ya está definido en la relación del modelo
         for session in material.sessions.all():
             session_data = {
@@ -2136,11 +2141,18 @@ def get_material_progress(material_id):
                     is_completed=True
                 ).all()
                 
+                # Diccionario para scores de este tema
+                topic_interactive_scores = {}
+                
                 for cp in content_progresses:
                     if cp.content_type in topic_completed:
                         topic_completed[cp.content_type].append(cp.content_id)
                         completed_content_ids[cp.content_type].append(cp.content_id)
                         topic_completed_count += 1
+                        # Guardar score de ejercicios interactivos
+                        if cp.content_type == 'interactive' and cp.score is not None:
+                            topic_interactive_scores[cp.content_id] = cp.score
+                            all_interactive_scores[cp.content_id] = cp.score
                 
                 completed_contents += topic_completed_count
                 
@@ -2157,7 +2169,8 @@ def get_material_progress(material_id):
                         'progress_percentage': topic_percentage,
                         'is_completed': topic_completed_count == topic_total and topic_total > 0
                     },
-                    'completed_contents': topic_completed
+                    'completed_contents': topic_completed,
+                    'interactive_scores': topic_interactive_scores
                 }
                 
                 session_data['topics'].append(topic_data)
@@ -2174,7 +2187,8 @@ def get_material_progress(material_id):
             'completed_contents': completed_contents,
             'progress_percentage': overall_percentage,
             'sessions': sessions_progress,
-            'all_completed_contents': completed_content_ids
+            'all_completed_contents': completed_content_ids,
+            'interactive_scores': all_interactive_scores
         }), 200
         
     except Exception as e:

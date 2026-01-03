@@ -28,6 +28,7 @@ import {
   Check,
   RotateCcw,
   Image,
+  Target,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import CustomVideoPlayer from '../../components/CustomVideoPlayer';
@@ -120,6 +121,9 @@ const StudyContentPreviewPage: React.FC = () => {
     downloadable: new Set(),
     interactive: new Set(),
   });
+  
+  // Estado para guardar las mejores calificaciones de ejercicios interactivos
+  const [savedInteractiveScores, setSavedInteractiveScores] = useState<Record<string, number>>({});
 
   // Calcular el progreso total del material basado en contenidos completados
   const calculateMaterialProgress = () => {
@@ -174,6 +178,11 @@ const StudyContentPreviewPage: React.FC = () => {
               interactive: new Set((progress.all_completed_contents.interactive || []).map(String)),
             });
           }
+          
+          // Cargar scores de ejercicios interactivos
+          if (progress.interactive_scores) {
+            setSavedInteractiveScores(progress.interactive_scores);
+          }
         } catch (progressError) {
           console.error('Error loading material progress:', progressError);
         }
@@ -207,6 +216,19 @@ const StudyContentPreviewPage: React.FC = () => {
         ...prev,
         [contentType]: new Set([...prev[contentType], contentId])
       }));
+      
+      // Si es un ejercicio interactivo, actualizar el score guardado localmente
+      if (contentType === 'interactive' && score !== undefined) {
+        const exerciseIdStr = String(contentId);
+        setSavedInteractiveScores(prev => {
+          // Solo actualizar si es mejor que el score existente
+          const currentScore = prev[exerciseIdStr];
+          if (currentScore === undefined || score > currentScore) {
+            return { ...prev, [exerciseIdStr]: score };
+          }
+          return prev;
+        });
+      }
     } catch (error) {
       console.error('Error registering progress:', error);
     }
@@ -501,11 +523,30 @@ const StudyContentPreviewPage: React.FC = () => {
     setExerciseScore(result);
     setExerciseCompleted(true);
     
-    // Si la calificación es >= 80%, registrar como completado
-    if (result.percentage >= 80 && currentTopic?.interactive_exercise?.id) {
+    // Registrar el progreso siempre (el backend guardará la mejor calificación)
+    if (currentTopic?.interactive_exercise?.id) {
       const exerciseId = currentTopic.interactive_exercise.id;
-      if (!completedContents.interactive.has(exerciseId)) {
-        await markContentCompleted('interactive', exerciseId, result.percentage);
+      // Solo marcar como "completado" si >= 80%, pero siempre enviar el score
+      await registerContentProgress('interactive', exerciseId, { 
+        is_completed: result.percentage >= 80,
+        score: result.percentage 
+      });
+      
+      // Actualizar el score local si es mejor
+      setSavedInteractiveScores(prev => {
+        const currentScore = prev[exerciseId];
+        if (currentScore === undefined || result.percentage > currentScore) {
+          return { ...prev, [exerciseId]: result.percentage };
+        }
+        return prev;
+      });
+      
+      // Si >= 80%, agregar a completados
+      if (result.percentage >= 80 && !completedContents.interactive.has(exerciseId)) {
+        setCompletedContents(prev => ({
+          ...prev,
+          interactive: new Set([...prev.interactive, exerciseId])
+        }));
       }
     }
   };
@@ -1032,8 +1073,13 @@ const StudyContentPreviewPage: React.FC = () => {
                           >
                             <div className={`text-sm flex items-center gap-2 ${isActive ? 'font-medium text-blue-600' : 'text-gray-700'}`}>
                               <span className="flex-1">
-                                <span className={`mr-1 ${topicCompleted ? 'text-green-500' : 'text-gray-400'}`}>{session.session_number}.{tIdx + 1}</span> {topic.title}
+                                <span className="text-gray-400 mr-1">{session.session_number}.{tIdx + 1}</span> {topic.title}
                               </span>
+                              {topicCompleted && (
+                                <span className="flex items-center justify-center w-2.5 h-2.5 bg-green-500 rounded-full flex-shrink-0">
+                                  <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
+                                </span>
+                              )}
                             </div>
                           </button>
                         );
@@ -1087,8 +1133,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       <FileText className="w-4 h-4" />
                       Lectura
                       {currentTopic?.reading && completedContents.reading.has(currentTopic.reading.id) && (
-                        <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
-                          <Check className="w-2 h-2 text-white" strokeWidth={3} />
+                        <span className="flex items-center justify-center w-2.5 h-2.5 bg-green-500 rounded-full">
+                          <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
                         </span>
                       )}
                     </div>
@@ -1107,8 +1153,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       <Video className="w-4 h-4" />
                       Video
                       {currentTopic?.video && completedContents.video.has(currentTopic.video.id) && (
-                        <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
-                          <Check className="w-2 h-2 text-white" strokeWidth={3} />
+                        <span className="flex items-center justify-center w-2.5 h-2.5 bg-green-500 rounded-full">
+                          <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
                         </span>
                       )}
                     </div>
@@ -1127,8 +1173,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       <Gamepad2 className="w-4 h-4" />
                       Ejercicio
                       {currentTopic?.interactive_exercise && completedContents.interactive.has(currentTopic.interactive_exercise.id) && (
-                        <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
-                          <Check className="w-2 h-2 text-white" strokeWidth={3} />
+                        <span className="flex items-center justify-center w-2.5 h-2.5 bg-green-500 rounded-full">
+                          <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
                         </span>
                       )}
                     </div>
@@ -1147,8 +1193,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       <Download className="w-4 h-4" />
                       Recursos
                       {currentTopic?.downloadable_exercise && completedContents.downloadable.has(currentTopic.downloadable_exercise.id) && (
-                        <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
-                          <Check className="w-2 h-2 text-white" strokeWidth={3} />
+                        <span className="flex items-center justify-center w-2.5 h-2.5 bg-green-500 rounded-full">
+                          <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
                         </span>
                       )}
                     </div>
@@ -1393,6 +1439,56 @@ const StudyContentPreviewPage: React.FC = () => {
                           </div>
                         )}
                         
+                        {/* Mostrar mejor calificación si ya completó el ejercicio anteriormente */}
+                        {currentTopic.interactive_exercise.id && savedInteractiveScores[currentTopic.interactive_exercise.id] !== undefined && (
+                          <div className={`rounded-lg p-4 mb-4 ${
+                            savedInteractiveScores[currentTopic.interactive_exercise.id] >= 80 
+                              ? 'bg-green-50 border border-green-200' 
+                              : 'bg-amber-50 border border-amber-200'
+                          }`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${
+                                  savedInteractiveScores[currentTopic.interactive_exercise.id] >= 80 
+                                    ? 'bg-green-100' 
+                                    : 'bg-amber-100'
+                                }`}>
+                                  <Target className={`w-5 h-5 ${
+                                    savedInteractiveScores[currentTopic.interactive_exercise.id] >= 80 
+                                      ? 'text-green-600' 
+                                      : 'text-amber-600'
+                                  }`} />
+                                </div>
+                                <div>
+                                  <p className={`font-medium text-sm ${
+                                    savedInteractiveScores[currentTopic.interactive_exercise.id] >= 80 
+                                      ? 'text-green-800' 
+                                      : 'text-amber-800'
+                                  }`}>
+                                    Tu mejor calificación
+                                  </p>
+                                  <p className={`text-xs ${
+                                    savedInteractiveScores[currentTopic.interactive_exercise.id] >= 80 
+                                      ? 'text-green-600' 
+                                      : 'text-amber-600'
+                                  }`}>
+                                    {savedInteractiveScores[currentTopic.interactive_exercise.id] >= 80 
+                                      ? 'Ejercicio completado' 
+                                      : 'Intenta obtener 80% o más para completar'}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className={`text-2xl font-bold ${
+                                savedInteractiveScores[currentTopic.interactive_exercise.id] >= 80 
+                                  ? 'text-green-600' 
+                                  : 'text-amber-600'
+                              }`}>
+                                {Math.round(savedInteractiveScores[currentTopic.interactive_exercise.id])}%
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
                         {/* Botón para comenzar - Diseño llamativo */}
                         <div ref={startExerciseRef} className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                           <div className="flex items-center justify-between">
@@ -1400,7 +1496,11 @@ const StudyContentPreviewPage: React.FC = () => {
                               <div className="p-2 bg-blue-100 rounded-lg">
                                 <Gamepad2 className="w-5 h-5 text-blue-600" />
                               </div>
-                              <p className="font-medium text-blue-900 text-sm">Listo para comenzar</p>
+                              <p className="font-medium text-blue-900 text-sm">
+                                {savedInteractiveScores[currentTopic.interactive_exercise.id] !== undefined 
+                                  ? 'Volver a intentar' 
+                                  : 'Listo para comenzar'}
+                              </p>
                             </div>
                             <button
                               onClick={startExercise}
@@ -1408,7 +1508,9 @@ const StudyContentPreviewPage: React.FC = () => {
                               className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <PlayCircle className="w-4 h-4" />
-                              Comenzar
+                              {savedInteractiveScores[currentTopic.interactive_exercise.id] !== undefined 
+                                ? 'Reintentar' 
+                                : 'Comenzar'}
                             </button>
                           </div>
                         </div>
