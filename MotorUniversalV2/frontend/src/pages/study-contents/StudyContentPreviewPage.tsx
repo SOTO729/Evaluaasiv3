@@ -25,7 +25,7 @@ import {
   PlayCircle,
   Menu,
   X,
-  CheckCircle2,
+  Check,
   RotateCcw,
   Image,
 } from 'lucide-react';
@@ -1044,8 +1044,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       <FileText className="w-4 h-4" />
                       Lectura
                       {currentTopic?.reading && completedContents.reading.has(currentTopic.reading.id) && (
-                        <span className="flex items-center justify-center w-5 h-5 bg-green-500 rounded-full">
-                          <CheckCircle2 className="w-4 h-4 text-white" />
+                        <span className="flex items-center justify-center w-4 h-4 bg-green-500 rounded-full">
+                          <Check className="w-3 h-3 text-white" strokeWidth={3} />
                         </span>
                       )}
                     </div>
@@ -1064,8 +1064,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       <Video className="w-4 h-4" />
                       Video
                       {currentTopic?.video && completedContents.video.has(currentTopic.video.id) && (
-                        <span className="flex items-center justify-center w-5 h-5 bg-green-500 rounded-full">
-                          <CheckCircle2 className="w-4 h-4 text-white" />
+                        <span className="flex items-center justify-center w-4 h-4 bg-green-500 rounded-full">
+                          <Check className="w-3 h-3 text-white" strokeWidth={3} />
                         </span>
                       )}
                     </div>
@@ -1084,8 +1084,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       <Gamepad2 className="w-4 h-4" />
                       Ejercicio
                       {currentTopic?.interactive_exercise && completedContents.interactive.has(currentTopic.interactive_exercise.id) && (
-                        <span className="flex items-center justify-center w-5 h-5 bg-green-500 rounded-full">
-                          <CheckCircle2 className="w-4 h-4 text-white" />
+                        <span className="flex items-center justify-center w-4 h-4 bg-green-500 rounded-full">
+                          <Check className="w-3 h-3 text-white" strokeWidth={3} />
                         </span>
                       )}
                     </div>
@@ -1104,8 +1104,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       <Download className="w-4 h-4" />
                       Recursos
                       {currentTopic?.downloadable_exercise && completedContents.downloadable.has(currentTopic.downloadable_exercise.id) && (
-                        <span className="flex items-center justify-center w-5 h-5 bg-green-500 rounded-full">
-                          <CheckCircle2 className="w-4 h-4 text-white" />
+                        <span className="flex items-center justify-center w-4 h-4 bg-green-500 rounded-full">
+                          <Check className="w-3 h-3 text-white" strokeWidth={3} />
                         </span>
                       )}
                     </div>
