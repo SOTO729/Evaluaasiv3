@@ -2055,7 +2055,7 @@ def get_material_progress(material_id):
                 'topics': []
             }
             
-            for topic in session.topics.order_by(StudyTopic.topic_number).all():
+            for topic in session.topics.order_by(StudyTopic.order).all():
                 # Contar contenidos totales de este tema directamente de las tablas
                 topic_total = 0
                 topic_completed_count = 0
@@ -2106,7 +2106,7 @@ def get_material_progress(material_id):
                 
                 topic_data = {
                     'topic_id': topic.id,
-                    'topic_number': topic.topic_number,
+                    'topic_number': topic.order,
                     'title': topic.title,
                     'progress': {
                         'total_contents': topic_total,
