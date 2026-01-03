@@ -21,6 +21,10 @@ from app.models.study_content import (
     StudyInteractiveExerciseStep,
     StudyInteractiveExerciseAction
 )
+from app.models.student_progress import (
+    StudentContentProgress,
+    StudentTopicProgress
+)
 
 __all__ = [
     'User',
@@ -42,5 +46,7 @@ __all__ = [
     'StudyDownloadableExercise',
     'StudyInteractiveExercise',
     'StudyInteractiveExerciseStep',
-    'StudyInteractiveExerciseAction'
+    'StudyInteractiveExerciseAction',
+    'StudentContentProgress',
+    'StudentTopicProgress'
 ]

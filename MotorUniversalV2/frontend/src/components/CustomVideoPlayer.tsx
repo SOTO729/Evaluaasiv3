@@ -8,9 +8,10 @@ import { Play, Pause, Volume2, VolumeX, Maximize, Minimize } from 'lucide-react'
 interface CustomVideoPlayerProps {
   src: string;
   className?: string;
+  onEnded?: () => void;
 }
 
-const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = '' }) => {
+const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = '', onEnded }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -32,7 +33,10 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
 
     const handleTimeUpdate = () => setCurrentTime(video.currentTime);
     const handleLoadedMetadata = () => setDuration(video.duration);
-    const handleEnded = () => setIsPlaying(false);
+    const handleEnded = () => {
+      setIsPlaying(false);
+      if (onEnded) onEnded();
+    };
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };

@@ -9,6 +9,9 @@ import {
   getMaterial,
   StudyMaterial,
   StudyInteractiveExerciseAction,
+  registerContentProgress,
+  getTopicProgress,
+  TopicProgressResponse,
 } from '../../services/studyContentService';
 import {
   ArrowLeft,
@@ -95,10 +98,25 @@ const StudyContentPreviewPage: React.FC = () => {
   const instructionsRef = useRef<HTMLDivElement>(null);
   const startExerciseRef = useRef<HTMLDivElement>(null);
   const downloadButtonRef = useRef<HTMLDivElement>(null);
+  const readingContentRef = useRef<HTMLDivElement>(null);
   const [showScrollHint, setShowScrollHint] = useState(false);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [showDownloadScrollHint, setShowDownloadScrollHint] = useState(false);
   const [instructionsExpanded, setInstructionsExpanded] = useState(false);
+
+  // Estados de progreso del estudiante
+  const [topicProgress, setTopicProgress] = useState<TopicProgressResponse | null>(null);
+  const [completedContents, setCompletedContents] = useState<{
+    reading: Set<number>;
+    video: Set<number>;
+    downloadable: Set<number>;
+    interactive: Set<number>;
+  }>({
+    reading: new Set(),
+    video: new Set(),
+    downloadable: new Set(),
+    interactive: new Set(),
+  });
 
   // Cargar material
   useEffect(() => {
@@ -122,6 +140,77 @@ const StudyContentPreviewPage: React.FC = () => {
     };
     loadMaterial();
   }, [materialId]);
+
+  // Definir currentSession y currentTopic antes de usarlos en useEffect
+  const currentSession = material?.sessions?.[currentSessionIndex];
+  const currentTopic = currentSession?.topics?.[currentTopicIndex];
+
+  // Cargar progreso del tema actual
+  useEffect(() => {
+    const loadTopicProgress = async () => {
+      if (!currentTopic?.id) return;
+      
+      try {
+        const progress = await getTopicProgress(currentTopic.id);
+        setTopicProgress(progress);
+        
+        // Actualizar sets de contenidos completados
+        const newCompleted = {
+          reading: new Set<number>(),
+          video: new Set<number>(),
+          downloadable: new Set<number>(),
+          interactive: new Set<number>(),
+        };
+        
+        Object.entries(progress.content_progress.reading).forEach(([id, p]) => {
+          if (p.is_completed) newCompleted.reading.add(Number(id));
+        });
+        Object.entries(progress.content_progress.video).forEach(([id, p]) => {
+          if (p.is_completed) newCompleted.video.add(Number(id));
+        });
+        Object.entries(progress.content_progress.downloadable).forEach(([id, p]) => {
+          if (p.is_completed) newCompleted.downloadable.add(Number(id));
+        });
+        Object.entries(progress.content_progress.interactive).forEach(([id, p]) => {
+          if (p.is_completed) newCompleted.interactive.add(Number(id));
+        });
+        
+        setCompletedContents(newCompleted);
+      } catch (error) {
+        console.error('Error loading topic progress:', error);
+      }
+    };
+    
+    loadTopicProgress();
+  }, [currentTopic?.id]);
+
+  // Función para registrar progreso de contenido
+  const markContentCompleted = async (
+    contentType: 'reading' | 'video' | 'downloadable' | 'interactive',
+    contentId: number,
+    score?: number
+  ) => {
+    try {
+      await registerContentProgress(contentType, contentId, { 
+        is_completed: true,
+        score 
+      });
+      
+      // Actualizar estado local
+      setCompletedContents(prev => ({
+        ...prev,
+        [contentType]: new Set([...prev[contentType], contentId])
+      }));
+      
+      // Recargar progreso del tema
+      if (currentTopic?.id) {
+        const progress = await getTopicProgress(currentTopic.id);
+        setTopicProgress(progress);
+      }
+    } catch (error) {
+      console.error('Error registering progress:', error);
+    }
+  };
 
   // Scroll al video cuando se cambia al tab de video
   useEffect(() => {
@@ -153,9 +242,6 @@ const StudyContentPreviewPage: React.FC = () => {
       setActiveTab('reading');
     }
   };
-
-  const currentSession = material?.sessions?.[currentSessionIndex];
-  const currentTopic = currentSession?.topics?.[currentTopicIndex];
 
   // Detectar si el botón de iniciar ejercicio no está visible en pantalla
   useEffect(() => {
@@ -228,6 +314,11 @@ const StudyContentPreviewPage: React.FC = () => {
   };
 
   const getProgressPercentage = () => {
+    // Usar el porcentaje de progreso del tema actual si está disponible
+    if (topicProgress) {
+      return Math.round(topicProgress.topic_progress.progress_percentage);
+    }
+    // Fallback al cálculo original si no hay datos de progreso
     return Math.round((getCurrentTopicGlobalIndex() / getTotalTopics()) * 100);
   };
 
@@ -364,10 +455,18 @@ const StudyContentPreviewPage: React.FC = () => {
   };
 
   // Función para completar el ejercicio y calcular puntuación
-  const completeExercise = () => {
+  const completeExercise = async () => {
     const result = evaluateExercise();
     setExerciseScore(result);
     setExerciseCompleted(true);
+    
+    // Si la calificación es >= 80%, registrar como completado
+    if (result.percentage >= 80 && currentTopic?.interactive_exercise?.id) {
+      const exerciseId = Number(currentTopic.interactive_exercise.id);
+      if (!completedContents.interactive.has(exerciseId)) {
+        await markContentCompleted('interactive', exerciseId, result.percentage);
+      }
+    }
   };
 
   const handleActionClick = (action: StudyInteractiveExerciseAction, stepIndex: number) => {
@@ -770,10 +869,15 @@ const StudyContentPreviewPage: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-4">
-            {/* Progreso */}
+            {/* Progreso del tema actual */}
             <div className="hidden sm:flex items-center gap-3">
               <div className="text-sm text-gray-500">
-                {getCurrentTopicGlobalIndex()} de {getTotalTopics()} temas
+                Tema {getCurrentTopicGlobalIndex()}/{getTotalTopics()}
+                {topicProgress && (
+                  <span className="ml-1">
+                    ({topicProgress.topic_progress.completed_contents}/{topicProgress.topic_progress.total_contents} contenidos)
+                  </span>
+                )}
               </div>
               <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div 
@@ -903,6 +1007,9 @@ const StudyContentPreviewPage: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4" />
                       Lectura
+                      {currentTopic?.reading && completedContents.reading.has(currentTopic.reading.id) && (
+                        <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      )}
                     </div>
                   </button>
                 )}
@@ -918,6 +1025,9 @@ const StudyContentPreviewPage: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <Video className="w-4 h-4" />
                       Video
+                      {currentTopic?.video && completedContents.video.has(currentTopic.video.id) && (
+                        <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      )}
                     </div>
                   </button>
                 )}
@@ -933,6 +1043,9 @@ const StudyContentPreviewPage: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <Gamepad2 className="w-4 h-4" />
                       Ejercicio
+                      {currentTopic?.interactive_exercise && completedContents.interactive.has(Number(currentTopic.interactive_exercise.id)) && (
+                        <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      )}
                     </div>
                   </button>
                 )}
@@ -948,6 +1061,9 @@ const StudyContentPreviewPage: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <Download className="w-4 h-4" />
                       Recursos
+                      {currentTopic?.downloadable_exercise && completedContents.downloadable.has(currentTopic.downloadable_exercise.id) && (
+                        <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      )}
                     </div>
                   </button>
                 )}
@@ -970,6 +1086,11 @@ const StudyContentPreviewPage: React.FC = () => {
                         <CustomVideoPlayer
                           src={currentTopic.video.video_url}
                           className="w-full shadow-md"
+                          onEnded={() => {
+                            if (currentTopic.video && !completedContents.video.has(currentTopic.video.id)) {
+                              markContentCompleted('video', currentTopic.video.id);
+                            }
+                          }}
                         />
                       ) : (
                         // iframe para YouTube/Vimeo
@@ -991,6 +1112,21 @@ const StudyContentPreviewPage: React.FC = () => {
                           dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.video.description) }}
                         />
                       )}
+                      
+                      {/* Estado de completado del video */}
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        {completedContents.video.has(currentTopic.video.id) ? (
+                          <div className="flex items-center justify-center gap-2 py-3 px-4 bg-green-50 text-green-700 rounded-lg">
+                            <CheckCircle2 className="w-5 h-5" />
+                            <span className="font-medium">Video completado</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center gap-2 py-3 px-4 bg-gray-50 text-gray-500 rounded-lg">
+                            <PlayCircle className="w-5 h-5" />
+                            <span className="text-sm">Mira el video completo para marcarlo como completado</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-16 text-gray-400">
@@ -1003,7 +1139,7 @@ const StudyContentPreviewPage: React.FC = () => {
 
               {/* Lectura */}
               {activeTab === 'reading' && (
-                <div>
+                <div ref={readingContentRef}>
                   {currentTopic?.reading ? (
                     <article className="w-full">
                       <h2 className="text-xl font-semibold text-gray-900 pb-3 mb-4 border-b border-gray-300">{currentTopic.reading.title}</h2>
@@ -1011,6 +1147,24 @@ const StudyContentPreviewPage: React.FC = () => {
                         className="reading-content prose prose-sm prose-gray max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 prose-img:max-w-full prose-pre:max-w-full prose-pre:overflow-x-auto"
                         dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.reading.content || '') }}
                       />
+                      
+                      {/* Botón para marcar lectura como completada */}
+                      <div className="mt-8 pt-6 border-t border-gray-200">
+                        {completedContents.reading.has(currentTopic.reading.id) ? (
+                          <div className="flex items-center justify-center gap-2 py-3 px-4 bg-green-50 text-green-700 rounded-lg">
+                            <CheckCircle2 className="w-5 h-5" />
+                            <span className="font-medium">Lectura completada</span>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => markContentCompleted('reading', currentTopic.reading!.id)}
+                            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                          >
+                            <CheckCircle2 className="w-5 h-5" />
+                            <span>Marcar lectura como completada</span>
+                          </button>
+                        )}
+                      </div>
                     </article>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-20 text-gray-400">
@@ -1075,6 +1229,12 @@ const StudyContentPreviewPage: React.FC = () => {
                             href={currentTopic.downloadable_exercise.file_url}
                             target="_blank"
                             rel="noopener noreferrer"
+                            onClick={() => {
+                              // Registrar progreso cuando se descarga
+                              if (currentTopic.downloadable_exercise && !completedContents.downloadable.has(currentTopic.downloadable_exercise.id)) {
+                                markContentCompleted('downloadable', currentTopic.downloadable_exercise.id);
+                              }
+                            }}
                             className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
                           >
                             <Download className="w-4 h-4" />
@@ -1082,6 +1242,14 @@ const StudyContentPreviewPage: React.FC = () => {
                           </a>
                         </div>
                       </div>
+                      
+                      {/* Estado de completado del descargable */}
+                      {completedContents.downloadable.has(currentTopic.downloadable_exercise.id) && (
+                        <div className="mt-4 flex items-center justify-center gap-2 py-3 px-4 bg-green-50 text-green-700 rounded-lg">
+                          <CheckCircle2 className="w-5 h-5" />
+                          <span className="font-medium">Archivo descargado</span>
+                        </div>
+                      )}
                     </article>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-20 text-gray-400">

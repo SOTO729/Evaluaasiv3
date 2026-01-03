@@ -679,6 +679,78 @@ export const deleteAction = async (
   );
 };
 
+// ==================== Progreso del Estudiante ====================
+
+export interface ContentProgress {
+  is_completed: boolean;
+  score?: number;
+  completed_at?: string;
+}
+
+export interface TopicProgressData {
+  total_contents: number;
+  completed_contents: number;
+  progress_percentage: number;
+  is_completed: boolean;
+}
+
+export interface TopicProgressResponse {
+  topic_progress: TopicProgressData;
+  content_progress: {
+    reading: Record<number, ContentProgress>;
+    video: Record<number, ContentProgress>;
+    downloadable: Record<number, ContentProgress>;
+    interactive: Record<number, ContentProgress>;
+  };
+}
+
+export interface MaterialProgressResponse {
+  material_id: number;
+  title: string;
+  total_contents: number;
+  completed_contents: number;
+  progress_percentage: number;
+  sessions: Array<{
+    session_id: number;
+    session_number: number;
+    title: string;
+    topics: Array<{
+      topic_id: number;
+      topic_number: number;
+      title: string;
+      progress: TopicProgressData;
+    }>;
+  }>;
+}
+
+/**
+ * Registrar progreso de un contenido específico
+ */
+export const registerContentProgress = async (
+  contentType: 'reading' | 'video' | 'downloadable' | 'interactive',
+  contentId: number,
+  data: { is_completed?: boolean; score?: number }
+): Promise<{ message: string; progress: ContentProgress }> => {
+  const response = await api.post(`/study-contents/progress/${contentType}/${contentId}`, data);
+  return response.data;
+};
+
+/**
+ * Obtener progreso de un tema específico
+ */
+export const getTopicProgress = async (topicId: number): Promise<TopicProgressResponse> => {
+  const response = await api.get(`/study-contents/progress/topic/${topicId}`);
+  return response.data;
+};
+
+/**
+ * Obtener progreso de todo el material de estudio
+ */
+export const getMaterialProgress = async (materialId: number): Promise<MaterialProgressResponse> => {
+  const response = await api.get(`/study-contents/progress/material/${materialId}`);
+  return response.data;
+};
+
 // Exportar todo como default también
 export default {
   // Materiales
@@ -719,4 +791,8 @@ export default {
   createAction,
   updateAction,
   deleteAction,
+  // Progreso del estudiante
+  registerContentProgress,
+  getTopicProgress,
+  getMaterialProgress,
 };

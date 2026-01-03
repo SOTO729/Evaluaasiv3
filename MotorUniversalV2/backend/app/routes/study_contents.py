@@ -23,6 +23,7 @@ from app.models.study_content import (
     study_material_exams
 )
 from app.models.exam import Exam
+from app.models.student_progress import StudentContentProgress, StudentTopicProgress
 from app.utils.azure_storage import azure_storage
 
 study_contents_bp = Blueprint('study_contents', __name__)
@@ -1610,6 +1611,375 @@ def upload_interactive_image():
         return jsonify({
             'message': 'Imagen subida exitosamente',
             'url': file_url
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ==========================================
+# ENDPOINTS DE PROGRESO DEL ESTUDIANTE
+# ==========================================
+
+def ensure_student_progress_tables():
+    """Asegurar que las tablas de progreso existen"""
+    try:
+        # Verificar si la tabla student_content_progress existe
+        result = db.session.execute(text("""
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_NAME = 'student_content_progress'
+        """))
+        exists = result.scalar() > 0
+        
+        if not exists:
+            # Crear la tabla student_content_progress
+            db.session.execute(text("""
+                CREATE TABLE student_content_progress (
+                    id INT IDENTITY(1,1) PRIMARY KEY,
+                    user_id NVARCHAR(36) NOT NULL,
+                    content_type NVARCHAR(50) NOT NULL,
+                    content_id INT NOT NULL,
+                    topic_id INT NOT NULL,
+                    is_completed BIT DEFAULT 0 NOT NULL,
+                    score FLOAT NULL,
+                    completed_at DATETIME NULL,
+                    created_at DATETIME DEFAULT GETDATE() NOT NULL,
+                    updated_at DATETIME DEFAULT GETDATE(),
+                    FOREIGN KEY (user_id) REFERENCES users(id),
+                    FOREIGN KEY (topic_id) REFERENCES study_topics(id) ON DELETE CASCADE,
+                    CONSTRAINT unique_user_content_progress UNIQUE (user_id, content_type, content_id)
+                )
+            """))
+            db.session.commit()
+            print("✅ Tabla student_content_progress creada exitosamente")
+        
+        # Verificar si la tabla student_topic_progress existe
+        result = db.session.execute(text("""
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_NAME = 'student_topic_progress'
+        """))
+        exists = result.scalar() > 0
+        
+        if not exists:
+            # Crear la tabla student_topic_progress
+            db.session.execute(text("""
+                CREATE TABLE student_topic_progress (
+                    id INT IDENTITY(1,1) PRIMARY KEY,
+                    user_id NVARCHAR(36) NOT NULL,
+                    topic_id INT NOT NULL,
+                    total_contents INT DEFAULT 0,
+                    completed_contents INT DEFAULT 0,
+                    progress_percentage FLOAT DEFAULT 0.0,
+                    is_completed BIT DEFAULT 0 NOT NULL,
+                    created_at DATETIME DEFAULT GETDATE() NOT NULL,
+                    updated_at DATETIME DEFAULT GETDATE(),
+                    FOREIGN KEY (user_id) REFERENCES users(id),
+                    FOREIGN KEY (topic_id) REFERENCES study_topics(id) ON DELETE CASCADE,
+                    CONSTRAINT unique_user_topic_progress UNIQUE (user_id, topic_id)
+                )
+            """))
+            db.session.commit()
+            print("✅ Tabla student_topic_progress creada exitosamente")
+        
+        return True
+    except Exception as e:
+        print(f"Error verificando/creando tablas de progreso: {e}")
+        db.session.rollback()
+        return False
+
+
+# Endpoint para crear las tablas de progreso
+@study_contents_bp.route('/setup-progress-tables', methods=['GET'])
+def setup_progress_tables():
+    """Crear las tablas de progreso si no existen (endpoint público temporal)"""
+    try:
+        ensure_student_progress_tables()
+        return jsonify({'message': 'Tablas de progreso verificadas/creadas'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/progress/<content_type>/<int:content_id>', methods=['POST'])
+@jwt_required()
+def register_content_progress(content_type, content_id):
+    """
+    Registrar el progreso del estudiante en un contenido específico
+    content_type: 'reading', 'video', 'downloadable', 'interactive'
+    """
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json() or {}
+        
+        # Validar tipo de contenido
+        valid_types = ['reading', 'video', 'downloadable', 'interactive']
+        if content_type not in valid_types:
+            return jsonify({'error': f'Tipo de contenido inválido. Use: {", ".join(valid_types)}'}), 400
+        
+        # Obtener el topic_id según el tipo de contenido
+        topic_id = None
+        if content_type == 'reading':
+            content = StudyReading.query.get(content_id)
+            if content:
+                topic_id = content.topic_id
+        elif content_type == 'video':
+            content = StudyVideo.query.get(content_id)
+            if content:
+                topic_id = content.topic_id
+        elif content_type == 'downloadable':
+            content = StudyDownloadableExercise.query.get(content_id)
+            if content:
+                topic_id = content.topic_id
+        elif content_type == 'interactive':
+            content = StudyInteractiveExercise.query.get(content_id)
+            if content:
+                topic_id = content.topic_id
+        
+        if not topic_id:
+            return jsonify({'error': 'Contenido no encontrado'}), 404
+        
+        # Buscar progreso existente o crear uno nuevo
+        progress = StudentContentProgress.query.filter_by(
+            user_id=user_id,
+            content_type=content_type,
+            content_id=content_id
+        ).first()
+        
+        if not progress:
+            progress = StudentContentProgress(
+                user_id=user_id,
+                content_type=content_type,
+                content_id=content_id,
+                topic_id=topic_id
+            )
+            db.session.add(progress)
+        
+        # Determinar si está completado según el tipo
+        is_completed = data.get('is_completed', False)
+        score = data.get('score', None)
+        
+        # Para interactivos, verificar si la calificación es >= 80%
+        if content_type == 'interactive' and score is not None:
+            progress.score = score
+            if score >= 80:
+                is_completed = True
+        
+        # Actualizar estado de completado
+        if is_completed and not progress.is_completed:
+            progress.is_completed = True
+            progress.completed_at = db.func.now()
+        
+        db.session.commit()
+        
+        # Actualizar progreso del tema
+        update_topic_progress(user_id, topic_id)
+        
+        return jsonify({
+            'message': 'Progreso registrado exitosamente',
+            'progress': progress.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+def update_topic_progress(user_id, topic_id):
+    """Actualizar el progreso resumen del tema para un usuario"""
+    try:
+        # Obtener el tema
+        topic = StudyTopic.query.get(topic_id)
+        if not topic:
+            return
+        
+        # Contar contenidos totales del tema
+        total_contents = 0
+        content_ids = {
+            'reading': [],
+            'video': [],
+            'downloadable': [],
+            'interactive': []
+        }
+        
+        # Lecturas
+        readings = StudyReading.query.filter_by(topic_id=topic_id).all()
+        for r in readings:
+            content_ids['reading'].append(r.id)
+            total_contents += 1
+        
+        # Videos
+        videos = StudyVideo.query.filter_by(topic_id=topic_id).all()
+        for v in videos:
+            content_ids['video'].append(v.id)
+            total_contents += 1
+        
+        # Descargables
+        downloadables = StudyDownloadableExercise.query.filter_by(topic_id=topic_id).all()
+        for d in downloadables:
+            content_ids['downloadable'].append(d.id)
+            total_contents += 1
+        
+        # Interactivos
+        interactives = StudyInteractiveExercise.query.filter_by(topic_id=topic_id).all()
+        for i in interactives:
+            content_ids['interactive'].append(i.id)
+            total_contents += 1
+        
+        # Contar contenidos completados
+        completed_contents = 0
+        for content_type, ids in content_ids.items():
+            if ids:
+                completed = StudentContentProgress.query.filter(
+                    StudentContentProgress.user_id == user_id,
+                    StudentContentProgress.content_type == content_type,
+                    StudentContentProgress.content_id.in_(ids),
+                    StudentContentProgress.is_completed == True
+                ).count()
+                completed_contents += completed
+        
+        # Calcular porcentaje
+        progress_percentage = (completed_contents / total_contents * 100) if total_contents > 0 else 0
+        
+        # Buscar o crear registro de progreso del tema
+        topic_progress = StudentTopicProgress.query.filter_by(
+            user_id=user_id,
+            topic_id=topic_id
+        ).first()
+        
+        if not topic_progress:
+            topic_progress = StudentTopicProgress(
+                user_id=user_id,
+                topic_id=topic_id
+            )
+            db.session.add(topic_progress)
+        
+        topic_progress.total_contents = total_contents
+        topic_progress.completed_contents = completed_contents
+        topic_progress.progress_percentage = progress_percentage
+        topic_progress.is_completed = (completed_contents == total_contents and total_contents > 0)
+        
+        db.session.commit()
+        
+    except Exception as e:
+        print(f"Error actualizando progreso del tema: {e}")
+        db.session.rollback()
+
+
+@study_contents_bp.route('/progress/topic/<int:topic_id>', methods=['GET'])
+@jwt_required()
+def get_topic_progress(topic_id):
+    """Obtener el progreso del estudiante en un tema específico"""
+    try:
+        user_id = get_jwt_identity()
+        
+        # Obtener progreso del tema
+        topic_progress = StudentTopicProgress.query.filter_by(
+            user_id=user_id,
+            topic_id=topic_id
+        ).first()
+        
+        # Obtener progreso de cada contenido
+        content_progress = StudentContentProgress.query.filter_by(
+            user_id=user_id,
+            topic_id=topic_id
+        ).all()
+        
+        # Organizar por tipo
+        progress_by_type = {
+            'reading': {},
+            'video': {},
+            'downloadable': {},
+            'interactive': {}
+        }
+        
+        for p in content_progress:
+            progress_by_type[p.content_type][p.content_id] = {
+                'is_completed': p.is_completed,
+                'score': p.score,
+                'completed_at': p.completed_at.isoformat() if p.completed_at else None
+            }
+        
+        return jsonify({
+            'topic_progress': topic_progress.to_dict() if topic_progress else {
+                'total_contents': 0,
+                'completed_contents': 0,
+                'progress_percentage': 0,
+                'is_completed': False
+            },
+            'content_progress': progress_by_type
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/progress/material/<int:material_id>', methods=['GET'])
+@jwt_required()
+def get_material_progress(material_id):
+    """Obtener el progreso del estudiante en todo el material de estudio"""
+    try:
+        user_id = get_jwt_identity()
+        
+        # Obtener el material
+        material = StudyMaterial.query.get_or_404(material_id)
+        
+        # Obtener todas las sesiones y temas
+        sessions_progress = []
+        total_contents = 0
+        completed_contents = 0
+        
+        for session in material.sessions.order_by(StudySession.session_number).all():
+            session_data = {
+                'session_id': session.id,
+                'session_number': session.session_number,
+                'title': session.title,
+                'topics': []
+            }
+            
+            for topic in session.topics.order_by(StudyTopic.topic_number).all():
+                # Obtener progreso del tema
+                topic_progress = StudentTopicProgress.query.filter_by(
+                    user_id=user_id,
+                    topic_id=topic.id
+                ).first()
+                
+                # Si no hay progreso registrado, calcularlo
+                if not topic_progress:
+                    update_topic_progress(user_id, topic.id)
+                    topic_progress = StudentTopicProgress.query.filter_by(
+                        user_id=user_id,
+                        topic_id=topic.id
+                    ).first()
+                
+                topic_data = {
+                    'topic_id': topic.id,
+                    'topic_number': topic.topic_number,
+                    'title': topic.title,
+                    'progress': topic_progress.to_dict() if topic_progress else {
+                        'total_contents': 0,
+                        'completed_contents': 0,
+                        'progress_percentage': 0,
+                        'is_completed': False
+                    }
+                }
+                
+                if topic_progress:
+                    total_contents += topic_progress.total_contents
+                    completed_contents += topic_progress.completed_contents
+                
+                session_data['topics'].append(topic_data)
+            
+            sessions_progress.append(session_data)
+        
+        # Calcular progreso general del material
+        overall_percentage = (completed_contents / total_contents * 100) if total_contents > 0 else 0
+        
+        return jsonify({
+            'material_id': material_id,
+            'title': material.title,
+            'total_contents': total_contents,
+            'completed_contents': completed_contents,
+            'progress_percentage': overall_percentage,
+            'sessions': sessions_progress
         }), 200
         
     except Exception as e:
