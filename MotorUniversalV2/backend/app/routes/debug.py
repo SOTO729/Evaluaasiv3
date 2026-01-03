@@ -121,3 +121,20 @@ def debug_material_detail(material_id):
     except Exception as e:
         import traceback
         return jsonify({'error': str(e), 'traceback': traceback.format_exc()})
+
+
+@debug_bp.route('/routes', methods=['GET'])
+def list_routes():
+    """Listar todas las rutas registradas en la aplicación"""
+    from flask import current_app
+    routes = []
+    for rule in current_app.url_map.iter_rules():
+        routes.append({
+            'endpoint': rule.endpoint,
+            'methods': list(rule.methods - {'HEAD', 'OPTIONS'}),
+            'route': str(rule.rule)
+        })
+    return jsonify({
+        'total_routes': len(routes),
+        'routes': sorted(routes, key=lambda x: x['route'])
+    })
