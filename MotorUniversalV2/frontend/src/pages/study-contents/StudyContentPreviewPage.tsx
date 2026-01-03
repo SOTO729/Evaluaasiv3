@@ -99,10 +99,12 @@ const StudyContentPreviewPage: React.FC = () => {
   const startExerciseRef = useRef<HTMLDivElement>(null);
   const downloadButtonRef = useRef<HTMLDivElement>(null);
   const readingContentRef = useRef<HTMLDivElement>(null);
+  const readingEndRef = useRef<HTMLDivElement>(null);
   const [showScrollHint, setShowScrollHint] = useState(false);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [showDownloadScrollHint, setShowDownloadScrollHint] = useState(false);
   const [instructionsExpanded, setInstructionsExpanded] = useState(false);
+  const [readingScrolledToEnd, setReadingScrolledToEnd] = useState(false);
 
   // Estados de progreso del estudiante
   const [topicProgress, setTopicProgress] = useState<TopicProgressResponse | null>(null);
@@ -299,6 +301,50 @@ const StudyContentPreviewPage: React.FC = () => {
       window.removeEventListener('resize', checkDownloadButtonVisibility);
     };
   }, [activeTab, currentTopic]);
+
+  // Detectar cuando el usuario llega al final de la lectura para marcarla como completada
+  useEffect(() => {
+    // Reset cuando cambie el tema o la tab
+    setReadingScrolledToEnd(false);
+    
+    if (activeTab !== 'reading' || !currentTopic?.reading) return;
+    
+    const readingId = currentTopic.reading.id;
+    
+    // Si ya está completada, no hacer nada
+    if (completedContents.reading.has(readingId)) return;
+    
+    const checkReadingEnd = () => {
+      if (!readingEndRef.current) return;
+      
+      const endElement = readingEndRef.current;
+      const rect = endElement.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      
+      // El elemento final está visible si está dentro del viewport
+      // Consideramos visible si al menos parte del elemento está en pantalla
+      const isEndVisible = rect.top < viewportHeight && rect.bottom > 0;
+      
+      if (isEndVisible && !readingScrolledToEnd) {
+        setReadingScrolledToEnd(true);
+        // Marcar como completado automáticamente
+        markContentCompleted('reading', readingId);
+      }
+    };
+    
+    // Verificar inmediatamente (para lecturas cortas que caben en pantalla)
+    const timeoutId = setTimeout(checkReadingEnd, 500);
+    
+    // También verificar en scroll
+    window.addEventListener('scroll', checkReadingEnd);
+    window.addEventListener('resize', checkReadingEnd);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('scroll', checkReadingEnd);
+      window.removeEventListener('resize', checkReadingEnd);
+    };
+  }, [activeTab, currentTopic?.reading?.id, completedContents.reading, readingScrolledToEnd]);
 
   // Calcular progreso
   const getTotalTopics = () => {
@@ -1148,7 +1194,10 @@ const StudyContentPreviewPage: React.FC = () => {
                         dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.reading.content || '') }}
                       />
                       
-                      {/* Botón para marcar lectura como completada */}
+                      {/* Elemento invisible al final para detectar scroll */}
+                      <div ref={readingEndRef} className="h-1" />
+                      
+                      {/* Estado de completado de la lectura */}
                       <div className="mt-8 pt-6 border-t border-gray-200">
                         {completedContents.reading.has(currentTopic.reading.id) ? (
                           <div className="flex items-center justify-center gap-2 py-3 px-4 bg-green-50 text-green-700 rounded-lg">
@@ -1156,13 +1205,10 @@ const StudyContentPreviewPage: React.FC = () => {
                             <span className="font-medium">Lectura completada</span>
                           </div>
                         ) : (
-                          <button
-                            onClick={() => markContentCompleted('reading', currentTopic.reading!.id)}
-                            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                          >
-                            <CheckCircle2 className="w-5 h-5" />
-                            <span>Marcar lectura como completada</span>
-                          </button>
+                          <div className="flex items-center justify-center gap-2 py-3 px-4 bg-gray-50 text-gray-500 rounded-lg">
+                            <FileText className="w-5 h-5" />
+                            <span className="text-sm">Lee hasta el final para marcar como completada</span>
+                          </div>
                         )}
                       </div>
                     </article>
