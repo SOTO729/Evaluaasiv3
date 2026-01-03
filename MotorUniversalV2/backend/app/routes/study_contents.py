@@ -2047,7 +2047,8 @@ def get_material_progress(material_id):
             'interactive': []
         }
         
-        for session in material.sessions.order_by(StudySession.session_number).all():
+        # No usar order_by aquí porque ya está definido en la relación del modelo
+        for session in material.sessions.all():
             session_data = {
                 'session_id': session.id,
                 'session_number': session.session_number,
@@ -2055,7 +2056,8 @@ def get_material_progress(material_id):
                 'topics': []
             }
             
-            for topic in session.topics.order_by(StudyTopic.order).all():
+            # No usar order_by aquí porque ya está definido en la relación del modelo
+            for topic in session.topics.all():
                 # Contar contenidos totales de este tema directamente de las tablas
                 topic_total = 0
                 topic_completed_count = 0
@@ -2135,4 +2137,232 @@ def get_material_progress(material_id):
         }), 200
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import traceback
+        error_traceback = traceback.format_exc()
+        print(f"Error in get_material_progress: {error_traceback}")
+        return jsonify({'error': str(e), 'traceback': error_traceback}), 500
+
+
+# Endpoint de debug para probar progreso sin autenticación
+@study_contents_bp.route('/debug-material-progress/<int:material_id>', methods=['GET'])
+def debug_material_progress(material_id):
+    """Debug endpoint para ver errores de progreso"""
+    try:
+        # Obtener el material
+        material = StudyMaterial.query.get_or_404(material_id)
+        
+        result = {
+            'material_id': material_id,
+            'title': material.title,
+            'sessions_count': 0,
+            'topics_count': 0,
+            'total_contents': 0,
+            'debug_info': []
+        }
+        
+        # Iterar sesiones
+        for session in material.sessions.all():
+            result['sessions_count'] += 1
+            session_info = {
+                'session_id': session.id,
+                'session_number': session.session_number,
+                'title': session.title,
+                'topics': []
+            }
+            
+            # Iterar temas
+            for topic in session.topics.all():
+                result['topics_count'] += 1
+                topic_info = {
+                    'topic_id': topic.id,
+                    'title': topic.title,
+                    'order': topic.order
+                }
+                
+                # Contar contenidos
+                readings = StudyReading.query.filter_by(topic_id=topic.id).count()
+                videos = StudyVideo.query.filter_by(topic_id=topic.id).count()
+                downloadables = StudyDownloadableExercise.query.filter_by(topic_id=topic.id).count()
+                interactives = StudyInteractiveExercise.query.filter_by(topic_id=topic.id).count()
+                
+                topic_info['readings'] = readings
+                topic_info['videos'] = videos
+                topic_info['downloadables'] = downloadables
+                topic_info['interactives'] = interactives
+                topic_info['total'] = readings + videos + downloadables + interactives
+                
+                result['total_contents'] += topic_info['total']
+                session_info['topics'].append(topic_info)
+            
+            result['debug_info'].append(session_info)
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+@study_contents_bp.route('/debug-list-materials', methods=['GET'])
+def debug_list_materials():
+    """Debug endpoint para listar materiales sin autenticación"""
+    try:
+        materials = StudyMaterial.query.all()
+        return jsonify({
+            'count': len(materials),
+            'materials': [{'id': m.id, 'title': m.title} for m in materials]
+        }), 200
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+@study_contents_bp.route('/debug-test-progress-query', methods=['GET'])
+def debug_test_progress_query():
+    """Debug endpoint para probar consultas de progreso"""
+    try:
+        # Probar si podemos consultar la tabla student_content_progress
+        result = db.session.execute(text("""
+            SELECT TOP 5 * FROM student_content_progress
+        """))
+        rows = result.fetchall()
+        
+        # Probar con ORM
+        orm_count = StudentContentProgress.query.count()
+        
+        return jsonify({
+            'sql_rows': len(rows),
+            'orm_count': orm_count,
+            'success': True
+        }), 200
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+@study_contents_bp.route('/debug-full-progress/<int:material_id>', methods=['GET'])
+def debug_full_progress(material_id):
+    """Debug endpoint que replica get_material_progress sin autenticación"""
+    try:
+        user_id = request.args.get('user_id', 'test-user')
+        
+        # Obtener el material
+        material = StudyMaterial.query.get_or_404(material_id)
+        
+        # Obtener todas las sesiones y temas
+        sessions_progress = []
+        total_contents = 0
+        completed_contents = 0
+        
+        # Diccionario para almacenar todos los contenidos completados del material
+        completed_content_ids = {
+            'reading': [],
+            'video': [],
+            'downloadable': [],
+            'interactive': []
+        }
+        
+        # No usar order_by aquí porque ya está definido en la relación del modelo
+        for session in material.sessions.all():
+            session_data = {
+                'session_id': session.id,
+                'session_number': session.session_number,
+                'title': session.title,
+                'topics': []
+            }
+            
+            # No usar order_by aquí porque ya está definido en la relación del modelo
+            for topic in session.topics.all():
+                # Contar contenidos totales de este tema directamente de las tablas
+                topic_total = 0
+                topic_completed_count = 0
+                
+                # Contar lecturas
+                readings_count = StudyReading.query.filter_by(topic_id=topic.id).count()
+                topic_total += readings_count
+                
+                # Contar videos
+                videos_count = StudyVideo.query.filter_by(topic_id=topic.id).count()
+                topic_total += videos_count
+                
+                # Contar descargables
+                downloadables_count = StudyDownloadableExercise.query.filter_by(topic_id=topic.id).count()
+                topic_total += downloadables_count
+                
+                # Contar interactivos
+                interactives_count = StudyInteractiveExercise.query.filter_by(topic_id=topic.id).count()
+                topic_total += interactives_count
+                
+                total_contents += topic_total
+                
+                # Obtener contenidos completados de este tema
+                topic_completed = {
+                    'reading': [],
+                    'video': [],
+                    'downloadable': [],
+                    'interactive': []
+                }
+                
+                # Obtener todos los content progress completados para este tema
+                content_progresses = StudentContentProgress.query.filter_by(
+                    user_id=user_id,
+                    topic_id=topic.id,
+                    is_completed=True
+                ).all()
+                
+                for cp in content_progresses:
+                    if cp.content_type in topic_completed:
+                        topic_completed[cp.content_type].append(cp.content_id)
+                        completed_content_ids[cp.content_type].append(cp.content_id)
+                        topic_completed_count += 1
+                
+                completed_contents += topic_completed_count
+                
+                # Calcular porcentaje del tema
+                topic_percentage = (topic_completed_count / topic_total * 100) if topic_total > 0 else 0
+                
+                topic_data = {
+                    'topic_id': topic.id,
+                    'topic_number': topic.order,
+                    'title': topic.title,
+                    'progress': {
+                        'total_contents': topic_total,
+                        'completed_contents': topic_completed_count,
+                        'progress_percentage': topic_percentage,
+                        'is_completed': topic_completed_count == topic_total and topic_total > 0
+                    },
+                    'completed_contents': topic_completed
+                }
+                
+                session_data['topics'].append(topic_data)
+            
+            sessions_progress.append(session_data)
+        
+        # Calcular progreso general del material
+        overall_percentage = (completed_contents / total_contents * 100) if total_contents > 0 else 0
+        
+        return jsonify({
+            'material_id': material_id,
+            'title': material.title,
+            'total_contents': total_contents,
+            'completed_contents': completed_contents,
+            'progress_percentage': overall_percentage,
+            'sessions': sessions_progress,
+            'all_completed_contents': completed_content_ids
+        }), 200
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
