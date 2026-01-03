@@ -772,6 +772,40 @@ const StudyContentPreviewPage: React.FC = () => {
     return tabs;
   };
 
+  // Verificar si un tema tiene todos sus contenidos completados
+  const isTopicCompleted = (topic: any): boolean => {
+    if (!topic) return false;
+    
+    let hasContent = false;
+    
+    // Verificar lectura
+    if (topic.allow_reading !== false && topic.reading) {
+      hasContent = true;
+      if (!completedContents.reading.has(topic.reading.id)) return false;
+    }
+    
+    // Verificar video
+    if (topic.allow_video !== false && topic.video) {
+      hasContent = true;
+      if (!completedContents.video.has(topic.video.id)) return false;
+    }
+    
+    // Verificar ejercicio interactivo
+    if (topic.allow_interactive !== false && topic.interactive_exercise) {
+      hasContent = true;
+      if (!completedContents.interactive.has(topic.interactive_exercise.id)) return false;
+    }
+    
+    // Verificar descargable
+    if (topic.allow_downloadable !== false && topic.downloadable_exercise) {
+      hasContent = true;
+      if (!completedContents.downloadable.has(topic.downloadable_exercise.id)) return false;
+    }
+    
+    // Si no hay contenido, no está completado
+    return hasContent;
+  };
+
   // Navegar al siguiente contenido o tema
   const goToNextContent = () => {
     const availableTabs = getAvailableTabs(currentTopic);
@@ -977,6 +1011,7 @@ const StudyContentPreviewPage: React.FC = () => {
                     <div className="ml-4 border-l-2 border-gray-200">
                       {session.topics?.map((topic, tIdx) => {
                         const isActive = sIdx === currentSessionIndex && tIdx === currentTopicIndex;
+                        const topicCompleted = isTopicCompleted(topic);
                         
                         return (
                           <button
@@ -990,9 +1025,16 @@ const StudyContentPreviewPage: React.FC = () => {
                               }
                             `}
                           >
-                            <p className={`text-sm ${isActive ? 'font-medium text-blue-600' : 'text-gray-700'}`}>
-                              <span className="text-gray-400 mr-1">{session.session_number}.{tIdx + 1}</span> {topic.title}
-                            </p>
+                            <div className={`text-sm flex items-center gap-2 ${isActive ? 'font-medium text-blue-600' : 'text-gray-700'}`}>
+                              <span className="flex-1">
+                                <span className="text-gray-400 mr-1">{session.session_number}.{tIdx + 1}</span> {topic.title}
+                              </span>
+                              {topicCompleted && (
+                                <span className="flex items-center justify-center w-3.5 h-3.5 bg-green-500 rounded-full flex-shrink-0">
+                                  <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                                </span>
+                              )}
+                            </div>
                           </button>
                         );
                       })}
