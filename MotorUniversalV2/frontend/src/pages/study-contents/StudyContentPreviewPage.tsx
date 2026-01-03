@@ -1005,13 +1005,8 @@ const StudyContentPreviewPage: React.FC = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 break-words flex items-center gap-1.5">
-                        <span className="text-gray-400">{session.session_number}.</span>
+                        <span className={sessionCompleted ? 'text-green-500' : 'text-gray-400'}>{session.session_number}.</span>
                         <span className="flex-1">{session.title}</span>
-                        {sessionCompleted && (
-                          <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full flex-shrink-0">
-                            <Check className="w-2 h-2 text-white" strokeWidth={3} />
-                          </span>
-                        )}
                       </p>
                     </div>
                     <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">
@@ -1040,13 +1035,8 @@ const StudyContentPreviewPage: React.FC = () => {
                           >
                             <div className={`text-sm flex items-center gap-2 ${isActive ? 'font-medium text-blue-600' : 'text-gray-700'}`}>
                               <span className="flex-1">
-                                <span className="text-gray-400 mr-1">{session.session_number}.{tIdx + 1}</span> {topic.title}
+                                <span className={`mr-1 ${topicCompleted ? 'text-green-500' : 'text-gray-400'}`}>{session.session_number}.{tIdx + 1}</span> {topic.title}
                               </span>
-                              {topicCompleted && (
-                                <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full flex-shrink-0">
-                                  <Check className="w-2 h-2 text-white" strokeWidth={3} />
-                                </span>
-                              )}
                             </div>
                           </button>
                         );
