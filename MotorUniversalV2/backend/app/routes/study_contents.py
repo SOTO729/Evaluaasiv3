@@ -2056,19 +2056,27 @@ def get_material_progress(material_id):
             }
             
             for topic in session.topics.order_by(StudyTopic.topic_number).all():
-                # Obtener progreso del tema
-                topic_progress = StudentTopicProgress.query.filter_by(
-                    user_id=user_id,
-                    topic_id=topic.id
-                ).first()
+                # Contar contenidos totales de este tema directamente de las tablas
+                topic_total = 0
+                topic_completed_count = 0
                 
-                # Si no hay progreso registrado, calcularlo
-                if not topic_progress:
-                    update_topic_progress(user_id, topic.id)
-                    topic_progress = StudentTopicProgress.query.filter_by(
-                        user_id=user_id,
-                        topic_id=topic.id
-                    ).first()
+                # Contar lecturas
+                readings_count = StudyReading.query.filter_by(topic_id=topic.id).count()
+                topic_total += readings_count
+                
+                # Contar videos
+                videos_count = StudyVideo.query.filter_by(topic_id=topic.id).count()
+                topic_total += videos_count
+                
+                # Contar descargables
+                downloadables_count = StudyDownloadableExercise.query.filter_by(topic_id=topic.id).count()
+                topic_total += downloadables_count
+                
+                # Contar interactivos
+                interactives_count = StudyInteractiveExercise.query.filter_by(topic_id=topic.id).count()
+                topic_total += interactives_count
+                
+                total_contents += topic_total
                 
                 # Obtener contenidos completados de este tema
                 topic_completed = {
@@ -2089,23 +2097,25 @@ def get_material_progress(material_id):
                     if cp.content_type in topic_completed:
                         topic_completed[cp.content_type].append(cp.content_id)
                         completed_content_ids[cp.content_type].append(cp.content_id)
+                        topic_completed_count += 1
+                
+                completed_contents += topic_completed_count
+                
+                # Calcular porcentaje del tema
+                topic_percentage = (topic_completed_count / topic_total * 100) if topic_total > 0 else 0
                 
                 topic_data = {
                     'topic_id': topic.id,
                     'topic_number': topic.topic_number,
                     'title': topic.title,
-                    'progress': topic_progress.to_dict() if topic_progress else {
-                        'total_contents': 0,
-                        'completed_contents': 0,
-                        'progress_percentage': 0,
-                        'is_completed': False
+                    'progress': {
+                        'total_contents': topic_total,
+                        'completed_contents': topic_completed_count,
+                        'progress_percentage': topic_percentage,
+                        'is_completed': topic_completed_count == topic_total and topic_total > 0
                     },
                     'completed_contents': topic_completed
                 }
-                
-                if topic_progress:
-                    total_contents += topic_progress.total_contents
-                    completed_contents += topic_progress.completed_contents
                 
                 session_data['topics'].append(topic_data)
             
