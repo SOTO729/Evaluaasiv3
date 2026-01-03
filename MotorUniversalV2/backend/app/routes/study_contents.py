@@ -1632,12 +1632,12 @@ def ensure_student_progress_tables():
         exists = result.scalar() > 0
         
         if not exists:
-            # Crear la tabla student_content_progress
+            # Crear la tabla student_content_progress (usando VARCHAR(36) como users.id)
             db.session.execute(text("""
                 CREATE TABLE student_content_progress (
                     id INT IDENTITY(1,1) PRIMARY KEY,
-                    user_id NVARCHAR(36) NOT NULL,
-                    content_type NVARCHAR(50) NOT NULL,
+                    user_id VARCHAR(36) NOT NULL,
+                    content_type VARCHAR(50) NOT NULL,
                     content_id INT NOT NULL,
                     topic_id INT NOT NULL,
                     is_completed BIT DEFAULT 0 NOT NULL,
@@ -1661,11 +1661,11 @@ def ensure_student_progress_tables():
         exists = result.scalar() > 0
         
         if not exists:
-            # Crear la tabla student_topic_progress
+            # Crear la tabla student_topic_progress (usando VARCHAR(36) como users.id)
             db.session.execute(text("""
                 CREATE TABLE student_topic_progress (
                     id INT IDENTITY(1,1) PRIMARY KEY,
-                    user_id NVARCHAR(36) NOT NULL,
+                    user_id VARCHAR(36) NOT NULL,
                     topic_id INT NOT NULL,
                     total_contents INT DEFAULT 0,
                     completed_contents INT DEFAULT 0,
@@ -1693,10 +1693,116 @@ def ensure_student_progress_tables():
 def setup_progress_tables():
     """Crear las tablas de progreso si no existen (endpoint público temporal)"""
     try:
-        ensure_student_progress_tables()
+        errors = []
+        
+        # Verificar si la tabla student_content_progress existe
+        result = db.session.execute(text("""
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_NAME = 'student_content_progress'
+        """))
+        exists = result.scalar() > 0
+        
+        if not exists:
+            try:
+                # Crear la tabla student_content_progress (usando VARCHAR(36) como users.id)
+                db.session.execute(text("""
+                    CREATE TABLE student_content_progress (
+                        id INT IDENTITY(1,1) PRIMARY KEY,
+                        user_id VARCHAR(36) NOT NULL,
+                        content_type VARCHAR(50) NOT NULL,
+                        content_id INT NOT NULL,
+                        topic_id INT NOT NULL,
+                        is_completed BIT DEFAULT 0 NOT NULL,
+                        score FLOAT NULL,
+                        completed_at DATETIME NULL,
+                        created_at DATETIME DEFAULT GETDATE() NOT NULL,
+                        updated_at DATETIME DEFAULT GETDATE(),
+                        FOREIGN KEY (user_id) REFERENCES users(id),
+                        FOREIGN KEY (topic_id) REFERENCES study_topics(id) ON DELETE CASCADE,
+                        CONSTRAINT unique_user_content_progress UNIQUE (user_id, content_type, content_id)
+                    )
+                """))
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                errors.append(f"student_content_progress: {str(e)}")
+        
+        # Verificar si la tabla student_topic_progress existe
+        result = db.session.execute(text("""
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_NAME = 'student_topic_progress'
+        """))
+        exists = result.scalar() > 0
+        
+        if not exists:
+            try:
+                # Crear la tabla student_topic_progress (usando VARCHAR(36) como users.id)
+                db.session.execute(text("""
+                    CREATE TABLE student_topic_progress (
+                        id INT IDENTITY(1,1) PRIMARY KEY,
+                        user_id VARCHAR(36) NOT NULL,
+                        topic_id INT NOT NULL,
+                        total_contents INT DEFAULT 0,
+                        completed_contents INT DEFAULT 0,
+                        progress_percentage FLOAT DEFAULT 0.0,
+                        is_completed BIT DEFAULT 0 NOT NULL,
+                        created_at DATETIME DEFAULT GETDATE() NOT NULL,
+                        updated_at DATETIME DEFAULT GETDATE(),
+                        FOREIGN KEY (user_id) REFERENCES users(id),
+                        FOREIGN KEY (topic_id) REFERENCES study_topics(id) ON DELETE CASCADE,
+                        CONSTRAINT unique_user_topic_progress UNIQUE (user_id, topic_id)
+                    )
+                """))
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                errors.append(f"student_topic_progress: {str(e)}")
+        
+        if errors:
+            return jsonify({'message': 'Errores al crear tablas', 'errors': errors}), 500
+        
         return jsonify({'message': 'Tablas de progreso verificadas/creadas'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# Endpoint de debug para verificar las tablas
+@study_contents_bp.route('/debug-progress-tables', methods=['GET'])
+def debug_progress_tables():
+    """Debug para verificar el estado de las tablas de progreso"""
+    try:
+        result = {}
+        
+        # Verificar si las tablas existen
+        tables_check = db.session.execute(text("""
+            SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_NAME IN ('student_content_progress', 'student_topic_progress')
+        """))
+        result['tables'] = [row[0] for row in tables_check]
+        
+        # Verificar tipo de columna users.id
+        user_id_type = db.session.execute(text("""
+            SELECT DATA_TYPE, CHARACTER_MAXIMUM_LENGTH 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_NAME = 'users' AND COLUMN_NAME = 'id'
+        """))
+        row = user_id_type.fetchone()
+        if row:
+            result['users_id_type'] = f"{row[0]}({row[1]})" if row[1] else row[0]
+        
+        # Contar registros en cada tabla
+        if 'student_content_progress' in result['tables']:
+            count = db.session.execute(text("SELECT COUNT(*) FROM student_content_progress")).scalar()
+            result['student_content_progress_count'] = count
+        
+        if 'student_topic_progress' in result['tables']:
+            count = db.session.execute(text("SELECT COUNT(*) FROM student_topic_progress")).scalar()
+            result['student_topic_progress_count'] = count
+        
+        return jsonify(result), 200
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
 
 
 @study_contents_bp.route('/progress/<content_type>/<int:content_id>', methods=['POST'])
@@ -1871,6 +1977,9 @@ def get_topic_progress(topic_id):
     try:
         user_id = get_jwt_identity()
         
+        # Verificar/crear tablas si no existen
+        ensure_student_progress_tables()
+        
         # Obtener progreso del tema
         topic_progress = StudentTopicProgress.query.filter_by(
             user_id=user_id,
@@ -1909,7 +2018,10 @@ def get_topic_progress(topic_id):
         }), 200
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import traceback
+        print(f"Error in get_topic_progress: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
 
 
 @study_contents_bp.route('/progress/material/<int:material_id>', methods=['GET'])
@@ -1926,6 +2038,14 @@ def get_material_progress(material_id):
         sessions_progress = []
         total_contents = 0
         completed_contents = 0
+        
+        # Diccionario para almacenar todos los contenidos completados del material
+        completed_content_ids = {
+            'reading': [],
+            'video': [],
+            'downloadable': [],
+            'interactive': []
+        }
         
         for session in material.sessions.order_by(StudySession.session_number).all():
             session_data = {
@@ -1950,6 +2070,26 @@ def get_material_progress(material_id):
                         topic_id=topic.id
                     ).first()
                 
+                # Obtener contenidos completados de este tema
+                topic_completed = {
+                    'reading': [],
+                    'video': [],
+                    'downloadable': [],
+                    'interactive': []
+                }
+                
+                # Obtener todos los content progress completados para este tema
+                content_progresses = StudentContentProgress.query.filter_by(
+                    user_id=user_id,
+                    topic_id=topic.id,
+                    is_completed=True
+                ).all()
+                
+                for cp in content_progresses:
+                    if cp.content_type in topic_completed:
+                        topic_completed[cp.content_type].append(cp.content_id)
+                        completed_content_ids[cp.content_type].append(cp.content_id)
+                
                 topic_data = {
                     'topic_id': topic.id,
                     'topic_number': topic.topic_number,
@@ -1959,7 +2099,8 @@ def get_material_progress(material_id):
                         'completed_contents': 0,
                         'progress_percentage': 0,
                         'is_completed': False
-                    }
+                    },
+                    'completed_contents': topic_completed
                 }
                 
                 if topic_progress:
@@ -1979,7 +2120,8 @@ def get_material_progress(material_id):
             'total_contents': total_contents,
             'completed_contents': completed_contents,
             'progress_percentage': overall_percentage,
-            'sessions': sessions_progress
+            'sessions': sessions_progress,
+            'all_completed_contents': completed_content_ids
         }), 200
         
     except Exception as e:

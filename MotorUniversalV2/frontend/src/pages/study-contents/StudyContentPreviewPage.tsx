@@ -7,11 +7,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import {
   getMaterial,
+  getMaterialProgress,
   StudyMaterial,
   StudyInteractiveExerciseAction,
   registerContentProgress,
-  getTopicProgress,
-  TopicProgressResponse,
+  MaterialProgressResponse,
 } from '../../services/studyContentService';
 import {
   ArrowLeft,
@@ -108,7 +108,7 @@ const StudyContentPreviewPage: React.FC = () => {
   const readingMarkedCompleteRef = useRef(false);
 
   // Estados de progreso del estudiante
-  const [topicProgress, setTopicProgress] = useState<TopicProgressResponse | null>(null);
+  const [materialProgress, setMaterialProgress] = useState<MaterialProgressResponse | null>(null);
   const [completedContents, setCompletedContents] = useState<{
     reading: Set<number>;
     video: Set<number>;
@@ -120,6 +120,28 @@ const StudyContentPreviewPage: React.FC = () => {
     downloadable: new Set(),
     interactive: new Set(),
   });
+
+  // Calcular el progreso total del material basado en contenidos completados
+  const calculateMaterialProgress = () => {
+    if (!materialProgress) return { completed: 0, total: 0, percentage: 0 };
+    
+    // Contar todos los contenidos completados de los sets locales
+    const totalCompleted = 
+      completedContents.reading.size + 
+      completedContents.video.size + 
+      completedContents.downloadable.size + 
+      completedContents.interactive.size;
+    
+    return {
+      completed: totalCompleted,
+      total: materialProgress.total_contents,
+      percentage: materialProgress.total_contents > 0 
+        ? Math.round((totalCompleted / materialProgress.total_contents) * 100)
+        : 0
+    };
+  };
+
+  const progressStats = calculateMaterialProgress();
 
   // Cargar material
   useEffect(() => {
@@ -135,6 +157,24 @@ const StudyContentPreviewPage: React.FC = () => {
             setFirstAvailableTab(firstTopic);
           }
         }
+        
+        // Cargar progreso del material completo
+        try {
+          const progress = await getMaterialProgress(materialId);
+          setMaterialProgress(progress);
+          
+          // Inicializar los sets de contenidos completados desde el progreso del material
+          if (progress.all_completed_contents) {
+            setCompletedContents({
+              reading: new Set(progress.all_completed_contents.reading || []),
+              video: new Set(progress.all_completed_contents.video || []),
+              downloadable: new Set(progress.all_completed_contents.downloadable || []),
+              interactive: new Set(progress.all_completed_contents.interactive || []),
+            });
+          }
+        } catch (progressError) {
+          console.error('Error loading material progress:', progressError);
+        }
       } catch (error) {
         console.error('Error loading material:', error);
       } finally {
@@ -148,45 +188,6 @@ const StudyContentPreviewPage: React.FC = () => {
   const currentSession = material?.sessions?.[currentSessionIndex];
   const currentTopic = currentSession?.topics?.[currentTopicIndex];
 
-  // Cargar progreso del tema actual
-  useEffect(() => {
-    const loadTopicProgress = async () => {
-      if (!currentTopic?.id) return;
-      
-      try {
-        const progress = await getTopicProgress(currentTopic.id);
-        setTopicProgress(progress);
-        
-        // Actualizar sets de contenidos completados
-        const newCompleted = {
-          reading: new Set<number>(),
-          video: new Set<number>(),
-          downloadable: new Set<number>(),
-          interactive: new Set<number>(),
-        };
-        
-        Object.entries(progress.content_progress.reading).forEach(([id, p]) => {
-          if (p.is_completed) newCompleted.reading.add(Number(id));
-        });
-        Object.entries(progress.content_progress.video).forEach(([id, p]) => {
-          if (p.is_completed) newCompleted.video.add(Number(id));
-        });
-        Object.entries(progress.content_progress.downloadable).forEach(([id, p]) => {
-          if (p.is_completed) newCompleted.downloadable.add(Number(id));
-        });
-        Object.entries(progress.content_progress.interactive).forEach(([id, p]) => {
-          if (p.is_completed) newCompleted.interactive.add(Number(id));
-        });
-        
-        setCompletedContents(newCompleted);
-      } catch (error) {
-        console.error('Error loading topic progress:', error);
-      }
-    };
-    
-    loadTopicProgress();
-  }, [currentTopic?.id]);
-
   // Función para registrar progreso de contenido
   const markContentCompleted = async (
     contentType: 'reading' | 'video' | 'downloadable' | 'interactive',
@@ -199,17 +200,11 @@ const StudyContentPreviewPage: React.FC = () => {
         score 
       });
       
-      // Actualizar estado local
+      // Actualizar estado local (esto actualiza progressStats automáticamente)
       setCompletedContents(prev => ({
         ...prev,
         [contentType]: new Set([...prev[contentType], contentId])
       }));
-      
-      // Recargar progreso del tema
-      if (currentTopic?.id) {
-        const progress = await getTopicProgress(currentTopic.id);
-        setTopicProgress(progress);
-      }
     } catch (error) {
       console.error('Error registering progress:', error);
     }
@@ -364,23 +359,6 @@ const StudyContentPreviewPage: React.FC = () => {
   // Calcular progreso
   const getTotalTopics = () => {
     return material?.sessions?.reduce((acc, session) => acc + (session.topics?.length || 0), 0) || 0;
-  };
-
-  const getCurrentTopicGlobalIndex = () => {
-    let index = 0;
-    for (let i = 0; i < currentSessionIndex; i++) {
-      index += material?.sessions?.[i]?.topics?.length || 0;
-    }
-    return index + currentTopicIndex + 1;
-  };
-
-  const getProgressPercentage = () => {
-    // Usar el porcentaje de progreso del tema actual si está disponible
-    if (topicProgress) {
-      return Math.round(topicProgress.topic_progress.progress_percentage);
-    }
-    // Fallback al cálculo original si no hay datos de progreso
-    return Math.round((getCurrentTopicGlobalIndex() / getTotalTopics()) * 100);
   };
 
   // Navegación
@@ -930,23 +908,18 @@ const StudyContentPreviewPage: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-4">
-            {/* Progreso del tema actual */}
+            {/* Progreso del material basado en contenidos completados */}
             <div className="hidden sm:flex items-center gap-3">
               <div className="text-sm text-gray-500">
-                Tema {getCurrentTopicGlobalIndex()}/{getTotalTopics()}
-                {topicProgress && (
-                  <span className="ml-1">
-                    ({topicProgress.topic_progress.completed_contents}/{topicProgress.topic_progress.total_contents} contenidos)
-                  </span>
-                )}
+                <span className="font-medium text-gray-700">{progressStats.completed}</span>/{progressStats.total} materiales
               </div>
               <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-blue-600 rounded-full transition-all duration-500"
-                  style={{ width: `${getProgressPercentage()}%` }}
+                  style={{ width: `${progressStats.percentage}%` }}
                 />
               </div>
-              <span className="text-sm font-medium text-blue-600">{getProgressPercentage()}%</span>
+              <span className="text-sm font-medium text-blue-600">{progressStats.percentage}%</span>
             </div>
           </div>
         </div>

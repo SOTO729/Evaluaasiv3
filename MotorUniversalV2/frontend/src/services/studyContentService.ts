@@ -719,8 +719,20 @@ export interface MaterialProgressResponse {
       topic_number: number;
       title: string;
       progress: TopicProgressData;
+      completed_contents: {
+        reading: number[];
+        video: number[];
+        downloadable: number[];
+        interactive: number[];
+      };
     }>;
   }>;
+  all_completed_contents: {
+    reading: number[];
+    video: number[];
+    downloadable: number[];
+    interactive: number[];
+  };
 }
 
 /**
