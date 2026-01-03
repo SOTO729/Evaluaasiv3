@@ -1161,7 +1161,9 @@ const StudyContentPreviewPage: React.FC = () => {
                       <div className="mt-4 pt-4 border-t border-gray-200">
                         {completedContents.video.has(currentTopic.video.id) ? (
                           <div className="flex items-center justify-center gap-2 py-3 px-4 bg-green-50 text-green-700 rounded-lg">
-                            <CheckCircle2 className="w-5 h-5" />
+                            <span className="flex items-center justify-center w-5 h-5 bg-green-500 rounded-full">
+                              <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                            </span>
                             <span className="font-medium">Video completado</span>
                           </div>
                         ) : (
@@ -1199,7 +1201,9 @@ const StudyContentPreviewPage: React.FC = () => {
                       <div className="mt-8 pt-6 border-t border-gray-200">
                         {completedContents.reading.has(currentTopic.reading.id) ? (
                           <div className="flex items-center justify-center gap-2 py-3 px-4 bg-green-50 text-green-700 rounded-lg">
-                            <CheckCircle2 className="w-5 h-5" />
+                            <span className="flex items-center justify-center w-5 h-5 bg-green-500 rounded-full">
+                              <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                            </span>
                             <span className="font-medium">Lectura completada</span>
                           </div>
                         ) : (
@@ -1290,7 +1294,9 @@ const StudyContentPreviewPage: React.FC = () => {
                       {/* Estado de completado del descargable */}
                       {completedContents.downloadable.has(currentTopic.downloadable_exercise.id) && (
                         <div className="mt-4 flex items-center justify-center gap-2 py-3 px-4 bg-green-50 text-green-700 rounded-lg">
-                          <CheckCircle2 className="w-5 h-5" />
+                          <span className="flex items-center justify-center w-5 h-5 bg-green-500 rounded-full">
+                            <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                          </span>
                           <span className="font-medium">Archivo descargado</span>
                         </div>
                       )}
@@ -1594,7 +1600,7 @@ const StudyContentPreviewPage: React.FC = () => {
                                     onClick={completeExercise}
                                     className="px-5 py-2.5 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 flex items-center gap-2 transition-colors shadow-sm"
                                   >
-                                    <CheckCircle2 className="w-4 h-4" />
+                                    <Check className="w-4 h-4" />
                                     Finalizar ejercicio
                                   </button>
                                 )}
