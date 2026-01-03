@@ -100,6 +100,7 @@ const StudyContentPreviewPage: React.FC = () => {
   const downloadButtonRef = useRef<HTMLDivElement>(null);
   const readingContentRef = useRef<HTMLDivElement>(null);
   const readingEndRef = useRef<HTMLDivElement>(null);
+  const mainContainerRef = useRef<HTMLElement>(null);
   const [showScrollHint, setShowScrollHint] = useState(false);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [showDownloadScrollHint, setShowDownloadScrollHint] = useState(false);
@@ -335,12 +336,19 @@ const StudyContentPreviewPage: React.FC = () => {
     // Verificar inmediatamente (para lecturas cortas que caben en pantalla)
     const timeoutId = setTimeout(checkReadingEnd, 500);
     
-    // También verificar en scroll
+    // Escuchar scroll en el contenedor main (tiene overflow-y-auto) y también en window
+    const mainElement = mainContainerRef.current;
+    if (mainElement) {
+      mainElement.addEventListener('scroll', checkReadingEnd);
+    }
     window.addEventListener('scroll', checkReadingEnd);
     window.addEventListener('resize', checkReadingEnd);
     
     return () => {
       clearTimeout(timeoutId);
+      if (mainElement) {
+        mainElement.removeEventListener('scroll', checkReadingEnd);
+      }
       window.removeEventListener('scroll', checkReadingEnd);
       window.removeEventListener('resize', checkReadingEnd);
     };
@@ -1023,7 +1031,7 @@ const StudyContentPreviewPage: React.FC = () => {
         )}
 
         {/* Contenido principal */}
-        <main className="flex-1 overflow-y-auto bg-white">
+        <main ref={mainContainerRef} className="flex-1 overflow-y-auto bg-white">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 py-5">
             {/* Breadcrumb */}
             <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
