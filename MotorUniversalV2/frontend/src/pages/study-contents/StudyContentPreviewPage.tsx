@@ -806,6 +806,12 @@ const StudyContentPreviewPage: React.FC = () => {
     return hasContent;
   };
 
+  // Verificar si una sesión tiene todos sus temas completados
+  const isSessionCompleted = (session: any): boolean => {
+    if (!session?.topics || session.topics.length === 0) return false;
+    return session.topics.every((topic: any) => isTopicCompleted(topic));
+  };
+
   // Navegar al siguiente contenido o tema
   const goToNextContent = () => {
     const availableTabs = getAvailableTabs(currentTopic);
@@ -985,7 +991,9 @@ const StudyContentPreviewPage: React.FC = () => {
 
             {/* Lista de sesiones y temas */}
             <nav className="p-2">
-              {material.sessions?.map((session, sIdx) => (
+              {material.sessions?.map((session, sIdx) => {
+                const sessionCompleted = isSessionCompleted(session);
+                return (
                 <div key={session.id} className="mb-1">
                   {/* Session header */}
                   <button
@@ -996,9 +1004,14 @@ const StudyContentPreviewPage: React.FC = () => {
                       <ChevronRight className="w-4 h-4 text-gray-400" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900 break-words">
-                        <span className="text-gray-400 mr-1">{session.session_number}.</span>
-                        {session.title}
+                      <p className="font-semibold text-gray-900 break-words flex items-center gap-1.5">
+                        <span className="text-gray-400">{session.session_number}.</span>
+                        <span className="flex-1">{session.title}</span>
+                        {sessionCompleted && (
+                          <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full flex-shrink-0">
+                            <Check className="w-2 h-2 text-white" strokeWidth={3} />
+                          </span>
+                        )}
                       </p>
                     </div>
                     <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">
@@ -1030,8 +1043,8 @@ const StudyContentPreviewPage: React.FC = () => {
                                 <span className="text-gray-400 mr-1">{session.session_number}.{tIdx + 1}</span> {topic.title}
                               </span>
                               {topicCompleted && (
-                                <span className="flex items-center justify-center w-3.5 h-3.5 bg-green-500 rounded-full flex-shrink-0">
-                                  <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                                <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full flex-shrink-0">
+                                  <Check className="w-2 h-2 text-white" strokeWidth={3} />
                                 </span>
                               )}
                             </div>
@@ -1041,7 +1054,8 @@ const StudyContentPreviewPage: React.FC = () => {
                     </div>
                   )}
                 </div>
-              ))}
+              );
+              })}
             </nav>
           </div>
         </aside>
@@ -1086,8 +1100,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       <FileText className="w-4 h-4" />
                       Lectura
                       {currentTopic?.reading && completedContents.reading.has(currentTopic.reading.id) && (
-                        <span className="flex items-center justify-center w-3.5 h-3.5 bg-green-500 rounded-full">
-                          <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                        <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
+                          <Check className="w-2 h-2 text-white" strokeWidth={3} />
                         </span>
                       )}
                     </div>
@@ -1106,8 +1120,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       <Video className="w-4 h-4" />
                       Video
                       {currentTopic?.video && completedContents.video.has(currentTopic.video.id) && (
-                        <span className="flex items-center justify-center w-3.5 h-3.5 bg-green-500 rounded-full">
-                          <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                        <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
+                          <Check className="w-2 h-2 text-white" strokeWidth={3} />
                         </span>
                       )}
                     </div>
@@ -1126,8 +1140,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       <Gamepad2 className="w-4 h-4" />
                       Ejercicio
                       {currentTopic?.interactive_exercise && completedContents.interactive.has(currentTopic.interactive_exercise.id) && (
-                        <span className="flex items-center justify-center w-3.5 h-3.5 bg-green-500 rounded-full">
-                          <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                        <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
+                          <Check className="w-2 h-2 text-white" strokeWidth={3} />
                         </span>
                       )}
                     </div>
@@ -1146,8 +1160,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       <Download className="w-4 h-4" />
                       Recursos
                       {currentTopic?.downloadable_exercise && completedContents.downloadable.has(currentTopic.downloadable_exercise.id) && (
-                        <span className="flex items-center justify-center w-3.5 h-3.5 bg-green-500 rounded-full">
-                          <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                        <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
+                          <Check className="w-2 h-2 text-white" strokeWidth={3} />
                         </span>
                       )}
                     </div>
@@ -1203,8 +1217,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       <div className="mt-4 pt-4 border-t border-gray-200">
                         {completedContents.video.has(currentTopic.video.id) ? (
                           <div className="flex items-center justify-center gap-2 py-3 px-4 bg-green-50 text-green-700 rounded-lg">
-                            <span className="flex items-center justify-center w-4 h-4 bg-green-500 rounded-full">
-                              <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                            <span className="flex items-center justify-center w-3.5 h-3.5 bg-green-500 rounded-full">
+                              <Check className="w-2 h-2 text-white" strokeWidth={3} />
                             </span>
                             <span className="font-medium">Video completado</span>
                           </div>
@@ -1243,8 +1257,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       <div className="mt-8 pt-6 border-t border-gray-200">
                         {completedContents.reading.has(currentTopic.reading.id) ? (
                           <div className="flex items-center justify-center gap-2 py-3 px-4 bg-green-50 text-green-700 rounded-lg">
-                            <span className="flex items-center justify-center w-4 h-4 bg-green-500 rounded-full">
-                              <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                            <span className="flex items-center justify-center w-3.5 h-3.5 bg-green-500 rounded-full">
+                              <Check className="w-2 h-2 text-white" strokeWidth={3} />
                             </span>
                             <span className="font-medium">Lectura completada</span>
                           </div>
@@ -1336,8 +1350,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       {/* Estado de completado del descargable */}
                       {completedContents.downloadable.has(currentTopic.downloadable_exercise.id) && (
                         <div className="mt-4 flex items-center justify-center gap-2 py-3 px-4 bg-green-50 text-green-700 rounded-lg">
-                          <span className="flex items-center justify-center w-4 h-4 bg-green-500 rounded-full">
-                            <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                          <span className="flex items-center justify-center w-3.5 h-3.5 bg-green-500 rounded-full">
+                            <Check className="w-2 h-2 text-white" strokeWidth={3} />
                           </span>
                           <span className="font-medium">Archivo descargado</span>
                         </div>
