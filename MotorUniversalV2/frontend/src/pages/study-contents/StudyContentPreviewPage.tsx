@@ -952,7 +952,7 @@ const StudyContentPreviewPage: React.FC = () => {
           <div className="flex items-center gap-4">
             {/* Progreso del material basado en contenidos completados */}
             <div className="hidden sm:flex items-center gap-3">
-              <div className="w-48 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+              <div className="w-36 h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-blue-600 rounded-full transition-all duration-500"
                   style={{ width: `${progressStats.percentage}%` }}
