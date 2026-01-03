@@ -164,11 +164,12 @@ const StudyContentPreviewPage: React.FC = () => {
           setMaterialProgress(progress);
           
           // Inicializar los sets de contenidos completados desde el progreso del material
+          // Los IDs vienen como strings del backend (content_id es VARCHAR), convertir a números para reading/video/downloadable
           if (progress.all_completed_contents) {
             setCompletedContents({
-              reading: new Set(progress.all_completed_contents.reading || []),
-              video: new Set(progress.all_completed_contents.video || []),
-              downloadable: new Set(progress.all_completed_contents.downloadable || []),
+              reading: new Set((progress.all_completed_contents.reading || []).map(Number)),
+              video: new Set((progress.all_completed_contents.video || []).map(Number)),
+              downloadable: new Set((progress.all_completed_contents.downloadable || []).map(Number)),
               // Los IDs de ejercicios interactivos son UUIDs (strings)
               interactive: new Set((progress.all_completed_contents.interactive || []).map(String)),
             });
