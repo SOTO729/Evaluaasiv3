@@ -740,7 +740,7 @@ export interface MaterialProgressResponse {
  */
 export const registerContentProgress = async (
   contentType: 'reading' | 'video' | 'downloadable' | 'interactive',
-  contentId: number,
+  contentId: number | string,
   data: { is_completed?: boolean; score?: number }
 ): Promise<{ message: string; progress: ContentProgress }> => {
   const response = await api.post(`/study-contents/progress/${contentType}/${contentId}`, data);

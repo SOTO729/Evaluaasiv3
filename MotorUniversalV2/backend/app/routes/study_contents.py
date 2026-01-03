@@ -1632,13 +1632,13 @@ def ensure_student_progress_tables():
         exists = result.scalar() > 0
         
         if not exists:
-            # Crear la tabla student_content_progress (usando VARCHAR(36) como users.id)
+            # Crear la tabla student_content_progress (usando VARCHAR(36) para content_id para soportar UUIDs)
             db.session.execute(text("""
                 CREATE TABLE student_content_progress (
                     id INT IDENTITY(1,1) PRIMARY KEY,
                     user_id VARCHAR(36) NOT NULL,
                     content_type VARCHAR(50) NOT NULL,
-                    content_id INT NOT NULL,
+                    content_id VARCHAR(36) NOT NULL,
                     topic_id INT NOT NULL,
                     is_completed BIT DEFAULT 0 NOT NULL,
                     score FLOAT NULL,
@@ -1704,13 +1704,13 @@ def setup_progress_tables():
         
         if not exists:
             try:
-                # Crear la tabla student_content_progress (usando VARCHAR(36) como users.id)
+                # Crear la tabla student_content_progress (usando VARCHAR(36) para content_id y user_id)
                 db.session.execute(text("""
                     CREATE TABLE student_content_progress (
                         id INT IDENTITY(1,1) PRIMARY KEY,
                         user_id VARCHAR(36) NOT NULL,
                         content_type VARCHAR(50) NOT NULL,
-                        content_id INT NOT NULL,
+                        content_id VARCHAR(36) NOT NULL,
                         topic_id INT NOT NULL,
                         is_completed BIT DEFAULT 0 NOT NULL,
                         score FLOAT NULL,
@@ -1805,12 +1805,53 @@ def debug_progress_tables():
         return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
 
 
-@study_contents_bp.route('/progress/<content_type>/<int:content_id>', methods=['POST'])
+@study_contents_bp.route('/migrate-progress-tables', methods=['GET'])
+def migrate_progress_tables():
+    """Migrar la tabla student_content_progress para soportar content_id como VARCHAR"""
+    try:
+        # Eliminar la tabla existente y recrearla con el nuevo tipo
+        db.session.execute(text("""
+            IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'student_content_progress')
+            BEGIN
+                DROP TABLE student_content_progress
+            END
+        """))
+        db.session.commit()
+        
+        # Crear la tabla con content_id como VARCHAR(36)
+        db.session.execute(text("""
+            CREATE TABLE student_content_progress (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                user_id VARCHAR(36) NOT NULL,
+                content_type VARCHAR(50) NOT NULL,
+                content_id VARCHAR(36) NOT NULL,
+                topic_id INT NOT NULL,
+                is_completed BIT DEFAULT 0 NOT NULL,
+                score FLOAT NULL,
+                completed_at DATETIME NULL,
+                created_at DATETIME DEFAULT GETDATE() NOT NULL,
+                updated_at DATETIME DEFAULT GETDATE(),
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (topic_id) REFERENCES study_topics(id) ON DELETE CASCADE,
+                CONSTRAINT unique_user_content_progress UNIQUE (user_id, content_type, content_id)
+            )
+        """))
+        db.session.commit()
+        
+        return jsonify({'message': 'Tabla student_content_progress migrada exitosamente a VARCHAR(36)'}), 200
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+
+
+@study_contents_bp.route('/progress/<content_type>/<content_id>', methods=['POST'])
 @jwt_required()
 def register_content_progress(content_type, content_id):
     """
     Registrar el progreso del estudiante en un contenido específico
     content_type: 'reading', 'video', 'downloadable', 'interactive'
+    content_id: número para reading/video/downloadable, string (UUID) para interactive
     """
     try:
         user_id = get_jwt_identity()

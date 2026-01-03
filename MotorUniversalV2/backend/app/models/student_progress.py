@@ -17,8 +17,8 @@ class StudentContentProgress(db.Model):
     # Tipo de contenido: 'reading', 'video', 'downloadable', 'interactive'
     content_type = db.Column(db.String(50), nullable=False)
     
-    # ID del contenido específico (study_readings.id, study_videos.id, etc.)
-    content_id = db.Column(db.Integer, nullable=False)
+    # ID del contenido específico - String para soportar UUIDs de ejercicios interactivos
+    content_id = db.Column(db.String(36), nullable=False)
     
     # ID del tema al que pertenece el contenido
     topic_id = db.Column(db.Integer, db.ForeignKey('study_topics.id'), nullable=False)

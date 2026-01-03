@@ -113,7 +113,7 @@ const StudyContentPreviewPage: React.FC = () => {
     reading: Set<number>;
     video: Set<number>;
     downloadable: Set<number>;
-    interactive: Set<number>;
+    interactive: Set<string>;
   }>({
     reading: new Set(),
     video: new Set(),
@@ -169,7 +169,8 @@ const StudyContentPreviewPage: React.FC = () => {
               reading: new Set(progress.all_completed_contents.reading || []),
               video: new Set(progress.all_completed_contents.video || []),
               downloadable: new Set(progress.all_completed_contents.downloadable || []),
-              interactive: new Set(progress.all_completed_contents.interactive || []),
+              // Los IDs de ejercicios interactivos son UUIDs (strings)
+              interactive: new Set((progress.all_completed_contents.interactive || []).map(String)),
             });
           }
         } catch (progressError) {
@@ -191,7 +192,7 @@ const StudyContentPreviewPage: React.FC = () => {
   // Función para registrar progreso de contenido
   const markContentCompleted = async (
     contentType: 'reading' | 'video' | 'downloadable' | 'interactive',
-    contentId: number,
+    contentId: number | string,
     score?: number
   ) => {
     try {
@@ -501,7 +502,7 @@ const StudyContentPreviewPage: React.FC = () => {
     
     // Si la calificación es >= 80%, registrar como completado
     if (result.percentage >= 80 && currentTopic?.interactive_exercise?.id) {
-      const exerciseId = Number(currentTopic.interactive_exercise.id);
+      const exerciseId = currentTopic.interactive_exercise.id;
       if (!completedContents.interactive.has(exerciseId)) {
         await markContentCompleted('interactive', exerciseId, result.percentage);
       }
@@ -1081,7 +1082,7 @@ const StudyContentPreviewPage: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <Gamepad2 className="w-4 h-4" />
                       Ejercicio
-                      {currentTopic?.interactive_exercise && completedContents.interactive.has(Number(currentTopic.interactive_exercise.id)) && (
+                      {currentTopic?.interactive_exercise && completedContents.interactive.has(currentTopic.interactive_exercise.id) && (
                         <span className="flex items-center justify-center w-5 h-5 bg-green-500 rounded-full">
                           <CheckCircle2 className="w-4 h-4 text-white" />
                         </span>
