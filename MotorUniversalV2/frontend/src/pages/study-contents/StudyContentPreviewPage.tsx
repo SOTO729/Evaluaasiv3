@@ -105,7 +105,7 @@ const StudyContentPreviewPage: React.FC = () => {
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [showDownloadScrollHint, setShowDownloadScrollHint] = useState(false);
   const [instructionsExpanded, setInstructionsExpanded] = useState(false);
-  const [readingScrolledToEnd, setReadingScrolledToEnd] = useState(false);
+  const readingMarkedCompleteRef = useRef(false);
 
   // Estados de progreso del estudiante
   const [topicProgress, setTopicProgress] = useState<TopicProgressResponse | null>(null);
@@ -306,7 +306,7 @@ const StudyContentPreviewPage: React.FC = () => {
   // Detectar cuando el usuario llega al final de la lectura para marcarla como completada
   useEffect(() => {
     // Reset cuando cambie el tema o la tab
-    setReadingScrolledToEnd(false);
+    readingMarkedCompleteRef.current = false;
     
     if (activeTab !== 'reading' || !currentTopic?.reading) return;
     
@@ -316,7 +316,7 @@ const StudyContentPreviewPage: React.FC = () => {
     if (completedContents.reading.has(readingId)) return;
     
     const checkReadingEnd = () => {
-      if (!readingEndRef.current) return;
+      if (!readingEndRef.current || readingMarkedCompleteRef.current) return;
       
       const endElement = readingEndRef.current;
       const rect = endElement.getBoundingClientRect();
@@ -326,9 +326,12 @@ const StudyContentPreviewPage: React.FC = () => {
       // Consideramos visible si al menos parte del elemento está en pantalla
       const isEndVisible = rect.top < viewportHeight && rect.bottom > 0;
       
-      if (isEndVisible && !readingScrolledToEnd) {
-        setReadingScrolledToEnd(true);
+      console.log('Checking reading end:', { isEndVisible, rectTop: rect.top, rectBottom: rect.bottom, viewportHeight });
+      
+      if (isEndVisible && !readingMarkedCompleteRef.current) {
+        readingMarkedCompleteRef.current = true;
         // Marcar como completado automáticamente
+        console.log('Marking reading as complete:', readingId);
         markContentCompleted('reading', readingId);
       }
     };
@@ -344,15 +347,19 @@ const StudyContentPreviewPage: React.FC = () => {
     window.addEventListener('scroll', checkReadingEnd);
     window.addEventListener('resize', checkReadingEnd);
     
+    // También verificar cada segundo como fallback
+    const intervalId = setInterval(checkReadingEnd, 1000);
+    
     return () => {
       clearTimeout(timeoutId);
+      clearInterval(intervalId);
       if (mainElement) {
         mainElement.removeEventListener('scroll', checkReadingEnd);
       }
       window.removeEventListener('scroll', checkReadingEnd);
       window.removeEventListener('resize', checkReadingEnd);
     };
-  }, [activeTab, currentTopic?.reading?.id, completedContents.reading, readingScrolledToEnd]);
+  }, [activeTab, currentTopic?.reading?.id, completedContents.reading]);
 
   // Calcular progreso
   const getTotalTopics = () => {
