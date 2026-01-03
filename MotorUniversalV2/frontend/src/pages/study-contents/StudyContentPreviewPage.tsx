@@ -1002,11 +1002,11 @@ const StudyContentPreviewPage: React.FC = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 break-words flex items-center gap-1.5">
-                        <span className={sessionCompleted ? 'text-green-500' : 'text-gray-400'}>{session.session_number}.</span>
+                        <span className="text-gray-400">{session.session_number}.</span>
                         <span className="flex-1">{session.title}</span>
                       </p>
                     </div>
-                    <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">
+                    <span className={`text-xs flex-shrink-0 mt-0.5 ${sessionCompleted ? 'text-green-500 font-medium' : 'text-gray-400'}`}>
                       {session.topics?.length || 0}
                     </span>
                   </button>
