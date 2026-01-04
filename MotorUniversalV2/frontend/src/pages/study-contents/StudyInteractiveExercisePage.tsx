@@ -175,7 +175,7 @@ const StudyInteractiveExercisePage = () => {
     correct_answer: '',
     scoring_mode: 'exact',
     showPlaceholder: false,
-    label_style: 'text_with_shadow' as 'text_only' | 'text_with_shadow' | 'shadow_only',
+    label_style: 'invisible' as 'invisible' | 'text_only' | 'text_with_shadow' | 'shadow_only',
     on_error_action: 'next_step',
     error_message: '',
     max_attempts: 3,
@@ -987,7 +987,7 @@ const StudyInteractiveExercisePage = () => {
       correct_answer: action.correct_answer || '',
       scoring_mode: (action as any).scoring_mode || 'exact',
       showPlaceholder: !!(action.placeholder && action.placeholder.trim() !== ''),
-      label_style: (action as any).label_style || 'text_with_shadow',
+      label_style: (action as any).label_style || 'invisible',
       on_error_action: (action as any).on_error_action || 'next_step',
       error_message: (action as any).error_message || '',
       max_attempts: (action as any).max_attempts || 3,
@@ -1707,7 +1707,23 @@ const StudyInteractiveExercisePage = () => {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {currentStep.actions.map((action: StudyInteractiveExerciseAction, index: number) => {
+                    {/* Ordenar acciones: text_input primero (ambos rojo y verde), luego botones correctos, luego incorrectos */}
+                    {[...currentStep.actions]
+                      .sort((a, b) => {
+                        // text_input siempre primero (prioridad 0)
+                        // botones correctos segundo (prioridad 1)
+                        // botones incorrectos al final (prioridad 2)
+                        const getPriority = (action: StudyInteractiveExerciseAction) => {
+                          if (action.action_type === 'text_input') return 0;
+                          if (action.action_type === 'button' && action.correct_answer === 'correct') return 1;
+                          return 2;
+                        };
+                        const priorityDiff = getPriority(a) - getPriority(b);
+                        if (priorityDiff !== 0) return priorityDiff;
+                        // Si tienen la misma prioridad, ordenar por action_number
+                        return a.action_number - b.action_number;
+                      })
+                      .map((action: StudyInteractiveExerciseAction, index: number) => {
                       const isTextboxWithoutAnswer = action.action_type === 'text_input' && (!action.correct_answer || action.correct_answer.trim() === '')
                       const isTextbox = action.action_type === 'text_input'
                       const isWrongButton = action.action_type === 'button' && action.correct_answer === 'wrong'
@@ -2047,15 +2063,16 @@ const StudyInteractiveExercisePage = () => {
                       <select
                         value={actionFormData.label_style}
                         onChange={(e) => {
-                          const newStyle = e.target.value as 'text_only' | 'text_with_shadow' | 'shadow_only';
+                          const newStyle = e.target.value as 'invisible' | 'text_only' | 'text_with_shadow' | 'shadow_only';
                           setActionFormData({ 
                             ...actionFormData, 
                             label_style: newStyle, 
-                            showPlaceholder: newStyle !== 'shadow_only' 
+                            showPlaceholder: newStyle !== 'shadow_only' && newStyle !== 'invisible'
                           });
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
                       >
+                        <option value="invisible">🌟 Invisible (recomendado)</option>
                         <option value="text_only">Texto indicativo (sin sombra)</option>
                         <option value="text_with_shadow">Texto indicativo con sombra</option>
                         <option value="shadow_only">Sombra sin texto indicativo</option>
@@ -2063,7 +2080,7 @@ const StudyInteractiveExercisePage = () => {
                     </div>
 
                     {/* Campo de texto indicativo (si está activado) */}
-                    {actionFormData.label_style !== 'shadow_only' && (
+                    {actionFormData.label_style !== 'shadow_only' && actionFormData.label_style !== 'invisible' && (
                       <div className="mt-3">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Texto Indicativo
@@ -2235,15 +2252,16 @@ const StudyInteractiveExercisePage = () => {
                         <select
                           value={actionFormData.label_style}
                           onChange={(e) => {
-                            const newStyle = e.target.value as 'text_only' | 'text_with_shadow' | 'shadow_only';
+                            const newStyle = e.target.value as 'invisible' | 'text_only' | 'text_with_shadow' | 'shadow_only';
                             setActionFormData({ 
                               ...actionFormData, 
                               label_style: newStyle, 
-                              showPlaceholder: newStyle !== 'shadow_only' 
+                              showPlaceholder: newStyle !== 'shadow_only' && newStyle !== 'invisible'
                             });
                           }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm"
                         >
+                          <option value="invisible">🌟 Invisible (recomendado)</option>
                           <option value="text_only">Texto indicativo (sin sombra)</option>
                           <option value="text_with_shadow">Texto indicativo con sombra</option>
                           <option value="shadow_only">Sombra sin texto indicativo</option>
@@ -2251,7 +2269,7 @@ const StudyInteractiveExercisePage = () => {
                       </div>
 
                       {/* Campo de texto indicativo (si está activado) */}
-                      {actionFormData.label_style !== 'shadow_only' && (
+                      {actionFormData.label_style !== 'shadow_only' && actionFormData.label_style !== 'invisible' && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Texto Indicativo

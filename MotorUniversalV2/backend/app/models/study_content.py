@@ -426,7 +426,7 @@ class StudyInteractiveExerciseAction(db.Model):
     # Personalización
     text_color = db.Column(db.String(20), default='#000000')
     font_family = db.Column(db.String(50), default='Arial')
-    label_style = db.Column(db.String(20), default='text_with_shadow')  # text_only, text_with_shadow, shadow_only
+    label_style = db.Column(db.String(20), default='invisible')  # invisible, text_only, text_with_shadow, shadow_only
     
     # Auditoría
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

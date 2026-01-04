@@ -1595,7 +1595,7 @@ def create_action(material_id, session_id, topic_id, step_id):
             max_attempts=data.get('max_attempts', 3),
             text_color=data.get('text_color', '#000000'),
             font_family=data.get('font_family', 'Arial'),
-            label_style=data.get('label_style', 'text_with_shadow')
+            label_style=data.get('label_style', 'invisible')
         )
         
         db.session.add(action)
