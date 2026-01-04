@@ -18,8 +18,9 @@ depends_on = None
 
 def upgrade():
     # Add label_style column to study_interactive_exercise_actions table
+    # Valid values: invisible, text_only, text_with_shadow, shadow_only
     op.add_column('study_interactive_exercise_actions', 
-                  sa.Column('label_style', sa.String(20), server_default='text_with_shadow'))
+                  sa.Column('label_style', sa.String(20), server_default='invisible'))
 
 
 def downgrade():

@@ -126,7 +126,7 @@ export interface StudyInteractiveExerciseAction {
   placeholder?: string;
   correct_answer?: string;
   is_case_sensitive: boolean;
-  scoring_mode: 'exact' | 'contains' | 'regex' | 'similarity' | 'text_cursor';
+  scoring_mode: 'exact' | 'contains' | 'regex' | 'similarity' | 'text_cursor' | 'default_cursor';
   on_error_action: 'retry' | 'next_step' | 'show_hint' | 'end_exercise' | 'show_message' | 'next_exercise';
   error_message?: string;
   max_attempts: number;
@@ -215,12 +215,13 @@ export interface CreateActionData {
   placeholder?: string;
   correct_answer?: string;
   is_case_sensitive?: boolean;
-  scoring_mode?: 'exact' | 'contains' | 'regex' | 'similarity' | 'text_cursor';
+  scoring_mode?: 'exact' | 'contains' | 'regex' | 'similarity' | 'text_cursor' | 'default_cursor';
   on_error_action?: 'retry' | 'next_step' | 'show_hint' | 'end_exercise' | 'show_message' | 'next_exercise';
   error_message?: string;
   max_attempts?: number;
   text_color?: string;
   font_family?: string;
+  label_style?: 'invisible' | 'text_only' | 'text_with_shadow' | 'shadow_only';
 }
 
 // Interfaces de respuesta

@@ -1,10 +1,63 @@
 #!/usr/bin/env python3
 """
-Auto-migración: Agregar columnas faltantes a exercise_actions si no existen
+Auto-migración: Agregar columnas faltantes a exercise_actions y study_interactive_exercise_actions si no existen
 Este script se ejecuta automáticamente al iniciar el backend
 """
 from app import db
 from sqlalchemy import text, inspect
+
+def check_and_add_study_interactive_columns():
+    """Verificar y agregar columnas faltantes a study_interactive_exercise_actions"""
+    print("🔍 Verificando esquema de study_interactive_exercise_actions...")
+    
+    # Columnas que deben existir para study_interactive_exercise_actions
+    required_columns = {
+        'label_style': "VARCHAR(20) DEFAULT 'invisible'"
+    }
+    
+    try:
+        # Verificar si la tabla existe
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        if 'study_interactive_exercise_actions' not in tables:
+            print("  ⚠️  Tabla study_interactive_exercise_actions no existe, saltando...")
+            return
+        
+        # Obtener columnas existentes
+        existing_columns = [col['name'] for col in inspector.get_columns('study_interactive_exercise_actions')]
+        
+        added_count = 0
+        skipped_count = 0
+        
+        for column_name, column_def in required_columns.items():
+            if column_name not in existing_columns:
+                print(f"  📝 [study_interactive] Agregando columna: {column_name}...")
+                try:
+                    sql = f"ALTER TABLE study_interactive_exercise_actions ADD {column_name} {column_def}"
+                    db.session.execute(text(sql))
+                    db.session.commit()
+                    print(f"     ✓ Columna {column_name} agregada a study_interactive_exercise_actions")
+                    added_count += 1
+                except Exception as e:
+                    if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+                        print(f"     ⚠️  Columna {column_name} ya existe")
+                        skipped_count += 1
+                    else:
+                        print(f"     ❌ Error al agregar {column_name}: {e}")
+                        db.session.rollback()
+            else:
+                print(f"  ✓ Columna {column_name} ya existe en study_interactive_exercise_actions")
+                skipped_count += 1
+        
+        if added_count > 0:
+            print(f"\n✅ Auto-migración study_interactive completada: {added_count} columnas agregadas")
+        else:
+            print(f"✅ Esquema study_interactive actualizado: todas las columnas ya existen ({skipped_count}/{len(required_columns)})")
+                
+    except Exception as e:
+        print(f"❌ Error en auto-migración study_interactive: {e}")
+        db.session.rollback()
 
 def check_and_add_columns():
     """Verificar y agregar columnas faltantes a exercise_actions"""

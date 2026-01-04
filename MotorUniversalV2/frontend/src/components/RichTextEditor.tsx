@@ -24,7 +24,7 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
     'header',
     'bold', 'italic', 'underline', 'strike',
     'script',
-    'list', 'bullet',
+    'list',
     'indent',
     'align'
   ]

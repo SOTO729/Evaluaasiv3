@@ -58,6 +58,10 @@ def create_app(config_name='development'):
     app.register_blueprint(debug.debug_bp, url_prefix='/api')
     app.register_blueprint(study_contents_bp, url_prefix='/api/study-contents')
     
+    # Verificar y agregar columna label_style si no existe
+    with app.app_context():
+        ensure_label_style_column(app)
+    
     # Manejadores de errores
     register_error_handlers(app)
     
@@ -125,4 +129,32 @@ def register_jwt_callbacks(app):
     @jwt.revoked_token_loader
     def revoked_token_callback(jwt_header, jwt_payload):
         return {'error': 'Token Revoked', 'message': 'The token has been revoked'}, 401
+
+
+def ensure_label_style_column(app):
+    """Verificar y agregar la columna label_style si no existe"""
+    from sqlalchemy import text
+    try:
+        # Verificar si la columna existe
+        result = db.session.execute(text("""
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_NAME = 'study_interactive_exercise_actions' 
+            AND COLUMN_NAME = 'label_style'
+        """))
+        exists = result.scalar()
+        
+        if exists == 0:
+            print("[AUTO-MIGRATE] La columna label_style NO existe. Agregando...")
+            db.session.execute(text("""
+                ALTER TABLE study_interactive_exercise_actions 
+                ADD label_style VARCHAR(20) DEFAULT 'invisible'
+            """))
+            db.session.commit()
+            print("[AUTO-MIGRATE] Columna label_style agregada exitosamente")
+        else:
+            print("[AUTO-MIGRATE] Columna label_style ya existe")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[AUTO-MIGRATE] Error verificando/agregando label_style: {e}")
 # Force reload at Sat Jan  3 16:25:57 UTC 2026
+# Force deploy Sun Jan  4 21:04:10 UTC 2026

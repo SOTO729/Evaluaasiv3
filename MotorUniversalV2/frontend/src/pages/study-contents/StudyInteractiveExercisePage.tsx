@@ -42,8 +42,8 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 
     xl: 'max-w-6xl'
   };
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-      <div className={`bg-white rounded-lg ${sizeClasses[size]} w-full max-h-[90vh] overflow-y-auto`}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4" onClick={onClose}>
+      <div className={`bg-white rounded-lg ${sizeClasses[size]} w-full max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center p-4 border-b">
           <h3 className="text-lg font-bold text-gray-900">{title}</h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
@@ -283,6 +283,9 @@ const StudyInteractiveExercisePage = () => {
   const [pendingChanges, setPendingChanges] = useState<any[]>([])
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  
+  // Ref para controlar si se debe mostrar la advertencia de navegación
+  const skipBeforeUnloadRef = useRef(false)
 
   // Estados para drag & resize
   const [dragState, setDragState] = useState<DragState>({
@@ -401,21 +404,34 @@ const StudyInteractiveExercisePage = () => {
   })
   const [isSavingExerciseInfo, setIsSavingExerciseInfo] = useState(false)
 
-  // Estado para tooltip de herramienta incorrecta
-  const [toolTooltip, setToolTooltip] = useState<{
-    visible: boolean
-    x: number
-    y: number
-  }>({
-    visible: false,
-    x: 0,
-    y: 0
-  })
+  // Modal de confirmación para salir sin guardar
+  const [exitConfirmModal, setExitConfirmModal] = useState(false)
+  const [reloadConfirmModal, setReloadConfirmModal] = useState(false)
 
   // Función para agregar cambio pendiente
   const addPendingChange = (change: any) => {
     setPendingChanges(prev => [...prev, change])
     setHasUnsavedChanges(true)
+  }
+
+  // Función para manejar el intento de salir
+  const handleExitAttempt = () => {
+    if (hasUnsavedChanges || pendingChanges.length > 0) {
+      setExitConfirmModal(true)
+    } else {
+      navigate(`/study-contents/${materialId}`)
+    }
+  }
+
+  // Función para descartar cambios y salir
+  const handleDiscardAndExit = () => {
+    // Limpiar cambios pendientes sin guardar
+    setPendingChanges([])
+    setHasUnsavedChanges(false)
+    // Invalidar la caché para recargar los datos originales desde el backend
+    queryClient.invalidateQueries({ queryKey: ['study-topic', materialId, sessionId, topicId] })
+    // Navegar de regreso
+    navigate(`/study-contents/${materialId}`)
   }
 
   // Query para obtener el tema con ejercicio interactivo
@@ -425,12 +441,84 @@ const StudyInteractiveExercisePage = () => {
     enabled: !!materialId && !!sessionId && !!topicId
   })
 
-  // Inicializar ejercicio
+  // Inicializar ejercicio - merge inteligente para preservar cambios locales
   useEffect(() => {
     if (topicData?.interactive_exercise) {
-      setExercise(topicData.interactive_exercise)
+      setExercise(prevExercise => {
+        const serverExercise = topicData.interactive_exercise
+        if (!serverExercise) {
+          return prevExercise
+        }
+        
+        // Si no hay ejercicio previo, usar directamente el del servidor
+        if (!prevExercise) {
+          return serverExercise
+        }
+        
+        // Hacer merge inteligente para preservar label_style y otros campos editados localmente
+        const mergedSteps = (serverExercise.steps || []).map((serverStep: StudyInteractiveExerciseStep) => {
+          const localStep = (prevExercise.steps || []).find((s: StudyInteractiveExerciseStep) => s.id === serverStep.id)
+          if (!localStep) {
+            return serverStep
+          }
+          
+          // Merge de acciones preservando label_style local
+          const mergedActions = (serverStep.actions || []).map((serverAction: StudyInteractiveExerciseAction) => {
+            const localAction = (localStep.actions || []).find((a: StudyInteractiveExerciseAction) => a.id === serverAction.id)
+            if (!localAction) {
+              return serverAction
+            }
+            
+            return {
+              ...serverAction,
+              // Preservar label_style: preferir el local si existe y no es el default
+              label_style: localAction.label_style !== 'invisible' 
+                ? localAction.label_style 
+                : (serverAction.label_style || localAction.label_style || 'invisible')
+            }
+          })
+          
+          return { ...serverStep, actions: mergedActions }
+        })
+        
+        return { ...serverExercise, steps: mergedSteps }
+      })
     }
   }, [topicData])
+
+  // Interceptar cierre de ventana/pestaña si hay cambios sin guardar
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Si se marcó para saltar la advertencia (al guardar y salir), no mostrar
+      if (skipBeforeUnloadRef.current) {
+        return
+      }
+      if (hasUnsavedChanges || pendingChanges.length > 0) {
+        e.preventDefault()
+        e.returnValue = ''
+        return ''
+      }
+    }
+
+    // Interceptar F5 y Ctrl+R para mostrar modal personalizado
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (skipBeforeUnloadRef.current) {
+        return
+      }
+      if ((hasUnsavedChanges || pendingChanges.length > 0) && 
+          (e.key === 'F5' || (e.ctrlKey && e.key === 'r') || (e.metaKey && e.key === 'r'))) {
+        e.preventDefault()
+        setReloadConfirmModal(true)
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [hasUnsavedChanges, pendingChanges])
 
   // Crear ejercicio si no existe
   const createExerciseMutation = useMutation({
@@ -462,7 +550,10 @@ const StudyInteractiveExercisePage = () => {
     onSuccess: () => {
       setPendingChanges([])
       setHasUnsavedChanges(false)
-      navigate(`/study-contents/${materialId}`)
+      // Marcar para saltar la advertencia de navegación
+      skipBeforeUnloadRef.current = true
+      // Usar window.location.href para forzar una recarga completa al navegar
+      window.location.href = `/study-contents/${materialId}`
     },
     onError: (err) => {
       console.error('Error saving interactive exercise', err)
@@ -579,10 +670,25 @@ const StudyInteractiveExercisePage = () => {
     onSuccess: (response: ActionMutationResponse) => {
       if (exercise && exercise.steps) {
         const updatedSteps = exercise.steps.map((step: StudyInteractiveExerciseStep) => {
-          if (step.id === response.action.step_id) {
+          // Comparar como strings para evitar problemas de tipo
+          if (String(step.id) === String(response.action.step_id)) {
             // Si el backend devuelve todas las acciones actualizadas, usarlas
+            // Preservar label_style de las acciones existentes en el estado local
             if (response.all_actions) {
-              return { ...step, actions: response.all_actions }
+              const existingActions = step.actions || []
+              const mergedActions = response.all_actions.map((a: StudyInteractiveExerciseAction) => {
+                const existingAction = existingActions.find((ea: StudyInteractiveExerciseAction) => String(ea.id) === String(a.id))
+                // Validar que label_style sea un valor válido de los 4 tipos permitidos
+                const validLabelStyles = ['invisible', 'text_only', 'text_with_shadow', 'shadow_only']
+                const backendStyle = a.label_style && validLabelStyles.includes(a.label_style) ? a.label_style : null
+                const localStyle = existingAction?.label_style && validLabelStyles.includes(existingAction.label_style) ? existingAction.label_style : null
+                return {
+                  ...a,
+                  // Preferir backend si tiene valor válido, sino local, sino default
+                  label_style: backendStyle || localStyle || 'invisible'
+                }
+              })
+              return { ...step, actions: mergedActions }
             }
             return { ...step, actions: [...(step.actions || []), response.action] }
           }
@@ -591,36 +697,55 @@ const StudyInteractiveExercisePage = () => {
         setExercise({ ...exercise, steps: updatedSteps })
       }
       addPendingChange({ type: 'create_action', stepId: response.action.step_id, actionId: response.action.id })
-      queryClient.invalidateQueries({ queryKey: ['study-topic', materialId, sessionId, topicId] })
     }
   })
 
   // Actualizar acción
   const updateActionMutation = useMutation({
-    mutationFn: ({ stepId, actionId, data }: { stepId: string; actionId: string; data: any }) => 
-      updateAction(Number(materialId), Number(sessionId), Number(topicId), stepId, actionId, data),
+    mutationFn: ({ stepId, actionId, data }: { stepId: string; actionId: string; data: any }) => {
+      console.log('[updateActionMutation] mutationFn called with:', { stepId, actionId, data })
+      return updateAction(Number(materialId), Number(sessionId), Number(topicId), stepId, actionId, data)
+    },
     onSuccess: (response: ActionMutationResponse, variables) => {
-      // Preservar el label_style enviado ya que el backend puede no devolverlo (si la columna no existe)
+      console.log('[updateActionMutation] onSuccess:', { response, variables })
+      console.log('[updateActionMutation] response.action.label_style:', response.action.label_style)
+      // Preservar el label_style enviado para usarlo si el backend no lo devuelve correctamente
       const sentLabelStyle = variables.data.label_style
+      const validLabelStyles = ['invisible', 'text_only', 'text_with_shadow', 'shadow_only']
       
       if (exercise && exercise.steps) {
         const updatedSteps = exercise.steps.map((step: StudyInteractiveExerciseStep) => {
-          if (step.id === response.action.step_id) {
+          // Comparar como strings para evitar problemas de tipo
+          if (String(step.id) === String(response.action.step_id)) {
             // Si el backend devuelve todas las acciones actualizadas, usarlas (para reordenamiento)
             if (response.all_actions) {
-              // Preservar label_style enviado si el backend no lo devuelve
-              const actionsWithLabelStyle = response.all_actions.map((a: StudyInteractiveExerciseAction) => ({
-                ...a,
-                label_style: a.id === response.action.id 
-                  ? (a.label_style || sentLabelStyle || 'invisible')
-                  : (a.label_style || 'invisible')
-              }))
+              // Preservar label_style de cada acción, usando el local como fallback
+              const existingActions = step.actions || []
+              const actionsWithLabelStyle = response.all_actions.map((a: StudyInteractiveExerciseAction) => {
+                const existingAction = existingActions.find((ea: StudyInteractiveExerciseAction) => String(ea.id) === String(a.id))
+                const backendStyle = a.label_style && validLabelStyles.includes(a.label_style) ? a.label_style : null
+                const localStyle = existingAction?.label_style && validLabelStyles.includes(existingAction.label_style) ? existingAction.label_style : null
+                
+                // Para la acción que acabamos de editar, usar el valor enviado si el backend no devuelve uno válido
+                if (String(a.id) === String(response.action.id)) {
+                  return {
+                    ...a,
+                    label_style: backendStyle || sentLabelStyle || localStyle || 'invisible'
+                  }
+                }
+                
+                // Para otras acciones, preservar su label_style local
+                return {
+                  ...a,
+                  label_style: backendStyle || localStyle || 'invisible'
+                }
+              })
               return { ...step, actions: actionsWithLabelStyle }
             }
             return {
               ...step,
               actions: (step.actions || []).map((a: StudyInteractiveExerciseAction) => 
-                a.id === response.action.id 
+                String(a.id) === String(response.action.id) 
                   ? { ...response.action, label_style: response.action.label_style || sentLabelStyle || 'invisible' }
                   : a
               )
@@ -631,10 +756,14 @@ const StudyInteractiveExercisePage = () => {
         setExercise({ ...exercise, steps: updatedSteps })
       }
       // Actualizar selectedAction si es la acción que se modificó
-      if (selectedAction?.id === response.action.id) {
+      if (selectedAction && String(selectedAction.id) === String(response.action.id)) {
         setSelectedAction({ ...response.action, label_style: response.action.label_style || sentLabelStyle || 'invisible' })
       }
       addPendingChange({ type: 'update_action', actionId: response.action.id })
+    },
+    onError: (error: any) => {
+      console.error('[updateActionMutation] onError:', error)
+      console.error('[updateActionMutation] Error response:', error.response?.data)
     }
   })
 
@@ -645,8 +774,9 @@ const StudyInteractiveExercisePage = () => {
     onSuccess: (_, { stepId, actionId }: { stepId: string; actionId: string }) => {
       if (exercise && exercise.steps) {
         const updatedSteps = exercise.steps.map((step: StudyInteractiveExerciseStep) => {
-          if (step.id === stepId) {
-            return { ...step, actions: (step.actions || []).filter((a: StudyInteractiveExerciseAction) => a.id !== actionId) }
+          // Comparar como strings para evitar problemas de tipo
+          if (String(step.id) === String(stepId)) {
+            return { ...step, actions: (step.actions || []).filter((a: StudyInteractiveExerciseAction) => String(a.id) !== String(actionId)) }
           }
           return step
         })
@@ -978,20 +1108,6 @@ const StudyInteractiveExercisePage = () => {
   // Handlers para drag
   const handleActionMouseDown = (e: React.MouseEvent, action: StudyInteractiveExerciseAction) => {
     e.stopPropagation()
-    
-    if (selectedTool !== 'select') {
-      // Mostrar tooltip cerca del ratón
-      setToolTooltip({
-        visible: true,
-        x: e.clientX,
-        y: e.clientY
-      })
-      // Ocultar después de 2 segundos
-      setTimeout(() => {
-        setToolTooltip(prev => ({ ...prev, visible: false }))
-      }, 2000)
-      return
-    }
 
     setSelectedAction(action)
     
@@ -1176,7 +1292,21 @@ const StudyInteractiveExercisePage = () => {
 
   // Guardar cambios de acción
   const handleSaveAction = () => {
-    if (!selectedAction || !currentStep) return
+    console.log('[handleSaveAction] Called', { selectedAction, currentStep })
+    if (!selectedAction || !currentStep) {
+      console.log('[handleSaveAction] Early return - missing selectedAction or currentStep')
+      return
+    }
+    
+    // Validar que el texto descriptivo sea obligatorio para estilos que lo requieren
+    if (styleHasText(actionFormData.label_style) && (!actionFormData.placeholder || actionFormData.placeholder.trim() === '')) {
+      setWarningModal({
+        isOpen: true,
+        title: 'Texto descriptivo requerido',
+        message: `El estilo "${getLabelStyleInfo(actionFormData.label_style).name}" requiere un texto descriptivo. Por favor, ingresa el texto que se mostrará sobre la acción.`
+      })
+      return
+    }
     
     // Preparar los datos, eliminando el placeholder si showPlaceholder es false
     const dataToSend = {
@@ -1190,6 +1320,12 @@ const StudyInteractiveExercisePage = () => {
     
     // Eliminar showPlaceholder ya que no es un campo del backend
     const { showPlaceholder, ...backendData } = dataToSend
+    
+    console.log('[handleSaveAction] Calling updateActionMutation.mutate with:', {
+      stepId: currentStep.id,
+      actionId: selectedAction.id,
+      backendData
+    })
     
     updateActionMutation.mutate({
       stepId: currentStep.id,
@@ -1249,7 +1385,7 @@ const StudyInteractiveExercisePage = () => {
       <div className="flex items-center justify-between px-6 py-4 border-b bg-white shadow-sm">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate(`/study-contents/${materialId}`)}
+            onClick={handleExitAttempt}
             className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
             title="Volver"
           >
@@ -1653,7 +1789,11 @@ const StudyInteractiveExercisePage = () => {
                       onMouseUp={handleImageMouseUp}
                       onMouseLeave={handleImageMouseUp}
                       style={{ 
-                        cursor: selectedTool !== 'select' ? 'crosshair' : 'default', 
+                        cursor: resizeState.isResizing 
+                          ? (resizeState.corner === 'nw' || resizeState.corner === 'se' ? 'nwse-resize' : 'nesw-resize')
+                          : dragState.isDragging
+                          ? 'move'
+                          : selectedTool !== 'select' ? 'crosshair' : 'default', 
                         maxWidth: `${1400 * zoom}px`,
                         transform: `scale(${zoom})`,
                         transformOrigin: 'top center'
@@ -1692,32 +1832,34 @@ const StudyInteractiveExercisePage = () => {
                       </div>
                     
                     {/* Actions overlay - ordenados para que correctas estén encima */}
-                    {[...(currentStep.actions || [])]
-                      .sort((a, b) => {
-                        // Incorrectas primero, correctas después (para que correctas queden encima)
-                        const aIsCorrect = (a.action_type === 'button' && a.correct_answer === 'correct') || 
-                                          (a.action_type === 'text_input' && a.correct_answer !== 'wrong');
-                        const bIsCorrect = (b.action_type === 'button' && b.correct_answer === 'correct') || 
-                                          (b.action_type === 'text_input' && b.correct_answer !== 'wrong');
-                        if (aIsCorrect === bIsCorrect) return 0;
-                        return aIsCorrect ? 1 : -1;
-                      })
-                      .map((action: StudyInteractiveExerciseAction, index: number) => {
+                    {(() => {
+                      const sortedActions = [...(currentStep.actions || [])]
+                        .sort((a, b) => {
+                          // Incorrectas primero, correctas después (para que correctas queden encima)
+                          const aIsCorrect = (a.action_type === 'button' && a.correct_answer === 'correct') || 
+                                            (a.action_type === 'text_input' && a.correct_answer !== 'wrong');
+                          const bIsCorrect = (b.action_type === 'button' && b.correct_answer === 'correct') || 
+                                            (b.action_type === 'text_input' && b.correct_answer !== 'wrong');
+                          if (aIsCorrect === bIsCorrect) return 0;
+                          return aIsCorrect ? 1 : -1;
+                        });
+                      
+                      return sortedActions.map((action: StudyInteractiveExerciseAction, index: number) => {
                       const isTextboxWithoutAnswer = action.action_type === 'text_input' && (!action.correct_answer || action.correct_answer.trim() === '')
                       const isTextbox = action.action_type === 'text_input'
                       const isWrongButton = action.action_type === 'button' && action.correct_answer === 'wrong'
                       const isCorrectButton = action.action_type === 'button' && action.correct_answer === 'correct'
                       const isCorrectAction = isCorrectButton || (isTextbox && action.correct_answer !== 'wrong')
                       
-                      // Calcular el número de acción solo para las incorrectas
-                      const incorrectIndex = currentStep.actions
-                        ?.slice(0, index)
+                      // Calcular el número de acción solo para las incorrectas usando el array ordenado
+                      const incorrectIndex = sortedActions
+                        .slice(0, index)
                         .filter((a: StudyInteractiveExerciseAction) => {
                           const aIsCorrectButton = a.action_type === 'button' && a.correct_answer === 'correct'
                           const aIsTextbox = a.action_type === 'text_input'
                           return !(aIsCorrectButton || aIsTextbox)
                         })
-                        .length ?? 0
+                        .length
                       const displayNumber = isCorrectAction ? null : incorrectIndex + 1
                       
                       return (
@@ -1725,6 +1867,11 @@ const StudyInteractiveExercisePage = () => {
                         key={action.id}
                         data-action-id={action.id}
                         className={`absolute border-2 rounded cursor-move ${
+                          (dragState.isDragging && dragState.actionId === action.id) ||
+                          (resizeState.isResizing && resizeState.actionId === action.id)
+                            ? 'border-dashed'
+                            : ''
+                        } ${
                           selectedAction?.id === action.id
                             ? 'border-primary-500 bg-primary-200/50 shadow-lg ring-2 ring-primary-300'
                             : isCorrectButton
@@ -1761,7 +1908,9 @@ const StudyInteractiveExercisePage = () => {
                         </div>
                         
                         {/* Resize handles en las 4 esquinas */}
-                        {selectedAction?.id === action.id && (
+                        {selectedAction?.id === action.id && 
+                         !((dragState.isDragging && dragState.actionId === action.id) || 
+                           (resizeState.isResizing && resizeState.actionId === action.id)) && (
                           <>
                             {/* Esquina superior izquierda */}
                             <div
@@ -1787,6 +1936,8 @@ const StudyInteractiveExercisePage = () => {
                         )}
                         
                         {/* Action number badge */}
+                        {!((dragState.isDragging && dragState.actionId === action.id) || 
+                          (resizeState.isResizing && resizeState.actionId === action.id)) && (
                         <div className={`absolute -top-3 -left-3 w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold shadow ${
                           isCorrectButton 
                             ? 'bg-teal-600' 
@@ -1804,8 +1955,10 @@ const StudyInteractiveExercisePage = () => {
                             </svg>
                           ) : displayNumber}
                           </div>
+                        )}
                         </div>
-                      )})}
+                      )});
+                    })()}
                     </div>
                   </div> {/* Cierre del contenedor con scroll para zoom */}
                     
@@ -1896,36 +2049,38 @@ const StudyInteractiveExercisePage = () => {
                 ) : (
                   <div className="space-y-2">
                     {/* Ordenar acciones: text_input primero (ambos rojo y verde), luego botones correctos, luego incorrectos */}
-                    {[...currentStep.actions]
-                      .sort((a, b) => {
-                        // text_input siempre primero (prioridad 0)
-                        // botones correctos segundo (prioridad 1)
-                        // botones incorrectos al final (prioridad 2)
-                        const getPriority = (action: StudyInteractiveExerciseAction) => {
-                          if (action.action_type === 'text_input') return 0;
-                          if (action.action_type === 'button' && action.correct_answer === 'correct') return 1;
-                          return 2;
-                        };
-                        const priorityDiff = getPriority(a) - getPriority(b);
-                        if (priorityDiff !== 0) return priorityDiff;
-                        // Si tienen la misma prioridad, ordenar por action_number
-                        return a.action_number - b.action_number;
-                      })
-                      .map((action: StudyInteractiveExerciseAction, index: number) => {
+                    {(() => {
+                      const sortedActions = [...currentStep.actions]
+                        .sort((a, b) => {
+                          // text_input siempre primero (prioridad 0)
+                          // botones correctos segundo (prioridad 1)
+                          // botones incorrectos al final (prioridad 2)
+                          const getPriority = (action: StudyInteractiveExerciseAction) => {
+                            if (action.action_type === 'text_input') return 0;
+                            if (action.action_type === 'button' && action.correct_answer === 'correct') return 1;
+                            return 2;
+                          };
+                          const priorityDiff = getPriority(a) - getPriority(b);
+                          if (priorityDiff !== 0) return priorityDiff;
+                          // Si tienen la misma prioridad, ordenar por action_number
+                          return a.action_number - b.action_number;
+                        });
+                      
+                      return sortedActions.map((action: StudyInteractiveExerciseAction, index: number) => {
                       const isTextboxWithoutAnswer = action.action_type === 'text_input' && (!action.correct_answer || action.correct_answer.trim() === '')
                       const isTextbox = action.action_type === 'text_input'
                       const isWrongButton = action.action_type === 'button' && action.correct_answer === 'wrong'
                       const isCorrectButton = action.action_type === 'button' && action.correct_answer === 'correct'
                       const isCorrectAction = isCorrectButton || isTextbox
-                      // Calculate display number counting only non-correct actions (wrong buttons)
-                      const incorrectIndex = currentStep.actions
-                        ?.slice(0, index)
+                      // Calculate display number counting only non-correct actions (wrong buttons) using sorted array
+                      const incorrectIndex = sortedActions
+                        .slice(0, index)
                         .filter((a: StudyInteractiveExerciseAction) => {
                           const aIsCorrectButton = a.action_type === 'button' && a.correct_answer === 'correct'
                           const aIsTextbox = a.action_type === 'text_input'
                           return !(aIsCorrectButton || aIsTextbox)
                         })
-                        .length ?? 0
+                        .length
                       const displayNumber = isCorrectAction ? null : incorrectIndex + 1
                       return (
                         <div
@@ -2048,7 +2203,7 @@ const StudyInteractiveExercisePage = () => {
                                       </svg>
                                       <span className="text-xs text-gray-600">
                                         Cursor: <span className="font-medium text-purple-700">
-                                          {action.scoring_mode === 'text_cursor' ? 'Texto (I)' : 'Puntero'}
+                                          {action.scoring_mode === 'text_cursor' ? 'Texto (I)' : action.scoring_mode === 'default_cursor' ? 'Flecha' : 'Puntero'}
                                         </span>
                                       </span>
                                     </div>
@@ -2157,7 +2312,8 @@ const StudyInteractiveExercisePage = () => {
                           </div>
                         </div>
                       )
-                    })}
+                    });
+                    })()}
                   </div>
                 )}
               </div>
@@ -2167,8 +2323,8 @@ const StudyInteractiveExercisePage = () => {
 
       {/* Modal de confirmación para eliminar paso */}
       {deleteConfirmModal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]" onClick={() => setDeleteConfirmModal({ isOpen: false, stepId: null, stepNumber: null, hasImage: false, actionsCount: 0 })}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-center w-16 h-16 mx-auto bg-red-100 rounded-full mb-4">
               <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -2237,8 +2393,8 @@ const StudyInteractiveExercisePage = () => {
 
       {/* Modal para editar acción */}
       {isEditActionModalOpen && selectedAction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] overflow-y-auto">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl my-8 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] overflow-y-auto" onClick={() => setIsEditActionModalOpen(false)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl my-8 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">
                 Editar {selectedAction.action_type === 'button' ? 'Botón' : 'Campo de Texto'}
@@ -2295,13 +2451,13 @@ const StudyInteractiveExercisePage = () => {
                     {actionFormData.label_style !== 'shadow_only' && actionFormData.label_style !== 'invisible' && (
                       <div className="mt-3">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Texto Indicativo
+                          Texto Indicativo <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
                           value={actionFormData.placeholder}
                           onChange={(e) => setActionFormData({ ...actionFormData, placeholder: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${!actionFormData.placeholder?.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
                           placeholder="Ej: Haz clic aquí"
                         />
                       </div>
@@ -2322,23 +2478,23 @@ const StudyInteractiveExercisePage = () => {
                       </p>
                       
                       <div className="space-y-2">
-                        <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-purple-100 ${actionFormData.scoring_mode !== 'text_cursor' ? 'border-purple-500 bg-purple-100' : 'border-gray-200 bg-white'}`}>
+                        <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-purple-100 ${!actionFormData.scoring_mode || actionFormData.scoring_mode === 'exact' ? 'border-purple-500 bg-purple-100' : 'border-gray-200 bg-white'}`}>
                           <input
                             type="radio"
                             name="cursor-type"
                             value="exact"
-                            checked={actionFormData.scoring_mode !== 'text_cursor'}
+                            checked={!actionFormData.scoring_mode || actionFormData.scoring_mode === 'exact'}
                             onChange={() => setActionFormData({ ...actionFormData, scoring_mode: 'exact' })}
                             className="w-4 h-4 text-purple-600"
                           />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-                              </svg>
+                          <div className="flex-1 flex items-start gap-2">
+                            <svg className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                            </svg>
+                            <div>
                               <span className="font-medium text-gray-900">Botón Incorrecto</span>
+                              <p className="text-xs text-gray-500 mt-1">Cursor de puntero (mano) - parece un botón clickeable</p>
                             </div>
-                            <p className="text-xs text-gray-500 mt-1 ml-7">Cursor de puntero (mano) - parece un botón clickeable</p>
                           </div>
                         </label>
                         
@@ -2351,14 +2507,34 @@ const StudyInteractiveExercisePage = () => {
                             onChange={() => setActionFormData({ ...actionFormData, scoring_mode: 'text_cursor' })}
                             className="w-4 h-4 text-purple-600"
                           />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
+                          <div className="flex-1 flex items-start gap-2">
+                            <svg className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            <div>
                               <span className="font-medium text-gray-900">Campo Incorrecto</span>
+                              <p className="text-xs text-gray-500 mt-1">Cursor de texto (I) - parece un campo para escribir</p>
                             </div>
-                            <p className="text-xs text-gray-500 mt-1 ml-7">Cursor de texto (I) - parece un campo para escribir</p>
+                          </div>
+                        </label>
+                        
+                        <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-purple-100 ${actionFormData.scoring_mode === 'default_cursor' ? 'border-purple-500 bg-purple-100' : 'border-gray-200 bg-white'}`}>
+                          <input
+                            type="radio"
+                            name="cursor-type"
+                            value="default_cursor"
+                            checked={actionFormData.scoring_mode === 'default_cursor'}
+                            onChange={() => setActionFormData({ ...actionFormData, scoring_mode: 'default_cursor' })}
+                            className="w-4 h-4 text-purple-600"
+                          />
+                          <div className="flex-1 flex items-start gap-2">
+                            <svg className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+                            </svg>
+                            <div>
+                              <span className="font-medium text-gray-900">Cursor Normal</span>
+                              <p className="text-xs text-gray-500 mt-1">Cursor de flecha normal - no indica interactividad</p>
+                            </div>
                           </div>
                         </label>
                       </div>
@@ -2393,35 +2569,50 @@ const StudyInteractiveExercisePage = () => {
                         
                         {actionFormData.on_error_action === 'show_message' && (
                           <>
+                            {/* Mensaje de error personalizado */}
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Mensaje de error
                               </label>
-                              <textarea
-                                value={actionFormData.error_message}
-                                onChange={(e) => setActionFormData({ ...actionFormData, error_message: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
-                                rows={2}
-                                placeholder="Ej: Respuesta incorrecta. Inténtalo de nuevo."
-                              />
+                              <div className="border border-gray-300 rounded-lg overflow-hidden error-message-editor" style={{ maxHeight: '120px' }}>
+                                <ReactQuill
+                                  theme="snow"
+                                  value={actionFormData.error_message || ''}
+                                  onChange={(content) => setActionFormData({ ...actionFormData, error_message: content })}
+                                  modules={{
+                                    toolbar: [
+                                      [{ 'header': [1, 2, 3, false] }],
+                                      ['bold', 'italic', 'underline', 'strike'],
+                                      [{ 'color': [] }, { 'background': [] }],
+                                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                                      [{ 'align': [] }],
+                                      ['link'],
+                                      ['clean']
+                                    ],
+                                  }}
+                                  formats={['header', 'bold', 'italic', 'underline', 'strike', 'color', 'background', 'list', 'align', 'link']}
+                                  placeholder="Ej: Respuesta incorrecta. Inténtalo de nuevo."
+                                  style={{ maxHeight: '80px', overflowY: 'auto' }}
+                                />
+                              </div>
                             </div>
                             
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Número máximo de intentos adicionales
-                              </label>
-                              <input
-                                type="number"
-                                min="1"
-                                max="10"
-                                value={actionFormData.max_attempts}
-                                onChange={(e) => setActionFormData({ ...actionFormData, max_attempts: parseInt(e.target.value) || 1 })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
-                              />
-                              <p className="text-xs text-gray-500 mt-1">
-                                Después de este número de intentos adicionales, se avanzará automáticamente
-                              </p>
-                            </div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Número máximo de intentos adicionales
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="10"
+                              value={actionFormData.max_attempts}
+                              onChange={(e) => setActionFormData({ ...actionFormData, max_attempts: parseInt(e.target.value) || 1 })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Después de este número de intentos adicionales, se avanzará automáticamente
+                            </p>
+                          </div>
                           </>
                         )}
                       </div>
@@ -2448,7 +2639,7 @@ const StudyInteractiveExercisePage = () => {
                           type="text"
                           value={actionFormData.correct_answer}
                           onChange={(e) => setActionFormData({ ...actionFormData, correct_answer: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 ${!actionFormData.correct_answer?.trim() ? 'border-red-400' : 'border-gray-300'}`}
                           placeholder="La respuesta que debe escribir el alumno"
                         />
                         <p className="text-xs text-gray-500 mt-1">
@@ -2478,13 +2669,13 @@ const StudyInteractiveExercisePage = () => {
                       {actionFormData.label_style !== 'shadow_only' && actionFormData.label_style !== 'invisible' && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Texto Indicativo
+                            Texto Indicativo <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
                             value={actionFormData.placeholder}
                             onChange={(e) => setActionFormData({ ...actionFormData, placeholder: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 ${!actionFormData.placeholder?.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
                             placeholder="Ej: Escribe tu respuesta aquí"
                           />
                         </div>
@@ -2651,35 +2842,50 @@ const StudyInteractiveExercisePage = () => {
                         
                         {actionFormData.on_error_action === 'show_message' && (
                           <>
+                            {/* Mensaje de error personalizado */}
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Mensaje de error
                               </label>
-                              <textarea
-                                value={actionFormData.error_message}
-                                onChange={(e) => setActionFormData({ ...actionFormData, error_message: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
-                                rows={2}
-                                placeholder="Ej: Respuesta incorrecta. Revisa tu respuesta."
-                              />
+                              <div className="border border-gray-300 rounded-lg overflow-hidden error-message-editor" style={{ maxHeight: '120px' }}>
+                                <ReactQuill
+                                  theme="snow"
+                                  value={actionFormData.error_message || ''}
+                                  onChange={(content) => setActionFormData({ ...actionFormData, error_message: content })}
+                                  modules={{
+                                    toolbar: [
+                                      [{ 'header': [1, 2, 3, false] }],
+                                      ['bold', 'italic', 'underline', 'strike'],
+                                      [{ 'color': [] }, { 'background': [] }],
+                                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                                      [{ 'align': [] }],
+                                      ['link'],
+                                      ['clean']
+                                    ],
+                                  }}
+                                  formats={['header', 'bold', 'italic', 'underline', 'strike', 'color', 'background', 'list', 'align', 'link']}
+                                  placeholder="Ej: Respuesta incorrecta. Revisa tu respuesta."
+                                  style={{ maxHeight: '80px', overflowY: 'auto' }}
+                                />
+                              </div>
                             </div>
                             
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Número máximo de intentos adicionales
                               </label>
-                              <input
-                                type="number"
-                                min="1"
-                                max="10"
-                                value={actionFormData.max_attempts}
-                                onChange={(e) => setActionFormData({ ...actionFormData, max_attempts: parseInt(e.target.value) || 1 })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
-                              />
-                              <p className="text-xs text-gray-500 mt-1">
-                                Después de este número de intentos adicionales, se avanzará automáticamente
-                              </p>
-                            </div>
+                            <input
+                              type="number"
+                              min="1"
+                              max="10"
+                              value={actionFormData.max_attempts}
+                              onChange={(e) => setActionFormData({ ...actionFormData, max_attempts: parseInt(e.target.value) || 1 })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Después de este número de intentos adicionales, se avanzará automáticamente
+                            </p>
+                          </div>
                           </>
                         )}
                       </div>
@@ -2789,7 +2995,7 @@ const StudyInteractiveExercisePage = () => {
                   'header',
                   'bold', 'italic', 'underline',
                   'color',
-                  'list', 'bullet',
+                  'list',
                   'link'
                 ]}
                 placeholder="Ej: Haz clic en cada parte señalada para identificar correctamente los componentes..."
@@ -2834,8 +3040,8 @@ const StudyInteractiveExercisePage = () => {
 
       {/* Modal de confirmación para eliminar acción */}
       {deleteActionModal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]" onClick={() => setDeleteActionModal({ isOpen: false, actionId: null, actionType: null, isCorrect: false })}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-col items-center text-center">
               {/* Icono de eliminación */}
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
@@ -2883,8 +3089,8 @@ const StudyInteractiveExercisePage = () => {
 
       {/* Modal de advertencia */}
       {warningModal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]" onClick={() => setWarningModal({ isOpen: false, title: '', message: '' })}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-col items-center text-center">
               {/* Icono de advertencia */}
               <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
@@ -2917,8 +3123,8 @@ const StudyInteractiveExercisePage = () => {
 
       {/* Modal de éxito */}
       {successModal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]" onClick={() => setSuccessModal({ isOpen: false, title: '', message: '' })}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-col items-center text-center">
               {/* Icono de éxito */}
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
@@ -2949,27 +3155,87 @@ const StudyInteractiveExercisePage = () => {
         </div>
       )}
 
-      {/* Tooltip para indicar que debe seleccionar la herramienta correcta */}
-      {toolTooltip.visible && (
-        <div
-          className="fixed z-[100] px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg pointer-events-none animate-in fade-in zoom-in duration-150"
-          style={{
-            left: toolTooltip.x + 15,
-            top: toolTooltip.y - 10,
-            transform: 'translateY(-100%)'
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>Usa la herramienta <strong>"Seleccionar"</strong> para mover</span>
+      {/* Modal de confirmación para salir sin guardar */}
+      {exitConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80]" onClick={() => setExitConfirmModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center">
+              {/* Icono de advertencia */}
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              
+              {/* Título */}
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                ¿Salir sin guardar?
+              </h3>
+              
+              {/* Mensaje */}
+              <p className="text-gray-600 mb-6">
+                Tienes cambios sin guardar. Si sales ahora, perderás todos los cambios realizados desde la última vez que guardaste.
+              </p>
+              
+              {/* Botones */}
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setExitConfirmModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDiscardAndExit}
+                  className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+                >
+                  Salir sin guardar
+                </button>
+              </div>
+            </div>
           </div>
-          {/* Flechita del tooltip */}
-          <div 
-            className="absolute w-2 h-2 bg-gray-900 rotate-45"
-            style={{ bottom: -4, left: 20 }}
-          />
+        </div>
+      )}
+
+      {/* Modal de confirmación de recarga */}
+      {reloadConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80]" onClick={() => setReloadConfirmModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center">
+              {/* Icono de advertencia */}
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </div>
+              
+              {/* Título */}
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                ¿Recargar página?
+              </h3>
+              
+              {/* Mensaje */}
+              <p className="text-gray-600 mb-6">
+                Tienes cambios sin guardar. Si recargas la página ahora, perderás todos los cambios realizados desde la última vez que guardaste.
+              </p>
+              
+              {/* Botones */}
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setReloadConfirmModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+                >
+                  Recargar
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

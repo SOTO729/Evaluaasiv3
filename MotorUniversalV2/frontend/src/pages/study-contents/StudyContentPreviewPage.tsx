@@ -1881,8 +1881,20 @@ const StudyContentPreviewPage: React.FC = () => {
                                             pointerEvents: 'none',
                                           }}
                                         >
-                                          {/* Acciones superpuestas sobre la imagen */}
-                                          {currentStep.actions?.map((action: StudyInteractiveExerciseAction) => (
+                                          {/* Acciones superpuestas sobre la imagen - ordenadas para que las correctas estén encima */}
+                                          {[...(currentStep.actions || [])]
+                                            .sort((a, b) => {
+                                              // Las acciones incorrectas primero (z-index menor), correctas después (z-index mayor)
+                                              const isACorrect = a.action_type === 'text_input' 
+                                                ? a.correct_answer !== 'wrong'
+                                                : a.correct_answer && ['true', '1', 'correct', 'yes', 'si', 'sí'].includes(String(a.correct_answer).toLowerCase().trim());
+                                              const isBCorrect = b.action_type === 'text_input'
+                                                ? b.correct_answer !== 'wrong'
+                                                : b.correct_answer && ['true', '1', 'correct', 'yes', 'si', 'sí'].includes(String(b.correct_answer).toLowerCase().trim());
+                                              if (isACorrect === isBCorrect) return 0;
+                                              return isACorrect ? 1 : -1; // Incorrectas primero, correctas después
+                                            })
+                                            .map((action: StudyInteractiveExerciseAction) => (
                                             <ExerciseActionOverlay
                                               key={action.id}
                                               action={action}
@@ -2013,41 +2025,51 @@ const StudyContentPreviewPage: React.FC = () => {
 
       {/* Modal de error para ejercicio interactivo */}
       {showErrorModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md mx-4 p-6 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-start gap-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[85vh] flex flex-col animate-in fade-in zoom-in duration-200">
+            {/* Header fijo */}
+            <div className="flex items-center gap-4 p-6 pb-4 border-b border-gray-100">
               <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                 <X className="w-6 h-6 text-red-600" />
               </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Respuesta incorrecta</h3>
-                <p className="text-gray-600 mb-3">{showErrorModal.message}</p>
-                {(() => {
-                  // max_attempts son oportunidades ADICIONALES después del primer error
-                  const action = currentTopic?.interactive_exercise?.steps
-                    ?.flatMap(s => s.actions || [])
-                    ?.find(a => `${a.step_id}_${a.id}` === showErrorModal.actionKey);
-                  const additionalAttempts = action?.max_attempts ?? 1;
-                  const usedAttempts = actionErrors[showErrorModal.actionKey]?.attempts || 0;
-                  // El error actual (oportunidad 0) no cuenta, las oportunidades adicionales empiezan después
-                  const remaining = additionalAttempts - usedAttempts + 1;
-                  
-                  return (
-                    <p className="text-xs text-amber-600 mb-4">
-                      {remaining > 0 
-                        ? `Te ${remaining === 1 ? 'queda' : 'quedan'} ${remaining} ${remaining === 1 ? 'oportunidad' : 'oportunidades'}`
-                        : 'No te quedan más oportunidades'
-                      }
-                    </p>
-                  );
-                })()}
-                <button
-                  onClick={() => setShowErrorModal(null)}
-                  className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                >
-                  Intentar de nuevo
-                </button>
-              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Respuesta incorrecta</h3>
+            </div>
+            
+            {/* Contenido con scroll */}
+            <div className="flex-1 overflow-y-auto p-6 pt-4">
+              <div 
+                className="text-gray-600 prose prose-sm max-w-none [&>p]:my-2 [&>ul]:my-2 [&>ol]:my-2 [&>h1]:text-lg [&>h2]:text-base [&>h3]:text-sm"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(showErrorModal.message) }}
+              />
+            </div>
+            
+            {/* Footer fijo */}
+            <div className="p-6 pt-4 border-t border-gray-100">
+              {(() => {
+                // max_attempts son oportunidades ADICIONALES después del primer error
+                const action = currentTopic?.interactive_exercise?.steps
+                  ?.flatMap(s => s.actions || [])
+                  ?.find(a => `${a.step_id}_${a.id}` === showErrorModal.actionKey);
+                const additionalAttempts = action?.max_attempts ?? 1;
+                const usedAttempts = actionErrors[showErrorModal.actionKey]?.attempts || 0;
+                // El error actual (oportunidad 0) no cuenta, las oportunidades adicionales empiezan después
+                const remaining = additionalAttempts - usedAttempts + 1;
+                
+                return (
+                  <p className="text-xs text-amber-600 mb-3 text-center">
+                    {remaining > 0 
+                      ? `Te ${remaining === 1 ? 'queda' : 'quedan'} ${remaining} ${remaining === 1 ? 'oportunidad' : 'oportunidades'}`
+                      : 'No te quedan más oportunidades'
+                    }
+                  </p>
+                );
+              })()}
+              <button
+                onClick={() => setShowErrorModal(null)}
+                className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              >
+                Intentar de nuevo
+              </button>
             </div>
           </div>
         </div>
@@ -2100,7 +2122,13 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
     };
   }, [action, stepIndex]);
 
+  // Determinar si es una acción correcta para asignar z-index
+  const isCorrectAction = action.action_type === 'text_input'
+    ? action.correct_answer !== 'wrong'
+    : action.correct_answer && ['true', '1', 'correct', 'yes', 'si', 'sí'].includes(String(action.correct_answer).toLowerCase().trim());
+
   // Estilo base para posicionar la acción sobre la imagen
+  // Las acciones correctas tienen z-index mayor para estar siempre encima de las incorrectas
   const baseStyle: React.CSSProperties = {
     position: 'absolute',
     left: `${action.position_x}%`,
@@ -2108,25 +2136,37 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
     width: `${action.width}%`,
     height: `${action.height}%`,
     pointerEvents: isStepCompleted ? 'none' : 'auto',
+    zIndex: isCorrectAction ? 20 : 10, // Correctas encima de incorrectas
   };
 
   if (action.action_type === 'button') {
     // Si hay placeholder, el botón debe ser visible con el texto
     const hasPlaceholder = action.placeholder && action.placeholder.trim() !== '';
-    // Verificar si debe mostrar cursor de texto (Campo Incorrecto)
+    // Verificar tipo de cursor según scoring_mode
     const useTextCursor = action.scoring_mode === 'text_cursor';
+    const useDefaultCursor = action.scoring_mode === 'default_cursor';
     // Verificar si es un botón incorrecto
     const isCorrectButton = action.correct_answer && 
       ['true', '1', 'correct', 'yes', 'si', 'sí'].includes(String(action.correct_answer).toLowerCase().trim());
+    
+    // Determinar estilo de visualización según label_style
+    const labelStyle = action.label_style || 'invisible';
+    const showShadow = labelStyle === 'text_with_shadow' || labelStyle === 'shadow_only';
+    const showText = labelStyle === 'text_only' || labelStyle === 'text_with_shadow';
+    const isInvisible = labelStyle === 'invisible';
+    
+    // Colores base según si es correcto o incorrecto
+    const baseColor = isCorrectButton ? 'rgb(20, 184, 166)' : 'rgb(249, 115, 22)';
+    const bgColor = isCorrectButton ? 'rgba(20, 184, 166, 0.25)' : 'rgba(251, 146, 60, 0.25)';
     
     return (
       <button
         style={{
           ...baseStyle,
-          opacity: 1, // Siempre visible para mostrar el área
-          backgroundColor: isCorrectButton ? 'rgba(20, 184, 166, 0.25)' : 'rgba(251, 146, 60, 0.25)', // Teal para correcto, naranja para incorrecto
-          cursor: useTextCursor ? 'text' : undefined, // Cursor de texto para Campo Incorrecto
-          border: `2px solid ${isCorrectButton ? 'rgb(20, 184, 166)' : 'rgb(249, 115, 22)'}`, // Borde teal o naranja
+          opacity: 1,
+          backgroundColor: showShadow ? bgColor : 'transparent',
+          cursor: useTextCursor ? 'text' : useDefaultCursor ? 'default' : undefined,
+          border: showShadow ? `2px solid ${baseColor}` : 'none',
           borderRadius: '4px',
         }}
         onClick={() => {
@@ -2142,15 +2182,19 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
             ? 'bg-green-100 text-green-700' 
             : showFeedback
             ? (isCorrectButton ? 'bg-teal-300 scale-95' : 'bg-orange-300 scale-95')
-            : hasPlaceholder
+            : isInvisible
+            ? '' // Sin hover visible para modo invisible
+            : hasPlaceholder && showText
             ? (isCorrectButton 
                 ? 'text-teal-800 hover:bg-teal-200/60'
                 : 'text-orange-800 hover:bg-orange-200/60')
-            : (isCorrectButton ? 'hover:bg-teal-200/60' : 'hover:bg-orange-200/60')
+            : showShadow 
+            ? (isCorrectButton ? 'hover:bg-teal-200/60' : 'hover:bg-orange-200/60')
+            : ''
         }`}
-        title={action.placeholder || action.label || 'Clic aquí'}
+        title={isInvisible ? '' : (action.placeholder || action.label || 'Clic aquí')}
       >
-        {hasPlaceholder && (
+        {hasPlaceholder && showText && (
           <span className="truncate px-2 text-sm">{action.placeholder}</span>
         )}
         {currentValue && <span className="ml-1">✓</span>}
@@ -2166,14 +2210,20 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
       // Campo incorrecto: parece un campo de texto pero actúa como botón incorrecto
       const hasPlaceholder = action.placeholder && action.placeholder.trim() !== '';
       
+      // Determinar estilo de visualización según label_style
+      const labelStyle = action.label_style || 'invisible';
+      const showShadow = labelStyle === 'text_with_shadow' || labelStyle === 'shadow_only';
+      const showText = labelStyle === 'text_only' || labelStyle === 'text_with_shadow';
+      const isInvisible = labelStyle === 'invisible';
+      
       return (
         <div
           style={{
             ...baseStyle,
-            opacity: 1, // Siempre visible para mostrar el área
-            backgroundColor: 'rgba(251, 146, 60, 0.25)', // Naranja para campo incorrecto
-            cursor: 'text', // Cursor de texto para engañar al usuario
-            border: '2px solid rgb(249, 115, 22)', // Borde naranja fuerte
+            opacity: 1,
+            backgroundColor: showShadow ? 'rgba(251, 146, 60, 0.25)' : 'transparent',
+            cursor: 'text',
+            border: showShadow ? '2px solid rgb(249, 115, 22)' : 'none',
             borderRadius: '4px',
           }}
           onClick={() => {
@@ -2191,11 +2241,13 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
               ? 'bg-red-100 text-red-700' 
               : showFeedback
               ? 'bg-orange-300 scale-95'
+              : isInvisible
+              ? ''
               : 'text-orange-800 hover:bg-orange-200/60'
           }`}
-          title={action.placeholder || 'Escribe aquí'}
+          title={isInvisible ? '' : (action.placeholder || 'Escribe aquí')}
         >
-          {hasPlaceholder && (
+          {hasPlaceholder && showText && (
             <span className="truncate px-2 text-sm italic text-orange-600">{action.placeholder}</span>
           )}
         </div>
@@ -2206,14 +2258,19 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
     // Si hay placeholder, mostrarlo como guía
     const placeholderText = action.placeholder && action.placeholder.trim() !== '' ? action.placeholder : '';
     
+    // Determinar estilo de visualización según label_style
+    const labelStyle = action.label_style || 'invisible';
+    const showShadow = labelStyle === 'text_with_shadow' || labelStyle === 'shadow_only';
+    const showPlaceholder = (labelStyle === 'text_only' || labelStyle === 'text_with_shadow') && placeholderText;
+    
     return (
       <div 
         style={{
           ...baseStyle,
           overflow: 'visible', // Permitir que el indicador se muestre fuera
           pointerEvents: 'auto', // Siempre permitir interacción con el input
-          backgroundColor: 'rgba(132, 204, 22, 0.25)', // Fondo lime
-          border: '2px solid rgb(132, 204, 22)', // Borde lime
+          backgroundColor: showShadow ? 'rgba(132, 204, 22, 0.25)' : 'transparent',
+          border: showShadow ? '2px solid rgb(132, 204, 22)' : 'none',
           borderRadius: '4px',
         }} 
         className="flex items-center"
@@ -2234,7 +2291,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
               (e.target as HTMLInputElement).blur(); // Quitar foco después de enviar
             }
           }}
-          placeholder={placeholderText}
+          placeholder={showPlaceholder ? placeholderText : ''}
           className="w-full h-full focus:outline-none"
           style={{
             color: action.text_color || '#000000',

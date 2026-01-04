@@ -1628,7 +1628,7 @@ const StudyContentDetailPage = () => {
                   'header',
                   'bold', 'italic', 'underline', 'strike',
                   'color', 'background',
-                  'list', 'bullet', 'indent',
+                  'list', 'indent',
                   'align',
                   'link', 'image',
                   'blockquote', 'code-block'
@@ -1852,7 +1852,7 @@ const StudyContentDetailPage = () => {
                   'header',
                   'bold', 'italic', 'underline',
                   'color',
-                  'list', 'bullet',
+                  'list',
                   'link'
                 ]}
                 placeholder="Describe brevemente de qué trata el video, qué aprenderán los estudiantes..."
@@ -1956,7 +1956,7 @@ const StudyContentDetailPage = () => {
                   'header',
                   'bold', 'italic', 'underline', 'strike',
                   'color', 'background',
-                  'list', 'bullet', 'indent',
+                  'list', 'indent',
                   'align',
                   'link'
                 ]}
@@ -2245,7 +2245,7 @@ const StudyContentDetailPage = () => {
                   'header',
                   'bold', 'italic', 'underline',
                   'color',
-                  'list', 'bullet',
+                  'list',
                   'link'
                 ]}
                 placeholder="Ej: Haz clic en cada parte señalada para identificar correctamente los componentes..."

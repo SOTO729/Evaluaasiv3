@@ -1595,7 +1595,7 @@ def create_action(material_id, session_id, topic_id, step_id):
             max_attempts=data.get('max_attempts', 3),
             text_color=data.get('text_color', '#000000'),
             font_family=data.get('font_family', 'Arial'),
-            label_style=data.get('label_style', 'invisible')
+            label_style=data.get('label_style', 'invisible') if data.get('label_style') in ['invisible', 'text_only', 'text_with_shadow', 'shadow_only'] else 'invisible'
         )
         
         db.session.add(action)
@@ -1668,9 +1668,17 @@ def update_action(material_id, session_id, topic_id, step_id, action_id):
         action.max_attempts = data.get('max_attempts', action.max_attempts)
         action.text_color = data.get('text_color', action.text_color)
         action.font_family = data.get('font_family', action.font_family)
-        action.label_style = data.get('label_style', action.label_style)
+        # Validar que label_style sea un valor válido
+        valid_label_styles = ['invisible', 'text_only', 'text_with_shadow', 'shadow_only']
+        if 'label_style' in data:
+            print(f"[UPDATE_ACTION] Setting label_style from '{action.label_style}' to '{data['label_style']}'")
+            action.label_style = data['label_style'] if data['label_style'] in valid_label_styles else action.label_style
+            print(f"[UPDATE_ACTION] label_style after assignment: '{action.label_style}'")
         
         db.session.commit()
+        
+        print(f"[UPDATE_ACTION] After commit - action.label_style: '{action.label_style}'")
+        print(f"[UPDATE_ACTION] action.to_dict(): {action.to_dict()}")
         
         # Devolver todas las acciones actualizadas del paso para sincronizar frontend
         all_actions = StudyInteractiveExerciseAction.query.filter_by(step_id=step_id).order_by(StudyInteractiveExerciseAction.action_number).all()

@@ -44,6 +44,10 @@ const MaterialCard = ({ material, navigate }: MaterialCardProps) => (
           src={material.image_url}
           alt={material.title}
           className="w-full h-full object-cover"
+          onError={(e) => {
+            // Si falla la carga, ocultar la imagen y mostrar el fallback
+            e.currentTarget.style.display = 'none'
+          }}
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center">
