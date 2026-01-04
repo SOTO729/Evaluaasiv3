@@ -40,6 +40,6 @@ print('🔄 Ejecutando migraciones de base de datos...')
 add_column_if_not_exists('exams', 'image_url', 'NVARCHAR(MAX)')
 
 # Migración: label_style en study_interactive_exercise_actions
-add_column_if_not_exists('study_interactive_exercise_actions', 'label_style', "VARCHAR(20) DEFAULT 'text_with_shadow'")
+add_column_if_not_exists('study_interactive_exercise_actions', 'label_style', "VARCHAR(20) DEFAULT 'invisible'")
 
 print('✅ Migraciones completadas')

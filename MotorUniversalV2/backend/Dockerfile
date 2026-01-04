@@ -24,6 +24,6 @@ USER appuser
 # Exponer puerto
 EXPOSE 8000
 
-# Comando de inicio - timeout de 30 minutos para procesamiento de videos grandes
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "1800", "--access-logfile", "-", "--error-logfile", "-", "run:app"]
-# Force rebuild Thu Jan  1 16:53:28 UTC 2026
+# Usar startup.sh para ejecutar migraciones y luego iniciar Gunicorn
+CMD ["bash", "startup.sh"]
+# Force rebuild Sat Jan  4 17:30:00 UTC 2026
