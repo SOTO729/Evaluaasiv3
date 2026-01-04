@@ -58,6 +58,166 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 
   );
 };
 
+// Dropdown personalizado para estilo de visualización
+interface LabelStyleOption {
+  value: 'invisible' | 'text_only' | 'text_with_shadow' | 'shadow_only';
+  label: string;
+  description: string;
+  isHighlighted?: boolean;
+}
+
+const LABEL_STYLE_OPTIONS: LabelStyleOption[] = [
+  { value: 'invisible', label: '✨ Invisible', description: 'recomendado para examen o evaluación', isHighlighted: true },
+  { value: 'text_only', label: 'Texto indicativo sin sombra', description: 'recomendado para material de estudio' },
+  { value: 'text_with_shadow', label: 'Texto indicativo con sombra', description: 'recomendado para material de estudio' },
+  { value: 'shadow_only', label: 'Sombra sin texto indicativo', description: 'recomendado para material de estudio' },
+];
+
+// Helper para obtener etiqueta corta del estilo de visualización
+const getLabelStyleInfo = (style: string | undefined): { name: string; color: string; iconColor: string } => {
+  switch (style) {
+    case 'invisible':
+      return { name: 'Invisible', color: 'text-purple-700', iconColor: 'text-purple-600' };
+    case 'text_only':
+      return { name: 'Texto sin sombra', color: 'text-blue-700', iconColor: 'text-blue-600' };
+    case 'text_with_shadow':
+      return { name: 'Texto con sombra', color: 'text-indigo-700', iconColor: 'text-indigo-600' };
+    case 'shadow_only':
+      return { name: 'Solo sombra', color: 'text-gray-700', iconColor: 'text-gray-600' };
+    default:
+      return { name: 'Invisible', color: 'text-purple-700', iconColor: 'text-purple-600' };
+  }
+};
+
+// Componente de icono para estilo de visualización
+const LabelStyleIcon: React.FC<{ style: string | undefined; className?: string }> = ({ style, className = 'w-3.5 h-3.5' }) => {
+  const info = getLabelStyleInfo(style);
+  
+  switch (style) {
+    case 'invisible':
+      // Icono de ojo tachado (invisible)
+      return (
+        <svg className={`${className} ${info.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+        </svg>
+      );
+    case 'text_only':
+      // Icono de texto (T)
+      return (
+        <svg className={`${className} ${info.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M12 6v14M8 6V4h8v2" />
+        </svg>
+      );
+    case 'text_with_shadow':
+      // Icono de texto con sombra
+      return (
+        <svg className={`${className} ${info.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M12 6v14M8 6V4h8v2" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 8h12M14 8v12" opacity="0.4" />
+        </svg>
+      );
+    case 'shadow_only':
+      // Icono de cuadrado con sombra
+      return (
+        <svg className={`${className} ${info.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="14" height="14" rx="2" strokeWidth={2} />
+          <rect x="7" y="7" width="14" height="14" rx="2" strokeWidth={1.5} opacity="0.4" />
+        </svg>
+      );
+    default:
+      return (
+        <svg className={`${className} ${info.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+        </svg>
+      );
+  }
+};
+
+// Helper para saber si el estilo tiene texto indicativo
+const styleHasText = (style: string | undefined): boolean => {
+  return style === 'text_only' || style === 'text_with_shadow';
+};
+
+interface LabelStyleDropdownProps {
+  value: 'invisible' | 'text_only' | 'text_with_shadow' | 'shadow_only';
+  onChange: (value: 'invisible' | 'text_only' | 'text_with_shadow' | 'shadow_only') => void;
+  accentColor?: 'blue' | 'green';
+}
+
+const LabelStyleDropdown: React.FC<LabelStyleDropdownProps> = ({ value, onChange, accentColor = 'blue' }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  const selectedOption = LABEL_STYLE_OPTIONS.find(opt => opt.value === value) || LABEL_STYLE_OPTIONS[0];
+  
+  // Cerrar dropdown al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const ringColor = accentColor === 'green' ? 'focus:ring-green-500' : 'focus:ring-blue-500';
+  const isInvisible = value === 'invisible';
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full px-3 py-2 border rounded-lg text-sm transition-all duration-200 text-left flex items-center justify-between ${ringColor} ${
+          isInvisible 
+            ? 'border-purple-400 bg-purple-50 shadow-[0_0_12px_rgba(147,51,234,0.5)]' 
+            : 'border-gray-300 bg-white hover:border-gray-400'
+        }`}
+      >
+        <span className="flex items-baseline gap-2 flex-wrap">
+          <span className={isInvisible ? 'font-semibold text-purple-800' : 'text-gray-900'}>{selectedOption.label}</span>
+          <span className={`text-xs font-bold ${isInvisible ? 'text-purple-600' : 'text-gray-500'}`}>
+            {selectedOption.description}
+          </span>
+        </span>
+        <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      
+      {isOpen && (
+        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+          {LABEL_STYLE_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+              className={`w-full px-3 py-2.5 text-left flex items-baseline gap-2 flex-wrap transition-colors ${
+                option.value === value 
+                  ? option.isHighlighted 
+                    ? 'bg-purple-100' 
+                    : 'bg-blue-50'
+                  : 'hover:bg-gray-50'
+              } ${option.isHighlighted ? 'border-l-4 border-purple-500' : ''}`}
+            >
+              <span className={`text-sm ${option.isHighlighted ? 'font-semibold text-purple-800' : 'text-gray-900'}`}>
+                {option.label}
+              </span>
+              <span className={`text-xs font-bold ${option.isHighlighted ? 'text-purple-600' : 'text-amber-600'}`}>
+                {option.description}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 type Tool = 'select' | 'button' | 'button-wrong' | 'text_input'
 
 interface DragState {
@@ -439,25 +599,42 @@ const StudyInteractiveExercisePage = () => {
   const updateActionMutation = useMutation({
     mutationFn: ({ stepId, actionId, data }: { stepId: string; actionId: string; data: any }) => 
       updateAction(Number(materialId), Number(sessionId), Number(topicId), stepId, actionId, data),
-    onSuccess: (response: ActionMutationResponse) => {
+    onSuccess: (response: ActionMutationResponse, variables) => {
+      // Preservar el label_style enviado ya que el backend puede no devolverlo (si la columna no existe)
+      const sentLabelStyle = variables.data.label_style
+      
       if (exercise && exercise.steps) {
         const updatedSteps = exercise.steps.map((step: StudyInteractiveExerciseStep) => {
           if (step.id === response.action.step_id) {
             // Si el backend devuelve todas las acciones actualizadas, usarlas (para reordenamiento)
             if (response.all_actions) {
-              return { ...step, actions: response.all_actions }
+              // Preservar label_style enviado si el backend no lo devuelve
+              const actionsWithLabelStyle = response.all_actions.map((a: StudyInteractiveExerciseAction) => ({
+                ...a,
+                label_style: a.id === response.action.id 
+                  ? (a.label_style || sentLabelStyle || 'invisible')
+                  : (a.label_style || 'invisible')
+              }))
+              return { ...step, actions: actionsWithLabelStyle }
             }
             return {
               ...step,
-              actions: (step.actions || []).map((a: StudyInteractiveExerciseAction) => a.id === response.action.id ? response.action : a)
+              actions: (step.actions || []).map((a: StudyInteractiveExerciseAction) => 
+                a.id === response.action.id 
+                  ? { ...response.action, label_style: response.action.label_style || sentLabelStyle || 'invisible' }
+                  : a
+              )
             }
           }
           return step
         })
         setExercise({ ...exercise, steps: updatedSteps })
       }
+      // Actualizar selectedAction si es la acción que se modificó
+      if (selectedAction?.id === response.action.id) {
+        setSelectedAction({ ...response.action, label_style: response.action.label_style || sentLabelStyle || 'invisible' })
+      }
       addPendingChange({ type: 'update_action', actionId: response.action.id })
-      queryClient.invalidateQueries({ queryKey: ['study-topic', materialId, sessionId, topicId] })
     }
   })
 
@@ -1514,13 +1691,23 @@ const StudyInteractiveExercisePage = () => {
                         </div>
                       </div>
                     
-                    {/* Actions overlay */}
-                    {currentStep.actions?.map((action: StudyInteractiveExerciseAction, index: number) => {
+                    {/* Actions overlay - ordenados para que correctas estén encima */}
+                    {[...(currentStep.actions || [])]
+                      .sort((a, b) => {
+                        // Incorrectas primero, correctas después (para que correctas queden encima)
+                        const aIsCorrect = (a.action_type === 'button' && a.correct_answer === 'correct') || 
+                                          (a.action_type === 'text_input' && a.correct_answer !== 'wrong');
+                        const bIsCorrect = (b.action_type === 'button' && b.correct_answer === 'correct') || 
+                                          (b.action_type === 'text_input' && b.correct_answer !== 'wrong');
+                        if (aIsCorrect === bIsCorrect) return 0;
+                        return aIsCorrect ? 1 : -1;
+                      })
+                      .map((action: StudyInteractiveExerciseAction, index: number) => {
                       const isTextboxWithoutAnswer = action.action_type === 'text_input' && (!action.correct_answer || action.correct_answer.trim() === '')
                       const isTextbox = action.action_type === 'text_input'
                       const isWrongButton = action.action_type === 'button' && action.correct_answer === 'wrong'
                       const isCorrectButton = action.action_type === 'button' && action.correct_answer === 'correct'
-                      const isCorrectAction = isCorrectButton || isTextbox
+                      const isCorrectAction = isCorrectButton || (isTextbox && action.correct_answer !== 'wrong')
                       
                       // Calcular el número de acción solo para las incorrectas
                       const incorrectIndex = currentStep.actions
@@ -1537,7 +1724,7 @@ const StudyInteractiveExercisePage = () => {
                       <div
                         key={action.id}
                         data-action-id={action.id}
-                        className={`absolute border-2 rounded cursor-move z-10 ${
+                        className={`absolute border-2 rounded cursor-move ${
                           selectedAction?.id === action.id
                             ? 'border-primary-500 bg-primary-200/50 shadow-lg ring-2 ring-primary-300'
                             : isCorrectButton
@@ -1553,6 +1740,7 @@ const StudyInteractiveExercisePage = () => {
                           top: `${action.position_y}%`,
                           width: `${action.width}%`,
                           height: `${action.height}%`,
+                          zIndex: isCorrectAction ? 20 : 10, // Correctas encima de incorrectas
                         }}
                         onClick={(e) => e.stopPropagation()}
                         onMouseDown={(e) => handleActionMouseDown(e, action)}
@@ -1810,30 +1998,50 @@ const StudyInteractiveExercisePage = () => {
                                 {isCorrectButton && (
                                   <div className="space-y-1.5 mt-1">
                                     <div className="flex items-center gap-1.5 min-w-0">
-                                      <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                                      </svg>
+                                      <LabelStyleIcon style={action.label_style} className="w-3.5 h-3.5 flex-shrink-0" />
                                       <span className="text-xs text-gray-600 truncate min-w-0">
-                                        Texto: <span className={`font-medium ${action.placeholder ? 'text-gray-700 italic' : 'text-gray-400'}`}>
-                                          {action.placeholder || 'Sin texto indicativo'}
+                                        Estilo: <span className={`font-medium ${getLabelStyleInfo(action.label_style).color}`}>
+                                          {getLabelStyleInfo(action.label_style).name}
                                         </span>
                                       </span>
                                     </div>
+                                    {styleHasText(action.label_style) && (
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                                        </svg>
+                                        <span className="text-xs text-gray-600 truncate min-w-0">
+                                          Texto: <span className={`font-medium ${action.placeholder ? 'text-gray-700 italic' : 'text-gray-400'}`}>
+                                            {action.placeholder || 'Sin texto indicativo'}
+                                          </span>
+                                        </span>
+                                      </div>
+                                    )}
                                     <p className="text-xs text-teal-600">✓ Respuesta correcta</p>
                                   </div>
                                 )}
                                 {isWrongButton && (
                                   <div className="space-y-1.5 mt-1">
                                     <div className="flex items-center gap-1.5 min-w-0">
-                                      <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                                      </svg>
+                                      <LabelStyleIcon style={action.label_style} className="w-3.5 h-3.5 flex-shrink-0" />
                                       <span className="text-xs text-gray-600 truncate min-w-0">
-                                        Texto: <span className={`font-medium ${action.placeholder ? 'text-gray-700 italic' : 'text-gray-400'}`}>
-                                          {action.placeholder || 'Sin texto indicativo'}
+                                        Estilo: <span className={`font-medium ${getLabelStyleInfo(action.label_style).color}`}>
+                                          {getLabelStyleInfo(action.label_style).name}
                                         </span>
                                       </span>
                                     </div>
+                                    {styleHasText(action.label_style) && (
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                                        </svg>
+                                        <span className="text-xs text-gray-600 truncate min-w-0">
+                                          Texto: <span className={`font-medium ${action.placeholder ? 'text-gray-700 italic' : 'text-gray-400'}`}>
+                                            {action.placeholder || 'Sin texto indicativo'}
+                                          </span>
+                                        </span>
+                                      </div>
+                                    )}
                                     <div className="flex items-center gap-1.5">
                                       <svg className="w-3.5 h-3.5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
@@ -1872,15 +2080,25 @@ const StudyInteractiveExercisePage = () => {
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1.5 min-w-0">
-                                  <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                                  </svg>
+                                  <LabelStyleIcon style={action.label_style} className="w-3.5 h-3.5 flex-shrink-0" />
                                   <span className="text-xs text-gray-600 truncate min-w-0">
-                                    Texto: <span className={`font-medium ${action.placeholder ? 'text-gray-700 italic' : 'text-gray-400'}`}>
-                                      {action.placeholder || 'Sin texto indicativo'}
+                                    Estilo: <span className={`font-medium ${getLabelStyleInfo(action.label_style).color}`}>
+                                      {getLabelStyleInfo(action.label_style).name}
                                     </span>
                                   </span>
                                 </div>
+                                {styleHasText(action.label_style) && (
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                                    </svg>
+                                    <span className="text-xs text-gray-600 truncate min-w-0">
+                                      Texto: <span className={`font-medium ${action.placeholder ? 'text-gray-700 italic' : 'text-gray-400'}`}>
+                                        {action.placeholder || 'Sin texto indicativo'}
+                                      </span>
+                                    </span>
+                                  </div>
+                                )}
                                 <div className="flex items-center gap-1.5">
                                   <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -2060,23 +2278,17 @@ const StudyInteractiveExercisePage = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Estilo de visualización
                       </label>
-                      <select
+                      <LabelStyleDropdown
                         value={actionFormData.label_style}
-                        onChange={(e) => {
-                          const newStyle = e.target.value as 'invisible' | 'text_only' | 'text_with_shadow' | 'shadow_only';
+                        onChange={(newStyle) => {
                           setActionFormData({ 
                             ...actionFormData, 
                             label_style: newStyle, 
                             showPlaceholder: newStyle !== 'shadow_only' && newStyle !== 'invisible'
                           });
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                      >
-                        <option value="invisible">🌟 Invisible (recomendado)</option>
-                        <option value="text_only">Texto indicativo (sin sombra)</option>
-                        <option value="text_with_shadow">Texto indicativo con sombra</option>
-                        <option value="shadow_only">Sombra sin texto indicativo</option>
-                      </select>
+                        accentColor="blue"
+                      />
                     </div>
 
                     {/* Campo de texto indicativo (si está activado) */}
@@ -2249,23 +2461,17 @@ const StudyInteractiveExercisePage = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Estilo de visualización
                         </label>
-                        <select
+                        <LabelStyleDropdown
                           value={actionFormData.label_style}
-                          onChange={(e) => {
-                            const newStyle = e.target.value as 'invisible' | 'text_only' | 'text_with_shadow' | 'shadow_only';
+                          onChange={(newStyle) => {
                             setActionFormData({ 
                               ...actionFormData, 
                               label_style: newStyle, 
                               showPlaceholder: newStyle !== 'shadow_only' && newStyle !== 'invisible'
                             });
                           }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm"
-                        >
-                          <option value="invisible">🌟 Invisible (recomendado)</option>
-                          <option value="text_only">Texto indicativo (sin sombra)</option>
-                          <option value="text_with_shadow">Texto indicativo con sombra</option>
-                          <option value="shadow_only">Sombra sin texto indicativo</option>
-                        </select>
+                          accentColor="green"
+                        />
                       </div>
 
                       {/* Campo de texto indicativo (si está activado) */}
