@@ -1592,7 +1592,8 @@ def create_action(material_id, session_id, topic_id, step_id):
             error_message=data.get('error_message'),
             max_attempts=data.get('max_attempts', 3),
             text_color=data.get('text_color', '#000000'),
-            font_family=data.get('font_family', 'Arial')
+            font_family=data.get('font_family', 'Arial'),
+            label_style=data.get('label_style', 'text_with_shadow')
         )
         
         db.session.add(action)
@@ -1665,6 +1666,7 @@ def update_action(material_id, session_id, topic_id, step_id, action_id):
         action.max_attempts = data.get('max_attempts', action.max_attempts)
         action.text_color = data.get('text_color', action.text_color)
         action.font_family = data.get('font_family', action.font_family)
+        action.label_style = data.get('label_style', action.label_style)
         
         db.session.commit()
         

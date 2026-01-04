@@ -426,6 +426,7 @@ class StudyInteractiveExerciseAction(db.Model):
     # Personalización
     text_color = db.Column(db.String(20), default='#000000')
     font_family = db.Column(db.String(50), default='Arial')
+    label_style = db.Column(db.String(20), default='text_with_shadow')  # text_only, text_with_shadow, shadow_only
     
     # Auditoría
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -452,6 +453,7 @@ class StudyInteractiveExerciseAction(db.Model):
             'max_attempts': self.max_attempts,
             'text_color': self.text_color,
             'font_family': self.font_family,
+            'label_style': self.label_style,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

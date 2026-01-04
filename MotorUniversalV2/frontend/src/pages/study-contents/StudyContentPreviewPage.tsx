@@ -2,7 +2,7 @@
  * Página de vista previa del Material de Estudio
  * Diseño estilo Coursera para una experiencia de aprendizaje cómoda
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import {
@@ -626,28 +626,40 @@ const StudyContentPreviewPage: React.FC = () => {
           const scoringMode = action.scoring_mode || 'exact';
 
           if (userResponse && correctAnswer) {
+            // Extraer el valor si es un objeto (respuesta parcial o con similitud)
+            const userText = typeof userResponse === 'object' 
+              ? String(userResponse.value || '').trim() 
+              : String(userResponse).trim();
+            const correctText = String(correctAnswer).trim();
+            const compareUser = isCaseSensitive ? userText : userText.toLowerCase();
+            const compareCorrect = isCaseSensitive ? correctText : correctText.toLowerCase();
+
+            console.log(`  text_input eval: userText="${userText}", correctText="${correctText}", mode=${scoringMode}`);
+            console.log(`  compareUser="${compareUser}", compareCorrect="${compareCorrect}"`);
+
             // Verificar si la respuesta tiene formato de similitud (objeto con value y similarity)
             if (scoringMode === 'similarity' && typeof userResponse === 'object' && userResponse.similarity !== undefined) {
               // Usar el porcentaje de similitud guardado directamente
               score += userResponse.similarity / 100;
-            } else {
-              // Para otros modos, calcular normalmente
-              const userText = typeof userResponse === 'object' ? String(userResponse.value).trim() : String(userResponse).trim();
-              const correctText = String(correctAnswer).trim();
-              const compareUser = isCaseSensitive ? userText : userText.toLowerCase();
-              const compareCorrect = isCaseSensitive ? correctText : correctText.toLowerCase();
-
-              if (scoringMode === 'exact') {
-                // 0% o 100% - debe coincidir exactamente
-                if (compareUser === compareCorrect) score += 1;
-              } else if (scoringMode === 'similarity') {
-                // Fallback: calcular similitud si no se guardó
-                const similarity = calculateSimilarity(compareUser, compareCorrect);
-                score += similarity / 100;
-              } else if (scoringMode === 'contains') {
-                if (compareUser.includes(compareCorrect)) score += 1;
-              }
+              console.log(`  -> Similarity mode (stored): ${userResponse.similarity}%`);
+            } else if (scoringMode === 'similarity') {
+              // Calcular similitud si no se guardó (respuesta parcial)
+              const similarity = calculateSimilarity(compareUser, compareCorrect);
+              score += similarity / 100;
+              console.log(`  -> Similarity mode (calculated): ${similarity}%`);
+            } else if (scoringMode === 'exact') {
+              // 0% o 100% - debe coincidir exactamente
+              const isMatch = compareUser === compareCorrect;
+              if (isMatch) score += 1;
+              console.log(`  -> Exact mode: match=${isMatch}, score=${score}`);
+            } else if (scoringMode === 'contains') {
+              const contains = compareUser.includes(compareCorrect);
+              if (contains) score += 1;
+              console.log(`  -> Contains mode: contains=${contains}, score=${score}`);
             }
+          } else if (userResponse && !correctAnswer) {
+            // Si no hay respuesta correcta definida pero el usuario escribi\u00f3 algo, es v\u00e1lido
+            score += 1;
           }
         }
       });
@@ -932,6 +944,32 @@ const StudyContentPreviewPage: React.FC = () => {
       }
     }
   };
+
+  // Handler para guardar texto parcialmente (auto-save sin validación)
+  const handleTextChange = useCallback((action: StudyInteractiveExerciseAction, _stepIndex: number, value: string) => {
+    const exerciseId = currentTopic?.interactive_exercise?.id;
+    if (!exerciseId || !value.trim()) return;
+
+    const actionKey = `${action.step_id}_${action.id}`;
+    
+    console.log('handleTextChange - Guardando respuesta parcial:', actionKey, value);
+    
+    // Siempre guardar el valor actual (sobrescribir si ya existe una respuesta parcial)
+    setActionResponses(prev => {
+      const existing = prev[actionKey];
+      // Si ya hay una respuesta completa (no parcial), no sobrescribir
+      if (existing && typeof existing !== 'object') {
+        console.log('  -> Ya existe respuesta completa, no sobrescribir');
+        return prev;
+      }
+      if (existing && typeof existing === 'object' && !existing.partial) {
+        console.log('  -> Ya existe respuesta con similarity, no sobrescribir');
+        return prev;
+      }
+      console.log('  -> Guardando como respuesta parcial');
+      return { ...prev, [actionKey]: { value, partial: true } };
+    });
+  }, [currentTopic?.interactive_exercise?.id]);
 
   const goToNextTopic = () => {
     const topicsInCurrentSession = currentSession?.topics?.length || 0;
@@ -1807,10 +1845,14 @@ const StudyContentPreviewPage: React.FC = () => {
                               )}
 
                               {/* Área de la imagen con acciones superpuestas */}
-                              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex-1 min-h-0">
+                              <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
                                 <div 
                                   ref={imageContainerRef}
-                                  className="relative mx-auto bg-gray-50 h-full flex items-center justify-center"
+                                  className="relative bg-white rounded-xl overflow-hidden border border-gray-200"
+                                  style={{ 
+                                    maxHeight: '100%',
+                                    maxWidth: '100%',
+                                  }}
                                 >
                                   {currentStep.image_url ? (
                                     <>
@@ -1818,7 +1860,13 @@ const StudyContentPreviewPage: React.FC = () => {
                                         ref={imageRef}
                                         src={currentStep.image_url}
                                         alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
-                                        className="max-w-full max-h-full object-contain"
+                                        className="block"
+                                        style={{
+                                          maxHeight: 'calc(100vh - 400px)',
+                                          maxWidth: '100%',
+                                          width: 'auto',
+                                          height: 'auto',
+                                        }}
                                         onLoad={handleImageLoad}
                                       />
                                       {/* Contenedor de acciones que coincide exactamente con la imagen */}
@@ -1826,6 +1874,8 @@ const StudyContentPreviewPage: React.FC = () => {
                                         <div
                                           style={{
                                             position: 'absolute',
+                                            top: 0,
+                                            left: 0,
                                             width: imageDimensions.width,
                                             height: imageDimensions.height,
                                             pointerEvents: 'none',
@@ -1841,13 +1891,14 @@ const StudyContentPreviewPage: React.FC = () => {
                                               currentValue={actionResponses[`${action.step_id}_${action.id}`]}
                                               onButtonClick={handleActionClick}
                                               onTextSubmit={handleTextSubmit}
+                                              onTextChange={handleTextChange}
                                             />
                                           ))}
                                         </div>
                                       )}
                                     </>
                                   ) : (
-                                    <div className="flex items-center justify-center h-48 bg-gray-100">
+                                    <div className="flex items-center justify-center h-48 w-64 bg-gray-100">
                                       <Image className="w-12 h-12 text-gray-300" />
                                     </div>
                                   )}
@@ -1871,7 +1922,16 @@ const StudyContentPreviewPage: React.FC = () => {
                                 
                                 {currentStepIndex < steps.length - 1 ? (
                                   <button
-                                    onClick={() => setCurrentStepIndex(currentStepIndex + 1)}
+                                    onClick={() => {
+                                      // Forzar blur de cualquier input activo para guardar respuestas parciales
+                                      if (document.activeElement instanceof HTMLElement) {
+                                        document.activeElement.blur();
+                                      }
+                                      // Dar tiempo para que el blur y setState se procesen
+                                      setTimeout(() => {
+                                        setCurrentStepIndex(currentStepIndex + 1);
+                                      }, 50);
+                                    }}
                                     className="px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-2 transition-colors shadow-sm"
                                   >
                                     Siguiente paso
@@ -1879,7 +1939,17 @@ const StudyContentPreviewPage: React.FC = () => {
                                   </button>
                                 ) : (
                                   <button
-                                    onClick={completeExercise}
+                                    onClick={() => {
+                                      // Forzar blur de cualquier input activo para guardar respuestas parciales
+                                      if (document.activeElement instanceof HTMLElement) {
+                                        document.activeElement.blur();
+                                      }
+                                      // Dar tiempo para que el blur y setState se procesen
+                                      setTimeout(() => {
+                                        // Pasar undefined para que use el estado actual de actionResponses
+                                        completeExercise();
+                                      }, 100);
+                                    }}
                                     className="px-5 py-2.5 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 flex items-center gap-2 transition-colors shadow-sm"
                                   >
                                     <Check className="w-4 h-4" />
@@ -1994,6 +2064,7 @@ interface ExerciseActionOverlayProps {
   currentValue: any;
   onButtonClick: (action: StudyInteractiveExerciseAction, stepIndex: number) => void;
   onTextSubmit: (action: StudyInteractiveExerciseAction, stepIndex: number, value: string) => void;
+  onTextChange?: (action: StudyInteractiveExerciseAction, stepIndex: number, value: string) => void;
 }
 
 const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
@@ -2002,11 +2073,32 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
   isStepCompleted,
   currentValue,
   onButtonClick,
-  onTextSubmit
+  onTextSubmit,
+  onTextChange
 }) => {
   const [textValue, setTextValue] = useState(currentValue || '');
   const [showFeedback, setShowFeedback] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
+  const textValueRef = useRef(textValue);
+  const onTextChangeRef = useRef(onTextChange);
+
+  // Mantener refs actualizados
+  useEffect(() => {
+    textValueRef.current = textValue;
+  }, [textValue]);
+
+  useEffect(() => {
+    onTextChangeRef.current = onTextChange;
+  }, [onTextChange]);
+
+  // Guardar automáticamente cuando el componente se desmonta
+  useEffect(() => {
+    return () => {
+      if (action.action_type === 'text_input' && action.correct_answer !== 'wrong' && textValueRef.current.trim() && onTextChangeRef.current) {
+        console.log('ExerciseActionOverlay unmount - guardando:', textValueRef.current);
+        onTextChangeRef.current(action, stepIndex, textValueRef.current);
+      }
+    };
+  }, [action, stepIndex]);
 
   // Estilo base para posicionar la acción sobre la imagen
   const baseStyle: React.CSSProperties = {
@@ -2023,14 +2115,19 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
     const hasPlaceholder = action.placeholder && action.placeholder.trim() !== '';
     // Verificar si debe mostrar cursor de texto (Campo Incorrecto)
     const useTextCursor = action.scoring_mode === 'text_cursor';
+    // Verificar si es un botón incorrecto
+    const isCorrectButton = action.correct_answer && 
+      ['true', '1', 'correct', 'yes', 'si', 'sí'].includes(String(action.correct_answer).toLowerCase().trim());
     
     return (
       <button
         style={{
           ...baseStyle,
-          opacity: hasPlaceholder ? 1 : 0, // Visible si hay placeholder, invisible si no
-          backgroundColor: hasPlaceholder ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+          opacity: 1, // Siempre visible para mostrar el área
+          backgroundColor: isCorrectButton ? 'rgba(20, 184, 166, 0.25)' : 'rgba(251, 146, 60, 0.25)', // Teal para correcto, naranja para incorrecto
           cursor: useTextCursor ? 'text' : undefined, // Cursor de texto para Campo Incorrecto
+          border: `2px solid ${isCorrectButton ? 'rgb(20, 184, 166)' : 'rgb(249, 115, 22)'}`, // Borde teal o naranja
+          borderRadius: '4px',
         }}
         onClick={() => {
           setShowFeedback(true);
@@ -2040,14 +2137,16 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
           }, 300);
         }}
         disabled={isStepCompleted}
-        className={`flex items-center justify-center text-xs font-medium rounded border-2 transition-all ${
+        className={`flex items-center justify-center text-xs font-medium transition-all ${
           currentValue 
-            ? 'bg-green-100 border-green-500 text-green-700' 
+            ? 'bg-green-100 text-green-700' 
             : showFeedback
-            ? 'bg-blue-200 border-blue-600 scale-95'
+            ? (isCorrectButton ? 'bg-teal-300 scale-95' : 'bg-orange-300 scale-95')
             : hasPlaceholder
-            ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100 hover:border-blue-400'
-            : 'border-transparent hover:bg-blue-100 hover:border-blue-400'
+            ? (isCorrectButton 
+                ? 'text-teal-800 hover:bg-teal-200/60'
+                : 'text-orange-800 hover:bg-orange-200/60')
+            : (isCorrectButton ? 'hover:bg-teal-200/60' : 'hover:bg-orange-200/60')
         }`}
         title={action.placeholder || action.label || 'Clic aquí'}
       >
@@ -2071,9 +2170,11 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
         <div
           style={{
             ...baseStyle,
-            opacity: hasPlaceholder ? 1 : 0,
-            backgroundColor: hasPlaceholder ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+            opacity: 1, // Siempre visible para mostrar el área
+            backgroundColor: 'rgba(251, 146, 60, 0.25)', // Naranja para campo incorrecto
             cursor: 'text', // Cursor de texto para engañar al usuario
+            border: '2px solid rgb(249, 115, 22)', // Borde naranja fuerte
+            borderRadius: '4px',
           }}
           onClick={() => {
             if (!isStepCompleted) {
@@ -2085,19 +2186,17 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
               }, 300);
             }
           }}
-          className={`flex items-center justify-center text-xs font-medium rounded border-2 transition-all ${
+          className={`flex items-center justify-center text-xs font-medium transition-all ${
             currentValue 
-              ? 'bg-red-100 border-red-500 text-red-700' 
+              ? 'bg-red-100 text-red-700' 
               : showFeedback
-              ? 'bg-orange-200 border-orange-600 scale-95'
-              : hasPlaceholder
-              ? 'bg-gray-50 border-gray-300 text-gray-600 hover:bg-gray-100 hover:border-gray-400'
-              : 'border-transparent hover:bg-gray-100 hover:border-gray-400'
+              ? 'bg-orange-300 scale-95'
+              : 'text-orange-800 hover:bg-orange-200/60'
           }`}
           title={action.placeholder || 'Escribe aquí'}
         >
           {hasPlaceholder && (
-            <span className="truncate px-2 text-sm italic text-gray-500">{action.placeholder}</span>
+            <span className="truncate px-2 text-sm italic text-orange-600">{action.placeholder}</span>
           )}
         </div>
       );
@@ -2106,7 +2205,6 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
     // Campo de texto normal (correcto)
     // Si hay placeholder, mostrarlo como guía
     const placeholderText = action.placeholder && action.placeholder.trim() !== '' ? action.placeholder : '';
-    const showEnterHint = isFocused && textValue.trim().length > 0;
     
     return (
       <div 
@@ -2114,6 +2212,9 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
           ...baseStyle,
           overflow: 'visible', // Permitir que el indicador se muestre fuera
           pointerEvents: 'auto', // Siempre permitir interacción con el input
+          backgroundColor: 'rgba(132, 204, 22, 0.25)', // Fondo lime
+          border: '2px solid rgb(132, 204, 22)', // Borde lime
+          borderRadius: '4px',
         }} 
         className="flex items-center"
       >
@@ -2121,8 +2222,12 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
           type="text"
           value={textValue}
           onChange={(e) => setTextValue(e.target.value)}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          onBlur={() => {
+            // Auto-guardar al perder el foco si hay texto
+            if (textValue.trim() && onTextChange) {
+              onTextChange(action, stepIndex, textValue);
+            }
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && textValue.trim()) {
               onTextSubmit(action, stepIndex, textValue);
@@ -2143,15 +2248,6 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
             textOverflow: 'clip', // Cortar texto que exceda
           }}
         />
-        {/* Indicador visual de Enter */}
-        {showEnterHint && (
-          <div 
-            className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-50 animate-fade-in"
-            style={{ pointerEvents: 'none' }}
-          >
-            Presiona Enter ↵
-          </div>
-        )}
       </div>
     );
   }

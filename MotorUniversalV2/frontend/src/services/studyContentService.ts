@@ -132,6 +132,7 @@ export interface StudyInteractiveExerciseAction {
   max_attempts: number;
   text_color?: string;
   font_family?: string;
+  label_style?: 'text_only' | 'text_with_shadow' | 'shadow_only';
 }
 
 // Interfaces para crear/actualizar
