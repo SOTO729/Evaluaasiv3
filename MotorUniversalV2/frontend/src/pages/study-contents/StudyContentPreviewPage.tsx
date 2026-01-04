@@ -12,6 +12,7 @@ import {
   StudyInteractiveExerciseAction,
   registerContentProgress,
   MaterialProgressResponse,
+  getVideoSignedUrlByTopic,
 } from '../../services/studyContentService';
 import {
   ArrowLeft,
@@ -82,6 +83,7 @@ const StudyContentPreviewPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'reading' | 'video' | 'downloadable' | 'interactive'>('reading');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedSessions, setExpandedSessions] = useState<Set<number>>(new Set([0]));
+  const [isScrolled, setIsScrolled] = useState(false);
 
   // Estados para ejercicio interactivo
   const [exerciseStarted, setExerciseStarted] = useState(false);
@@ -125,6 +127,10 @@ const StudyContentPreviewPage: React.FC = () => {
   // Estado para guardar las mejores calificaciones de ejercicios interactivos
   const [savedInteractiveScores, setSavedInteractiveScores] = useState<Record<string, number>>({});
 
+  // Estado para URL de video con SAS token fresco
+  const [signedVideoUrl, setSignedVideoUrl] = useState<string | null>(null);
+  const [videoUrlLoading, setVideoUrlLoading] = useState(false);
+
   // Calcular el progreso total del material basado en contenidos completados
   const calculateMaterialProgress = () => {
     if (!materialProgress) return { completed: 0, total: 0, percentage: 0 };
@@ -146,6 +152,71 @@ const StudyContentPreviewPage: React.FC = () => {
   };
 
   const progressStats = calculateMaterialProgress();
+
+  // Handler para el scroll - usa histéresis y corrección al detenerse
+  const isAnimatingRef = useRef(false);
+  const scrollStopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Histéresis amplia: zona muerta grande donde no hay cambios
+  const compressThreshold = 80;    // Para comprimir: debe pasar de 80px
+  const expandThreshold = 10;      // Para descomprimir: debe bajar de 10px
+  
+  const handleMainScroll = (e: React.UIEvent<HTMLElement>) => {
+    const scrollTop = e.currentTarget.scrollTop;
+    
+    // Cancelar cualquier corrección pendiente
+    if (scrollStopTimeoutRef.current) {
+      clearTimeout(scrollStopTimeoutRef.current);
+    }
+    
+    // Si está animando, no cambiar estado pero sí programar corrección
+    if (!isAnimatingRef.current) {
+      let shouldChange = false;
+      let newState = isScrolled;
+      
+      if (isScrolled) {
+        // Actualmente comprimido - solo descomprimir si baja mucho
+        if (scrollTop < expandThreshold) {
+          shouldChange = true;
+          newState = false;
+        }
+      } else {
+        // Actualmente desplegado - solo comprimir si sube mucho
+        if (scrollTop > compressThreshold) {
+          shouldChange = true;
+          newState = true;
+        }
+      }
+      
+      // Solo actualizar si debe cambiar
+      if (shouldChange) {
+        isAnimatingRef.current = true;
+        setIsScrolled(newState);
+        
+        // Bloqueo durante la animación
+        setTimeout(() => {
+          isAnimatingRef.current = false;
+        }, 400);
+      }
+    }
+    
+    // Programar corrección cuando el scroll SE DETENGA (después de 300ms sin scroll)
+    scrollStopTimeoutRef.current = setTimeout(() => {
+      if (mainContainerRef.current) {
+        const finalScroll = mainContainerRef.current.scrollTop;
+        
+        // Corregir estado si es claramente incorrecto
+        // Usando márgenes amplios para evitar oscilación
+        if (finalScroll <= 5) {
+          // Muy arriba - debe estar desplegado
+          setIsScrolled(false);
+        } else if (finalScroll >= 100) {
+          // Muy abajo - debe estar comprimido
+          setIsScrolled(true);
+        }
+      }
+    }, 300);
+  };
 
   // Cargar material
   useEffect(() => {
@@ -249,6 +320,38 @@ const StudyContentPreviewPage: React.FC = () => {
     }
   }, [activeTab]);
 
+  // Obtener URL de video con SAS token fresco cuando se selecciona un video de Azure
+  useEffect(() => {
+    const loadSignedVideoUrl = async () => {
+      if (activeTab !== 'video' || !currentTopic?.video) {
+        setSignedVideoUrl(null);
+        return;
+      }
+
+      const videoUrl = currentTopic.video.video_url;
+      
+      // Solo necesitamos obtener URL firmada para videos de Azure Blob Storage
+      if (!videoUrl?.includes('blob.core.windows.net')) {
+        setSignedVideoUrl(videoUrl);
+        return;
+      }
+
+      setVideoUrlLoading(true);
+      try {
+        const response = await getVideoSignedUrlByTopic(currentTopic.id);
+        setSignedVideoUrl(response.video_url);
+      } catch (error) {
+        console.error('Error getting signed video URL:', error);
+        // En caso de error, usar la URL original (puede fallar si el SAS expiró)
+        setSignedVideoUrl(videoUrl);
+      } finally {
+        setVideoUrlLoading(false);
+      }
+    };
+
+    loadSignedVideoUrl();
+  }, [activeTab, currentTopic?.id, currentTopic?.video?.id]);
+
   const setFirstAvailableTab = (topic: any) => {
     // Prioridad: Lectura > Video > Ejercicio > Recursos
     if (topic.allow_reading !== false && topic.reading) {
@@ -267,14 +370,20 @@ const StudyContentPreviewPage: React.FC = () => {
 
   // Detectar si el botón de iniciar ejercicio no está visible en pantalla
   useEffect(() => {
+    const container = mainContainerRef.current;
+    
     const checkStartButtonVisibility = () => {
-      if (activeTab === 'interactive' && !exerciseStarted && startExerciseRef.current) {
+      if (activeTab === 'interactive' && !exerciseStarted && startExerciseRef.current && container) {
         const startRect = startExerciseRef.current.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
         // Mostrar el hint si el botón de inicio NO está visible en el viewport
-        // El botón está visible si su parte superior está dentro del viewport
         const isButtonVisible = startRect.top < viewportHeight && startRect.bottom > 0;
-        setShowScrollHint(!isButtonVisible);
+        
+        // También verificar si ya llegamos al fondo del scroll
+        const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+        
+        // Solo mostrar hint si el botón no es visible Y no estamos al fondo
+        setShowScrollHint(!isButtonVisible && !isAtBottom);
       } else {
         setShowScrollHint(false);
       }
@@ -286,24 +395,32 @@ const StudyContentPreviewPage: React.FC = () => {
     // También ejecutar inmediatamente
     checkStartButtonVisibility();
     
-    window.addEventListener('scroll', checkStartButtonVisibility);
+    // Escuchar scroll del contenedor principal
+    container?.addEventListener('scroll', checkStartButtonVisibility);
     window.addEventListener('resize', checkStartButtonVisibility);
 
     return () => {
       clearTimeout(timeoutId);
-      window.removeEventListener('scroll', checkStartButtonVisibility);
+      container?.removeEventListener('scroll', checkStartButtonVisibility);
       window.removeEventListener('resize', checkStartButtonVisibility);
     };
   }, [activeTab, exerciseStarted, currentTopic]);
 
   // Detectar si el botón de descarga no está visible en pantalla
   useEffect(() => {
+    const container = mainContainerRef.current;
+    
     const checkDownloadButtonVisibility = () => {
-      if (activeTab === 'downloadable' && downloadButtonRef.current) {
+      if (activeTab === 'downloadable' && downloadButtonRef.current && container) {
         const downloadRect = downloadButtonRef.current.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
         const isButtonVisible = downloadRect.top < viewportHeight && downloadRect.bottom > 0;
-        setShowDownloadScrollHint(!isButtonVisible);
+        
+        // También verificar si ya llegamos al fondo del scroll
+        const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+        
+        // Solo mostrar hint si el botón no es visible Y no estamos al fondo
+        setShowDownloadScrollHint(!isButtonVisible && !isAtBottom);
       } else {
         setShowDownloadScrollHint(false);
       }
@@ -312,12 +429,13 @@ const StudyContentPreviewPage: React.FC = () => {
     const timeoutId = setTimeout(checkDownloadButtonVisibility, 300);
     checkDownloadButtonVisibility();
     
-    window.addEventListener('scroll', checkDownloadButtonVisibility);
+    // Escuchar scroll del contenedor principal
+    container?.addEventListener('scroll', checkDownloadButtonVisibility);
     window.addEventListener('resize', checkDownloadButtonVisibility);
 
     return () => {
       clearTimeout(timeoutId);
-      window.removeEventListener('scroll', checkDownloadButtonVisibility);
+      container?.removeEventListener('scroll', checkDownloadButtonVisibility);
       window.removeEventListener('resize', checkDownloadButtonVisibility);
     };
   }, [activeTab, currentTopic]);
@@ -454,32 +572,54 @@ const StudyContentPreviewPage: React.FC = () => {
   };
 
   // Función para evaluar el ejercicio
-  const evaluateExercise = () => {
+  // evaluateExercise acepta un parámetro opcional con las respuestas actualizadas
+  const evaluateExercise = (updatedResponses?: Record<string, any>) => {
     const exercise = currentTopic?.interactive_exercise;
     if (!exercise?.steps) return { score: 0, maxScore: 0, percentage: 0 };
+
+    // Usar respuestas actualizadas si se proporcionan, sino usar el estado
+    const responses = updatedResponses || actionResponses;
 
     let score = 0;
     let maxScore = 0;
 
-    exercise.steps.forEach(step => {
+    console.log('=== EVALUANDO EJERCICIO ===');
+    console.log('responses:', responses);
+
+    exercise.steps.forEach((step, stepIdx) => {
+      console.log(`--- Step ${stepIdx + 1} (id: ${step.id}) ---`);
       step.actions?.forEach(action => {
-        const responseKey = `${step.id}_${action.id}`;
-        const userResponse = actionResponses[responseKey];
+        // Usar action.step_id para consistencia con handlers (handleTextSubmit, handleActionClick)
+        const responseKey = `${action.step_id}_${action.id}`;
+        const userResponse = responses[responseKey];
+
+        console.log(`Action: type=${action.action_type}, id=${action.id}, step_id=${action.step_id}`);
+        console.log(`  correct_answer=${action.correct_answer}, responseKey=${responseKey}, userResponse=${userResponse}`);
 
         if (action.action_type === 'button') {
           // Para botones, solo suma puntos si el botón es correcto (correct_answer = "true", "1", "correct")
           const isCorrectButton = action.correct_answer && 
             ['true', '1', 'correct', 'yes', 'si', 'sí'].includes(String(action.correct_answer).toLowerCase().trim());
           
+          console.log(`  isCorrectButton=${isCorrectButton}`);
+          
           if (isCorrectButton) {
             // Este botón es correcto, suma al maxScore
             maxScore += 1;
             // Si el usuario lo clickeó, suma puntos
             if (userResponse) score += 1;
+            console.log(`  -> Botón correcto. maxScore=${maxScore}, score=${score}`);
           }
           // Los botones incorrectos no suman al maxScore ni al score
         } else if (action.action_type === 'text_input') {
-          // Para inputs de texto, comparar con respuesta correcta
+          // Verificar si es un campo incorrecto (no suma puntos)
+          const isWrongTextInput = action.correct_answer === 'wrong';
+          if (isWrongTextInput) {
+            // Los campos incorrectos no suman al maxScore ni al score (igual que botones incorrectos)
+            return;
+          }
+          
+          // Para inputs de texto correctos, comparar con respuesta correcta
           maxScore += 1;
           const correctAnswer = action.correct_answer || '';
           const isCaseSensitive = action.is_case_sensitive;
@@ -518,8 +658,9 @@ const StudyContentPreviewPage: React.FC = () => {
   };
 
   // Función para completar el ejercicio y calcular puntuación
-  const completeExercise = async () => {
-    const result = evaluateExercise();
+  // Acepta respuestas actualizadas para evitar problemas de sincronización de estado
+  const completeExercise = async (updatedResponses?: Record<string, any>) => {
+    const result = evaluateExercise(updatedResponses);
     setExerciseScore(result);
     setExerciseCompleted(true);
     
@@ -563,10 +704,8 @@ const StudyContentPreviewPage: React.FC = () => {
 
     if (isCorrectButton) {
       // Botón correcto - guardar respuesta y avanzar
-      setActionResponses(prev => ({
-        ...prev,
-        [actionKey]: true
-      }));
+      const newResponses = { ...actionResponses, [actionKey]: true };
+      setActionResponses(newResponses);
 
       // Marcar paso como completado
       setStepCompleted(prev => ({
@@ -574,10 +713,13 @@ const StudyContentPreviewPage: React.FC = () => {
         [`${exerciseId}_${stepIndex}`]: true
       }));
 
-      // Avanzar al siguiente paso
+      // Avanzar al siguiente paso o completar ejercicio
       const steps = currentTopic?.interactive_exercise?.steps || [];
       if (stepIndex < steps.length - 1) {
         setTimeout(() => setCurrentStepIndex(stepIndex + 1), 300);
+      } else {
+        // Es el último paso, completar ejercicio con las respuestas actualizadas
+        setTimeout(() => completeExercise(newResponses), 300);
       }
     } else {
       // Botón incorrecto - manejar según configuración
@@ -593,23 +735,25 @@ const StudyContentPreviewPage: React.FC = () => {
       if (onErrorAction === 'end_exercise' || onErrorAction === 'next_exercise') {
         // Cerrar modal y terminar ejercicio inmediatamente
         setShowErrorModal(null);
-        setActionResponses(prev => ({ ...prev, [actionKey]: false }));
+        const newResponses = { ...actionResponses, [actionKey]: false };
+        setActionResponses(newResponses);
         setStepCompleted(prev => ({ ...prev, [`${exerciseId}_${stepIndex}`]: true }));
-        setTimeout(() => completeExercise(), 300);
+        setTimeout(() => completeExercise(newResponses), 300);
         return;
       }
 
       // Si la acción es pasar al siguiente paso (sin reintentos)
       if (onErrorAction === 'next_step') {
         // Marcar como completado (aunque incorrecto) y avanzar
-        setActionResponses(prev => ({ ...prev, [actionKey]: false }));
+        const newResponses = { ...actionResponses, [actionKey]: false };
+        setActionResponses(newResponses);
         setStepCompleted(prev => ({ ...prev, [`${exerciseId}_${stepIndex}`]: true }));
         
         const steps = currentTopic?.interactive_exercise?.steps || [];
         if (stepIndex < steps.length - 1) {
           setTimeout(() => setCurrentStepIndex(stepIndex + 1), 300);
         } else {
-          setTimeout(() => completeExercise(), 300);
+          setTimeout(() => completeExercise(newResponses), 300);
         }
         return;
       }
@@ -632,7 +776,8 @@ const StudyContentPreviewPage: React.FC = () => {
         setShowErrorModal(null);
         
         // Marcar como completado (aunque incorrecto)
-        setActionResponses(prev => ({ ...prev, [actionKey]: false }));
+        const newResponses = { ...actionResponses, [actionKey]: false };
+        setActionResponses(newResponses);
         setStepCompleted(prev => ({ ...prev, [`${exerciseId}_${stepIndex}`]: true }));
         
         const steps = currentTopic?.interactive_exercise?.steps || [];
@@ -641,7 +786,7 @@ const StudyContentPreviewPage: React.FC = () => {
           setTimeout(() => setCurrentStepIndex(stepIndex + 1), 300);
         } else {
           // Es el último paso, concluir ejercicio inmediatamente
-          setTimeout(() => completeExercise(), 300);
+          setTimeout(() => completeExercise(newResponses), 300);
         }
       }
     }
@@ -666,10 +811,8 @@ const StudyContentPreviewPage: React.FC = () => {
       const similarityScore = calculateSimilarity(compareUser, compareCorrect);
       
       // Guardar respuesta con el porcentaje de similitud
-      setActionResponses(prev => ({
-        ...prev,
-        [actionKey]: { value, similarity: similarityScore }
-      }));
+      const newResponses = { ...actionResponses, [actionKey]: { value, similarity: similarityScore } };
+      setActionResponses(newResponses);
 
       // Marcar paso como completado
       setStepCompleted(prev => ({
@@ -677,10 +820,13 @@ const StudyContentPreviewPage: React.FC = () => {
         [`${exerciseId}_${stepIndex}`]: true
       }));
 
-      // Avanzar al siguiente paso
+      // Avanzar al siguiente paso o completar ejercicio
       const steps = currentTopic?.interactive_exercise?.steps || [];
       if (stepIndex < steps.length - 1) {
         setTimeout(() => setCurrentStepIndex(stepIndex + 1), 300);
+      } else {
+        // Es el último paso, completar ejercicio
+        setTimeout(() => completeExercise(newResponses), 300);
       }
       return;
     }
@@ -709,10 +855,8 @@ const StudyContentPreviewPage: React.FC = () => {
 
     if (isCorrect) {
       // Respuesta correcta - guardar y avanzar
-      setActionResponses(prev => ({
-        ...prev,
-        [actionKey]: value
-      }));
+      const newResponses = { ...actionResponses, [actionKey]: value };
+      setActionResponses(newResponses);
 
       // Marcar paso como completado
       setStepCompleted(prev => ({
@@ -720,10 +864,13 @@ const StudyContentPreviewPage: React.FC = () => {
         [`${exerciseId}_${stepIndex}`]: true
       }));
 
-      // Avanzar al siguiente paso
+      // Avanzar al siguiente paso o completar ejercicio
       const steps = currentTopic?.interactive_exercise?.steps || [];
       if (stepIndex < steps.length - 1) {
         setTimeout(() => setCurrentStepIndex(stepIndex + 1), 300);
+      } else {
+        // Es el último paso, completar ejercicio
+        setTimeout(() => completeExercise(newResponses), 300);
       }
     } else {
       // Respuesta incorrecta - manejar según configuración
@@ -737,22 +884,24 @@ const StudyContentPreviewPage: React.FC = () => {
       // Verificar si la acción es terminar ejercicio inmediatamente
       if (onErrorAction === 'end_exercise' || onErrorAction === 'next_exercise') {
         setShowErrorModal(null);
-        setActionResponses(prev => ({ ...prev, [actionKey]: value }));
+        const newResponses = { ...actionResponses, [actionKey]: value };
+        setActionResponses(newResponses);
         setStepCompleted(prev => ({ ...prev, [`${exerciseId}_${stepIndex}`]: true }));
-        setTimeout(() => completeExercise(), 300);
+        setTimeout(() => completeExercise(newResponses), 300);
         return;
       }
 
       // Si la acción es pasar al siguiente paso (sin reintentos)
       if (onErrorAction === 'next_step') {
-        setActionResponses(prev => ({ ...prev, [actionKey]: value }));
+        const newResponses = { ...actionResponses, [actionKey]: value };
+        setActionResponses(newResponses);
         setStepCompleted(prev => ({ ...prev, [`${exerciseId}_${stepIndex}`]: true }));
         
         const steps = currentTopic?.interactive_exercise?.steps || [];
         if (stepIndex < steps.length - 1) {
           setTimeout(() => setCurrentStepIndex(stepIndex + 1), 300);
         } else {
-          setTimeout(() => completeExercise(), 300);
+          setTimeout(() => completeExercise(newResponses), 300);
         }
         return;
       }
@@ -770,14 +919,15 @@ const StudyContentPreviewPage: React.FC = () => {
       if (newAttempts > additionalAttempts) {
         setShowErrorModal(null);
         
-        setActionResponses(prev => ({ ...prev, [actionKey]: value }));
+        const newResponses = { ...actionResponses, [actionKey]: value };
+        setActionResponses(newResponses);
         setStepCompleted(prev => ({ ...prev, [`${exerciseId}_${stepIndex}`]: true }));
         
         const steps = currentTopic?.interactive_exercise?.steps || [];
         if (stepIndex < steps.length - 1) {
           setTimeout(() => setCurrentStepIndex(stepIndex + 1), 300);
         } else {
-          setTimeout(() => completeExercise(), 300);
+          setTimeout(() => completeExercise(newResponses), 300);
         }
       }
     }
@@ -966,9 +1116,9 @@ const StudyContentPreviewPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="h-screen bg-white flex flex-col overflow-hidden">
       {/* Header minimalista */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <header className="bg-white border-b border-gray-200 flex-shrink-0 z-50">
         <div className="flex items-center justify-between px-4 h-14">
           <div className="flex items-center gap-3">
             <button
@@ -1005,7 +1155,7 @@ const StudyContentPreviewPage: React.FC = () => {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0">
         {/* Sidebar - Navegación del curso */}
         <aside 
           className={`
@@ -1102,141 +1252,161 @@ const StudyContentPreviewPage: React.FC = () => {
         )}
 
         {/* Contenido principal */}
-        <main ref={mainContainerRef} className="flex-1 overflow-y-auto bg-white">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-5">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
-              <span>{currentSession?.title}</span>
-              <ChevronRight className="w-4 h-4" />
-              <span className="text-gray-900 font-medium">{currentTopic?.title}</span>
+        <main ref={mainContainerRef} className="flex-1 overflow-y-auto bg-white" onScroll={handleMainScroll}>
+          {/* Header sticky con título y pestañas - se comprime al hacer scroll */}
+          <div className={`sticky top-0 z-20 bg-white transition-all duration-300 ${isScrolled ? 'py-2' : ''}`}>
+            <div className={`max-w-4xl mx-auto px-4 sm:px-6 transition-all duration-300 ${isScrolled ? 'pt-1 pb-0' : 'pt-4 pb-0'}`}>
+              {/* Breadcrumb - se oculta al hacer scroll */}
+              <div className={`flex items-center gap-2 text-xs text-gray-500 transition-all duration-300 overflow-hidden ${isScrolled ? 'h-0 opacity-0 mb-0' : 'h-auto opacity-100 mb-4'}`}>
+                <span>{currentSession?.title}</span>
+                <ChevronRight className="w-4 h-4" />
+                <span className="text-gray-900 font-medium">{currentTopic?.title}</span>
+              </div>
+
+              {/* Título del tema - se reduce al hacer scroll */}
+              <h1 className={`font-bold text-gray-900 transition-all duration-300 ${isScrolled ? 'text-base mb-0' : 'text-2xl mb-1'}`}>{currentTopic?.title}</h1>
+              {/* Descripción - se oculta al hacer scroll */}
+              {currentTopic?.description && (
+                <p className={`text-gray-600 transition-all duration-300 overflow-hidden ${isScrolled ? 'h-0 opacity-0 mb-0' : 'text-base h-auto opacity-100 mb-6'}`}>{currentTopic.description}</p>
+              )}
+
+              {/* Tabs de contenido - siempre visibles, se compactan al scroll */}
+              <div className={`border-b border-gray-200 transition-all duration-300 ${isScrolled ? 'mb-0 mt-1' : 'mb-5 mt-4'}`}>
+                <nav className={`flex transition-all duration-300 ${isScrolled ? 'gap-4' : 'gap-8'}`}>
+                  {currentTopic?.allow_reading !== false && (
+                    <button
+                      onClick={() => setActiveTab('reading')}
+                      className={`text-sm font-medium border-b-2 transition-colors ${isScrolled ? 'pb-2' : 'pb-4'} ${
+                        activeTab === 'reading'
+                          ? 'border-blue-600 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        <span className={isScrolled ? 'hidden sm:inline' : ''}>Lectura</span>
+                        {currentTopic?.reading && completedContents.reading.has(currentTopic.reading.id) && (
+                          <span className="flex items-center justify-center w-2.5 h-2.5 bg-green-500 rounded-full">
+                            <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  )}
+                  {currentTopic?.allow_video !== false && (
+                    <button
+                      onClick={() => setActiveTab('video')}
+                      className={`text-sm font-medium border-b-2 transition-colors ${isScrolled ? 'pb-2' : 'pb-4'} ${
+                        activeTab === 'video'
+                          ? 'border-blue-600 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Video className="w-4 h-4" />
+                        <span className={isScrolled ? 'hidden sm:inline' : ''}>Video</span>
+                        {currentTopic?.video && completedContents.video.has(currentTopic.video.id) && (
+                          <span className="flex items-center justify-center w-2.5 h-2.5 bg-green-500 rounded-full">
+                            <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  )}
+                  {currentTopic?.allow_interactive !== false && (
+                    <button
+                      onClick={() => setActiveTab('interactive')}
+                      className={`text-sm font-medium border-b-2 transition-colors ${isScrolled ? 'pb-2' : 'pb-4'} ${
+                        activeTab === 'interactive'
+                          ? 'border-blue-600 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Gamepad2 className="w-4 h-4" />
+                        <span className={isScrolled ? 'hidden sm:inline' : ''}>Ejercicio</span>
+                        {currentTopic?.interactive_exercise && completedContents.interactive.has(currentTopic.interactive_exercise.id) && (
+                          <span className="flex items-center justify-center w-2.5 h-2.5 bg-green-500 rounded-full">
+                            <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  )}
+                  {currentTopic?.allow_downloadable !== false && (
+                    <button
+                      onClick={() => setActiveTab('downloadable')}
+                      className={`text-sm font-medium border-b-2 transition-colors ${isScrolled ? 'pb-2' : 'pb-4'} ${
+                        activeTab === 'downloadable'
+                          ? 'border-blue-600 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Download className="w-4 h-4" />
+                        <span className={isScrolled ? 'hidden sm:inline' : ''}>Recursos</span>
+                        {currentTopic?.downloadable_exercise && completedContents.downloadable.has(currentTopic.downloadable_exercise.id) && (
+                          <span className="flex items-center justify-center w-2.5 h-2.5 bg-green-500 rounded-full">
+                            <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  )}
+                </nav>
+              </div>
             </div>
+          </div>
 
-            {/* Título del tema */}
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">{currentTopic?.title}</h1>
-            {currentTopic?.description && (
-              <p className="text-gray-600 text-base mb-6">{currentTopic.description}</p>
-            )}
-
-            {/* Tabs de contenido */}
-            <div className="border-b border-gray-200 mb-5 mt-4">
-              <nav className="flex gap-8">
-                {currentTopic?.allow_reading !== false && (
-                  <button
-                    onClick={() => setActiveTab('reading')}
-                    className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
-                      activeTab === 'reading'
-                        ? 'border-blue-600 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      Lectura
-                      {currentTopic?.reading && completedContents.reading.has(currentTopic.reading.id) && (
-                        <span className="flex items-center justify-center w-2.5 h-2.5 bg-green-500 rounded-full">
-                          <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                )}
-                {currentTopic?.allow_video !== false && (
-                  <button
-                    onClick={() => setActiveTab('video')}
-                    className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
-                      activeTab === 'video'
-                        ? 'border-blue-600 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Video className="w-4 h-4" />
-                      Video
-                      {currentTopic?.video && completedContents.video.has(currentTopic.video.id) && (
-                        <span className="flex items-center justify-center w-2.5 h-2.5 bg-green-500 rounded-full">
-                          <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                )}
-                {currentTopic?.allow_interactive !== false && (
-                  <button
-                    onClick={() => setActiveTab('interactive')}
-                    className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
-                      activeTab === 'interactive'
-                        ? 'border-blue-600 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Gamepad2 className="w-4 h-4" />
-                      Ejercicio
-                      {currentTopic?.interactive_exercise && completedContents.interactive.has(currentTopic.interactive_exercise.id) && (
-                        <span className="flex items-center justify-center w-2.5 h-2.5 bg-green-500 rounded-full">
-                          <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                )}
-                {currentTopic?.allow_downloadable !== false && (
-                  <button
-                    onClick={() => setActiveTab('downloadable')}
-                    className={`pb-4 text-sm font-medium border-b-2 transition-colors ${
-                      activeTab === 'downloadable'
-                        ? 'border-blue-600 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Download className="w-4 h-4" />
-                      Recursos
-                      {currentTopic?.downloadable_exercise && completedContents.downloadable.has(currentTopic.downloadable_exercise.id) && (
-                        <span className="flex items-center justify-center w-2.5 h-2.5 bg-green-500 rounded-full">
-                          <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                )}
-              </nav>
-            </div>
-
-            {/* Contenido según tab activa */}
+          {/* Contenido según tab activa */}
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-16">
             <div className="min-h-[400px]">
               {/* Video */}
               {activeTab === 'video' && (
                 <div ref={videoContainerRef}>
                   {currentTopic?.video ? (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {/* Título del video - arriba */}
                       <h2 className="text-xl font-semibold text-gray-900 pb-3 border-b border-gray-300">{currentTopic.video.title}</h2>
                       
-                      {/* Video container - usa video nativo para archivos blob */}
-                      {currentTopic.video.video_url?.includes('blob.core.windows.net') ? (
-                        // Reproductor personalizado para archivos de Azure Blob
-                        <CustomVideoPlayer
-                          src={currentTopic.video.video_url}
-                          className="w-full shadow-md"
-                          onEnded={() => {
-                            if (currentTopic.video && !completedContents.video.has(currentTopic.video.id)) {
-                              markContentCompleted('video', currentTopic.video.id);
-                            }
-                          }}
-                        />
-                      ) : (
-                        // iframe para YouTube/Vimeo
-                        <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                      {/* Video container - altura basada en viewport */}
+                      <div className="bg-gray-50 rounded-lg overflow-hidden" style={{ height: 'calc(100vh - 350px)', minHeight: '300px' }}>
+                        {currentTopic.video.video_url?.includes('blob.core.windows.net') ? (
+                          // Reproductor personalizado para archivos de Azure Blob
+                          videoUrlLoading ? (
+                            <div className="flex items-center justify-center h-full w-full">
+                              <div className="text-center">
+                                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                                <p className="text-gray-500 text-sm">Cargando video...</p>
+                              </div>
+                            </div>
+                          ) : signedVideoUrl ? (
+                            <CustomVideoPlayer
+                              src={signedVideoUrl}
+                              className="w-full h-full shadow-md"
+                              objectFit="cover"
+                              onEnded={() => {
+                                if (currentTopic.video && !completedContents.video.has(currentTopic.video.id)) {
+                                  markContentCompleted('video', currentTopic.video.id);
+                                }
+                              }}
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full w-full">
+                              <p className="text-gray-500">Error al cargar el video</p>
+                            </div>
+                          )
+                        ) : (
+                          // iframe para YouTube/Vimeo - usa altura completa del contenedor
                           <iframe
                             src={getVideoEmbedUrl(currentTopic.video.video_url)}
-                            className="absolute top-0 left-0 w-full h-full rounded-lg shadow-md"
+                            className="w-full h-full rounded-lg shadow-md"
                             style={{ border: 'none' }}
                             allowFullScreen
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           />
-                        </div>
-                      )}
+                        )}
+                      </div>
                       
                       {/* Descripción del video - abajo */}
                       {currentTopic.video.description && (
@@ -1341,8 +1511,7 @@ const StudyContentPreviewPage: React.FC = () => {
                             onClick={() => {
                               downloadButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                             }}
-                            className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white"
-                            style={{ animation: 'bounce 2s ease-in-out infinite' }}
+                            className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
                             title="Ver sección de descarga"
                           >
                             <ChevronDown className="w-5 h-5" />
@@ -1430,62 +1599,11 @@ const StudyContentPreviewPage: React.FC = () => {
                               onClick={() => {
                                 startExerciseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                               }}
-                              className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white"
-                              style={{ animation: 'bounce 2s ease-in-out infinite' }}
+                              className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
                               title="Ver sección para iniciar ejercicio"
                             >
                               <ChevronDown className="w-5 h-5" />
                             </button>
-                          </div>
-                        )}
-                        
-                        {/* Mostrar mejor calificación si ya completó el ejercicio anteriormente */}
-                        {currentTopic.interactive_exercise.id && savedInteractiveScores[currentTopic.interactive_exercise.id] !== undefined && (
-                          <div className={`rounded-lg p-4 mb-4 ${
-                            savedInteractiveScores[currentTopic.interactive_exercise.id] >= 80 
-                              ? 'bg-green-50 border border-green-200' 
-                              : 'bg-amber-50 border border-amber-200'
-                          }`}>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg ${
-                                  savedInteractiveScores[currentTopic.interactive_exercise.id] >= 80 
-                                    ? 'bg-green-100' 
-                                    : 'bg-amber-100'
-                                }`}>
-                                  <Target className={`w-5 h-5 ${
-                                    savedInteractiveScores[currentTopic.interactive_exercise.id] >= 80 
-                                      ? 'text-green-600' 
-                                      : 'text-amber-600'
-                                  }`} />
-                                </div>
-                                <div>
-                                  <p className={`font-medium text-sm ${
-                                    savedInteractiveScores[currentTopic.interactive_exercise.id] >= 80 
-                                      ? 'text-green-800' 
-                                      : 'text-amber-800'
-                                  }`}>
-                                    Tu mejor calificación
-                                  </p>
-                                  <p className={`text-xs ${
-                                    savedInteractiveScores[currentTopic.interactive_exercise.id] >= 80 
-                                      ? 'text-green-600' 
-                                      : 'text-amber-600'
-                                  }`}>
-                                    {savedInteractiveScores[currentTopic.interactive_exercise.id] >= 80 
-                                      ? 'Ejercicio completado' 
-                                      : 'Intenta obtener 80% o más para completar'}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className={`text-2xl font-bold ${
-                                savedInteractiveScores[currentTopic.interactive_exercise.id] >= 80 
-                                  ? 'text-green-600' 
-                                  : 'text-amber-600'
-                              }`}>
-                                {Math.round(savedInteractiveScores[currentTopic.interactive_exercise.id])}%
-                              </div>
-                            </div>
                           </div>
                         )}
                         
@@ -1496,11 +1614,7 @@ const StudyContentPreviewPage: React.FC = () => {
                               <div className="p-2 bg-blue-100 rounded-lg">
                                 <Gamepad2 className="w-5 h-5 text-blue-600" />
                               </div>
-                              <p className="font-medium text-blue-900 text-sm">
-                                {savedInteractiveScores[currentTopic.interactive_exercise.id] !== undefined 
-                                  ? 'Volver a intentar' 
-                                  : 'Listo para comenzar'}
-                              </p>
+                              <p className="font-medium text-blue-900 text-sm">Listo para comenzar</p>
                             </div>
                             <button
                               onClick={startExercise}
@@ -1508,11 +1622,34 @@ const StudyContentPreviewPage: React.FC = () => {
                               className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <PlayCircle className="w-4 h-4" />
-                              {savedInteractiveScores[currentTopic.interactive_exercise.id] !== undefined 
-                                ? 'Reintentar' 
-                                : 'Comenzar'}
+                              Comenzar
                             </button>
                           </div>
+                        </div>
+                        
+                        {/* Estado de completado / mejor calificación del ejercicio interactivo */}
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                          {currentTopic.interactive_exercise.id && savedInteractiveScores[currentTopic.interactive_exercise.id] !== undefined ? (
+                            savedInteractiveScores[currentTopic.interactive_exercise.id] >= 80 ? (
+                              <div className="flex items-center justify-center gap-2 py-3 px-4 bg-green-50 text-green-700 rounded-lg">
+                                <span className="flex items-center justify-center w-3.5 h-3.5 bg-green-500 rounded-full">
+                                  <Check className="w-2 h-2 text-white" strokeWidth={3} />
+                                </span>
+                                <span className="font-medium">Ejercicio completado</span>
+                                <span className="text-green-600 font-bold ml-1">({Math.round(savedInteractiveScores[currentTopic.interactive_exercise.id])}%)</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center gap-2 py-3 px-4 bg-amber-50 text-amber-700 rounded-lg">
+                                <Target className="w-5 h-5" />
+                                <span className="text-sm">Tu mejor calificación: <strong>{Math.round(savedInteractiveScores[currentTopic.interactive_exercise.id])}%</strong> - Obtén 80% o más para completar</span>
+                              </div>
+                            )
+                          ) : (
+                            <div className="flex items-center justify-center gap-2 py-3 px-4 bg-gray-50 text-gray-500 rounded-lg">
+                              <Gamepad2 className="w-5 h-5" />
+                              <span className="text-sm">Completa el ejercicio con 80% o más para marcarlo como completado</span>
+                            </div>
+                          )}
                         </div>
                         
                         {!currentTopic.interactive_exercise.steps?.length && (
@@ -1591,9 +1728,9 @@ const StudyContentPreviewPage: React.FC = () => {
                             <RotateCcw className="w-4 h-4" />
                             Practicar de nuevo
                           </button>
-                          {hasNextTopic() && (
+                          {hasNextContent() && (
                             <button
-                              onClick={goToNextTopic}
+                              onClick={goToNextContent}
                               className={`px-4 py-2 text-white text-sm rounded-lg font-medium transition-colors inline-flex items-center justify-center gap-2 ${
                                 exerciseScore && exerciseScore.percentage >= 70 
                                   ? 'bg-green-600 hover:bg-green-700' 
@@ -1869,6 +2006,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
 }) => {
   const [textValue, setTextValue] = useState(currentValue || '');
   const [showFeedback, setShowFeedback] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
 
   // Estilo base para posicionar la acción sobre la imagen
   const baseStyle: React.CSSProperties = {
@@ -1883,6 +2021,8 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
   if (action.action_type === 'button') {
     // Si hay placeholder, el botón debe ser visible con el texto
     const hasPlaceholder = action.placeholder && action.placeholder.trim() !== '';
+    // Verificar si debe mostrar cursor de texto (Campo Incorrecto)
+    const useTextCursor = action.scoring_mode === 'text_cursor';
     
     return (
       <button
@@ -1890,6 +2030,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
           ...baseStyle,
           opacity: hasPlaceholder ? 1 : 0, // Visible si hay placeholder, invisible si no
           backgroundColor: hasPlaceholder ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+          cursor: useTextCursor ? 'text' : undefined, // Cursor de texto para Campo Incorrecto
         }}
         onClick={() => {
           setShowFeedback(true);
@@ -1919,14 +2060,60 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
   }
 
   if (action.action_type === 'text_input') {
+    // Verificar si es un campo incorrecto (text_input con correct_answer === 'wrong')
+    const isWrongTextInput = action.correct_answer === 'wrong';
+    
+    if (isWrongTextInput) {
+      // Campo incorrecto: parece un campo de texto pero actúa como botón incorrecto
+      const hasPlaceholder = action.placeholder && action.placeholder.trim() !== '';
+      
+      return (
+        <div
+          style={{
+            ...baseStyle,
+            opacity: hasPlaceholder ? 1 : 0,
+            backgroundColor: hasPlaceholder ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+            cursor: 'text', // Cursor de texto para engañar al usuario
+          }}
+          onClick={() => {
+            if (!isStepCompleted) {
+              setShowFeedback(true);
+              setTimeout(() => {
+                setShowFeedback(false);
+                // Usar el mismo handler que los botones incorrectos
+                onButtonClick(action, stepIndex);
+              }, 300);
+            }
+          }}
+          className={`flex items-center justify-center text-xs font-medium rounded border-2 transition-all ${
+            currentValue 
+              ? 'bg-red-100 border-red-500 text-red-700' 
+              : showFeedback
+              ? 'bg-orange-200 border-orange-600 scale-95'
+              : hasPlaceholder
+              ? 'bg-gray-50 border-gray-300 text-gray-600 hover:bg-gray-100 hover:border-gray-400'
+              : 'border-transparent hover:bg-gray-100 hover:border-gray-400'
+          }`}
+          title={action.placeholder || 'Escribe aquí'}
+        >
+          {hasPlaceholder && (
+            <span className="truncate px-2 text-sm italic text-gray-500">{action.placeholder}</span>
+          )}
+        </div>
+      );
+    }
+    
+    // Campo de texto normal (correcto)
     // Si hay placeholder, mostrarlo como guía
     const placeholderText = action.placeholder && action.placeholder.trim() !== '' ? action.placeholder : '';
+    const showEnterHint = isFocused && textValue.trim().length > 0;
     
     return (
       <div 
         style={{
           ...baseStyle,
-          overflow: 'hidden', // Evitar que el texto se desborde del área
+          overflow: 'visible', // Permitir que el indicador se muestre fuera
+          pointerEvents: 'auto', // Siempre permitir interacción con el input
         }} 
         className="flex items-center"
       >
@@ -1934,18 +2121,15 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
           type="text"
           value={textValue}
           onChange={(e) => setTextValue(e.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && textValue.trim()) {
               onTextSubmit(action, stepIndex, textValue);
-            }
-          }}
-          onBlur={() => {
-            if (textValue.trim() && !currentValue) {
-              onTextSubmit(action, stepIndex, textValue);
+              (e.target as HTMLInputElement).blur(); // Quitar foco después de enviar
             }
           }}
           placeholder={placeholderText}
-          disabled={isStepCompleted}
           className="w-full h-full focus:outline-none"
           style={{
             color: action.text_color || '#000000',
@@ -1959,6 +2143,15 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
             textOverflow: 'clip', // Cortar texto que exceda
           }}
         />
+        {/* Indicador visual de Enter */}
+        {showEnterHint && (
+          <div 
+            className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-50 animate-fade-in"
+            style={{ pointerEvents: 'none' }}
+          >
+            Presiona Enter ↵
+          </div>
+        )}
       </div>
     );
   }

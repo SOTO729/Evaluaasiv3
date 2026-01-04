@@ -1,13 +1,21 @@
 """
 Utilidades para Azure Storage
 Soporta múltiples cuentas: una general y una optimizada para videos (Cool tier)
+Implementa SAS tokens de corta duración para mayor seguridad
 """
 from azure.storage.blob import BlobServiceClient, ContentSettings, StandardBlobTier, generate_blob_sas, BlobSasPermissions
 from azure.core.exceptions import AzureError
 from datetime import datetime, timedelta, timezone
 import os
 import uuid
+import re
+from urllib.parse import urlparse, parse_qs
 from werkzeug.utils import secure_filename
+
+# Configuración de SAS tokens
+SAS_TOKEN_DURATION_HOURS = 24  # Duración de SAS tokens en horas
+VIDEO_ACCOUNT_NAME = 'evaluaasivideos'
+VIDEO_ACCOUNT_KEY = os.getenv('AZURE_VIDEO_ACCOUNT_KEY', 'r9C4hrfzCHwUjbFY2reYY3spGvPjTKV0oBPDmB2sDqhkBI4whu1NkmwAlEp+bRzwmeBxUK0dP3WD+AStEbwldw==')
 
 
 class AzureStorageService:
@@ -160,23 +168,89 @@ class AzureStorageService:
                         standard_blob_tier=StandardBlobTier.COOL
                     )
             
-            # Generar URL con SAS token (válido por 10 años)
-            sas_token = generate_blob_sas(
-                account_name='evaluaasivideos',
-                container_name=self.video_container_name,
-                blob_name=blob_name,
-                account_key='r9C4hrfzCHwUjbFY2reYY3spGvPjTKV0oBPDmB2sDqhkBI4whu1NkmwAlEp+bRzwmeBxUK0dP3WD+AStEbwldw==',
-                permission=BlobSasPermissions(read=True),
-                expiry=datetime.now(timezone.utc) + timedelta(days=3650)  # 10 años
-            )
+            # Guardar URL base sin SAS token (el SAS se genera bajo demanda)
+            base_url = blob_client.url
+            print(f"Video subido a Cool tier: {base_url}")
             
-            sas_url = f"{blob_client.url}?{sas_token}"
-            print(f"Video subido a Cool tier: {sas_url}")
-            return sas_url
+            # Para compatibilidad, retornamos URL con SAS token de corta duración
+            # El frontend debe usar el endpoint /get-video-url para obtener URLs frescas
+            signed_url = self.generate_video_sas_url(base_url)
+            return signed_url
         
         except AzureError as e:
             print(f"Error uploading video to Azure Cool tier: {str(e)}")
             return None
+    
+    def generate_video_sas_url(self, blob_url, duration_hours=None):
+        """
+        Generar URL con SAS token de corta duración para un video existente
+        
+        Args:
+            blob_url: URL del blob (con o sin SAS token existente)
+            duration_hours: Duración del token en horas (default: SAS_TOKEN_DURATION_HOURS)
+        
+        Returns:
+            str: URL con SAS token fresco o None si falla
+        """
+        if not blob_url:
+            return None
+        
+        # Si no es un video de Azure, retornar tal cual
+        if 'blob.core.windows.net' not in blob_url:
+            return blob_url
+        
+        try:
+            # Extraer la URL base (sin SAS token si lo tiene)
+            base_url = blob_url.split('?')[0]
+            
+            # Extraer el nombre del blob
+            # URL format: https://evaluaasivideos.blob.core.windows.net/videos/filename.mp4
+            parsed = urlparse(base_url)
+            path_parts = parsed.path.strip('/').split('/', 1)
+            
+            if len(path_parts) < 2:
+                print(f"URL inválida: {blob_url}")
+                return blob_url
+            
+            container_name = path_parts[0]
+            blob_name = path_parts[1]
+            
+            # Determinar account name desde la URL
+            account_name = parsed.netloc.split('.')[0]
+            
+            # Usar la duración especificada o la default
+            hours = duration_hours or SAS_TOKEN_DURATION_HOURS
+            
+            # Generar nuevo SAS token
+            sas_token = generate_blob_sas(
+                account_name=account_name,
+                container_name=container_name,
+                blob_name=blob_name,
+                account_key=VIDEO_ACCOUNT_KEY,
+                permission=BlobSasPermissions(read=True),
+                expiry=datetime.now(timezone.utc) + timedelta(hours=hours)
+            )
+            
+            return f"{base_url}?{sas_token}"
+        
+        except Exception as e:
+            print(f"Error generating SAS token: {str(e)}")
+            # En caso de error, retornar la URL original
+            return blob_url
+    
+    def get_base_url(self, blob_url):
+        """
+        Extraer la URL base sin SAS token
+        
+        Args:
+            blob_url: URL completa del blob (puede incluir SAS token)
+        
+        Returns:
+            str: URL base sin query params
+        """
+        if not blob_url:
+            return None
+        return blob_url.split('?')[0]
     
     def delete_video(self, blob_url):
         """

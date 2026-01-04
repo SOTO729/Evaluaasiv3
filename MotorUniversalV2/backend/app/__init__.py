@@ -125,3 +125,4 @@ def register_jwt_callbacks(app):
     @jwt.revoked_token_loader
     def revoked_token_callback(jwt_header, jwt_payload):
         return {'error': 'Token Revoked', 'message': 'The token has been revoked'}, 401
+# Force reload at Sat Jan  3 16:25:57 UTC 2026

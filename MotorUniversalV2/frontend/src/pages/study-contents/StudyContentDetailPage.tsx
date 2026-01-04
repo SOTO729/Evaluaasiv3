@@ -892,7 +892,7 @@ const StudyContentDetailPage = () => {
       )}
       
       {/* Back button */}
-      <div className="mb-6">
+      <div className="mb-4">
         <button
           onClick={() => navigate('/study-contents')}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-800"

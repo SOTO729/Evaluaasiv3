@@ -784,6 +784,76 @@ def delete_reading(material_id, session_id, topic_id):
         return jsonify({'error': str(e)}), 500
 
 
+# --- Endpoint para obtener URL de video con SAS token fresco ---
+@study_contents_bp.route('/video-url/<int:video_id>', methods=['GET'])
+@jwt_required()
+def get_video_signed_url(video_id):
+    """
+    Obtener URL de video con SAS token de corta duración
+    Este endpoint debe usarse para obtener URLs frescas antes de reproducir videos
+    """
+    try:
+        video = StudyVideo.query.get_or_404(video_id)
+        
+        # Si es un video de YouTube o similar, retornar tal cual
+        if video.video_type != 'upload' or 'blob.core.windows.net' not in (video.video_url or ''):
+            return jsonify({
+                'video_url': video.video_url,
+                'video_type': video.video_type,
+                'requires_refresh': False
+            }), 200
+        
+        # Generar nueva URL con SAS token fresco
+        signed_url = azure_storage.generate_video_sas_url(video.video_url)
+        
+        return jsonify({
+            'video_url': signed_url,
+            'video_type': video.video_type,
+            'requires_refresh': True,
+            'expires_in_hours': 24
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@study_contents_bp.route('/video-url-by-topic/<int:topic_id>', methods=['GET'])
+@jwt_required()
+def get_video_signed_url_by_topic(topic_id):
+    """
+    Obtener URL de video con SAS token usando el topic_id
+    Útil cuando no se tiene el video_id directamente
+    """
+    try:
+        topic = StudyTopic.query.get_or_404(topic_id)
+        
+        if not topic.video:
+            return jsonify({'error': 'Este tema no tiene video'}), 404
+        
+        video = topic.video
+        
+        # Si es un video de YouTube o similar, retornar tal cual
+        if video.video_type != 'upload' or 'blob.core.windows.net' not in (video.video_url or ''):
+            return jsonify({
+                'video_url': video.video_url,
+                'video_type': video.video_type,
+                'requires_refresh': False
+            }), 200
+        
+        # Generar nueva URL con SAS token fresco
+        signed_url = azure_storage.generate_video_sas_url(video.video_url)
+        
+        return jsonify({
+            'video_url': signed_url,
+            'video_type': video.video_type,
+            'requires_refresh': True,
+            'expires_in_hours': 24
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # --- Video ---
 @study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/video', methods=['POST', 'PUT'])
 @jwt_required()
@@ -1484,20 +1554,38 @@ def create_action(material_id, session_id, topic_id, step_id):
         step = StudyInteractiveExerciseStep.query.filter_by(id=step_id, exercise_id=topic.interactive_exercise.id).first_or_404()
         data = request.get_json()
         
-        max_number = db.session.query(db.func.max(StudyInteractiveExerciseAction.action_number)).filter_by(step_id=step_id).scalar() or 0
+        # Determinar si esta acción es la "respuesta correcta"
+        action_type = data.get('action_type', 'button')
+        correct_answer = data.get('correct_answer')
+        is_correct_answer = (
+            (action_type == 'button' and correct_answer == 'correct') or
+            (action_type == 'text_input')  # Los campos de texto siempre se consideran "correctos" cuando se les agregue respuesta
+        )
+        
+        # Si es respuesta correcta, debe ser action_number=1
+        # y reordenar las demás acciones hacia abajo
+        if is_correct_answer and correct_answer == 'correct':
+            # Mover todas las acciones existentes hacia abajo
+            existing_actions = StudyInteractiveExerciseAction.query.filter_by(step_id=step_id).order_by(StudyInteractiveExerciseAction.action_number).all()
+            for existing_action in existing_actions:
+                existing_action.action_number += 1
+            assigned_number = 1
+        else:
+            max_number = db.session.query(db.func.max(StudyInteractiveExerciseAction.action_number)).filter_by(step_id=step_id).scalar() or 0
+            assigned_number = max_number + 1
         
         action = StudyInteractiveExerciseAction(
             id=str(uuid.uuid4()),
             step_id=step_id,
-            action_number=data.get('action_number', max_number + 1),
-            action_type=data.get('action_type', 'button'),
+            action_number=assigned_number,
+            action_type=action_type,
             position_x=data.get('position_x', 0),
             position_y=data.get('position_y', 0),
             width=data.get('width', 10),
             height=data.get('height', 10),
             label=data.get('label'),
             placeholder=data.get('placeholder'),
-            correct_answer=data.get('correct_answer'),
+            correct_answer=correct_answer,
             is_case_sensitive=data.get('is_case_sensitive', False),
             scoring_mode=data.get('scoring_mode', 'exact'),
             on_error_action=data.get('on_error_action', 'next_step'),
@@ -1510,9 +1598,13 @@ def create_action(material_id, session_id, topic_id, step_id):
         db.session.add(action)
         db.session.commit()
         
+        # Devolver todas las acciones actualizadas del paso para sincronizar frontend
+        all_actions = StudyInteractiveExerciseAction.query.filter_by(step_id=step_id).order_by(StudyInteractiveExerciseAction.action_number).all()
+        
         return jsonify({
             'message': 'Acción creada exitosamente',
-            'action': action.to_dict()
+            'action': action.to_dict(),
+            'all_actions': [a.to_dict() for a in all_actions]
         }), 201
         
     except Exception as e:
@@ -1529,8 +1621,34 @@ def update_action(material_id, session_id, topic_id, step_id, action_id):
         action = StudyInteractiveExerciseAction.query.filter_by(id=action_id, step_id=step_id).first_or_404()
         data = request.get_json()
         
-        action.action_type = data.get('action_type', action.action_type)
-        action.action_number = data.get('action_number', action.action_number)
+        old_correct_answer = action.correct_answer
+        new_correct_answer = data.get('correct_answer', action.correct_answer)
+        action_type = data.get('action_type', action.action_type)
+        
+        # Verificar si esta acción se está convirtiendo en la respuesta correcta
+        was_correct = (
+            (action.action_type == 'button' and old_correct_answer == 'correct') or
+            (action.action_type == 'text_input' and old_correct_answer and old_correct_answer.strip() != '')
+        )
+        is_now_correct = (
+            (action_type == 'button' and new_correct_answer == 'correct') or
+            (action_type == 'text_input' and new_correct_answer and str(new_correct_answer).strip() != '')
+        )
+        
+        # Si se está convirtiendo en respuesta correcta y no lo era antes, moverlo a posición 1
+        if is_now_correct and not was_correct and action.action_number != 1:
+            old_number = action.action_number
+            # Mover las acciones entre 1 y la posición actual hacia abajo
+            actions_to_shift = StudyInteractiveExerciseAction.query.filter(
+                StudyInteractiveExerciseAction.step_id == step_id,
+                StudyInteractiveExerciseAction.action_number < old_number,
+                StudyInteractiveExerciseAction.id != action_id
+            ).all()
+            for a in actions_to_shift:
+                a.action_number += 1
+            action.action_number = 1
+        
+        action.action_type = action_type
         action.position_x = data.get('position_x', action.position_x)
         action.position_y = data.get('position_y', action.position_y)
         action.width = data.get('width', action.width)
@@ -1539,7 +1657,7 @@ def update_action(material_id, session_id, topic_id, step_id, action_id):
         # Placeholder: si se envía (incluso vacío), usar el valor enviado
         if 'placeholder' in data:
             action.placeholder = data['placeholder'] if data['placeholder'] else None
-        action.correct_answer = data.get('correct_answer', action.correct_answer)
+        action.correct_answer = new_correct_answer
         action.is_case_sensitive = data.get('is_case_sensitive', action.is_case_sensitive)
         action.scoring_mode = data.get('scoring_mode', action.scoring_mode)
         action.on_error_action = data.get('on_error_action', action.on_error_action)
@@ -1550,9 +1668,13 @@ def update_action(material_id, session_id, topic_id, step_id, action_id):
         
         db.session.commit()
         
+        # Devolver todas las acciones actualizadas del paso para sincronizar frontend
+        all_actions = StudyInteractiveExerciseAction.query.filter_by(step_id=step_id).order_by(StudyInteractiveExerciseAction.action_number).all()
+        
         return jsonify({
             'message': 'Acción actualizada exitosamente',
-            'action': action.to_dict()
+            'action': action.to_dict(),
+            'all_actions': [a.to_dict() for a in all_actions]
         }), 200
         
     except Exception as e:
@@ -1767,6 +1889,36 @@ def setup_progress_tables():
 
 
 # Endpoint de debug para verificar las tablas
+@study_contents_bp.route('/debug-all-progress-records', methods=['GET'])
+def debug_all_progress_records():
+    """Debug para ver todos los registros de progreso"""
+    try:
+        # Obtener todos los registros para debug
+        all_records = db.session.execute(text("""
+            SELECT id, user_id, content_type, content_id, topic_id, is_completed, score 
+            FROM student_content_progress
+        """))
+        records_list = []
+        for row in all_records:
+            records_list.append({
+                'id': row[0],
+                'user_id': row[1][:8] + '...' if row[1] else None,  # Truncar user_id por privacidad
+                'content_type': row[2],
+                'content_id': row[3],
+                'topic_id': row[4],
+                'is_completed': row[5],
+                'score': row[6]
+            })
+        
+        return jsonify({
+            'count': len(records_list),
+            'records': records_list
+        }), 200
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+
+
 @study_contents_bp.route('/debug-progress-tables', methods=['GET'])
 def debug_progress_tables():
     """Debug para verificar el estado de las tablas de progreso"""
@@ -1794,6 +1946,24 @@ def debug_progress_tables():
         if 'student_content_progress' in result['tables']:
             count = db.session.execute(text("SELECT COUNT(*) FROM student_content_progress")).scalar()
             result['student_content_progress_count'] = count
+            
+            # Obtener todos los registros para debug
+            all_records = db.session.execute(text("""
+                SELECT id, user_id, content_type, content_id, topic_id, is_completed, score 
+                FROM student_content_progress
+            """))
+            records_list = []
+            for row in all_records:
+                records_list.append({
+                    'id': row[0],
+                    'user_id': row[1][:8] + '...' if row[1] else None,  # Truncar user_id por privacidad
+                    'content_type': row[2],
+                    'content_id': row[3],
+                    'topic_id': row[4],
+                    'is_completed': row[5],
+                    'score': row[6]
+                })
+            result['all_records'] = records_list
         
         if 'student_topic_progress' in result['tables']:
             count = db.session.execute(text("SELECT COUNT(*) FROM student_topic_progress")).scalar()
@@ -1857,6 +2027,8 @@ def register_content_progress(content_type, content_id):
         user_id = get_jwt_identity()
         data = request.get_json() or {}
         
+        print(f"DEBUG register_content_progress: content_type={content_type}, content_id={content_id}, user_id={user_id}, data={data}")
+        
         # Validar tipo de contenido
         valid_types = ['reading', 'video', 'downloadable', 'interactive']
         if content_type not in valid_types:
@@ -1878,10 +2050,13 @@ def register_content_progress(content_type, content_id):
                 topic_id = content.topic_id
         elif content_type == 'interactive':
             content = StudyInteractiveExercise.query.get(content_id)
+            print(f"DEBUG: Looking for interactive exercise with id={content_id}, found={content is not None}")
             if content:
                 topic_id = content.topic_id
+                print(f"DEBUG: Interactive exercise topic_id={topic_id}")
         
         if not topic_id:
+            print(f"DEBUG: Content not found for type={content_type}, id={content_id}")
             return jsonify({'error': 'Contenido no encontrado'}), 404
         
         # Buscar progreso existente o crear uno nuevo
@@ -1899,16 +2074,22 @@ def register_content_progress(content_type, content_id):
                 topic_id=topic_id
             )
             db.session.add(progress)
+            print(f"DEBUG: Created new progress record")
+        else:
+            print(f"DEBUG: Found existing progress record id={progress.id}, score={progress.score}, is_completed={progress.is_completed}")
         
         # Determinar si está completado según el tipo
         is_completed = data.get('is_completed', False)
         score = data.get('score', None)
+        
+        print(f"DEBUG: Processing score={score}, is_completed={is_completed}")
         
         # Para interactivos, verificar si la calificación es >= 80%
         if content_type == 'interactive' and score is not None:
             # Solo actualizar el score si es mayor al existente (guardar la mejor calificación)
             if progress.score is None or score > progress.score:
                 progress.score = score
+                print(f"DEBUG: Updated score to {score}")
             if score >= 80:
                 is_completed = True
         
@@ -1917,7 +2098,9 @@ def register_content_progress(content_type, content_id):
             progress.is_completed = True
             progress.completed_at = db.func.now()
         
+        print(f"DEBUG: Before commit - progress.score={progress.score}, progress.is_completed={progress.is_completed}")
         db.session.commit()
+        print(f"DEBUG: Commit successful")
         
         # Actualizar progreso del tema
         update_topic_progress(user_id, topic_id)
@@ -1929,6 +2112,9 @@ def register_content_progress(content_type, content_id):
         
     except Exception as e:
         db.session.rollback()
+        print(f"DEBUG: Error in register_content_progress: {str(e)}")
+        import traceback
+        print(f"DEBUG: Traceback: {traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -2149,10 +2335,25 @@ def get_material_progress(material_id):
                         topic_completed[cp.content_type].append(cp.content_id)
                         completed_content_ids[cp.content_type].append(cp.content_id)
                         topic_completed_count += 1
-                        # Guardar score de ejercicios interactivos
+                        # Guardar score de ejercicios interactivos completados
                         if cp.content_type == 'interactive' and cp.score is not None:
                             topic_interactive_scores[cp.content_id] = cp.score
                             all_interactive_scores[cp.content_id] = cp.score
+                
+                # Obtener también scores de ejercicios interactivos no completados (calificación < 80%)
+                # para mostrar la mejor calificación al usuario incluso si no ha "aprobado"
+                incomplete_interactive_progresses = StudentContentProgress.query.filter_by(
+                    user_id=user_id,
+                    topic_id=topic.id,
+                    content_type='interactive',
+                    is_completed=False
+                ).filter(StudentContentProgress.score.isnot(None)).all()
+                
+                for cp in incomplete_interactive_progresses:
+                    # Solo agregar si no está ya en los completados
+                    if cp.content_id not in topic_interactive_scores:
+                        topic_interactive_scores[cp.content_id] = cp.score
+                        all_interactive_scores[cp.content_id] = cp.score
                 
                 completed_contents += topic_completed_count
                 
@@ -2284,16 +2485,27 @@ def debug_test_progress_query():
     try:
         # Probar si podemos consultar la tabla student_content_progress
         result = db.session.execute(text("""
-            SELECT TOP 5 * FROM student_content_progress
+            SELECT id, user_id, content_type, content_id, topic_id, is_completed, score 
+            FROM student_content_progress
         """))
         rows = result.fetchall()
         
-        # Probar con ORM
-        orm_count = StudentContentProgress.query.count()
+        # Convertir rows a lista de diccionarios
+        all_records = []
+        for row in rows:
+            all_records.append({
+                'id': row[0],
+                'user_id': row[1],
+                'content_type': row[2],
+                'content_id': row[3],
+                'topic_id': row[4],
+                'is_completed': row[5],
+                'score': row[6]
+            })
         
         return jsonify({
-            'sql_rows': len(rows),
-            'orm_count': orm_count,
+            'total_records': len(all_records),
+            'records': all_records,
             'success': True
         }), 200
     except Exception as e:
@@ -2415,6 +2627,25 @@ def debug_full_progress(material_id):
             'all_completed_contents': completed_content_ids
         }), 200
         
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+@study_contents_bp.route('/debug-interactive-progress', methods=['GET'])
+def debug_interactive_progress():
+    """Debug endpoint para ver todos los registros de progreso de ejercicios interactivos"""
+    try:
+        # Obtener todos los registros de tipo interactive
+        progresses = StudentContentProgress.query.filter_by(content_type='interactive').all()
+        
+        return jsonify({
+            'count': len(progresses),
+            'records': [p.to_dict() for p in progresses]
+        }), 200
     except Exception as e:
         import traceback
         return jsonify({

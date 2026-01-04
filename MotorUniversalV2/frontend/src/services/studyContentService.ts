@@ -126,7 +126,7 @@ export interface StudyInteractiveExerciseAction {
   placeholder?: string;
   correct_answer?: string;
   is_case_sensitive: boolean;
-  scoring_mode: 'exact' | 'contains' | 'regex' | 'similarity';
+  scoring_mode: 'exact' | 'contains' | 'regex' | 'similarity' | 'text_cursor';
   on_error_action: 'retry' | 'next_step' | 'show_hint' | 'end_exercise' | 'show_message' | 'next_exercise';
   error_message?: string;
   max_attempts: number;
@@ -214,7 +214,7 @@ export interface CreateActionData {
   placeholder?: string;
   correct_answer?: string;
   is_case_sensitive?: boolean;
-  scoring_mode?: 'exact' | 'contains' | 'regex' | 'similarity';
+  scoring_mode?: 'exact' | 'contains' | 'regex' | 'similarity' | 'text_cursor';
   on_error_action?: 'retry' | 'next_step' | 'show_hint' | 'end_exercise' | 'show_message' | 'next_exercise';
   error_message?: string;
   max_attempts?: number;
@@ -487,6 +487,27 @@ export const deleteVideo = async (
   );
 };
 
+/**
+ * Obtener URL de video con SAS token fresco (válido por 24 horas)
+ * Usar este endpoint antes de reproducir videos de Azure Blob Storage
+ */
+export interface VideoSignedUrlResponse {
+  video_url: string;
+  video_type: string;
+  requires_refresh: boolean;
+  expires_in_hours?: number;
+}
+
+export const getVideoSignedUrl = async (videoId: number): Promise<VideoSignedUrlResponse> => {
+  const response = await api.get(`/study-contents/video-url/${videoId}`);
+  return response.data;
+};
+
+export const getVideoSignedUrlByTopic = async (topicId: number): Promise<VideoSignedUrlResponse> => {
+  const response = await api.get(`/study-contents/video-url-by-topic/${topicId}`);
+  return response.data;
+};
+
 // --- Ejercicio Descargable ---
 export const upsertDownloadable = async (
   materialId: number,
@@ -638,18 +659,23 @@ export const deleteStep = async (
   );
 };
 
+export interface ActionMutationResponse {
+  action: StudyInteractiveExerciseAction;
+  all_actions?: StudyInteractiveExerciseAction[];
+}
+
 export const createAction = async (
   materialId: number,
   sessionId: number,
   topicId: number,
   stepId: string,
   data: CreateActionData
-): Promise<StudyInteractiveExerciseAction> => {
+): Promise<ActionMutationResponse> => {
   const response = await api.post(
     `/study-contents/${materialId}/sessions/${sessionId}/topics/${topicId}/interactive/steps/${stepId}/actions`,
     data
   );
-  return response.data.action;
+  return response.data;
 };
 
 export const updateAction = async (
@@ -659,12 +685,12 @@ export const updateAction = async (
   stepId: string,
   actionId: string,
   data: Partial<CreateActionData>
-): Promise<StudyInteractiveExerciseAction> => {
+): Promise<ActionMutationResponse> => {
   const response = await api.put(
     `/study-contents/${materialId}/sessions/${sessionId}/topics/${topicId}/interactive/steps/${stepId}/actions/${actionId}`,
     data
   );
-  return response.data.action;
+  return response.data;
 };
 
 export const deleteAction = async (

@@ -17,7 +17,8 @@ import {
   deleteAction,
   StudyInteractiveExercise,
   StudyInteractiveExerciseStep,
-  StudyInteractiveExerciseAction
+  StudyInteractiveExerciseAction,
+  ActionMutationResponse
 } from '../../services/studyContentService'
 import api from '../../services/api'
 import ReactQuill from 'react-quill-new'
@@ -76,6 +77,8 @@ interface ResizeState {
   startY: number
   startWidth: number
   startHeight: number
+  startPositionX: number
+  startPositionY: number
 }
 
 // Estado para crear área con arrastre (rubber band selection)
@@ -85,6 +88,16 @@ interface DrawingState {
   startY: number
   currentX: number
   currentY: number
+}
+
+// Constantes de configuración del editor
+const EDITOR_CONFIG = {
+  MIN_AREA_WIDTH: 0.5,    // Porcentaje mínimo de ancho para crear área (muy pequeño para permitir botones pequeños)
+  MIN_AREA_HEIGHT: 0.5,   // Porcentaje mínimo de alto para crear área
+  MIN_RESIZE_WIDTH: 0.5,  // Porcentaje mínimo al redimensionar
+  MIN_RESIZE_HEIGHT: 0.5, // Porcentaje mínimo al redimensionar
+  ZOOM_LEVELS: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3],
+  DEFAULT_ZOOM: 1
 }
 
 const StudyInteractiveExercisePage = () => {
@@ -128,7 +141,9 @@ const StudyInteractiveExercisePage = () => {
     startX: 0,
     startY: 0,
     startWidth: 0,
-    startHeight: 0
+    startHeight: 0,
+    startPositionX: 0,
+    startPositionY: 0
   })
 
   // Estado para dibujar área con arrastre (rubber band)
@@ -140,8 +155,17 @@ const StudyInteractiveExercisePage = () => {
     currentY: 0
   })
 
-  // Zoom para la vista del canvas (desactivado por ahora)
-  // const [_zoom, setZoom] = useState(1)
+  // Zoom para la vista del canvas
+  const [zoom, setZoom] = useState(EDITOR_CONFIG.DEFAULT_ZOOM)
+  
+  // Ref para el elemento de rubber band (evita re-renders)
+  const rubberBandRef = useRef<HTMLDivElement>(null)
+  
+  // Ref para almacenar posición actual durante dibujo (evita re-renders)
+  const drawingPosRef = useRef({ currentX: 0, currentY: 0 })
+  
+  // Ref para el frame de animación
+  const animationFrameRef = useRef<number | null>(null)
 
   // Modal para editar acción
   const [isEditActionModalOpen, setIsEditActionModalOpen] = useState(false)
@@ -197,6 +221,17 @@ const StudyInteractiveExercisePage = () => {
     actionsCount: 0
   })
 
+  // Modal de éxito para operaciones completadas
+  const [successModal, setSuccessModal] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+  }>({
+    isOpen: false,
+    title: '',
+    message: ''
+  })
+
   // Modal para editar información del ejercicio (título y descripción/instrucciones)
   const [isExerciseInfoModalOpen, setIsExerciseInfoModalOpen] = useState(false)
   const [exerciseInfoForm, setExerciseInfoForm] = useState({
@@ -204,6 +239,17 @@ const StudyInteractiveExercisePage = () => {
     description: ''
   })
   const [isSavingExerciseInfo, setIsSavingExerciseInfo] = useState(false)
+
+  // Estado para tooltip de herramienta incorrecta
+  const [toolTooltip, setToolTooltip] = useState<{
+    visible: boolean
+    x: number
+    y: number
+  }>({
+    visible: false,
+    x: 0,
+    y: 0
+  })
 
   // Función para agregar cambio pendiente
   const addPendingChange = (change: any) => {
@@ -341,6 +387,7 @@ const StudyInteractiveExercisePage = () => {
       stepId
     ),
     onSuccess: (_, stepId: string) => {
+      const deletedStepNumber = deleteConfirmModal.stepNumber
       if (exercise && exercise.steps) {
         const updatedSteps = exercise.steps.filter((s: StudyInteractiveExerciseStep) => s.id !== stepId)
         setExercise({ ...exercise, steps: updatedSteps })
@@ -348,6 +395,13 @@ const StudyInteractiveExercisePage = () => {
           setCurrentStepIndex(Math.max(0, updatedSteps.length - 1))
         }
       }
+      // Cerrar modal de confirmación y mostrar mensaje de éxito
+      setDeleteConfirmModal({ isOpen: false, stepId: null, stepNumber: null, hasImage: false, actionsCount: 0 })
+      setSuccessModal({
+        isOpen: true,
+        title: 'Paso eliminado',
+        message: `El paso ${deletedStepNumber} ha sido eliminado exitosamente.`
+      })
       queryClient.invalidateQueries({ queryKey: ['study-topic', materialId, sessionId, topicId] })
     }
   })
@@ -361,17 +415,21 @@ const StudyInteractiveExercisePage = () => {
       stepId,
       data
     ),
-    onSuccess: (newAction: StudyInteractiveExerciseAction) => {
+    onSuccess: (response: ActionMutationResponse) => {
       if (exercise && exercise.steps) {
         const updatedSteps = exercise.steps.map((step: StudyInteractiveExerciseStep) => {
-          if (step.id === newAction.step_id) {
-            return { ...step, actions: [...(step.actions || []), newAction] }
+          if (step.id === response.action.step_id) {
+            // Si el backend devuelve todas las acciones actualizadas, usarlas
+            if (response.all_actions) {
+              return { ...step, actions: response.all_actions }
+            }
+            return { ...step, actions: [...(step.actions || []), response.action] }
           }
           return step
         })
         setExercise({ ...exercise, steps: updatedSteps })
       }
-      addPendingChange({ type: 'create_action', stepId: newAction.step_id, actionId: newAction.id })
+      addPendingChange({ type: 'create_action', stepId: response.action.step_id, actionId: response.action.id })
       queryClient.invalidateQueries({ queryKey: ['study-topic', materialId, sessionId, topicId] })
     }
   })
@@ -380,20 +438,24 @@ const StudyInteractiveExercisePage = () => {
   const updateActionMutation = useMutation({
     mutationFn: ({ stepId, actionId, data }: { stepId: string; actionId: string; data: any }) => 
       updateAction(Number(materialId), Number(sessionId), Number(topicId), stepId, actionId, data),
-    onSuccess: (updatedAction: StudyInteractiveExerciseAction) => {
+    onSuccess: (response: ActionMutationResponse) => {
       if (exercise && exercise.steps) {
         const updatedSteps = exercise.steps.map((step: StudyInteractiveExerciseStep) => {
-          if (step.id === updatedAction.step_id) {
+          if (step.id === response.action.step_id) {
+            // Si el backend devuelve todas las acciones actualizadas, usarlas (para reordenamiento)
+            if (response.all_actions) {
+              return { ...step, actions: response.all_actions }
+            }
             return {
               ...step,
-              actions: (step.actions || []).map((a: StudyInteractiveExerciseAction) => a.id === updatedAction.id ? updatedAction : a)
+              actions: (step.actions || []).map((a: StudyInteractiveExerciseAction) => a.id === response.action.id ? response.action : a)
             }
           }
           return step
         })
         setExercise({ ...exercise, steps: updatedSteps })
       }
-      addPendingChange({ type: 'update_action', actionId: updatedAction.id })
+      addPendingChange({ type: 'update_action', actionId: response.action.id })
       queryClient.invalidateQueries({ queryKey: ['study-topic', materialId, sessionId, topicId] })
     }
   })
@@ -578,6 +640,9 @@ const StudyInteractiveExercisePage = () => {
     const x = ((e.clientX - rect.left) / rect.width) * 100
     const y = ((e.clientY - rect.top) / rect.height) * 100
 
+    // Guardar posición inicial
+    drawingPosRef.current = { currentX: x, currentY: y }
+    
     setDrawingState({
       isDrawing: true,
       startX: x,
@@ -587,36 +652,73 @@ const StudyInteractiveExercisePage = () => {
     })
   }
 
-  // Handler para actualizar área mientras arrastra - mousemove
-  const handleImageMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  // Handler para actualizar área mientras arrastra - mousemove (optimizado con RAF)
+  const handleImageMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!drawingState.isDrawing || !imageContainerRef.current) return
 
     const rect = imageContainerRef.current.getBoundingClientRect()
     const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))
     const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100))
 
-    setDrawingState(prev => ({
-      ...prev,
-      currentX: x,
-      currentY: y
-    }))
-  }
+    // Actualizar ref inmediatamente (sin causar re-render)
+    drawingPosRef.current = { currentX: x, currentY: y }
+    
+    // Usar requestAnimationFrame para actualizar el DOM directamente
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current)
+    }
+    
+    animationFrameRef.current = requestAnimationFrame(() => {
+      if (rubberBandRef.current && drawingState.isDrawing) {
+        const left = Math.min(drawingState.startX, x)
+        const top = Math.min(drawingState.startY, y)
+        const width = Math.abs(x - drawingState.startX)
+        const height = Math.abs(y - drawingState.startY)
+        
+        rubberBandRef.current.style.left = `${left}%`
+        rubberBandRef.current.style.top = `${top}%`
+        rubberBandRef.current.style.width = `${width}%`
+        rubberBandRef.current.style.height = `${height}%`
+        rubberBandRef.current.style.display = 'block'
+        
+        // Actualizar el texto de dimensiones
+        const sizeLabel = rubberBandRef.current.querySelector('.size-label')
+        if (sizeLabel) {
+          sizeLabel.textContent = `${width.toFixed(0)}% × ${height.toFixed(0)}%`
+        }
+      }
+    })
+  }, [drawingState.isDrawing, drawingState.startX, drawingState.startY])
 
   // Handler para finalizar dibujo y crear acción - mouseup
   const handleImageMouseUp = () => {
+    // Cancelar cualquier animación pendiente
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current)
+      animationFrameRef.current = null
+    }
+    
+    // Ocultar el rubber band
+    if (rubberBandRef.current) {
+      rubberBandRef.current.style.display = 'none'
+    }
+    
     if (!drawingState.isDrawing || !currentStep) {
       setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
       return
     }
 
+    // Usar la posición del ref (más actualizada)
+    const { currentX, currentY } = drawingPosRef.current
+
     // Calcular posición y tamaño del área
-    const left = Math.min(drawingState.startX, drawingState.currentX)
-    const top = Math.min(drawingState.startY, drawingState.currentY)
-    const width = Math.abs(drawingState.currentX - drawingState.startX)
-    const height = Math.abs(drawingState.currentY - drawingState.startY)
+    const left = Math.min(drawingState.startX, currentX)
+    const top = Math.min(drawingState.startY, currentY)
+    const width = Math.abs(currentX - drawingState.startX)
+    const height = Math.abs(currentY - drawingState.startY)
 
     // Solo crear si el área tiene un tamaño mínimo (evitar clics accidentales)
-    if (width > 2 && height > 2) {
+    if (width >= EDITOR_CONFIG.MIN_AREA_WIDTH && height >= EDITOR_CONFIG.MIN_AREA_HEIGHT) {
       // Calcular el número de la nueva acción
       const currentActions = currentStep.actions || []
       const nextActionNumber = currentActions.length + 1
@@ -642,13 +744,47 @@ const StudyInteractiveExercisePage = () => {
         return
       }
       
+      // Validar que campos incorrectos no se superpongan con respuestas correctas
+      const isWrongButton = selectedTool === 'button-wrong'
+      if (isWrongButton) {
+        const correctAction = currentActions.find(a => 
+          (a.action_type === 'button' && a.correct_answer === 'correct') ||
+          (a.action_type === 'text_input' && a.correct_answer && a.correct_answer.trim() !== '' && a.correct_answer !== 'wrong')
+        )
+        
+        if (correctAction) {
+          // Verificar superposición de rectángulos
+          const newRight = left + width
+          const newBottom = top + height
+          const correctRight = correctAction.position_x + correctAction.width
+          const correctBottom = correctAction.position_y + correctAction.height
+          
+          const overlaps = !(
+            newRight <= correctAction.position_x ||
+            left >= correctRight ||
+            newBottom <= correctAction.position_y ||
+            top >= correctBottom
+          )
+          
+          if (overlaps) {
+            setWarningModal({
+              isOpen: true,
+              title: 'Superposición no permitida',
+              message: 'El campo incorrecto no puede quedar por encima de la respuesta correcta. Por favor, coloca el área en otra posición.'
+            })
+            setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
+            return
+          }
+        }
+      }
+      
       const newAction = {
         action_type: isButton ? 'button' : 'text_input',
         position_x: left,
         position_y: top,
         width: width,
         height: height,
-        label: isButton ? `Botón ${nextActionNumber}` : '',
+        label: isButton ? `Acción ${nextActionNumber}` : '',
         placeholder: '',
         correct_answer: isButton ? (isCorrectButton ? 'correct' : 'wrong') : '',
         scoring_mode: 'exact'
@@ -661,23 +797,23 @@ const StudyInteractiveExercisePage = () => {
     setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
   }
 
-  // Calcular rectángulo de selección para mostrar mientras dibuja
-  const getDrawingRect = () => {
-    if (!drawingState.isDrawing) return null
-    
-    return {
-      left: Math.min(drawingState.startX, drawingState.currentX),
-      top: Math.min(drawingState.startY, drawingState.currentY),
-      width: Math.abs(drawingState.currentX - drawingState.startX),
-      height: Math.abs(drawingState.currentY - drawingState.startY)
-    }
-  }
-
   // Handlers para drag
   const handleActionMouseDown = (e: React.MouseEvent, action: StudyInteractiveExerciseAction) => {
     e.stopPropagation()
     
-    if (selectedTool !== 'select') return
+    if (selectedTool !== 'select') {
+      // Mostrar tooltip cerca del ratón
+      setToolTooltip({
+        visible: true,
+        x: e.clientX,
+        y: e.clientY
+      })
+      // Ocultar después de 2 segundos
+      setTimeout(() => {
+        setToolTooltip(prev => ({ ...prev, visible: false }))
+      }, 2000)
+      return
+    }
 
     setSelectedAction(action)
     
@@ -700,37 +836,81 @@ const StudyInteractiveExercisePage = () => {
     const rect = imageContainerRef.current.getBoundingClientRect()
 
     if (dragState.isDragging && dragState.actionId) {
-      const deltaX = ((e.clientX - dragState.startX) / rect.width) * 100
-      const deltaY = ((e.clientY - dragState.startY) / rect.height) * 100
-
-      const newX = Math.max(0, Math.min(100 - 10, dragState.offsetX + deltaX))
-      const newY = Math.max(0, Math.min(100 - 5, dragState.offsetY + deltaY))
-
-      // Actualizar visualmente (optimistic update)
-      const actionEl = document.querySelector(`[data-action-id="${dragState.actionId}"]`) as HTMLElement
-      if (actionEl) {
-        actionEl.style.left = `${newX}%`
-        actionEl.style.top = `${newY}%`
+      // Cancelar frame anterior
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
       }
+      
+      animationFrameRef.current = requestAnimationFrame(() => {
+        const deltaX = ((e.clientX - dragState.startX) / rect.width) * 100
+        const deltaY = ((e.clientY - dragState.startY) / rect.height) * 100
+
+        const newX = Math.max(0, Math.min(100 - 10, dragState.offsetX + deltaX))
+        const newY = Math.max(0, Math.min(100 - 5, dragState.offsetY + deltaY))
+
+        // Actualizar visualmente (optimistic update)
+        const actionEl = document.querySelector(`[data-action-id="${dragState.actionId}"]`) as HTMLElement
+        if (actionEl) {
+          actionEl.style.left = `${newX}%`
+          actionEl.style.top = `${newY}%`
+        }
+      })
     }
 
     if (resizeState.isResizing && resizeState.actionId) {
-      const deltaX = ((e.clientX - resizeState.startX) / rect.width) * 100
-      const deltaY = ((e.clientY - resizeState.startY) / rect.height) * 100
-
-      let newWidth = resizeState.startWidth
-      let newHeight = resizeState.startHeight
-
-      if (resizeState.corner === 'se') {
-        newWidth = Math.max(5, resizeState.startWidth + deltaX)
-        newHeight = Math.max(3, resizeState.startHeight + deltaY)
+      // Cancelar frame anterior
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
       }
+      
+      animationFrameRef.current = requestAnimationFrame(() => {
+        const deltaX = ((e.clientX - resizeState.startX) / rect.width) * 100
+        const deltaY = ((e.clientY - resizeState.startY) / rect.height) * 100
 
-      const actionEl = document.querySelector(`[data-action-id="${resizeState.actionId}"]`) as HTMLElement
-      if (actionEl) {
-        actionEl.style.width = `${newWidth}%`
-        actionEl.style.height = `${newHeight}%`
-      }
+        let newWidth = resizeState.startWidth
+        let newHeight = resizeState.startHeight
+        let newX = resizeState.startPositionX
+        let newY = resizeState.startPositionY
+
+        // Lógica para cada esquina
+        if (resizeState.corner === 'se') {
+          // Esquina inferior derecha: aumentar ancho/alto
+          newWidth = Math.max(EDITOR_CONFIG.MIN_RESIZE_WIDTH, resizeState.startWidth + deltaX)
+          newHeight = Math.max(EDITOR_CONFIG.MIN_RESIZE_HEIGHT, resizeState.startHeight + deltaY)
+        } else if (resizeState.corner === 'sw') {
+          // Esquina inferior izquierda: mover X, ajustar ancho
+          const widthChange = -deltaX
+          newWidth = Math.max(EDITOR_CONFIG.MIN_RESIZE_WIDTH, resizeState.startWidth + widthChange)
+          newX = resizeState.startPositionX - (newWidth - resizeState.startWidth)
+          newHeight = Math.max(EDITOR_CONFIG.MIN_RESIZE_HEIGHT, resizeState.startHeight + deltaY)
+          newX = Math.max(0, newX)
+        } else if (resizeState.corner === 'ne') {
+          // Esquina superior derecha: mover Y, ajustar alto
+          newWidth = Math.max(EDITOR_CONFIG.MIN_RESIZE_WIDTH, resizeState.startWidth + deltaX)
+          const heightChange = -deltaY
+          newHeight = Math.max(EDITOR_CONFIG.MIN_RESIZE_HEIGHT, resizeState.startHeight + heightChange)
+          newY = resizeState.startPositionY - (newHeight - resizeState.startHeight)
+          newY = Math.max(0, newY)
+        } else if (resizeState.corner === 'nw') {
+          // Esquina superior izquierda: mover X e Y, ajustar ambos
+          const widthChange = -deltaX
+          const heightChange = -deltaY
+          newWidth = Math.max(EDITOR_CONFIG.MIN_RESIZE_WIDTH, resizeState.startWidth + widthChange)
+          newHeight = Math.max(EDITOR_CONFIG.MIN_RESIZE_HEIGHT, resizeState.startHeight + heightChange)
+          newX = resizeState.startPositionX - (newWidth - resizeState.startWidth)
+          newY = resizeState.startPositionY - (newHeight - resizeState.startHeight)
+          newX = Math.max(0, newX)
+          newY = Math.max(0, newY)
+        }
+
+        const actionEl = document.querySelector(`[data-action-id="${resizeState.actionId}"]`) as HTMLElement
+        if (actionEl) {
+          actionEl.style.width = `${newWidth}%`
+          actionEl.style.height = `${newHeight}%`
+          actionEl.style.left = `${newX}%`
+          actionEl.style.top = `${newY}%`
+        }
+      })
     }
   }, [dragState, resizeState])
 
@@ -754,17 +934,19 @@ const StudyInteractiveExercisePage = () => {
       if (actionEl) {
         const width = parseFloat(actionEl.style.width)
         const height = parseFloat(actionEl.style.height)
+        const left = parseFloat(actionEl.style.left)
+        const top = parseFloat(actionEl.style.top)
         
         updateActionMutation.mutate({
           stepId: currentStep.id,
           actionId: resizeState.actionId,
-          data: { width, height }
+          data: { width, height, position_x: left, position_y: top }
         })
       }
     }
 
     setDragState({ isDragging: false, actionId: null, startX: 0, startY: 0, offsetX: 0, offsetY: 0 })
-    setResizeState({ isResizing: false, actionId: null, corner: null, startX: 0, startY: 0, startWidth: 0, startHeight: 0 })
+    setResizeState({ isResizing: false, actionId: null, corner: null, startX: 0, startY: 0, startWidth: 0, startHeight: 0, startPositionX: 0, startPositionY: 0 })
   }, [dragState, resizeState, currentStep, updateActionMutation])
 
   useEffect(() => {
@@ -779,7 +961,7 @@ const StudyInteractiveExercisePage = () => {
   }, [dragState.isDragging, resizeState.isResizing, handleMouseMove, handleMouseUp])
 
   // Handler para resize
-  const handleResizeMouseDown = (e: React.MouseEvent, action: StudyInteractiveExerciseAction, corner: 'se') => {
+  const handleResizeMouseDown = (e: React.MouseEvent, action: StudyInteractiveExerciseAction, corner: 'se' | 'sw' | 'ne' | 'nw') => {
     e.stopPropagation()
     
     setResizeState({
@@ -789,7 +971,9 @@ const StudyInteractiveExercisePage = () => {
       startX: e.clientX,
       startY: e.clientY,
       startWidth: action.width,
-      startHeight: action.height
+      startHeight: action.height,
+      startPositionX: action.position_x,
+      startPositionY: action.position_y
     })
   }
 
@@ -818,7 +1002,11 @@ const StudyInteractiveExercisePage = () => {
     // Preparar los datos, eliminando el placeholder si showPlaceholder es false
     const dataToSend = {
       ...actionFormData,
-      placeholder: actionFormData.showPlaceholder ? actionFormData.placeholder : ''
+      placeholder: actionFormData.showPlaceholder ? actionFormData.placeholder : '',
+      // Para botones, preservar el correct_answer original (no editable desde el formulario)
+      correct_answer: selectedAction.action_type === 'button' 
+        ? selectedAction.correct_answer 
+        : actionFormData.correct_answer
     }
     
     // Eliminar showPlaceholder ya que no es un campo del backend
@@ -832,29 +1020,32 @@ const StudyInteractiveExercisePage = () => {
     setIsEditActionModalOpen(false)
   }
 
-  // Mostrar modal de confirmación para eliminar acción
-  const handleDeleteAction = () => {
-    if (!selectedAction || !currentStep) return
-    
-    // Determinar si es la respuesta correcta
-    const isCorrect = selectedAction.action_type === 'button' 
-      ? selectedAction.correct_answer === 'correct'
-      : (selectedAction.correct_answer && selectedAction.correct_answer.trim() !== '')
-    
-    setDeleteActionModal({
-      isOpen: true,
-      actionId: selectedAction.id,
-      actionType: selectedAction.action_type,
-      isCorrect: !!isCorrect
-    })
-  }
-
   // Confirmar eliminación de acción
   const confirmDeleteAction = () => {
     if (!deleteActionModal.actionId || !currentStep) return
     deleteActionMutation.mutate({ stepId: currentStep.id, actionId: deleteActionModal.actionId })
     setDeleteActionModal({ isOpen: false, actionId: null, actionType: null, isCorrect: false })
   }
+
+  // Función para validar que todos los pasos tienen respuesta correcta
+  const validateStepsHaveCorrectAnswer = (): { isValid: boolean; invalidSteps: number[] } => {
+    const invalidSteps: number[] = []
+    
+    steps.forEach((step: StudyInteractiveExerciseStep) => {
+      const hasCorrectAnswer = (step.actions || []).some((action: StudyInteractiveExerciseAction) => 
+        (action.action_type === 'button' && action.correct_answer === 'correct') ||
+        (action.action_type === 'text_input' && action.correct_answer && action.correct_answer.trim() !== '')
+      )
+      if (!hasCorrectAnswer) {
+        invalidSteps.push(step.step_number)
+      }
+    })
+    
+    return { isValid: invalidSteps.length === 0, invalidSteps }
+  }
+
+  // Verificar si se puede guardar (todos los pasos tienen respuesta correcta)
+  const { isValid: canSave, invalidSteps } = validateStepsHaveCorrectAnswer()
 
   if (isLoading) {
     return (
@@ -922,6 +1113,24 @@ const StudyInteractiveExercisePage = () => {
           </span>
           <button
             onClick={async () => {
+              // Validar que haya al menos un paso
+              if (steps.length === 0) {
+                setWarningModal({
+                  isOpen: true,
+                  title: 'No se puede guardar',
+                  message: 'Debes crear al menos un paso antes de guardar el ejercicio.'
+                })
+                return
+              }
+              // Validar que todos los pasos tengan respuesta correcta
+              if (!canSave) {
+                setWarningModal({
+                  isOpen: true,
+                  title: 'Falta la respuesta correcta',
+                  message: `Los siguientes pasos no tienen respuesta correcta configurada: Paso(s) ${invalidSteps.join(', ')}.\n\nCada paso debe tener al menos un botón correcto (azul) o un campo de texto con respuesta configurada.`
+                })
+                return
+              }
               setIsSaving(true)
               try {
                 await saveExerciseMutation.mutateAsync({ is_active: true })
@@ -931,13 +1140,12 @@ const StudyInteractiveExercisePage = () => {
                 setIsSaving(false)
               }
             }}
-            disabled={steps.length === 0 || isSaving}
+            disabled={isSaving}
             className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-              steps.length === 0 || isSaving
+              isSaving
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
                 : 'bg-primary-600 text-white hover:bg-primary-700'
             }`}
-            title={steps.length === 0 ? 'Debes crear al menos un paso antes de guardar' : ''}
           >
             {isSaving ? (
               <>
@@ -967,9 +1175,14 @@ const StudyInteractiveExercisePage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
             </svg>
           </button>
+          
+          {/* Separador visual */}
+          <div className="h-6 w-px bg-gray-300 mx-1"></div>
+          
+          {/* Grupo de acciones correctas (verdes) */}
           <button
             onClick={() => setSelectedTool('button')}
-            className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'button' ? 'bg-blue-600 text-white' : 'bg-white border hover:bg-gray-100'}`}
+            className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'button' ? 'bg-teal-600 text-white' : 'bg-white border hover:bg-teal-50 hover:border-teal-300'}`}
             title="Agregar Botón Correcto"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -977,17 +1190,8 @@ const StudyInteractiveExercisePage = () => {
             </svg>
           </button>
           <button
-            onClick={() => setSelectedTool('button-wrong')}
-            className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'button-wrong' ? 'bg-orange-600 text-white' : 'bg-white border hover:bg-gray-100'}`}
-            title="Agregar Botón Incorrecto/Erróneo"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </button>
-          <button
             onClick={() => setSelectedTool('text_input')}
-            className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'text_input' ? 'bg-green-600 text-white' : 'bg-white border hover:bg-gray-100'}`}
+            className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'text_input' ? 'bg-lime-600 text-white' : 'bg-white border hover:bg-lime-50 hover:border-lime-300'}`}
             title="Agregar Campo de Texto"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -996,47 +1200,76 @@ const StudyInteractiveExercisePage = () => {
           </button>
         </div>
 
+        {/* Separador visual */}
         <div className="h-6 w-px bg-gray-300"></div>
 
-        {selectedAction && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleEditAction(selectedAction)}
-              className="px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium flex items-center gap-1.5"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              Configurar Acción
-            </button>
-            <button
-              onClick={handleDeleteAction}
-              className="px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium flex items-center gap-1.5"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Eliminar Acción
-            </button>
-          </div>
-        )}
+        {/* Campo incorrecto (naranja) */}
+        <button
+          onClick={() => setSelectedTool('button-wrong')}
+          className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'button-wrong' ? 'bg-orange-600 text-white' : 'bg-white border hover:bg-orange-50 hover:border-orange-300'}`}
+          title="Agregar Campo Incorrecto"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+
+        <div className="h-6 w-px bg-gray-300"></div>
+
+        {/* Controles de zoom en la toolbar */}
+        <div className="flex items-center gap-1">
+          <span className="text-sm font-medium text-gray-700">Zoom:</span>
+          <button
+            onClick={() => {
+              const idx = EDITOR_CONFIG.ZOOM_LEVELS.indexOf(zoom)
+              if (idx > 0) setZoom(EDITOR_CONFIG.ZOOM_LEVELS[idx - 1])
+            }}
+            disabled={zoom === EDITOR_CONFIG.ZOOM_LEVELS[0]}
+            className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Alejar"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+            </svg>
+          </button>
+          <span className="text-sm font-medium text-gray-700 min-w-[45px] text-center">{Math.round(zoom * 100)}%</span>
+          <button
+            onClick={() => {
+              const idx = EDITOR_CONFIG.ZOOM_LEVELS.indexOf(zoom)
+              if (idx < EDITOR_CONFIG.ZOOM_LEVELS.length - 1) setZoom(EDITOR_CONFIG.ZOOM_LEVELS[idx + 1])
+            }}
+            disabled={zoom === EDITOR_CONFIG.ZOOM_LEVELS[EDITOR_CONFIG.ZOOM_LEVELS.length - 1]}
+            className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Acercar"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+            </svg>
+          </button>
+          <button
+            onClick={() => setZoom(1)}
+            className="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded text-gray-600 ml-1"
+            title="Restablecer zoom"
+          >
+            Reset
+          </button>
+        </div>
 
         <div className="flex-1"></div>
 
         <div className="flex items-center gap-2 text-sm">
           {selectedTool === 'button' && (
-            <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg">
+            <span className="px-3 py-1.5 bg-teal-50 text-teal-700 rounded-lg">
               ✅ Dibuja un área en la imagen para agregar un botón correcto
             </span>
           )}
           {selectedTool === 'button-wrong' && (
             <span className="px-3 py-1.5 bg-orange-50 text-orange-700 rounded-lg">
-              ❌ Dibuja un área en la imagen para agregar un botón incorrecto
+              ❌ Dibuja un área en la imagen para agregar un campo incorrecto
             </span>
           )}
           {selectedTool === 'text_input' && (
-            <span className="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg">
+            <span className="px-3 py-1.5 bg-lime-50 text-lime-700 rounded-lg">
               ✏️ Dibuja un área en la imagen para agregar un campo de texto
             </span>
           )}
@@ -1231,77 +1464,87 @@ const StudyInteractiveExercisePage = () => {
             <div className="w-full">
               {currentStep.image_url ? (
                 <>
-                  <div
-                    ref={imageContainerRef}
-                    className="relative bg-white shadow-2xl rounded-lg select-none mx-auto"
-                    onMouseDown={handleImageMouseDown}
-                    onMouseMove={handleImageMouseMove}
-                    onMouseUp={handleImageMouseUp}
-                    onMouseLeave={handleImageMouseUp}
-                    style={{ cursor: selectedTool !== 'select' ? 'crosshair' : 'default', maxWidth: '1400px' }}
-                  >
-                    <img
-                      src={currentStep.image_url}
-                      alt={`Paso ${currentStep.step_number}`}
-                      className="w-full h-auto pointer-events-none rounded-lg"
-                      draggable={false}
-                    />
+                  {/* Contenedor con scroll para zoom */}
+                  <div className="overflow-auto mx-auto" style={{ maxHeight: 'calc(100vh - 240px)' }}>
+                    <div
+                      ref={imageContainerRef}
+                      className="relative bg-white shadow-2xl rounded-lg select-none mx-auto origin-top-left"
+                      onMouseDown={handleImageMouseDown}
+                      onMouseMove={handleImageMouseMove}
+                      onMouseUp={handleImageMouseUp}
+                      onMouseLeave={handleImageMouseUp}
+                      style={{ 
+                        cursor: selectedTool !== 'select' ? 'crosshair' : 'default', 
+                        maxWidth: `${1400 * zoom}px`,
+                        transform: `scale(${zoom})`,
+                        transformOrigin: 'top center'
+                      }}
+                    >
+                      <img
+                        src={currentStep.image_url}
+                        alt={`Paso ${currentStep.step_number}`}
+                        className="w-full h-auto pointer-events-none rounded-lg"
+                        draggable={false}
+                      />
 
-                    {/* Rubber band selection mientras dibuja */}
-                    {drawingState.isDrawing && (() => {
-                      const rect = getDrawingRect()
-                      if (!rect) return null
-                      return (
-                        <div
-                          className={`absolute border-2 border-dashed rounded pointer-events-none z-20 ${
-                            selectedTool === 'button'
-                              ? 'border-blue-500 bg-blue-200 bg-opacity-30'
+                      {/* Rubber band optimizado con ref (manipulación directa del DOM) */}
+                      <div
+                        ref={rubberBandRef}
+                        className={`absolute border-2 border-dashed rounded pointer-events-none z-20 ${
+                          selectedTool === 'button'
+                            ? 'border-teal-500 bg-teal-200/30'
+                            : selectedTool === 'button-wrong'
+                            ? 'border-orange-500 bg-orange-200/30'
+                            : 'border-lime-500 bg-lime-200/30'
+                        }`}
+                        style={{ display: 'none' }}
+                      >
+                        <div className="absolute inset-0 flex items-center justify-center text-xs font-medium">
+                          <span className={`size-label ${
+                            selectedTool === 'button' 
+                              ? 'text-teal-700' 
                               : selectedTool === 'button-wrong'
-                              ? 'border-orange-500 bg-orange-200 bg-opacity-30'
-                              : 'border-green-500 bg-green-200 bg-opacity-30'
-                          }`}
-                          style={{
-                            left: `${rect.left}%`,
-                            top: `${rect.top}%`,
-                            width: `${rect.width}%`,
-                            height: `${rect.height}%`,
-                          }}
-                        >
-                          <div className="absolute inset-0 flex items-center justify-center text-xs font-medium">
-                            <span className={
-                              selectedTool === 'button' 
-                                ? 'text-blue-700' 
-                                : selectedTool === 'button-wrong' 
-                                ? 'text-orange-700' 
-                                : 'text-green-700'
-                            }>
-                              {rect.width.toFixed(0)}% × {rect.height.toFixed(0)}%
-                            </span>
-                          </div>
+                              ? 'text-orange-700' 
+                              : 'text-lime-700'
+                          }`}>
+                            0% × 0%
+                          </span>
                         </div>
-                      )
-                    })()}
+                      </div>
                     
                     {/* Actions overlay */}
-                    {currentStep.actions?.map((action: StudyInteractiveExerciseAction) => {
+                    {currentStep.actions?.map((action: StudyInteractiveExerciseAction, index: number) => {
                       const isTextboxWithoutAnswer = action.action_type === 'text_input' && (!action.correct_answer || action.correct_answer.trim() === '')
+                      const isTextbox = action.action_type === 'text_input'
                       const isWrongButton = action.action_type === 'button' && action.correct_answer === 'wrong'
                       const isCorrectButton = action.action_type === 'button' && action.correct_answer === 'correct'
+                      const isCorrectAction = isCorrectButton || isTextbox
+                      
+                      // Calcular el número de acción solo para las incorrectas
+                      const incorrectIndex = currentStep.actions
+                        ?.slice(0, index)
+                        .filter((a: StudyInteractiveExerciseAction) => {
+                          const aIsCorrectButton = a.action_type === 'button' && a.correct_answer === 'correct'
+                          const aIsTextbox = a.action_type === 'text_input'
+                          return !(aIsCorrectButton || aIsTextbox)
+                        })
+                        .length ?? 0
+                      const displayNumber = isCorrectAction ? null : incorrectIndex + 1
                       
                       return (
                       <div
                         key={action.id}
                         data-action-id={action.id}
-                        className={`absolute border-2 rounded cursor-move transition-all z-10 ${
+                        className={`absolute border-2 rounded cursor-move z-10 ${
                           selectedAction?.id === action.id
-                            ? 'border-primary-500 bg-primary-200 bg-opacity-50 shadow-lg'
+                            ? 'border-primary-500 bg-primary-200/50 shadow-lg ring-2 ring-primary-300'
                             : isCorrectButton
-                            ? 'border-blue-500 bg-blue-200 bg-opacity-40 hover:bg-opacity-60'
+                            ? 'border-teal-500 bg-teal-200/40 hover:bg-teal-200/60'
                             : isWrongButton
-                            ? 'border-orange-500 bg-orange-200 bg-opacity-40 hover:bg-opacity-60'
+                            ? 'border-orange-500 bg-orange-200/40 hover:bg-orange-200/60'
                             : isTextboxWithoutAnswer
-                            ? 'border-red-500 bg-red-200 bg-opacity-40 hover:bg-opacity-60'
-                            : 'border-green-500 bg-green-200 bg-opacity-40 hover:bg-opacity-60'
+                            ? 'border-red-500 bg-red-200/40 hover:bg-red-200/60'
+                            : 'border-lime-500 bg-lime-200/40 hover:bg-lime-200/60'
                         }`}
                         style={{
                           left: `${action.position_x}%`,
@@ -1315,41 +1558,66 @@ const StudyInteractiveExercisePage = () => {
                       >
                         <div className="absolute inset-0 flex items-center justify-center text-xs font-medium truncate px-1">
                           {action.action_type === 'button' ? (
-                            <span className={isWrongButton ? 'text-orange-800' : 'text-blue-800'}>
-                              {action.placeholder ? action.placeholder : `(${action.label || 'Botón'})`}
+                            <span className={isWrongButton ? 'text-orange-800' : 'text-teal-800'}>
+                              {action.placeholder ? action.placeholder : `(${action.label || 'Acción'})`}
                             </span>
                           ) : isTextboxWithoutAnswer ? (
                             <span className="text-red-800 italic font-semibold">Sin respuesta</span>
                           ) : (
-                            <span className="text-green-800 italic">
+                            <span className="text-lime-800 italic">
                               {action.placeholder || '(Campo de texto)'}
                             </span>
                           )}
                         </div>
                         
-                        {/* Resize handle */}
+                        {/* Resize handles en las 4 esquinas */}
                         {selectedAction?.id === action.id && (
-                          <div
-                            className="absolute bottom-0 right-0 w-4 h-4 bg-primary-500 cursor-se-resize rounded-tl"
-                            onMouseDown={(e) => handleResizeMouseDown(e, action, 'se')}
-                          />
+                          <>
+                            {/* Esquina superior izquierda */}
+                            <div
+                              className="absolute -top-1 -left-1 w-3 h-3 bg-primary-500 cursor-nw-resize rounded-br border border-white shadow"
+                              onMouseDown={(e) => handleResizeMouseDown(e, action, 'nw')}
+                            />
+                            {/* Esquina superior derecha */}
+                            <div
+                              className="absolute -top-1 -right-1 w-3 h-3 bg-primary-500 cursor-ne-resize rounded-bl border border-white shadow"
+                              onMouseDown={(e) => handleResizeMouseDown(e, action, 'ne')}
+                            />
+                            {/* Esquina inferior izquierda */}
+                            <div
+                              className="absolute -bottom-1 -left-1 w-3 h-3 bg-primary-500 cursor-sw-resize rounded-tr border border-white shadow"
+                              onMouseDown={(e) => handleResizeMouseDown(e, action, 'sw')}
+                            />
+                            {/* Esquina inferior derecha */}
+                            <div
+                              className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary-500 cursor-se-resize rounded-tl border border-white shadow"
+                              onMouseDown={(e) => handleResizeMouseDown(e, action, 'se')}
+                            />
+                          </>
                         )}
                         
                         {/* Action number badge */}
                         <div className={`absolute -top-3 -left-3 w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold shadow ${
                           isCorrectButton 
-                            ? 'bg-blue-600' 
+                            ? 'bg-teal-600' 
+                            : isTextboxWithoutAnswer
+                            ? 'bg-red-600'
+                            : isTextbox
+                            ? 'bg-lime-600'
                             : isWrongButton 
                             ? 'bg-orange-600' 
-                            : isTextboxWithoutAnswer 
-                            ? 'bg-red-600' 
-                            : 'bg-green-600'
+                            : 'bg-lime-600'
                         }`}>
-                          {action.action_number}
+                          {isCorrectAction ? (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : displayNumber}
                           </div>
                         </div>
                       )})}
                     </div>
+                  </div> {/* Cierre del contenedor con scroll para zoom */}
                     
                     {/* Botón para cambiar imagen */}
                     <div className="mt-4 text-center">
@@ -1437,119 +1705,225 @@ const StudyInteractiveExercisePage = () => {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {currentStep.actions.map((action: StudyInteractiveExerciseAction) => {
+                    {currentStep.actions.map((action: StudyInteractiveExerciseAction, index: number) => {
                       const isTextboxWithoutAnswer = action.action_type === 'text_input' && (!action.correct_answer || action.correct_answer.trim() === '')
+                      const isTextbox = action.action_type === 'text_input'
                       const isWrongButton = action.action_type === 'button' && action.correct_answer === 'wrong'
                       const isCorrectButton = action.action_type === 'button' && action.correct_answer === 'correct'
+                      const isCorrectAction = isCorrectButton || isTextbox
+                      // Calculate display number counting only non-correct actions (wrong buttons)
+                      const incorrectIndex = currentStep.actions
+                        ?.slice(0, index)
+                        .filter((a: StudyInteractiveExerciseAction) => {
+                          const aIsCorrectButton = a.action_type === 'button' && a.correct_answer === 'correct'
+                          const aIsTextbox = a.action_type === 'text_input'
+                          return !(aIsCorrectButton || aIsTextbox)
+                        })
+                        .length ?? 0
+                      const displayNumber = isCorrectAction ? null : incorrectIndex + 1
                       return (
                         <div
                           key={action.id}
                           onClick={() => setSelectedAction(action)}
-                          className={`p-3 rounded-lg cursor-pointer transition-all border ${
+                          className={`relative p-3 rounded-lg cursor-pointer transition-all border overflow-hidden ${
                             selectedAction?.id === action.id
-                              ? 'border-primary-500 bg-primary-50 shadow'
+                              ? 'border-primary-500 bg-primary-50 shadow ring-2 ring-primary-200'
                               : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                           }`}
                         >
-                          <div className="flex items-center gap-2 mb-2">
+                          {/* Botón eliminar en esquina superior derecha */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const actionIsCorrect = action.action_type === 'button' 
+                                ? action.correct_answer === 'correct'
+                                : (action.correct_answer && action.correct_answer.trim() !== '')
+                              
+                              setDeleteActionModal({
+                                isOpen: true,
+                                actionId: action.id,
+                                actionType: action.action_type,
+                                isCorrect: !!actionIsCorrect
+                              })
+                            }}
+                            className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Eliminar acción"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+
+                          <div className="flex items-center gap-2 mb-2 pr-6">
                             <span className={`w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold ${
                               isCorrectButton 
-                                ? 'bg-blue-600' 
-                                : isWrongButton 
-                                  ? 'bg-orange-600' 
-                                  : isTextboxWithoutAnswer 
-                                    ? 'bg-red-600' 
-                                    : 'bg-green-600'
+                                ? 'bg-teal-600' 
+                                : isTextboxWithoutAnswer
+                                  ? 'bg-red-600'
+                                  : isTextbox
+                                    ? 'bg-lime-600'
+                                    : isWrongButton 
+                                      ? 'bg-orange-600' 
+                                      : 'bg-lime-600'
                             }`}>
-                              {action.action_number}
+                              {isCorrectAction ? (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : displayNumber}
                             </span>
-                            <span className={`px-2 py-0.5 rounded text-xs font-medium flex-1 ${
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                               isCorrectButton
-                                ? 'bg-blue-100 text-blue-700'
+                                ? 'bg-teal-100 text-teal-700'
                                 : isWrongButton
                                   ? 'bg-orange-100 text-orange-700'
                                   : isTextboxWithoutAnswer
                                     ? 'bg-red-100 text-red-700'
-                                    : 'bg-green-100 text-green-700'
+                                    : 'bg-lime-100 text-lime-700'
                             }`}>
                               {action.action_type === 'button' 
-                                ? (isCorrectButton ? 'Botón Correcto' : 'Botón Incorrecto') 
+                                ? (isCorrectButton ? 'Botón Correcto' : 'Campo Incorrecto') 
                                 : 'Campo de Texto'}
                             </span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                // Determinar si es la respuesta correcta
-                                const actionIsCorrect = action.action_type === 'button' 
-                                  ? action.correct_answer === 'correct'
-                                  : (action.correct_answer && action.correct_answer.trim() !== '')
-                                
-                                setDeleteActionModal({
-                                  isOpen: true,
-                                  actionId: action.id,
-                                  actionType: action.action_type,
-                                  isCorrect: !!actionIsCorrect
-                                })
-                              }}
-                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                              title="Eliminar acción"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
                           </div>
                           <div className="text-sm">
                             {action.action_type === 'button' ? (
                               <div>
-                                <p className="text-gray-700">{action.label || 'Sin etiqueta'}</p>
-                                {isWrongButton && (
-                                  <p className="text-xs text-orange-600 mt-1">⚠️ Respuesta incorrecta</p>
-                                )}
                                 {isCorrectButton && (
-                                  <p className="text-xs text-blue-600 mt-1">✓ Respuesta correcta</p>
+                                  <div className="space-y-1.5 mt-1">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                                      </svg>
+                                      <span className="text-xs text-gray-600 truncate min-w-0">
+                                        Texto: <span className={`font-medium ${action.placeholder ? 'text-gray-700 italic' : 'text-gray-400'}`}>
+                                          {action.placeholder || 'Sin texto indicativo'}
+                                        </span>
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-teal-600">✓ Respuesta correcta</p>
+                                  </div>
+                                )}
+                                {isWrongButton && (
+                                  <div className="space-y-1.5 mt-1">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                                      </svg>
+                                      <span className="text-xs text-gray-600 truncate min-w-0">
+                                        Texto: <span className={`font-medium ${action.placeholder ? 'text-gray-700 italic' : 'text-gray-400'}`}>
+                                          {action.placeholder || 'Sin texto indicativo'}
+                                        </span>
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <svg className="w-3.5 h-3.5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                                      </svg>
+                                      <span className="text-xs text-gray-600">
+                                        Cursor: <span className="font-medium text-purple-700">
+                                          {action.scoring_mode === 'text_cursor' ? 'Texto (I)' : 'Puntero'}
+                                        </span>
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <svg className="w-3.5 h-3.5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      </svg>
+                                      <span className="text-xs text-gray-600">
+                                        Al seleccionar: <span className="font-medium text-orange-700">
+                                          {action.on_error_action === 'show_message' ? 'Permitir reintentar' : 
+                                           action.on_error_action === 'next_step' ? 'Siguiente paso' : 
+                                           action.on_error_action === 'next_exercise' ? 'Siguiente ejercicio' : 'Reintentar'}
+                                        </span>
+                                      </span>
+                                    </div>
+                                  </div>
                                 )}
                               </div>
                             ) : (
-                              <>
-                                <p className="text-gray-500 italic text-xs">{action.placeholder || 'Sin placeholder'}</p>
-                                <p className={`mt-1 ${isTextboxWithoutAnswer ? 'text-red-700 font-semibold' : 'text-gray-700'}`}>
-                                  Respuesta: <span className={`font-medium ${isTextboxWithoutAnswer ? 'text-red-700' : 'text-green-700'}`}>
-                                    {action.correct_answer || 'Sin definir'}
+                              <div className="space-y-1.5 mt-1">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <svg className="w-3.5 h-3.5 text-lime-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <span className="text-xs text-gray-600 truncate min-w-0">
+                                    Respuesta: <span className={`font-medium ${isTextboxWithoutAnswer ? 'text-red-600' : 'text-lime-700'}`}>
+                                      {action.correct_answer || 'Sin definir'}
+                                    </span>
                                   </span>
-                                </p>
-                              </>
+                                </div>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                                  </svg>
+                                  <span className="text-xs text-gray-600 truncate min-w-0">
+                                    Texto: <span className={`font-medium ${action.placeholder ? 'text-gray-700 italic' : 'text-gray-400'}`}>
+                                      {action.placeholder || 'Sin texto indicativo'}
+                                    </span>
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                  </svg>
+                                  <span className="text-xs text-gray-600">
+                                    Evaluación: <span className="font-medium text-blue-700">
+                                      {action.scoring_mode === 'exact' ? 'Exacta' : 
+                                       action.scoring_mode === 'similarity' ? 'Por similitud' : 
+                                       action.scoring_mode === 'contains' ? 'Contiene' : 'Exacta'}
+                                    </span>
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <svg className="w-3.5 h-3.5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                                  </svg>
+                                  <span className="text-xs text-gray-600 flex items-center">
+                                    Letra: <span className="font-medium text-purple-700 ml-0.5">{action.font_family || 'Arial'}</span>
+                                    <span className="mx-1">·</span>
+                                    Color: <span 
+                                      className="inline-block w-2.5 h-2.5 rounded border border-gray-300 ml-0.5" 
+                                      style={{ backgroundColor: action.text_color || '#000000' }}
+                                    ></span>
+                                  </span>
+                                </div>
+                                {action.scoring_mode === 'exact' && (
+                                  <div className="flex items-center gap-1.5">
+                                    <svg className="w-3.5 h-3.5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span className="text-xs text-gray-600">
+                                      Si incorrecto: <span className="font-medium text-orange-700">
+                                        {action.on_error_action === 'show_message' ? 'Permitir reintentar' : 
+                                         action.on_error_action === 'next_step' ? 'Siguiente paso' : 
+                                         action.on_error_action === 'next_exercise' ? 'Siguiente ejercicio' : 'Reintentar'}
+                                      </span>
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleEditAction(action)
-                            }}
-                            className="mt-2 text-xs text-primary-600 hover:text-primary-700 font-medium"
-                          >
-                            Editar configuración →
-                          </button>
+                          <div className="mt-3 pt-2 border-t border-gray-100">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleEditAction(action)
+                              }}
+                              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              Editar acción
+                            </button>
+                          </div>
                         </div>
                       )
                     })}
                   </div>
                 )}
-              </div>
-
-              {/* Leyenda */}
-              <div className="p-4 border-t bg-gray-50">
-                <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Tipos de acción</h4>
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded bg-blue-500"></span>
-                    <span className="text-gray-600">Botón: El alumno debe hacer clic</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded bg-green-500"></span>
-                    <span className="text-gray-600">Texto: El alumno debe escribir</span>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -1629,9 +2003,20 @@ const StudyInteractiveExercisePage = () => {
       {isEditActionModalOpen && selectedAction && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] overflow-y-auto">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl my-8 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-4">
-              Editar {selectedAction.action_type === 'button' ? 'Botón' : 'Campo de Texto'}
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">
+                Editar {selectedAction.action_type === 'button' ? 'Botón' : 'Campo de Texto'}
+              </h3>
+              <button
+                onClick={() => setIsEditActionModalOpen(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Cerrar"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             
             <div className="space-y-4">
               {/* Campos específicos según el tipo */}
@@ -1685,66 +2070,71 @@ const StudyInteractiveExercisePage = () => {
                     )}
                   </div>
                   
-                  {/* Sección 2: Tipo de Respuesta */}
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      Tipo de Respuesta
-                    </h4>
-                    
-                    <div className="space-y-2">
-                      <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-blue-50 ${actionFormData.correct_answer === 'correct' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'}`}>
-                        <input
-                          type="radio"
-                          name="button-type"
-                          value="correct"
-                          checked={actionFormData.correct_answer === 'correct'}
-                          onChange={(e) => setActionFormData({ ...actionFormData, correct_answer: e.target.value })}
-                          className="w-4 h-4 text-blue-600"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span className="font-medium text-gray-900">Botón Correcto</span>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1 ml-7">Este botón representa una acción correcta</p>
-                        </div>
-                      </label>
+                  {/* Sección 2: Tipo de cursor (solo para acciones incorrectas) */}
+                  {actionFormData.correct_answer === 'wrong' && (
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-purple-900 mb-3 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                        </svg>
+                        Tipo de Cursor
+                      </h4>
+                      <p className="text-xs text-gray-600 mb-3">
+                        Elige cómo se verá el cursor cuando el alumno pase sobre esta área
+                      </p>
                       
-                      <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-orange-50 ${actionFormData.correct_answer === 'wrong' ? 'border-orange-500 bg-orange-50' : 'border-gray-200 bg-white'}`}>
-                        <input
-                          type="radio"
-                          name="button-type"
-                          value="wrong"
-                          checked={actionFormData.correct_answer === 'wrong'}
-                          onChange={(e) => setActionFormData({ ...actionFormData, correct_answer: e.target.value })}
-                          className="w-4 h-4 text-orange-600"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span className="font-medium text-gray-900">Botón Incorrecto</span>
+                      <div className="space-y-2">
+                        <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-purple-100 ${actionFormData.scoring_mode !== 'text_cursor' ? 'border-purple-500 bg-purple-100' : 'border-gray-200 bg-white'}`}>
+                          <input
+                            type="radio"
+                            name="cursor-type"
+                            value="exact"
+                            checked={actionFormData.scoring_mode !== 'text_cursor'}
+                            onChange={() => setActionFormData({ ...actionFormData, scoring_mode: 'exact' })}
+                            className="w-4 h-4 text-purple-600"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                              </svg>
+                              <span className="font-medium text-gray-900">Botón Incorrecto</span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1 ml-7">Cursor de puntero (mano) - parece un botón clickeable</p>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1 ml-7">Este botón representa una acción incorrecta o errónea</p>
-                        </div>
-                      </label>
+                        </label>
+                        
+                        <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-purple-100 ${actionFormData.scoring_mode === 'text_cursor' ? 'border-purple-500 bg-purple-100' : 'border-gray-200 bg-white'}`}>
+                          <input
+                            type="radio"
+                            name="cursor-type"
+                            value="text_cursor"
+                            checked={actionFormData.scoring_mode === 'text_cursor'}
+                            onChange={() => setActionFormData({ ...actionFormData, scoring_mode: 'text_cursor' })}
+                            className="w-4 h-4 text-purple-600"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              <span className="font-medium text-gray-900">Campo Incorrecto</span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1 ml-7">Cursor de texto (I) - parece un campo para escribir</p>
+                          </div>
+                        </label>
+                      </div>
                     </div>
-                  </div>
+                  )}
                   
-                  {/* Sección 3: Configuración de acción en error (solo para botones incorrectos) */}
+                  {/* Sección 3: Configuración de acción en error (solo para acciones incorrectas) */}
                   {actionFormData.correct_answer === 'wrong' && (
                     <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                       <h4 className="text-sm font-semibold text-orange-900 mb-3 flex items-center gap-2">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
-                        Acción cuando se seleccione este botón incorrecto
+                        Acción cuando se seleccione esta área incorrecta
                       </h4>
                       
                       <div className="space-y-3">
@@ -2282,6 +2672,64 @@ const StudyInteractiveExercisePage = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Modal de éxito */}
+      {successModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200">
+            <div className="flex flex-col items-center text-center">
+              {/* Icono de éxito */}
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              
+              {/* Título */}
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {successModal.title}
+              </h3>
+              
+              {/* Mensaje */}
+              <p className="text-gray-600 mb-6">
+                {successModal.message}
+              </p>
+              
+              {/* Botón */}
+              <button
+                onClick={() => setSuccessModal({ isOpen: false, title: '', message: '' })}
+                className="px-6 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tooltip para indicar que debe seleccionar la herramienta correcta */}
+      {toolTooltip.visible && (
+        <div
+          className="fixed z-[100] px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg pointer-events-none animate-in fade-in zoom-in duration-150"
+          style={{
+            left: toolTooltip.x + 15,
+            top: toolTooltip.y - 10,
+            transform: 'translateY(-100%)'
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Usa la herramienta <strong>"Seleccionar"</strong> para mover</span>
+          </div>
+          {/* Flechita del tooltip */}
+          <div 
+            className="absolute w-2 h-2 bg-gray-900 rotate-45"
+            style={{ bottom: -4, left: 20 }}
+          />
         </div>
       )}
     </div>

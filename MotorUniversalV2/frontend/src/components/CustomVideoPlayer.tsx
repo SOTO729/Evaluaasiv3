@@ -9,9 +9,10 @@ interface CustomVideoPlayerProps {
   src: string;
   className?: string;
   onEnded?: () => void;
+  objectFit?: 'contain' | 'cover' | 'fill';
 }
 
-const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = '', onEnded }) => {
+const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = '', onEnded, objectFit = 'contain' }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -152,7 +153,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
         ref={videoRef}
         src={src}
         className="w-full h-full cursor-pointer"
-        style={{ maxHeight: isFullscreen ? '100vh' : '70vh' }}
+        style={{ maxHeight: isFullscreen ? '100vh' : '70vh', objectFit }}
         onClick={togglePlay}
         preload="metadata"
       />

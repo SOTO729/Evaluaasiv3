@@ -280,51 +280,52 @@ const TopicDetailPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <button
-          onClick={() => navigate(`/exams/${examId}/categories/${categoryId}`)}
-          className="text-primary-600 hover:text-primary-700 mb-4 flex items-center"
-        >
-          <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Volver a Temas
-        </button>
-        <h1 className="text-3xl font-bold text-gray-900">{topic.name}</h1>
-      </div>
-
-      {/* Resumen */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="card">
-          <div className="text-sm text-gray-500 mb-1">Preguntas</div>
-          <div className="text-2xl font-bold text-gray-900">{topic.total_questions || 0}</div>
+      {/* Header fijo al hacer scroll */}
+      <div className="sticky top-0 z-10 bg-gray-50 pt-4 pb-2 -mx-4 px-4 md:-mx-6 md:px-6">
+        {/* Header */}
+        <div className="mb-4">
+          <button
+            onClick={() => navigate(`/exams/${examId}/categories/${categoryId}`)}
+            className="text-primary-600 hover:text-primary-700 mb-2 flex items-center"
+          >
+            <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Volver a Temas
+          </button>
+          <h1 className="text-2xl font-bold text-gray-900">{topic.name}</h1>
         </div>
-        <div className="card">
-          <div className="text-sm text-gray-500 mb-1">Ejercicios</div>
-          <div className="text-2xl font-bold text-gray-900">{topic.total_exercises || 0}</div>
-        </div>
-      </div>
 
-      {/* Pestañas */}
-      <div className="card mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+        {/* Resumen */}
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm">
+            <div className="text-xs text-gray-500">Preguntas</div>
+            <div className="text-xl font-bold text-gray-900">{topic.total_questions || 0}</div>
+          </div>
+          <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm">
+            <div className="text-xs text-gray-500">Ejercicios</div>
+            <div className="text-xl font-bold text-gray-900">{topic.total_exercises || 0}</div>
+          </div>
+        </div>
+
+        {/* Pestañas */}
+        <div className="bg-white rounded-t-lg border border-b-0 border-gray-200 shadow-sm">
+          <nav className="flex space-x-6 px-4" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('questions')}
               className={`${
                 activeTab === 'questions'
                   ? 'border-primary-500 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+              } whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center`}
             >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               Preguntas
               <span className={`ml-2 ${
                 activeTab === 'questions' ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-900'
-              } py-0.5 px-2.5 rounded-full text-xs font-medium`}>
+              } py-0.5 px-2 rounded-full text-xs font-medium`}>
                 {topic.total_questions || 0}
               </span>
             </button>
@@ -334,24 +335,27 @@ const TopicDetailPage = () => {
                 activeTab === 'exercises'
                   ? 'border-primary-500 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+              } whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center`}
             >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               Ejercicios
               <span className={`ml-2 ${
                 activeTab === 'exercises' ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-900'
-              } py-0.5 px-2.5 rounded-full text-xs font-medium`}>
+              } py-0.5 px-2 rounded-full text-xs font-medium`}>
                 {topic.total_exercises || 0}
               </span>
             </button>
           </nav>
         </div>
+      </div>
 
+      {/* Contenido de las pestañas */}
+      <div className="bg-white rounded-b-lg border border-t-0 border-gray-200 shadow-sm mb-6">
         {/* Contenido de la pestaña Preguntas */}
         {activeTab === 'questions' && (
-          <div className="pt-6">
+          <div className="p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Preguntas</h2>
               <button 
@@ -479,7 +483,7 @@ const TopicDetailPage = () => {
 
         {/* Contenido de la pestaña Ejercicios */}
         {activeTab === 'exercises' && (
-          <div className="pt-6">
+          <div className="p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Ejercicios</h2>
               <button 
