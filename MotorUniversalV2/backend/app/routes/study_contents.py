@@ -1557,14 +1557,16 @@ def create_action(material_id, session_id, topic_id, step_id):
         # Determinar si esta acción es la "respuesta correcta"
         action_type = data.get('action_type', 'button')
         correct_answer = data.get('correct_answer')
-        is_correct_answer = (
-            (action_type == 'button' and correct_answer == 'correct') or
-            (action_type == 'text_input')  # Los campos de texto siempre se consideran "correctos" cuando se les agregue respuesta
+        
+        # Los campos de texto SIEMPRE van en posición 1 para facilitar su edición
+        # Los botones correctos también van en posición 1
+        should_be_first = (
+            action_type == 'text_input' or
+            (action_type == 'button' and correct_answer == 'correct')
         )
         
-        # Si es respuesta correcta, debe ser action_number=1
-        # y reordenar las demás acciones hacia abajo
-        if is_correct_answer and correct_answer == 'correct':
+        # Si debe ser primero, reordenar las demás acciones hacia abajo
+        if should_be_first:
             # Mover todas las acciones existentes hacia abajo
             existing_actions = StudyInteractiveExerciseAction.query.filter_by(step_id=step_id).order_by(StudyInteractiveExerciseAction.action_number).all()
             for existing_action in existing_actions:

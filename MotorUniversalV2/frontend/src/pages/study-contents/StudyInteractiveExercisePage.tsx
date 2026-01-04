@@ -2041,55 +2041,25 @@ const StudyInteractiveExercisePage = () => {
                     
                     {/* Estilo del texto indicativo */}
                     <div className="mt-3 pt-3 border-t border-blue-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Estilo de visualización
                       </label>
-                      <div className="space-y-2">
-                        <label className={`flex items-center gap-3 p-2 border rounded-lg cursor-pointer transition-colors ${actionFormData.label_style === 'text_only' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                          <input
-                            type="radio"
-                            name="label-style"
-                            value="text_only"
-                            checked={actionFormData.label_style === 'text_only'}
-                            onChange={() => setActionFormData({ ...actionFormData, label_style: 'text_only', showPlaceholder: true })}
-                            className="w-4 h-4 text-blue-600"
-                          />
-                          <div className="flex-1">
-                            <span className="text-sm font-medium text-gray-900">Texto indicativo (sin sombra)</span>
-                            <p className="text-xs text-gray-500">Solo muestra el texto sin fondo</p>
-                          </div>
-                        </label>
-                        
-                        <label className={`flex items-center gap-3 p-2 border rounded-lg cursor-pointer transition-colors ${actionFormData.label_style === 'text_with_shadow' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                          <input
-                            type="radio"
-                            name="label-style"
-                            value="text_with_shadow"
-                            checked={actionFormData.label_style === 'text_with_shadow'}
-                            onChange={() => setActionFormData({ ...actionFormData, label_style: 'text_with_shadow', showPlaceholder: true })}
-                            className="w-4 h-4 text-blue-600"
-                          />
-                          <div className="flex-1">
-                            <span className="text-sm font-medium text-gray-900">Texto indicativo con sombra</span>
-                            <p className="text-xs text-gray-500">Muestra texto con fondo semi-transparente</p>
-                          </div>
-                        </label>
-                        
-                        <label className={`flex items-center gap-3 p-2 border rounded-lg cursor-pointer transition-colors ${actionFormData.label_style === 'shadow_only' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                          <input
-                            type="radio"
-                            name="label-style"
-                            value="shadow_only"
-                            checked={actionFormData.label_style === 'shadow_only'}
-                            onChange={() => setActionFormData({ ...actionFormData, label_style: 'shadow_only', showPlaceholder: false })}
-                            className="w-4 h-4 text-blue-600"
-                          />
-                          <div className="flex-1">
-                            <span className="text-sm font-medium text-gray-900">Sombra sin texto indicativo</span>
-                            <p className="text-xs text-gray-500">Solo muestra área sombreada sin texto</p>
-                          </div>
-                        </label>
-                      </div>
+                      <select
+                        value={actionFormData.label_style}
+                        onChange={(e) => {
+                          const newStyle = e.target.value as 'text_only' | 'text_with_shadow' | 'shadow_only';
+                          setActionFormData({ 
+                            ...actionFormData, 
+                            label_style: newStyle, 
+                            showPlaceholder: newStyle !== 'shadow_only' 
+                          });
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                      >
+                        <option value="text_only">Texto indicativo (sin sombra)</option>
+                        <option value="text_with_shadow">Texto indicativo con sombra</option>
+                        <option value="shadow_only">Sombra sin texto indicativo</option>
+                      </select>
                     </div>
 
                     {/* Campo de texto indicativo (si está activado) */}
@@ -2259,55 +2229,25 @@ const StudyInteractiveExercisePage = () => {
 
                       {/* Estilo del texto indicativo */}
                       <div className="pt-2 border-t border-green-200">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                           Estilo de visualización
                         </label>
-                        <div className="space-y-2">
-                          <label className={`flex items-center gap-3 p-2 border rounded-lg cursor-pointer transition-colors ${actionFormData.label_style === 'text_only' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                            <input
-                              type="radio"
-                              name="label-style-text"
-                              value="text_only"
-                              checked={actionFormData.label_style === 'text_only'}
-                              onChange={() => setActionFormData({ ...actionFormData, label_style: 'text_only', showPlaceholder: true })}
-                              className="w-4 h-4 text-green-600"
-                            />
-                            <div className="flex-1">
-                              <span className="text-sm font-medium text-gray-900">Texto indicativo (sin sombra)</span>
-                              <p className="text-xs text-gray-500">Solo muestra el texto sin fondo</p>
-                            </div>
-                          </label>
-                          
-                          <label className={`flex items-center gap-3 p-2 border rounded-lg cursor-pointer transition-colors ${actionFormData.label_style === 'text_with_shadow' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                            <input
-                              type="radio"
-                              name="label-style-text"
-                              value="text_with_shadow"
-                              checked={actionFormData.label_style === 'text_with_shadow'}
-                              onChange={() => setActionFormData({ ...actionFormData, label_style: 'text_with_shadow', showPlaceholder: true })}
-                              className="w-4 h-4 text-green-600"
-                            />
-                            <div className="flex-1">
-                              <span className="text-sm font-medium text-gray-900">Texto indicativo con sombra</span>
-                              <p className="text-xs text-gray-500">Muestra texto con fondo semi-transparente</p>
-                            </div>
-                          </label>
-                          
-                          <label className={`flex items-center gap-3 p-2 border rounded-lg cursor-pointer transition-colors ${actionFormData.label_style === 'shadow_only' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                            <input
-                              type="radio"
-                              name="label-style-text"
-                              value="shadow_only"
-                              checked={actionFormData.label_style === 'shadow_only'}
-                              onChange={() => setActionFormData({ ...actionFormData, label_style: 'shadow_only', showPlaceholder: false })}
-                              className="w-4 h-4 text-green-600"
-                            />
-                            <div className="flex-1">
-                              <span className="text-sm font-medium text-gray-900">Sombra sin texto indicativo</span>
-                              <p className="text-xs text-gray-500">Solo muestra área sombreada sin texto</p>
-                            </div>
-                          </label>
-                        </div>
+                        <select
+                          value={actionFormData.label_style}
+                          onChange={(e) => {
+                            const newStyle = e.target.value as 'text_only' | 'text_with_shadow' | 'shadow_only';
+                            setActionFormData({ 
+                              ...actionFormData, 
+                              label_style: newStyle, 
+                              showPlaceholder: newStyle !== 'shadow_only' 
+                            });
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm"
+                        >
+                          <option value="text_only">Texto indicativo (sin sombra)</option>
+                          <option value="text_with_shadow">Texto indicativo con sombra</option>
+                          <option value="shadow_only">Sombra sin texto indicativo</option>
+                        </select>
                       </div>
 
                       {/* Campo de texto indicativo (si está activado) */}
