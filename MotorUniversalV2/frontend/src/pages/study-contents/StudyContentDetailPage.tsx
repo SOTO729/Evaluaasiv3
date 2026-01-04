@@ -59,6 +59,7 @@ import {
   Link,
   AlertCircle,
   PlayCircle,
+  Check,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useAuthStore } from '../../store/authStore';
@@ -1572,106 +1573,237 @@ const StudyContentDetailPage = () => {
         title={readingForm.title ? "Editar Material de Lectura" : "Crear Material de Lectura"}
         size="lg"
       >
-        <div className="space-y-5">
-          {/* Header descriptivo */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <FileText className="h-5 w-5 text-blue-600 mt-0.5" />
-              <div>
-                <h4 className="text-sm font-medium text-blue-800">Material de Lectura</h4>
-                <p className="text-sm text-blue-600 mt-1">
-                  Crea contenido de lectura enriquecido con formato, imágenes y enlaces para que los estudiantes puedan estudiar el tema.
-                </p>
+        <div className="space-y-6">
+          {/* Header visual mejorado */}
+          <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-500 rounded-xl p-6 text-white">
+            <div className="absolute inset-0 bg-black/10"></div>
+            <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+            <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2.5 bg-white/20 rounded-lg backdrop-blur-sm">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold">Material de Lectura</h4>
+                  <p className="text-white/80 text-sm">Contenido textual para el tema</p>
+                </div>
               </div>
+              <p className="text-sm text-white/90 leading-relaxed">
+                Crea contenido de lectura enriquecido con formato, imágenes y enlaces para que los estudiantes puedan estudiar el tema.
+              </p>
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Título de la lectura <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={readingForm.title}
-              onChange={(e) => setReadingForm({ ...readingForm, title: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              placeholder="Ej: Introducción a los conceptos básicos"
-            />
+          {/* Indicador de progreso */}
+          <div className="flex items-center gap-3">
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
+              readingForm.title.trim() ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-400'
+            }`}>
+              {readingForm.title.trim() ? <Check className="w-4 h-4" /> : '1'}
+            </div>
+            <div className={`h-1 flex-1 rounded-full transition-colors ${
+              readingForm.title.trim() ? 'bg-blue-600' : 'bg-gray-200'
+            }`}></div>
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
+              readingForm.content.trim() && readingForm.content !== '<p><br></p>' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-400'
+            }`}>
+              {readingForm.content.trim() && readingForm.content !== '<p><br></p>' ? <Check className="w-4 h-4" /> : '2'}
+            </div>
+            <div className="text-xs text-gray-500 ml-2">Título + Contenido</div>
           </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Contenido <span className="text-red-500">*</span>
-            </label>
-            <p className="text-xs text-gray-500 mb-2">
-              Utiliza el editor para dar formato al texto, agregar imágenes, enlaces y más.
-            </p>
-            <div className="border border-gray-300 rounded-lg overflow-hidden shadow-sm">
-              <ReactQuill
-                theme="snow"
-                value={readingForm.content}
-                onChange={(content) => setReadingForm({ ...readingForm, content })}
-                modules={{
-                  toolbar: [
-                    [{ 'header': [1, 2, 3, false] }],
-                    ['bold', 'italic', 'underline', 'strike'],
-                    [{ 'color': [] }, { 'background': [] }],
-                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                    [{ 'indent': '-1'}, { 'indent': '+1' }],
-                    [{ 'align': [] }],
-                    ['link', 'image'],
-                    ['blockquote', 'code-block'],
-                    ['clean']
-                  ],
+
+          {/* Botón de acceso rápido - visible cuando el formulario está completo */}
+          {readingForm.title.trim() && readingForm.content.trim() && readingForm.content !== '<p><br></p>' && (
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-cyan-400 to-teal-400 rounded-2xl blur-lg opacity-30 animate-pulse"></div>
+              <button
+                onClick={() => {
+                  const modal = document.querySelector('.reading-modal-save-btn');
+                  if (modal) {
+                    modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
                 }}
-                formats={[
-                  'header',
-                  'bold', 'italic', 'underline', 'strike',
-                  'color', 'background',
-                  'list', 'indent',
-                  'align',
-                  'link', 'image',
-                  'blockquote', 'code-block'
-                ]}
-                placeholder="Escribe el contenido de la lectura aquí..."
-                style={{ minHeight: '300px' }}
-              />
+                className="relative w-full bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-500 text-white rounded-2xl p-4 flex items-center justify-between group hover:from-blue-600 hover:via-cyan-600 hover:to-teal-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                    <Check className="w-5 h-5" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-base">¡Formulario completo!</p>
+                    <p className="text-sm text-white/80">Haz clic para ir al botón de guardar</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full">Guardar</span>
+                  <div className="p-2 bg-white/20 rounded-full group-hover:translate-y-1 transition-transform duration-300">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                  </div>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {/* Formulario */}
+          <div className="space-y-5">
+            {/* Título */}
+            <div className="group">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <span className="flex items-center justify-center w-5 h-5 bg-blue-100 text-blue-600 rounded text-xs font-bold">1</span>
+                Título de la lectura <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={readingForm.title}
+                  onChange={(e) => setReadingForm({ ...readingForm, title: e.target.value })}
+                  className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 outline-none ${
+                    readingForm.title.trim() 
+                      ? 'border-green-300 bg-green-50/50 focus:border-green-500 focus:ring-2 focus:ring-green-200' 
+                      : 'border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
+                  }`}
+                  placeholder="Ej: Introducción a los conceptos básicos"
+                />
+                {readingForm.title.trim() && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-400 mt-1.5 ml-7">
+                Un título descriptivo ayuda a los estudiantes a identificar el contenido
+              </p>
+            </div>
+          
+            {/* Contenido */}
+            <div className="group">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <span className="flex items-center justify-center w-5 h-5 bg-blue-100 text-blue-600 rounded text-xs font-bold">2</span>
+                Contenido <span className="text-red-500">*</span>
+              </label>
+              <p className="text-xs text-gray-500 mb-3 ml-7">
+                Utiliza el editor para dar formato al texto, agregar imágenes, enlaces y más.
+              </p>
+              <div className={`border-2 rounded-xl overflow-hidden transition-all duration-200 ${
+                readingForm.content.trim() && readingForm.content !== '<p><br></p>'
+                  ? 'border-green-300 ring-2 ring-green-100' 
+                  : 'border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100'
+              }`}>
+                <ReactQuill
+                  theme="snow"
+                  value={readingForm.content}
+                  onChange={(content) => setReadingForm({ ...readingForm, content })}
+                  modules={{
+                    toolbar: [
+                      [{ 'header': [1, 2, 3, false] }],
+                      ['bold', 'italic', 'underline', 'strike'],
+                      [{ 'color': [] }, { 'background': [] }],
+                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      [{ 'indent': '-1'}, { 'indent': '+1' }],
+                      [{ 'align': [] }],
+                      ['link', 'image'],
+                      ['blockquote', 'code-block'],
+                      ['clean']
+                    ],
+                  }}
+                  formats={[
+                    'header',
+                    'bold', 'italic', 'underline', 'strike',
+                    'color', 'background',
+                    'list', 'indent',
+                    'align',
+                    'link', 'image',
+                    'blockquote', 'code-block'
+                  ]}
+                  placeholder="Escribe el contenido de la lectura aquí..."
+                  style={{ minHeight: '280px' }}
+                />
+              </div>
+              <div className="flex items-start gap-2 mt-2 ml-7">
+                <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                <p className="text-xs text-gray-500">
+                  <span className="font-medium text-gray-600">Tip:</span> Usa encabezados para organizar el contenido y facilitar la lectura.
+                </p>
+              </div>
+            </div>
+          
+            {/* Tiempo estimado */}
+            <div className="group">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <span className="flex items-center justify-center w-5 h-5 bg-blue-100 text-blue-600 rounded text-xs font-bold">3</span>
+                Tiempo estimado de lectura <span className="text-gray-400 text-xs font-normal">(opcional)</span>
+              </label>
+              <div className="flex items-center gap-3 ml-7">
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="1"
+                    value={readingForm.estimated_time_minutes || ''}
+                    onChange={(e) => setReadingForm({ ...readingForm, estimated_time_minutes: parseInt(e.target.value) || undefined })}
+                    className="w-28 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all duration-200"
+                    placeholder="15"
+                  />
+                </div>
+                <span className="text-sm text-gray-500 font-medium">minutos</span>
+              </div>
+              <p className="text-xs text-gray-400 mt-1.5 ml-7">Tiempo aproximado que tomará leer este material</p>
             </div>
           </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tiempo estimado de lectura
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min="1"
-                value={readingForm.estimated_time_minutes || ''}
-                onChange={(e) => setReadingForm({ ...readingForm, estimated_time_minutes: parseInt(e.target.value) || undefined })}
-                className="w-24 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                placeholder="15"
-              />
-              <span className="text-sm text-gray-500">minutos</span>
-            </div>
-            <p className="text-xs text-gray-400 mt-1">Tiempo aproximado que tomará leer este material</p>
-          </div>
-          
-          <div className="flex justify-end gap-3 pt-5 border-t border-gray-200">
+
+          {/* Botones de acción mejorados */}
+          <div className="flex flex-col gap-4 pt-4 border-t border-gray-200">
+            {/* Botón principal - Guardar */}
+            <button
+              onClick={handleSaveReading}
+              disabled={saving || !readingForm.title.trim() || !readingForm.content.trim() || readingForm.content === '<p><br></p>'}
+              className={`reading-modal-save-btn w-full py-3.5 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-3 ${
+                !readingForm.title.trim() || !readingForm.content.trim() || readingForm.content === '<p><br></p>'
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-blue-500 to-cyan-600 text-white hover:from-blue-600 hover:to-cyan-700 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40'
+              }`}
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Guardando...</span>
+                </>
+              ) : (
+                <>
+                  <FileText className="h-5 w-5" />
+                  <span>Guardar Material de Lectura</span>
+                </>
+              )}
+            </button>
+
+            {/* Botón Cancelar */}
             <button 
               onClick={() => setReadingModalOpen(false)} 
-              className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+              className="w-full px-4 py-2.5 border border-gray-300 text-gray-600 rounded-xl hover:bg-gray-50 font-medium transition-colors"
             >
               Cancelar
             </button>
-            <button
-              onClick={handleSaveReading}
-              disabled={saving || !readingForm.title.trim() || !readingForm.content.trim()}
-              className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors shadow-sm"
-            >
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              {saving ? 'Guardando...' : 'Guardar Lectura'}
-            </button>
+
+            {/* Mensaje de ayuda */}
+            {(!readingForm.title.trim() || !readingForm.content.trim() || readingForm.content === '<p><br></p>') && (
+              <div className="flex items-center gap-2 justify-center text-amber-600 bg-amber-50 rounded-lg py-2 px-3">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span className="text-sm">
+                  {!readingForm.title.trim() 
+                    ? 'Ingresa un título para la lectura' 
+                    : 'Escribe el contenido de la lectura'
+                  }
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </Modal>
@@ -1683,216 +1815,391 @@ const StudyContentDetailPage = () => {
         title={videoForm.title ? "Editar Video Educativo" : "Crear Video Educativo"}
         size="lg"
       >
-        <div className="space-y-5">
-          {/* Header descriptivo */}
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <Video className="h-5 w-5 text-purple-600 mt-0.5" />
-              <div>
-                <h4 className="text-sm font-medium text-purple-800">Video Educativo</h4>
-                <p className="text-sm text-purple-600 mt-1">
-                  Agrega videos de YouTube, Vimeo o sube tu propio archivo de video para enriquecer el contenido del tema.
-                </p>
+        <div className="space-y-6">
+          {/* Header visual mejorado */}
+          <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 via-violet-500 to-indigo-500 rounded-xl p-6 text-white">
+            <div className="absolute inset-0 bg-black/10"></div>
+            <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+            <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2.5 bg-white/20 rounded-lg backdrop-blur-sm">
+                  <Video className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold">Video Educativo</h4>
+                  <p className="text-white/80 text-sm">Contenido multimedia para el tema</p>
+                </div>
               </div>
+              <p className="text-sm text-white/90 leading-relaxed">
+                Agrega videos de YouTube, Vimeo o sube tu propio archivo de video para enriquecer el contenido del tema.
+              </p>
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Título del video <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={videoForm.title}
-              onChange={(e) => setVideoForm({ ...videoForm, title: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              placeholder="Ej: Tutorial paso a paso del proceso"
-            />
-          </div>
-          
-          {/* Tabs para elegir entre URL o Subir archivo */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Fuente del video</label>
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
-              <nav className="flex bg-gray-50">
-                <button
-                  onClick={() => setVideoMode('url')}
-                  className={`flex-1 px-4 py-2.5 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
-                    videoMode === 'url'
-                      ? 'bg-white text-blue-600 border-b-2 border-blue-500 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <Link className="h-4 w-4" />
-                  Enlace URL
-                </button>
-                <button
-                  onClick={() => setVideoMode('upload')}
-                  className={`flex-1 px-4 py-2.5 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
-                    videoMode === 'upload'
-                      ? 'bg-white text-blue-600 border-b-2 border-blue-500 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <Upload className="h-4 w-4" />
-                  Subir archivo
-                </button>
-              </nav>
+          {/* Indicador de progreso */}
+          <div className="flex items-center gap-3">
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
+              videoForm.title.trim() ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-400'
+            }`}>
+              {videoForm.title.trim() ? <Check className="w-4 h-4" /> : '1'}
             </div>
+            <div className={`h-1 flex-1 rounded-full transition-colors ${
+              videoForm.title.trim() ? 'bg-purple-600' : 'bg-gray-200'
+            }`}></div>
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
+              (videoMode === 'url' ? videoForm.video_url.trim() : selectedVideoFile) ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-400'
+            }`}>
+              {(videoMode === 'url' ? videoForm.video_url.trim() : selectedVideoFile) ? <Check className="w-4 h-4" /> : '2'}
+            </div>
+            <div className="text-xs text-gray-500 ml-2">Título + Video</div>
           </div>
-          
-          {/* Contenido según el modo seleccionado */}
-          {videoMode === 'url' ? (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                URL del video <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="url"
-                value={videoForm.video_url}
-                onChange={(e) => {
-                  const url = e.target.value;
-                  // Auto-detectar plataforma
-                  let detectedType = 'direct';
-                  if (url.includes('youtube.com') || url.includes('youtu.be')) {
-                    detectedType = 'youtube';
-                  } else if (url.includes('vimeo.com')) {
-                    detectedType = 'vimeo';
+
+          {/* Botón de acceso rápido - visible cuando el formulario está completo */}
+          {videoForm.title.trim() && (videoMode === 'url' ? videoForm.video_url.trim() : selectedVideoFile) && (
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-400 via-violet-400 to-indigo-400 rounded-2xl blur-lg opacity-30 animate-pulse"></div>
+              <button
+                onClick={() => {
+                  const modal = document.querySelector('.video-modal-save-btn');
+                  if (modal) {
+                    modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   }
-                  setVideoForm({ ...videoForm, video_url: url, video_type: detectedType as any });
                 }}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                placeholder="https://youtube.com/watch?v=... o https://vimeo.com/..."
-              />
-              <p className="text-xs text-gray-400 mt-1">Soporta YouTube, Vimeo y enlaces directos a video (MP4, WebM)</p>
+                className="relative w-full bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500 text-white rounded-2xl p-4 flex items-center justify-between group hover:from-purple-600 hover:via-violet-600 hover:to-indigo-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                    <Check className="w-5 h-5" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-base">¡Formulario completo!</p>
+                    <p className="text-sm text-white/80">Haz clic para ir al botón de guardar</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full">Guardar</span>
+                  <div className="p-2 bg-white/20 rounded-full group-hover:translate-y-1 transition-transform duration-300">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                  </div>
+                </div>
+              </button>
             </div>
-          ) : (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Archivo de video <span className="text-red-500">*</span>
+          )}
+
+          {/* Formulario */}
+          <div className="space-y-5">
+            {/* Título */}
+            <div className="group">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <span className="flex items-center justify-center w-5 h-5 bg-purple-100 text-purple-600 rounded text-xs font-bold">1</span>
+                Título del video <span className="text-red-500">*</span>
               </label>
-              <div className="mt-1">
-                {!selectedVideoFile ? (
-                  <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-purple-400 hover:bg-purple-50 transition-colors">
-                    <div className="flex flex-col items-center justify-center py-6">
-                      <div className="p-3 bg-purple-100 rounded-full mb-3">
-                        <Upload className="h-8 w-8 text-purple-500" />
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium text-purple-600">Haz clic para seleccionar</span> o arrastra un archivo
-                      </p>
-                      <p className="text-xs text-gray-400 mt-2">Formatos: MP4, WebM, OGG, MOV, AVI</p>
-                      <p className="text-xs text-gray-400">Tamaño máximo: 500MB</p>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={videoForm.title}
+                  onChange={(e) => setVideoForm({ ...videoForm, title: e.target.value })}
+                  className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 outline-none ${
+                    videoForm.title.trim() 
+                      ? 'border-green-300 bg-green-50/50 focus:border-green-500 focus:ring-2 focus:ring-green-200' 
+                      : 'border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200'
+                  }`}
+                  placeholder="Ej: Tutorial paso a paso del proceso"
+                />
+                {videoForm.title.trim() && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                      <Check className="w-3 h-3 text-white" />
                     </div>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="video/mp4,video/webm,video/ogg,video/quicktime,video/x-msvideo"
-                      onChange={handleVideoFileChange}
-                    />
-                  </label>
-                ) : (
-                  <div className="p-4 bg-gray-50 rounded-lg border">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Video className="h-8 w-8 text-blue-500" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-700">{selectedVideoFile.name}</p>
-                          <p className="text-xs text-gray-500">{formatFileSize(selectedVideoFile.size)}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setSelectedVideoFile(null)}
-                        className="p-1 hover:bg-gray-200 rounded"
-                      >
-                        <X className="h-4 w-4 text-gray-500" />
-                      </button>
-                    </div>
-                    {isUploading && (
-                      <div className="mt-3">
-                        <div className="flex items-center justify-between text-sm mb-1">
-                          <span className="text-gray-600">Subiendo...</span>
-                          <span className="text-blue-600 font-medium">{uploadProgress}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${uploadProgress}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
+              <p className="text-xs text-gray-400 mt-1.5 ml-7">
+                Un título descriptivo ayuda a los estudiantes a identificar el contenido
+              </p>
             </div>
-          )}
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Descripción del video</label>
-            <p className="text-xs text-gray-500 mb-2">
-              Agrega información adicional sobre el contenido del video.
-            </p>
-            <div className="border border-gray-300 rounded-lg overflow-hidden shadow-sm">
-              <ReactQuill
-                theme="snow"
-                value={videoForm.description || ''}
-                onChange={(content) => setVideoForm({ ...videoForm, description: content })}
-                modules={{
-                  toolbar: [
-                    [{ 'header': [1, 2, 3, false] }],
-                    ['bold', 'italic', 'underline'],
-                    [{ 'color': [] }],
-                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                    ['link'],
-                    ['clean']
-                  ],
-                }}
-                formats={[
-                  'header',
-                  'bold', 'italic', 'underline',
-                  'color',
-                  'list',
-                  'link'
-                ]}
-                placeholder="Describe brevemente de qué trata el video, qué aprenderán los estudiantes..."
-                style={{ minHeight: '120px' }}
-              />
+            {/* Tabs para elegir entre URL o Subir archivo */}
+            <div className="group">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <span className="flex items-center justify-center w-5 h-5 bg-purple-100 text-purple-600 rounded text-xs font-bold">2</span>
+                Fuente del video <span className="text-red-500">*</span>
+              </label>
+              <div className="border-2 border-gray-200 rounded-xl overflow-hidden">
+                <nav className="flex bg-gray-50">
+                  <button
+                    onClick={() => setVideoMode('url')}
+                    className={`flex-1 px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-all duration-200 ${
+                      videoMode === 'url'
+                        ? 'bg-white text-purple-600 border-b-2 border-purple-500 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Link className="h-4 w-4" />
+                    Enlace URL
+                  </button>
+                  <button
+                    onClick={() => setVideoMode('upload')}
+                    className={`flex-1 px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-all duration-200 ${
+                      videoMode === 'upload'
+                        ? 'bg-white text-purple-600 border-b-2 border-purple-500 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Upload className="h-4 w-4" />
+                    Subir archivo
+                  </button>
+                </nav>
+              </div>
+            </div>
+          
+            {/* Contenido según el modo seleccionado */}
+            {videoMode === 'url' ? (
+              <div className="group">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                  <PlayCircle className="w-4 h-4 text-purple-500" />
+                  URL del video
+                </label>
+                <div className="relative">
+                  <input
+                    type="url"
+                    value={videoForm.video_url}
+                    onChange={(e) => {
+                      const url = e.target.value;
+                      let detectedType = 'direct';
+                      if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                        detectedType = 'youtube';
+                      } else if (url.includes('vimeo.com')) {
+                        detectedType = 'vimeo';
+                      }
+                      setVideoForm({ ...videoForm, video_url: url, video_type: detectedType as any });
+                    }}
+                    className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 outline-none ${
+                      videoForm.video_url.trim() 
+                        ? 'border-green-300 bg-green-50/50 focus:border-green-500 focus:ring-2 focus:ring-green-200' 
+                        : 'border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200'
+                    }`}
+                    placeholder="https://youtube.com/watch?v=... o https://vimeo.com/..."
+                  />
+                  {videoForm.video_url.trim() && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                        <Check className="w-3 h-3 text-white" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 mt-2 ml-1">
+                  <span className="text-xs text-gray-400 flex items-center gap-1">
+                    <svg className="w-4 h-4 text-red-500" viewBox="0 0 24 24" fill="currentColor"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+                    YouTube
+                  </span>
+                  <span className="text-xs text-gray-400 flex items-center gap-1">
+                    <svg className="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm-1 16.5v-9l6 4.5-6 4.5z"/></svg>
+                    Vimeo
+                  </span>
+                  <span className="text-xs text-gray-400">MP4/WebM directo</span>
+                </div>
+              </div>
+            ) : (
+              <div className="group">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                  <Upload className="w-4 h-4 text-purple-500" />
+                  Archivo de video
+                </label>
+                <div className="mt-1">
+                  {!selectedVideoFile ? (
+                    <label className={`flex flex-col items-center justify-center w-full h-44 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-200 ${
+                      'border-gray-300 hover:border-purple-400 hover:bg-purple-50'
+                    }`}>
+                      <div className="flex flex-col items-center justify-center py-6">
+                        <div className="p-4 bg-purple-100 rounded-full mb-4">
+                          <Upload className="h-8 w-8 text-purple-500" />
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">
+                          <span className="font-semibold text-purple-600">Haz clic para seleccionar</span> o arrastra un archivo
+                        </p>
+                        <p className="text-xs text-gray-400 mt-2">Formatos: MP4, WebM, OGG, MOV, AVI</p>
+                        <p className="text-xs text-gray-400">Tamaño máximo: 500MB</p>
+                      </div>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="video/mp4,video/webm,video/ogg,video/quicktime,video/x-msvideo"
+                        onChange={handleVideoFileChange}
+                      />
+                    </label>
+                  ) : (
+                    <div className={`p-4 rounded-xl border-2 transition-all duration-200 ${
+                      'border-green-300 bg-green-50/50'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-green-100 rounded-lg">
+                            <Video className="h-6 w-6 text-green-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-700">{selectedVideoFile.name}</p>
+                            <p className="text-xs text-gray-500">{formatFileSize(selectedVideoFile.size)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
+                          <button
+                            onClick={() => setSelectedVideoFile(null)}
+                            className="p-2 hover:bg-red-100 rounded-lg transition-colors group"
+                          >
+                            <X className="h-4 w-4 text-gray-400 group-hover:text-red-500" />
+                          </button>
+                        </div>
+                      </div>
+                      {isUploading && (
+                        <div className="mt-4 bg-blue-50 rounded-xl p-3 border border-blue-200">
+                          <div className="flex items-center justify-between text-sm mb-2">
+                            <span className="text-blue-700 font-medium flex items-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Subiendo video...
+                            </span>
+                            <span className="text-blue-600 font-bold">{uploadProgress}%</span>
+                          </div>
+                          <div className="w-full bg-blue-200 rounded-full h-2.5">
+                            <div
+                              className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2.5 rounded-full transition-all duration-300"
+                              style={{ width: `${uploadProgress}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          
+            {/* Descripción del video */}
+            <div className="group">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <span className="flex items-center justify-center w-5 h-5 bg-purple-100 text-purple-600 rounded text-xs font-bold">3</span>
+                Descripción del video <span className="text-gray-400 text-xs font-normal">(opcional)</span>
+              </label>
+              <div className={`border-2 rounded-xl overflow-hidden transition-all duration-200 ${
+                videoForm.description && videoForm.description.trim() && videoForm.description !== '<p><br></p>'
+                  ? 'border-green-300 ring-2 ring-green-100' 
+                  : 'border-gray-200 focus-within:border-purple-500 focus-within:ring-2 focus-within:ring-purple-100'
+              }`}>
+                <ReactQuill
+                  theme="snow"
+                  value={videoForm.description || ''}
+                  onChange={(content) => setVideoForm({ ...videoForm, description: content })}
+                  modules={{
+                    toolbar: [
+                      [{ 'header': [1, 2, 3, false] }],
+                      ['bold', 'italic', 'underline'],
+                      [{ 'color': [] }],
+                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      ['link'],
+                      ['clean']
+                    ],
+                  }}
+                  formats={[
+                    'header',
+                    'bold', 'italic', 'underline',
+                    'color',
+                    'list',
+                    'link'
+                  ]}
+                  placeholder="Describe brevemente de qué trata el video, qué aprenderán los estudiantes..."
+                  style={{ minHeight: '100px' }}
+                />
+              </div>
+              <div className="flex items-start gap-2 mt-2 ml-7">
+                <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                <p className="text-xs text-gray-500">
+                  <span className="font-medium text-gray-600">Tip:</span> Incluye los temas principales que se cubren en el video.
+                </p>
+              </div>
+            </div>
+          
+            {/* Duración del video */}
+            <div className="group">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <span className="flex items-center justify-center w-5 h-5 bg-purple-100 text-purple-600 rounded text-xs font-bold">4</span>
+                Duración del video <span className="text-gray-400 text-xs font-normal">(opcional)</span>
+              </label>
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    value={videoForm.duration_minutes || ''}
+                    onChange={(e) => setVideoForm({ ...videoForm, duration_minutes: parseInt(e.target.value) || 0 })}
+                    className="w-28 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all duration-200"
+                    placeholder="15"
+                  />
+                </div>
+                <span className="text-sm text-gray-500 font-medium">minutos</span>
+              </div>
+              <p className="text-xs text-gray-400 mt-1.5 ml-7">Duración aproximada del video</p>
             </div>
           </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Duración del video</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min="0"
-                value={videoForm.duration_minutes || ''}
-                onChange={(e) => setVideoForm({ ...videoForm, duration_minutes: parseInt(e.target.value) || 0 })}
-                className="w-24 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                placeholder="15"
-              />
-              <span className="text-sm text-gray-500">minutos</span>
-            </div>
-            <p className="text-xs text-gray-400 mt-1">Duración aproximada del video</p>
-          </div>
-          
-          <div className="flex justify-end gap-3 pt-5 border-t border-gray-200">
+
+          {/* Botones de acción mejorados */}
+          <div className="flex flex-col gap-4 pt-4 border-t border-gray-200">
+            {/* Botón principal - Guardar */}
+            <button
+              onClick={handleSaveVideo}
+              disabled={saving || isUploading || !videoForm.title.trim() || (videoMode === 'url' ? !videoForm.video_url.trim() : !selectedVideoFile)}
+              className={`video-modal-save-btn w-full py-3.5 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-3 ${
+                !videoForm.title.trim() || (videoMode === 'url' ? !videoForm.video_url.trim() : !selectedVideoFile)
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-purple-500 to-violet-600 text-white hover:from-purple-600 hover:to-violet-700 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40'
+              }`}
+            >
+              {(saving || isUploading) ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>{isUploading ? 'Subiendo...' : 'Guardando...'}</span>
+                </>
+              ) : (
+                <>
+                  <Video className="h-5 w-5" />
+                  <span>Guardar Video Educativo</span>
+                </>
+              )}
+            </button>
+
+            {/* Botón Cancelar */}
             <button 
               onClick={() => setVideoModalOpen(false)} 
-              className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+              className="w-full px-4 py-2.5 border border-gray-300 text-gray-600 rounded-xl hover:bg-gray-50 font-medium transition-colors"
               disabled={isUploading}
             >
               Cancelar
             </button>
-            <button
-              onClick={handleSaveVideo}
-              disabled={saving || isUploading || !videoForm.title.trim() || (videoMode === 'url' ? !videoForm.video_url.trim() : !selectedVideoFile)}
-              className="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors shadow-sm"
-            >
-              {(saving || isUploading) && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isUploading ? 'Subiendo...' : saving ? 'Guardando...' : 'Guardar Video'}
-            </button>
+
+            {/* Mensaje de ayuda */}
+            {(!videoForm.title.trim() || (videoMode === 'url' ? !videoForm.video_url.trim() : !selectedVideoFile)) && (
+              <div className="flex items-center gap-2 justify-center text-amber-600 bg-amber-50 rounded-lg py-2 px-3">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span className="text-sm">
+                  {!videoForm.title.trim() 
+                    ? 'Ingresa un título para el video' 
+                    : videoMode === 'url' 
+                      ? 'Ingresa la URL del video' 
+                      : 'Selecciona un archivo de video'
+                  }
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </Modal>
@@ -1904,98 +2211,202 @@ const StudyContentDetailPage = () => {
         title={downloadableForm.title ? "Editar Ejercicio Descargable" : "Crear Ejercicio Descargable"}
         size="lg"
       >
-        <div className="space-y-5">
-          {/* Header descriptivo */}
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <Download className="h-5 w-5 text-orange-600 mt-0.5" />
-              <div>
-                <h4 className="text-sm font-medium text-orange-800">Ejercicio Descargable</h4>
-                <p className="text-sm text-orange-600 mt-1">
-                  Sube archivos como PDF, Word, Excel o ZIP para que los estudiantes puedan descargar y completar ejercicios prácticos.
-                </p>
+        <div className="space-y-6">
+          {/* Header visual mejorado */}
+          <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 rounded-xl p-6 text-white">
+            <div className="absolute inset-0 bg-black/10"></div>
+            <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+            <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2.5 bg-white/20 rounded-lg backdrop-blur-sm">
+                  <Download className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold">Ejercicio Descargable</h4>
+                  <p className="text-white/80 text-sm">Archivos para práctica offline</p>
+                </div>
               </div>
+              <p className="text-sm text-white/90 leading-relaxed">
+                Sube archivos como PDF, Word, Excel o ZIP para que los estudiantes puedan descargar y completar ejercicios prácticos fuera de la plataforma.
+              </p>
             </div>
           </div>
 
-          {/* Título */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Título del ejercicio <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={downloadableForm.title}
-              onChange={(e) => setDownloadableForm({ ...downloadableForm, title: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              placeholder="Ej: Ejercicio práctico - Cálculos básicos"
-            />
-          </div>
-          
-          {/* Instrucciones con editor de texto enriquecido */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Instrucciones</label>
-            <div className="border rounded-lg overflow-hidden">
-              <ReactQuill
-                theme="snow"
-                value={downloadableForm.description || ''}
-                onChange={(content) => setDownloadableForm({ ...downloadableForm, description: content })}
-                modules={{
-                  toolbar: [
-                    [{ 'header': [1, 2, 3, false] }],
-                    ['bold', 'italic', 'underline', 'strike'],
-                    [{ 'color': [] }, { 'background': [] }],
-                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                    [{ 'indent': '-1'}, { 'indent': '+1' }],
-                    [{ 'align': [] }],
-                    ['link'],
-                    ['clean']
-                  ],
-                }}
-                formats={[
-                  'header',
-                  'bold', 'italic', 'underline', 'strike',
-                  'color', 'background',
-                  'list', 'indent',
-                  'align',
-                  'link'
-                ]}
-                className="bg-white"
-                style={{ minHeight: '150px' }}
-                placeholder="Escribe las instrucciones para realizar el ejercicio..."
-              />
+          {/* Indicador de progreso */}
+          <div className="flex items-center gap-3">
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
+              downloadableForm.title.trim() ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-400'
+            }`}>
+              {downloadableForm.title.trim() ? <Check className="w-4 h-4" /> : '1'}
             </div>
+            <div className={`h-1 flex-1 rounded-full transition-colors ${
+              downloadableForm.title.trim() ? 'bg-orange-600' : 'bg-gray-200'
+            }`}></div>
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
+              (selectedDownloadableFiles.length > 0 || downloadableForm.file_url) ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-400'
+            }`}>
+              {(selectedDownloadableFiles.length > 0 || downloadableForm.file_url) ? <Check className="w-4 h-4" /> : '2'}
+            </div>
+            <div className="text-xs text-gray-500 ml-2">Título + Archivos</div>
           </div>
+
+          {/* Botón de acceso rápido - visible cuando el formulario está completo */}
+          {downloadableForm.title.trim() && (selectedDownloadableFiles.length > 0 || downloadableForm.file_url) && (
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 rounded-2xl blur-lg opacity-30 animate-pulse"></div>
+              <button
+                onClick={() => {
+                  const modal = document.querySelector('.downloadable-modal-save-btn');
+                  if (modal) {
+                    modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }}
+                className="relative w-full bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white rounded-2xl p-4 flex items-center justify-between group hover:from-orange-600 hover:via-amber-600 hover:to-yellow-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                    <Check className="w-5 h-5" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-base">¡Formulario completo!</p>
+                    <p className="text-sm text-white/80">Haz clic para ir al botón de guardar</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full">Guardar</span>
+                  <div className="p-2 bg-white/20 rounded-full group-hover:translate-y-1 transition-transform duration-300">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                  </div>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {/* Formulario */}
+          <div className="space-y-5">
+            {/* Título */}
+            <div className="group">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <span className="flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded text-xs font-bold">1</span>
+                Título del ejercicio <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={downloadableForm.title}
+                  onChange={(e) => setDownloadableForm({ ...downloadableForm, title: e.target.value })}
+                  className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 outline-none ${
+                    downloadableForm.title.trim() 
+                      ? 'border-green-300 bg-green-50/50 focus:border-green-500 focus:ring-2 focus:ring-green-200' 
+                      : 'border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
+                  }`}
+                  placeholder="Ej: Ejercicio práctico - Cálculos básicos"
+                />
+                {downloadableForm.title.trim() && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-400 mt-1.5 ml-7">
+                Un título descriptivo ayuda a los estudiantes a identificar el ejercicio
+              </p>
+            </div>
+            
+            {/* Instrucciones con editor de texto enriquecido */}
+            <div className="group">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <span className="flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded text-xs font-bold">2</span>
+                Instrucciones <span className="text-gray-400 text-xs font-normal">(opcional)</span>
+              </label>
+              <div className={`border-2 rounded-xl overflow-hidden transition-all duration-200 ${
+                downloadableForm.description && downloadableForm.description.trim() && downloadableForm.description !== '<p><br></p>'
+                  ? 'border-green-300 ring-2 ring-green-100' 
+                  : 'border-gray-200 focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-100'
+              }`}>
+                <ReactQuill
+                  theme="snow"
+                  value={downloadableForm.description || ''}
+                  onChange={(content) => setDownloadableForm({ ...downloadableForm, description: content })}
+                  modules={{
+                    toolbar: [
+                      [{ 'header': [1, 2, 3, false] }],
+                      ['bold', 'italic', 'underline'],
+                      [{ 'color': [] }],
+                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      ['link'],
+                      ['clean']
+                    ],
+                  }}
+                  formats={[
+                    'header',
+                    'bold', 'italic', 'underline',
+                    'color',
+                    'list',
+                    'link'
+                  ]}
+                  className="bg-white"
+                  style={{ minHeight: '120px' }}
+                  placeholder="Escribe las instrucciones para realizar el ejercicio..."
+                />
+              </div>
+              <div className="flex items-start gap-2 mt-2 ml-7">
+                <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                <p className="text-xs text-gray-500">
+                  <span className="font-medium text-gray-600">Tip:</span> Incluye instrucciones claras sobre cómo completar y entregar el ejercicio.
+                </p>
+              </div>
+            </div>
           
-          {/* Archivo actual si existe */}
-          {downloadableForm.file_url && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-sm font-medium text-blue-800 mb-1">Archivo actual:</p>
-              <div className="flex items-center gap-2">
-                <Download className="h-4 w-4 text-blue-600" />
+            {/* Archivo actual si existe */}
+            {downloadableForm.file_url && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 bg-blue-100 rounded-lg">
+                    <Download className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <p className="text-sm font-semibold text-blue-800">Archivo actual</p>
+                </div>
                 <a 
                   href={downloadableForm.file_url} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:underline"
+                  className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 hover:underline font-medium"
                 >
+                  <FileText className="h-4 w-4" />
                   {downloadableForm.file_name || 'Descargar archivo'}
                 </a>
+                <p className="text-xs text-blue-500 mt-2 flex items-center gap-1">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Sube nuevos archivos para reemplazar el actual
+                </p>
               </div>
-              <p className="text-xs text-blue-600 mt-1">Sube nuevos archivos para reemplazar el actual</p>
-            </div>
-          )}
+            )}
           
-          {/* Área de subida de archivos */}
-          <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            {/* Área de subida de archivos */}
+            <div className="group">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <span className="flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded text-xs font-bold">3</span>
                 Archivos {!downloadableForm.file_url && <span className="text-red-500">*</span>}
               </label>
-              <p className="text-xs text-gray-500 mb-2">Máximo 100MB total. Si subes múltiples archivos se comprimirán automáticamente en ZIP.</p>
+              <p className="text-xs text-gray-500 mb-3 ml-7">Máximo 100MB total. Si subes múltiples archivos se comprimirán automáticamente en ZIP.</p>
               
-              {/* Área de drop */}
+              {/* Área de drop mejorada */}
               <div
-                className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-orange-400 hover:bg-orange-50 transition-colors cursor-pointer"
+                className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 cursor-pointer ${
+                  selectedDownloadableFiles.length > 0 
+                    ? 'border-green-300 bg-green-50/50' 
+                    : 'border-gray-300 hover:border-orange-400 hover:bg-orange-50'
+                }`}
                 onClick={() => document.getElementById('downloadable-file-input')?.click()}
                 onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-orange-400', 'bg-orange-50'); }}
                 onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-orange-400', 'bg-orange-50'); }}
@@ -2016,11 +2427,22 @@ const StudyContentDetailPage = () => {
                   }
                 }}
               >
-                <div className="p-3 bg-orange-100 rounded-full mx-auto mb-3 w-fit">
-                  <Upload className="h-8 w-8 text-orange-500" />
+                <div className={`p-4 rounded-full mx-auto mb-4 w-fit ${
+                  selectedDownloadableFiles.length > 0 ? 'bg-green-100' : 'bg-orange-100'
+                }`}>
+                  {selectedDownloadableFiles.length > 0 ? (
+                    <Check className="h-8 w-8 text-green-500" />
+                  ) : (
+                    <Upload className="h-8 w-8 text-orange-500" />
+                  )}
                 </div>
-                <p className="text-gray-600 font-medium">Arrastra archivos aquí o haz clic para seleccionar</p>
-                <p className="text-gray-400 text-sm mt-2">Formatos: PDF, DOC, DOCX, XLS, XLSX, PPT, ZIP, RAR</p>
+                <p className="text-gray-600 font-medium mb-1">
+                  {selectedDownloadableFiles.length > 0 
+                    ? `${selectedDownloadableFiles.length} archivo(s) seleccionado(s)` 
+                    : 'Arrastra archivos aquí o haz clic para seleccionar'
+                  }
+                </p>
+                <p className="text-gray-400 text-sm">Formatos: PDF, DOC, DOCX, XLS, XLSX, PPT, ZIP, RAR</p>
                 <input
                   id="downloadable-file-input"
                   type="file"
@@ -2032,15 +2454,17 @@ const StudyContentDetailPage = () => {
               
               {/* Lista de archivos seleccionados */}
               {selectedDownloadableFiles.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  <p className="text-sm font-medium text-gray-700">
-                    {selectedDownloadableFiles.length} archivo(s) seleccionado(s)
-                    {selectedDownloadableFiles.length > 1 && ' (se comprimirán en ZIP)'}
+                <div className="mt-4 space-y-2">
+                  <p className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-orange-500" />
+                    {selectedDownloadableFiles.length > 1 && 'Se comprimirán en ZIP'}
                   </p>
                   {selectedDownloadableFiles.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
+                    <div key={index} className="flex items-center justify-between bg-gradient-to-r from-gray-50 to-gray-100 p-3 rounded-xl border border-gray-200">
                       <div className="flex items-center gap-3">
-                        <Download className="h-5 w-5 text-blue-500" />
+                        <div className="p-2 bg-orange-100 rounded-lg">
+                          <Download className="h-4 w-4 text-orange-600" />
+                        </div>
                         <div>
                           <p className="text-sm font-medium text-gray-700">{file.name}</p>
                           <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
@@ -2048,23 +2472,26 @@ const StudyContentDetailPage = () => {
                       </div>
                       <button
                         onClick={() => removeDownloadableFile(index)}
-                        className="p-1 hover:bg-gray-200 rounded"
+                        className="p-2 hover:bg-red-100 rounded-lg transition-colors group"
                       >
-                        <X className="h-4 w-4 text-gray-500" />
+                        <X className="h-4 w-4 text-gray-400 group-hover:text-red-500" />
                       </button>
                     </div>
                   ))}
                   
-                  {/* Barra de progreso */}
+                  {/* Barra de progreso mejorada */}
                   {isUploadingDownloadable && (
-                    <div className="mt-3">
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="text-gray-600">Subiendo...</span>
-                        <span className="text-blue-600 font-medium">{downloadableUploadProgress}%</span>
+                    <div className="mt-4 bg-blue-50 rounded-xl p-4 border border-blue-200">
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="text-blue-700 font-medium flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Subiendo archivos...
+                        </span>
+                        <span className="text-blue-600 font-bold">{downloadableUploadProgress}%</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="w-full bg-blue-200 rounded-full h-2.5">
                         <div
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2.5 rounded-full transition-all duration-300"
                           style={{ width: `${downloadableUploadProgress}%` }}
                         />
                       </div>
@@ -2073,23 +2500,56 @@ const StudyContentDetailPage = () => {
                 </div>
               )}
             </div>
-          
-          <div className="flex justify-end gap-3 pt-5 border-t border-gray-200">
+          </div>
+
+          {/* Botones de acción mejorados */}
+          <div className="flex flex-col gap-4 pt-4 border-t border-gray-200">
+            {/* Botón principal - Guardar */}
+            <button
+              onClick={handleSaveDownloadable}
+              disabled={saving || isUploadingDownloadable || !downloadableForm.title.trim() || (selectedDownloadableFiles.length === 0 && !downloadableForm.file_url)}
+              className={`downloadable-modal-save-btn w-full py-3.5 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-3 ${
+                !downloadableForm.title.trim() || (selectedDownloadableFiles.length === 0 && !downloadableForm.file_url)
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:from-orange-600 hover:to-amber-700 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40'
+              }`}
+            >
+              {(saving || isUploadingDownloadable) ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>{isUploadingDownloadable ? 'Subiendo...' : 'Guardando...'}</span>
+                </>
+              ) : (
+                <>
+                  <Download className="h-5 w-5" />
+                  <span>Guardar Ejercicio Descargable</span>
+                </>
+              )}
+            </button>
+
+            {/* Botón Cancelar */}
             <button 
               onClick={() => setDownloadableModalOpen(false)} 
-              className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+              className="w-full px-4 py-2.5 border border-gray-300 text-gray-600 rounded-xl hover:bg-gray-50 font-medium transition-colors"
               disabled={isUploadingDownloadable}
             >
               Cancelar
             </button>
-            <button
-              onClick={handleSaveDownloadable}
-              disabled={saving || isUploadingDownloadable || !downloadableForm.title.trim() || (selectedDownloadableFiles.length === 0 && !downloadableForm.file_url)}
-              className="px-5 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors shadow-sm"
-            >
-              {(saving || isUploadingDownloadable) && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isUploadingDownloadable ? 'Subiendo...' : saving ? 'Guardando...' : 'Guardar Ejercicio'}
-            </button>
+
+            {/* Mensaje de ayuda */}
+            {(!downloadableForm.title.trim() || (selectedDownloadableFiles.length === 0 && !downloadableForm.file_url)) && (
+              <div className="flex items-center gap-2 justify-center text-amber-600 bg-amber-50 rounded-lg py-2 px-3">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span className="text-sm">
+                  {!downloadableForm.title.trim() 
+                    ? 'Ingresa un título para el ejercicio' 
+                    : 'Sube al menos un archivo para continuar'
+                  }
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </Modal>
@@ -2190,93 +2650,202 @@ const StudyContentDetailPage = () => {
         title={interactiveConfigData?.isNew ? "Crear Ejercicio Interactivo" : "Configurar Ejercicio Interactivo"}
         size="lg"
       >
-        <div className="space-y-5">
-          {/* Header descriptivo */}
-          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <Gamepad2 className="h-5 w-5 text-indigo-600 mt-0.5" />
-              <div>
-                <h4 className="text-sm font-medium text-indigo-800">Ejercicio Interactivo</h4>
-                <p className="text-sm text-indigo-600 mt-1">
-                  Configura el título y las instrucciones que verán los estudiantes antes de realizar el ejercicio.
+        <div className="space-y-6">
+          {/* Header visual mejorado */}
+          <div className="relative overflow-hidden bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-xl p-6 text-white">
+            <div className="absolute inset-0 bg-black/10"></div>
+            <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+            <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2.5 bg-white/20 rounded-lg backdrop-blur-sm">
+                  <Gamepad2 className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold">Ejercicio Interactivo</h4>
+                  <p className="text-white/80 text-sm">Paso 1 de 2: Configuración básica</p>
+                </div>
+              </div>
+              <p className="text-sm text-white/90 leading-relaxed">
+                Define el título y las instrucciones que verán los estudiantes antes de realizar el ejercicio. 
+                En el siguiente paso podrás diseñar los pasos interactivos.
+              </p>
+            </div>
+          </div>
+
+          {/* Indicador de progreso */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1">
+              <div className="flex items-center justify-center w-8 h-8 bg-indigo-600 text-white rounded-full text-sm font-semibold">
+                1
+              </div>
+              <div className="h-1 flex-1 bg-indigo-600 rounded-full"></div>
+            </div>
+            <div className="flex items-center gap-2 flex-1">
+              <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
+                interactiveForm.title.trim() && interactiveForm.description.trim() && interactiveForm.description !== '<p><br></p>'
+                  ? 'bg-indigo-600 text-white' 
+                  : 'bg-gray-200 text-gray-400'
+              }`}>
+                2
+              </div>
+              <div className={`h-1 flex-1 rounded-full transition-colors ${
+                interactiveForm.title.trim() && interactiveForm.description.trim() && interactiveForm.description !== '<p><br></p>'
+                  ? 'bg-indigo-600' 
+                  : 'bg-gray-200'
+              }`}></div>
+            </div>
+            <div className="text-xs text-gray-500 ml-2">Editor de Pasos</div>
+          </div>
+
+          {/* Botón de acceso rápido al Editor - visible cuando el formulario está completo */}
+          {interactiveForm.title.trim() && interactiveForm.description.trim() && interactiveForm.description !== '<p><br></p>' && (
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 rounded-2xl blur-lg opacity-30 animate-pulse"></div>
+              <button
+                onClick={() => {
+                  const modal = document.querySelector('.interactive-config-modal-actions');
+                  if (modal) {
+                    modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }}
+                className="relative w-full bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white rounded-2xl p-4 flex items-center justify-between group hover:from-green-600 hover:via-emerald-600 hover:to-teal-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                    <Check className="w-5 h-5" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-base">¡Formulario completo!</p>
+                    <p className="text-sm text-white/80">Haz clic para ir al botón del Editor de Pasos</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full">Continuar</span>
+                  <div className="p-2 bg-white/20 rounded-full group-hover:translate-y-1 transition-transform duration-300">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                  </div>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {/* Formulario */}
+          <div className="space-y-5">
+            {/* Título */}
+            <div className="group">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <span className="flex items-center justify-center w-5 h-5 bg-indigo-100 text-indigo-600 rounded text-xs font-bold">1</span>
+                Título del ejercicio <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={interactiveForm.title}
+                  onChange={(e) => setInteractiveForm({ ...interactiveForm, title: e.target.value })}
+                  className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 outline-none ${
+                    interactiveForm.title.trim() 
+                      ? 'border-green-300 bg-green-50/50 focus:border-green-500 focus:ring-2 focus:ring-green-200' 
+                      : 'border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'
+                  }`}
+                  placeholder="Ej: Identifica las partes del motor"
+                />
+                {interactiveForm.title.trim() && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-400 mt-1.5 ml-7">
+                Un título claro ayuda a los estudiantes a entender qué van a practicar
+              </p>
+            </div>
+
+            {/* Instrucciones con editor de texto enriquecido */}
+            <div className="group">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <span className="flex items-center justify-center w-5 h-5 bg-indigo-100 text-indigo-600 rounded text-xs font-bold">2</span>
+                Instrucciones del ejercicio <span className="text-red-500">*</span>
+              </label>
+              <div className={`border-2 rounded-xl overflow-hidden transition-all duration-200 ${
+                interactiveForm.description.trim() && interactiveForm.description !== '<p><br></p>'
+                  ? 'border-green-300 ring-2 ring-green-100' 
+                  : 'border-gray-200 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100'
+              }`}>
+                <ReactQuill
+                  theme="snow"
+                  value={interactiveForm.description}
+                  onChange={(content) => setInteractiveForm({ ...interactiveForm, description: content })}
+                  modules={{
+                    toolbar: [
+                      [{ 'header': [1, 2, 3, false] }],
+                      ['bold', 'italic', 'underline'],
+                      [{ 'color': [] }],
+                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      ['link'],
+                      ['clean']
+                    ],
+                  }}
+                  formats={[
+                    'header',
+                    'bold', 'italic', 'underline',
+                    'color',
+                    'list',
+                    'link'
+                  ]}
+                  placeholder="Ej: Haz clic en cada parte señalada para identificar correctamente los componentes..."
+                  style={{ minHeight: '150px' }}
+                />
+              </div>
+              <div className="flex items-start gap-2 mt-2 ml-7">
+                <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                <p className="text-xs text-gray-500">
+                  <span className="font-medium text-gray-600">Tip:</span> Sé específico. Indica qué acciones debe realizar el estudiante, 
+                  cuántos elementos debe identificar y cómo sabrá que ha completado el ejercicio.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Título */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Título del ejercicio <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={interactiveForm.title}
-              onChange={(e) => setInteractiveForm({ ...interactiveForm, title: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-              placeholder="Ej: Identifica las partes del motor"
-            />
-          </div>
-
-          {/* Instrucciones con editor de texto enriquecido */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Instrucciones del ejercicio
-            </label>
-            <p className="text-xs text-gray-500 mb-2">
-              Describe qué debe hacer el estudiante para completar el ejercicio.
-            </p>
-            <div className="border border-gray-300 rounded-lg overflow-hidden shadow-sm">
-              <ReactQuill
-                theme="snow"
-                value={interactiveForm.description}
-                onChange={(content) => setInteractiveForm({ ...interactiveForm, description: content })}
-                modules={{
-                  toolbar: [
-                    [{ 'header': [1, 2, 3, false] }],
-                    ['bold', 'italic', 'underline'],
-                    [{ 'color': [] }],
-                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                    ['link'],
-                    ['clean']
-                  ],
-                }}
-                formats={[
-                  'header',
-                  'bold', 'italic', 'underline',
-                  'color',
-                  'list',
-                  'link'
-                ]}
-                placeholder="Ej: Haz clic en cada parte señalada para identificar correctamente los componentes..."
-                style={{ minHeight: '150px' }}
-              />
+          {/* Preview card - muestra cómo se verá */}
+          {(interactiveForm.title.trim() || (interactiveForm.description.trim() && interactiveForm.description !== '<p><br></p>')) && (
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+              <div className="flex items-center gap-2 mb-3">
+                <Eye className="w-4 h-4 text-gray-400" />
+                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Vista previa</span>
+              </div>
+              <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
+                <h5 className="font-semibold text-gray-900 mb-2">
+                  {interactiveForm.title || 'Título del ejercicio'}
+                </h5>
+                {interactiveForm.description && interactiveForm.description !== '<p><br></p>' ? (
+                  <div 
+                    className="text-sm text-gray-600 prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ __html: interactiveForm.description }}
+                  />
+                ) : (
+                  <p className="text-sm text-gray-400 italic">Las instrucciones aparecerán aquí...</p>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Botones de acción */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-5 border-t border-gray-200">
-            <button
-              onClick={() => {
-                setInteractiveConfigOpen(false);
-                setInteractiveConfigData(null);
-              }}
-              className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
-            >
-              Cancelar
-            </button>
+          {/* Botones de acción mejorados */}
+          <div className="flex flex-col gap-4 pt-4 border-t border-gray-200">
+            {/* Botón principal - Ir al Editor */}
             <button
               onClick={async () => {
-                if (!interactiveForm.title.trim()) {
-                  alert('El título es requerido');
-                  return;
-                }
                 if (!interactiveConfigData) return;
                 
                 setSavingInteractive(true);
                 try {
                   if (interactiveConfigData.isNew) {
-                    // Crear nuevo ejercicio
                     await createInteractive(
                       materialId,
                       interactiveConfigData.sessionId,
@@ -2284,7 +2853,6 @@ const StudyContentDetailPage = () => {
                       { title: interactiveForm.title, description: interactiveForm.description }
                     );
                   } else {
-                    // Actualizar existente
                     await updateInteractive(
                       materialId,
                       interactiveConfigData.sessionId,
@@ -2292,48 +2860,6 @@ const StudyContentDetailPage = () => {
                       { title: interactiveForm.title, description: interactiveForm.description }
                     );
                   }
-                  await loadMaterial();
-                  setInteractiveConfigOpen(false);
-                  setInteractiveConfigData(null);
-                  setToast({ message: 'Ejercicio guardado correctamente', type: 'success' });
-                } catch (error) {
-                  console.error('Error saving interactive:', error);
-                  setToast({ message: 'Error al guardar el ejercicio', type: 'error' });
-                } finally {
-                  setSavingInteractive(false);
-                }
-              }}
-              disabled={savingInteractive || !interactiveForm.title.trim()}
-              className="flex-1 px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium transition-colors shadow-sm"
-            >
-              {savingInteractive && <Loader2 className="h-4 w-4 animate-spin" />}
-              {savingInteractive ? 'Guardando...' : 'Guardar Configuración'}
-            </button>
-            <button
-              onClick={async () => {
-                if (!interactiveConfigData) return;
-                
-                // Si es nuevo o hay cambios, primero guardar
-                setSavingInteractive(true);
-                try {
-                  if (interactiveConfigData.isNew) {
-                    // Crear nuevo ejercicio antes de ir al editor
-                    await createInteractive(
-                      materialId,
-                      interactiveConfigData.sessionId,
-                      interactiveConfigData.topicId,
-                      { title: interactiveForm.title, description: interactiveForm.description }
-                    );
-                  } else {
-                    // Actualizar existente antes de ir al editor
-                    await updateInteractive(
-                      materialId,
-                      interactiveConfigData.sessionId,
-                      interactiveConfigData.topicId,
-                      { title: interactiveForm.title, description: interactiveForm.description }
-                    );
-                  }
-                  // Navegar al editor
                   navigate(`/study-contents/${materialId}/sessions/${interactiveConfigData.sessionId}/topics/${interactiveConfigData.topicId}/interactive`);
                   setInteractiveConfigOpen(false);
                   setInteractiveConfigData(null);
@@ -2345,12 +2871,92 @@ const StudyContentDetailPage = () => {
                 }
               }}
               disabled={savingInteractive || !interactiveForm.title.trim() || !interactiveForm.description.trim() || interactiveForm.description === '<p><br></p>'}
-              className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors flex items-center justify-center gap-2 shadow-sm"
-              title={!interactiveForm.title.trim() || !interactiveForm.description.trim() || interactiveForm.description === '<p><br></p>' ? 'Debes completar el título y las instrucciones para continuar' : ''}
+              className={`interactive-config-modal-actions w-full py-3.5 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-3 ${
+                !interactiveForm.title.trim() || !interactiveForm.description.trim() || interactiveForm.description === '<p><br></p>'
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 shadow-lg shadow-green-500/25 hover:shadow-green-500/40'
+              }`}
             >
-              <Edit2 className="h-4 w-4" />
-              Ir al Editor de Pasos
+              {savingInteractive ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Guardando...</span>
+                </>
+              ) : (
+                <>
+                  <Edit2 className="h-5 w-5" />
+                  <span>Continuar al Editor de Pasos</span>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </>
+              )}
             </button>
+
+            {/* Botones secundarios */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setInteractiveConfigOpen(false);
+                  setInteractiveConfigData(null);
+                }}
+                className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-600 rounded-xl hover:bg-gray-50 font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  if (!interactiveForm.title.trim()) {
+                    alert('El título es requerido');
+                    return;
+                  }
+                  if (!interactiveConfigData) return;
+                  
+                  setSavingInteractive(true);
+                  try {
+                    if (interactiveConfigData.isNew) {
+                      await createInteractive(
+                        materialId,
+                        interactiveConfigData.sessionId,
+                        interactiveConfigData.topicId,
+                        { title: interactiveForm.title, description: interactiveForm.description }
+                      );
+                    } else {
+                      await updateInteractive(
+                        materialId,
+                        interactiveConfigData.sessionId,
+                        interactiveConfigData.topicId,
+                        { title: interactiveForm.title, description: interactiveForm.description }
+                      );
+                    }
+                    await loadMaterial();
+                    setInteractiveConfigOpen(false);
+                    setInteractiveConfigData(null);
+                    setToast({ message: 'Ejercicio guardado correctamente', type: 'success' });
+                  } catch (error) {
+                    console.error('Error saving interactive:', error);
+                    setToast({ message: 'Error al guardar el ejercicio', type: 'error' });
+                  } finally {
+                    setSavingInteractive(false);
+                  }
+                }}
+                disabled={savingInteractive || !interactiveForm.title.trim()}
+                className="flex-1 px-4 py-2.5 bg-indigo-50 text-indigo-700 rounded-xl hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium transition-colors border border-indigo-200"
+              >
+                {savingInteractive && <Loader2 className="h-4 w-4 animate-spin" />}
+                Solo Guardar
+              </button>
+            </div>
+
+            {/* Mensaje de ayuda */}
+            {(!interactiveForm.title.trim() || !interactiveForm.description.trim() || interactiveForm.description === '<p><br></p>') && (
+              <div className="flex items-center gap-2 justify-center text-amber-600 bg-amber-50 rounded-lg py-2 px-3">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span className="text-sm">Completa el título y las instrucciones para continuar al editor</span>
+              </div>
+            )}
           </div>
         </div>
       </Modal>
