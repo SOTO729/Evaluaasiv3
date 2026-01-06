@@ -82,8 +82,8 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 
     xl: 'max-w-6xl'
   };
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className={`bg-white rounded-lg ${sizeClasses[size]} w-full max-h-[90vh] overflow-y-auto`}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className={`bg-white rounded-lg ${sizeClasses[size]} w-full max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center p-4 border-b">
           <h3 className="text-lg font-bold text-gray-900">{title}</h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
@@ -107,7 +107,7 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
-    }, 5000);
+    }, 3000); // Auto-dismiss after 3 seconds
     return () => clearTimeout(timer);
   }, [onClose]);
 
@@ -249,6 +249,9 @@ const StudyContentDetailPage = () => {
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Confirm change video source modal state
+  const [showChangeVideoSourceModal, setShowChangeVideoSourceModal] = useState(false);
   
   // Auth store
   const { user } = useAuthStore();
@@ -503,6 +506,7 @@ const StudyContentDetailPage = () => {
       setTopicForm({ 
         title: topic.title, 
         description: topic.description,
+        estimated_time_minutes: topic.estimated_time_minutes,
         allow_reading: topic.allow_reading ?? true,
         allow_video: topic.allow_video ?? true,
         allow_downloadable: topic.allow_downloadable ?? true,
@@ -513,6 +517,7 @@ const StudyContentDetailPage = () => {
       setTopicForm({ 
         title: '', 
         description: '',
+        estimated_time_minutes: undefined,
         allow_reading: true,
         allow_video: true,
         allow_downloadable: true,
@@ -529,6 +534,7 @@ const StudyContentDetailPage = () => {
     const dataToSend = {
       title: topicForm.title,
       description: topicForm.description,
+      estimated_time_minutes: topicForm.estimated_time_minutes,
       allow_reading: topicForm.allow_reading,
       allow_video: topicForm.allow_video,
       allow_downloadable: topicForm.allow_downloadable,
@@ -1471,6 +1477,26 @@ const StudyContentDetailPage = () => {
             />
           </div>
           
+          {/* Tiempo estimado */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tiempo estimado de estudio
+              <span className="text-gray-400 text-xs font-normal ml-1">(opcional)</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="1"
+                value={topicForm.estimated_time_minutes || ''}
+                onChange={(e) => setTopicForm({ ...topicForm, estimated_time_minutes: e.target.value ? parseInt(e.target.value) : undefined })}
+                className="w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="30"
+              />
+              <span className="text-sm text-gray-500">minutos</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Tiempo aproximado que tomará completar este tema</p>
+          </div>
+          
           {/* Tipos de contenido permitidos */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -1733,28 +1759,6 @@ const StudyContentDetailPage = () => {
                 </p>
               </div>
             </div>
-          
-            {/* Tiempo estimado */}
-            <div className="group">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <span className="flex items-center justify-center w-5 h-5 bg-blue-100 text-blue-600 rounded text-xs font-bold">3</span>
-                Tiempo estimado de lectura <span className="text-gray-400 text-xs font-normal">(opcional)</span>
-              </label>
-              <div className="flex items-center gap-3 ml-7">
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="1"
-                    value={readingForm.estimated_time_minutes || ''}
-                    onChange={(e) => setReadingForm({ ...readingForm, estimated_time_minutes: parseInt(e.target.value) || undefined })}
-                    className="w-28 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all duration-200"
-                    placeholder="15"
-                  />
-                </div>
-                <span className="text-sm text-gray-500 font-medium">minutos</span>
-              </div>
-              <p className="text-xs text-gray-400 mt-1.5 ml-7">Tiempo aproximado que tomará leer este material</p>
-            </div>
           </div>
 
           {/* Botones de acción mejorados */}
@@ -1963,46 +1967,94 @@ const StudyContentDetailPage = () => {
                   <PlayCircle className="w-4 h-4 text-purple-500" />
                   URL del video
                 </label>
-                <div className="relative">
-                  <input
-                    type="url"
-                    value={videoForm.video_url}
-                    onChange={(e) => {
-                      const url = e.target.value;
-                      let detectedType = 'direct';
-                      if (url.includes('youtube.com') || url.includes('youtu.be')) {
-                        detectedType = 'youtube';
-                      } else if (url.includes('vimeo.com')) {
-                        detectedType = 'vimeo';
-                      }
-                      setVideoForm({ ...videoForm, video_url: url, video_type: detectedType as any });
-                    }}
-                    className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 outline-none ${
-                      videoForm.video_url.trim() 
-                        ? 'border-green-300 bg-green-50/50 focus:border-green-500 focus:ring-2 focus:ring-green-200' 
-                        : 'border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200'
-                    }`}
-                    placeholder="https://youtube.com/watch?v=... o https://vimeo.com/..."
-                  />
-                  {videoForm.video_url.trim() && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                        <Check className="w-3 h-3 text-white" />
+                {/* Si el video está en Azure, mostrar mensaje informativo con opción de cambiar a enlace */}
+                {(videoForm.video_url && videoForm.video_url.includes('blob.core.windows.net')) ? (
+                  <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-purple-100 rounded-lg flex-shrink-0">
+                        <Video className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-purple-800 mb-1">Video almacenado en la nube</p>
+                        <p className="text-xs text-purple-600">
+                          Este video fue subido directamente a la plataforma. El enlace está protegido.
+                        </p>
+                        <div className="flex items-center gap-2 mt-3">
+                          <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
+                          <span className="text-xs text-green-700 font-medium">Video disponible</span>
+                        </div>
                       </div>
                     </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-4 mt-2 ml-1">
-                  <span className="text-xs text-gray-400 flex items-center gap-1">
-                    <svg className="w-4 h-4 text-red-500" viewBox="0 0 24 24" fill="currentColor"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
-                    YouTube
-                  </span>
-                  <span className="text-xs text-gray-400 flex items-center gap-1">
-                    <svg className="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm-1 16.5v-9l6 4.5-6 4.5z"/></svg>
-                    Vimeo
-                  </span>
-                  <span className="text-xs text-gray-400">MP4/WebM directo</span>
-                </div>
+                    
+                    {/* Opciones para cambiar el video */}
+                    <div className="mt-4 pt-4 border-t border-purple-200">
+                      <p className="text-xs text-purple-700 font-medium mb-3">¿Deseas reemplazar este video?</p>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowChangeVideoSourceModal(true)}
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-purple-700 bg-white border border-purple-300 rounded-lg hover:bg-purple-50 transition-colors"
+                        >
+                          <Link className="w-4 h-4" />
+                          Cambiar a enlace URL
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setVideoMode('upload')}
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors"
+                        >
+                          <Upload className="w-4 h-4" />
+                          Subir nuevo archivo
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <input
+                        type="url"
+                        value={videoForm.video_url}
+                        onChange={(e) => {
+                          const url = e.target.value;
+                          let detectedType = 'direct';
+                          if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                            detectedType = 'youtube';
+                          } else if (url.includes('vimeo.com')) {
+                            detectedType = 'vimeo';
+                          }
+                          setVideoForm({ ...videoForm, video_url: url, video_type: detectedType as any });
+                        }}
+                        className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 outline-none ${
+                          videoForm.video_url.trim() 
+                            ? 'border-green-300 bg-green-50/50 focus:border-green-500 focus:ring-2 focus:ring-green-200' 
+                            : 'border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200'
+                        }`}
+                        placeholder="https://youtube.com/watch?v=... o https://vimeo.com/..."
+                      />
+                      {videoForm.video_url.trim() && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4 mt-2 ml-1">
+                      <span className="text-xs text-gray-400 flex items-center gap-1">
+                        <svg className="w-4 h-4 text-red-500" viewBox="0 0 24 24" fill="currentColor"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+                        YouTube
+                      </span>
+                      <span className="text-xs text-gray-400 flex items-center gap-1">
+                        <svg className="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm-1 16.5v-9l6 4.5-6 4.5z"/></svg>
+                        Vimeo
+                      </span>
+                      <span className="text-xs text-gray-400">MP4/WebM directo</span>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <div className="group">
@@ -2125,28 +2177,6 @@ const StudyContentDetailPage = () => {
                   <span className="font-medium text-gray-600">Tip:</span> Incluye los temas principales que se cubren en el video.
                 </p>
               </div>
-            </div>
-          
-            {/* Duración del video */}
-            <div className="group">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <span className="flex items-center justify-center w-5 h-5 bg-purple-100 text-purple-600 rounded text-xs font-bold">4</span>
-                Duración del video <span className="text-gray-400 text-xs font-normal">(opcional)</span>
-              </label>
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="0"
-                    value={videoForm.duration_minutes || ''}
-                    onChange={(e) => setVideoForm({ ...videoForm, duration_minutes: parseInt(e.target.value) || 0 })}
-                    className="w-28 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all duration-200"
-                    placeholder="15"
-                  />
-                </div>
-                <span className="text-sm text-gray-500 font-medium">minutos</span>
-              </div>
-              <p className="text-xs text-gray-400 mt-1.5 ml-7">Duración aproximada del video</p>
             </div>
           </div>
 
@@ -2960,6 +2990,69 @@ const StudyContentDetailPage = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Modal de confirmación para cambiar video de Azure a enlace externo */}
+      {showChangeVideoSourceModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4" onClick={() => setShowChangeVideoSourceModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Cambiar fuente del video</h3>
+                  <p className="text-white/80 text-sm">Esta acción no se puede deshacer</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6">
+              <p className="text-gray-700 mb-4">
+                ¿Estás seguro de que deseas reemplazar el video almacenado en la nube por un enlace externo?
+              </p>
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <div className="p-1.5 bg-red-100 rounded-lg flex-shrink-0">
+                    <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-red-800">El video actual será eliminado</p>
+                    <p className="text-xs text-red-600 mt-1">
+                      El archivo de video almacenado en la nube se eliminará permanentemente al guardar los cambios.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowChangeVideoSourceModal(false)}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    setVideoForm({ ...videoForm, video_url: '', video_type: 'youtube' });
+                    setShowChangeVideoSourceModal(false);
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl hover:from-amber-600 hover:to-orange-600 font-medium transition-colors shadow-lg shadow-amber-500/25"
+                >
+                  Sí, cambiar a enlace
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Validación para Publicar */}
       <Modal

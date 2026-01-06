@@ -155,6 +155,7 @@ class StudyTopic(db.Model):
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     order = db.Column(db.Integer, default=0)
+    estimated_time_minutes = db.Column(db.Integer, nullable=True)  # Tiempo estimado para completar el tema
     
     # Tipos de elementos permitidos (por defecto todos habilitados)
     allow_reading = db.Column(db.Boolean, default=True, nullable=False)
@@ -180,6 +181,7 @@ class StudyTopic(db.Model):
             'title': self.title,
             'description': self.description,
             'order': self.order,
+            'estimated_time_minutes': self.estimated_time_minutes,
             'allow_reading': self.allow_reading if self.allow_reading is not None else True,
             'allow_video': self.allow_video if self.allow_video is not None else True,
             'allow_downloadable': self.allow_downloadable if self.allow_downloadable is not None else True,

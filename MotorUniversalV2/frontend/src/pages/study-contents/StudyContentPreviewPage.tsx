@@ -30,6 +30,7 @@ import {
   RotateCcw,
   Image,
   Target,
+  Clock,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import CustomVideoPlayer from '../../components/CustomVideoPlayer';
@@ -1263,6 +1264,12 @@ const StudyContentPreviewPage: React.FC = () => {
                               <span className="flex-1">
                                 <span className="text-gray-400 mr-1">{session.session_number}.{tIdx + 1}</span> {topic.title}
                               </span>
+                              {topic.estimated_time_minutes && (
+                                <span className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0">
+                                  <Clock className="w-3 h-3" />
+                                  {topic.estimated_time_minutes}m
+                                </span>
+                              )}
                               {topicCompleted && (
                                 <span className="flex items-center justify-center w-2.5 h-2.5 bg-green-500 rounded-full flex-shrink-0">
                                   <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
@@ -2025,8 +2032,8 @@ const StudyContentPreviewPage: React.FC = () => {
 
       {/* Modal de error para ejercicio interactivo */}
       {showErrorModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[85vh] flex flex-col animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4" onClick={() => setShowErrorModal(null)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[85vh] flex flex-col animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
             {/* Header fijo */}
             <div className="flex items-center gap-4 p-6 pb-4 border-b border-gray-100">
               <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
