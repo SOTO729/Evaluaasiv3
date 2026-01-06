@@ -8,6 +8,10 @@ import Layout from './components/layout/Layout'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 
 // Lazy imports (cargados bajo demanda)
+const LandingPage = lazy(() => import('./pages/landing/LandingPage'))
+const PrivacyPolicyPage = lazy(() => import('./pages/landing/PrivacyPolicyPage'))
+const PrivacyPolicyFullPage = lazy(() => import('./pages/landing/PrivacyPolicyFullPage'))
+const TermsOfServicePage = lazy(() => import('./pages/landing/TermsOfServicePage'))
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
@@ -37,6 +41,16 @@ function App() {
     <BrowserRouter>
       <Suspense fallback={<LoadingSpinner message="Cargando..." fullScreen />}>
         <Routes>
+          {/* Landing Page - Public */}
+          <Route path="/" element={
+            isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />
+          } />
+          
+          {/* Privacy Policy - Public */}
+          <Route path="/privacidad" element={<PrivacyPolicyPage />} />
+          <Route path="/politica-privacidad" element={<PrivacyPolicyFullPage />} />
+          <Route path="/terminos" element={<TermsOfServicePage />} />
+          
           {/* Public routes */}
           <Route path="/login" element={
             isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />
@@ -78,9 +92,6 @@ function App() {
               <Route path="/study-contents/:id" element={<StudyContentDetailPage />} />
               <Route path="/study-contents/:id/edit" element={<StudyContentCreatePage />} />
               <Route path="/study-contents/:id/sessions/:sessionId/topics/:topicId/interactive" element={<StudyInteractiveExercisePage />} />
-              
-              {/* Redirect root to dashboard */}
-              <Route path="/" element={<Navigate to="/dashboard" />} />
             </Route>
           </Route>
 
