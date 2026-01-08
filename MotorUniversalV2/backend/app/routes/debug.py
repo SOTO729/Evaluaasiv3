@@ -2,8 +2,33 @@
 from flask import Blueprint, jsonify
 import os
 import subprocess
+import inspect
 
 debug_bp = Blueprint('debug', __name__)
+
+@debug_bp.route('/check-study-topic-model', methods=['GET'])
+def check_study_topic_model():
+    """Verificar el modelo StudyTopic"""
+    try:
+        from app.models.study_content import StudyTopic
+        
+        # Ver columnas del modelo
+        columns = [c.name for c in StudyTopic.__table__.columns]
+        
+        # Ver el código fuente de to_dict
+        to_dict_source = inspect.getsource(StudyTopic.to_dict)
+        
+        # Verificar si estimated_time_minutes está en el modelo
+        has_estimated_time = hasattr(StudyTopic, 'estimated_time_minutes')
+        
+        return jsonify({
+            'columns': columns,
+            'has_estimated_time_minutes': has_estimated_time,
+            'to_dict_source_preview': to_dict_source[:500],
+            'estimated_in_to_dict': 'estimated_time_minutes' in to_dict_source
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
 @debug_bp.route('/ffmpeg-status', methods=['GET'])
 def ffmpeg_status():

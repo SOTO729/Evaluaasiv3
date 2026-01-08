@@ -102,7 +102,8 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     error_message: '',
     max_attempts: 3,
     text_color: '#000000',
-    font_family: 'Arial'
+    font_family: 'Arial',
+    label_style: 'invisible' as 'invisible' | 'text_only' | 'text_with_shadow' | 'shadow_only'
   })
 
   // Modal de confirmación para eliminar paso
@@ -517,7 +518,8 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       error_message: (action as any).error_message || '',
       max_attempts: (action as any).max_attempts || 3,
       text_color: (action as any).text_color || '#000000',
-      font_family: (action as any).font_family || 'Arial'
+      font_family: (action as any).font_family || 'Arial',
+      label_style: (action as any).label_style || 'invisible'
     })
     setIsEditActionModalOpen(true)
   }
@@ -1427,6 +1429,73 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                     </div>
                   </div>
                   
+                  {/* Estilo de visualización de etiqueta */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Estilo de visualización del área
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setActionFormData({ ...actionFormData, label_style: 'invisible' })}
+                        className={`flex flex-col items-center gap-2 p-3 border-2 rounded-lg transition-colors ${
+                          actionFormData.label_style === 'invisible' 
+                            ? 'border-primary-500 bg-primary-50' 
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-8 h-8 border-2 border-dashed border-gray-300 rounded"></div>
+                        <span className="text-xs font-medium text-gray-700">Invisible</span>
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={() => setActionFormData({ ...actionFormData, label_style: 'text_only' })}
+                        className={`flex flex-col items-center gap-2 p-3 border-2 rounded-lg transition-colors ${
+                          actionFormData.label_style === 'text_only' 
+                            ? 'border-primary-500 bg-primary-50' 
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-8 h-8 flex items-center justify-center">
+                          <span className="text-sm font-bold text-gray-800">Aa</span>
+                        </div>
+                        <span className="text-xs font-medium text-gray-700">Solo texto</span>
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={() => setActionFormData({ ...actionFormData, label_style: 'text_with_shadow' })}
+                        className={`flex flex-col items-center gap-2 p-3 border-2 rounded-lg transition-colors ${
+                          actionFormData.label_style === 'text_with_shadow' 
+                            ? 'border-primary-500 bg-primary-50' 
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-8 h-8 flex items-center justify-center bg-gray-800/20 rounded">
+                          <span className="text-sm font-bold text-gray-800" style={{ textShadow: '1px 1px 2px white' }}>Aa</span>
+                        </div>
+                        <span className="text-xs font-medium text-gray-700">Texto y sombra</span>
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={() => setActionFormData({ ...actionFormData, label_style: 'shadow_only' })}
+                        className={`flex flex-col items-center gap-2 p-3 border-2 rounded-lg transition-colors ${
+                          actionFormData.label_style === 'shadow_only' 
+                            ? 'border-primary-500 bg-primary-50' 
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-8 h-8 flex items-center justify-center bg-gray-800/30 rounded"></div>
+                        <span className="text-xs font-medium text-gray-700">Solo sombra</span>
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Define cómo se verá el área de clic durante el examen. "Invisible" es ideal para áreas que deben descubrirse.
+                    </p>
+                  </div>
+                  
                   {/* Configuración de acción en error (solo para botones incorrectos) */}
                   {actionFormData.correct_answer === 'wrong' && (
                     <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
@@ -1598,6 +1667,73 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                       <option value="monospace" style={{ fontFamily: 'monospace' }}>Monospace</option>
                     </select>
                     <p className="text-xs text-gray-500 mt-1">Fuente que verá el alumno al escribir su respuesta</p>
+                  </div>
+                  
+                  {/* Estilo de visualización de etiqueta para textbox */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Estilo de visualización del área
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setActionFormData({ ...actionFormData, label_style: 'invisible' })}
+                        className={`flex flex-col items-center gap-2 p-3 border-2 rounded-lg transition-colors ${
+                          actionFormData.label_style === 'invisible' 
+                            ? 'border-primary-500 bg-primary-50' 
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-8 h-8 border-2 border-dashed border-gray-300 rounded"></div>
+                        <span className="text-xs font-medium text-gray-700">Invisible</span>
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={() => setActionFormData({ ...actionFormData, label_style: 'text_only' })}
+                        className={`flex flex-col items-center gap-2 p-3 border-2 rounded-lg transition-colors ${
+                          actionFormData.label_style === 'text_only' 
+                            ? 'border-primary-500 bg-primary-50' 
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-8 h-8 flex items-center justify-center">
+                          <span className="text-sm font-bold text-gray-800">Aa</span>
+                        </div>
+                        <span className="text-xs font-medium text-gray-700">Solo texto</span>
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={() => setActionFormData({ ...actionFormData, label_style: 'text_with_shadow' })}
+                        className={`flex flex-col items-center gap-2 p-3 border-2 rounded-lg transition-colors ${
+                          actionFormData.label_style === 'text_with_shadow' 
+                            ? 'border-primary-500 bg-primary-50' 
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-8 h-8 flex items-center justify-center bg-gray-800/20 rounded">
+                          <span className="text-sm font-bold text-gray-800" style={{ textShadow: '1px 1px 2px white' }}>Aa</span>
+                        </div>
+                        <span className="text-xs font-medium text-gray-700">Texto y sombra</span>
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={() => setActionFormData({ ...actionFormData, label_style: 'shadow_only' })}
+                        className={`flex flex-col items-center gap-2 p-3 border-2 rounded-lg transition-colors ${
+                          actionFormData.label_style === 'shadow_only' 
+                            ? 'border-primary-500 bg-primary-50' 
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-8 h-8 flex items-center justify-center bg-gray-800/30 rounded"></div>
+                        <span className="text-xs font-medium text-gray-700">Solo sombra</span>
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Define cómo se verá el campo de texto durante el examen.
+                    </p>
                   </div>
                   
                   {/* Configuración de acción en error para textbox */}

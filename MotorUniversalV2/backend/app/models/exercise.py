@@ -128,6 +128,7 @@ class ExerciseAction(db.Model):
     # Personalización de textbox
     text_color = db.Column(db.String(20), default='#000000')  # Color del texto para textbox
     font_family = db.Column(db.String(50), default='Arial')  # Fuente del texto para textbox
+    label_style = db.Column(db.String(20), default='invisible')  # Estilo de visualización: invisible, text_only, text_with_shadow, shadow_only
     
     # Auditoría
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -135,6 +136,10 @@ class ExerciseAction(db.Model):
     
     def to_dict(self):
         """Convierte la acción a diccionario"""
+        # Asegurar que label_style siempre tenga un valor válido
+        valid_label_styles = ['invisible', 'text_only', 'text_with_shadow', 'shadow_only']
+        label_style_value = self.label_style if self.label_style in valid_label_styles else 'invisible'
+        
         return {
             'id': self.id,
             'step_id': self.step_id,
@@ -154,6 +159,7 @@ class ExerciseAction(db.Model):
             'max_attempts': self.max_attempts,
             'text_color': self.text_color,
             'font_family': self.font_family,
+            'label_style': label_style_value,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

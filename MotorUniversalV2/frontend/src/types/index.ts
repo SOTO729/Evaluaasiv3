@@ -138,6 +138,13 @@ export interface ExerciseAction {
   placeholder?: string
   correct_answer?: string
   is_case_sensitive: boolean
+  scoring_mode?: 'exact' | 'similarity'
+  on_error_action?: 'show_message' | 'next_step' | 'next_exercise'
+  error_message?: string
+  max_attempts?: number
+  text_color?: string
+  font_family?: string
+  label_style?: 'invisible' | 'text_only' | 'text_with_shadow' | 'shadow_only'
   created_at: string
   updated_at?: string
 }

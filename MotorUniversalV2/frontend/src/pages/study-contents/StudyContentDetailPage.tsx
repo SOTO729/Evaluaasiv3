@@ -60,6 +60,7 @@ import {
   AlertCircle,
   PlayCircle,
   Check,
+  Clock,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useAuthStore } from '../../store/authStore';
@@ -1149,7 +1150,12 @@ const StudyContentDetailPage = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                    <span className="text-sm text-gray-500">{session.topics?.length || 0} temas</span>
+                    <span className="text-sm text-gray-500">
+                      {session.topics?.length || 0} temas
+                      {session.topics && session.topics.reduce((sum, t) => sum + (t.estimated_time_minutes || 0), 0) > 0 && (
+                        <> · <Clock className="w-3 h-3 inline-block mb-0.5" /> {session.topics.reduce((sum, t) => sum + (t.estimated_time_minutes || 0), 0)}m</>
+                      )}
+                    </span>
                     {!material.is_published && (
                       <>
                         <button
@@ -1214,6 +1220,12 @@ const StudyContentDetailPage = () => {
                                   <ChevronRight className="h-4 w-4 text-gray-400" />
                                 )}
                                 <span className={`font-medium ${expandedTopics.has(topic.id) ? 'text-slate-900' : 'text-gray-800'}`}>{topic.title}</span>
+                                {topic.estimated_time_minutes && (
+                                  <span className="flex items-center gap-1 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                                    <Clock className="w-3 h-3" />
+                                    {topic.estimated_time_minutes}m
+                                  </span>
+                                )}
                               </div>
                               <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                 {/* Element indicators - solo mostrar los tipos permitidos */}
