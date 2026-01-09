@@ -636,6 +636,7 @@ def create_topic(material_id, session_id):
             title=data.get('title'),
             description=data.get('description'),
             order=data.get('order', max_order + 1),
+            estimated_time_minutes=data.get('estimated_time_minutes'),
             allow_reading=allow_reading,
             allow_video=allow_video,
             allow_downloadable=allow_downloadable,
@@ -678,6 +679,10 @@ def update_topic(material_id, session_id, topic_id):
         topic.title = data.get('title', topic.title)
         topic.description = data.get('description', topic.description)
         topic.order = data.get('order', topic.order)
+        
+        # Actualizar tiempo estimado si se proporciona
+        if 'estimated_time_minutes' in data:
+            topic.estimated_time_minutes = data.get('estimated_time_minutes')
         
         # Actualizar campos allow_* si se proporcionan
         if 'allow_reading' in data:

@@ -426,7 +426,8 @@ def clone_exam(exam_id):
                                 error_message=original_action.error_message,
                                 max_attempts=original_action.max_attempts,
                                 text_color=original_action.text_color,
-                                font_family=original_action.font_family
+                                font_family=original_action.font_family,
+                                label_style=original_action.label_style
                             )
                             db.session.add(new_action)
         
@@ -1523,7 +1524,8 @@ def create_step_action(step_id):
         error_message=data.get('error_message'),
         max_attempts=data.get('max_attempts', 3),
         text_color=data.get('text_color', '#000000'),
-        font_family=data.get('font_family', 'Arial')
+        font_family=data.get('font_family', 'Arial'),
+        label_style=data.get('label_style', 'invisible')
     )
     
     db.session.add(action)
@@ -1614,6 +1616,8 @@ def update_action(action_id):
         action.text_color = data['text_color']
     if 'font_family' in data:
         action.font_family = data['font_family']
+    if 'label_style' in data:
+        action.label_style = data['label_style']
     
     action.updated_at = datetime.utcnow()
     db.session.commit()

@@ -45,6 +45,7 @@ export interface StudyTopic {
   title: string;
   description?: string;
   order: number;
+  estimated_time_minutes?: number;
   created_at: string;
   // Tipos de contenido permitidos
   allow_reading?: boolean;
@@ -160,6 +161,7 @@ export interface CreateTopicData {
   title: string;
   description?: string;
   order?: number;
+  estimated_time_minutes?: number;
   allow_reading?: boolean;
   allow_video?: boolean;
   allow_downloadable?: boolean;

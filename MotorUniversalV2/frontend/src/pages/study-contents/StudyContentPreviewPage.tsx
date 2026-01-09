@@ -30,6 +30,7 @@ import {
   RotateCcw,
   Image,
   Target,
+  Clock,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import CustomVideoPlayer from '../../components/CustomVideoPlayer';
@@ -1128,7 +1129,8 @@ const StudyContentPreviewPage: React.FC = () => {
   const getVideoEmbedUrl = (url: string) => {
     const youtubeMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([^&?\s]+)/);
     if (youtubeMatch) {
-      return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
+      // Usar el formato estándar de embed de YouTube
+      return `https://www.youtube.com/embed/${youtubeMatch[1]}?feature=oembed`;
     }
     const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
     if (vimeoMatch) {
@@ -1237,6 +1239,9 @@ const StudyContentPreviewPage: React.FC = () => {
                     </div>
                     <span className={`text-xs flex-shrink-0 mt-0.5 ${sessionCompleted ? 'text-green-500 font-medium' : 'text-gray-400'}`}>
                       {session.topics?.length || 0}
+                      {session.topics && session.topics.reduce((sum, t) => sum + (t.estimated_time_minutes || 0), 0) > 0 && (
+                        <span className="ml-1">· {session.topics.reduce((sum, t) => sum + (t.estimated_time_minutes || 0), 0)}m</span>
+                      )}
                     </span>
                   </button>
 
@@ -1262,7 +1267,13 @@ const StudyContentPreviewPage: React.FC = () => {
                             <div className={`text-sm flex items-center gap-2 ${isActive ? 'font-medium text-blue-600' : 'text-gray-700'}`}>
                               <span className="flex-1">
                                 <span className="text-gray-400 mr-1">{session.session_number}.{tIdx + 1}</span> {topic.title}
-                              </span>
+                              </span>               
+                              {topic.estimated_time_minutes && (
+                                <span className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0">
+                                  <Clock className="w-3 h-3" />
+                                  {topic.estimated_time_minutes}m
+                                </span>
+                              )}
                               {topicCompleted && (
                                 <span className="flex items-center justify-center w-2.5 h-2.5 bg-green-500 rounded-full flex-shrink-0">
                                   <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
@@ -1407,8 +1418,18 @@ const StudyContentPreviewPage: React.FC = () => {
                       {/* Título del video - arriba */}
                       <h2 className="text-xl font-semibold text-gray-900 pb-3 border-b border-gray-300">{currentTopic.video.title}</h2>
                       
-                      {/* Video container - altura basada en viewport */}
-                      <div className="bg-gray-50 rounded-lg overflow-hidden" style={{ height: 'calc(100vh - 350px)', minHeight: '300px' }}>
+                      {/* Video container - altura basada en viewport para blob, aspect ratio 16:9 para YouTube/Vimeo */}
+                      <div 
+                        className={`bg-gray-50 rounded-lg overflow-hidden ${
+                          currentTopic.video.video_url?.includes('blob.core.windows.net') 
+                            ? '' 
+                            : 'aspect-video'
+                        }`}
+                        style={currentTopic.video.video_url?.includes('blob.core.windows.net') 
+                          ? { height: 'calc(100vh - 350px)', minHeight: '300px' }
+                          : {}
+                        }
+                      >
                         {currentTopic.video.video_url?.includes('blob.core.windows.net') ? (
                           // Reproductor personalizado para archivos de Azure Blob
                           videoUrlLoading ? (
@@ -1441,7 +1462,8 @@ const StudyContentPreviewPage: React.FC = () => {
                             className="w-full h-full rounded-lg shadow-md"
                             style={{ border: 'none' }}
                             allowFullScreen
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerPolicy="strict-origin-when-cross-origin"
                           />
                         )}
                       </div>
@@ -2025,8 +2047,8 @@ const StudyContentPreviewPage: React.FC = () => {
 
       {/* Modal de error para ejercicio interactivo */}
       {showErrorModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[85vh] flex flex-col animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4" onClick={() => setShowErrorModal(null)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[85vh] flex flex-col animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
             {/* Header fijo */}
             <div className="flex items-center gap-4 p-6 pb-4 border-b border-gray-100">
               <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">

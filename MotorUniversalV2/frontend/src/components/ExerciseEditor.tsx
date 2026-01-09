@@ -3,6 +3,8 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { examService } from '../services/examService'
 import type { Exercise, ExerciseStep, ExerciseAction } from '../types'
 import LoadingSpinner from './LoadingSpinner'
+import ReactQuill from 'react-quill-new'
+import 'react-quill-new/dist/quill.snow.css'
 
 interface ExerciseEditorProps {
   exercise: Exercise
@@ -28,6 +30,8 @@ interface ResizeState {
   startY: number
   startWidth: number
   startHeight: number
+  startPositionX: number
+  startPositionY: number
 }
 
 // Estado para crear área con arrastre (rubber band selection)
@@ -37,6 +41,12 @@ interface DrawingState {
   startY: number
   currentX: number
   currentY: number
+}
+
+// Constantes de configuración del editor
+const EDITOR_CONFIG = {
+  ZOOM_LEVELS: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3],
+  DEFAULT_ZOOM: 1
 }
 
 const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
@@ -78,7 +88,9 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     startX: 0,
     startY: 0,
     startWidth: 0,
-    startHeight: 0
+    startHeight: 0,
+    startPositionX: 0,
+    startPositionY: 0
   })
 
   // Estado para dibujar área con arrastre (rubber band)
@@ -89,21 +101,9 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     currentX: 0,
     currentY: 0
   })
-  
-  // Modal para editar acción
-  const [isEditActionModalOpen, setIsEditActionModalOpen] = useState(false)
-  const [actionFormData, setActionFormData] = useState({
-    label: '',
-    placeholder: '',
-    correct_answer: '',
-    scoring_mode: 'exact',
-    showPlaceholder: false,
-    on_error_action: 'next_step',
-    error_message: '',
-    max_attempts: 3,
-    text_color: '#000000',
-    font_family: 'Arial'
-  })
+
+  // Zoom para la vista del canvas
+  const [zoom, setZoom] = useState(EDITOR_CONFIG.DEFAULT_ZOOM)
 
   // Modal de confirmación para eliminar paso
   const [deleteConfirmModal, setDeleteConfirmModal] = useState<{
@@ -118,6 +118,54 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     stepNumber: null,
     hasImage: false,
     actionsCount: 0
+  })
+
+  // Modal de advertencia para validaciones
+  const [warningModal, setWarningModal] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+  }>({
+    isOpen: false,
+    title: '',
+    message: ''
+  })
+
+  // Modal de confirmación para eliminar acción
+  const [deleteActionModal, setDeleteActionModal] = useState<{
+    isOpen: boolean
+    actionId: string | null
+    actionType: string | null
+    isCorrect: boolean
+  }>({
+    isOpen: false,
+    actionId: null,
+    actionType: null,
+    isCorrect: false
+  })
+
+  // Modal para editar acción
+  const [isEditActionModalOpen, setIsEditActionModalOpen] = useState(false)
+  const [actionFormData, setActionFormData] = useState<{
+    label: string
+    placeholder: string
+    correct_answer: string
+    scoring_mode: string
+    on_error_action: string
+    error_message: string
+    max_attempts: number
+    text_color: string
+    font_family: string
+  }>({
+    label: '',
+    placeholder: '',
+    correct_answer: '',
+    scoring_mode: 'exact',
+    on_error_action: 'next_step',
+    error_message: '',
+    max_attempts: 3,
+    text_color: '#000000',
+    font_family: 'Arial'
   })
 
   // Función para agregar cambio pendiente
@@ -217,6 +265,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     },
   })
 
+  // Mutation para eliminar acción
   const deleteActionMutation = useMutation({
     mutationFn: (actionId: string) => examService.deleteStepAction(actionId),
     onSuccess: (_response, actionId) => {
@@ -224,6 +273,9 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       refetch()
       setSelectedAction(null)
     },
+    onError: (error) => {
+      console.error('Error deleting action:', error)
+    }
   })
 
   // Mutation para reordenar pasos
@@ -354,6 +406,58 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       // Determinar el tipo de acción y configuración
       const isButton = selectedTool === 'button' || selectedTool === 'button-wrong'
       const isCorrectButton = selectedTool === 'button'
+      const isTextbox = selectedTool === 'textbox'
+      
+      // Validar que solo haya una respuesta correcta por paso
+      const hasCorrectAnswer = currentActions.some(a => 
+        (a.action_type === 'button' && a.correct_answer === 'correct') ||
+        (a.action_type === 'textbox' && a.correct_answer && a.correct_answer.trim() !== '')
+      )
+      
+      if ((isCorrectButton || isTextbox) && hasCorrectAnswer) {
+        setWarningModal({
+          isOpen: true,
+          title: 'Respuesta correcta ya existe',
+          message: 'Este paso ya tiene una respuesta correcta configurada. Solo puede haber un botón correcto o un campo de texto con respuesta por cada paso del ejercicio.'
+        })
+        setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
+        return
+      }
+      
+      // Validar que campos incorrectos no se superpongan con respuestas correctas
+      const isWrongButton = selectedTool === 'button-wrong'
+      if (isWrongButton) {
+        // Considerar como respuesta correcta: botones correctos Y todos los textbox (incluso sin respuesta definida)
+        const correctAction = currentActions.find(a => 
+          (a.action_type === 'button' && a.correct_answer === 'correct') ||
+          (a.action_type === 'textbox')
+        )
+        
+        if (correctAction) {
+          // Verificar superposición de rectángulos
+          const newRight = left + width
+          const newBottom = top + height
+          const correctRight = correctAction.position_x + correctAction.width
+          const correctBottom = correctAction.position_y + correctAction.height
+          
+          const overlaps = !(
+            newRight <= correctAction.position_x ||
+            left >= correctRight ||
+            newBottom <= correctAction.position_y ||
+            top >= correctBottom
+          )
+          
+          if (overlaps) {
+            setWarningModal({
+              isOpen: true,
+              title: 'Superposición no permitida',
+              message: 'El campo incorrecto no puede quedar por encima de la respuesta correcta. Por favor, coloca el área en otra posición.'
+            })
+            setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
+            return
+          }
+        }
+      }
       
       const newAction = {
         action_type: isButton ? 'button' : 'textbox',
@@ -389,8 +493,6 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   // Handlers para drag
   const handleActionMouseDown = (e: React.MouseEvent, action: ExerciseAction) => {
     e.stopPropagation()
-    
-    if (selectedTool !== 'select') return
 
     setSelectedAction(action)
     
@@ -433,16 +535,46 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
 
       let newWidth = resizeState.startWidth
       let newHeight = resizeState.startHeight
+      let newX = resizeState.startPositionX
+      let newY = resizeState.startPositionY
 
+      // Lógica para cada esquina
       if (resizeState.corner === 'se') {
-        newWidth = Math.max(5, resizeState.startWidth + deltaX)
-        newHeight = Math.max(3, resizeState.startHeight + deltaY)
+        // Esquina inferior derecha: aumentar ancho/alto
+        newWidth = Math.max(0.5, resizeState.startWidth + deltaX)
+        newHeight = Math.max(0.5, resizeState.startHeight + deltaY)
+      } else if (resizeState.corner === 'sw') {
+        // Esquina inferior izquierda: mover X, ajustar ancho
+        const widthChange = -deltaX
+        newWidth = Math.max(0.5, resizeState.startWidth + widthChange)
+        newX = resizeState.startPositionX - (newWidth - resizeState.startWidth)
+        newHeight = Math.max(0.5, resizeState.startHeight + deltaY)
+        newX = Math.max(0, newX)
+      } else if (resizeState.corner === 'ne') {
+        // Esquina superior derecha: mover Y, ajustar alto
+        newWidth = Math.max(0.5, resizeState.startWidth + deltaX)
+        const heightChange = -deltaY
+        newHeight = Math.max(0.5, resizeState.startHeight + heightChange)
+        newY = resizeState.startPositionY - (newHeight - resizeState.startHeight)
+        newY = Math.max(0, newY)
+      } else if (resizeState.corner === 'nw') {
+        // Esquina superior izquierda: mover X e Y, ajustar ambos
+        const widthChange = -deltaX
+        const heightChange = -deltaY
+        newWidth = Math.max(0.5, resizeState.startWidth + widthChange)
+        newHeight = Math.max(0.5, resizeState.startHeight + heightChange)
+        newX = resizeState.startPositionX - (newWidth - resizeState.startWidth)
+        newY = resizeState.startPositionY - (newHeight - resizeState.startHeight)
+        newX = Math.max(0, newX)
+        newY = Math.max(0, newY)
       }
 
       const actionEl = document.querySelector(`[data-action-id="${resizeState.actionId}"]`) as HTMLElement
       if (actionEl) {
         actionEl.style.width = `${newWidth}%`
         actionEl.style.height = `${newHeight}%`
+        actionEl.style.left = `${newX}%`
+        actionEl.style.top = `${newY}%`
       }
     }
   }, [dragState, resizeState])
@@ -466,16 +598,18 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       if (actionEl) {
         const width = parseFloat(actionEl.style.width)
         const height = parseFloat(actionEl.style.height)
+        const left = parseFloat(actionEl.style.left)
+        const top = parseFloat(actionEl.style.top)
         
         updateActionMutation.mutate({
           actionId: resizeState.actionId,
-          data: { width, height }
+          data: { width, height, position_x: left, position_y: top }
         })
       }
     }
 
     setDragState({ isDragging: false, actionId: null, startX: 0, startY: 0, offsetX: 0, offsetY: 0 })
-    setResizeState({ isResizing: false, actionId: null, corner: null, startX: 0, startY: 0, startWidth: 0, startHeight: 0 })
+    setResizeState({ isResizing: false, actionId: null, corner: null, startX: 0, startY: 0, startWidth: 0, startHeight: 0, startPositionX: 0, startPositionY: 0 })
   }, [dragState, resizeState, updateActionMutation])
 
   useEffect(() => {
@@ -490,7 +624,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   }, [dragState.isDragging, resizeState.isResizing, handleMouseMove, handleMouseUp])
 
   // Handler para resize
-  const handleResizeMouseDown = (e: React.MouseEvent, action: ExerciseAction, corner: 'se') => {
+  const handleResizeMouseDown = (e: React.MouseEvent, action: ExerciseAction, corner: 'se' | 'sw' | 'ne' | 'nw') => {
     e.stopPropagation()
     
     setResizeState({
@@ -500,7 +634,9 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       startX: e.clientX,
       startY: e.clientY,
       startWidth: action.width,
-      startHeight: action.height
+      startHeight: action.height,
+      startPositionX: action.position_x,
+      startPositionY: action.position_y
     })
   }
 
@@ -512,7 +648,6 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       placeholder: action.placeholder || '',
       correct_answer: action.correct_answer || '',
       scoring_mode: (action as any).scoring_mode || 'exact',
-      showPlaceholder: !!(action.placeholder && action.placeholder.trim() !== ''),
       on_error_action: (action as any).on_error_action || 'next_step',
       error_message: (action as any).error_message || '',
       max_attempts: (action as any).max_attempts || 3,
@@ -522,23 +657,47 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     setIsEditActionModalOpen(true)
   }
 
+  // Guardar cambios de acción
   const handleSaveAction = () => {
-    if (!selectedAction) return
+    if (!selectedAction || !currentStep) return
     
-    // Preparar los datos, eliminando el placeholder si showPlaceholder es false
-    const dataToSend = {
-      ...actionFormData,
-      placeholder: actionFormData.showPlaceholder ? actionFormData.placeholder : ''
+    const updateData: any = {}
+    
+    if (selectedAction.action_type === 'button') {
+      updateData.correct_answer = actionFormData.correct_answer
+      if (actionFormData.correct_answer === 'wrong') {
+        updateData.scoring_mode = actionFormData.scoring_mode
+        updateData.on_error_action = actionFormData.on_error_action
+        updateData.error_message = actionFormData.error_message
+        updateData.max_attempts = actionFormData.max_attempts
+      }
+    } else {
+      // textbox
+      updateData.correct_answer = actionFormData.correct_answer
+      updateData.scoring_mode = actionFormData.scoring_mode
+      updateData.text_color = actionFormData.text_color
+      updateData.font_family = actionFormData.font_family
+      if (actionFormData.scoring_mode === 'exact') {
+        updateData.on_error_action = actionFormData.on_error_action
+        updateData.error_message = actionFormData.error_message
+        updateData.max_attempts = actionFormData.max_attempts
+      }
     }
-    
-    // Eliminar showPlaceholder ya que no es un campo del backend
-    const { showPlaceholder, ...backendData } = dataToSend
     
     updateActionMutation.mutate({
       actionId: selectedAction.id,
-      data: backendData
+      data: updateData
     })
+    
     setIsEditActionModalOpen(false)
+  }
+
+  // Confirmar eliminación de acción
+  const confirmDeleteAction = () => {
+    if (!deleteActionModal.actionId) return
+    
+    deleteActionMutation.mutate(deleteActionModal.actionId)
+    setDeleteActionModal({ isOpen: false, actionId: null, actionType: null, isCorrect: false })
   }
 
   // Handler para seleccionar imagen para nuevo paso
@@ -755,9 +914,14 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
               </svg>
             </button>
+            
+            {/* Separador visual */}
+            <div className="h-6 w-px bg-gray-300 mx-1"></div>
+            
+            {/* Grupo de acciones correctas (verdes/azules) */}
             <button
               onClick={() => setSelectedTool('button')}
-              className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'button' ? 'bg-blue-600 text-white' : 'bg-white border hover:bg-gray-100'}`}
+              className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'button' ? 'bg-teal-600 text-white' : 'bg-white border hover:bg-teal-50 hover:border-teal-300'}`}
               title="Agregar Botón Correcto"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -765,17 +929,8 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
               </svg>
             </button>
             <button
-              onClick={() => setSelectedTool('button-wrong')}
-              className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'button-wrong' ? 'bg-orange-600 text-white' : 'bg-white border hover:bg-gray-100'}`}
-              title="Agregar Botón Incorrecto/Erróneo"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </button>
-            <button
               onClick={() => setSelectedTool('textbox')}
-              className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'textbox' ? 'bg-green-600 text-white' : 'bg-white border hover:bg-gray-100'}`}
+              className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'textbox' ? 'bg-lime-600 text-white' : 'bg-white border hover:bg-lime-50 hover:border-lime-300'}`}
               title="Agregar Campo de Texto"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -784,42 +939,76 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
             </button>
           </div>
 
+          {/* Separador visual */}
           <div className="h-6 w-px bg-gray-300"></div>
 
-          {selectedAction && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleEditAction(selectedAction)}
-                className="px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium"
-              >
-                Editar Respuesta
-              </button>
-              <button
-                onClick={() => {
-                  deleteActionMutation.mutate(selectedAction.id)
-                }}
-                className="px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium"
-              >
-                Eliminar Acción
-              </button>
-            </div>
-          )}
+          {/* Campo incorrecto (naranja) */}
+          <button
+            onClick={() => setSelectedTool('button-wrong')}
+            className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'button-wrong' ? 'bg-orange-600 text-white' : 'bg-white border hover:bg-orange-50 hover:border-orange-300'}`}
+            title="Agregar Campo Incorrecto"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+
+          <div className="h-6 w-px bg-gray-300"></div>
+
+          {/* Controles de zoom */}
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-medium text-gray-700">Zoom:</span>
+            <button
+              onClick={() => {
+                const idx = EDITOR_CONFIG.ZOOM_LEVELS.indexOf(zoom)
+                if (idx > 0) setZoom(EDITOR_CONFIG.ZOOM_LEVELS[idx - 1])
+              }}
+              disabled={zoom === EDITOR_CONFIG.ZOOM_LEVELS[0]}
+              className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Alejar"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+              </svg>
+            </button>
+            <span className="text-sm font-medium text-gray-700 min-w-[45px] text-center">{Math.round(zoom * 100)}%</span>
+            <button
+              onClick={() => {
+                const idx = EDITOR_CONFIG.ZOOM_LEVELS.indexOf(zoom)
+                if (idx < EDITOR_CONFIG.ZOOM_LEVELS.length - 1) setZoom(EDITOR_CONFIG.ZOOM_LEVELS[idx + 1])
+              }}
+              disabled={zoom === EDITOR_CONFIG.ZOOM_LEVELS[EDITOR_CONFIG.ZOOM_LEVELS.length - 1]}
+              className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Acercar"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setZoom(1)}
+              className="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded text-gray-600 ml-1"
+              title="Restablecer zoom"
+            >
+              Reset
+            </button>
+          </div>
 
           <div className="flex-1"></div>
 
           <div className="flex items-center gap-2 text-sm">
             {selectedTool === 'button' && (
-              <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg">
+              <span className="px-3 py-1.5 bg-teal-50 text-teal-700 rounded-lg">
                 ✅ Dibuja un área en la imagen para agregar un botón correcto
               </span>
             )}
             {selectedTool === 'button-wrong' && (
               <span className="px-3 py-1.5 bg-orange-50 text-orange-700 rounded-lg">
-                ❌ Dibuja un área en la imagen para agregar un botón incorrecto
+                ❌ Dibuja un área en la imagen para agregar un campo incorrecto
               </span>
             )}
             {selectedTool === 'textbox' && (
-              <span className="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg">
+              <span className="px-3 py-1.5 bg-lime-50 text-lime-700 rounded-lg">
                 ✏️ Dibuja un área en la imagen para agregar un campo de texto
               </span>
             )}
@@ -1014,15 +1203,22 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
               <div className="w-full">
                 {currentStep.image_url ? (
                   <>
-                    <div
-                      ref={imageContainerRef}
-                      className="relative bg-white shadow-2xl rounded-lg select-none mx-auto"
-                      onMouseDown={handleImageMouseDown}
-                      onMouseMove={handleImageMouseMove}
-                      onMouseUp={handleImageMouseUp}
-                      onMouseLeave={handleImageMouseUp}
-                      style={{ cursor: selectedTool !== 'select' ? 'crosshair' : 'default', maxWidth: '1400px' }}
-                    >
+                    {/* Contenedor con scroll para zoom */}
+                    <div className="overflow-auto mx-auto" style={{ maxHeight: 'calc(100vh - 240px)' }}>
+                      <div
+                        ref={imageContainerRef}
+                        className="relative bg-white shadow-2xl rounded-lg select-none mx-auto origin-top-left"
+                        onMouseDown={handleImageMouseDown}
+                        onMouseMove={handleImageMouseMove}
+                        onMouseUp={handleImageMouseUp}
+                        onMouseLeave={handleImageMouseUp}
+                        style={{ 
+                          cursor: selectedTool !== 'select' ? 'crosshair' : 'default', 
+                          maxWidth: `${1400 * zoom}px`,
+                          transform: `scale(${zoom})`,
+                          transformOrigin: 'top center'
+                        }}
+                      >
                       <img
                         src={currentStep.image_url}
                         alt={`Paso ${currentStep.step_number}`}
@@ -1073,13 +1269,22 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                         const isWrongButton = action.action_type === 'button' && action.correct_answer === 'wrong'
                         const isCorrectButton = action.action_type === 'button' && action.correct_answer === 'correct'
                         
+                        // Determinar si esta acción está siendo arrastrada o redimensionada
+                        const isBeingDraggedOrResized = 
+                          (dragState.isDragging && dragState.actionId === action.id) ||
+                          (resizeState.isResizing && resizeState.actionId === action.id)
+                        
                         return (
                         <div
                           key={action.id}
                           data-action-id={action.id}
-                          className={`absolute border-2 rounded cursor-move transition-all z-10 ${
+                          className={`absolute border-2 rounded cursor-move z-10 ${
+                            isBeingDraggedOrResized
+                              ? 'border-dashed'
+                              : ''
+                          } ${
                             selectedAction?.id === action.id
-                              ? 'border-primary-500 bg-primary-200 bg-opacity-50 shadow-lg'
+                              ? 'border-primary-500 bg-primary-200 bg-opacity-50 shadow-lg ring-2 ring-primary-300'
                               : isCorrectButton
                               ? 'border-blue-500 bg-blue-200 bg-opacity-40 hover:bg-opacity-60'
                               : isWrongButton
@@ -1096,7 +1301,6 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                           }}
                           onClick={(e) => e.stopPropagation()}
                           onMouseDown={(e) => handleActionMouseDown(e, action)}
-                          onDoubleClick={() => handleEditAction(action)}
                         >
                           <div className="absolute inset-0 flex items-center justify-center text-xs font-medium truncate px-1">
                             {action.action_type === 'button' ? (
@@ -1112,15 +1316,34 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                             )}
                           </div>
                           
-                          {/* Resize handle */}
-                          {selectedAction?.id === action.id && (
-                            <div
-                              className="absolute bottom-0 right-0 w-4 h-4 bg-primary-500 cursor-se-resize rounded-tl"
-                              onMouseDown={(e) => handleResizeMouseDown(e, action, 'se')}
-                            />
+                          {/* Resize handles en las 4 esquinas */}
+                          {selectedAction?.id === action.id && !isBeingDraggedOrResized && (
+                            <>
+                              {/* Esquina superior izquierda */}
+                              <div
+                                className="absolute -top-1 -left-1 w-3 h-3 bg-primary-500 cursor-nw-resize rounded-br border border-white shadow"
+                                onMouseDown={(e) => handleResizeMouseDown(e, action, 'nw')}
+                              />
+                              {/* Esquina superior derecha */}
+                              <div
+                                className="absolute -top-1 -right-1 w-3 h-3 bg-primary-500 cursor-ne-resize rounded-bl border border-white shadow"
+                                onMouseDown={(e) => handleResizeMouseDown(e, action, 'ne')}
+                              />
+                              {/* Esquina inferior izquierda */}
+                              <div
+                                className="absolute -bottom-1 -left-1 w-3 h-3 bg-primary-500 cursor-sw-resize rounded-tr border border-white shadow"
+                                onMouseDown={(e) => handleResizeMouseDown(e, action, 'sw')}
+                              />
+                              {/* Esquina inferior derecha */}
+                              <div
+                                className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary-500 cursor-se-resize rounded-tl border border-white shadow"
+                                onMouseDown={(e) => handleResizeMouseDown(e, action, 'se')}
+                              />
+                            </>
                           )}
                           
-                          {/* Action number badge */}
+                          {/* Action number badge - oculto durante drag/resize */}
+                          {!isBeingDraggedOrResized && (
                           <div className={`absolute -top-3 -left-3 w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold shadow ${
                             isCorrectButton 
                               ? 'bg-blue-600' 
@@ -1132,8 +1355,10 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                           }`}>
                             {action.action_number}
                           </div>
+                          )}
                         </div>
                       )})}
+                    </div>
                     </div>
                     
                     {/* Botón para cambiar imagen */}
@@ -1222,466 +1447,220 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {currentStep.actions.map((action: ExerciseAction) => {
-                      const isTextboxWithoutAnswer = action.action_type === 'textbox' && (!action.correct_answer || action.correct_answer.trim() === '')
-                      const isWrongButton = action.action_type === 'button' && action.correct_answer === 'wrong'
-                      const isCorrectButton = action.action_type === 'button' && action.correct_answer === 'correct'
-                      return (
-                      <div
-                        key={action.id}
-                        onClick={() => setSelectedAction(action)}
-                        className={`p-3 rounded-lg cursor-pointer transition-all border ${
-                          selectedAction?.id === action.id
-                            ? 'border-primary-500 bg-primary-50 shadow'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className={`w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold ${
-                            isCorrectButton 
-                              ? 'bg-blue-600' 
-                              : isWrongButton 
-                              ? 'bg-orange-600' 
-                              : isTextboxWithoutAnswer 
-                              ? 'bg-red-600' 
-                              : 'bg-green-600'
-                          }`}>
-                            {action.action_number}
-                          </span>
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                            isCorrectButton
-                              ? 'bg-blue-100 text-blue-700'
-                              : isWrongButton
-                              ? 'bg-orange-100 text-orange-700'
-                              : isTextboxWithoutAnswer
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-green-100 text-green-700'
-                          }`}>
-                            {action.action_type === 'button' 
-                              ? (isCorrectButton ? 'Botón Correcto' : 'Botón Incorrecto') 
-                              : 'Campo de Texto'}
-                          </span>
-                        </div>
-                        <div className="text-sm">
-                          {action.action_type === 'button' ? (
-                            <div>
-                              <p className="text-gray-700">{action.label || 'Sin etiqueta'}</p>
-                              {isWrongButton && (
-                                <p className="text-xs text-orange-600 mt-1">⚠️ Respuesta incorrecta</p>
-                              )}
-                              {isCorrectButton && (
-                                <p className="text-xs text-blue-600 mt-1">✓ Respuesta correcta</p>
+                    {(() => {
+                      // Ordenar acciones: textbox primero (ambos rojo y verde), luego botones correctos, luego incorrectos
+                      const sortedActions = [...currentStep.actions]
+                        .sort((a, b) => {
+                          // textbox siempre primero (prioridad 0)
+                          // botones correctos segundo (prioridad 1)
+                          // botones incorrectos al final (prioridad 2)
+                          const getPriority = (action: ExerciseAction) => {
+                            if (action.action_type === 'textbox') return 0;
+                            if (action.action_type === 'button' && action.correct_answer === 'correct') return 1;
+                            return 2;
+                          };
+                          const priorityDiff = getPriority(a) - getPriority(b);
+                          if (priorityDiff !== 0) return priorityDiff;
+                          // Si tienen la misma prioridad, ordenar por action_number
+                          return a.action_number - b.action_number;
+                        });
+                      
+                      return sortedActions.map((action: ExerciseAction, index: number) => {
+                        const isTextboxWithoutAnswer = action.action_type === 'textbox' && (!action.correct_answer || action.correct_answer.trim() === '')
+                        const isTextbox = action.action_type === 'textbox'
+                        const isWrongButton = action.action_type === 'button' && action.correct_answer === 'wrong'
+                        const isCorrectButton = action.action_type === 'button' && action.correct_answer === 'correct'
+                        const isCorrectAction = isCorrectButton || isTextbox
+                        
+                        // Calcular número de display contando solo acciones incorrectas (wrong buttons)
+                        const incorrectIndex = sortedActions
+                          .slice(0, index)
+                          .filter((a: ExerciseAction) => {
+                            const aIsCorrectButton = a.action_type === 'button' && a.correct_answer === 'correct'
+                            const aIsTextbox = a.action_type === 'textbox'
+                            return !(aIsCorrectButton || aIsTextbox)
+                          })
+                          .length
+                        const displayNumber = isCorrectAction ? null : incorrectIndex + 1
+                        
+                        return (
+                          <div
+                            key={action.id}
+                            onClick={() => setSelectedAction(action)}
+                            className={`relative p-3 rounded-lg cursor-pointer transition-all border overflow-hidden ${
+                              selectedAction?.id === action.id
+                                ? 'border-primary-500 bg-primary-50 shadow ring-2 ring-primary-200'
+                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {/* Botón eliminar en esquina superior derecha */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const actionIsCorrect = action.action_type === 'button' 
+                                  ? action.correct_answer === 'correct'
+                                  : (action.correct_answer && action.correct_answer.trim() !== '')
+                                
+                                setDeleteActionModal({
+                                  isOpen: true,
+                                  actionId: action.id,
+                                  actionType: action.action_type,
+                                  isCorrect: !!actionIsCorrect
+                                })
+                              }}
+                              className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                              title="Eliminar acción"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+
+                            <div className="flex items-center gap-2 mb-2 pr-6">
+                              <span className={`w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold ${
+                                isCorrectButton 
+                                  ? 'bg-teal-600' 
+                                  : isTextboxWithoutAnswer
+                                    ? 'bg-red-600'
+                                    : isTextbox
+                                      ? 'bg-lime-600'
+                                      : isWrongButton 
+                                        ? 'bg-orange-600' 
+                                        : 'bg-lime-600'
+                              }`}>
+                                {isCorrectAction ? (
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                ) : displayNumber}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                isCorrectButton
+                                  ? 'bg-teal-100 text-teal-700'
+                                  : isWrongButton
+                                    ? 'bg-orange-100 text-orange-700'
+                                    : isTextboxWithoutAnswer
+                                      ? 'bg-red-100 text-red-700'
+                                      : 'bg-lime-100 text-lime-700'
+                              }`}>
+                                {action.action_type === 'button' 
+                                  ? (isCorrectButton ? 'Botón Correcto' : 'Campo Incorrecto') 
+                                  : 'Campo de Texto'}
+                              </span>
+                            </div>
+                            
+                            <div className="text-sm">
+                              {action.action_type === 'button' ? (
+                                <div>
+                                  {isCorrectButton && (
+                                    <div className="space-y-1.5 mt-1">
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <svg className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                                        </svg>
+                                        <span className="text-xs text-gray-600 truncate min-w-0">
+                                          Estilo: <span className="font-medium text-purple-700">Invisible</span>
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                        </svg>
+                                        <span className="text-xs text-gray-600 truncate min-w-0">
+                                          Etiqueta: <span className="font-medium text-gray-700">{action.label || `Botón ${action.action_number}`}</span>
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-teal-600">✓ Respuesta correcta</p>
+                                    </div>
+                                  )}
+                                  {isWrongButton && (
+                                    <div className="space-y-1.5 mt-1">
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <svg className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                                        </svg>
+                                        <span className="text-xs text-gray-600 truncate min-w-0">
+                                          Estilo: <span className="font-medium text-purple-700">Invisible</span>
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                        </svg>
+                                        <span className="text-xs text-gray-600 truncate min-w-0">
+                                          Etiqueta: <span className="font-medium text-gray-700">{action.label || `Botón ${action.action_number}`}</span>
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <svg className="w-3.5 h-3.5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                        <span className="text-xs text-gray-600">
+                                          <span className="font-medium text-orange-700">Área incorrecta</span>
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="space-y-1.5 mt-1">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <svg className="w-3.5 h-3.5 text-lime-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span className="text-xs text-gray-600 truncate min-w-0">
+                                      Respuesta: <span className={`font-medium ${isTextboxWithoutAnswer ? 'text-red-600' : 'text-lime-700'}`}>
+                                        {action.correct_answer || 'Sin definir'}
+                                      </span>
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <svg className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                                    </svg>
+                                    <span className="text-xs text-gray-600 truncate min-w-0">
+                                      Estilo: <span className="font-medium text-purple-700">Invisible</span>
+                                    </span>
+                                  </div>
+                                  {action.placeholder && (
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                                      </svg>
+                                      <span className="text-xs text-gray-600 truncate min-w-0">
+                                        Placeholder: <span className="font-medium text-gray-700 italic">{action.placeholder}</span>
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </div>
-                          ) : (
-                            <>
-                              <p className="text-gray-500 italic text-xs">{action.placeholder || 'Sin placeholder'}</p>
-                              <p className={`mt-1 ${isTextboxWithoutAnswer ? 'text-red-700 font-semibold' : 'text-gray-700'}`}>
-                                Respuesta: <span className={`font-medium ${isTextboxWithoutAnswer ? 'text-red-700' : 'text-green-700'}`}>
-                                  {action.correct_answer || 'Sin definir'}
-                                </span>
-                              </p>
-                            </>
-                          )}
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleEditAction(action)
-                          }}
-                          className="mt-2 text-xs text-primary-600 hover:text-primary-700 font-medium"
-                        >
-                          Editar configuración →
-                        </button>
-                      </div>
-                    )})}
+                            
+                            {/* Botón de editar acción */}
+                            <div className="mt-3 pt-2 border-t border-gray-100">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleEditAction(action)
+                                }}
+                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                Editar acción
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 )}
-              </div>
-
-              {/* Leyenda */}
-              <div className="p-4 border-t bg-gray-50">
-                <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Tipos de acción</h4>
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded bg-blue-500"></span>
-                    <span className="text-gray-600">Botón: El alumno debe hacer clic</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded bg-green-500"></span>
-                    <span className="text-gray-600">Texto: El alumno debe escribir</span>
-                  </div>
-                </div>
               </div>
             </div>
           )}
         </div>
-
-      {/* Modal para editar acción */}
-      {isEditActionModalOpen && selectedAction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] overflow-y-auto">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl my-8">
-            <h3 className="text-lg font-semibold mb-4">
-              Editar {selectedAction.action_type === 'button' ? 'Botón' : 'Campo de Texto'}
-            </h3>
-            
-            <div className="space-y-4">
-              {/* Checkbox para mostrar texto indicativo (común para botones y textbox) */}
-              <div>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={actionFormData.showPlaceholder}
-                    onChange={(e) => setActionFormData({ ...actionFormData, showPlaceholder: e.target.checked })}
-                    className="w-4 h-4 text-primary-600 rounded"
-                  />
-                  <span className="text-sm text-gray-700 font-medium">Mostrar texto indicativo en la acción</span>
-                </label>
-                <p className="text-xs text-gray-500 ml-6 mt-1">
-                  El texto indicativo ayuda al estudiante a entender qué hacer
-                </p>
-              </div>
-
-              {/* Campo de texto indicativo (si está activado) */}
-              {actionFormData.showPlaceholder && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Texto Indicativo
-                  </label>
-                  <input
-                    type="text"
-                    value={actionFormData.placeholder}
-                    onChange={(e) => setActionFormData({ ...actionFormData, placeholder: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
-                    placeholder={selectedAction.action_type === 'button' ? 'Ej: Haz clic aquí' : 'Ej: Escribe tu respuesta aquí'}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Este texto aparecerá {selectedAction.action_type === 'button' ? 'dentro del botón' : 'como guía en el campo de texto'}
-                  </p>
-                </div>
-              )}
-
-              {/* Campos específicos según el tipo */}
-              {selectedAction.action_type === 'button' ? (
-                <>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <div className="flex items-start gap-2">
-                      <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div>
-                        <p className="text-sm font-medium text-blue-900 mb-1">
-                          Etiqueta automática: {actionFormData.label || `Botón ${selectedAction.action_number}`}
-                        </p>
-                        <p className="text-xs text-blue-700">
-                          La etiqueta se asigna automáticamente y se usa para identificar el botón en los reportes
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tipo de Respuesta
-                    </label>
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-blue-50 ${actionFormData.correct_answer === 'correct' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}">
-                        <input
-                          type="radio"
-                          name="button-type"
-                          value="correct"
-                          checked={actionFormData.correct_answer === 'correct'}
-                          onChange={(e) => setActionFormData({ ...actionFormData, correct_answer: e.target.value })}
-                          className="w-4 h-4 text-blue-600"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span className="font-medium text-gray-900">Botón Correcto</span>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1 ml-7">Este botón representa una acción correcta</p>
-                        </div>
-                      </label>
-                      
-                      <label className="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-orange-50 ${actionFormData.correct_answer === 'wrong' ? 'border-orange-500 bg-orange-50' : 'border-gray-200'}">
-                        <input
-                          type="radio"
-                          name="button-type"
-                          value="wrong"
-                          checked={actionFormData.correct_answer === 'wrong'}
-                          onChange={(e) => setActionFormData({ ...actionFormData, correct_answer: e.target.value })}
-                          className="w-4 h-4 text-orange-600"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span className="font-medium text-gray-900">Botón Incorrecto</span>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1 ml-7">Este botón representa una acción incorrecta o errónea</p>
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-                  
-                  {/* Configuración de acción en error (solo para botones incorrectos) */}
-                  {actionFormData.correct_answer === 'wrong' && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                      <h4 className="text-sm font-semibold text-orange-900 mb-3 flex items-center gap-2">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                        Acción cuando se seleccione este botón incorrecto
-                      </h4>
-                      
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            ¿Qué hacer al seleccionar?
-                          </label>
-                          <select
-                            value={actionFormData.on_error_action}
-                            onChange={(e) => setActionFormData({ ...actionFormData, on_error_action: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
-                          >
-                            <option value="show_message">Mostrar mensaje de error y permitir reintentar</option>
-                            <option value="next_step">Pasar al siguiente paso</option>
-                            <option value="next_exercise">Pasar al siguiente ejercicio</option>
-                          </select>
-                        </div>
-                        
-                        {actionFormData.on_error_action === 'show_message' && (
-                          <>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Mensaje de error
-                              </label>
-                              <textarea
-                                value={actionFormData.error_message}
-                                onChange={(e) => setActionFormData({ ...actionFormData, error_message: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
-                                rows={2}
-                                placeholder="Ej: Respuesta incorrecta. Inténtalo de nuevo."
-                              />
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Número máximo de intentos
-                              </label>
-                              <input
-                                type="number"
-                                min="1"
-                                max="10"
-                                value={actionFormData.max_attempts}
-                                onChange={(e) => setActionFormData({ ...actionFormData, max_attempts: parseInt(e.target.value) || 1 })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
-                              />
-                              <p className="text-xs text-gray-500 mt-1">
-                                Después de este número de intentos, se terminará el ejercicio
-                              </p>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Respuesta Correcta <span className="text-red-600">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={actionFormData.correct_answer}
-                      onChange={(e) => setActionFormData({ ...actionFormData, correct_answer: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
-                      placeholder="La respuesta que debe escribir el alumno"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Modo de evaluación
-                    </label>
-                    <select
-                      value={actionFormData.scoring_mode}
-                      onChange={(e) => setActionFormData({ ...actionFormData, scoring_mode: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
-                    >
-                      <option value="exact">Exacta (0% o 100%) - La respuesta debe ser idéntica</option>
-                      <option value="similarity">Por similitud - Se calcula el porcentaje de similitud como puntuación</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {actionFormData.scoring_mode === 'exact' 
-                        ? 'La respuesta debe coincidir exactamente. Puntuación: 0% (incorrecta) o 100% (correcta).'
-                        : 'El sistema calculará qué tan similar es la respuesta del alumno y guardará ese porcentaje como puntuación.'}
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Color de texto
-                    </label>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setActionFormData({ ...actionFormData, text_color: '#000000' })}
-                          className={`px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${
-                            actionFormData.text_color === '#000000' 
-                              ? 'bg-gray-900 text-white border-gray-900' 
-                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          Negro
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setActionFormData({ ...actionFormData, text_color: '#ffffff' })}
-                          className={`px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${
-                            actionFormData.text_color === '#ffffff' 
-                              ? 'bg-white text-gray-900 border-gray-900 ring-2 ring-gray-900' 
-                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          Blanco
-                        </button>
-                        <div className="flex items-center gap-2 flex-1">
-                          <input
-                            type="color"
-                            value={actionFormData.text_color}
-                            onChange={(e) => setActionFormData({ ...actionFormData, text_color: e.target.value })}
-                            className="h-10 w-16 rounded border border-gray-300 cursor-pointer"
-                          />
-                          <input
-                            type="text"
-                            value={actionFormData.text_color}
-                            onChange={(e) => {
-                              const value = e.target.value
-                              if (/^#[0-9A-Fa-f]{0,6}$/.test(value)) {
-                                setActionFormData({ ...actionFormData, text_color: value })
-                              }
-                            }}
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm font-mono"
-                            placeholder="#000000"
-                            maxLength={7}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">Color del texto que el alumno verá al escribir en el examen</p>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tipo de letra
-                    </label>
-                    <select
-                      value={actionFormData.font_family}
-                      onChange={(e) => setActionFormData({ ...actionFormData, font_family: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
-                    >
-                      <option value="Arial" style={{ fontFamily: 'Arial' }}>Arial</option>
-                      <option value="Helvetica" style={{ fontFamily: 'Helvetica' }}>Helvetica</option>
-                      <option value="Times New Roman" style={{ fontFamily: 'Times New Roman' }}>Times New Roman</option>
-                      <option value="Georgia" style={{ fontFamily: 'Georgia' }}>Georgia</option>
-                      <option value="Courier New" style={{ fontFamily: 'Courier New' }}>Courier New</option>
-                      <option value="Verdana" style={{ fontFamily: 'Verdana' }}>Verdana</option>
-                      <option value="Comic Sans MS" style={{ fontFamily: 'Comic Sans MS' }}>Comic Sans MS</option>
-                      <option value="Impact" style={{ fontFamily: 'Impact' }}>Impact</option>
-                      <option value="Trebuchet MS" style={{ fontFamily: 'Trebuchet MS' }}>Trebuchet MS</option>
-                      <option value="monospace" style={{ fontFamily: 'monospace' }}>Monospace</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">Fuente que verá el alumno al escribir su respuesta</p>
-                  </div>
-                  
-                  {/* Configuración de acción en error para textbox */}
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      Acción cuando la respuesta sea incorrecta
-                    </h4>
-                    
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          ¿Qué hacer con respuesta incorrecta?
-                        </label>
-                        <select
-                          value={actionFormData.on_error_action}
-                          onChange={(e) => setActionFormData({ ...actionFormData, on_error_action: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
-                        >
-                          <option value="show_message">Mostrar mensaje de error y permitir reintentar</option>
-                          <option value="next_step">Pasar al siguiente paso</option>
-                          <option value="next_exercise">Pasar al siguiente ejercicio</option>
-                        </select>
-                      </div>
-                      
-                      {actionFormData.on_error_action === 'show_message' && (
-                        <>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Mensaje de error
-                            </label>
-                            <textarea
-                              value={actionFormData.error_message}
-                              onChange={(e) => setActionFormData({ ...actionFormData, error_message: e.target.value })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
-                              rows={2}
-                              placeholder="Ej: Respuesta incorrecta. Revisa tu respuesta."
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Número máximo de intentos
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="10"
-                              value={actionFormData.max_attempts}
-                              onChange={(e) => setActionFormData({ ...actionFormData, max_attempts: parseInt(e.target.value) || 1 })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Después de este número de intentos, se terminará el ejercicio
-                            </p>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="flex gap-3 justify-end mt-6">
-              <button
-                onClick={() => setIsEditActionModalOpen(false)}
-                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSaveAction}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-                disabled={updateActionMutation.isPending}
-              >
-                {updateActionMutation.isPending ? 'Guardando...' : 'Guardar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal de confirmación para eliminar paso */}
       {deleteConfirmModal.isOpen && (
@@ -1836,6 +1815,486 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
           </div>
         </div>
       )}
+
+      {/* Modal de advertencia para validaciones */}
+      {warningModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]" onClick={() => setWarningModal({ isOpen: false, title: '', message: '' })}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center">
+              {/* Icono de advertencia */}
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              
+              {/* Título */}
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {warningModal.title}
+              </h3>
+              
+              {/* Mensaje */}
+              <p className="text-gray-600 mb-6">
+                {warningModal.message}
+              </p>
+              
+              {/* Botón */}
+              <button
+                onClick={() => setWarningModal({ isOpen: false, title: '', message: '' })}
+                className="px-6 py-2.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación para eliminar acción */}
+      {deleteActionModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]" onClick={() => setDeleteActionModal({ isOpen: false, actionId: null, actionType: null, isCorrect: false })}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center">
+              {/* Icono de eliminación */}
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              
+              {/* Título */}
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Eliminar {deleteActionModal.actionType === 'button' ? 'Botón' : 'Campo de Texto'}
+              </h3>
+              
+              {/* Mensaje */}
+              <p className="text-gray-600 mb-2">
+                ¿Estás seguro de que deseas eliminar esta acción?
+              </p>
+              <p className="text-sm text-gray-500 mb-6">
+                {deleteActionModal.isCorrect ? (
+                  <span className="text-green-600 font-medium">Esta es la respuesta correcta del paso.</span>
+                ) : (
+                  <span className="text-orange-600 font-medium">Esta es una opción incorrecta.</span>
+                )}
+              </p>
+              
+              {/* Botones */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteActionModal({ isOpen: false, actionId: null, actionType: null, isCorrect: false })}
+                  className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDeleteAction}
+                  className="px-5 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+                  disabled={deleteActionMutation.isPending}
+                >
+                  {deleteActionMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para editar acción */}
+      {isEditActionModalOpen && selectedAction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] overflow-y-auto" onClick={() => setIsEditActionModalOpen(false)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl my-8 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">
+                Editar {selectedAction.action_type === 'button' ? 'Botón' : 'Campo de Texto'}
+              </h3>
+              <button
+                onClick={() => setIsEditActionModalOpen(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Cerrar"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {/* Campos específicos según el tipo */}
+              {selectedAction.action_type === 'button' ? (
+                <>
+                  {/* Sección 1: Tipo de Respuesta */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Tipo de Respuesta
+                    </h4>
+                    
+                    <div className="space-y-2">
+                      <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-blue-100 ${actionFormData.correct_answer === 'correct' ? 'border-blue-500 bg-blue-100' : 'border-gray-200 bg-white'}`}>
+                        <input
+                          type="radio"
+                          name="button-type"
+                          value="correct"
+                          checked={actionFormData.correct_answer === 'correct'}
+                          onChange={(e) => setActionFormData({ ...actionFormData, correct_answer: e.target.value })}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="font-medium text-gray-900">Botón Correcto</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1 ml-7">Este botón representa la acción correcta que el alumno debe seleccionar</p>
+                        </div>
+                      </label>
+                      
+                      <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-orange-100 ${actionFormData.correct_answer === 'wrong' ? 'border-orange-500 bg-orange-100' : 'border-gray-200 bg-white'}`}>
+                        <input
+                          type="radio"
+                          name="button-type"
+                          value="wrong"
+                          checked={actionFormData.correct_answer === 'wrong'}
+                          onChange={(e) => setActionFormData({ ...actionFormData, correct_answer: e.target.value })}
+                          className="w-4 h-4 text-orange-600"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="font-medium text-gray-900">Botón Incorrecto</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1 ml-7">Este botón representa una acción incorrecta o errónea</p>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                  
+                  {/* Sección 2: Configuración de acción en error (solo para acciones incorrectas) */}
+                  {actionFormData.correct_answer === 'wrong' && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-orange-900 mb-3 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Acción cuando se seleccione esta área incorrecta
+                      </h4>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            ¿Qué hacer al seleccionar?
+                          </label>
+                          <select
+                            value={actionFormData.on_error_action}
+                            onChange={(e) => setActionFormData({ ...actionFormData, on_error_action: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                          >
+                            <option value="show_message">Mostrar mensaje de error y permitir reintentar</option>
+                            <option value="next_step">Pasar al siguiente paso</option>
+                            <option value="next_exercise">Pasar al siguiente ejercicio</option>
+                          </select>
+                        </div>
+                        
+                        {actionFormData.on_error_action === 'show_message' && (
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Mensaje de error
+                              </label>
+                              <div className="border border-gray-300 rounded-lg overflow-hidden error-message-editor" style={{ maxHeight: '120px' }}>
+                                <ReactQuill
+                                  theme="snow"
+                                  value={actionFormData.error_message || ''}
+                                  onChange={(content) => setActionFormData({ ...actionFormData, error_message: content })}
+                                  modules={{
+                                    toolbar: [
+                                      [{ 'header': [1, 2, 3, false] }],
+                                      ['bold', 'italic', 'underline', 'strike'],
+                                      [{ 'color': [] }, { 'background': [] }],
+                                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                                      [{ 'align': [] }],
+                                      ['link'],
+                                      ['clean']
+                                    ],
+                                  }}
+                                  formats={['header', 'bold', 'italic', 'underline', 'strike', 'color', 'background', 'list', 'align', 'link']}
+                                  placeholder="Ej: Respuesta incorrecta. Revisa tu respuesta."
+                                  style={{ maxHeight: '80px', overflowY: 'auto' }}
+                                />
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Número máximo de intentos adicionales
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={actionFormData.max_attempts}
+                                onChange={(e) => setActionFormData({ ...actionFormData, max_attempts: parseInt(e.target.value) || 1 })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">
+                                Después de este número de intentos, se terminará el ejercicio
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Sección 1: Respuesta Esperada */}
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-green-900 mb-3 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Respuesta Esperada
+                    </h4>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Respuesta Correcta <span className="text-red-600">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={actionFormData.correct_answer}
+                          onChange={(e) => setActionFormData({ ...actionFormData, correct_answer: e.target.value })}
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 ${!actionFormData.correct_answer?.trim() ? 'border-red-400' : 'border-gray-300'}`}
+                          placeholder="La respuesta que debe escribir el alumno"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Esta es la respuesta contra la cual se comparará lo que escriba el alumno
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sección 2: Modo de Evaluación */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      Modo de Evaluación
+                    </h4>
+                    
+                    <div className="space-y-2">
+                      <label className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-blue-100 ${actionFormData.scoring_mode === 'exact' ? 'border-blue-500 bg-blue-100' : 'border-gray-200 bg-white'}`}>
+                        <input
+                          type="radio"
+                          name="scoring-mode"
+                          value="exact"
+                          checked={actionFormData.scoring_mode === 'exact'}
+                          onChange={(e) => setActionFormData({ ...actionFormData, scoring_mode: e.target.value })}
+                          className="w-4 h-4 text-blue-600 mt-0.5"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900">Exacta (0% o 100%)</span>
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1">
+                            La respuesta debe coincidir exactamente. Si es correcta: 100%, si no: 0%
+                          </p>
+                        </div>
+                      </label>
+                      
+                      <label className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-blue-100 ${actionFormData.scoring_mode === 'similarity' ? 'border-blue-500 bg-blue-100' : 'border-gray-200 bg-white'}`}>
+                        <input
+                          type="radio"
+                          name="scoring-mode"
+                          value="similarity"
+                          checked={actionFormData.scoring_mode === 'similarity'}
+                          onChange={(e) => setActionFormData({ ...actionFormData, scoring_mode: e.target.value })}
+                          className="w-4 h-4 text-blue-600 mt-0.5"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900">Por Similitud</span>
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1">
+                            La puntuación será el porcentaje de similitud entre la respuesta del alumno y la correcta
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Sección 3: Apariencia del Texto */}
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-purple-900 mb-3 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                      </svg>
+                      Apariencia del Texto
+                    </h4>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Color de texto
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setActionFormData({ ...actionFormData, text_color: '#000000' })}
+                            className={`px-3 py-1.5 border rounded-lg text-sm font-medium transition-colors ${
+                              actionFormData.text_color === '#000000' 
+                                ? 'bg-gray-900 text-white border-gray-900' 
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            Negro
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActionFormData({ ...actionFormData, text_color: '#ffffff' })}
+                            className={`px-3 py-1.5 border rounded-lg text-sm font-medium transition-colors ${
+                              actionFormData.text_color === '#ffffff' 
+                                ? 'bg-white text-gray-900 border-gray-900 ring-2 ring-gray-900' 
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            Blanco
+                          </button>
+                          <input
+                            type="color"
+                            value={actionFormData.text_color}
+                            onChange={(e) => setActionFormData({ ...actionFormData, text_color: e.target.value })}
+                            className="h-8 w-10 rounded border border-gray-300 cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Tipo de letra
+                        </label>
+                        <select
+                          value={actionFormData.font_family}
+                          onChange={(e) => setActionFormData({ ...actionFormData, font_family: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                        >
+                          <option value="Arial" style={{ fontFamily: 'Arial' }}>Arial</option>
+                          <option value="Helvetica" style={{ fontFamily: 'Helvetica' }}>Helvetica</option>
+                          <option value="Times New Roman" style={{ fontFamily: 'Times New Roman' }}>Times New Roman</option>
+                          <option value="Georgia" style={{ fontFamily: 'Georgia' }}>Georgia</option>
+                          <option value="Courier New" style={{ fontFamily: 'Courier New' }}>Courier New</option>
+                          <option value="Verdana" style={{ fontFamily: 'Verdana' }}>Verdana</option>
+                          <option value="monospace" style={{ fontFamily: 'monospace' }}>Monospace</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Sección 4: Configuración de Error (solo si el modo es exacto) */}
+                  {actionFormData.scoring_mode === 'exact' && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-orange-900 mb-3 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Acción cuando la respuesta sea incorrecta
+                      </h4>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            ¿Qué hacer con respuesta incorrecta?
+                          </label>
+                          <select
+                            value={actionFormData.on_error_action}
+                            onChange={(e) => setActionFormData({ ...actionFormData, on_error_action: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                          >
+                            <option value="show_message">Mostrar mensaje de error y permitir reintentar</option>
+                            <option value="next_step">Pasar al siguiente paso</option>
+                            <option value="next_exercise">Pasar al siguiente ejercicio</option>
+                          </select>
+                        </div>
+                        
+                        {actionFormData.on_error_action === 'show_message' && (
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Mensaje de error
+                              </label>
+                              <div className="border border-gray-300 rounded-lg overflow-hidden error-message-editor" style={{ maxHeight: '120px' }}>
+                                <ReactQuill
+                                  theme="snow"
+                                  value={actionFormData.error_message || ''}
+                                  onChange={(content) => setActionFormData({ ...actionFormData, error_message: content })}
+                                  modules={{
+                                    toolbar: [
+                                      [{ 'header': [1, 2, 3, false] }],
+                                      ['bold', 'italic', 'underline', 'strike'],
+                                      [{ 'color': [] }, { 'background': [] }],
+                                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                                      [{ 'align': [] }],
+                                      ['link'],
+                                      ['clean']
+                                    ],
+                                  }}
+                                  formats={['header', 'bold', 'italic', 'underline', 'strike', 'color', 'background', 'list', 'align', 'link']}
+                                  placeholder="Ej: Respuesta incorrecta. Revisa tu respuesta."
+                                  style={{ maxHeight: '80px', overflowY: 'auto' }}
+                                />
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Número máximo de intentos adicionales
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={actionFormData.max_attempts}
+                                onChange={(e) => setActionFormData({ ...actionFormData, max_attempts: parseInt(e.target.value) || 1 })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => setIsEditActionModalOpen(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveAction}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                disabled={updateActionMutation.isPending}
+              >
+                {updateActionMutation.isPending ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
