@@ -129,6 +129,43 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     message: ''
   })
 
+  // Modal de confirmación para eliminar acción
+  const [deleteActionModal, setDeleteActionModal] = useState<{
+    isOpen: boolean
+    actionId: string | null
+    actionType: string | null
+    isCorrect: boolean
+  }>({
+    isOpen: false,
+    actionId: null,
+    actionType: null,
+    isCorrect: false
+  })
+
+  // Modal para editar acción
+  const [isEditActionModalOpen, setIsEditActionModalOpen] = useState(false)
+  const [actionFormData, setActionFormData] = useState<{
+    label: string
+    placeholder: string
+    correct_answer: string
+    scoring_mode: string
+    on_error_action: string
+    error_message: string
+    max_attempts: number
+    text_color: string
+    font_family: string
+  }>({
+    label: '',
+    placeholder: '',
+    correct_answer: '',
+    scoring_mode: 'exact',
+    on_error_action: 'next_step',
+    error_message: '',
+    max_attempts: 3,
+    text_color: '#000000',
+    font_family: 'Arial'
+  })
+
   // Función para agregar cambio pendiente
   const addPendingChange = (change: any) => {
     setPendingChanges(prev => [...prev, change])
@@ -224,6 +261,19 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       addPendingChange({ type: 'update_action', actionId: variables.actionId, data: variables.data })
       refetch()
     },
+  })
+
+  // Mutation para eliminar acción
+  const deleteActionMutation = useMutation({
+    mutationFn: (actionId: string) => examService.deleteStepAction(actionId),
+    onSuccess: (_response, actionId) => {
+      addPendingChange({ type: 'delete_action', actionId })
+      refetch()
+      setSelectedAction(null)
+    },
+    onError: (error) => {
+      console.error('Error deleting action:', error)
+    }
   })
 
   // Mutation para reordenar pasos
@@ -587,6 +637,66 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       startPositionX: action.position_x,
       startPositionY: action.position_y
     })
+  }
+
+  // Handler para editar acción
+  const handleEditAction = (action: ExerciseAction) => {
+    setSelectedAction(action)
+    setActionFormData({
+      label: action.label || '',
+      placeholder: action.placeholder || '',
+      correct_answer: action.correct_answer || '',
+      scoring_mode: (action as any).scoring_mode || 'exact',
+      on_error_action: (action as any).on_error_action || 'next_step',
+      error_message: (action as any).error_message || '',
+      max_attempts: (action as any).max_attempts || 3,
+      text_color: (action as any).text_color || '#000000',
+      font_family: (action as any).font_family || 'Arial'
+    })
+    setIsEditActionModalOpen(true)
+  }
+
+  // Guardar cambios de acción
+  const handleSaveAction = () => {
+    if (!selectedAction || !currentStep) return
+    
+    const updateData: any = {}
+    
+    if (selectedAction.action_type === 'button') {
+      updateData.correct_answer = actionFormData.correct_answer
+      if (actionFormData.correct_answer === 'wrong') {
+        updateData.scoring_mode = actionFormData.scoring_mode
+        updateData.on_error_action = actionFormData.on_error_action
+        updateData.error_message = actionFormData.error_message
+        updateData.max_attempts = actionFormData.max_attempts
+      }
+    } else {
+      // textbox
+      updateData.correct_answer = actionFormData.correct_answer
+      updateData.scoring_mode = actionFormData.scoring_mode
+      updateData.text_color = actionFormData.text_color
+      updateData.font_family = actionFormData.font_family
+      if (actionFormData.scoring_mode === 'exact') {
+        updateData.on_error_action = actionFormData.on_error_action
+        updateData.error_message = actionFormData.error_message
+        updateData.max_attempts = actionFormData.max_attempts
+      }
+    }
+    
+    updateActionMutation.mutate({
+      actionId: selectedAction.id,
+      data: updateData
+    })
+    
+    setIsEditActionModalOpen(false)
+  }
+
+  // Confirmar eliminación de acción
+  const confirmDeleteAction = () => {
+    if (!deleteActionModal.actionId) return
+    
+    deleteActionMutation.mutate(deleteActionModal.actionId)
+    setDeleteActionModal({ isOpen: false, actionId: null, actionType: null, isCorrect: false })
   }
 
   // Handler para seleccionar imagen para nuevo paso
@@ -1382,7 +1492,30 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                             }`}
                           >
-                            <div className="flex items-center gap-2 mb-2">
+                            {/* Botón eliminar en esquina superior derecha */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const actionIsCorrect = action.action_type === 'button' 
+                                  ? action.correct_answer === 'correct'
+                                  : (action.correct_answer && action.correct_answer.trim() !== '')
+                                
+                                setDeleteActionModal({
+                                  isOpen: true,
+                                  actionId: action.id,
+                                  actionType: action.action_type,
+                                  isCorrect: !!actionIsCorrect
+                                })
+                              }}
+                              className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                              title="Eliminar acción"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+
+                            <div className="flex items-center gap-2 mb-2 pr-6">
                               <span className={`w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold ${
                                 isCorrectButton 
                                   ? 'bg-teal-600' 
@@ -1500,6 +1633,22 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                                   )}
                                 </div>
                               )}
+                            </div>
+                            
+                            {/* Botón de editar acción */}
+                            <div className="mt-3 pt-2 border-t border-gray-100">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleEditAction(action)
+                                }}
+                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                Editar acción
+                              </button>
                             </div>
                           </div>
                         );
@@ -1729,6 +1878,423 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                 className="px-6 py-2.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium"
               >
                 Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación para eliminar acción */}
+      {deleteActionModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]" onClick={() => setDeleteActionModal({ isOpen: false, actionId: null, actionType: null, isCorrect: false })}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center">
+              {/* Icono de eliminación */}
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              
+              {/* Título */}
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Eliminar {deleteActionModal.actionType === 'button' ? 'Botón' : 'Campo de Texto'}
+              </h3>
+              
+              {/* Mensaje */}
+              <p className="text-gray-600 mb-2">
+                ¿Estás seguro de que deseas eliminar esta acción?
+              </p>
+              <p className="text-sm text-gray-500 mb-6">
+                {deleteActionModal.isCorrect ? (
+                  <span className="text-green-600 font-medium">Esta es la respuesta correcta del paso.</span>
+                ) : (
+                  <span className="text-orange-600 font-medium">Esta es una opción incorrecta.</span>
+                )}
+              </p>
+              
+              {/* Botones */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteActionModal({ isOpen: false, actionId: null, actionType: null, isCorrect: false })}
+                  className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDeleteAction}
+                  className="px-5 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+                  disabled={deleteActionMutation.isPending}
+                >
+                  {deleteActionMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para editar acción */}
+      {isEditActionModalOpen && selectedAction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] overflow-y-auto" onClick={() => setIsEditActionModalOpen(false)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl my-8 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">
+                Editar {selectedAction.action_type === 'button' ? 'Botón' : 'Campo de Texto'}
+              </h3>
+              <button
+                onClick={() => setIsEditActionModalOpen(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Cerrar"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {/* Campos específicos según el tipo */}
+              {selectedAction.action_type === 'button' ? (
+                <>
+                  {/* Sección 1: Tipo de Respuesta */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Tipo de Respuesta
+                    </h4>
+                    
+                    <div className="space-y-2">
+                      <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-blue-100 ${actionFormData.correct_answer === 'correct' ? 'border-blue-500 bg-blue-100' : 'border-gray-200 bg-white'}`}>
+                        <input
+                          type="radio"
+                          name="button-type"
+                          value="correct"
+                          checked={actionFormData.correct_answer === 'correct'}
+                          onChange={(e) => setActionFormData({ ...actionFormData, correct_answer: e.target.value })}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="font-medium text-gray-900">Botón Correcto</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1 ml-7">Este botón representa la acción correcta que el alumno debe seleccionar</p>
+                        </div>
+                      </label>
+                      
+                      <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-orange-100 ${actionFormData.correct_answer === 'wrong' ? 'border-orange-500 bg-orange-100' : 'border-gray-200 bg-white'}`}>
+                        <input
+                          type="radio"
+                          name="button-type"
+                          value="wrong"
+                          checked={actionFormData.correct_answer === 'wrong'}
+                          onChange={(e) => setActionFormData({ ...actionFormData, correct_answer: e.target.value })}
+                          className="w-4 h-4 text-orange-600"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="font-medium text-gray-900">Botón Incorrecto</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1 ml-7">Este botón representa una acción incorrecta o errónea</p>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                  
+                  {/* Sección 2: Configuración de acción en error (solo para acciones incorrectas) */}
+                  {actionFormData.correct_answer === 'wrong' && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-orange-900 mb-3 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Acción cuando se seleccione esta área incorrecta
+                      </h4>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            ¿Qué hacer al seleccionar?
+                          </label>
+                          <select
+                            value={actionFormData.on_error_action}
+                            onChange={(e) => setActionFormData({ ...actionFormData, on_error_action: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                          >
+                            <option value="show_message">Mostrar mensaje de error y permitir reintentar</option>
+                            <option value="next_step">Pasar al siguiente paso</option>
+                            <option value="next_exercise">Pasar al siguiente ejercicio</option>
+                          </select>
+                        </div>
+                        
+                        {actionFormData.on_error_action === 'show_message' && (
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Mensaje de error
+                              </label>
+                              <textarea
+                                value={actionFormData.error_message}
+                                onChange={(e) => setActionFormData({ ...actionFormData, error_message: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                                rows={2}
+                                placeholder="Ej: Respuesta incorrecta. Inténtalo de nuevo."
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Número máximo de intentos adicionales
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={actionFormData.max_attempts}
+                                onChange={(e) => setActionFormData({ ...actionFormData, max_attempts: parseInt(e.target.value) || 1 })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">
+                                Después de este número de intentos, se terminará el ejercicio
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Sección 1: Respuesta Esperada */}
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-green-900 mb-3 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Respuesta Esperada
+                    </h4>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Respuesta Correcta <span className="text-red-600">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={actionFormData.correct_answer}
+                          onChange={(e) => setActionFormData({ ...actionFormData, correct_answer: e.target.value })}
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 ${!actionFormData.correct_answer?.trim() ? 'border-red-400' : 'border-gray-300'}`}
+                          placeholder="La respuesta que debe escribir el alumno"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Esta es la respuesta contra la cual se comparará lo que escriba el alumno
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sección 2: Modo de Evaluación */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      Modo de Evaluación
+                    </h4>
+                    
+                    <div className="space-y-2">
+                      <label className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-blue-100 ${actionFormData.scoring_mode === 'exact' ? 'border-blue-500 bg-blue-100' : 'border-gray-200 bg-white'}`}>
+                        <input
+                          type="radio"
+                          name="scoring-mode"
+                          value="exact"
+                          checked={actionFormData.scoring_mode === 'exact'}
+                          onChange={(e) => setActionFormData({ ...actionFormData, scoring_mode: e.target.value })}
+                          className="w-4 h-4 text-blue-600 mt-0.5"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900">Exacta (0% o 100%)</span>
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1">
+                            La respuesta debe coincidir exactamente. Si es correcta: 100%, si no: 0%
+                          </p>
+                        </div>
+                      </label>
+                      
+                      <label className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-blue-100 ${actionFormData.scoring_mode === 'similarity' ? 'border-blue-500 bg-blue-100' : 'border-gray-200 bg-white'}`}>
+                        <input
+                          type="radio"
+                          name="scoring-mode"
+                          value="similarity"
+                          checked={actionFormData.scoring_mode === 'similarity'}
+                          onChange={(e) => setActionFormData({ ...actionFormData, scoring_mode: e.target.value })}
+                          className="w-4 h-4 text-blue-600 mt-0.5"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900">Por Similitud</span>
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1">
+                            La puntuación será el porcentaje de similitud entre la respuesta del alumno y la correcta
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Sección 3: Apariencia del Texto */}
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-purple-900 mb-3 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                      </svg>
+                      Apariencia del Texto
+                    </h4>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Color de texto
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setActionFormData({ ...actionFormData, text_color: '#000000' })}
+                            className={`px-3 py-1.5 border rounded-lg text-sm font-medium transition-colors ${
+                              actionFormData.text_color === '#000000' 
+                                ? 'bg-gray-900 text-white border-gray-900' 
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            Negro
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActionFormData({ ...actionFormData, text_color: '#ffffff' })}
+                            className={`px-3 py-1.5 border rounded-lg text-sm font-medium transition-colors ${
+                              actionFormData.text_color === '#ffffff' 
+                                ? 'bg-white text-gray-900 border-gray-900 ring-2 ring-gray-900' 
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            Blanco
+                          </button>
+                          <input
+                            type="color"
+                            value={actionFormData.text_color}
+                            onChange={(e) => setActionFormData({ ...actionFormData, text_color: e.target.value })}
+                            className="h-8 w-10 rounded border border-gray-300 cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Tipo de letra
+                        </label>
+                        <select
+                          value={actionFormData.font_family}
+                          onChange={(e) => setActionFormData({ ...actionFormData, font_family: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                        >
+                          <option value="Arial" style={{ fontFamily: 'Arial' }}>Arial</option>
+                          <option value="Helvetica" style={{ fontFamily: 'Helvetica' }}>Helvetica</option>
+                          <option value="Times New Roman" style={{ fontFamily: 'Times New Roman' }}>Times New Roman</option>
+                          <option value="Georgia" style={{ fontFamily: 'Georgia' }}>Georgia</option>
+                          <option value="Courier New" style={{ fontFamily: 'Courier New' }}>Courier New</option>
+                          <option value="Verdana" style={{ fontFamily: 'Verdana' }}>Verdana</option>
+                          <option value="monospace" style={{ fontFamily: 'monospace' }}>Monospace</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Sección 4: Configuración de Error (solo si el modo es exacto) */}
+                  {actionFormData.scoring_mode === 'exact' && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-orange-900 mb-3 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Acción cuando la respuesta sea incorrecta
+                      </h4>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            ¿Qué hacer con respuesta incorrecta?
+                          </label>
+                          <select
+                            value={actionFormData.on_error_action}
+                            onChange={(e) => setActionFormData({ ...actionFormData, on_error_action: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                          >
+                            <option value="show_message">Mostrar mensaje de error y permitir reintentar</option>
+                            <option value="next_step">Pasar al siguiente paso</option>
+                            <option value="next_exercise">Pasar al siguiente ejercicio</option>
+                          </select>
+                        </div>
+                        
+                        {actionFormData.on_error_action === 'show_message' && (
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Mensaje de error
+                              </label>
+                              <textarea
+                                value={actionFormData.error_message}
+                                onChange={(e) => setActionFormData({ ...actionFormData, error_message: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                                rows={2}
+                                placeholder="Ej: Respuesta incorrecta. Revisa tu respuesta."
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Número máximo de intentos adicionales
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={actionFormData.max_attempts}
+                                onChange={(e) => setActionFormData({ ...actionFormData, max_attempts: parseInt(e.target.value) || 1 })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => setIsEditActionModalOpen(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveAction}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                disabled={updateActionMutation.isPending}
+              >
+                {updateActionMutation.isPending ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
           </div>
