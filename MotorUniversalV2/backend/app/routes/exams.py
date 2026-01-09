@@ -886,6 +886,8 @@ def update_question(question_id):
         question.points = data['points']
     if 'difficulty' in data:
         question.difficulty = data['difficulty']
+    if 'type' in data:
+        question.type = data['type']  # exam o simulator
     
     question.updated_by = user_id
     
@@ -1108,6 +1110,8 @@ def update_exercise(exercise_id):
         exercise.description = data['exercise_text']
     if 'is_complete' in data:
         exercise.is_active = not data['is_complete']  # Invertir: is_complete=True -> is_active=False
+    if 'type' in data:
+        exercise.type = data['type']  # exam o simulator
     
     exercise.updated_by = get_jwt_identity()
     exercise.updated_at = datetime.utcnow()

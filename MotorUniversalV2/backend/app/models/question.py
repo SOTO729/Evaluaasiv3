@@ -35,6 +35,7 @@ class Question(db.Model):
     image_url = db.Column(db.String(500))  # URL de imagen en Azure Blob
     points = db.Column(db.Integer, default=1)  # Puntos que vale la pregunta
     difficulty = db.Column(db.String(20), default='medium')  # easy, medium, hard
+    type = db.Column(db.String(20), default='exam', nullable=False)  # exam, simulator
     
     # Auditoría
     created_by = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
@@ -67,6 +68,7 @@ class Question(db.Model):
             'image_url': self.image_url,
             'points': self.points,
             'difficulty': self.difficulty,
+            'type': self.type or 'exam',  # exam o simulator
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
         
