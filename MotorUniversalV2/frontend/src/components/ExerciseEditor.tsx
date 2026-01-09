@@ -1657,41 +1657,6 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                   </div>
                 )}
               </div>
-
-              {/* Leyenda */}
-              <div className="p-4 border-t bg-gray-50">
-                <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Leyenda de colores</h4>
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded-full bg-teal-600 flex items-center justify-center">
-                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </span>
-                    <span className="text-gray-600">Botón Correcto</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded-full bg-orange-600 text-white text-[10px] flex items-center justify-center font-bold">1</span>
-                    <span className="text-gray-600">Campo Incorrecto (distractor)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded-full bg-lime-600 flex items-center justify-center">
-                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </span>
-                    <span className="text-gray-600">Campo de Texto (con respuesta)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded-full bg-red-600 flex items-center justify-center">
-                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </span>
-                    <span className="text-gray-600">Campo de Texto (sin respuesta)</span>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
         </div>
