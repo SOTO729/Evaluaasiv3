@@ -533,6 +533,13 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     setIsEditActionModalOpen(true)
   }
 
+  // Handler para eliminar acción directamente desde la tarjeta
+  const handleDeleteAction = (actionId: string) => {
+    if (confirm('¿Estás seguro de que deseas eliminar esta acción?')) {
+      deleteActionMutation.mutate(actionId)
+    }
+  }
+
   const handleSaveAction = () => {
     if (!selectedAction) return
     
@@ -1292,94 +1299,237 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {currentStep.actions.map((action: ExerciseAction) => {
-                      const isTextboxWithoutAnswer = action.action_type === 'textbox' && (!action.correct_answer || action.correct_answer.trim() === '')
-                      const isWrongButton = action.action_type === 'button' && action.correct_answer === 'wrong'
-                      const isCorrectButton = action.action_type === 'button' && action.correct_answer === 'correct'
-                      return (
-                      <div
-                        key={action.id}
-                        onClick={() => setSelectedAction(action)}
-                        className={`p-3 rounded-lg cursor-pointer transition-all border ${
-                          selectedAction?.id === action.id
-                            ? 'border-primary-500 bg-primary-50 shadow'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className={`w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold ${
-                            isCorrectButton 
-                              ? 'bg-blue-600' 
-                              : isWrongButton 
-                              ? 'bg-orange-600' 
-                              : isTextboxWithoutAnswer 
-                              ? 'bg-red-600' 
-                              : 'bg-green-600'
-                          }`}>
-                            {action.action_number}
-                          </span>
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                            isCorrectButton
-                              ? 'bg-blue-100 text-blue-700'
-                              : isWrongButton
-                              ? 'bg-orange-100 text-orange-700'
-                              : isTextboxWithoutAnswer
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-green-100 text-green-700'
-                          }`}>
-                            {action.action_type === 'button' 
-                              ? (isCorrectButton ? 'Botón Correcto' : 'Botón Incorrecto') 
-                              : 'Campo de Texto'}
-                          </span>
-                        </div>
-                        <div className="text-sm">
-                          {action.action_type === 'button' ? (
-                            <div>
-                              <p className="text-gray-700">{action.label || 'Sin etiqueta'}</p>
-                              {isWrongButton && (
-                                <p className="text-xs text-orange-600 mt-1">⚠️ Respuesta incorrecta</p>
-                              )}
-                              {isCorrectButton && (
-                                <p className="text-xs text-blue-600 mt-1">✓ Respuesta correcta</p>
+                    {(() => {
+                      // Ordenar acciones: textbox primero (ambos rojo y verde), luego botones correctos, luego incorrectos
+                      const sortedActions = [...currentStep.actions]
+                        .sort((a, b) => {
+                          // textbox siempre primero (prioridad 0)
+                          // botones correctos segundo (prioridad 1)
+                          // botones incorrectos al final (prioridad 2)
+                          const getPriority = (action: ExerciseAction) => {
+                            if (action.action_type === 'textbox') return 0;
+                            if (action.action_type === 'button' && action.correct_answer === 'correct') return 1;
+                            return 2;
+                          };
+                          const priorityDiff = getPriority(a) - getPriority(b);
+                          if (priorityDiff !== 0) return priorityDiff;
+                          // Si tienen la misma prioridad, ordenar por action_number
+                          return a.action_number - b.action_number;
+                        });
+                      
+                      return sortedActions.map((action: ExerciseAction, index: number) => {
+                        const isTextboxWithoutAnswer = action.action_type === 'textbox' && (!action.correct_answer || action.correct_answer.trim() === '')
+                        const isTextbox = action.action_type === 'textbox'
+                        const isWrongButton = action.action_type === 'button' && action.correct_answer === 'wrong'
+                        const isCorrectButton = action.action_type === 'button' && action.correct_answer === 'correct'
+                        const isCorrectAction = isCorrectButton || isTextbox
+                        
+                        // Calcular número de display contando solo acciones incorrectas (wrong buttons)
+                        const incorrectIndex = sortedActions
+                          .slice(0, index)
+                          .filter((a: ExerciseAction) => {
+                            const aIsCorrectButton = a.action_type === 'button' && a.correct_answer === 'correct'
+                            const aIsTextbox = a.action_type === 'textbox'
+                            return !(aIsCorrectButton || aIsTextbox)
+                          })
+                          .length
+                        const displayNumber = isCorrectAction ? null : incorrectIndex + 1
+                        
+                        return (
+                          <div
+                            key={action.id}
+                            onClick={() => setSelectedAction(action)}
+                            className={`relative p-3 rounded-lg cursor-pointer transition-all border overflow-hidden ${
+                              selectedAction?.id === action.id
+                                ? 'border-primary-500 bg-primary-50 shadow ring-2 ring-primary-200'
+                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {/* Botón eliminar en esquina superior derecha */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteAction(action.id)
+                              }}
+                              className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                              title="Eliminar acción"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+
+                            <div className="flex items-center gap-2 mb-2 pr-6">
+                              <span className={`w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold ${
+                                isCorrectButton 
+                                  ? 'bg-teal-600' 
+                                  : isTextboxWithoutAnswer
+                                    ? 'bg-red-600'
+                                    : isTextbox
+                                      ? 'bg-lime-600'
+                                      : isWrongButton 
+                                        ? 'bg-orange-600' 
+                                        : 'bg-lime-600'
+                              }`}>
+                                {isCorrectAction ? (
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                ) : displayNumber}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                isCorrectButton
+                                  ? 'bg-teal-100 text-teal-700'
+                                  : isWrongButton
+                                    ? 'bg-orange-100 text-orange-700'
+                                    : isTextboxWithoutAnswer
+                                      ? 'bg-red-100 text-red-700'
+                                      : 'bg-lime-100 text-lime-700'
+                              }`}>
+                                {action.action_type === 'button' 
+                                  ? (isCorrectButton ? 'Botón Correcto' : 'Campo Incorrecto') 
+                                  : 'Campo de Texto'}
+                              </span>
+                            </div>
+                            
+                            <div className="text-sm">
+                              {action.action_type === 'button' ? (
+                                <div>
+                                  {isCorrectButton && (
+                                    <div className="space-y-1.5 mt-1">
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <svg className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                                        </svg>
+                                        <span className="text-xs text-gray-600 truncate min-w-0">
+                                          Estilo: <span className="font-medium text-purple-700">Invisible</span>
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                        </svg>
+                                        <span className="text-xs text-gray-600 truncate min-w-0">
+                                          Etiqueta: <span className="font-medium text-gray-700">{action.label || `Botón ${action.action_number}`}</span>
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-teal-600">✓ Respuesta correcta</p>
+                                    </div>
+                                  )}
+                                  {isWrongButton && (
+                                    <div className="space-y-1.5 mt-1">
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <svg className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                                        </svg>
+                                        <span className="text-xs text-gray-600 truncate min-w-0">
+                                          Estilo: <span className="font-medium text-purple-700">Invisible</span>
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                        </svg>
+                                        <span className="text-xs text-gray-600 truncate min-w-0">
+                                          Etiqueta: <span className="font-medium text-gray-700">{action.label || `Botón ${action.action_number}`}</span>
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <svg className="w-3.5 h-3.5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                        <span className="text-xs text-gray-600">
+                                          <span className="font-medium text-orange-700">Área incorrecta</span>
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="space-y-1.5 mt-1">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <svg className="w-3.5 h-3.5 text-lime-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span className="text-xs text-gray-600 truncate min-w-0">
+                                      Respuesta: <span className={`font-medium ${isTextboxWithoutAnswer ? 'text-red-600' : 'text-lime-700'}`}>
+                                        {action.correct_answer || 'Sin definir'}
+                                      </span>
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <svg className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                                    </svg>
+                                    <span className="text-xs text-gray-600 truncate min-w-0">
+                                      Estilo: <span className="font-medium text-purple-700">Invisible</span>
+                                    </span>
+                                  </div>
+                                  {action.placeholder && (
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                                      </svg>
+                                      <span className="text-xs text-gray-600 truncate min-w-0">
+                                        Placeholder: <span className="font-medium text-gray-700 italic">{action.placeholder}</span>
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </div>
-                          ) : (
-                            <>
-                              <p className="text-gray-500 italic text-xs">{action.placeholder || 'Sin placeholder'}</p>
-                              <p className={`mt-1 ${isTextboxWithoutAnswer ? 'text-red-700 font-semibold' : 'text-gray-700'}`}>
-                                Respuesta: <span className={`font-medium ${isTextboxWithoutAnswer ? 'text-red-700' : 'text-green-700'}`}>
-                                  {action.correct_answer || 'Sin definir'}
-                                </span>
-                              </p>
-                            </>
-                          )}
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleEditAction(action)
-                          }}
-                          className="mt-2 text-xs text-primary-600 hover:text-primary-700 font-medium"
-                        >
-                          Editar configuración →
-                        </button>
-                      </div>
-                    )})}
+                            
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleEditAction(action)
+                              }}
+                              className="mt-2 text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              Editar configuración
+                            </button>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 )}
               </div>
 
               {/* Leyenda */}
               <div className="p-4 border-t bg-gray-50">
-                <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Tipos de acción</h4>
+                <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Leyenda de colores</h4>
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded bg-blue-500"></span>
-                    <span className="text-gray-600">Botón: El alumno debe hacer clic</span>
+                    <span className="w-4 h-4 rounded-full bg-teal-600 flex items-center justify-center">
+                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+                    <span className="text-gray-600">Botón Correcto</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded bg-green-500"></span>
-                    <span className="text-gray-600">Texto: El alumno debe escribir</span>
+                    <span className="w-4 h-4 rounded-full bg-orange-600 text-white text-[10px] flex items-center justify-center font-bold">1</span>
+                    <span className="text-gray-600">Campo Incorrecto (distractor)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 rounded-full bg-lime-600 flex items-center justify-center">
+                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+                    <span className="text-gray-600">Campo de Texto (con respuesta)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 rounded-full bg-red-600 flex items-center justify-center">
+                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+                    <span className="text-gray-600">Campo de Texto (sin respuesta)</span>
                   </div>
                 </div>
               </div>
