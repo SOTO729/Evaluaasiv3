@@ -39,6 +39,12 @@ interface DrawingState {
   currentY: number
 }
 
+// Constantes de configuración del editor
+const EDITOR_CONFIG = {
+  ZOOM_LEVELS: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3],
+  DEFAULT_ZOOM: 1
+}
+
 const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   const imageContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -89,6 +95,9 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     currentX: 0,
     currentY: 0
   })
+
+  // Zoom para la vista del canvas
+  const [zoom, setZoom] = useState(EDITOR_CONFIG.DEFAULT_ZOOM)
   
   // Modal para editar acción
   const [isEditActionModalOpen, setIsEditActionModalOpen] = useState(false)
@@ -798,6 +807,47 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
 
           <div className="h-6 w-px bg-gray-300"></div>
 
+          {/* Controles de zoom */}
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-medium text-gray-700">Zoom:</span>
+            <button
+              onClick={() => {
+                const idx = EDITOR_CONFIG.ZOOM_LEVELS.indexOf(zoom)
+                if (idx > 0) setZoom(EDITOR_CONFIG.ZOOM_LEVELS[idx - 1])
+              }}
+              disabled={zoom === EDITOR_CONFIG.ZOOM_LEVELS[0]}
+              className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Alejar"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+              </svg>
+            </button>
+            <span className="text-sm font-medium text-gray-700 min-w-[45px] text-center">{Math.round(zoom * 100)}%</span>
+            <button
+              onClick={() => {
+                const idx = EDITOR_CONFIG.ZOOM_LEVELS.indexOf(zoom)
+                if (idx < EDITOR_CONFIG.ZOOM_LEVELS.length - 1) setZoom(EDITOR_CONFIG.ZOOM_LEVELS[idx + 1])
+              }}
+              disabled={zoom === EDITOR_CONFIG.ZOOM_LEVELS[EDITOR_CONFIG.ZOOM_LEVELS.length - 1]}
+              className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Acercar"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setZoom(1)}
+              className="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded text-gray-600 ml-1"
+              title="Restablecer zoom"
+            >
+              Reset
+            </button>
+          </div>
+
+          <div className="h-6 w-px bg-gray-300"></div>
+
           {selectedAction && (
             <div className="flex items-center gap-2">
               <button
@@ -1026,15 +1076,22 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
               <div className="w-full">
                 {currentStep.image_url ? (
                   <>
-                    <div
-                      ref={imageContainerRef}
-                      className="relative bg-white shadow-2xl rounded-lg select-none mx-auto"
-                      onMouseDown={handleImageMouseDown}
-                      onMouseMove={handleImageMouseMove}
-                      onMouseUp={handleImageMouseUp}
-                      onMouseLeave={handleImageMouseUp}
-                      style={{ cursor: selectedTool !== 'select' ? 'crosshair' : 'default', maxWidth: '1400px' }}
-                    >
+                    {/* Contenedor con scroll para zoom */}
+                    <div className="overflow-auto mx-auto" style={{ maxHeight: 'calc(100vh - 240px)' }}>
+                      <div
+                        ref={imageContainerRef}
+                        className="relative bg-white shadow-2xl rounded-lg select-none mx-auto origin-top-left"
+                        onMouseDown={handleImageMouseDown}
+                        onMouseMove={handleImageMouseMove}
+                        onMouseUp={handleImageMouseUp}
+                        onMouseLeave={handleImageMouseUp}
+                        style={{ 
+                          cursor: selectedTool !== 'select' ? 'crosshair' : 'default', 
+                          maxWidth: `${1400 * zoom}px`,
+                          transform: `scale(${zoom})`,
+                          transformOrigin: 'top center'
+                        }}
+                      >
                       <img
                         src={currentStep.image_url}
                         alt={`Paso ${currentStep.step_number}`}
@@ -1146,6 +1203,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                           </div>
                         </div>
                       )})}
+                    </div>
                     </div>
                     
                     {/* Botón para cambiar imagen */}
