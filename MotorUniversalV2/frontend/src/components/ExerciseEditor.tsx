@@ -422,16 +422,17 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       const isTextbox = selectedTool === 'textbox'
       
       // Validar que solo haya una respuesta correcta por paso
+      // Ahora cualquier textbox (aunque esté en rojo/sin respuesta) cuenta como respuesta correcta
       const hasCorrectAnswer = currentActions.some(a => 
         (a.action_type === 'button' && a.correct_answer === 'correct') ||
-        (a.action_type === 'textbox' && a.correct_answer && a.correct_answer.trim() !== '')
+        (a.action_type === 'textbox')
       )
-      
+
       if ((isCorrectButton || isTextbox) && hasCorrectAnswer) {
         setWarningModal({
           isOpen: true,
           title: 'Respuesta correcta ya existe',
-          message: 'Este paso ya tiene una respuesta correcta configurada. Solo puede haber un botón correcto o un campo de texto con respuesta por cada paso del ejercicio.'
+          message: 'Este paso ya tiene una respuesta correcta configurada. Solo puede haber un botón correcto o un campo de texto por cada paso del ejercicio.'
         })
         setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
         return
