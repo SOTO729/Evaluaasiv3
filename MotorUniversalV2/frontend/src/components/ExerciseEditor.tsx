@@ -189,6 +189,13 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   const steps = exerciseData?.exercise?.steps || []
   const currentStep = steps[currentStepIndex] as ExerciseStep | undefined
 
+  // Verificar si hay campos de texto sin respuesta en todos los pasos
+  const hasTextboxWithoutAnswer = steps.some((step: ExerciseStep) => 
+    step.actions?.some((action: ExerciseAction) => 
+      action.action_type === 'textbox' && (!action.correct_answer || action.correct_answer.trim() === '')
+    )
+  )
+
   // Debug: Log cuando cambian los datos
   console.log('ExerciseEditor - steps:', steps.length, 'currentStep:', currentStep?.id, 'actions:', currentStep?.actions?.length || 0)
 
@@ -877,13 +884,13 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                 setIsSaving(false)
               }
             }}
-            disabled={steps.length === 0 || isSaving}
+            disabled={steps.length === 0 || isSaving || hasTextboxWithoutAnswer}
             className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-              steps.length === 0 || isSaving
+              steps.length === 0 || isSaving || hasTextboxWithoutAnswer
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
                 : 'bg-primary-600 text-white hover:bg-primary-700'
             }`}
-            title={steps.length === 0 ? 'Debes crear al menos un paso antes de guardar' : ''}
+            title={steps.length === 0 ? 'Debes crear al menos un paso antes de guardar' : hasTextboxWithoutAnswer ? 'Todos los campos de texto deben tener una respuesta correcta definida' : ''}
           >
             {isSaving ? (
               <>
