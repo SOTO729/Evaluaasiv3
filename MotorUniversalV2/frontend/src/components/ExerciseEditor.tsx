@@ -425,9 +425,10 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       // Validar que campos incorrectos no se superpongan con respuestas correctas
       const isWrongButton = selectedTool === 'button-wrong'
       if (isWrongButton) {
+        // Considerar como respuesta correcta: botones correctos Y todos los textbox (incluso sin respuesta definida)
         const correctAction = currentActions.find(a => 
           (a.action_type === 'button' && a.correct_answer === 'correct') ||
-          (a.action_type === 'textbox' && a.correct_answer && a.correct_answer.trim() !== '' && a.correct_answer !== 'wrong')
+          (a.action_type === 'textbox')
         )
         
         if (correctAction) {
