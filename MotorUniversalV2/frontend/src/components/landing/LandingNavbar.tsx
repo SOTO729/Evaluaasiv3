@@ -28,11 +28,9 @@ export default function LandingNavbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
-              <GraduationCap className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-xl font-bold text-gray-900">Evaluaasi</span>
+          <Link to="/" className="flex items-center gap-3">
+            <img src="/logo.png" alt="Evaluaasi" className="h-12 w-auto" />
+            <span className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">Evaluaasi</span>
           </Link>
 
           {/* Desktop Navigation */}
