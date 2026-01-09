@@ -854,7 +854,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
-              {pendingChanges.length} cambio(s) sin guardar
+              Ejercicio no completado
             </span>
           )}
           <span className="text-sm text-gray-500">
@@ -1834,27 +1834,27 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Cambios sin guardar
+                  Ejercicio no completado
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  Tienes <strong>{pendingChanges.length} cambio(s)</strong> que no se guardarán hasta que hagas clic en <strong>"Guardar y Salir"</strong>.
+                  Los cambios se han guardado automáticamente, pero el ejercicio <strong>no se marcará como completo</strong> hasta que hagas clic en <strong>"Guardar y Salir"</strong>.
                 </p>
                 <p className="text-sm text-gray-500 mb-4">
-                  Si abandonas el editor ahora, perderás todos los cambios realizados.
+                  Si sales ahora, el ejercicio permanecerá incompleto y podrás continuar editándolo más tarde.
                 </p>
 
                 {/* Lista de cambios */}
                 <div className="mb-4 p-3 bg-gray-50 rounded-lg max-h-32 overflow-y-auto">
-                  <p className="text-xs font-medium text-gray-700 mb-2">Cambios pendientes:</p>
+                  <p className="text-xs font-medium text-gray-700 mb-2">Cambios realizados en esta sesión:</p>
                   <ul className="text-xs text-gray-600 space-y-1">
                     {pendingChanges.slice(0, 5).map((change, idx) => (
                       <li key={idx} className="flex items-center gap-2">
-                        <span className="w-1 h-1 bg-orange-500 rounded-full"></span>
-                        {change.type === 'create_action' && 'Acción creada'}
-                        {change.type === 'update_action' && 'Acción actualizada'}
-                        {change.type === 'delete_action' && 'Acción eliminada'}
-                        {change.type === 'reorder_step' && 'Paso reordenado'}
-                        {change.type === 'upload_image' && 'Imagen subida'}
+                        <span className="w-1 h-1 bg-green-500 rounded-full"></span>
+                        {change.type === 'create_action' && 'Acción creada ✓'}
+                        {change.type === 'update_action' && 'Acción actualizada ✓'}
+                        {change.type === 'delete_action' && 'Acción eliminada ✓'}
+                        {change.type === 'reorder_step' && 'Paso reordenado ✓'}
+                        {change.type === 'upload_image' && 'Imagen subida ✓'}
                       </li>
                     ))}
                     {pendingChanges.length > 5 && (
@@ -1880,9 +1880,9 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                   setHasUnsavedChanges(false)
                   onClose()
                 }}
-                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+                className="flex-1 px-4 py-3 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition-colors"
               >
-                Salir sin Guardar
+                Salir (Sin Completar)
               </button>
             </div>
           </div>
