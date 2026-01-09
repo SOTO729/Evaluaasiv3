@@ -39,106 +39,6 @@ interface DrawingState {
   currentY: number
 }
 
-// Dropdown personalizado para estilo de visualización
-interface LabelStyleOption {
-  value: 'invisible' | 'text_only' | 'text_with_shadow' | 'shadow_only';
-  label: string;
-  description: string;
-  isHighlighted?: boolean;
-}
-
-const LABEL_STYLE_OPTIONS: LabelStyleOption[] = [
-  { value: 'invisible', label: '✨ Invisible', description: 'recomendado para examen o evaluación', isHighlighted: true },
-  { value: 'text_only', label: 'Texto indicativo sin sombra', description: 'recomendado para material de estudio' },
-  { value: 'text_with_shadow', label: 'Texto indicativo con sombra', description: 'recomendado para material de estudio' },
-  { value: 'shadow_only', label: 'Sombra sin texto indicativo', description: 'recomendado para material de estudio' },
-];
-
-interface LabelStyleDropdownProps {
-  value: 'invisible' | 'text_only' | 'text_with_shadow' | 'shadow_only';
-  onChange: (value: 'invisible' | 'text_only' | 'text_with_shadow' | 'shadow_only') => void;
-  accentColor?: 'blue' | 'green' | 'orange';
-}
-
-const LabelStyleDropdown: React.FC<LabelStyleDropdownProps> = ({ value, onChange, accentColor = 'blue' }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  
-  const selectedOption = LABEL_STYLE_OPTIONS.find(opt => opt.value === value) || LABEL_STYLE_OPTIONS[0];
-  
-  // Cerrar dropdown al hacer clic fuera
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const ringColorMap = {
-    blue: 'focus:ring-blue-500',
-    green: 'focus:ring-green-500',
-    orange: 'focus:ring-orange-500'
-  };
-  const ringColor = ringColorMap[accentColor];
-  const isInvisible = value === 'invisible';
-
-  return (
-    <div ref={dropdownRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full px-3 py-2 border rounded-lg text-sm transition-all duration-200 text-left flex items-center justify-between ${ringColor} ${
-          isInvisible 
-            ? 'border-purple-400 bg-purple-50 shadow-[0_0_12px_rgba(147,51,234,0.5)]' 
-            : 'border-gray-300 bg-white hover:border-gray-400'
-        }`}
-      >
-        <span className="flex items-baseline gap-2 flex-wrap">
-          <span className={isInvisible ? 'font-semibold text-purple-800' : 'text-gray-900'}>{selectedOption.label}</span>
-          <span className={`text-xs font-bold ${isInvisible ? 'text-purple-600' : 'text-gray-500'}`}>
-            {selectedOption.description}
-          </span>
-        </span>
-        <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      
-      {isOpen && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-          {LABEL_STYLE_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => {
-                onChange(option.value);
-                setIsOpen(false);
-              }}
-              className={`w-full px-3 py-2.5 text-left flex items-baseline gap-2 flex-wrap transition-colors ${
-                option.value === value 
-                  ? option.isHighlighted 
-                    ? 'bg-purple-100' 
-                    : 'bg-blue-50'
-                  : 'hover:bg-gray-50'
-              } ${option.isHighlighted ? 'border-l-4 border-purple-500' : ''}`}
-            >
-              <span className={`text-sm ${option.isHighlighted ? 'font-semibold text-purple-800' : 'text-gray-900'}`}>
-                {option.label}
-              </span>
-              <span className={`text-xs font-bold ${option.isHighlighted ? 'text-purple-600' : 'text-amber-600'}`}>
-                {option.description}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
 const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   const imageContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -857,9 +757,14 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
               </svg>
             </button>
+            
+            {/* Separador visual */}
+            <div className="h-6 w-px bg-gray-300 mx-1"></div>
+            
+            {/* Grupo de acciones correctas (verdes/azules) */}
             <button
               onClick={() => setSelectedTool('button')}
-              className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'button' ? 'bg-blue-600 text-white' : 'bg-white border hover:bg-gray-100'}`}
+              className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'button' ? 'bg-teal-600 text-white' : 'bg-white border hover:bg-teal-50 hover:border-teal-300'}`}
               title="Agregar Botón Correcto"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -867,17 +772,8 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
               </svg>
             </button>
             <button
-              onClick={() => setSelectedTool('button-wrong')}
-              className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'button-wrong' ? 'bg-orange-600 text-white' : 'bg-white border hover:bg-gray-100'}`}
-              title="Agregar Botón Incorrecto/Erróneo"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </button>
-            <button
               onClick={() => setSelectedTool('textbox')}
-              className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'textbox' ? 'bg-green-600 text-white' : 'bg-white border hover:bg-gray-100'}`}
+              className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'textbox' ? 'bg-lime-600 text-white' : 'bg-white border hover:bg-lime-50 hover:border-lime-300'}`}
               title="Agregar Campo de Texto"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -885,6 +781,20 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
               </svg>
             </button>
           </div>
+
+          {/* Separador visual */}
+          <div className="h-6 w-px bg-gray-300"></div>
+
+          {/* Campo incorrecto (naranja) */}
+          <button
+            onClick={() => setSelectedTool('button-wrong')}
+            className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'button-wrong' ? 'bg-orange-600 text-white' : 'bg-white border hover:bg-orange-50 hover:border-orange-300'}`}
+            title="Agregar Campo Incorrecto"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
 
           <div className="h-6 w-px bg-gray-300"></div>
 
@@ -911,17 +821,17 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
 
           <div className="flex items-center gap-2 text-sm">
             {selectedTool === 'button' && (
-              <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg">
+              <span className="px-3 py-1.5 bg-teal-50 text-teal-700 rounded-lg">
                 ✅ Dibuja un área en la imagen para agregar un botón correcto
               </span>
             )}
             {selectedTool === 'button-wrong' && (
               <span className="px-3 py-1.5 bg-orange-50 text-orange-700 rounded-lg">
-                ❌ Dibuja un área en la imagen para agregar un botón incorrecto
+                ❌ Dibuja un área en la imagen para agregar un campo incorrecto
               </span>
             )}
             {selectedTool === 'textbox' && (
-              <span className="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg">
+              <span className="px-3 py-1.5 bg-lime-50 text-lime-700 rounded-lg">
                 ✏️ Dibuja un área en la imagen para agregar un campo de texto
               </span>
             )}
@@ -1505,39 +1415,16 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                       </div>
                     </div>
                     
-                    {/* Estilo del texto indicativo */}
+                    {/* Nota: En exámenes, las áreas son siempre invisibles */}
                     <div className="mt-3 pt-3 border-t border-blue-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Estilo de visualización
-                      </label>
-                      <LabelStyleDropdown
-                        value={actionFormData.label_style}
-                        onChange={(newStyle) => {
-                          setActionFormData({ 
-                            ...actionFormData, 
-                            label_style: newStyle, 
-                            showPlaceholder: newStyle !== 'shadow_only' && newStyle !== 'invisible'
-                          });
-                        }}
-                        accentColor="blue"
-                      />
-                    </div>
-
-                    {/* Campo de texto indicativo (si está activado) */}
-                    {actionFormData.label_style !== 'shadow_only' && actionFormData.label_style !== 'invisible' && (
-                      <div className="mt-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Texto Indicativo <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={actionFormData.placeholder}
-                          onChange={(e) => setActionFormData({ ...actionFormData, placeholder: e.target.value })}
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${!actionFormData.placeholder?.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
-                          placeholder="Ej: Haz clic aquí"
-                        />
+                      <div className="flex items-center gap-2 text-sm text-purple-700 bg-purple-50 p-2 rounded-lg">
+                        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        </svg>
+                        <span className="font-medium">✨ Área Invisible</span>
+                        <span className="text-purple-600">- En exámenes, las áreas siempre son invisibles para el alumno</span>
                       </div>
-                    )}
+                    </div>
                   </div>
                   
                   {/* Sección 2: Tipo de cursor (solo para acciones incorrectas) */}
@@ -1708,39 +1595,16 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                         </p>
                       </div>
 
-                      {/* Estilo del texto indicativo */}
+                      {/* Nota: En exámenes, las áreas son siempre invisibles */}
                       <div className="pt-2 border-t border-green-200">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Estilo de visualización
-                        </label>
-                        <LabelStyleDropdown
-                          value={actionFormData.label_style}
-                          onChange={(newStyle) => {
-                            setActionFormData({ 
-                              ...actionFormData, 
-                              label_style: newStyle, 
-                              showPlaceholder: newStyle !== 'shadow_only' && newStyle !== 'invisible'
-                            });
-                          }}
-                          accentColor="green"
-                        />
-                      </div>
-
-                      {/* Campo de texto indicativo (si está activado) */}
-                      {actionFormData.label_style !== 'shadow_only' && actionFormData.label_style !== 'invisible' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Texto Indicativo <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={actionFormData.placeholder}
-                            onChange={(e) => setActionFormData({ ...actionFormData, placeholder: e.target.value })}
-                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 ${!actionFormData.placeholder?.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
-                            placeholder="Ej: Escribe tu respuesta aquí"
-                          />
+                        <div className="flex items-center gap-2 text-sm text-purple-700 bg-purple-50 p-2 rounded-lg">
+                          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                          </svg>
+                          <span className="font-medium">✨ Área Invisible</span>
+                          <span className="text-purple-600">- En exámenes, las áreas siempre son invisibles para el alumno</span>
                         </div>
-                      )}
+                      </div>
                     </div>
                   </div>
 
