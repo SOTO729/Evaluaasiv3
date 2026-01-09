@@ -28,6 +28,8 @@ interface ResizeState {
   startY: number
   startWidth: number
   startHeight: number
+  startPositionX: number
+  startPositionY: number
 }
 
 // Estado para crear área con arrastre (rubber band selection)
@@ -84,7 +86,9 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     startX: 0,
     startY: 0,
     startWidth: 0,
-    startHeight: 0
+    startHeight: 0,
+    startPositionX: 0,
+    startPositionY: 0
   })
 
   // Estado para dibujar área con arrastre (rubber band)
@@ -480,16 +484,46 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
 
       let newWidth = resizeState.startWidth
       let newHeight = resizeState.startHeight
+      let newX = resizeState.startPositionX
+      let newY = resizeState.startPositionY
 
+      // Lógica para cada esquina
       if (resizeState.corner === 'se') {
-        newWidth = Math.max(5, resizeState.startWidth + deltaX)
-        newHeight = Math.max(3, resizeState.startHeight + deltaY)
+        // Esquina inferior derecha: aumentar ancho/alto
+        newWidth = Math.max(0.5, resizeState.startWidth + deltaX)
+        newHeight = Math.max(0.5, resizeState.startHeight + deltaY)
+      } else if (resizeState.corner === 'sw') {
+        // Esquina inferior izquierda: mover X, ajustar ancho
+        const widthChange = -deltaX
+        newWidth = Math.max(0.5, resizeState.startWidth + widthChange)
+        newX = resizeState.startPositionX - (newWidth - resizeState.startWidth)
+        newHeight = Math.max(0.5, resizeState.startHeight + deltaY)
+        newX = Math.max(0, newX)
+      } else if (resizeState.corner === 'ne') {
+        // Esquina superior derecha: mover Y, ajustar alto
+        newWidth = Math.max(0.5, resizeState.startWidth + deltaX)
+        const heightChange = -deltaY
+        newHeight = Math.max(0.5, resizeState.startHeight + heightChange)
+        newY = resizeState.startPositionY - (newHeight - resizeState.startHeight)
+        newY = Math.max(0, newY)
+      } else if (resizeState.corner === 'nw') {
+        // Esquina superior izquierda: mover X e Y, ajustar ambos
+        const widthChange = -deltaX
+        const heightChange = -deltaY
+        newWidth = Math.max(0.5, resizeState.startWidth + widthChange)
+        newHeight = Math.max(0.5, resizeState.startHeight + heightChange)
+        newX = resizeState.startPositionX - (newWidth - resizeState.startWidth)
+        newY = resizeState.startPositionY - (newHeight - resizeState.startHeight)
+        newX = Math.max(0, newX)
+        newY = Math.max(0, newY)
       }
 
       const actionEl = document.querySelector(`[data-action-id="${resizeState.actionId}"]`) as HTMLElement
       if (actionEl) {
         actionEl.style.width = `${newWidth}%`
         actionEl.style.height = `${newHeight}%`
+        actionEl.style.left = `${newX}%`
+        actionEl.style.top = `${newY}%`
       }
     }
   }, [dragState, resizeState])
@@ -513,16 +547,18 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       if (actionEl) {
         const width = parseFloat(actionEl.style.width)
         const height = parseFloat(actionEl.style.height)
+        const left = parseFloat(actionEl.style.left)
+        const top = parseFloat(actionEl.style.top)
         
         updateActionMutation.mutate({
           actionId: resizeState.actionId,
-          data: { width, height }
+          data: { width, height, position_x: left, position_y: top }
         })
       }
     }
 
     setDragState({ isDragging: false, actionId: null, startX: 0, startY: 0, offsetX: 0, offsetY: 0 })
-    setResizeState({ isResizing: false, actionId: null, corner: null, startX: 0, startY: 0, startWidth: 0, startHeight: 0 })
+    setResizeState({ isResizing: false, actionId: null, corner: null, startX: 0, startY: 0, startWidth: 0, startHeight: 0, startPositionX: 0, startPositionY: 0 })
   }, [dragState, resizeState, updateActionMutation])
 
   useEffect(() => {
@@ -537,7 +573,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   }, [dragState.isDragging, resizeState.isResizing, handleMouseMove, handleMouseUp])
 
   // Handler para resize
-  const handleResizeMouseDown = (e: React.MouseEvent, action: ExerciseAction, corner: 'se') => {
+  const handleResizeMouseDown = (e: React.MouseEvent, action: ExerciseAction, corner: 'se' | 'sw' | 'ne' | 'nw') => {
     e.stopPropagation()
     
     setResizeState({
@@ -547,7 +583,9 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       startX: e.clientX,
       startY: e.clientY,
       startWidth: action.width,
-      startHeight: action.height
+      startHeight: action.height,
+      startPositionX: action.position_x,
+      startPositionY: action.position_y
     })
   }
 
@@ -1120,13 +1158,22 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                         const isWrongButton = action.action_type === 'button' && action.correct_answer === 'wrong'
                         const isCorrectButton = action.action_type === 'button' && action.correct_answer === 'correct'
                         
+                        // Determinar si esta acción está siendo arrastrada o redimensionada
+                        const isBeingDraggedOrResized = 
+                          (dragState.isDragging && dragState.actionId === action.id) ||
+                          (resizeState.isResizing && resizeState.actionId === action.id)
+                        
                         return (
                         <div
                           key={action.id}
                           data-action-id={action.id}
-                          className={`absolute border-2 rounded cursor-move transition-all z-10 ${
+                          className={`absolute border-2 rounded cursor-move z-10 ${
+                            isBeingDraggedOrResized
+                              ? 'border-dashed'
+                              : ''
+                          } ${
                             selectedAction?.id === action.id
-                              ? 'border-primary-500 bg-primary-200 bg-opacity-50 shadow-lg'
+                              ? 'border-primary-500 bg-primary-200 bg-opacity-50 shadow-lg ring-2 ring-primary-300'
                               : isCorrectButton
                               ? 'border-blue-500 bg-blue-200 bg-opacity-40 hover:bg-opacity-60'
                               : isWrongButton
@@ -1158,15 +1205,34 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                             )}
                           </div>
                           
-                          {/* Resize handle */}
-                          {selectedAction?.id === action.id && (
-                            <div
-                              className="absolute bottom-0 right-0 w-4 h-4 bg-primary-500 cursor-se-resize rounded-tl"
-                              onMouseDown={(e) => handleResizeMouseDown(e, action, 'se')}
-                            />
+                          {/* Resize handles en las 4 esquinas */}
+                          {selectedAction?.id === action.id && !isBeingDraggedOrResized && (
+                            <>
+                              {/* Esquina superior izquierda */}
+                              <div
+                                className="absolute -top-1 -left-1 w-3 h-3 bg-primary-500 cursor-nw-resize rounded-br border border-white shadow"
+                                onMouseDown={(e) => handleResizeMouseDown(e, action, 'nw')}
+                              />
+                              {/* Esquina superior derecha */}
+                              <div
+                                className="absolute -top-1 -right-1 w-3 h-3 bg-primary-500 cursor-ne-resize rounded-bl border border-white shadow"
+                                onMouseDown={(e) => handleResizeMouseDown(e, action, 'ne')}
+                              />
+                              {/* Esquina inferior izquierda */}
+                              <div
+                                className="absolute -bottom-1 -left-1 w-3 h-3 bg-primary-500 cursor-sw-resize rounded-tr border border-white shadow"
+                                onMouseDown={(e) => handleResizeMouseDown(e, action, 'sw')}
+                              />
+                              {/* Esquina inferior derecha */}
+                              <div
+                                className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary-500 cursor-se-resize rounded-tl border border-white shadow"
+                                onMouseDown={(e) => handleResizeMouseDown(e, action, 'se')}
+                              />
+                            </>
                           )}
                           
-                          {/* Action number badge */}
+                          {/* Action number badge - oculto durante drag/resize */}
+                          {!isBeingDraggedOrResized && (
                           <div className={`absolute -top-3 -left-3 w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold shadow ${
                             isCorrectButton 
                               ? 'bg-blue-600' 
@@ -1178,6 +1244,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                           }`}>
                             {action.action_number}
                           </div>
+                          )}
                         </div>
                       )})}
                     </div>
