@@ -1424,7 +1424,7 @@ const StudyContentPreviewPage: React.FC = () => {
                           currentTopic.video.video_url?.includes('blob.core.windows.net') 
                             ? '' 
                             : 'aspect-video'
-                        }`}
+                        }`}   
                         style={currentTopic.video.video_url?.includes('blob.core.windows.net') 
                           ? { height: 'calc(100vh - 350px)', minHeight: '300px' }
                           : {}

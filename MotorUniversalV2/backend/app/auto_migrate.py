@@ -70,7 +70,8 @@ def check_and_add_columns():
         'error_message': "TEXT",
         'max_attempts': "INT DEFAULT 3",
         'text_color': "VARCHAR(20) DEFAULT '#000000'",
-        'font_family': "VARCHAR(50) DEFAULT 'Arial'"
+        'font_family': "VARCHAR(50) DEFAULT 'Arial'",
+        'label_style': "VARCHAR(20) DEFAULT 'invisible'"
     }
     
     try:
