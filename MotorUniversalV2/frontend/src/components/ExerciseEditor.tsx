@@ -1274,10 +1274,10 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                           <div
                             className={`absolute border-2 border-dashed rounded pointer-events-none z-20 ${
                               selectedTool === 'button'
-                                ? 'border-blue-500 bg-blue-200 bg-opacity-30'
+                                ? 'border-teal-500 bg-teal-200 bg-opacity-30'
                                 : selectedTool === 'button-wrong'
                                 ? 'border-orange-500 bg-orange-200 bg-opacity-30'
-                                : 'border-green-500 bg-green-200 bg-opacity-30'
+                                : 'border-lime-500 bg-lime-200 bg-opacity-30'
                             }`}
                             style={{
                               left: `${rect.left}%`,
@@ -1289,10 +1289,10 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                             <div className="absolute inset-0 flex items-center justify-center text-xs font-medium">
                               <span className={
                                 selectedTool === 'button' 
-                                  ? 'text-blue-700' 
+                                  ? 'text-teal-700' 
                                   : selectedTool === 'button-wrong' 
                                   ? 'text-orange-700' 
-                                  : 'text-green-700'
+                                  : 'text-lime-700'
                               }>
                                 {rect.width.toFixed(0)}% × {rect.height.toFixed(0)}%
                               </span>
