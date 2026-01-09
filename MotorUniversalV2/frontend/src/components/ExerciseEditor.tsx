@@ -3,6 +3,8 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { examService } from '../services/examService'
 import type { Exercise, ExerciseStep, ExerciseAction } from '../types'
 import LoadingSpinner from './LoadingSpinner'
+import ReactQuill from 'react-quill-new'
+import 'react-quill-new/dist/quill.snow.css'
 
 interface ExerciseEditorProps {
   exercise: Exercise
@@ -2005,13 +2007,27 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                               <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Mensaje de error
                               </label>
-                              <textarea
-                                value={actionFormData.error_message}
-                                onChange={(e) => setActionFormData({ ...actionFormData, error_message: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
-                                rows={2}
-                                placeholder="Ej: Respuesta incorrecta. Inténtalo de nuevo."
-                              />
+                              <div className="border border-gray-300 rounded-lg overflow-hidden error-message-editor" style={{ maxHeight: '120px' }}>
+                                <ReactQuill
+                                  theme="snow"
+                                  value={actionFormData.error_message || ''}
+                                  onChange={(content) => setActionFormData({ ...actionFormData, error_message: content })}
+                                  modules={{
+                                    toolbar: [
+                                      [{ 'header': [1, 2, 3, false] }],
+                                      ['bold', 'italic', 'underline', 'strike'],
+                                      [{ 'color': [] }, { 'background': [] }],
+                                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                                      [{ 'align': [] }],
+                                      ['link'],
+                                      ['clean']
+                                    ],
+                                  }}
+                                  formats={['header', 'bold', 'italic', 'underline', 'strike', 'color', 'background', 'list', 'align', 'link']}
+                                  placeholder="Ej: Respuesta incorrecta. Revisa tu respuesta."
+                                  style={{ maxHeight: '80px', overflowY: 'auto' }}
+                                />
+                              </div>
                             </div>
                             
                             <div>
@@ -2215,13 +2231,27 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                               <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Mensaje de error
                               </label>
-                              <textarea
-                                value={actionFormData.error_message}
-                                onChange={(e) => setActionFormData({ ...actionFormData, error_message: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
-                                rows={2}
-                                placeholder="Ej: Respuesta incorrecta. Revisa tu respuesta."
-                              />
+                              <div className="border border-gray-300 rounded-lg overflow-hidden error-message-editor" style={{ maxHeight: '120px' }}>
+                                <ReactQuill
+                                  theme="snow"
+                                  value={actionFormData.error_message || ''}
+                                  onChange={(content) => setActionFormData({ ...actionFormData, error_message: content })}
+                                  modules={{
+                                    toolbar: [
+                                      [{ 'header': [1, 2, 3, false] }],
+                                      ['bold', 'italic', 'underline', 'strike'],
+                                      [{ 'color': [] }, { 'background': [] }],
+                                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                                      [{ 'align': [] }],
+                                      ['link'],
+                                      ['clean']
+                                    ],
+                                  }}
+                                  formats={['header', 'bold', 'italic', 'underline', 'strike', 'color', 'background', 'list', 'align', 'link']}
+                                  placeholder="Ej: Respuesta incorrecta. Revisa tu respuesta."
+                                  style={{ maxHeight: '80px', overflowY: 'auto' }}
+                                />
+                              </div>
                             </div>
                             
                             <div>
