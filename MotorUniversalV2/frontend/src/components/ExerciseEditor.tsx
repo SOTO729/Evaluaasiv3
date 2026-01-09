@@ -141,6 +141,30 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     message: ''
   })
 
+  // Modal de confirmación para eliminar acción
+  const [deleteActionModal, setDeleteActionModal] = useState<{
+    isOpen: boolean
+    actionId: string | null
+    actionType: string | null
+    isCorrect: boolean
+  }>({
+    isOpen: false,
+    actionId: null,
+    actionType: null,
+    isCorrect: false
+  })
+
+  // Modal de éxito para operaciones completadas
+  const [successModal, setSuccessModal] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+  }>({
+    isOpen: false,
+    title: '',
+    message: ''
+  })
+
   // Función para agregar cambio pendiente
   const addPendingChange = (change: any) => {
     setPendingChanges(prev => [...prev, change])
@@ -595,11 +619,25 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     setIsEditActionModalOpen(true)
   }
 
-  // Handler para eliminar acción directamente desde la tarjeta
-  const handleDeleteAction = (actionId: string) => {
-    if (confirm('¿Estás seguro de que deseas eliminar esta acción?')) {
-      deleteActionMutation.mutate(actionId)
-    }
+  // Handler para eliminar acción directamente desde la tarjeta (abre modal de confirmación)
+  const handleDeleteAction = (action: ExerciseAction) => {
+    const isCorrect = action.action_type === 'button' 
+      ? action.correct_answer === 'correct'
+      : (action.correct_answer && action.correct_answer.trim() !== '')
+    
+    setDeleteActionModal({
+      isOpen: true,
+      actionId: action.id,
+      actionType: action.action_type,
+      isCorrect: !!isCorrect
+    })
+  }
+
+  // Confirmar eliminación de acción
+  const confirmDeleteAction = () => {
+    if (!deleteActionModal.actionId) return
+    deleteActionMutation.mutate(deleteActionModal.actionId)
+    setDeleteActionModal({ isOpen: false, actionId: null, actionType: null, isCorrect: false })
   }
 
   const handleSaveAction = () => {
@@ -1411,7 +1449,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
-                                handleDeleteAction(action.id)
+                                handleDeleteAction(action)
                               }}
                               className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                               title="Eliminar acción"
@@ -2291,6 +2329,89 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
               <button
                 onClick={() => setWarningModal({ isOpen: false, title: '', message: '' })}
                 className="px-6 py-2.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación para eliminar acción */}
+      {deleteActionModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]" onClick={() => setDeleteActionModal({ isOpen: false, actionId: null, actionType: null, isCorrect: false })}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center">
+              {/* Icono de eliminación */}
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              
+              {/* Título */}
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Eliminar {deleteActionModal.actionType === 'button' ? 'Botón' : 'Campo de Texto'}
+              </h3>
+              
+              {/* Mensaje */}
+              <p className="text-gray-600 mb-2">
+                ¿Estás seguro de que deseas eliminar esta acción?
+              </p>
+              <p className="text-sm text-gray-500 mb-6">
+                {deleteActionModal.isCorrect ? (
+                  <span className="text-green-600 font-medium">Esta es la respuesta correcta del paso.</span>
+                ) : (
+                  <span className="text-orange-600 font-medium">Esta es una opción incorrecta.</span>
+                )}
+              </p>
+              
+              {/* Botones */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteActionModal({ isOpen: false, actionId: null, actionType: null, isCorrect: false })}
+                  className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDeleteAction}
+                  className="px-5 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de éxito */}
+      {successModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]" onClick={() => setSuccessModal({ isOpen: false, title: '', message: '' })}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center">
+              {/* Icono de éxito */}
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              
+              {/* Título */}
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {successModal.title}
+              </h3>
+              
+              {/* Mensaje */}
+              <p className="text-gray-600 mb-6">
+                {successModal.message}
+              </p>
+              
+              {/* Botón */}
+              <button
+                onClick={() => setSuccessModal({ isOpen: false, title: '', message: '' })}
+                className="px-6 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
               >
                 Entendido
               </button>
