@@ -1301,13 +1301,38 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                         )
                       })()}
                       
-                      {/* Actions overlay */}
-                      {currentStep.actions?.map((action: ExerciseAction) => {
+                      {/* Actions overlay - ordenados para que correctas estén encima */}
+                      {(() => {
+                        const sortedActions = [...(currentStep.actions || [])]
+                          .sort((a, b) => {
+                            // Incorrectas primero, correctas después (para que correctas queden encima)
+                            const aIsCorrect = (a.action_type === 'button' && a.correct_answer === 'correct') || 
+                                              (a.action_type === 'textbox');
+                            const bIsCorrect = (b.action_type === 'button' && b.correct_answer === 'correct') || 
+                                              (b.action_type === 'textbox');
+                            if (aIsCorrect === bIsCorrect) return 0;
+                            return aIsCorrect ? 1 : -1;
+                          });
+                        
+                        return sortedActions.map((action: ExerciseAction, index: number) => {
                         // Determinar si es un textbox sin respuesta definida
                         const isTextboxWithoutAnswer = action.action_type === 'textbox' && (!action.correct_answer || action.correct_answer.trim() === '')
+                        const isTextbox = action.action_type === 'textbox'
                         // Determinar si es un botón incorrecto
                         const isWrongButton = action.action_type === 'button' && action.correct_answer === 'wrong'
                         const isCorrectButton = action.action_type === 'button' && action.correct_answer === 'correct'
+                        const isCorrectAction = isCorrectButton || isTextbox
+                        
+                        // Calcular el número de acción solo para las incorrectas usando el array ordenado
+                        const incorrectIndex = sortedActions
+                          .slice(0, index)
+                          .filter((a: ExerciseAction) => {
+                            const aIsCorrectButton = a.action_type === 'button' && a.correct_answer === 'correct'
+                            const aIsTextbox = a.action_type === 'textbox'
+                            return !(aIsCorrectButton || aIsTextbox)
+                          })
+                          .length
+                        const displayNumber = isCorrectAction ? null : incorrectIndex + 1
                         
                         // Determinar si esta acción está siendo arrastrada o redimensionada
                         const isBeingDraggedOrResized = 
@@ -1318,7 +1343,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                         <div
                           key={action.id}
                           data-action-id={action.id}
-                          className={`absolute border-2 rounded cursor-move z-10 ${
+                          className={`absolute border-2 rounded cursor-move ${
                             isBeingDraggedOrResized
                               ? 'border-dashed'
                               : ''
@@ -1326,31 +1351,32 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                             selectedAction?.id === action.id
                               ? 'border-primary-500 bg-primary-200 bg-opacity-50 shadow-lg ring-2 ring-primary-300'
                               : isCorrectButton
-                              ? 'border-blue-500 bg-blue-200 bg-opacity-40 hover:bg-opacity-60'
+                              ? 'border-teal-500 bg-teal-200/40 hover:bg-teal-200/60'
                               : isWrongButton
-                              ? 'border-orange-500 bg-orange-200 bg-opacity-40 hover:bg-opacity-60'
+                              ? 'border-orange-500 bg-orange-200/40 hover:bg-orange-200/60'
                               : isTextboxWithoutAnswer
-                              ? 'border-red-500 bg-red-200 bg-opacity-40 hover:bg-opacity-60'
-                              : 'border-green-500 bg-green-200 bg-opacity-40 hover:bg-opacity-60'
+                              ? 'border-red-500 bg-red-200/40 hover:bg-red-200/60'
+                              : 'border-lime-500 bg-lime-200/40 hover:bg-lime-200/60'
                           }`}
                           style={{
                             left: `${action.position_x}%`,
                             top: `${action.position_y}%`,
                             width: `${action.width}%`,
                             height: `${action.height}%`,
+                            zIndex: isCorrectAction ? 20 : 10, // Correctas encima de incorrectas
                           }}
                           onClick={(e) => e.stopPropagation()}
                           onMouseDown={(e) => handleActionMouseDown(e, action)}
                         >
                           <div className="absolute inset-0 flex items-center justify-center text-xs font-medium truncate px-1">
                             {action.action_type === 'button' ? (
-                              <span className={isWrongButton ? 'text-orange-800' : 'text-blue-800'}>
+                              <span className={isWrongButton ? 'text-orange-800' : 'text-teal-800'}>
                                 {action.placeholder ? action.placeholder : `(${action.label || 'Botón'})`}
                               </span>
                             ) : isTextboxWithoutAnswer ? (
                               <span className="text-red-800 italic font-semibold">Sin respuesta</span>
                             ) : (
-                              <span className="text-green-800 italic">
+                              <span className="text-lime-800 italic">
                                 {action.placeholder || '(Campo de texto)'}
                               </span>
                             )}
@@ -1386,18 +1412,25 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                           {!isBeingDraggedOrResized && (
                           <div className={`absolute -top-3 -left-3 w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold shadow ${
                             isCorrectButton 
-                              ? 'bg-blue-600' 
+                              ? 'bg-teal-600' 
+                              : isTextboxWithoutAnswer
+                              ? 'bg-red-600'
+                              : isTextbox
+                              ? 'bg-lime-600'
                               : isWrongButton 
                               ? 'bg-orange-600' 
-                              : isTextboxWithoutAnswer 
-                              ? 'bg-red-600' 
-                              : 'bg-green-600'
+                              : 'bg-lime-600'
                           }`}>
-                            {action.action_number}
+                            {isCorrectAction ? (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            ) : displayNumber}
                           </div>
                           )}
                         </div>
-                      )})}
+                      )});
+                      })()}
                     </div>
                     </div>
                     
