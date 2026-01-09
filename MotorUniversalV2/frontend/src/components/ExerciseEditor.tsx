@@ -50,6 +50,8 @@ const EDITOR_CONFIG = {
 }
 
 const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
+    // Estado para el tipo de ejercicio: 'exam' o 'simulator'
+    const [exerciseType, setExerciseType] = useState<'exam' | 'simulator'>(exercise.type || 'exam')
   const imageContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
@@ -826,10 +828,23 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
           </button>
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Editor de Ejercicio</h1>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex items-center gap-4 mt-0.5">
               <p className="text-sm text-gray-500">
                 Ejercicio #{exercise.exercise_number || 'N/A'}
               </p>
+              {/* Selector de tipo de ejercicio */}
+              <div className="flex items-center gap-1">
+                <label htmlFor="exercise-type" className="text-xs text-gray-600 font-medium">Tipo:</label>
+                <select
+                  id="exercise-type"
+                  className="text-xs px-2 py-1 border rounded focus:outline-none focus:ring focus:border-primary-400 bg-white"
+                  value={exerciseType}
+                  onChange={e => setExerciseType(e.target.value as 'exam' | 'simulator')}
+                >
+                  <option value="exam">Examen</option>
+                  <option value="simulator">Simulador</option>
+                </select>
+              </div>
               {exercise.exercise_text && (
                 <button
                   onClick={() => setShowExerciseDescription(!showExerciseDescription)}

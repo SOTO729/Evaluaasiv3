@@ -98,6 +98,7 @@ export interface Answer {
 }
 
 export interface Exercise {
+    type?: 'exam' | 'simulator'
   id: string
   topic_id: number
   exercise_number: number
