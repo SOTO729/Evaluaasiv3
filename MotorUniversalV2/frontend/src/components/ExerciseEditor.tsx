@@ -626,6 +626,8 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   const handleResizeMouseDown = (e: React.MouseEvent, action: ExerciseAction, corner: 'se' | 'sw' | 'ne' | 'nw') => {
     e.stopPropagation()
     
+    if (selectedTool !== 'select') return
+    
     setResizeState({
       isResizing: true,
       actionId: action.id,
@@ -1277,7 +1279,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                         <div
                           key={action.id}
                           data-action-id={action.id}
-                          className={`absolute border-2 rounded cursor-move z-10 ${
+                          className={`absolute border-2 rounded z-10 ${selectedTool === 'select' ? 'cursor-move' : 'cursor-default'} ${
                             isBeingDraggedOrResized
                               ? 'border-dashed'
                               : ''
@@ -1315,8 +1317,8 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                             )}
                           </div>
                           
-                          {/* Resize handles en las 4 esquinas */}
-                          {selectedAction?.id === action.id && !isBeingDraggedOrResized && (
+                          {/* Resize handles en las 4 esquinas - solo con herramienta select */}
+                          {selectedTool === 'select' && selectedAction?.id === action.id && !isBeingDraggedOrResized && (
                             <>
                               {/* Esquina superior izquierda */}
                               <div
