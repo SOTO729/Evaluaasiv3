@@ -142,7 +142,7 @@ export const examService = {
     return response.data
   },
 
-  updateExercise: async (id: string, data: { exercise_text?: string; is_complete?: boolean }): Promise<{ message: string; exercise: any }> => {
+  updateExercise: async (id: string, data: { exercise_text?: string; is_complete?: boolean; type?: 'exam' | 'simulator' }): Promise<{ message: string; exercise: any }> => {
     const response = await api.put<{ message: string; exercise: any }>(`/exams/exercises/${id}`, data)
     return response.data
   },

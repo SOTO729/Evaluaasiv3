@@ -84,6 +84,7 @@ export interface Question {
   image_url?: string
   points: number
   difficulty: 'easy' | 'medium' | 'hard'
+  type?: 'exam' | 'simulator'
   created_at: string
   answers?: Answer[]
 }
