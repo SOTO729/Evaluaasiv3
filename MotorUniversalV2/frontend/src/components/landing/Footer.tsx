@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { GraduationCap, Facebook, Twitter, Linkedin, Instagram, Youtube } from 'lucide-react'
+import { Facebook, Twitter, Linkedin, Instagram, Youtube } from 'lucide-react'
 
 const footerLinks = {
   product: {

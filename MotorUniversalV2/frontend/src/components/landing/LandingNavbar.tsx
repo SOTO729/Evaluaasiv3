@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Menu, X, GraduationCap } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 
 export default function LandingNavbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)

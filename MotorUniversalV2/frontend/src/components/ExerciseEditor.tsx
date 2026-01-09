@@ -168,6 +168,12 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     font_family: 'Arial'
   })
 
+  // Modal de confirmación para recargar página
+  const [reloadConfirmModal, setReloadConfirmModal] = useState(false)
+  
+  // Ref para controlar si se debe mostrar la advertencia de navegación
+  const skipBeforeUnloadRef = useRef(false)
+
   // Función para agregar cambio pendiente
   const addPendingChange = (change: any) => {
     setPendingChanges(prev => [...prev, change])
@@ -622,6 +628,40 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       }
     }
   }, [dragState.isDragging, resizeState.isResizing, handleMouseMove, handleMouseUp])
+
+  // Interceptar cierre de ventana/pestaña si hay cambios sin guardar
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Si se marcó para saltar la advertencia (al guardar y salir), no mostrar
+      if (skipBeforeUnloadRef.current) {
+        return
+      }
+      if (hasUnsavedChanges || pendingChanges.length > 0) {
+        e.preventDefault()
+        e.returnValue = ''
+        return ''
+      }
+    }
+
+    // Interceptar F5 y Ctrl+R para mostrar modal personalizado
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (skipBeforeUnloadRef.current) {
+        return
+      }
+      if ((hasUnsavedChanges || pendingChanges.length > 0) && 
+          (e.key === 'F5' || (e.ctrlKey && e.key === 'r') || (e.metaKey && e.key === 'r'))) {
+        e.preventDefault()
+        setReloadConfirmModal(true)
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [hasUnsavedChanges, pendingChanges])
 
   // Handler para resize
   const handleResizeMouseDown = (e: React.MouseEvent, action: ExerciseAction, corner: 'se' | 'sw' | 'ne' | 'nw') => {
@@ -2290,6 +2330,51 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
               >
                 {updateActionMutation.isPending ? 'Guardando...' : 'Guardar'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación para recargar página */}
+      {reloadConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80]" onClick={() => setReloadConfirmModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center">
+              {/* Icono de advertencia */}
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </div>
+              
+              {/* Título */}
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                ¿Recargar página?
+              </h3>
+              
+              {/* Mensaje */}
+              <p className="text-gray-600 mb-6">
+                Es posible que las modificaciones de la sesión no se hayan guardado. Si recargas la página, podrías perder los cambios no guardados.
+              </p>
+              
+              {/* Botones */}
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setReloadConfirmModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    skipBeforeUnloadRef.current = true
+                    window.location.reload()
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium"
+                >
+                  Recargar
+                </button>
+              </div>
             </div>
           </div>
         </div>
