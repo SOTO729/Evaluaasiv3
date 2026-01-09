@@ -1055,9 +1055,10 @@ const StudyInteractiveExercisePage = () => {
       // Validar que campos incorrectos no se superpongan con respuestas correctas
       const isWrongButton = selectedTool === 'button-wrong'
       if (isWrongButton) {
+        // Considerar como respuesta correcta: botones correctos Y todos los text_input (incluso sin respuesta definida)
         const correctAction = currentActions.find(a => 
           (a.action_type === 'button' && a.correct_answer === 'correct') ||
-          (a.action_type === 'text_input' && a.correct_answer && a.correct_answer.trim() !== '' && a.correct_answer !== 'wrong')
+          (a.action_type === 'text_input')
         )
         
         if (correctAction) {
