@@ -130,6 +130,17 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     actionsCount: 0
   })
 
+  // Modal de advertencia para validaciones
+  const [warningModal, setWarningModal] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+  }>({
+    isOpen: false,
+    title: '',
+    message: ''
+  })
+
   // Función para agregar cambio pendiente
   const addPendingChange = (change: any) => {
     setPendingChanges(prev => [...prev, change])
@@ -364,6 +375,57 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       // Determinar el tipo de acción y configuración
       const isButton = selectedTool === 'button' || selectedTool === 'button-wrong'
       const isCorrectButton = selectedTool === 'button'
+      const isTextbox = selectedTool === 'textbox'
+      
+      // Validar que solo haya una respuesta correcta por paso
+      const hasCorrectAnswer = currentActions.some(a => 
+        (a.action_type === 'button' && a.correct_answer === 'correct') ||
+        (a.action_type === 'textbox' && a.correct_answer && a.correct_answer.trim() !== '')
+      )
+      
+      if ((isCorrectButton || isTextbox) && hasCorrectAnswer) {
+        setWarningModal({
+          isOpen: true,
+          title: 'Respuesta correcta ya existe',
+          message: 'Este paso ya tiene una respuesta correcta configurada. Solo puede haber un botón correcto o un campo de texto con respuesta por cada paso del ejercicio.'
+        })
+        setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
+        return
+      }
+      
+      // Validar que campos incorrectos no se superpongan con respuestas correctas
+      const isWrongButton = selectedTool === 'button-wrong'
+      if (isWrongButton) {
+        const correctAction = currentActions.find(a => 
+          (a.action_type === 'button' && a.correct_answer === 'correct') ||
+          (a.action_type === 'textbox' && a.correct_answer && a.correct_answer.trim() !== '' && a.correct_answer !== 'wrong')
+        )
+        
+        if (correctAction) {
+          // Verificar superposición de rectángulos
+          const newRight = left + width
+          const newBottom = top + height
+          const correctRight = correctAction.position_x + correctAction.width
+          const correctBottom = correctAction.position_y + correctAction.height
+          
+          const overlaps = !(
+            newRight <= correctAction.position_x ||
+            left >= correctRight ||
+            newBottom <= correctAction.position_y ||
+            top >= correctBottom
+          )
+          
+          if (overlaps) {
+            setWarningModal({
+              isOpen: true,
+              title: 'Superposición no permitida',
+              message: 'El campo incorrecto no puede quedar por encima de la respuesta correcta. Por favor, coloca el área en otra posición.'
+            })
+            setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
+            return
+          }
+        }
+      }
       
       const newAction = {
         action_type: isButton ? 'button' : 'textbox',
@@ -2197,6 +2259,40 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                 className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
               >
                 Salir sin Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de advertencia para validaciones */}
+      {warningModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]" onClick={() => setWarningModal({ isOpen: false, title: '', message: '' })}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center">
+              {/* Icono de advertencia */}
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              
+              {/* Título */}
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {warningModal.title}
+              </h3>
+              
+              {/* Mensaje */}
+              <p className="text-gray-600 mb-6">
+                {warningModal.message}
+              </p>
+              
+              {/* Botón */}
+              <button
+                onClick={() => setWarningModal({ isOpen: false, title: '', message: '' })}
+                className="px-6 py-2.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium"
+              >
+                Entendido
               </button>
             </div>
           </div>
