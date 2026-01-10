@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../services/examService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, HelpCircle, Target, ArrowLeft, ClipboardList } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, ArrowLeft } from 'lucide-react';
 
 // Tipo para representar un ítem del test (pregunta o ejercicio)
 interface TestItem {
@@ -358,11 +358,11 @@ const ExamTestRunPage: React.FC = () => {
     switch (currentItem.question_type) {
       case 'true_false':
         return (
-          <div className="grid grid-cols-2 gap-4">
-            <label className={`group flex flex-col items-center justify-center p-6 border-2 rounded-2xl cursor-pointer transition-all duration-200 ${
+          <div className="grid grid-cols-2 gap-3 max-w-md">
+            <label className={`group flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
               currentAnswer === true 
-                ? 'border-green-500 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg shadow-green-100' 
-                : 'border-gray-200 hover:border-green-300 hover:bg-green-50/50'
+                ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500' 
+                : 'border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/50'
             }`}>
               <input
                 type="radio"
@@ -372,20 +372,20 @@ const ExamTestRunPage: React.FC = () => {
                 onChange={() => handleAnswerChange(currentItem.question_id!, true)}
                 className="hidden"
               />
-              <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-3 transition-all ${
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
                 currentAnswer === true 
-                  ? 'bg-green-500 text-white' 
-                  : 'bg-gray-100 text-gray-400 group-hover:bg-green-100 group-hover:text-green-500'
+                  ? 'bg-emerald-500 text-white' 
+                  : 'border-2 border-gray-300 group-hover:border-emerald-400'
               }`}>
-                <CheckCircle className="w-8 h-8" />
+                {currentAnswer === true && <CheckCircle className="w-3.5 h-3.5" />}
               </div>
-              <span className={`text-lg font-semibold ${currentAnswer === true ? 'text-green-700' : 'text-gray-700'}`}>
+              <span className={`font-medium ${currentAnswer === true ? 'text-emerald-700' : 'text-gray-700'}`}>
                 Verdadero
               </span>
             </label>
-            <label className={`group flex flex-col items-center justify-center p-6 border-2 rounded-2xl cursor-pointer transition-all duration-200 ${
+            <label className={`group flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
               currentAnswer === false 
-                ? 'border-red-500 bg-gradient-to-br from-red-50 to-rose-50 shadow-lg shadow-red-100' 
+                ? 'border-red-500 bg-red-50 ring-1 ring-red-500' 
                 : 'border-gray-200 hover:border-red-300 hover:bg-red-50/50'
             }`}>
               <input
@@ -396,14 +396,14 @@ const ExamTestRunPage: React.FC = () => {
                 onChange={() => handleAnswerChange(currentItem.question_id!, false)}
                 className="hidden"
               />
-              <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-3 transition-all ${
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
                 currentAnswer === false 
                   ? 'bg-red-500 text-white' 
-                  : 'bg-gray-100 text-gray-400 group-hover:bg-red-100 group-hover:text-red-500'
+                  : 'border-2 border-gray-300 group-hover:border-red-400'
               }`}>
-                <AlertCircle className="w-8 h-8" />
+                {currentAnswer === false && <AlertCircle className="w-3.5 h-3.5" />}
               </div>
-              <span className={`text-lg font-semibold ${currentAnswer === false ? 'text-red-700' : 'text-gray-700'}`}>
+              <span className={`font-medium ${currentAnswer === false ? 'text-red-700' : 'text-gray-700'}`}>
                 Falso
               </span>
             </label>
@@ -416,16 +416,16 @@ const ExamTestRunPage: React.FC = () => {
             {currentItem.options?.map((option: any, index: number) => (
               <label
                 key={option.id}
-                className={`group flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
+                className={`group flex items-center p-3 border rounded-lg cursor-pointer transition-all ${
                   currentAnswer === option.id 
-                    ? 'border-primary-500 bg-gradient-to-r from-primary-50 to-blue-50 shadow-md shadow-primary-100' 
-                    : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
+                    ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' 
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
-                <div className={`flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm flex-shrink-0 transition-all ${
+                <div className={`flex items-center justify-center w-7 h-7 rounded-md font-medium text-sm flex-shrink-0 transition-all ${
                   currentAnswer === option.id 
                     ? 'bg-primary-500 text-white' 
-                    : 'bg-gray-100 text-gray-500 group-hover:bg-primary-100 group-hover:text-primary-600'
+                    : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'
                 }`}>
                   {String.fromCharCode(65 + index)}
                 </div>
@@ -438,12 +438,9 @@ const ExamTestRunPage: React.FC = () => {
                   className="hidden"
                 />
                 <div
-                  className="ml-3 text-sm text-gray-800 prose prose-sm max-w-none flex-1"
+                  className="ml-3 text-sm text-gray-700 prose prose-sm max-w-none flex-1"
                   dangerouslySetInnerHTML={{ __html: option.answer_text }}
                 />
-                {currentAnswer === option.id && (
-                  <CheckCircle className="w-5 h-5 text-primary-500 flex-shrink-0 ml-2" />
-                )}
               </label>
             ))}
           </div>
@@ -452,29 +449,29 @@ const ExamTestRunPage: React.FC = () => {
       case 'multiple_select':
         return (
           <div className="space-y-2">
-            <div className="flex items-center space-x-2 text-xs text-gray-600 mb-3 p-2 bg-blue-50 rounded-lg border border-blue-100">
-              <span className="text-blue-500">ℹ️</span>
-              <span>Selecciona todas las opciones correctas</span>
-            </div>
-            {currentItem.options?.map((option: any, index: number) => {
+            <p className="text-xs text-gray-500 mb-3 flex items-center gap-1.5">
+              <span className="w-4 h-4 rounded bg-primary-100 text-primary-600 flex items-center justify-center text-[10px]">✓</span>
+              Selecciona todas las opciones correctas
+            </p>
+            {currentItem.options?.map((option: any) => {
               const selectedOptions = currentAnswer || [];
               const isChecked = selectedOptions.includes(option.id);
               
               return (
                 <label
                   key={option.id}
-                  className={`group flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
+                  className={`group flex items-center p-3 border rounded-lg cursor-pointer transition-all ${
                     isChecked 
-                      ? 'border-primary-500 bg-gradient-to-r from-primary-50 to-blue-50 shadow-md shadow-primary-100' 
-                      : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
+                      ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' 
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm flex-shrink-0 transition-all ${
+                  <div className={`flex items-center justify-center w-5 h-5 rounded flex-shrink-0 transition-all ${
                     isChecked 
                       ? 'bg-primary-500 text-white' 
-                      : 'bg-gray-100 text-gray-500 group-hover:bg-primary-100 group-hover:text-primary-600'
+                      : 'border-2 border-gray-300 group-hover:border-gray-400'
                   }`}>
-                    {isChecked ? <CheckCircle className="w-5 h-5" /> : String.fromCharCode(65 + index)}
+                    {isChecked && <CheckCircle className="w-3.5 h-3.5" />}
                   </div>
                   <input
                     type="checkbox"
@@ -488,12 +485,9 @@ const ExamTestRunPage: React.FC = () => {
                     className="hidden"
                   />
                   <div
-                    className="ml-3 text-sm text-gray-800 prose prose-sm max-w-none flex-1"
+                    className="ml-3 text-sm text-gray-700 prose prose-sm max-w-none flex-1"
                     dangerouslySetInnerHTML={{ __html: option.answer_text }}
                   />
-                  {isChecked && (
-                    <CheckCircle className="w-5 h-5 text-primary-500 flex-shrink-0 ml-2" />
-                  )}
                 </label>
               );
             })}
@@ -502,7 +496,6 @@ const ExamTestRunPage: React.FC = () => {
 
       case 'ordering':
         // Para preguntas de ordenamiento, el usuario debe arrastrar las opciones al orden correcto
-        // Las opciones vienen en currentItem.options (mapeado desde answers en el backend)
         const orderingOptions = currentItem.options || [];
         const orderAnswer = currentAnswer || orderingOptions.map((o: any) => o.id) || [];
         const orderedOptions = orderAnswer.map((id: string) => 
@@ -523,7 +516,6 @@ const ExamTestRunPage: React.FC = () => {
           handleAnswerChange(currentItem.question_id!, newOrder);
           setDraggedIndex(index);
           
-          // Marcar como interactuada al mover elementos
           setOrderingInteracted(prev => ({ ...prev, [String(currentItem.question_id)]: true }));
         };
 
@@ -533,10 +525,10 @@ const ExamTestRunPage: React.FC = () => {
 
         return (
           <div className="space-y-2">
-            <div className="flex items-center space-x-2 text-xs text-gray-600 mb-3 p-2 bg-amber-50 rounded-lg border border-amber-100">
-              <GripVertical className="w-4 h-4 text-amber-500" />
-              <span>Arrastra los elementos para ordenarlos correctamente</span>
-            </div>
+            <p className="text-xs text-gray-500 mb-3 flex items-center gap-1.5">
+              <GripVertical className="w-4 h-4 text-gray-400" />
+              Arrastra para ordenar correctamente
+            </p>
             {orderedOptions.map((option: any, index: number) => (
               <div
                 key={option.id}
@@ -544,18 +536,18 @@ const ExamTestRunPage: React.FC = () => {
                 onDragStart={() => handleDragStart(index)}
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDragEnd={handleDragEnd}
-                className={`group flex items-center p-3 border-2 rounded-lg cursor-move transition-all duration-200 ${
+                className={`group flex items-center p-3 border rounded-lg cursor-move transition-all ${
                   draggedIndex === index 
-                    ? 'border-primary-500 bg-gradient-to-r from-primary-50 to-blue-50 shadow-xl scale-[1.02]' 
-                    : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50 hover:shadow-md'
+                    ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500 scale-[1.01]' 
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 text-white font-bold text-sm flex-shrink-0 shadow-md">
+                <div className="flex items-center justify-center w-6 h-6 rounded bg-gray-100 text-gray-600 font-medium text-sm flex-shrink-0">
                   {index + 1}
                 </div>
-                <GripVertical className="w-5 h-5 text-gray-300 group-hover:text-primary-400 flex-shrink-0 mx-2 transition-colors" />
+                <GripVertical className="w-4 h-4 text-gray-300 group-hover:text-gray-500 flex-shrink-0 mx-2 transition-colors" />
                 <div
-                  className="text-sm text-gray-800 prose prose-sm max-w-none flex-1"
+                  className="text-sm text-gray-700 prose prose-sm max-w-none flex-1"
                   dangerouslySetInnerHTML={{ __html: option.answer_text }}
                 />
               </div>
@@ -702,35 +694,31 @@ const ExamTestRunPage: React.FC = () => {
   const isTimeCritical = timeRemaining !== null && timeRemaining <= 30; // Últimos 30 segundos
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Modal de confirmación de salida */}
       {showExitConfirm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
-            <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-white/20 rounded-xl">
-                  <AlertCircle className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-white">¿Salir de la prueba?</h3>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden">
+            <div className="p-6 text-center">
+              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="w-6 h-6 text-amber-600" />
               </div>
-            </div>
-            <div className="p-6">
-              <p className="text-gray-600 mb-6">
-                Si sales ahora, perderás todo el progreso de esta prueba. ¿Estás seguro de que deseas volver al editor del examen?
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">¿Salir de la prueba?</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Perderás todo el progreso de esta prueba.
               </p>
-              <div className="flex justify-end space-x-3">
+              <div className="flex gap-3">
                 <button
                   onClick={() => setShowExitConfirm(false)}
-                  className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 >
-                  Continuar prueba
+                  Continuar
                 </button>
                 <button
                   onClick={() => navigate(`/exams/${examId}/edit`)}
-                  className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all"
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors"
                 >
-                  Sí, salir
+                  Salir
                 </button>
               </div>
             </div>
@@ -738,67 +726,67 @@ const ExamTestRunPage: React.FC = () => {
         </div>
       )}
 
-      {/* Header con gradiente - FIJO */}
-      <div className="fixed top-0 left-0 right-0 z-40 bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      {/* Header minimalista - FIJO */}
+      <div className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              {/* Botón volver */}
+            {/* Izquierda: Volver y título */}
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowExitConfirm(true)}
-                className="p-2 bg-white/20 hover:bg-white/30 rounded-xl transition-colors"
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                 title="Volver al editor"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <div className="bg-white/20 rounded-xl p-2">
-                <ClipboardList className="w-5 h-5" />
-              </div>
               <div>
-                <h1 className="text-base font-bold truncate max-w-[150px] sm:max-w-none">{exam.name}</h1>
-                <p className="text-xs text-primary-100">
-                  Pregunta {currentItemIndex + 1} de {selectedItems.length}
+                <h1 className="text-sm font-semibold text-gray-900 truncate max-w-[200px] sm:max-w-none">{exam.name}</h1>
+                <p className="text-xs text-gray-400">
+                  Ítem {currentItemIndex + 1} de {selectedItems.length}
                 </p>
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
-              {/* Timer */}
-              <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl font-medium transition-all ${
-                isTimeCritical 
-                  ? 'bg-red-500 animate-pulse' 
-                  : isTimeWarning 
-                  ? 'bg-amber-500' 
-                  : 'bg-white/20'
-              }`}>
-                <Clock className="w-4 h-4" />
-                <span className="font-mono text-base">
-                  {String(displayMinutes).padStart(2, '0')}:{String(displaySeconds).padStart(2, '0')}
+            {/* Derecha: Timer y progreso */}
+            <div className="flex items-center gap-4">
+              {/* Progreso respondidas */}
+              <div className="hidden sm:flex items-center gap-2 text-sm">
+                <span className="text-gray-400">Completadas:</span>
+                <span className={`font-semibold ${getAnsweredCount() === selectedItems.length ? 'text-emerald-600' : 'text-gray-900'}`}>
+                  {getAnsweredCount()}/{selectedItems.length}
                 </span>
               </div>
               
-              {/* Contador de respondidas */}
-              <div className="hidden sm:flex items-center space-x-2 bg-green-500/80 px-3 py-1.5 rounded-xl">
-                <Target className="w-4 h-4" />
-                <span className="font-medium text-sm">{getAnsweredCount()} / {selectedItems.length}</span>
+              {/* Timer */}
+              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-sm transition-all ${
+                isTimeCritical 
+                  ? 'bg-red-100 text-red-700 animate-pulse' 
+                  : isTimeWarning 
+                  ? 'bg-amber-100 text-amber-700' 
+                  : 'bg-gray-100 text-gray-700'
+              }`}>
+                <Clock className="w-4 h-4" />
+                <span className="font-medium">
+                  {String(displayMinutes).padStart(2, '0')}:{String(displaySeconds).padStart(2, '0')}
+                </span>
               </div>
             </div>
           </div>
-          
-          {/* Barra de progreso */}
-          <div className="mt-2 bg-white/20 rounded-full h-1.5 overflow-hidden">
-            <div
-              className="h-full bg-white rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${((currentItemIndex + 1) / selectedItems.length) * 100}%` }}
-            />
-          </div>
+        </div>
+        
+        {/* Barra de progreso sutil */}
+        <div className="h-0.5 bg-gray-100">
+          <div
+            className="h-full bg-primary-500 transition-all duration-500 ease-out"
+            style={{ width: `${((currentItemIndex + 1) / selectedItems.length) * 100}%` }}
+          />
         </div>
       </div>
 
-      {/* Navegación de ítems (mini thumbnails) - FIJO debajo del header */}
-      <div className="fixed top-[88px] left-0 right-0 z-30 bg-white shadow-sm border-b border-gray-100">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+      {/* Navegación de ítems - FIJO debajo del header */}
+      <div className="fixed top-[73px] left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-2">
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide pb-0.5">
             {selectedItems.map((item, idx) => {
               const isAnswered = item.type === 'question' 
                 ? (item.question_type === 'ordering' 
@@ -811,7 +799,6 @@ const ExamTestRunPage: React.FC = () => {
                 <button
                   key={idx}
                   onClick={() => {
-                    // Marcar pregunta de ordenamiento actual como interactuada al navegar
                     const currentItem = selectedItems[currentItemIndex];
                     if (currentItem?.type === 'question' && currentItem.question_type === 'ordering') {
                       setOrderingInteracted(prev => ({ ...prev, [String(currentItem.question_id)]: true }));
@@ -819,15 +806,19 @@ const ExamTestRunPage: React.FC = () => {
                     setCurrentItemIndex(idx);
                     setCurrentStepIndex(0);
                   }}
-                  className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all duration-200 ${
+                  className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium transition-all ${
                     isCurrent
-                      ? 'bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-md'
+                      ? 'bg-primary-600 text-white ring-2 ring-primary-200'
                       : isAnswered
-                      ? 'bg-green-100 text-green-700 border-2 border-green-300'
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                   }`}
                 >
-                  {idx + 1}
+                  {isAnswered && !isCurrent ? (
+                    <CheckCircle className="w-3.5 h-3.5" />
+                  ) : (
+                    idx + 1
+                  )}
                 </button>
               );
             })}
@@ -835,25 +826,19 @@ const ExamTestRunPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Contenido principal - con padding para header y footer fijos */}
-      <div className="pt-[140px] pb-[80px] min-h-screen">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-            {/* Header del ítem */}
-            <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+      {/* Contenido principal */}
+      <div className="pt-[125px] pb-[80px] min-h-screen">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            {/* Header del ítem - más simple */}
+            <div className="px-5 py-3 bg-gray-50 border-b border-gray-100">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                    currentItem?.type === 'question' ? 'bg-primary-100 text-primary-600' : 'bg-purple-100 text-purple-600'
+                <div className="flex items-center gap-2">
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${
+                    currentItem?.type === 'question' 
+                      ? 'bg-primary-100 text-primary-700' 
+                      : 'bg-purple-100 text-purple-700'
                   }`}>
-                    {currentItem?.type === 'question' ? (
-                      <HelpCircle className="w-4 h-4" />
-                    ) : (
-                      <Target className="w-4 h-4" />
-                  )}
-                </div>
-                <div>
-                  <span className="text-sm font-semibold text-gray-700">
                     {currentItem?.type === 'question' ? (
                       <>
                         {currentItem.question_type === 'true_false' && 'Verdadero / Falso'}
@@ -862,50 +847,49 @@ const ExamTestRunPage: React.FC = () => {
                         {currentItem.question_type === 'ordering' && 'Ordenamiento'}
                       </>
                     ) : (
-                      <>Ejercicio Práctico</>
+                      'Ejercicio Práctico'
                     )}
                   </span>
-                  <p className="text-xs text-gray-400">{currentItem?.category_name}</p>
+                  <span className="text-xs text-gray-400">{currentItem?.category_name}</span>
                 </div>
-              </div>
               
-              {/* Indicador de estado - solo para ejercicios */}
-              {currentItem?.type === 'exercise' && (
-                <span className={`inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-full transition-all ${
-                  isExerciseCompleted(currentItem)
-                    ? 'text-green-700 bg-green-100'
-                    : 'text-amber-700 bg-amber-100'
-                }`}>
-                  {isExerciseCompleted(currentItem) ? (
-                  <><CheckCircle className="w-3.5 h-3.5 mr-1" />Completado</>
-                ) : (
-                  'Pendiente'
+                {/* Indicador de estado - solo para ejercicios */}
+                {currentItem?.type === 'exercise' && (
+                  <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-md ${
+                    isExerciseCompleted(currentItem)
+                      ? 'text-emerald-700 bg-emerald-100'
+                      : 'text-amber-700 bg-amber-100'
+                  }`}>
+                    {isExerciseCompleted(currentItem) ? (
+                      <><CheckCircle className="w-3 h-3 mr-1" />Completado</>
+                    ) : (
+                      'Pendiente'
+                    )}
+                  </span>
                 )}
-              </span>
-            )}
+              </div>
             </div>
-          </div>
           
-          {/* Contenido */}
-          <div className="p-5">
-            {currentItem?.type === 'question' ? (
-              <>
-                <div
-                  className="prose prose-sm max-w-none mb-4 text-gray-800"
-                  dangerouslySetInnerHTML={{ __html: currentItem.question_text || '' }}
-                />
-                <div className="mt-4">
-                  {renderQuestionInput()}
-                </div>
-              </>
-            ) : (
-              <>
-                {currentItem?.title && (
-                  <h2 className="text-xl font-bold text-gray-900 mb-3">{currentItem.title}</h2>
-                )}
-                {currentItem?.description && (
+            {/* Contenido */}
+            <div className="p-5 sm:p-6">
+              {currentItem?.type === 'question' ? (
+                <>
                   <div
-                    className="prose max-w-none mb-6 text-gray-600"
+                    className="prose prose-gray max-w-none mb-6 text-gray-800 leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: currentItem.question_text || '' }}
+                  />
+                  <div className="mt-4">
+                    {renderQuestionInput()}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {currentItem?.title && (
+                    <h2 className="text-lg font-semibold text-gray-900 mb-2">{currentItem.title}</h2>
+                  )}
+                  {currentItem?.description && (
+                    <div
+                      className="prose prose-sm max-w-none mb-4 text-gray-600"
                     dangerouslySetInnerHTML={{ __html: currentItem.description }}
                   />
                 )}
@@ -918,34 +902,39 @@ const ExamTestRunPage: React.FC = () => {
       </div>
 
       {/* Barra de navegación inferior - FIJA */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-lg">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3">
           <div className="flex justify-between items-center">
             <button
               onClick={handlePrevious}
               disabled={currentItemIndex === 0}
-              className="flex items-center px-5 py-2.5 text-sm font-semibold text-gray-700 bg-white border-2 border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+              className="flex items-center px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="w-5 h-5 mr-1" />
               Anterior
             </button>
 
-            <div className="flex items-center space-x-3">
+            {/* Indicador central de progreso (móvil) */}
+            <span className="sm:hidden text-xs text-gray-500">
+              {currentItemIndex + 1} / {selectedItems.length}
+            </span>
+
+            <div className="flex items-center gap-2">
               {currentItemIndex === selectedItems.length - 1 ? (
                 <button
                   onClick={() => setShowConfirmSubmit(true)}
-                  className="flex items-center px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg shadow-green-200"
+                  className="flex items-center px-5 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
                 >
-                  <CheckCircle className="w-5 h-5 mr-2" />
+                  <CheckCircle className="w-4 h-4 mr-1.5" />
                   Finalizar
                 </button>
               ) : (
                 <button
                   onClick={handleNext}
-                  className="flex items-center px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl hover:from-primary-600 hover:to-primary-700 transition-all shadow-lg shadow-primary-200"
+                  className="flex items-center px-5 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors"
                 >
                   Siguiente
-                  <ChevronRight className="w-5 h-5 ml-1" />
+                  <ChevronRight className="w-4 h-4 ml-1" />
                 </button>
               )}
             </div>
@@ -953,50 +942,50 @@ const ExamTestRunPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal de confirmación */}
+      {/* Modal de confirmación - Simplificado */}
       {showConfirmSubmit && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full animate-fade-in-scale">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-amber-100 to-amber-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertCircle className="w-8 h-8 text-amber-600" />
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full overflow-hidden">
+            <div className="p-6 text-center">
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-6 h-6 text-emerald-600" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 ¿Finalizar examen?
               </h3>
-              <p className="text-gray-600">
-                Has completado <span className="font-bold text-primary-600">{getAnsweredCount()}</span> de <span className="font-bold">{selectedItems.length}</span> ítems.
+              <p className="text-sm text-gray-500 mb-2">
+                Has completado <span className="font-semibold text-gray-900">{getAnsweredCount()}</span> de <span className="font-semibold text-gray-900">{selectedItems.length}</span> ítems.
               </p>
               {getAnsweredCount() < selectedItems.length && (
-                <p className="text-sm text-amber-600 mt-3 bg-amber-50 px-4 py-2 rounded-lg inline-block">
-                  ⚠️ Tienes {selectedItems.length - getAnsweredCount()} sin completar
+                <p className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-md inline-block mb-4">
+                  {selectedItems.length - getAnsweredCount()} sin completar
                 </p>
               )}
             </div>
 
-            <div className="flex space-x-4">
+            <div className="flex border-t border-gray-100">
               <button
                 onClick={() => setShowConfirmSubmit(false)}
                 disabled={isSubmitting}
-                className="flex-1 px-5 py-3 text-sm font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 border-r border-gray-100"
               >
-                Continuar Examen
+                Continuar
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="flex-1 px-5 py-3 text-sm font-bold text-white bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-70 flex items-center justify-center shadow-lg"
+                className="flex-1 px-4 py-3 text-sm font-medium text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50 flex items-center justify-center"
               >
                 {isSubmitting ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin mr-2 h-4 w-4 text-emerald-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     Evaluando...
                   </>
                 ) : (
-                  'Sí, Finalizar'
+                  'Finalizar'
                 )}
               </button>
             </div>
