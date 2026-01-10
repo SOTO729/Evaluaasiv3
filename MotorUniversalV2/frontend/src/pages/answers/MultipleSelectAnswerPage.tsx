@@ -9,12 +9,72 @@ interface Answer {
   is_correct: boolean;
 }
 
+// Componente Toast personalizado
+interface ToastProps {
+  message: string;
+  type: 'success' | 'error' | 'warning';
+  onClose: () => void;
+}
+
+const Toast = ({ message, type, onClose }: ToastProps) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const bgColors = {
+    success: 'bg-gradient-to-r from-green-500 to-emerald-600',
+    error: 'bg-gradient-to-r from-red-500 to-rose-600',
+    warning: 'bg-gradient-to-r from-amber-500 to-yellow-500'
+  };
+
+  const icons = {
+    success: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+    error: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+    warning: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+    )
+  };
+
+  return (
+    <div className="fixed top-4 right-4 z-50 animate-fadeSlideIn">
+      <div className={`flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl text-white ${bgColors[type]}`}>
+        <div className="flex-shrink-0">
+          {icons[type]}
+        </div>
+        <span className="font-medium">{message}</span>
+        <button
+          onClick={onClose}
+          className="ml-2 p-1 hover:bg-white/20 rounded-lg transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const ANSWER_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
 export const MultipleSelectAnswerPage = () => {
   const { questionId } = useParams<{ questionId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
 
   const [answers, setAnswers] = useState<Answer[]>([
     { answer_text: '', is_correct: false },
@@ -96,15 +156,19 @@ export const MultipleSelectAnswerPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validaciones
-    const correctAnswers = answers.filter(a => a.is_correct);
-    if (correctAnswers.length === 0) {
-      alert('Debes seleccionar al menos una respuesta correcta');
+    // Validaciones con toast personalizado
+    const emptyAnswers = answers.filter(a => !a.answer_text.trim());
+    if (emptyAnswers.length > 0) {
+      setToast({ 
+        message: `Completa el texto de todas las opciones (${emptyAnswers.length} vacía${emptyAnswers.length > 1 ? 's' : ''})`, 
+        type: 'warning' 
+      });
       return;
     }
 
-    if (answers.some(a => !a.answer_text.trim())) {
-      alert('Todas las opciones deben tener texto');
+    const correctAnswers = answers.filter(a => a.is_correct);
+    if (correctAnswers.length === 0) {
+      setToast({ message: 'Debes seleccionar al menos una respuesta correcta', type: 'warning' });
       return;
     }
 
@@ -141,10 +205,11 @@ export const MultipleSelectAnswerPage = () => {
       });
 
       await Promise.all(promises);
-      navigate(-1); // Volver a la lista de preguntas
+      setToast({ message: 'Respuestas guardadas correctamente', type: 'success' });
+      setTimeout(() => navigate(-1), 1000); // Volver después de mostrar el mensaje
     } catch (error) {
       console.error('Error al guardar respuestas:', error);
-      alert('Error al guardar las respuestas');
+      setToast({ message: 'Error al guardar las respuestas', type: 'error' });
     }
   };
 
@@ -236,9 +301,10 @@ export const MultipleSelectAnswerPage = () => {
                     type="text"
                     value={answer.answer_text}
                     onChange={(e) => handleAnswerTextChange(index, e.target.value)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className={`flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 ${
+                      !answer.answer_text.trim() ? 'border-amber-300 bg-amber-50/50' : 'border-gray-300'
+                    }`}
                     placeholder={`Opción ${ANSWER_LETTERS[index]}`}
-                    required
                   />
 
                   {/* Botón eliminar */}
@@ -310,6 +376,15 @@ export const MultipleSelectAnswerPage = () => {
           </button>
         </div>
       </form>
+
+      {/* Toast de notificación */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 };

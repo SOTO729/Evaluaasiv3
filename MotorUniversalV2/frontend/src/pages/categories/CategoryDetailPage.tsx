@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { examService } from '../../services/examService'
 import type { Topic } from '../../types'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import Breadcrumb from '../../components/Breadcrumb'
 
 const CategoryDetailPage = () => {
   const { examId, categoryId } = useParams<{ examId: string; categoryId: string }>()
@@ -15,6 +16,13 @@ const CategoryDetailPage = () => {
   const [deleteConfirmTopic, setDeleteConfirmTopic] = useState<Topic | null>(null)
   const [formData, setFormData] = useState({
     name: '',
+  })
+
+  // Query para obtener el examen (para el breadcrumb)
+  const { data: exam } = useQuery({
+    queryKey: ['exam', examId],
+    queryFn: () => examService.getExam(Number(examId)),
+    enabled: !!examId,
   })
 
   const { data: category, isLoading, error } = useQuery({
@@ -115,19 +123,29 @@ const CategoryDetailPage = () => {
 
   const topics = topicsData?.topics || []
 
+  const breadcrumbItems = [
+    { label: exam?.name || 'Examen', path: `/exams/${examId}/edit` },
+    { label: category.name, isActive: true },
+  ]
+
   return (
     <div className="max-w-7xl mx-auto">
+      {/* Breadcrumb */}
+      <Breadcrumb items={breadcrumbItems} />
+
+      {/* Botón volver a examen */}
+      <button
+        onClick={() => navigate(`/exams/${examId}/edit`)}
+        className="mb-4 text-primary-600 hover:text-primary-700 flex items-center text-sm font-medium transition-colors"
+      >
+        <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+        Volver a examen
+      </button>
+
       {/* Header */}
       <div className="mb-8">
-        <button
-          onClick={() => navigate(`/exams/${examId}/edit`)}
-          className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 mb-6"
-        >
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Volver a Categorías
-        </button>
         <div className="bg-gradient-to-r from-blue-600 via-sky-600 to-blue-700 rounded-2xl p-6 shadow-xl shadow-blue-500/20">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
@@ -150,7 +168,7 @@ const CategoryDetailPage = () => {
           <div className="flex items-center gap-4">
             <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-green-100 to-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
               <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
             <div>
@@ -159,10 +177,10 @@ const CategoryDetailPage = () => {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm hover:shadow-lg hover:border-cyan-200 transform hover:-translate-y-1 transition-all duration-300 group">
+        <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm hover:shadow-lg hover:border-blue-200 transform hover:-translate-y-1 transition-all duration-300 group">
           <div className="flex items-center gap-4">
-            <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-100 to-teal-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-              <svg className="w-6 h-6 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
@@ -174,7 +192,7 @@ const CategoryDetailPage = () => {
         </div>
         <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm hover:shadow-lg hover:border-violet-200 transform hover:-translate-y-1 transition-all duration-300 group">
           <div className="flex items-center gap-4">
-            <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+            <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
               <svg className="w-6 h-6 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
@@ -228,7 +246,7 @@ const CategoryDetailPage = () => {
               </button>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-xl border border-gray-200">
+            <div className="overflow-hidden rounded-xl border border-gray-200 animate-fadeSlideIn">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                   <tr>
@@ -275,7 +293,7 @@ const CategoryDetailPage = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-cyan-100 to-teal-100 text-cyan-800">
+                        <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-100 text-blue-700">
                           <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
@@ -283,7 +301,7 @@ const CategoryDetailPage = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-violet-100 to-purple-100 text-violet-800">
+                        <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-100 text-violet-700">
                           <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
@@ -324,8 +342,11 @@ const CategoryDetailPage = () => {
 
       {/* Modal de Crear/Editar Tema */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={handleCloseModal}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
             <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4">
               <h3 className="text-xl font-bold text-white">
                 {editingTopic ? 'Editar Tema' : 'Crear Nuevo Tema'}
@@ -375,8 +396,11 @@ const CategoryDetailPage = () => {
 
       {/* Modal de Confirmación de Eliminación */}
       {deleteConfirmTopic && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setDeleteConfirmTopic(null)}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
             <div className="bg-gradient-to-r from-red-500 to-rose-600 px-6 py-4">
               <div className="flex items-center">
                 <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mr-3">

@@ -985,6 +985,8 @@ def update_answer(answer_id):
         answer.answer_text = data['answer_text']
     if 'is_correct' in data:
         answer.is_correct = data['is_correct']
+    if 'answer_number' in data:
+        answer.answer_number = data['answer_number']
     
     answer.updated_by = user_id
     
@@ -1246,7 +1248,8 @@ def get_exercise_steps(exercise_id):
     if not exercise:
         return jsonify({'error': 'Ejercicio no encontrado'}), 404
     
-    steps = exercise.steps.order_by(ExerciseStep.step_number).all()
+    # La relación ya tiene order_by definido, solo necesitamos .all()
+    steps = exercise.steps.all()
     
     return jsonify({
         'steps': [step.to_dict(include_actions=True) for step in steps]

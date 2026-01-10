@@ -9,11 +9,65 @@ interface Answer {
   answer_number: number;
 }
 
+// Toast notification types
+interface ToastProps {
+  message: string;
+  type: 'success' | 'error' | 'warning';
+  onClose: () => void;
+}
+
+const Toast = ({ message, type, onClose }: ToastProps) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const bgColor = type === 'success' 
+    ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
+    : type === 'error' 
+    ? 'bg-gradient-to-r from-red-500 to-rose-600' 
+    : 'bg-gradient-to-r from-amber-500 to-yellow-600';
+
+  const icon = type === 'success' ? (
+    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+    </svg>
+  ) : type === 'error' ? (
+    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+    </svg>
+  ) : (
+    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+    </svg>
+  );
+
+  return (
+    <div className="fixed top-4 right-4 z-50 animate-fadeSlideIn">
+      <div className={`${bgColor} text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px]`}>
+        {icon}
+        <span className="font-medium">{message}</span>
+        <button 
+          onClick={onClose}
+          className="ml-auto p-1 hover:bg-white/20 rounded-full transition-colors"
+        >
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const OrderingAnswerPage = () => {
   const { questionId } = useParams<{ questionId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
   const [answers, setAnswers] = useState<Answer[]>([
     { answer_text: '', answer_number: 1 },
     { answer_text: '', answer_number: 2 }
@@ -38,6 +92,14 @@ export const OrderingAnswerPage = () => {
       
       // Ordenar por answer_number
       loadedAnswers.sort((a: Answer, b: Answer) => a.answer_number - b.answer_number);
+      
+      // Si todos tienen answer_number=0, re-numerar basado en posición
+      if (loadedAnswers.every((a: Answer) => a.answer_number === 0)) {
+        loadedAnswers.forEach((a: Answer, idx: number) => {
+          a.answer_number = idx + 1;
+        });
+      }
+      
       setAnswers(loadedAnswers);
     }
   }, [answersData]);
@@ -54,7 +116,7 @@ export const OrderingAnswerPage = () => {
 
   // Mutación para actualizar respuesta
   const updateAnswerMutation = useMutation({
-    mutationFn: ({ answerId, data }: { answerId: string; data: { answer_text: string; is_correct: boolean } }) =>
+    mutationFn: ({ answerId, data }: { answerId: string; data: { answer_text: string; is_correct: boolean; answer_number: number } }) =>
       examService.updateAnswer(answerId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['answers', questionId] });
@@ -125,7 +187,7 @@ export const OrderingAnswerPage = () => {
     e.preventDefault();
 
     if (answers.some(a => !a.answer_text.trim())) {
-      alert('Todas las opciones deben tener texto');
+      setToast({ message: 'Todas las opciones deben tener texto', type: 'warning' });
       return;
     }
 
@@ -142,14 +204,15 @@ export const OrderingAnswerPage = () => {
 
       // Crear o actualizar respuestas
       // TODAS las respuestas son correctas mientras sigan el orden
-      const promises = answers.map((answer) => {
+      const promises = answers.map((answer, index) => {
         if (answer.id) {
           // Actualizar existente
           return updateAnswerMutation.mutateAsync({
             answerId: answer.id,
             data: {
               answer_text: answer.answer_text,
-              is_correct: true // Todas son correctas en el orden especificado
+              is_correct: true, // Todas son correctas en el orden especificado
+              answer_number: index + 1 // Usar posición actual como número de orden
             }
           });
         } else {
@@ -157,7 +220,7 @@ export const OrderingAnswerPage = () => {
           return createAnswerMutation.mutateAsync({
             answer_text: answer.answer_text,
             is_correct: true, // Todas son correctas en el orden especificado
-            answer_number: answer.answer_number
+            answer_number: index + 1 // Usar posición actual como número de orden
           });
         }
       });
@@ -166,7 +229,7 @@ export const OrderingAnswerPage = () => {
       navigate(-1); // Volver a la lista de preguntas
     } catch (error) {
       console.error('Error al guardar respuestas:', error);
-      alert('Error al guardar las respuestas');
+      setToast({ message: 'Error al guardar las respuestas', type: 'error' });
     }
   };
 
@@ -282,9 +345,10 @@ export const OrderingAnswerPage = () => {
                       type="text"
                       value={answer.answer_text}
                       onChange={(e) => handleAnswerTextChange(index, e.target.value)}
-                      className="w-full px-4 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
+                      className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white ${
+                        !answer.answer_text.trim() ? 'border-amber-400' : 'border-green-300'
+                      }`}
                       placeholder={`Elemento en posición ${answer.answer_number}`}
-                      required
                     />
                   </div>
 
@@ -358,6 +422,15 @@ export const OrderingAnswerPage = () => {
           </button>
         </div>
       </form>
+
+      {/* Toast notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 };
