@@ -472,10 +472,9 @@ const ExamTestRunPage: React.FC = () => {
                 >
                   <div className={`flex items-center justify-center w-5 h-5 rounded flex-shrink-0 transition-all ${
                     isChecked 
-                      ? 'bg-primary-500 text-white' 
+                      ? 'bg-primary-500' 
                       : 'border-2 border-gray-300 group-hover:border-gray-400'
                   }`}>
-                    {isChecked && <CheckCircle className="w-3.5 h-3.5" />}
                   </div>
                   <input
                     type="checkbox"
