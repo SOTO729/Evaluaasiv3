@@ -875,7 +875,6 @@ const ExamTestRunPage: React.FC = () => {
                       'Ejercicio Práctico'
                     )}
                   </span>
-                  <span className="text-xs text-gray-400">{currentItem?.category_name}</span>
                 </div>
               
                 {/* Indicador de estado - solo para ejercicios */}
