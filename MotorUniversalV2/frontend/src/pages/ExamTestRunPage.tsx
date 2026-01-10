@@ -365,8 +365,8 @@ const ExamTestRunPage: React.FC = () => {
           <div className="grid grid-cols-2 gap-3 max-w-md">
             <label className={`group flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
               currentAnswer === true 
-                ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500' 
-                : 'border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/50'
+                ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' 
+                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
             }`}>
               <input
                 type="radio"
@@ -376,21 +376,21 @@ const ExamTestRunPage: React.FC = () => {
                 onChange={() => handleAnswerChange(currentItem.question_id!, true)}
                 className="hidden"
               />
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+              <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 transition-all text-[11px] font-bold ${
                 currentAnswer === true 
-                  ? 'bg-emerald-500 text-white' 
-                  : 'border-2 border-gray-300 group-hover:border-emerald-400'
+                  ? 'bg-primary-500 text-white' 
+                  : 'border-2 border-gray-300 group-hover:border-gray-400'
               }`}>
-                {currentAnswer === true && <CheckCircle className="w-3.5 h-3.5" />}
+                {currentAnswer === true && '✓'}
               </div>
-              <span className={`font-medium ${currentAnswer === true ? 'text-emerald-700' : 'text-gray-700'}`}>
+              <span className="font-medium text-gray-700">
                 Verdadero
               </span>
             </label>
             <label className={`group flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
               currentAnswer === false 
-                ? 'border-red-500 bg-red-50 ring-1 ring-red-500' 
-                : 'border-gray-200 hover:border-red-300 hover:bg-red-50/50'
+                ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' 
+                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
             }`}>
               <input
                 type="radio"
@@ -400,14 +400,14 @@ const ExamTestRunPage: React.FC = () => {
                 onChange={() => handleAnswerChange(currentItem.question_id!, false)}
                 className="hidden"
               />
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+              <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 transition-all text-[11px] font-bold ${
                 currentAnswer === false 
-                  ? 'bg-red-500 text-white' 
-                  : 'border-2 border-gray-300 group-hover:border-red-400'
+                  ? 'bg-primary-500 text-white' 
+                  : 'border-2 border-gray-300 group-hover:border-gray-400'
               }`}>
-                {currentAnswer === false && <AlertCircle className="w-3.5 h-3.5" />}
+                {currentAnswer === false && '✗'}
               </div>
-              <span className={`font-medium ${currentAnswer === false ? 'text-red-700' : 'text-gray-700'}`}>
+              <span className="font-medium text-gray-700">
                 Falso
               </span>
             </label>
@@ -753,7 +753,7 @@ const ExamTestRunPage: React.FC = () => {
                         ? 'bg-amber-100 text-amber-700' 
                         : 'bg-teal-100 text-teal-700'
                     }`}>
-                      {currentItem.item_mode === 'simulator' ? '🎮 Simulador' : '📝 Examen'}
+                      {currentItem.item_mode === 'simulator' ? '🎮 Simulador' : 'Examen'}
                     </span>
                   )}
                 </div>
@@ -856,7 +856,7 @@ const ExamTestRunPage: React.FC = () => {
                       ? 'bg-amber-100 text-amber-700 border border-amber-200' 
                       : 'bg-teal-100 text-teal-700 border border-teal-200'
                   }`}>
-                    {currentItem?.item_mode === 'simulator' ? '🎮 Simulador' : '📝 Examen'}
+                    {currentItem?.item_mode === 'simulator' ? '🎮 Simulador' : 'Examen'}
                   </span>
                   {/* Tipo de pregunta/ejercicio */}
                   <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${
