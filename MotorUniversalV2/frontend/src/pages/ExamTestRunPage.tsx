@@ -537,19 +537,39 @@ const ExamTestRunPage: React.FC = () => {
               <div
                 key={option.id}
                 draggable
-                onDragStart={() => handleDragStart(index)}
+                onDragStart={(e) => {
+                  handleDragStart(index);
+                  // Hacer el elemento arrastrado visible (no fantasma)
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDragEnd={handleDragEnd}
-                className={`group flex items-center p-3 border rounded-lg cursor-move transition-all ${
+                style={{
+                  transform: draggedIndex !== null && draggedIndex !== index 
+                    ? 'translateY(0)' 
+                    : undefined,
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease'
+                }}
+                className={`group flex items-center p-3 border rounded-lg cursor-move ${
                   draggedIndex === index 
-                    ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500 scale-[1.01]' 
+                    ? 'border-primary-500 bg-primary-100 ring-2 ring-primary-500 shadow-lg z-10 relative' 
+                    : draggedIndex !== null
+                    ? 'border-gray-300 bg-gray-50'
                     : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
-                <div className="flex items-center justify-center w-6 h-6 rounded bg-gray-100 text-gray-600 font-medium text-sm flex-shrink-0">
+                <div className={`flex items-center justify-center w-6 h-6 rounded font-medium text-sm flex-shrink-0 transition-colors ${
+                  draggedIndex === index 
+                    ? 'bg-primary-500 text-white' 
+                    : 'bg-gray-100 text-gray-600'
+                }`}>
                   {index + 1}
                 </div>
-                <GripVertical className="w-4 h-4 text-gray-300 group-hover:text-gray-500 flex-shrink-0 mx-2 transition-colors" />
+                <GripVertical className={`w-4 h-4 flex-shrink-0 mx-2 transition-colors ${
+                  draggedIndex === index 
+                    ? 'text-primary-500' 
+                    : 'text-gray-300 group-hover:text-gray-500'
+                }`} />
                 <div
                   className="text-sm text-gray-700 prose prose-sm max-w-none flex-1"
                   dangerouslySetInnerHTML={{ __html: option.answer_text }}
