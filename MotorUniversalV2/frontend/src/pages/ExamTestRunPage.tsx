@@ -11,6 +11,7 @@ interface TestItem {
   id: string | number;
   category_name: string;
   topic_name: string;
+  item_mode: 'exam' | 'simulator'; // Modo: examen o simulador
   // Para preguntas
   question_id?: number;
   question_text?: string;
@@ -94,7 +95,7 @@ const ExamTestRunPage: React.FC = () => {
       if (!exam) return;
       
       const allQuestions: TestItem[] = [];
-      const allExerciseRefs: { topicId: number; exerciseId: string; category_name: string; topic_name: string }[] = [];
+      const allExerciseRefs: { topicId: number; exerciseId: string; category_name: string; topic_name: string; item_mode: 'exam' | 'simulator' }[] = [];
       
       exam.categories?.forEach((category: any) => {
         category.topics?.forEach((topic: any) => {
@@ -105,6 +106,7 @@ const ExamTestRunPage: React.FC = () => {
               id: question.id,
               category_name: category.name,
               topic_name: topic.name,
+              item_mode: question.type || 'exam', // exam o simulator
               question_id: question.id,
               question_text: question.question_text,
               question_type: question.question_type?.name || question.question_type,
@@ -118,7 +120,8 @@ const ExamTestRunPage: React.FC = () => {
               topicId: topic.id,
               exerciseId: exercise.id,
               category_name: category.name,
-              topic_name: topic.name
+              topic_name: topic.name,
+              item_mode: exercise.type || 'exam' // exam o simulator
             });
           });
         });
@@ -144,6 +147,7 @@ const ExamTestRunPage: React.FC = () => {
               id: exercise.id,
               category_name: ref.category_name,
               topic_name: ref.topic_name,
+              item_mode: ref.item_mode, // Incluir modo exam/simulator
               exercise_id: exercise.id,
               title: exercise.title,
               description: exercise.exercise_text,
@@ -740,7 +744,19 @@ const ExamTestRunPage: React.FC = () => {
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-sm font-semibold text-gray-900 truncate max-w-[200px] sm:max-w-none">{exam.name}</h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-sm font-semibold text-gray-900 truncate max-w-[150px] sm:max-w-none">{exam.name}</h1>
+                  {/* Badge Examen/Simulador en navbar */}
+                  {currentItem && (
+                    <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
+                      currentItem.item_mode === 'simulator' 
+                        ? 'bg-amber-100 text-amber-700' 
+                        : 'bg-teal-100 text-teal-700'
+                    }`}>
+                      {currentItem.item_mode === 'simulator' ? '🎮 Simulador' : '📝 Examen'}
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-gray-400">
                   Ítem {currentItemIndex + 1} de {selectedItems.length}
                 </p>
@@ -833,7 +849,16 @@ const ExamTestRunPage: React.FC = () => {
             {/* Header del ítem - más simple */}
             <div className="px-5 py-3 bg-gray-50 border-b border-gray-100">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Badge Examen/Simulador */}
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
+                    currentItem?.item_mode === 'simulator' 
+                      ? 'bg-amber-100 text-amber-700 border border-amber-200' 
+                      : 'bg-teal-100 text-teal-700 border border-teal-200'
+                  }`}>
+                    {currentItem?.item_mode === 'simulator' ? '🎮 Simulador' : '📝 Examen'}
+                  </span>
+                  {/* Tipo de pregunta/ejercicio */}
                   <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${
                     currentItem?.type === 'question' 
                       ? 'bg-primary-100 text-primary-700' 
