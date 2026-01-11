@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Download, Clock, CheckCircle, XCircle, FileText, Award, Target } from 'lucide-react'
 import { examService } from '../../services/examService'
+import { useAuthStore } from '../../store/authStore'
 import LoadingSpinner from '../../components/LoadingSpinner'
 
 interface ExamResult {
@@ -24,6 +25,7 @@ interface ExamResult {
 const EvaluationReportDetailPage = () => {
   const { examId } = useParams<{ examId: string }>()
   const navigate = useNavigate()
+  const { accessToken } = useAuthStore()
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null)
 
   const { data: examData, isLoading: isLoadingExam } = useQuery({
@@ -84,22 +86,28 @@ const EvaluationReportDetailPage = () => {
     
     try {
       // Usar el endpoint del backend para generar el PDF
-      const token = localStorage.getItem('access_token')
       const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.azurewebsites.net/api'
+      
+      console.log('📤 Descargando PDF:', { resultId: result.id, apiUrl, hasToken: !!accessToken })
       
       const response = await fetch(`${apiUrl}/exams/results/${result.id}/generate-pdf`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${accessToken}`
         }
       })
       
+      console.log('📥 Response status:', response.status)
+      
       if (!response.ok) {
-        throw new Error('Error al generar el PDF')
+        const errorText = await response.text()
+        console.error('❌ Error response:', response.status, errorText)
+        throw new Error(`Error ${response.status}: ${errorText}`)
       }
       
       // Descargar el PDF
       const blob = await response.blob()
+      console.log('📄 PDF blob size:', blob.size)
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url

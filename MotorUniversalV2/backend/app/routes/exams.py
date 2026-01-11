@@ -2761,7 +2761,13 @@ def generate_result_pdf(result_id):
         
         c.setFillColor(colors.black)
         c.setFont('Helvetica', 9)
-        student_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or user.email
+        # Construir nombre completo usando los campos correctos del modelo
+        name_parts = [user.name or '']
+        if user.first_surname:
+            name_parts.append(user.first_surname)
+        if user.second_surname:
+            name_parts.append(user.second_surname)
+        student_name = ' '.join(name_parts).strip() or user.email
         c.drawString(margin + 5, y, f"Nombre: {student_name}")
         y -= 12
         c.drawString(margin + 5, y, f"Correo: {user.email}")

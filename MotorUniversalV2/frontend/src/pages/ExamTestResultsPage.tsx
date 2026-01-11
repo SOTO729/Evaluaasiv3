@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
-import { jsPDF } from 'jspdf';
 import { useAuthStore } from '../store/authStore';
-import { examService } from '../services/examService';
 import { 
   CheckCircle, 
   XCircle, 
@@ -16,7 +14,8 @@ import {
   MousePointer,
   Type,
   Download,
-  BookOpen
+  BookOpen,
+  Loader2
 } from 'lucide-react';
 
 // Función para traducir tipos de pregunta al español
@@ -98,7 +97,7 @@ const ExamTestResultsPage: React.FC = () => {
   const { examId } = useParams<{ examId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { accessToken } = useAuthStore();
 
   // Expandir/colapsar secciones
   const [expandedExercises, setExpandedExercises] = useState<Record<string, boolean>>({});
@@ -127,13 +126,10 @@ const ExamTestResultsPage: React.FC = () => {
   console.log('📊 evaluationResults keys:', state?.evaluationResults ? Object.keys(state.evaluationResults) : 'N/A');
 
   const evaluationResults = state?.evaluationResults;
-  const items = state?.items || [];
   const elapsedTime = state?.elapsedTime || 0;
-  const examName = state?.examName || 'Examen';
-  const passingScore = state?.passingScore ?? 60;
   const resultId = state?.resultId;
   
-  // Ref para evitar subir el PDF múltiples veces
+  // Ref para evitar procesar múltiples veces
   const hasUploadedRef = useRef(false);
 
   // Si no hay resultados de evaluación, mostrar error con más información
@@ -183,406 +179,61 @@ const ExamTestResultsPage: React.FC = () => {
     }));
   };
 
-  // Función para generar número de referencia único
-  const generateReferenceNumber = (): string => {
-    const now = new Date();
-    const dateStr = now.toISOString().replace(/[-:T]/g, '').slice(0, 14);
-    const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
-    return `EVA-${dateStr}-${randomPart}`;
-  };
+  // Estado para controlar la descarga del PDF
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
-  // Función para generar el PDF de resultados por categoría y tema - Formato formal
-  const generatePDF = (returnBlob = false): Blob | null => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 20;
-    let yPos = margin;
-
-    // Generar número de referencia único
-    const referenceNumber = generateReferenceNumber();
-
-    // Calcular puntaje de 0 a 1000
-    const score1000 = Math.round(summary.percentage * 10);
-
-    // Determinar si aprobó o reprobó
-    const isPassed = summary.percentage >= passingScore;
-
-    // Colores corporativos y formales
-    const colors = {
-      // Colores primarios de la marca (azul)
-      primary: [37, 99, 235],      // #2563eb - azul primario
-      primaryDark: [29, 78, 216],  // #1d4ed8 - azul oscuro
-      primaryLight: [59, 130, 246], // #3b82f6 - azul claro
-      // Escala de grises
-      black: [0, 0, 0],
-      darkGray: [51, 51, 51],
-      mediumGray: [102, 102, 102],
-      lightGray: [153, 153, 153],
-      veryLightGray: [220, 220, 220],
-      white: [255, 255, 255],
-      // Colores de estado
-      success: [34, 139, 34],      // Verde
-      error: [220, 20, 60]         // Rojo
-    };
-
-    // Función para agregar nueva página si es necesario
-    const checkNewPage = (neededSpace: number) => {
-      if (yPos + neededSpace > pageHeight - margin) {
-        doc.addPage();
-        yPos = margin;
-        // Repetir encabezado en cada página
-        addPageHeader();
-        return true;
-      }
-      return false;
-    };
-
-    // Función para remover HTML tags
-    const stripHtml = (html: string) => {
-      const tmp = document.createElement('DIV');
-      tmp.innerHTML = html;
-      return tmp.textContent || tmp.innerText || '';
-    };
-
-    // Función para agregar encabezado de página
-    const addPageHeader = () => {
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-      doc.text(`Reporte de Evaluación - ${referenceNumber}`, margin, 12);
-      doc.setTextColor(colors.lightGray[0], colors.lightGray[1], colors.lightGray[2]);
-      doc.text(`Página ${doc.getNumberOfPages()}`, pageWidth - margin, 12, { align: 'right' });
-    };
-
-    // Fecha formateada
-    const now = new Date();
-    const fecha = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
-    const hora = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-
-    // ===== ENCABEZADO PRINCIPAL =====
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(colors.primaryDark[0], colors.primaryDark[1], colors.primaryDark[2]);
-    doc.text('REPORTE DE EVALUACIÓN', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 7;
-
-    // Subtítulo: Nombre de la evaluación
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
-    doc.text(examName, pageWidth / 2, yPos, { align: 'center' });
-    yPos += 8;
-
-    // Línea separadora (azul corporativo - único elemento decorativo)
-    doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-    doc.setLineWidth(0.8);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 10;
-
-    // ===== INFORMACIÓN GENERAL (Sin título, sin líneas) =====
-    const col1Width = 45;
-
-    // Fila 1: Nombre y Fecha (sin etiqueta)
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
-    doc.text('Nombre:', margin + 2, yPos);
-    doc.setFont('helvetica', 'normal');
-    doc.text(user?.full_name || user?.name || 'No disponible', margin + col1Width, yPos);
-    
-    // Fecha sin etiqueta, alineada a la derecha
-    doc.text(`${fecha} ${hora}`, pageWidth - margin, yPos, { align: 'right' });
-    yPos += 7;
-
-    // Fila 2: No. Referencia
-    doc.setFont('helvetica', 'bold');
-    doc.text('No. Referencia:', margin + 2, yPos);
-    doc.setFont('helvetica', 'normal');
-    doc.text(referenceNumber, margin + col1Width, yPos);
-    yPos += 15;
-
-    // ===== RESULTADO DE LA EVALUACIÓN =====
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
-    doc.text('RESULTADO DE LA EVALUACIÓN', margin, yPos);
-    yPos += 8;
-
-    // Box de resultado (borde gris)
-    doc.setDrawColor(colors.black[0], colors.black[1], colors.black[2]);
-    doc.setLineWidth(0.5);
-    doc.rect(margin, yPos, pageWidth - 2 * margin, 25);
-    yPos += 10;
-
-    // Calificación
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
-    doc.text('Calificación:', margin + 5, yPos);
-    doc.setFontSize(20);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`${score1000}`, margin + 40, yPos);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('/ 1000 puntos', margin + 60, yPos);
-    
-    // Puntaje obtenido (porcentaje)
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Puntaje obtenido:', pageWidth / 2 + 5, yPos);
-    doc.setFontSize(14);
-    doc.text(`${summary.percentage}%`, pageWidth / 2 + 45, yPos);
-    yPos += 10;
-
-    // Resultado (con color: verde aprobado, rojo no aprobado)
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
-    doc.text('Resultado:', margin + 5, yPos);
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    const resultText = isPassed ? 'APROBADO' : 'NO APROBADO';
-    // Color verde para aprobado, rojo para no aprobado
-    if (isPassed) {
-      doc.setTextColor(colors.success[0], colors.success[1], colors.success[2]);
-    } else {
-      doc.setTextColor(colors.error[0], colors.error[1], colors.error[2]);
+  // Función para descargar el PDF desde el backend
+  const downloadPDFFromBackend = async () => {
+    if (!resultId) {
+      alert('No se encontró el ID del resultado. Por favor, intenta de nuevo.');
+      return;
     }
-    doc.text(resultText, margin + 40, yPos);
-    // Restaurar color
-    doc.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
 
-    // Puntaje mínimo
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Puntaje mínimo:', pageWidth / 2 + 5, yPos);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`${passingScore}%`, pageWidth / 2 + 45, yPos);
-    yPos += 10;
-
-    // ===== DESGLOSE POR CATEGORÍA Y TEMA (sin título) =====
-    // Calcular resultados por categoría y tema
-    const categoryResults: Record<string, {
-      topics: Record<string, { correct: number; total: number }>;
-      correct: number;
-      total: number;
-    }> = {};
-
-    // Procesar items para agrupar por categoría y tema
-    items.forEach((item: any) => {
-      const categoryName = item.category_name || 'Sin categoría';
-      const topicName = item.topic_name || 'Sin tema';
+    setDownloadingPdf(true);
+    
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.azurewebsites.net/api';
       
-      if (!categoryResults[categoryName]) {
-        categoryResults[categoryName] = { topics: {}, correct: 0, total: 0 };
-      }
-      if (!categoryResults[categoryName].topics[topicName]) {
-        categoryResults[categoryName].topics[topicName] = { correct: 0, total: 0 };
-      }
-
-      // Encontrar el resultado de este item
-      let isCorrect = false;
-      if (item.type === 'question') {
-        const questionResult = questions.find(q => String(q.question_id) === String(item.question_id || item.id));
-        if (questionResult) {
-          isCorrect = questionResult.is_correct;
+      console.log('📤 Descargando PDF:', { resultId, apiUrl, hasToken: !!accessToken });
+      
+      const response = await fetch(`${apiUrl}/exams/results/${resultId}/generate-pdf`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
         }
-      } else if (item.type === 'exercise') {
-        const exerciseResult = exercises.find(e => String(e.exercise_id) === String(item.exercise_id || item.id));
-        if (exerciseResult) {
-          isCorrect = exerciseResult.is_correct;
-        }
-      }
-
-      categoryResults[categoryName].total++;
-      categoryResults[categoryName].topics[topicName].total++;
-      if (isCorrect) {
-        categoryResults[categoryName].correct++;
-        categoryResults[categoryName].topics[topicName].correct++;
-      }
-    });
-
-    // Encabezado de tabla de desglose
-    doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-    doc.setLineWidth(0.5);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 6;
-
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
-    doc.text('ÁREA / TEMA', margin + 2, yPos);
-    doc.text('ACIERTOS', pageWidth - margin - 55, yPos);
-    doc.text('PORCENTAJE', pageWidth - margin - 25, yPos);
-    yPos += 3;
-    
-    doc.setDrawColor(colors.black[0], colors.black[1], colors.black[2]);
-    doc.setLineWidth(0.3);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 6;
-
-    // Iterar sobre cada categoría
-    const categoryEntries = Object.entries(categoryResults);
-    
-    if (categoryEntries.length === 0) {
-      doc.setFontSize(9);
-      doc.setTextColor(colors.mediumGray[0], colors.mediumGray[1], colors.mediumGray[2]);
-      doc.text('No hay datos de categorías disponibles', margin, yPos);
-      yPos += 10;
-    } else {
-      categoryEntries.forEach(([categoryName, categoryData], catIndex) => {
-        checkNewPage(30);
-        
-        // Calcular porcentaje de la categoría
-        const categoryPercentage = categoryData.total > 0 
-          ? Math.round((categoryData.correct / categoryData.total) * 100) 
-          : 0;
-
-        // Nombre de la categoría (en mayúsculas, negrita)
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
-        
-        const catDisplayName = stripHtml(categoryName).toUpperCase();
-        // Truncar si es muy largo
-        let displayCatName = catDisplayName;
-        const maxCatWidth = pageWidth - 2 * margin - 70;
-        while (doc.getTextWidth(displayCatName) > maxCatWidth && displayCatName.length > 10) {
-          displayCatName = displayCatName.slice(0, -1);
-        }
-        if (displayCatName !== catDisplayName) displayCatName += '...';
-        
-        doc.text(`${catIndex + 1}. ${displayCatName}`, margin + 2, yPos);
-        
-        // Aciertos de la categoría
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${categoryData.correct}/${categoryData.total}`, pageWidth - margin - 55, yPos);
-        
-        // Porcentaje de la categoría
-        doc.text(`${categoryPercentage}%`, pageWidth - margin - 18, yPos);
-        
-        yPos += 8;
-
-        // Temas dentro de la categoría
-        const topicEntries = Object.entries(categoryData.topics);
-        topicEntries.forEach(([topicName, topicData], topicIndex) => {
-          checkNewPage(10);
-          
-          const topicPercentage = topicData.total > 0 
-            ? Math.round((topicData.correct / topicData.total) * 100) 
-            : 0;
-
-          // Nombre del tema (indentado)
-          doc.setFontSize(8);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(colors.mediumGray[0], colors.mediumGray[1], colors.mediumGray[2]);
-          
-          // Truncar nombre si es muy largo
-          const maxTopicWidth = pageWidth - 2 * margin - 85;
-          let displayTopicName = stripHtml(topicName);
-          while (doc.getTextWidth(displayTopicName) > maxTopicWidth && displayTopicName.length > 10) {
-            displayTopicName = displayTopicName.slice(0, -1);
-          }
-          if (displayTopicName !== stripHtml(topicName)) displayTopicName += '...';
-          
-          doc.text(`   ${catIndex + 1}.${topicIndex + 1} ${displayTopicName}`, margin + 5, yPos);
-          
-          // Aciertos del tema
-          doc.text(`${topicData.correct}/${topicData.total}`, pageWidth - margin - 55, yPos);
-          
-          // Porcentaje del tema
-          doc.text(`${topicPercentage}%`, pageWidth - margin - 18, yPos);
-          
-          yPos += 6;
-        });
-
-        // Línea separadora entre categorías
-        doc.setDrawColor(colors.veryLightGray[0], colors.veryLightGray[1], colors.veryLightGray[2]);
-        doc.setLineWidth(0.2);
-        doc.line(margin, yPos, pageWidth - margin, yPos);
-        yPos += 5;
       });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Error response:', response.status, errorText);
+        throw new Error(`Error ${response.status}: ${errorText}`);
+      }
+      
+      // Descargar el PDF
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Reporte_Evaluacion_${resultId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+    } catch (error) {
+      console.error('Error descargando PDF:', error);
+      alert('Error al descargar el PDF. Por favor intenta de nuevo.');
+    } finally {
+      setDownloadingPdf(false);
     }
-
-    // Línea final de tabla
-    doc.setDrawColor(colors.black[0], colors.black[1], colors.black[2]);
-    doc.setLineWidth(0.3);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 10;
-
-    // ===== RESUMEN TOTAL =====
-    checkNewPage(20);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
-    doc.text('TOTAL', margin + 2, yPos);
-    
-    const totalCorrect = summary.correct_questions + (summary.correct_exercises || 0);
-    const totalItems = summary.total_questions + (summary.total_exercises || 0);
-    doc.text(`${totalCorrect}/${totalItems}`, pageWidth - margin - 55, yPos);
-    doc.text(`${summary.percentage}%`, pageWidth - margin - 18, yPos);
-    yPos += 5;
-    
-    doc.setDrawColor(colors.black[0], colors.black[1], colors.black[2]);
-    doc.setLineWidth(0.5);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-
-    // ===== PIE DE PÁGINA =====
-    yPos = pageHeight - 20;
-    doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-    doc.setLineWidth(0.3);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 6;
-    
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-    doc.text('Este documento es un reporte oficial de evaluación generado por el sistema Evaluaasi.', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 4;
-    doc.setTextColor(colors.lightGray[0], colors.lightGray[1], colors.lightGray[2]);
-    doc.text(`Referencia: ${referenceNumber} | Generado el ${fecha} a las ${hora}`, pageWidth / 2, yPos, { align: 'center' });
-
-    // Retornar el PDF como Blob si se solicita, de lo contrario descargar
-    if (returnBlob) {
-      return doc.output('blob');
-    }
-    
-    // Descargar el PDF
-    doc.save(`Reporte_Evaluacion_${referenceNumber}.pdf`);
-    return null;
   };
 
-  // Efecto para subir el PDF automáticamente cuando se cargan los resultados
+  // Efecto para marcar que el resultado se ha visto (sin subir PDF, ya que se genera en backend)
   useEffect(() => {
-    const uploadReportPDF = async () => {
-      // Solo subir si tenemos resultId y no se ha subido antes
-      if (!resultId || hasUploadedRef.current) {
-        console.log('📄 No se sube PDF:', !resultId ? 'Sin resultId' : 'Ya se subió previamente');
-        return;
-      }
-      
+    if (resultId && !hasUploadedRef.current) {
       hasUploadedRef.current = true;
-      
-      try {
-        console.log('📤 Generando PDF para subir...');
-        const pdfBlob = generatePDF(true);
-        
-        if (pdfBlob) {
-          console.log('📤 Subiendo PDF al servidor...');
-          const response = await examService.uploadResultReport(resultId, pdfBlob);
-          console.log('✅ PDF subido exitosamente:', response.report_url);
-        } else {
-          console.warn('⚠️ No se pudo generar el PDF');
-        }
-      } catch (error) {
-        console.error('❌ Error al subir el PDF:', error);
-        // No marcar como subido para reintentar si el usuario recarga
-        hasUploadedRef.current = false;
-      }
-    };
-    
-    uploadReportPDF();
+      console.log('📊 Resultado cargado:', resultId);
+    }
   }, [resultId]);
 
   const renderUserAnswer = (result: QuestionResult) => {
@@ -998,11 +649,16 @@ const ExamTestResultsPage: React.FC = () => {
             Volver a la Lista
           </button>
           <button
-            onClick={() => generatePDF(false)}
-            className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl hover:from-blue-600 hover:to-blue-700 flex items-center shadow-lg"
+            onClick={downloadPDFFromBackend}
+            disabled={downloadingPdf || !resultId}
+            className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl hover:from-blue-600 hover:to-blue-700 flex items-center shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download className="w-4 h-4 mr-2" />
-            Descargar Reporte PDF
+            {downloadingPdf ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4 mr-2" />
+            )}
+            {downloadingPdf ? 'Generando...' : 'Descargar Reporte PDF'}
           </button>
           <button
             onClick={() => navigate(`/test-exams/${examId}/run`, {
