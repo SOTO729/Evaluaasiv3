@@ -76,10 +76,10 @@ const Layout = () => {
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-20">
             <div className="flex items-center">
-              <Link to="/dashboard" className="text-2xl font-bold text-primary-600">
-                Evaluaasi
+              <Link to="/dashboard" className="flex items-center">
+                <img src="/logo.png" alt="Evaluaasi" className="h-16 w-auto" />
               </Link>
               <nav className="ml-10 flex space-x-8">
                 <Link 
@@ -91,6 +91,16 @@ const Layout = () => {
                   } hover:shadow-sm hover:bg-gray-50`}
                 >
                   Inicio
+                </Link>
+                <Link 
+                  to="/certificates" 
+                  className={`px-3 py-2 rounded-md transition-all ${
+                    location.pathname.startsWith('/certificates') 
+                      ? 'text-primary-600 font-medium' 
+                      : 'text-gray-900 hover:text-primary-600'
+                  } hover:shadow-sm hover:bg-gray-50`}
+                >
+                  Certificados
                 </Link>
                 {user?.role !== 'alumno' && (
                   <>

@@ -491,6 +491,78 @@ const ExamTestRunPage: React.FC = () => {
       
       const results = evaluationResult.results || evaluationResult;
       
+      // Calcular desglose por categoría y tema
+      const evaluationBreakdown: Record<string, {
+        topics: Record<string, { correct: number; total: number; percentage: number }>;
+        correct: number;
+        total: number;
+        percentage: number;
+      }> = {};
+
+      selectedItems.forEach((item: any) => {
+        const categoryName = item.category_name || 'Sin categoría';
+        const topicName = item.topic_name || 'Sin tema';
+        
+        if (!evaluationBreakdown[categoryName]) {
+          evaluationBreakdown[categoryName] = { topics: {}, correct: 0, total: 0, percentage: 0 };
+        }
+        if (!evaluationBreakdown[categoryName].topics[topicName]) {
+          evaluationBreakdown[categoryName].topics[topicName] = { correct: 0, total: 0, percentage: 0 };
+        }
+
+        let isCorrect = false;
+        if (item.type === 'question') {
+          const questionResult = results.questions?.find((q: any) => String(q.question_id) === String(item.question_id || item.id));
+          if (questionResult) isCorrect = questionResult.is_correct;
+        } else if (item.type === 'exercise') {
+          const exerciseResult = results.exercises?.find((e: any) => String(e.exercise_id) === String(item.exercise_id || item.id));
+          if (exerciseResult) isCorrect = exerciseResult.is_correct;
+        }
+
+        evaluationBreakdown[categoryName].total++;
+        evaluationBreakdown[categoryName].topics[topicName].total++;
+        if (isCorrect) {
+          evaluationBreakdown[categoryName].correct++;
+          evaluationBreakdown[categoryName].topics[topicName].correct++;
+        }
+      });
+
+      // Calcular porcentajes
+      Object.keys(evaluationBreakdown).forEach(category => {
+        const cat = evaluationBreakdown[category];
+        cat.percentage = cat.total > 0 ? Math.round((cat.correct / cat.total) * 100) : 0;
+        Object.keys(cat.topics).forEach(topic => {
+          const t = cat.topics[topic];
+          t.percentage = t.total > 0 ? Math.round((t.correct / t.total) * 100) : 0;
+        });
+      });
+      
+      // Guardar el resultado en la base de datos
+      let savedResultId: string | undefined;
+      try {
+        const percentage = results.summary?.percentage || 0;
+        const score = results.summary?.earned_points || 0;
+        const saveResponse = await examService.saveExamResult(Number(examId), {
+          score,
+          percentage,
+          status: 1, // Completado
+          duration_seconds: elapsedTime,
+          answers_data: { 
+            answers, 
+            exerciseResponses,
+            questions: results.questions || [],
+            exercises: results.exercises || [],
+            summary: results.summary || {},
+            evaluation_breakdown: evaluationBreakdown
+          },
+          questions_order: selectedItems.map(item => item.id.toString())
+        });
+        savedResultId = saveResponse.result?.id;
+        console.log('✅ Resultado guardado en la base de datos, ID:', savedResultId);
+      } catch (saveError) {
+        console.warn('⚠️ No se pudo guardar el resultado:', saveError);
+      }
+      
       navigate(`/test-exams/${examId}/results`, {
         state: {
           evaluationResults: results,
@@ -500,7 +572,8 @@ const ExamTestRunPage: React.FC = () => {
           exerciseCount,
           examName: exam?.name,
           passingScore: exam?.passing_score,
-          timeExpired: true
+          timeExpired: true,
+          resultId: savedResultId
         }
       });
     } catch (error: any) {
@@ -547,6 +620,85 @@ const ExamTestRunPage: React.FC = () => {
       // La respuesta viene como { results: {...} }
       const results = evaluationResult.results || evaluationResult;
       
+      // Calcular desglose por categoría y tema
+      const evaluationBreakdown: Record<string, {
+        topics: Record<string, { correct: number; total: number; percentage: number }>;
+        correct: number;
+        total: number;
+        percentage: number;
+      }> = {};
+
+      selectedItems.forEach((item: any) => {
+        const categoryName = item.category_name || 'Sin categoría';
+        const topicName = item.topic_name || 'Sin tema';
+        
+        if (!evaluationBreakdown[categoryName]) {
+          evaluationBreakdown[categoryName] = { topics: {}, correct: 0, total: 0, percentage: 0 };
+        }
+        if (!evaluationBreakdown[categoryName].topics[topicName]) {
+          evaluationBreakdown[categoryName].topics[topicName] = { correct: 0, total: 0, percentage: 0 };
+        }
+
+        // Encontrar el resultado de este item
+        let isCorrect = false;
+        if (item.type === 'question') {
+          const questionResult = results.questions?.find((q: any) => String(q.question_id) === String(item.question_id || item.id));
+          if (questionResult) {
+            isCorrect = questionResult.is_correct;
+          }
+        } else if (item.type === 'exercise') {
+          const exerciseResult = results.exercises?.find((e: any) => String(e.exercise_id) === String(item.exercise_id || item.id));
+          if (exerciseResult) {
+            isCorrect = exerciseResult.is_correct;
+          }
+        }
+
+        evaluationBreakdown[categoryName].total++;
+        evaluationBreakdown[categoryName].topics[topicName].total++;
+        if (isCorrect) {
+          evaluationBreakdown[categoryName].correct++;
+          evaluationBreakdown[categoryName].topics[topicName].correct++;
+        }
+      });
+
+      // Calcular porcentajes
+      Object.keys(evaluationBreakdown).forEach(category => {
+        const cat = evaluationBreakdown[category];
+        cat.percentage = cat.total > 0 ? Math.round((cat.correct / cat.total) * 100) : 0;
+        Object.keys(cat.topics).forEach(topic => {
+          const t = cat.topics[topic];
+          t.percentage = t.total > 0 ? Math.round((t.correct / t.total) * 100) : 0;
+        });
+      });
+
+      console.log('📊 Desglose por categoría/tema:', evaluationBreakdown);
+      
+      // Guardar el resultado en la base de datos
+      let savedResultId: string | undefined;
+      try {
+        const percentage = results.summary?.percentage || 0;
+        const score = results.summary?.earned_points || 0;
+        const saveResponse = await examService.saveExamResult(Number(examId), {
+          score,
+          percentage,
+          status: 1, // Completado
+          duration_seconds: elapsedTime,
+          answers_data: { 
+            answers, 
+            exerciseResponses,
+            questions: results.questions || [],
+            exercises: results.exercises || [],
+            summary: results.summary || {},
+            evaluation_breakdown: evaluationBreakdown
+          },
+          questions_order: selectedItems.map(item => item.id.toString())
+        });
+        savedResultId = saveResponse.result?.id;
+        console.log('✅ Resultado guardado en la base de datos, ID:', savedResultId);
+      } catch (saveError) {
+        console.warn('⚠️ No se pudo guardar el resultado:', saveError);
+      }
+      
       console.log('✅ Navegando a resultados con:', { results, itemsCount: selectedItems.length, elapsedTime });
       
       navigate(`/test-exams/${examId}/results`, {
@@ -557,7 +709,8 @@ const ExamTestRunPage: React.FC = () => {
           questionCount,
           exerciseCount,
           examName: exam?.name,
-          passingScore: exam?.passing_score
+          passingScore: exam?.passing_score,
+          resultId: savedResultId
         }
       });
     } catch (error: any) {

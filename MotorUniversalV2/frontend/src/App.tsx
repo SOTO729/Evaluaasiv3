@@ -14,7 +14,7 @@ const PrivacyPolicyFullPage = lazy(() => import('./pages/landing/PrivacyPolicyFu
 const TermsOfServicePage = lazy(() => import('./pages/landing/TermsOfServicePage'))
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
-const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const HomePage = lazy(() => import('./pages/HomePage'))
 const ExamsListPage = lazy(() => import('./pages/exams/ExamsListPage'))
 const ExamCreatePage = lazy(() => import('./pages/exams/ExamCreatePage'))
 const ExamEditPage = lazy(() => import('./pages/exams/ExamEditPage'))
@@ -33,6 +33,10 @@ const StudyContentCreatePage = lazy(() => import('./pages/study-contents/StudyCo
 const StudyContentDetailPage = lazy(() => import('./pages/study-contents/StudyContentDetailPage'))
 const StudyContentPreviewPage = lazy(() => import('./pages/study-contents/StudyContentPreviewPage'))
 const StudyInteractiveExercisePage = lazy(() => import('./pages/study-contents/StudyInteractiveExercisePage'))
+
+// Certificates
+const CertificatesPage = lazy(() => import('./pages/certificates/CertificatesPage'))
+const EvaluationReportDetailPage = lazy(() => import('./pages/certificates/EvaluationReportDetailPage'))
 
 function App() {
   const { isAuthenticated } = useAuthStore()
@@ -67,7 +71,7 @@ function App() {
             <Route path="/study-contents/:id/preview" element={<StudyContentPreviewPage />} />
             
             <Route element={<Layout />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/dashboard" element={<HomePage />} />
               
               {/* Exams */}
               <Route path="/exams" element={<ExamsListPage />} />
@@ -92,6 +96,10 @@ function App() {
               <Route path="/study-contents/:id" element={<StudyContentDetailPage />} />
               <Route path="/study-contents/:id/edit" element={<StudyContentCreatePage />} />
               <Route path="/study-contents/:id/sessions/:sessionId/topics/:topicId/interactive" element={<StudyInteractiveExercisePage />} />
+              
+              {/* Certificates */}
+              <Route path="/certificates" element={<CertificatesPage />} />
+              <Route path="/certificates/evaluation-report/:examId" element={<EvaluationReportDetailPage />} />
             </Route>
           </Route>
 

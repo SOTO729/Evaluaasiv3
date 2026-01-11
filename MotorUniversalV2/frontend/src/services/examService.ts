@@ -312,4 +312,70 @@ export const examService = {
     const response = await api.post(`/exams/${examId}/evaluate`, data)
     return response.data
   },
+
+  // Guardar resultado del examen
+  saveExamResult: async (examId: number, data: {
+    score: number;
+    percentage: number;
+    status?: number;
+    duration_seconds?: number;
+    answers_data?: any;
+    questions_order?: string[];
+  }): Promise<{
+    message: string;
+    result: {
+      id: string;
+      exam_id: number;
+      score: number;
+      status: number;
+      result: number;
+      start_date: string;
+      end_date: string;
+      duration_seconds?: number;
+      certificate_code?: string;
+      certificate_url?: string;
+    };
+    is_approved: boolean;
+  }> => {
+    const response = await api.post(`/exams/${examId}/save-result`, data)
+    return response.data
+  },
+
+  // Obtener resultados del usuario para un examen
+  getMyExamResults: async (examId: number): Promise<{
+    results: Array<{
+      id: string;
+      exam_id: number;
+      score: number;
+      status: number;
+      result: number;
+      start_date: string;
+      end_date: string;
+      duration_seconds?: number;
+      certificate_code?: string;
+      certificate_url?: string;
+      report_url?: string;
+      answers_data?: any;
+      questions_order?: any;
+    }>;
+    count: number;
+  }> => {
+    const response = await api.get(`/exams/${examId}/my-results`)
+    return response.data
+  },
+
+  // Subir reporte PDF de un resultado
+  uploadResultReport: async (resultId: string, pdfBlob: Blob): Promise<{
+    message: string;
+    report_url: string;
+  }> => {
+    const formData = new FormData()
+    formData.append('file', pdfBlob, 'reporte.pdf')
+    const response = await api.post(`/exams/results/${resultId}/upload-report`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    return response.data
+  },
 }

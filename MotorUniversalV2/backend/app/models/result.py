@@ -12,7 +12,7 @@ class Result(db.Model):
     
     id = db.Column(db.String(36), primary_key=True)
     user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
-    voucher_id = db.Column(db.Integer, db.ForeignKey('vouchers.id'), nullable=False)
+    voucher_id = db.Column(db.Integer, db.ForeignKey('vouchers.id'), nullable=True)  # Nullable para permitir resultados sin voucher
     exam_id = db.Column(db.Integer, nullable=False)
     
     # Resultado
@@ -37,6 +37,7 @@ class Result(db.Model):
     # Certificado
     certificate_url = db.Column(db.String(500))  # URL del certificado en Azure Blob
     certificate_code = db.Column(db.String(100), unique=True)  # Código único del certificado
+    report_url = db.Column(db.String(500))  # URL del reporte PDF en Azure Blob
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -70,7 +71,8 @@ class Result(db.Model):
             'end_date': self.end_date.isoformat() if self.end_date else None,
             'duration_seconds': self.duration_seconds,
             'certificate_code': self.certificate_code,
-            'certificate_url': self.certificate_url
+            'certificate_url': self.certificate_url,
+            'report_url': self.report_url
         }
         
         if include_details:

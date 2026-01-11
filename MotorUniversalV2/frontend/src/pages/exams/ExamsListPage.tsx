@@ -22,14 +22,19 @@ import LoadingSpinner from '../../components/LoadingSpinner'
 
 // Componente de tarjeta de examen con nuevo diseño
 const ExamCard = ({ 
-  exam
+  exam,
+  index = 0
 }: { 
   exam: any;
+  index?: number;
 }) => {
   const navigate = useNavigate();
 
   return (
-    <div className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 group">
+    <div 
+      className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 group animate-stagger-in"
+      style={{ animationDelay: `${index * 50}ms` }}
+    >
       {/* Card Image */}
       <div 
         className="relative h-40 bg-gradient-to-br from-blue-600 to-blue-800 cursor-pointer"
@@ -176,7 +181,7 @@ const ExamsListPage = () => {
   const total = data?.total || 0;
 
   return (
-    <div className="p-6">
+    <div className="p-6 animate-fade-in-up">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -254,10 +259,11 @@ const ExamsListPage = () => {
                 </span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {allExams.filter((e: any) => e.is_published).map((exam: any) => (
+                {allExams.filter((e: any) => e.is_published).map((exam: any, index: number) => (
                   <ExamCard 
                     key={exam.id} 
-                    exam={exam} 
+                    exam={exam}
+                    index={index}
                   />
                 ))}
               </div>
@@ -275,10 +281,11 @@ const ExamsListPage = () => {
                 </span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {allExams.filter((e: any) => !e.is_published).map((exam: any) => (
+                {allExams.filter((e: any) => !e.is_published).map((exam: any, index: number) => (
                   <ExamCard 
                     key={exam.id} 
-                    exam={exam} 
+                    exam={exam}
+                    index={index}
                   />
                 ))}
               </div>

@@ -1,6 +1,7 @@
 """
 Rutas de exámenes
 """
+import json
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app import db
@@ -2462,5 +2463,546 @@ def options_evaluate_exam(exam_id):
     response = jsonify({'status': 'ok'})
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'POST,OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
+    return response
+
+@bp.route('/<int:exam_id>/save-result', methods=['POST'])
+@jwt_required()
+def save_exam_result(exam_id):
+    """
+    Guarda el resultado de un examen en la base de datos
+    
+    Request body:
+    {
+        "score": 85,
+        "percentage": 85.0,
+        "status": 1,  # 0=en proceso, 1=completado, 2=abandonado
+        "duration_seconds": 1200,
+        "answers_data": {...},  # Opcional: datos de respuestas
+        "questions_order": [...]  # Opcional: orden de preguntas
+    }
+    """
+    print(f"\n=== GUARDAR RESULTADO EXAMEN {exam_id} ===")
+    
+    try:
+        from app.models.result import Result
+        import uuid
+        
+        user_id = get_jwt_identity()
+        
+        # Verificar que el examen existe
+        exam = Exam.query.get(exam_id)
+        if not exam:
+            return jsonify({'error': 'Examen no encontrado'}), 404
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No se proporcionaron datos'}), 400
+        
+        score = data.get('score', 0)
+        percentage = data.get('percentage', 0)
+        status = data.get('status', 1)  # 1 = completado por defecto
+        duration_seconds = data.get('duration_seconds', 0)
+        answers_data = data.get('answers_data')
+        questions_order = data.get('questions_order')
+        
+        # Determinar si aprobó
+        passing_score = exam.passing_score or 70
+        result_value = 1 if percentage >= passing_score else 0
+        
+        # Crear el resultado SIN voucher (voucher_id es nullable)
+        result = Result(
+            id=str(uuid.uuid4()),
+            user_id=str(user_id),
+            voucher_id=None,  # Sin voucher - campo es nullable
+            exam_id=exam_id,
+            score=int(round(percentage)),
+            status=status,
+            result=result_value,
+            duration_seconds=duration_seconds,
+            answers_data=answers_data,
+            questions_order=questions_order
+        )
+        
+        # Generar código de certificado con formato ECM-YYYYMMDD-XXXXX
+        from datetime import datetime
+        date_str = datetime.now().strftime('%Y%m%d')
+        random_part = uuid.uuid4().hex[:5].upper()
+        result.certificate_code = f"ECM-{date_str}-{random_part}"
+        
+        result.end_date = db.func.now()
+        
+        db.session.add(result)
+        db.session.commit()
+        
+        print(f"✅ Resultado guardado: id={result.id}, score={score}, percentage={percentage}, aprobado={result_value == 1}")
+        print(f"=== FIN GUARDAR RESULTADO ===\n")
+        
+        return jsonify({
+            'message': 'Resultado guardado exitosamente',
+            'result': result.to_dict(),
+            'is_approved': result_value == 1
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        print(f"ERROR en save_exam_result: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            'error': 'Error al guardar el resultado',
+            'message': str(e)
+        }), 500
+
+
+@bp.route('/<int:exam_id>/save-result', methods=['OPTIONS'])
+def options_save_exam_result(exam_id):
+    response = jsonify({'status': 'ok'})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'POST,OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
+    return response
+
+
+@bp.route('/<int:exam_id>/my-results', methods=['GET'])
+@jwt_required()
+def get_my_exam_results(exam_id):
+    """
+    Obtiene los resultados del usuario actual para un examen específico
+    """
+    try:
+        from app.models.result import Result
+        
+        user_id = get_jwt_identity()
+        
+        results = Result.query.filter_by(
+            user_id=str(user_id),
+            exam_id=exam_id
+        ).order_by(Result.created_at.desc()).all()
+        
+        return jsonify({
+            'results': [r.to_dict(include_details=True) for r in results],
+            'total': len(results)
+        }), 200
+        
+    except Exception as e:
+        import traceback
+        print(f"ERROR en get_my_exam_results: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            'error': 'Error al obtener resultados',
+            'message': str(e)
+        }), 500
+
+
+@bp.route('/results/<result_id>/upload-report', methods=['POST'])
+@jwt_required()
+def upload_result_report(result_id):
+    """
+    Sube el PDF del reporte de evaluación a Azure Blob Storage
+    
+    Request:
+        - file: PDF del reporte (multipart/form-data)
+    
+    Returns:
+        - report_url: URL del PDF guardado
+    """
+    print(f"\n=== SUBIR REPORTE PDF {result_id} ===")
+    
+    try:
+        from app.models.result import Result
+        from app.utils.azure_storage import AzureStorageService
+        
+        user_id = get_jwt_identity()
+        
+        # Verificar que el resultado existe y pertenece al usuario
+        result = Result.query.filter_by(id=result_id, user_id=str(user_id)).first()
+        if not result:
+            return jsonify({'error': 'Resultado no encontrado'}), 404
+        
+        # Verificar que se envió un archivo
+        if 'file' not in request.files:
+            return jsonify({'error': 'No se envió ningún archivo'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'Nombre de archivo vacío'}), 400
+        
+        # Verificar que es un PDF
+        if not file.filename.lower().endswith('.pdf'):
+            return jsonify({'error': 'El archivo debe ser un PDF'}), 400
+        
+        # Subir a Azure Blob Storage
+        storage = AzureStorageService()
+        report_url = storage.upload_file(file, folder='reports')
+        
+        if not report_url:
+            return jsonify({'error': 'Error al subir el archivo'}), 500
+        
+        # Actualizar el resultado con la URL del reporte
+        result.report_url = report_url
+        db.session.commit()
+        
+        print(f"✅ Reporte PDF guardado: {report_url}")
+        print(f"=== FIN SUBIR REPORTE ===\n")
+        
+        return jsonify({
+            'message': 'Reporte subido exitosamente',
+            'report_url': report_url
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        print(f"ERROR en upload_result_report: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            'error': 'Error al subir el reporte',
+            'message': str(e)
+        }), 500
+
+
+@bp.route('/results/<result_id>/upload-report', methods=['OPTIONS'])
+def options_upload_result_report(result_id):
+    response = jsonify({'status': 'ok'})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'POST,OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
+    return response
+
+
+@bp.route('/results/<result_id>/generate-pdf', methods=['GET'])
+@jwt_required()
+def generate_result_pdf(result_id):
+    """
+    Genera el PDF del reporte de evaluación en el backend
+    """
+    from flask import send_file
+    from io import BytesIO
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.pdfgen import canvas
+    from datetime import datetime
+    import re
+    
+    try:
+        from app.models.result import Result
+        from app.models.exam import Exam
+        
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        # Obtener resultado
+        result = Result.query.filter_by(id=result_id, user_id=str(user_id)).first()
+        if not result:
+            return jsonify({'error': 'Resultado no encontrado'}), 404
+        
+        # Obtener examen
+        exam = Exam.query.get(result.exam_id)
+        if not exam:
+            return jsonify({'error': 'Examen no encontrado'}), 404
+        
+        # Crear PDF en memoria
+        buffer = BytesIO()
+        
+        # Configuración de página
+        page_width, page_height = letter
+        margin = 50
+        
+        c = canvas.Canvas(buffer, pagesize=letter)
+        
+        # Colores
+        primary_color = colors.HexColor('#1e40af')
+        success_color = colors.HexColor('#16a34a')
+        error_color = colors.HexColor('#dc2626')
+        gray_color = colors.HexColor('#6b7280')
+        light_gray = colors.HexColor('#e5e7eb')
+        
+        # Función para limpiar HTML
+        def strip_html(text):
+            if not text:
+                return ''
+            return re.sub(r'<[^>]+>', '', str(text))
+        
+        y = page_height - margin
+        
+        # === ENCABEZADO ===
+        c.setFillColor(primary_color)
+        c.setFont('Helvetica-Bold', 16)
+        c.drawString(margin, y, 'EVALUAASI')
+        
+        c.setFillColor(gray_color)
+        c.setFont('Helvetica', 8)
+        c.drawRightString(page_width - margin, y, 'Sistema de Evaluación y Certificación')
+        y -= 5
+        c.drawRightString(page_width - margin, y, datetime.now().strftime('%d/%m/%Y %H:%M'))
+        
+        y -= 25
+        c.setStrokeColor(primary_color)
+        c.setLineWidth(2)
+        c.line(margin, y, page_width - margin, y)
+        
+        y -= 30
+        
+        # === TÍTULO ===
+        c.setFillColor(colors.black)
+        c.setFont('Helvetica-Bold', 14)
+        c.drawCentredString(page_width / 2, y, 'REPORTE DE EVALUACIÓN')
+        y -= 30
+        
+        # === DATOS DEL ESTUDIANTE ===
+        c.setFillColor(primary_color)
+        c.setFont('Helvetica-Bold', 10)
+        c.drawString(margin, y, 'DATOS DEL ESTUDIANTE')
+        y -= 15
+        
+        c.setFillColor(colors.black)
+        c.setFont('Helvetica', 9)
+        student_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or user.email
+        c.drawString(margin + 5, y, f"Nombre: {student_name}")
+        y -= 12
+        c.drawString(margin + 5, y, f"Correo: {user.email}")
+        y -= 20
+        
+        # === DATOS DEL EXAMEN ===
+        c.setFillColor(primary_color)
+        c.setFont('Helvetica-Bold', 10)
+        c.drawString(margin, y, 'DATOS DEL EXAMEN')
+        y -= 15
+        
+        c.setFillColor(colors.black)
+        c.setFont('Helvetica', 9)
+        exam_name = strip_html(exam.name)[:60] if exam.name else 'Sin nombre'
+        c.drawString(margin + 5, y, f"Examen: {exam_name}")
+        y -= 12
+        
+        start_date = result.start_date.strftime('%d/%m/%Y %H:%M') if result.start_date else 'N/A'
+        c.drawString(margin + 5, y, f"Fecha: {start_date}")
+        y -= 25
+        
+        # === RESULTADO ===
+        c.setFillColor(primary_color)
+        c.setFont('Helvetica-Bold', 10)
+        c.drawString(margin, y, 'RESULTADO DE LA EVALUACIÓN')
+        y -= 10
+        
+        # Recuadro de resultados
+        box_height = 40
+        c.setStrokeColor(colors.black)
+        c.setLineWidth(0.5)
+        c.rect(margin, y - box_height, page_width - 2 * margin, box_height)
+        
+        # Calificación (porcentaje)
+        score = result.score or 0
+        score_1000 = round(score * 10)
+        passing_score = exam.passing_score or 70
+        is_passed = result.result == 1
+        
+        c.setFillColor(colors.black)
+        c.setFont('Helvetica-Bold', 9)
+        c.drawString(margin + 10, y - 15, 'Calificación:')
+        c.setFont('Helvetica-Bold', 18)
+        c.drawString(margin + 70, y - 18, f'{score}%')
+        
+        # Puntaje (puntos sobre 1000)
+        c.setFont('Helvetica-Bold', 9)
+        c.drawString(page_width / 2 + 10, y - 15, 'Puntaje:')
+        c.setFont('Helvetica-Bold', 14)
+        c.drawString(page_width / 2 + 55, y - 17, f'{score_1000}')
+        c.setFont('Helvetica', 10)
+        c.drawString(page_width / 2 + 85, y - 17, '/ 1000 puntos')
+        
+        # Resultado y puntaje mínimo
+        c.setFont('Helvetica-Bold', 9)
+        c.drawString(margin + 10, y - 35, 'Resultado:')
+        
+        if is_passed:
+            c.setFillColor(success_color)
+            result_text = 'APROBADO'
+        else:
+            c.setFillColor(error_color)
+            result_text = 'NO APROBADO'
+        
+        c.setFont('Helvetica-Bold', 11)
+        c.drawString(margin + 60, y - 35, result_text)
+        
+        c.setFillColor(colors.black)
+        c.setFont('Helvetica-Bold', 9)
+        c.drawString(page_width / 2 + 10, y - 35, 'Puntaje mínimo:')
+        c.setFont('Helvetica', 9)
+        c.drawString(page_width / 2 + 75, y - 35, f'{passing_score}%')
+        
+        y -= box_height + 20
+        
+        # === DESGLOSE POR ÁREA/TEMA ===
+        # Manejar answers_data que puede ser string JSON o dict
+        answers_data_raw = result.answers_data
+        if isinstance(answers_data_raw, str):
+            try:
+                answers_data = json.loads(answers_data_raw)
+            except:
+                answers_data = {}
+        else:
+            answers_data = answers_data_raw or {}
+        
+        category_results = answers_data.get('evaluation_breakdown', {}) if isinstance(answers_data, dict) else {}
+        
+        if category_results:
+            c.setStrokeColor(primary_color)
+            c.setLineWidth(0.5)
+            c.line(margin, y, page_width - margin, y)
+            y -= 15
+            
+            # Encabezado de tabla
+            c.setFillColor(colors.black)
+            c.setFont('Helvetica-Bold', 8)
+            c.drawString(margin + 5, y, 'ÁREA / TEMA')
+            c.drawRightString(page_width - margin - 10, y, 'PORCENTAJE')
+            y -= 8
+            
+            c.setStrokeColor(colors.black)
+            c.setLineWidth(0.3)
+            c.line(margin, y, page_width - margin, y)
+            y -= 12
+            
+            cat_index = 0
+            for cat_name, cat_data in category_results.items():
+                cat_index += 1
+                
+                # Verificar si necesitamos nueva página
+                if y < 100:
+                    c.showPage()
+                    y = page_height - margin
+                
+                # Porcentaje de categoría
+                cat_percentage = cat_data.get('percentage')
+                if cat_percentage is None:
+                    total = cat_data.get('total', 0)
+                    correct = cat_data.get('correct', 0)
+                    cat_percentage = round((correct / total) * 100) if total > 0 else 0
+                
+                # Nombre de categoría
+                c.setFillColor(colors.black)
+                c.setFont('Helvetica-Bold', 9)
+                display_name = strip_html(cat_name).upper()[:40]
+                c.drawString(margin + 5, y, f'{cat_index}. {display_name}')
+                c.drawRightString(page_width - margin - 10, y, f'{cat_percentage}%')
+                y -= 12
+                
+                # Topics
+                topics = cat_data.get('topics', {})
+                topic_index = 0
+                for topic_name, topic_data in topics.items():
+                    topic_index += 1
+                    
+                    if y < 80:
+                        c.showPage()
+                        y = page_height - margin
+                    
+                    topic_percentage = topic_data.get('percentage')
+                    if topic_percentage is None:
+                        total = topic_data.get('total', 0)
+                        correct = topic_data.get('correct', 0)
+                        topic_percentage = round((correct / total) * 100) if total > 0 else 0
+                    
+                    c.setFillColor(gray_color)
+                    c.setFont('Helvetica', 8)
+                    topic_display = strip_html(topic_name)[:35]
+                    c.drawString(margin + 20, y, f'{cat_index}.{topic_index} {topic_display}')
+                    c.drawRightString(page_width - margin - 10, y, f'{topic_percentage}%')
+                    y -= 10
+                
+                # Línea separadora
+                c.setStrokeColor(light_gray)
+                c.setLineWidth(0.2)
+                c.line(margin, y, page_width - margin, y)
+                y -= 8
+            
+            # Total
+            c.setStrokeColor(colors.black)
+            c.setLineWidth(0.3)
+            c.line(margin, y, page_width - margin, y)
+            y -= 12
+            
+            c.setFillColor(colors.black)
+            c.setFont('Helvetica-Bold', 9)
+            c.drawString(margin + 5, y, 'TOTAL')
+            c.drawRightString(page_width - margin - 10, y, f'{score}%')
+            y -= 8
+            
+            c.setLineWidth(0.5)
+            c.line(margin, y, page_width - margin, y)
+            y -= 15
+        
+        # === CERTIFICACIÓN ===
+        if result.certificate_code:
+            if y < 80:
+                c.showPage()
+                y = page_height - margin
+            
+            c.setFillColor(primary_color)
+            c.setFont('Helvetica-Bold', 10)
+            c.drawString(margin, y, 'CERTIFICACIÓN')
+            y -= 12
+            
+            c.setStrokeColor(primary_color)
+            c.setLineWidth(0.3)
+            c.rect(margin, y - 20, page_width - 2 * margin, 20)
+            
+            c.setFillColor(colors.black)
+            c.setFont('Helvetica', 9)
+            c.drawString(margin + 10, y - 14, 'Código de certificado:')
+            c.setFont('Helvetica-Bold', 9)
+            c.drawString(margin + 110, y - 14, result.certificate_code)
+            y -= 35
+        
+        # === PIE DE PÁGINA ===
+        y = 50
+        c.setStrokeColor(primary_color)
+        c.setLineWidth(0.3)
+        c.line(margin, y, page_width - margin, y)
+        y -= 10
+        
+        c.setFillColor(primary_color)
+        c.setFont('Helvetica', 7)
+        c.drawCentredString(page_width / 2, y, 'Este documento es un reporte oficial de evaluación generado por el sistema Evaluaasi.')
+        y -= 8
+        c.setFillColor(gray_color)
+        c.drawCentredString(page_width / 2, y, f'ID de resultado: {result.id}')
+        
+        c.save()
+        
+        # Preparar respuesta
+        buffer.seek(0)
+        
+        # Nombre del archivo
+        exam_short = strip_html(exam.name)[:20] if exam.name else 'Examen'
+        filename = f"Reporte_Evaluacion_{exam_short.replace(' ', '_')}.pdf"
+        
+        return send_file(
+            buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        import traceback
+        print(f"ERROR generando PDF: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            'error': 'Error al generar el PDF',
+            'message': str(e)
+        }), 500
+
+
+@bp.route('/results/<result_id>/generate-pdf', methods=['OPTIONS'])
+def options_generate_pdf(result_id):
+    response = jsonify({'status': 'ok'})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
     return response

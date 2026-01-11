@@ -28,11 +28,13 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 interface MaterialCardProps {
   material: StudyMaterial;
   navigate: NavigateFunction;
+  index?: number;
 }
 
-const MaterialCard = ({ material, navigate }: MaterialCardProps) => (
+const MaterialCard = ({ material, navigate, index = 0 }: MaterialCardProps) => (
   <div
-    className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 group"
+    className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 group animate-stagger-in"
+    style={{ animationDelay: `${index * 50}ms` }}
   >
     {/* Card Image */}
     <div 
@@ -176,7 +178,7 @@ const StudyContentsListPage = () => {
   // };
 
   return (
-    <div className="p-6">
+    <div className="p-6 animate-fade-in-up">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -250,11 +252,12 @@ const StudyContentsListPage = () => {
                 </span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {materials.filter(m => m.is_published).map((material) => (
+                {materials.filter(m => m.is_published).map((material, index) => (
                   <MaterialCard 
                     key={material.id} 
                     material={material} 
                     navigate={navigate}
+                    index={index}
                   />
                 ))}
               </div>
@@ -272,11 +275,12 @@ const StudyContentsListPage = () => {
                 </span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {materials.filter(m => !m.is_published).map((material) => (
+                {materials.filter(m => !m.is_published).map((material, index) => (
                   <MaterialCard 
                     key={material.id} 
                     material={material} 
                     navigate={navigate}
+                    index={index}
                   />
                 ))}
               </div>

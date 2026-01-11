@@ -194,51 +194,88 @@ def get_dashboard():
         scores = [e['user_stats']['best_score'] for e in exams_data if e['user_stats']['best_score'] is not None]
         average_score = sum(scores) / len(scores) if scores else 0
         
-        # Obtener materiales de estudio (todos, no solo publicados)
+        # Obtener materiales de estudio publicados
         materials_data = []
         try:
-            from app.models.study_content import StudyMaterial, StudentContentProgress, StudyReading, StudyVideo, StudyDownloadableExercise, StudyInteractiveExercise
+            from app.models.study_content import StudyMaterial, StudyTopic, StudyReading, StudyVideo, StudyDownloadableExercise, StudyInteractiveExercise
+            from app.models.student_progress import StudentContentProgress
+            from sqlalchemy import text
             
-            print(f"[DASHBOARD] Buscando materiales de estudio...")
-            available_materials = StudyMaterial.query.order_by(StudyMaterial.order, StudyMaterial.title).all()
-            print(f"[DASHBOARD] Encontrados {len(available_materials)} materiales")
+            available_materials = StudyMaterial.query.filter_by(is_published=True).order_by(StudyMaterial.order, StudyMaterial.title).all()
             
             for material in available_materials:
-                print(f"[DASHBOARD] Procesando material: {material.id} - {material.title}")
                 # Calcular progreso del material
+                sessions_count = 0
                 total_contents = 0
                 completed_contents = 0
-                sessions_count = 0
                 
                 try:
                     sessions = material.sessions.all() if hasattr(material.sessions, 'all') else list(material.sessions)
                     sessions_count = len(sessions)
-                    print(f"[DASHBOARD]   - Sesiones: {sessions_count}")
                     
+                    # Obtener todos los temas de todas las sesiones
                     for session in sessions:
                         topics = session.topics.all() if hasattr(session.topics, 'all') else list(session.topics)
+                        
                         for topic in topics:
-                            # Contar contenidos del tema
-                            readings = StudyReading.query.filter_by(topic_id=topic.id).count()
-                            videos = StudyVideo.query.filter_by(topic_id=topic.id).count()
-                            downloadables = StudyDownloadableExercise.query.filter_by(topic_id=topic.id).count()
-                            interactives = StudyInteractiveExercise.query.filter_by(topic_id=topic.id).count()
+                            # Contar contenidos de lectura (buscar en tabla study_readings)
+                            reading = StudyReading.query.filter_by(topic_id=topic.id).first()
+                            if reading:
+                                total_contents += 1
+                                progress = StudentContentProgress.query.filter_by(
+                                    user_id=str(user_id),
+                                    content_type='reading',
+                                    content_id=str(reading.id)
+                                ).first()
+                                if progress and progress.is_completed:
+                                    completed_contents += 1
                             
-                            total_contents += readings + videos + downloadables + interactives
+                            # Contar videos (buscar en tabla study_videos)
+                            video = StudyVideo.query.filter_by(topic_id=topic.id).first()
+                            if video:
+                                total_contents += 1
+                                progress = StudentContentProgress.query.filter_by(
+                                    user_id=str(user_id),
+                                    content_type='video',
+                                    content_id=str(video.id)
+                                ).first()
+                                if progress and progress.is_completed:
+                                    completed_contents += 1
                             
-                            # Contar contenidos completados por el usuario
-                            completed = StudentContentProgress.query.filter_by(
-                                user_id=str(user_id),
-                                topic_id=topic.id,
-                                is_completed=True
-                            ).count()
-                            completed_contents += completed
-                except Exception as inner_e:
-                    print(f"[DASHBOARD] Error procesando material {material.id}: {inner_e}")
+                            # Contar descargables (buscar en tabla study_downloadable_exercises)
+                            downloadable = StudyDownloadableExercise.query.filter_by(topic_id=topic.id).first()
+                            if downloadable:
+                                total_contents += 1
+                                progress = StudentContentProgress.query.filter_by(
+                                    user_id=str(user_id),
+                                    content_type='downloadable',
+                                    content_id=str(downloadable.id)
+                                ).first()
+                                if progress and progress.is_completed:
+                                    completed_contents += 1
+                            
+                            # Contar ejercicios interactivos
+                            try:
+                                exercises = StudyInteractiveExercise.query.filter_by(topic_id=topic.id).all()
+                                for exercise in exercises:
+                                    total_contents += 1
+                                    progress = StudentContentProgress.query.filter_by(
+                                        user_id=str(user_id),
+                                        content_type='interactive',
+                                        content_id=str(exercise.id)
+                                    ).first()
+                                    if progress and progress.is_completed:
+                                        completed_contents += 1
+                            except:
+                                pass
+                    
+                except Exception as e:
+                    print(f"[DASHBOARD] Error calculando progreso material {material.id}: {e}")
                     import traceback
                     traceback.print_exc()
                 
-                progress_percentage = (completed_contents / total_contents * 100) if total_contents > 0 else 0
+                # Calcular porcentaje
+                progress_percentage = round((completed_contents / total_contents * 100)) if total_contents > 0 else 0
                 
                 materials_data.append({
                     'id': material.id,
@@ -249,12 +286,9 @@ def get_dashboard():
                     'progress': {
                         'total_contents': total_contents,
                         'completed_contents': completed_contents,
-                        'percentage': round(progress_percentage, 1)
+                        'percentage': progress_percentage
                     }
                 })
-                print(f"[DASHBOARD]   - Agregado material {material.id}")
-            
-            print(f"[DASHBOARD] Total materiales procesados: {len(materials_data)}")
         except Exception as e:
             print(f"[DASHBOARD] Error al obtener materiales: {e}")
             import traceback

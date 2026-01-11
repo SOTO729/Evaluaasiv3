@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { useAuthStore } from '../store/authStore';
+import { examService } from '../services/examService';
 import { 
   CheckCircle, 
   XCircle, 
@@ -119,6 +120,7 @@ const ExamTestResultsPage: React.FC = () => {
     exerciseResponses?: Record<string, Record<string, any>>;
     examName?: string;
     passingScore?: number;
+    resultId?: string;
   } | null;
 
   console.log('📊 evaluationResults:', state?.evaluationResults);
@@ -129,6 +131,10 @@ const ExamTestResultsPage: React.FC = () => {
   const elapsedTime = state?.elapsedTime || 0;
   const examName = state?.examName || 'Examen';
   const passingScore = state?.passingScore ?? 60;
+  const resultId = state?.resultId;
+  
+  // Ref para evitar subir el PDF múltiples veces
+  const hasUploadedRef = useRef(false);
 
   // Si no hay resultados de evaluación, mostrar error con más información
   if (!evaluationResults) {
@@ -186,7 +192,7 @@ const ExamTestResultsPage: React.FC = () => {
   };
 
   // Función para generar el PDF de resultados por categoría y tema - Formato formal
-  const generatePDF = () => {
+  const generatePDF = (returnBlob = false): Blob | null => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -537,9 +543,47 @@ const ExamTestResultsPage: React.FC = () => {
     doc.setTextColor(colors.lightGray[0], colors.lightGray[1], colors.lightGray[2]);
     doc.text(`Referencia: ${referenceNumber} | Generado el ${fecha} a las ${hora}`, pageWidth / 2, yPos, { align: 'center' });
 
+    // Retornar el PDF como Blob si se solicita, de lo contrario descargar
+    if (returnBlob) {
+      return doc.output('blob');
+    }
+    
     // Descargar el PDF
     doc.save(`Reporte_Evaluacion_${referenceNumber}.pdf`);
+    return null;
   };
+
+  // Efecto para subir el PDF automáticamente cuando se cargan los resultados
+  useEffect(() => {
+    const uploadReportPDF = async () => {
+      // Solo subir si tenemos resultId y no se ha subido antes
+      if (!resultId || hasUploadedRef.current) {
+        console.log('📄 No se sube PDF:', !resultId ? 'Sin resultId' : 'Ya se subió previamente');
+        return;
+      }
+      
+      hasUploadedRef.current = true;
+      
+      try {
+        console.log('📤 Generando PDF para subir...');
+        const pdfBlob = generatePDF(true);
+        
+        if (pdfBlob) {
+          console.log('📤 Subiendo PDF al servidor...');
+          const response = await examService.uploadResultReport(resultId, pdfBlob);
+          console.log('✅ PDF subido exitosamente:', response.report_url);
+        } else {
+          console.warn('⚠️ No se pudo generar el PDF');
+        }
+      } catch (error) {
+        console.error('❌ Error al subir el PDF:', error);
+        // No marcar como subido para reintentar si el usuario recarga
+        hasUploadedRef.current = false;
+      }
+    };
+    
+    uploadReportPDF();
+  }, [resultId]);
 
   const renderUserAnswer = (result: QuestionResult) => {
     if (result.user_answer === undefined || result.user_answer === null) {
@@ -954,7 +998,7 @@ const ExamTestResultsPage: React.FC = () => {
             Volver a la Lista
           </button>
           <button
-            onClick={generatePDF}
+            onClick={() => generatePDF(false)}
             className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl hover:from-blue-600 hover:to-blue-700 flex items-center shadow-lg"
           >
             <Download className="w-4 h-4 mr-2" />
