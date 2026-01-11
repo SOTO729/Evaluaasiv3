@@ -127,125 +127,144 @@ def get_dashboard():
     Obtener datos del dashboard del usuario actual
     Incluye exámenes disponibles, resultados y materiales de estudio
     """
-    user_id = get_jwt_identity()
-    current_user = User.query.get(user_id)
-    
-    if not current_user:
-        return jsonify({'error': 'Usuario no encontrado'}), 404
-    
-    # Obtener exámenes publicados disponibles para todos
-    available_exams = Exam.query.filter_by(is_published=True).order_by(Exam.name).all()
-    
-    # Obtener resultados del usuario
-    user_results = Result.query.filter_by(user_id=user_id).order_by(Result.created_at.desc()).all()
-    
-    # Crear diccionario de resultados por examen para fácil acceso
-    results_by_exam = {}
-    for result in user_results:
-        exam_id = result.exam_id
-        if exam_id not in results_by_exam:
-            results_by_exam[exam_id] = []
-        results_by_exam[exam_id].append(result.to_dict())
-    
-    # Construir lista de exámenes con resultados
-    exams_data = []
-    for exam in available_exams:
-        exam_dict = exam.to_dict()
-        exam_results = results_by_exam.get(exam.id, [])
-        
-        # Calcular estadísticas del examen
-        best_score = max([r['score'] for r in exam_results], default=None)
-        attempts = len(exam_results)
-        last_attempt = exam_results[0] if exam_results else None
-        is_completed = any(r['status'] == 1 for r in exam_results)
-        is_approved = any(r['result'] == 1 for r in exam_results)
-        
-        exams_data.append({
-            'id': exam.id,
-            'name': exam.name,
-            'description': exam.description,
-            'version': exam.version,
-            'time_limit_minutes': exam.time_limit_minutes,
-            'passing_score': exam.passing_score,
-            'is_published': exam.is_published,
-            'categories_count': exam.categories.count() if hasattr(exam.categories, 'count') else len(list(exam.categories)),
-            # Resultados del usuario
-            'user_stats': {
-                'attempts': attempts,
-                'best_score': best_score,
-                'is_completed': is_completed,
-                'is_approved': is_approved,
-                'last_attempt': last_attempt
-            }
-        })
-    
-    # Calcular estadísticas generales
-    total_exams = len(available_exams)
-    completed_exams = sum(1 for e in exams_data if e['user_stats']['is_completed'])
-    approved_exams = sum(1 for e in exams_data if e['user_stats']['is_approved'])
-    
-    # Calcular promedio solo de exámenes completados
-    scores = [e['user_stats']['best_score'] for e in exams_data if e['user_stats']['best_score'] is not None]
-    average_score = sum(scores) / len(scores) if scores else 0
-    
-    # Obtener materiales de estudio publicados
     try:
-        from app.models.study_content import StudyMaterial, StudentContentProgress
+        user_id = get_jwt_identity()
+        current_user = User.query.get(user_id)
         
-        available_materials = StudyMaterial.query.filter_by(is_published=True).order_by(StudyMaterial.order, StudyMaterial.title).all()
+        if not current_user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
         
-        materials_data = []
-        for material in available_materials:
-            # Calcular progreso del material
-            total_contents = 0
-            completed_contents = 0
+        # Obtener exámenes publicados disponibles para todos
+        available_exams = Exam.query.filter_by(is_published=True).order_by(Exam.name).all()
+        
+        # Obtener resultados del usuario
+        user_results = Result.query.filter_by(user_id=str(user_id)).order_by(Result.created_at.desc()).all()
+        
+        # Crear diccionario de resultados por examen para fácil acceso
+        results_by_exam = {}
+        for result in user_results:
+            exam_id = result.exam_id
+            if exam_id not in results_by_exam:
+                results_by_exam[exam_id] = []
+            results_by_exam[exam_id].append(result.to_dict())
+        
+        # Construir lista de exámenes con resultados
+        exams_data = []
+        for exam in available_exams:
+            exam_results = results_by_exam.get(exam.id, [])
             
-            for session in material.sessions.all():
-                for topic in session.topics.all():
-                    # Contar contenidos del tema
-                    from app.models.study_content import StudyReading, StudyVideo, StudyDownloadableExercise, StudyInteractiveExercise
-                    
-                    readings = StudyReading.query.filter_by(topic_id=topic.id).count()
-                    videos = StudyVideo.query.filter_by(topic_id=topic.id).count()
-                    downloadables = StudyDownloadableExercise.query.filter_by(topic_id=topic.id).count()
-                    interactives = StudyInteractiveExercise.query.filter_by(topic_id=topic.id).count()
-                    
-                    total_contents += readings + videos + downloadables + interactives
-                    
-                    # Contar contenidos completados por el usuario
-                    completed = StudentContentProgress.query.filter_by(
-                        user_id=user_id,
-                        topic_id=topic.id,
-                        is_completed=True
-                    ).count()
-                    completed_contents += completed
+            # Calcular estadísticas del examen
+            best_score = max([r['score'] for r in exam_results], default=None)
+            attempts = len(exam_results)
+            last_attempt = exam_results[0] if exam_results else None
+            is_completed = any(r['status'] == 1 for r in exam_results)
+            is_approved = any(r['result'] == 1 for r in exam_results)
             
-            progress_percentage = (completed_contents / total_contents * 100) if total_contents > 0 else 0
+            # Contar categorías de forma segura
+            try:
+                categories_count = exam.categories.count() if hasattr(exam.categories, 'count') else len(list(exam.categories))
+            except:
+                categories_count = 0
             
-            materials_data.append({
-                'id': material.id,
-                'title': material.title,
-                'description': material.description,
-                'image_url': material.image_url,
-                'sessions_count': material.sessions.count() if hasattr(material.sessions, 'count') else len(list(material.sessions)),
-                'progress': {
-                    'total_contents': total_contents,
-                    'completed_contents': completed_contents,
-                    'percentage': round(progress_percentage, 1)
+            exams_data.append({
+                'id': exam.id,
+                'name': exam.name,
+                'description': exam.description,
+                'version': exam.version,
+                'time_limit_minutes': exam.duration_minutes,
+                'passing_score': exam.passing_score,
+                'is_published': exam.is_published,
+                'categories_count': categories_count,
+                # Resultados del usuario
+                'user_stats': {
+                    'attempts': attempts,
+                    'best_score': best_score,
+                    'is_completed': is_completed,
+                    'is_approved': is_approved,
+                    'last_attempt': last_attempt
                 }
             })
-    except Exception as e:
-        print(f"Error al obtener materiales: {e}")
+        
+        # Calcular estadísticas generales
+        total_exams = len(available_exams)
+        completed_exams = sum(1 for e in exams_data if e['user_stats']['is_completed'])
+        approved_exams = sum(1 for e in exams_data if e['user_stats']['is_approved'])
+        
+        # Calcular promedio solo de exámenes completados
+        scores = [e['user_stats']['best_score'] for e in exams_data if e['user_stats']['best_score'] is not None]
+        average_score = sum(scores) / len(scores) if scores else 0
+        
+        # Obtener materiales de estudio publicados
         materials_data = []
-    
-    return jsonify({
-        'user': current_user.to_dict(),
-        'stats': {
-            'total_exams': total_exams,
-            'completed_exams': completed_exams,
-            'approved_exams': approved_exams,
-            'average_score': round(average_score, 1)
-        },
-        'exams': exams_data,
-        'materials': materials_data
-    }), 200
+        try:
+            from app.models.study_content import StudyMaterial, StudentContentProgress, StudyReading, StudyVideo, StudyDownloadableExercise, StudyInteractiveExercise
+            
+            available_materials = StudyMaterial.query.filter_by(is_published=True).order_by(StudyMaterial.order, StudyMaterial.title).all()
+            
+            for material in available_materials:
+                # Calcular progreso del material
+                total_contents = 0
+                completed_contents = 0
+                
+                try:
+                    sessions = material.sessions.all() if hasattr(material.sessions, 'all') else list(material.sessions)
+                    sessions_count = len(sessions)
+                    
+                    for session in sessions:
+                        topics = session.topics.all() if hasattr(session.topics, 'all') else list(session.topics)
+                        for topic in topics:
+                            # Contar contenidos del tema
+                            readings = StudyReading.query.filter_by(topic_id=topic.id).count()
+                            videos = StudyVideo.query.filter_by(topic_id=topic.id).count()
+                            downloadables = StudyDownloadableExercise.query.filter_by(topic_id=topic.id).count()
+                            interactives = StudyInteractiveExercise.query.filter_by(topic_id=topic.id).count()
+                            
+                            total_contents += readings + videos + downloadables + interactives
+                            
+                            # Contar contenidos completados por el usuario
+                            completed = StudentContentProgress.query.filter_by(
+                                user_id=str(user_id),
+                                topic_id=topic.id,
+                                is_completed=True
+                            ).count()
+                            completed_contents += completed
+                except Exception as inner_e:
+                    print(f"Error procesando material {material.id}: {inner_e}")
+                    sessions_count = 0
+                
+                progress_percentage = (completed_contents / total_contents * 100) if total_contents > 0 else 0
+                
+                materials_data.append({
+                    'id': material.id,
+                    'title': material.title,
+                    'description': material.description,
+                    'image_url': material.image_url,
+                    'sessions_count': sessions_count,
+                    'progress': {
+                        'total_contents': total_contents,
+                        'completed_contents': completed_contents,
+                        'percentage': round(progress_percentage, 1)
+                    }
+                })
+        except Exception as e:
+            print(f"Error al obtener materiales: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        return jsonify({
+            'user': current_user.to_dict(),
+            'stats': {
+                'total_exams': total_exams,
+                'completed_exams': completed_exams,
+                'approved_exams': approved_exams,
+                'average_score': round(average_score, 1)
+            },
+            'exams': exams_data,
+            'materials': materials_data
+        }), 200
+        
+    except Exception as e:
+        print(f"Error en get_dashboard: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Error interno del servidor', 'message': str(e)}), 500
