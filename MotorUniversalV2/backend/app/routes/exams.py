@@ -62,6 +62,56 @@ def migrate_exercise_tables():
         }), 500
 
 
+# Endpoint para arreglar answer_number NULL en respuestas de preguntas de ordenamiento
+@bp.route('/fix-ordering-answers', methods=['POST', 'OPTIONS'])
+def fix_ordering_answers():
+    """Arreglar answer_number NULL en respuestas existentes"""
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
+    try:
+        # Obtener todas las preguntas de tipo ordering
+        ordering_type = QuestionType.query.filter_by(name='ordering').first()
+        if not ordering_type:
+            return jsonify({
+                'status': 'ok',
+                'message': 'No hay tipo de pregunta ordering',
+                'fixed_count': 0
+            }), 200
+        
+        ordering_questions = Question.query.filter_by(question_type_id=ordering_type.id).all()
+        fixed_count = 0
+        
+        for question in ordering_questions:
+            # Obtener respuestas de esta pregunta
+            answers = Answer.query.filter_by(question_id=question.id).order_by(Answer.created_at).all()
+            
+            # Verificar si alguna tiene answer_number NULL o 0
+            needs_fix = any(a.answer_number is None or a.answer_number == 0 for a in answers)
+            
+            if needs_fix:
+                # Renumerar todas las respuestas de esta pregunta
+                for idx, answer in enumerate(answers, start=1):
+                    if answer.answer_number != idx:
+                        answer.answer_number = idx
+                        fixed_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'ok',
+            'message': f'Se arreglaron {fixed_count} respuestas',
+            'fixed_count': fixed_count,
+            'questions_checked': len(ordering_questions)
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
 @bp.route('', methods=['GET'])
 @jwt_required()
 def get_exams():
@@ -953,6 +1003,7 @@ def create_answer(question_id):
             question_id=question_id,
             answer_text=data['answer_text'],
             is_correct=data.get('is_correct', False),
+            answer_number=data.get('answer_number'),  # Guardar el número de orden
             created_by=user_id
         )
         
@@ -2161,27 +2212,68 @@ def evaluate_exercise(exercise_data: dict, exercise_responses: dict) -> dict:
             step_id = step.get('id')
             response_key = f"{step_id}_{action_id}"
             user_response = exercise_responses.get(response_key)
+            correct_answer = action.get('correct_answer', '')
             
+            # Determinar si esta acción es "correcta" (debe ser evaluada)
+            # o "incorrecta" (no debe ser evaluada, es una trampa/distractor)
+            action_type = action.get('action_type')
+            
+            # Verificar si es un botón/campo incorrecto (distractor)
+            is_wrong_action = False
+            if action_type == 'button':
+                # Botón correcto: correct_answer es 'correct', 'true', '1', 'yes', etc.
+                is_correct_button = correct_answer and str(correct_answer).lower().strip() in ['true', '1', 'correct', 'yes', 'si', 'sí']
+                is_wrong_action = not is_correct_button
+            elif action_type in ['textbox', 'text_input']:
+                # Campo de texto correcto: tiene correct_answer válido que no sea 'wrong'
+                has_valid_answer = correct_answer and str(correct_answer).strip() != '' and str(correct_answer).lower().strip() != 'wrong'
+                is_wrong_action = not has_valid_answer
+            
+            # Si es una acción incorrecta (distractor), NO la evaluamos
+            if is_wrong_action:
+                # No contar en el score, pero registrar si el usuario hizo clic (para estadísticas)
+                action_result = {
+                    'action_id': action_id,
+                    'action_number': action.get('action_number'),
+                    'action_type': action_type,
+                    'user_response': user_response,
+                    'is_correct': True,  # No se penaliza si no hizo clic
+                    'is_wrong_action': True,  # Marcar como acción incorrecta
+                    'clicked_wrong': bool(user_response),  # Indicar si hizo clic en un campo incorrecto
+                    'score': 0,  # No suma ni resta
+                    'correct_answer': correct_answer,
+                    'explanation': None
+                }
+                # Si el usuario hizo clic en un campo incorrecto, eso sí es error
+                if user_response:
+                    action_result['is_correct'] = False
+                    step_result['is_correct'] = False
+                    result['is_correct'] = False
+                
+                step_result['actions'].append(action_result)
+                continue
+            
+            # Es una acción correcta (debe ser evaluada normalmente)
             action_result = {
                 'action_id': action_id,
                 'action_number': action.get('action_number'),
-                'action_type': action.get('action_type'),
+                'action_type': action_type,
                 'user_response': user_response,
                 'is_correct': False,
+                'is_wrong_action': False,
                 'score': 0,
-                'correct_answer': action.get('correct_answer'),
+                'correct_answer': correct_answer,
                 'explanation': None
             }
             
             result['max_score'] += 1
             
-            if action.get('action_type') == 'button':
-                # Para botones, verificar si fue clickeado (cualquier valor truthy)
+            if action_type == 'button':
+                # Para botones correctos, verificar si fue clickeado
                 action_result['is_correct'] = bool(user_response)
                 action_result['score'] = 1 if action_result['is_correct'] else 0
                 
-            elif action.get('action_type') == 'textbox':
-                correct_answer = action.get('correct_answer', '')
+            elif action_type in ['textbox', 'text_input']:
                 scoring_mode = action.get('scoring_mode', 'exact')
                 is_case_sensitive = action.get('is_case_sensitive', False)
                 

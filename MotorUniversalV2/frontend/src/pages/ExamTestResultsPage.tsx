@@ -177,18 +177,6 @@ const ExamTestResultsPage: React.FC = () => {
     }));
   };
 
-  // Función para traducir rol a español
-  const getRoleLabel = (role: string): string => {
-    const labels: Record<string, string> = {
-      'admin': 'Administrador',
-      'editor': 'Editor',
-      'soporte': 'Soporte',
-      'alumno': 'Alumno',
-      'auxiliar': 'Auxiliar'
-    };
-    return labels[role] || role;
-  };
-
   // Función para generar número de referencia único
   const generateReferenceNumber = (): string => {
     const now = new Date();
@@ -197,7 +185,7 @@ const ExamTestResultsPage: React.FC = () => {
     return `EVA-${dateStr}-${randomPart}`;
   };
 
-  // Función para generar el PDF de resultados por categoría y tema
+  // Función para generar el PDF de resultados por categoría y tema - Formato formal
   const generatePDF = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -214,11 +202,31 @@ const ExamTestResultsPage: React.FC = () => {
     // Determinar si aprobó o reprobó
     const isPassed = summary.percentage >= passingScore;
 
+    // Colores corporativos y formales
+    const colors = {
+      // Colores primarios de la marca (azul)
+      primary: [37, 99, 235],      // #2563eb - azul primario
+      primaryDark: [29, 78, 216],  // #1d4ed8 - azul oscuro
+      primaryLight: [59, 130, 246], // #3b82f6 - azul claro
+      // Escala de grises
+      black: [0, 0, 0],
+      darkGray: [51, 51, 51],
+      mediumGray: [102, 102, 102],
+      lightGray: [153, 153, 153],
+      veryLightGray: [220, 220, 220],
+      white: [255, 255, 255],
+      // Colores de estado
+      success: [34, 139, 34],      // Verde
+      error: [220, 20, 60]         // Rojo
+    };
+
     // Función para agregar nueva página si es necesario
     const checkNewPage = (neededSpace: number) => {
       if (yPos + neededSpace > pageHeight - margin) {
         doc.addPage();
         yPos = margin;
+        // Repetir encabezado en cada página
+        addPageHeader();
         return true;
       }
       return false;
@@ -231,135 +239,129 @@ const ExamTestResultsPage: React.FC = () => {
       return tmp.textContent || tmp.innerText || '';
     };
 
-    // ===== ENCABEZADO =====
-    doc.setFontSize(20);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(33, 37, 41);
-    doc.text('CONSTANCIA DE EVALUACIÓN', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 8;
+    // Función para agregar encabezado de página
+    const addPageHeader = () => {
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+      doc.text(`Reporte de Evaluación - ${referenceNumber}`, margin, 12);
+      doc.setTextColor(colors.lightGray[0], colors.lightGray[1], colors.lightGray[2]);
+      doc.text(`Página ${doc.getNumberOfPages()}`, pageWidth - margin, 12, { align: 'right' });
+    };
 
-    doc.setFontSize(12);
+    // Fecha formateada
+    const now = new Date();
+    const fecha = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
+    const hora = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+    // ===== ENCABEZADO PRINCIPAL =====
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(colors.primaryDark[0], colors.primaryDark[1], colors.primaryDark[2]);
+    doc.text('REPORTE DE EVALUACIÓN', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 7;
+
+    // Subtítulo: Nombre de la evaluación
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(75, 85, 99);
+    doc.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
     doc.text(examName, pageWidth / 2, yPos, { align: 'center' });
     yPos += 8;
 
-    // Línea decorativa
-    doc.setDrawColor(59, 130, 246);
-    doc.setLineWidth(0.5);
+    // Línea separadora (azul corporativo - único elemento decorativo)
+    doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+    doc.setLineWidth(0.8);
     doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 12;
-
-    // ===== INFORMACIÓN DEL EVALUADO =====
-    doc.setFillColor(248, 250, 252);
-    doc.roundedRect(margin, yPos, pageWidth - 2 * margin, 48, 3, 3, 'F');
     yPos += 10;
 
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(30, 64, 175);
-    doc.text('DATOS DEL EVALUADO', margin + 5, yPos);
-    yPos += 10;
+    // ===== INFORMACIÓN GENERAL (Sin título, sin líneas) =====
+    const col1Width = 45;
 
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(55, 65, 81);
-
-    // Nombre
+    // Fila 1: Nombre y Fecha (sin etiqueta)
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
-    doc.text('Nombre:', margin + 5, yPos);
+    doc.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+    doc.text('Nombre:', margin + 2, yPos);
     doc.setFont('helvetica', 'normal');
-    doc.text(user?.full_name || user?.name || 'No disponible', margin + 30, yPos);
+    doc.text(user?.full_name || user?.name || 'No disponible', margin + col1Width, yPos);
+    
+    // Fecha sin etiqueta, alineada a la derecha
+    doc.text(`${fecha} ${hora}`, pageWidth - margin, yPos, { align: 'right' });
     yPos += 7;
 
-    // Rol
+    // Fila 2: No. Referencia
     doc.setFont('helvetica', 'bold');
-    doc.text('Rol:', margin + 5, yPos);
+    doc.text('No. Referencia:', margin + 2, yPos);
     doc.setFont('helvetica', 'normal');
-    doc.text(getRoleLabel(user?.role || 'alumno'), margin + 30, yPos);
+    doc.text(referenceNumber, margin + col1Width, yPos);
+    yPos += 15;
 
-    // Número de referencia (a la derecha)
+    // ===== RESULTADO DE LA EVALUACIÓN =====
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text('No. Referencia:', pageWidth / 2 + 10, yPos - 7);
-    doc.setFont('helvetica', 'normal');
-    doc.text(referenceNumber, pageWidth / 2 + 45, yPos - 7);
+    doc.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+    doc.text('RESULTADO DE LA EVALUACIÓN', margin, yPos);
+    yPos += 8;
 
-    // Fecha de aplicación (a la derecha) - formato dd/mm/yyyy
-    const now = new Date();
-    const fecha = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Fecha:', pageWidth / 2 + 10, yPos);
-    doc.setFont('helvetica', 'normal');
-    doc.text(fecha, pageWidth / 2 + 28, yPos);
+    // Box de resultado (borde gris)
+    doc.setDrawColor(colors.black[0], colors.black[1], colors.black[2]);
+    doc.setLineWidth(0.5);
+    doc.rect(margin, yPos, pageWidth - 2 * margin, 25);
+    yPos += 10;
 
-    yPos += 25;
-
-    // ===== RESULTADO =====
-    const resultBoxColor = isPassed ? [220, 252, 231] : [254, 226, 226]; // green-100 o red-100
-    doc.setFillColor(resultBoxColor[0], resultBoxColor[1], resultBoxColor[2]);
-    doc.roundedRect(margin, yPos, pageWidth - 2 * margin, 40, 3, 3, 'F');
-    yPos += 12;
-
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    if (isPassed) {
-      doc.setTextColor(21, 128, 61); // green-700
-    } else {
-      doc.setTextColor(185, 28, 28); // red-700
-    }
-    doc.text('RESULTADO', margin + 5, yPos);
-
-    // Badge de aprobado/reprobado
-    const resultText = isPassed ? 'APROBADO' : 'REPROBADO';
-    doc.setFontSize(16);
-    doc.text(resultText, pageWidth - margin - 5 - doc.getTextWidth(resultText), yPos);
-    yPos += 12;
-
-    // Puntaje de 0-1000
-    doc.setFontSize(28);
-    doc.text(`${score1000}`, margin + 5, yPos);
-    doc.setFontSize(12);
-    doc.setTextColor(107, 114, 128);
-    doc.text('/ 1000 puntos', margin + 35, yPos);
-
-    // Porcentaje a la derecha
-    doc.setFontSize(20);
-    if (isPassed) {
-      doc.setTextColor(21, 128, 61);
-    } else {
-      doc.setTextColor(185, 28, 28);
-    }
-    doc.text(`${summary.percentage}%`, pageWidth - margin - 25, yPos);
-
-    yPos += 22;
-
-    // ===== DETALLES =====
+    // Calificación
     doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+    doc.text('Calificación:', margin + 5, yPos);
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${score1000}`, margin + 40, yPos);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(107, 114, 128);
-    doc.text(`Preguntas: ${summary.correct_questions}/${summary.total_questions}  |  Tiempo empleado: ${formatTime(elapsedTime)}  |  Puntaje mínimo para aprobar: ${passingScore}%`, margin, yPos);
-    if (summary.total_exercises > 0) {
-      yPos += 5;
-      doc.text(`Ejercicios: ${summary.correct_exercises}/${summary.total_exercises}`, margin, yPos);
-    }
-    yPos += 12;
+    doc.text('/ 1000 puntos', margin + 60, yPos);
+    
+    // Puntaje obtenido (porcentaje)
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Puntaje obtenido:', pageWidth / 2 + 5, yPos);
+    doc.setFontSize(14);
+    doc.text(`${summary.percentage}%`, pageWidth / 2 + 45, yPos);
+    yPos += 10;
 
-    // ===== RESULTADOS POR CATEGORÍA Y TEMA =====
+    // Resultado (con color: verde aprobado, rojo no aprobado)
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+    doc.text('Resultado:', margin + 5, yPos);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    const resultText = isPassed ? 'APROBADO' : 'NO APROBADO';
+    // Color verde para aprobado, rojo para no aprobado
+    if (isPassed) {
+      doc.setTextColor(colors.success[0], colors.success[1], colors.success[2]);
+    } else {
+      doc.setTextColor(colors.error[0], colors.error[1], colors.error[2]);
+    }
+    doc.text(resultText, margin + 40, yPos);
+    // Restaurar color
+    doc.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+
+    // Puntaje mínimo
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Puntaje mínimo:', pageWidth / 2 + 5, yPos);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${passingScore}%`, pageWidth / 2 + 45, yPos);
+    yPos += 10;
+
+    // ===== DESGLOSE POR CATEGORÍA Y TEMA (sin título) =====
     // Calcular resultados por categoría y tema
     const categoryResults: Record<string, {
       topics: Record<string, { correct: number; total: number }>;
       correct: number;
       total: number;
     }> = {};
-
-    // Debug: Log de items
-    console.log('📋 PDF - Items recibidos:', items);
-    console.log('📋 PDF - Estructura de items:', items.map((i: any) => ({ 
-      type: i.type, 
-      category_name: i.category_name, 
-      topic_name: i.topic_name,
-      id: i.id || i.question_id || i.exercise_id
-    })));
 
     // Procesar items para agrupar por categoría y tema
     items.forEach((item: any) => {
@@ -395,149 +397,148 @@ const ExamTestResultsPage: React.FC = () => {
       }
     });
 
-    console.log('📊 PDF - Resultados calculados por categoría:', categoryResults);
-
-    // Título de sección con línea decorativa
-    doc.setDrawColor(59, 130, 246);
-    doc.setLineWidth(0.3);
+    // Encabezado de tabla de desglose
+    doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+    doc.setLineWidth(0.5);
     doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 8;
-    
-    doc.setFontSize(12);
+    yPos += 6;
+
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(30, 64, 175);
-    doc.text('DESGLOSE DE CALIFICACIONES', margin, yPos);
+    doc.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+    doc.text('ÁREA / TEMA', margin + 2, yPos);
+    doc.text('ACIERTOS', pageWidth - margin - 55, yPos);
+    doc.text('PORCENTAJE', pageWidth - margin - 25, yPos);
     yPos += 3;
     
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(107, 114, 128);
-    doc.text('Examen > Categoría > Tema', margin, yPos + 5);
-    yPos += 12;
+    doc.setDrawColor(colors.black[0], colors.black[1], colors.black[2]);
+    doc.setLineWidth(0.3);
+    doc.line(margin, yPos, pageWidth - margin, yPos);
+    yPos += 6;
 
     // Iterar sobre cada categoría
     const categoryEntries = Object.entries(categoryResults);
     
     if (categoryEntries.length === 0) {
-      doc.setFontSize(10);
-      doc.setTextColor(107, 114, 128);
+      doc.setFontSize(9);
+      doc.setTextColor(colors.mediumGray[0], colors.mediumGray[1], colors.mediumGray[2]);
       doc.text('No hay datos de categorías disponibles', margin, yPos);
       yPos += 10;
     } else {
       categoryEntries.forEach(([categoryName, categoryData], catIndex) => {
-        checkNewPage(45);
+        checkNewPage(30);
         
         // Calcular porcentaje de la categoría
         const categoryPercentage = categoryData.total > 0 
           ? Math.round((categoryData.correct / categoryData.total) * 100) 
           : 0;
 
-        // Header de categoría con fondo
-        if (categoryPercentage >= passingScore) {
-          doc.setFillColor(220, 252, 231); // green-100
-        } else {
-          doc.setFillColor(254, 226, 226); // red-100
-        }
-        doc.roundedRect(margin, yPos, pageWidth - 2 * margin, 14, 2, 2, 'F');
-        yPos += 10;
-        
-        // Nombre de la categoría
-        doc.setFontSize(11);
+        // Nombre de la categoría (en mayúsculas, negrita)
+        doc.setFontSize(9);
         doc.setFont('helvetica', 'bold');
-        if (categoryPercentage >= passingScore) {
-          doc.setTextColor(21, 128, 61); // green-700
-        } else {
-          doc.setTextColor(185, 28, 28); // red-700
-        }
+        doc.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
         
         const catDisplayName = stripHtml(categoryName).toUpperCase();
-        doc.text(`${catIndex + 1}. ${catDisplayName}`, margin + 5, yPos);
+        // Truncar si es muy largo
+        let displayCatName = catDisplayName;
+        const maxCatWidth = pageWidth - 2 * margin - 70;
+        while (doc.getTextWidth(displayCatName) > maxCatWidth && displayCatName.length > 10) {
+          displayCatName = displayCatName.slice(0, -1);
+        }
+        if (displayCatName !== catDisplayName) displayCatName += '...';
+        
+        doc.text(`${catIndex + 1}. ${displayCatName}`, margin + 2, yPos);
+        
+        // Aciertos de la categoría
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${categoryData.correct}/${categoryData.total}`, pageWidth - margin - 55, yPos);
         
         // Porcentaje de la categoría
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${categoryPercentage}%`, pageWidth - margin - 30, yPos);
+        doc.text(`${categoryPercentage}%`, pageWidth - margin - 18, yPos);
         
-        // Aciertos
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(107, 114, 128);
-        doc.text(`(${categoryData.correct}/${categoryData.total})`, pageWidth - margin - 8, yPos);
-        
-        yPos += 12;
+        yPos += 8;
 
         // Temas dentro de la categoría
         const topicEntries = Object.entries(categoryData.topics);
         topicEntries.forEach(([topicName, topicData], topicIndex) => {
-          checkNewPage(12);
+          checkNewPage(10);
           
           const topicPercentage = topicData.total > 0 
             ? Math.round((topicData.correct / topicData.total) * 100) 
             : 0;
 
-          // Indicador visual (círculo de color)
-          if (topicPercentage >= 80) {
-            doc.setFillColor(34, 197, 94); // green-500
-          } else if (topicPercentage >= passingScore) {
-            doc.setFillColor(234, 179, 8); // yellow-500
-          } else {
-            doc.setFillColor(239, 68, 68); // red-500
-          }
-          doc.circle(margin + 10, yPos - 2, 2, 'F');
-
-          // Nombre del tema
-          doc.setFontSize(10);
+          // Nombre del tema (indentado)
+          doc.setFontSize(8);
           doc.setFont('helvetica', 'normal');
-          doc.setTextColor(55, 65, 81);
+          doc.setTextColor(colors.mediumGray[0], colors.mediumGray[1], colors.mediumGray[2]);
           
           // Truncar nombre si es muy largo
-          const maxTopicWidth = pageWidth - 2 * margin - 90;
+          const maxTopicWidth = pageWidth - 2 * margin - 85;
           let displayTopicName = stripHtml(topicName);
           while (doc.getTextWidth(displayTopicName) > maxTopicWidth && displayTopicName.length > 10) {
             displayTopicName = displayTopicName.slice(0, -1);
           }
           if (displayTopicName !== stripHtml(topicName)) displayTopicName += '...';
           
-          doc.text(`${catIndex + 1}.${topicIndex + 1} ${displayTopicName}`, margin + 16, yPos);
-          
-          // Porcentaje del tema
-          if (topicPercentage >= 80) {
-            doc.setTextColor(21, 128, 61);
-          } else if (topicPercentage >= passingScore) {
-            doc.setTextColor(161, 98, 7);
-          } else {
-            doc.setTextColor(185, 28, 28);
-          }
-          doc.setFont('helvetica', 'bold');
-          doc.text(`${topicPercentage}%`, pageWidth - margin - 30, yPos);
+          doc.text(`   ${catIndex + 1}.${topicIndex + 1} ${displayTopicName}`, margin + 5, yPos);
           
           // Aciertos del tema
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(107, 114, 128);
-          doc.text(`(${topicData.correct}/${topicData.total})`, pageWidth - margin - 8, yPos);
+          doc.text(`${topicData.correct}/${topicData.total}`, pageWidth - margin - 55, yPos);
           
-          yPos += 8;
+          // Porcentaje del tema
+          doc.text(`${topicPercentage}%`, pageWidth - margin - 18, yPos);
+          
+          yPos += 6;
         });
 
-        yPos += 6; // Espacio entre categorías
+        // Línea separadora entre categorías
+        doc.setDrawColor(colors.veryLightGray[0], colors.veryLightGray[1], colors.veryLightGray[2]);
+        doc.setLineWidth(0.2);
+        doc.line(margin, yPos, pageWidth - margin, yPos);
+        yPos += 5;
       });
     }
 
-    // Pie de página
-    checkNewPage(25);
-    yPos = pageHeight - 25;
-    doc.setDrawColor(229, 231, 235);
+    // Línea final de tabla
+    doc.setDrawColor(colors.black[0], colors.black[1], colors.black[2]);
+    doc.setLineWidth(0.3);
     doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 8;
+    yPos += 10;
+
+    // ===== RESUMEN TOTAL =====
+    checkNewPage(20);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(colors.black[0], colors.black[1], colors.black[2]);
+    doc.text('TOTAL', margin + 2, yPos);
     
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'italic');
-    doc.setTextColor(156, 163, 175);
-    doc.text('Documento generado automáticamente por Evaluaasi', pageWidth / 2, yPos, { align: 'center' });
+    const totalCorrect = summary.correct_questions + (summary.correct_exercises || 0);
+    const totalItems = summary.total_questions + (summary.total_exercises || 0);
+    doc.text(`${totalCorrect}/${totalItems}`, pageWidth - margin - 55, yPos);
+    doc.text(`${summary.percentage}%`, pageWidth - margin - 18, yPos);
     yPos += 5;
-    doc.text(fecha, pageWidth / 2, yPos, { align: 'center' });
+    
+    doc.setDrawColor(colors.black[0], colors.black[1], colors.black[2]);
+    doc.setLineWidth(0.5);
+    doc.line(margin, yPos, pageWidth - margin, yPos);
+
+    // ===== PIE DE PÁGINA =====
+    yPos = pageHeight - 20;
+    doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+    doc.setLineWidth(0.3);
+    doc.line(margin, yPos, pageWidth - margin, yPos);
+    yPos += 6;
+    
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+    doc.text('Este documento es un reporte oficial de evaluación generado por el sistema Evaluaasi.', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 4;
+    doc.setTextColor(colors.lightGray[0], colors.lightGray[1], colors.lightGray[2]);
+    doc.text(`Referencia: ${referenceNumber} | Generado el ${fecha} a las ${hora}`, pageWidth / 2, yPos, { align: 'center' });
 
     // Descargar el PDF
-    doc.save(`Constancia_${referenceNumber}.pdf`);
+    doc.save(`Reporte_Evaluacion_${referenceNumber}.pdf`);
   };
 
   const renderUserAnswer = (result: QuestionResult) => {
