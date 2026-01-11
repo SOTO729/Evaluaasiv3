@@ -194,21 +194,26 @@ def get_dashboard():
         scores = [e['user_stats']['best_score'] for e in exams_data if e['user_stats']['best_score'] is not None]
         average_score = sum(scores) / len(scores) if scores else 0
         
-        # Obtener materiales de estudio publicados
+        # Obtener materiales de estudio (todos, no solo publicados)
         materials_data = []
         try:
             from app.models.study_content import StudyMaterial, StudentContentProgress, StudyReading, StudyVideo, StudyDownloadableExercise, StudyInteractiveExercise
             
-            available_materials = StudyMaterial.query.filter_by(is_published=True).order_by(StudyMaterial.order, StudyMaterial.title).all()
+            print(f"[DASHBOARD] Buscando materiales de estudio...")
+            available_materials = StudyMaterial.query.order_by(StudyMaterial.order, StudyMaterial.title).all()
+            print(f"[DASHBOARD] Encontrados {len(available_materials)} materiales")
             
             for material in available_materials:
+                print(f"[DASHBOARD] Procesando material: {material.id} - {material.title}")
                 # Calcular progreso del material
                 total_contents = 0
                 completed_contents = 0
+                sessions_count = 0
                 
                 try:
                     sessions = material.sessions.all() if hasattr(material.sessions, 'all') else list(material.sessions)
                     sessions_count = len(sessions)
+                    print(f"[DASHBOARD]   - Sesiones: {sessions_count}")
                     
                     for session in sessions:
                         topics = session.topics.all() if hasattr(session.topics, 'all') else list(session.topics)
@@ -229,8 +234,9 @@ def get_dashboard():
                             ).count()
                             completed_contents += completed
                 except Exception as inner_e:
-                    print(f"Error procesando material {material.id}: {inner_e}")
-                    sessions_count = 0
+                    print(f"[DASHBOARD] Error procesando material {material.id}: {inner_e}")
+                    import traceback
+                    traceback.print_exc()
                 
                 progress_percentage = (completed_contents / total_contents * 100) if total_contents > 0 else 0
                 
@@ -246,8 +252,11 @@ def get_dashboard():
                         'percentage': round(progress_percentage, 1)
                     }
                 })
+                print(f"[DASHBOARD]   - Agregado material {material.id}")
+            
+            print(f"[DASHBOARD] Total materiales procesados: {len(materials_data)}")
         except Exception as e:
-            print(f"Error al obtener materiales: {e}")
+            print(f"[DASHBOARD] Error al obtener materiales: {e}")
             import traceback
             traceback.print_exc()
         

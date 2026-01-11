@@ -8,10 +8,18 @@ const DashboardPage = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
     loadDashboard()
   }, [])
+
+  useEffect(() => {
+    if (!loading && dashboardData) {
+      // Activar animación después de cargar
+      setTimeout(() => setIsVisible(true), 100)
+    }
+  }, [loading, dashboardData])
 
   const loadDashboard = async () => {
     try {
@@ -21,7 +29,7 @@ const DashboardPage = () => {
       setDashboardData(data)
     } catch (err: any) {
       console.error('Error loading dashboard:', err)
-      setError(err.response?.data?.error || 'Error al cargar el dashboard')
+      setError(err.response?.data?.error || 'Error al cargar la página de inicio')
     } finally {
       setLoading(false)
     }
@@ -37,7 +45,7 @@ const DashboardPage = () => {
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 text-red-600 rounded-lg">
+      <div className="p-4 bg-red-50 text-red-600 rounded-lg animate-fade-in">
         <p>{error}</p>
         <button 
           onClick={loadDashboard}
@@ -54,39 +62,39 @@ const DashboardPage = () => {
   const materials = dashboardData?.materials || []
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
+    <div className={`space-y-8 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+      {/* Header con animación */}
+      <div className={`transition-all duration-500 delay-100 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <h1 className="text-3xl font-bold text-gray-900">
           Bienvenido, {user?.name}
         </h1>
-        <p className="text-gray-500 mt-1">Panel de control de tu aprendizaje</p>
+        <p className="text-gray-500 mt-1">Tu centro de aprendizaje</p>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards con animación escalonada */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="card bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200">
+        <div className={`card bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 transform transition-all duration-500 delay-150 hover:scale-105 hover:shadow-lg ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <h3 className="text-sm font-medium text-blue-800 mb-1">
             Exámenes Disponibles
           </h3>
           <p className="text-3xl font-bold text-blue-600">{stats.total_exams}</p>
         </div>
 
-        <div className="card bg-gradient-to-br from-green-50 to-green-100 border border-green-200">
+        <div className={`card bg-gradient-to-br from-green-50 to-green-100 border border-green-200 transform transition-all duration-500 delay-200 hover:scale-105 hover:shadow-lg ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <h3 className="text-sm font-medium text-green-800 mb-1">
             Exámenes Completados
           </h3>
           <p className="text-3xl font-bold text-green-600">{stats.completed_exams}</p>
         </div>
 
-        <div className="card bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200">
+        <div className={`card bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 transform transition-all duration-500 delay-250 hover:scale-105 hover:shadow-lg ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <h3 className="text-sm font-medium text-emerald-800 mb-1">
             Exámenes Aprobados
           </h3>
           <p className="text-3xl font-bold text-emerald-600">{stats.approved_exams}</p>
         </div>
 
-        <div className="card bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200">
+        <div className={`card bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 transform transition-all duration-500 delay-300 hover:scale-105 hover:shadow-lg ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <h3 className="text-sm font-medium text-purple-800 mb-1">
             Promedio General
           </h3>
@@ -94,15 +102,15 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Exámenes Section */}
-      <div>
+      {/* Exámenes Section con animación */}
+      <div className={`transition-all duration-500 delay-350 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-900">Mis Exámenes</h2>
           <span className="text-sm text-gray-500">{exams.length} disponibles</span>
         </div>
         
         {exams.length === 0 ? (
-          <div className="card text-center py-8">
+          <div className="card text-center py-8 animate-pulse">
             <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
@@ -110,22 +118,22 @@ const DashboardPage = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {exams.map((exam) => (
-              <ExamCard key={exam.id} exam={exam} />
+            {exams.map((exam, index) => (
+              <ExamCard key={exam.id} exam={exam} index={index} isVisible={isVisible} />
             ))}
           </div>
         )}
       </div>
 
-      {/* Materiales de Estudio Section */}
-      <div>
+      {/* Materiales de Estudio Section con animación */}
+      <div className={`transition-all duration-500 delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-900">Contenidos de Estudio</h2>
           <span className="text-sm text-gray-500">{materials.length} disponibles</span>
         </div>
         
         {materials.length === 0 ? (
-          <div className="card text-center py-8">
+          <div className="card text-center py-8 animate-pulse">
             <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
@@ -133,8 +141,8 @@ const DashboardPage = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {materials.map((material) => (
-              <MaterialCard key={material.id} material={material} />
+            {materials.map((material, index) => (
+              <MaterialCard key={material.id} material={material} index={index} isVisible={isVisible} />
             ))}
           </div>
         )}
@@ -143,8 +151,8 @@ const DashboardPage = () => {
   )
 }
 
-// Componente para tarjeta de examen
-const ExamCard = ({ exam }: { exam: DashboardExam }) => {
+// Componente para tarjeta de examen con animación
+const ExamCard = ({ exam, index, isVisible }: { exam: DashboardExam; index: number; isVisible: boolean }) => {
   const { user_stats } = exam
   const hasAttempts = user_stats.attempts > 0
   
@@ -178,7 +186,12 @@ const ExamCard = ({ exam }: { exam: DashboardExam }) => {
   }
 
   return (
-    <div className="card hover:shadow-lg transition-shadow border border-gray-200">
+    <div 
+      className={`card hover:shadow-lg transition-all duration-300 border border-gray-200 transform hover:scale-[1.02] ${
+        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+      }`}
+      style={{ transitionDelay: `${400 + index * 100}ms` }}
+    >
       <div className="flex items-start justify-between mb-3">
         <h3 className="font-semibold text-gray-900 text-lg leading-tight">{exam.name}</h3>
         {getStatusBadge()}
@@ -226,13 +239,18 @@ const ExamCard = ({ exam }: { exam: DashboardExam }) => {
   )
 }
 
-// Componente para tarjeta de material
-const MaterialCard = ({ material }: { material: DashboardMaterial }) => {
+// Componente para tarjeta de material con animación
+const MaterialCard = ({ material, index, isVisible }: { material: DashboardMaterial; index: number; isVisible: boolean }) => {
   const { progress } = material
   const isCompleted = progress.percentage === 100
   
   return (
-    <div className="card hover:shadow-lg transition-shadow border border-gray-200">
+    <div 
+      className={`card hover:shadow-lg transition-all duration-300 border border-gray-200 transform hover:scale-[1.02] ${
+        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+      }`}
+      style={{ transitionDelay: `${500 + index * 100}ms` }}
+    >
       {material.image_url && (
         <div className="w-full h-32 bg-gray-100 rounded-lg mb-3 overflow-hidden">
           <img 

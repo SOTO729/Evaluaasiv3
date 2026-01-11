@@ -90,7 +90,7 @@ const Layout = () => {
                       : 'text-gray-900 hover:text-primary-600'
                   } hover:shadow-sm hover:bg-gray-50`}
                 >
-                  Dashboard
+                  Inicio
                 </Link>
                 {user?.role !== 'alumno' && (
                   <>
