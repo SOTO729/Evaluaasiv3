@@ -6,6 +6,21 @@ import { examService } from '../../services/examService'
 import { useAuthStore } from '../../store/authStore'
 import LoadingSpinner from '../../components/LoadingSpinner'
 
+// Modal de carga para descarga de PDF
+const DownloadModal = ({ isOpen, message }: { isOpen: boolean; message: string }) => {
+  if (!isOpen) return null
+  
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-8 max-w-sm w-full mx-4 text-center shadow-2xl">
+        <div className="w-16 h-16 border-4 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Generando documento</h3>
+        <p className="text-gray-500">{message}</p>
+      </div>
+    </div>
+  )
+}
+
 interface ExamResult {
   id: string
   exam_id: number
@@ -27,6 +42,7 @@ const EvaluationReportDetailPage = () => {
   const navigate = useNavigate()
   const { accessToken } = useAuthStore()
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null)
+  const [downloadMessage, setDownloadMessage] = useState('')
 
   const { data: examData, isLoading: isLoadingExam } = useQuery({
     queryKey: ['exam', examId, 'withQuestions'],
@@ -81,14 +97,16 @@ const EvaluationReportDetailPage = () => {
     }
   }
 
-  const generatePDF = async (result: ExamResult) => {
+  const generatePDF = async (result: ExamResult, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
     setGeneratingPdf(result.id)
+    setDownloadMessage('Preparando tu constancia de evaluación...')
     
     try {
       // Usar el endpoint del backend para generar el PDF
       const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.azurewebsites.net/api'
       
-      console.log('📤 Descargando PDF:', { resultId: result.id, apiUrl, hasToken: !!accessToken })
+      setDownloadMessage('Generando PDF...')
       
       const response = await fetch(`${apiUrl}/exams/results/${result.id}/generate-pdf`, {
         method: 'GET',
@@ -97,21 +115,20 @@ const EvaluationReportDetailPage = () => {
         }
       })
       
-      console.log('📥 Response status:', response.status)
-      
       if (!response.ok) {
         const errorText = await response.text()
         console.error('❌ Error response:', response.status, errorText)
         throw new Error(`Error ${response.status}: ${errorText}`)
       }
       
+      setDownloadMessage('Descargando archivo...')
+      
       // Descargar el PDF
       const blob = await response.blob()
-      console.log('📄 PDF blob size:', blob.size)
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `Reporte_Evaluacion_${result.id}.pdf`
+      a.download = `Constancia_Evaluacion_${examData?.name?.replace(/\s+/g, '_') || 'Examen'}_${result.id.slice(0, 8)}.pdf`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
@@ -122,6 +139,7 @@ const EvaluationReportDetailPage = () => {
       alert('Error al generar el PDF. Por favor intenta de nuevo.')
     } finally {
       setGeneratingPdf(null)
+      setDownloadMessage('')
     }
   }
 
@@ -133,6 +151,9 @@ const EvaluationReportDetailPage = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Modal de descarga */}
+      <DownloadModal isOpen={!!generatingPdf} message={downloadMessage} />
+
       <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-2xl p-8 text-white">
         <button
           onClick={() => navigate('/certificates')}
@@ -217,7 +238,10 @@ const EvaluationReportDetailPage = () => {
                         )}
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900">
+                        <h3 
+                          onClick={() => navigate(`/certificates/evaluation-report/${examId}/result/${result.id}`)}
+                          className="text-lg font-semibold text-primary-600 hover:text-primary-800 hover:underline cursor-pointer"
+                        >
                           Intento #{results.length - index}
                         </h3>
                         <p className="text-sm text-gray-500">
@@ -261,11 +285,11 @@ const EvaluationReportDetailPage = () => {
                         if (result.report_url) {
                           window.open(result.report_url, '_blank');
                         } else {
-                          // Si no, generar el PDF localmente (fallback)
+                          // Si no, generar el PDF
                           generatePDF(result);
                         }
                       }}
-                      disabled={generatingPdf === result.id}
+                      disabled={!!generatingPdf}
                       className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors disabled:opacity-50"
                       title="Descargar PDF"
                     >

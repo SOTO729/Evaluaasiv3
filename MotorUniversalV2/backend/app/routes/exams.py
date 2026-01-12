@@ -2170,7 +2170,18 @@ def evaluate_question(question_data: dict, user_answer: any) -> dict:
         result['is_correct'] = correct_order == user_order
         result['correct_answer'] = correct_order
         result['correct_answers_text'] = [a.get('answer_text') for a in sorted_answers]
-        result['score'] = 1 if result['is_correct'] else 0
+        
+        # Puntaje parcial: cada posición correcta vale 1/N
+        if len(correct_order) > 0:
+            correct_positions = 0
+            for i, correct_id in enumerate(correct_order):
+                if i < len(user_order) and user_order[i] == correct_id:
+                    correct_positions += 1
+            result['score'] = correct_positions / len(correct_order)
+            result['correct_positions'] = correct_positions
+            result['total_positions'] = len(correct_order)
+        else:
+            result['score'] = 0
     
     return result
 
@@ -2366,6 +2377,10 @@ def evaluate_exam(exam_id):
         
         print(f"Recibido: {len(answers)} respuestas de preguntas, {len(exercise_responses)} respuestas de ejercicios, {len(items)} items")
         
+        # Debug: mostrar categorías y temas de los items recibidos
+        for i, item in enumerate(items[:5]):  # Solo los primeros 5 para no llenar los logs
+            print(f"  Item {i}: type={item.get('type')}, category={item.get('category_name')}, topic={item.get('topic_name')}")
+        
         question_results = []
         exercise_results = []
         
@@ -2374,13 +2389,21 @@ def evaluate_exam(exam_id):
                 question_id = str(item.get('question_id') or item.get('id'))
                 user_answer = answers.get(question_id)
                 
+                # Obtener información de categoría y tema del item
+                category_name = item.get('category_name', 'Sin categoría')
+                topic_name = item.get('topic_name', 'Sin tema')
+                
                 # Obtener la pregunta de la BD con respuestas correctas
                 question = Question.query.get(question_id)
                 if question:
                     question_data = question.to_dict(include_answers=True, include_correct=True)
                     result = evaluate_question(question_data, user_answer)
+                    # Agregar categoría y tema al resultado
+                    result['category_name'] = category_name
+                    result['topic_name'] = topic_name
+                    result['max_score'] = 1  # Una pregunta vale máximo 1 punto
                     question_results.append(result)
-                    print(f"  Pregunta {question_id}: {'✓' if result['is_correct'] else '✗'}")
+                    print(f"  Pregunta {question_id}: {'✓' if result['is_correct'] else '✗'} (score: {result['score']:.2f})")
                 else:
                     # Si no encontramos en BD, usar datos del item
                     item_with_answers = item.copy()
@@ -2389,12 +2412,20 @@ def evaluate_exam(exam_id):
                     if answers_from_db:
                         item_with_answers['answers'] = [a.to_dict(include_correct=True) for a in answers_from_db]
                     result = evaluate_question(item_with_answers, user_answer)
+                    # Agregar categoría y tema al resultado
+                    result['category_name'] = category_name
+                    result['topic_name'] = topic_name
+                    result['max_score'] = 1
                     question_results.append(result)
-                    print(f"  Pregunta {question_id} (sin BD): {'✓' if result['is_correct'] else '✗'}")
+                    print(f"  Pregunta {question_id} (sin BD): {'✓' if result['is_correct'] else '✗'} (score: {result['score']:.2f})")
             
             elif item.get('type') == 'exercise':
                 exercise_id = str(item.get('exercise_id') or item.get('id'))
                 ex_responses = exercise_responses.get(exercise_id, {})
+                
+                # Obtener información de categoría y tema del item
+                category_name = item.get('category_name', 'Sin categoría')
+                topic_name = item.get('topic_name', 'Sin tema')
                 
                 # Obtener ejercicio de la BD con pasos y acciones
                 exercise = Exercise.query.get(exercise_id)
@@ -2405,6 +2436,9 @@ def evaluate_exam(exam_id):
                     exercise_data = item
                 
                 result = evaluate_exercise(exercise_data, ex_responses)
+                # Agregar categoría y tema al resultado
+                result['category_name'] = category_name
+                result['topic_name'] = topic_name
                 exercise_results.append(result)
                 print(f"  Ejercicio {exercise_id}: {'✓' if result['is_correct'] else '✗'} ({result['total_score']}/{result['max_score']})")
         
@@ -2423,6 +2457,53 @@ def evaluate_exam(exam_id):
         
         percentage = (earned_points / total_points * 100) if total_points > 0 else 0
         
+        # Calcular desglose por categoría y tema
+        evaluation_breakdown = {}
+        
+        # Procesar preguntas
+        for qr in question_results:
+            cat_name = qr.get('category_name', 'Sin categoría')
+            topic_name = qr.get('topic_name', 'Sin tema')
+            
+            if cat_name not in evaluation_breakdown:
+                evaluation_breakdown[cat_name] = {'topics': {}, 'earned': 0, 'max': 0, 'percentage': 0}
+            if topic_name not in evaluation_breakdown[cat_name]['topics']:
+                evaluation_breakdown[cat_name]['topics'][topic_name] = {'earned': 0, 'max': 0, 'percentage': 0}
+            
+            earned = qr.get('score', 0)
+            max_score = qr.get('max_score', 1)
+            
+            evaluation_breakdown[cat_name]['earned'] += earned
+            evaluation_breakdown[cat_name]['max'] += max_score
+            evaluation_breakdown[cat_name]['topics'][topic_name]['earned'] += earned
+            evaluation_breakdown[cat_name]['topics'][topic_name]['max'] += max_score
+        
+        # Procesar ejercicios
+        for er in exercise_results:
+            cat_name = er.get('category_name', 'Sin categoría')
+            topic_name = er.get('topic_name', 'Sin tema')
+            
+            if cat_name not in evaluation_breakdown:
+                evaluation_breakdown[cat_name] = {'topics': {}, 'earned': 0, 'max': 0, 'percentage': 0}
+            if topic_name not in evaluation_breakdown[cat_name]['topics']:
+                evaluation_breakdown[cat_name]['topics'][topic_name] = {'earned': 0, 'max': 0, 'percentage': 0}
+            
+            earned = er.get('total_score', 0)
+            max_score = er.get('max_score', 1)
+            
+            evaluation_breakdown[cat_name]['earned'] += earned
+            evaluation_breakdown[cat_name]['max'] += max_score
+            evaluation_breakdown[cat_name]['topics'][topic_name]['earned'] += earned
+            evaluation_breakdown[cat_name]['topics'][topic_name]['max'] += max_score
+        
+        # Calcular porcentajes
+        for cat_name, cat_data in evaluation_breakdown.items():
+            if cat_data['max'] > 0:
+                cat_data['percentage'] = round((cat_data['earned'] / cat_data['max']) * 100, 1)
+            for topic_name, topic_data in cat_data['topics'].items():
+                if topic_data['max'] > 0:
+                    topic_data['percentage'] = round((topic_data['earned'] / topic_data['max']) * 100, 1)
+        
         summary = {
             'total_items': len(items),
             'total_questions': total_questions,
@@ -2434,10 +2515,17 @@ def evaluate_exam(exam_id):
             'max_exercise_score': max_exercise_score,
             'total_points': total_points,
             'earned_points': round(earned_points, 2),
-            'percentage': round(percentage, 1)
+            'percentage': round(percentage, 1),
+            'evaluation_breakdown': evaluation_breakdown
         }
         
         print(f"Resumen: {correct_questions}/{total_questions} preguntas, {correct_exercises}/{total_exercises} ejercicios, {percentage:.1f}%")
+        print(f"Desglose por categoría: {list(evaluation_breakdown.keys())}")
+        # Debug detallado del breakdown
+        for cat_name, cat_data in evaluation_breakdown.items():
+            print(f"  Categoría '{cat_name}': earned={cat_data['earned']:.2f}, max={cat_data['max']}, %={cat_data['percentage']}")
+            for topic_name, topic_data in cat_data['topics'].items():
+                print(f"    Tema '{topic_name}': earned={topic_data['earned']:.2f}, max={topic_data['max']}, %={topic_data['percentage']}")
         print(f"=== FIN EVALUAR EXAMEN ===\n")
         
         return jsonify({
@@ -2505,6 +2593,14 @@ def save_exam_result(exam_id):
         duration_seconds = data.get('duration_seconds', 0)
         answers_data = data.get('answers_data')
         questions_order = data.get('questions_order')
+        
+        # DEBUG: Ver qué se está guardando
+        print(f"📋 SAVE - answers_data keys: {list(answers_data.keys()) if isinstance(answers_data, dict) else 'No es dict'}")
+        if isinstance(answers_data, dict):
+            eb = answers_data.get('evaluation_breakdown', {})
+            print(f"📋 SAVE - evaluation_breakdown: {eb}")
+            summary_eb = answers_data.get('summary', {}).get('evaluation_breakdown', {}) if isinstance(answers_data.get('summary'), dict) else {}
+            print(f"📋 SAVE - summary.evaluation_breakdown: {summary_eb}")
         
         # Determinar si aprobó
         passing_score = exam.passing_score or 70
@@ -2729,18 +2825,38 @@ def generate_result_pdf(result_id):
         
         y = page_height - margin
         
-        # === ENCABEZADO ===
-        c.setFillColor(primary_color)
-        c.setFont('Helvetica-Bold', 16)
-        c.drawString(margin, y, 'EVALUAASI')
+        # === ENCABEZADO CON LOGO ===
+        # Cargar logo
+        import os
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'logo.png')
+        logo_height = 40
+        if os.path.exists(logo_path):
+            try:
+                from reportlab.lib.utils import ImageReader
+                logo = ImageReader(logo_path)
+                # Logo de 40x40 en la esquina superior izquierda
+                c.drawImage(logo, margin, y - 30, width=40, height=logo_height, preserveAspectRatio=True, mask='auto')
+                # Texto "Evaluaasi" en negro, pegado al logo
+                c.setFillColor(colors.black)
+                c.setFont('Helvetica-Bold', 16)
+                c.drawString(margin + 42, y - 15, 'Evaluaasi')  # Pegado al logo
+            except Exception as e:
+                print(f"Error cargando logo: {e}")
+                c.setFillColor(colors.black)
+                c.setFont('Helvetica-Bold', 16)
+                c.drawString(margin, y, 'Evaluaasi')
+        else:
+            c.setFillColor(colors.black)
+            c.setFont('Helvetica-Bold', 16)
+            c.drawString(margin, y, 'Evaluaasi')
         
+        # Esquina superior derecha - ajustado para que quepa
         c.setFillColor(gray_color)
-        c.setFont('Helvetica', 8)
+        c.setFont('Helvetica', 7)
         c.drawRightString(page_width - margin, y, 'Sistema de Evaluación y Certificación')
-        y -= 5
-        c.drawRightString(page_width - margin, y, datetime.now().strftime('%d/%m/%Y %H:%M'))
+        c.drawRightString(page_width - margin, y - 12, datetime.now().strftime('%d/%m/%Y %H:%M'))
         
-        y -= 25
+        y -= 45
         c.setStrokeColor(primary_color)
         c.setLineWidth(2)
         c.line(margin, y, page_width - margin, y)
@@ -2760,7 +2876,6 @@ def generate_result_pdf(result_id):
         y -= 15
         
         c.setFillColor(colors.black)
-        c.setFont('Helvetica', 9)
         # Construir nombre completo usando los campos correctos del modelo
         name_parts = [user.name or '']
         if user.first_surname:
@@ -2768,9 +2883,15 @@ def generate_result_pdf(result_id):
         if user.second_surname:
             name_parts.append(user.second_surname)
         student_name = ' '.join(name_parts).strip() or user.email
-        c.drawString(margin + 5, y, f"Nombre: {student_name}")
+        c.setFont('Helvetica-Bold', 9)
+        c.drawString(margin + 5, y, 'Nombre:')
+        c.setFont('Helvetica', 9)
+        c.drawString(margin + 50, y, student_name)
         y -= 12
-        c.drawString(margin + 5, y, f"Correo: {user.email}")
+        c.setFont('Helvetica-Bold', 9)
+        c.drawString(margin + 5, y, 'Correo:')
+        c.setFont('Helvetica', 9)
+        c.drawString(margin + 50, y, user.email)
         y -= 20
         
         # === DATOS DEL EXAMEN ===
@@ -2780,14 +2901,49 @@ def generate_result_pdf(result_id):
         y -= 15
         
         c.setFillColor(colors.black)
-        c.setFont('Helvetica', 9)
         exam_name = strip_html(exam.name)[:60] if exam.name else 'Sin nombre'
-        c.drawString(margin + 5, y, f"Examen: {exam_name}")
+        c.setFont('Helvetica-Bold', 9)
+        c.drawString(margin + 5, y, 'Examen:')
+        c.setFont('Helvetica', 9)
+        c.drawString(margin + 55, y, exam_name)
+        y -= 12
+        
+        # Código ECM del examen
+        ecm_code = exam.version or 'N/A'
+        c.setFont('Helvetica-Bold', 9)
+        c.drawString(margin + 5, y, 'Código ECM:')
+        c.setFont('Helvetica', 9)
+        c.drawString(margin + 70, y, ecm_code)
         y -= 12
         
         start_date = result.start_date.strftime('%d/%m/%Y %H:%M') if result.start_date else 'N/A'
-        c.drawString(margin + 5, y, f"Fecha: {start_date}")
+        c.setFont('Helvetica-Bold', 9)
+        c.drawString(margin + 5, y, 'Fecha:')
+        c.setFont('Helvetica', 9)
+        c.drawString(margin + 40, y, start_date)
         y -= 25
+        
+        # === OBTENER DATOS DE ANSWERS_DATA PARA PORCENTAJE REAL ===
+        answers_data_raw = result.answers_data
+        if isinstance(answers_data_raw, str):
+            try:
+                answers_data = json.loads(answers_data_raw)
+            except:
+                answers_data = {}
+        else:
+            answers_data = answers_data_raw or {}
+        
+        # Obtener porcentaje real del summary (con decimales)
+        real_percentage = result.score or 0  # Fallback al score entero
+        if isinstance(answers_data, dict):
+            summary = answers_data.get('summary', {})
+            if isinstance(summary, dict) and 'percentage' in summary:
+                real_percentage = summary.get('percentage', real_percentage)
+        
+        # Redondear a 1 decimal
+        real_percentage = round(float(real_percentage), 1)
+        # Calcular puntaje sobre 1000
+        score_1000 = round(real_percentage * 10)
         
         # === RESULTADO ===
         c.setFillColor(primary_color)
@@ -2801,9 +2957,7 @@ def generate_result_pdf(result_id):
         c.setLineWidth(0.5)
         c.rect(margin, y - box_height, page_width - 2 * margin, box_height)
         
-        # Calificación (porcentaje)
-        score = result.score or 0
-        score_1000 = round(score * 10)
+        # Calificación (porcentaje con decimal)
         passing_score = exam.passing_score or 70
         is_passed = result.result == 1
         
@@ -2811,17 +2965,22 @@ def generate_result_pdf(result_id):
         c.setFont('Helvetica-Bold', 9)
         c.drawString(margin + 10, y - 15, 'Calificación:')
         c.setFont('Helvetica-Bold', 18)
-        c.drawString(margin + 70, y - 18, f'{score}%')
+        # Mostrar con decimal solo si es necesario
+        if real_percentage == int(real_percentage):
+            c.drawString(margin + 70, y - 18, f'{int(real_percentage)}%')
+        else:
+            c.drawString(margin + 70, y - 18, f'{real_percentage}%')
         
-        # Puntaje (puntos sobre 1000)
+        # Puntaje (puntos sobre 1000) - alineado
+        puntaje_x = page_width / 2 + 10
         c.setFont('Helvetica-Bold', 9)
-        c.drawString(page_width / 2 + 10, y - 15, 'Puntaje:')
+        c.drawString(puntaje_x, y - 15, 'Puntaje:')
         c.setFont('Helvetica-Bold', 14)
-        c.drawString(page_width / 2 + 55, y - 17, f'{score_1000}')
+        c.drawString(puntaje_x + 80, y - 17, f'{score_1000}')
         c.setFont('Helvetica', 10)
-        c.drawString(page_width / 2 + 85, y - 17, '/ 1000 puntos')
+        c.drawString(puntaje_x + 115, y - 17, '/ 1000 puntos')
         
-        # Resultado y puntaje mínimo
+        # Resultado y puntaje mínimo - alineado
         c.setFont('Helvetica-Bold', 9)
         c.drawString(margin + 10, y - 35, 'Resultado:')
         
@@ -2837,24 +2996,35 @@ def generate_result_pdf(result_id):
         
         c.setFillColor(colors.black)
         c.setFont('Helvetica-Bold', 9)
-        c.drawString(page_width / 2 + 10, y - 35, 'Puntaje mínimo:')
+        c.drawString(puntaje_x, y - 35, 'Puntaje mínimo:')
         c.setFont('Helvetica', 9)
-        c.drawString(page_width / 2 + 75, y - 35, f'{passing_score}%')
+        passing_score_1000 = round(passing_score * 10)
+        c.drawString(puntaje_x + 80, y - 35, f'{passing_score_1000} / 1000 puntos')
         
         y -= box_height + 20
         
         # === DESGLOSE POR ÁREA/TEMA ===
-        # Manejar answers_data que puede ser string JSON o dict
-        answers_data_raw = result.answers_data
-        if isinstance(answers_data_raw, str):
-            try:
-                answers_data = json.loads(answers_data_raw)
-            except:
-                answers_data = {}
-        else:
-            answers_data = answers_data_raw or {}
+        # (answers_data ya fue parseado arriba)
         
-        category_results = answers_data.get('evaluation_breakdown', {}) if isinstance(answers_data, dict) else {}
+        # DEBUG: Mostrar estructura de answers_data
+        print(f"📋 PDF - answers_data keys: {list(answers_data.keys()) if isinstance(answers_data, dict) else 'No es dict'}")
+        
+        # Buscar evaluation_breakdown - PRIORIZAR el de summary que tiene earned/max/percentage correctos
+        category_results = {}
+        if isinstance(answers_data, dict):
+            # Primero buscar en summary (tiene los datos correctos con earned/max)
+            summary = answers_data.get('summary', {})
+            if isinstance(summary, dict):
+                category_results = summary.get('evaluation_breakdown', {})
+            
+            # Solo si no hay en summary, usar el de nivel raíz (fallback)
+            if not category_results:
+                category_results = answers_data.get('evaluation_breakdown', {})
+        
+        # DEBUG: Mostrar estructura de category_results  
+        print(f"📋 PDF - evaluation_breakdown: {category_results}")
+        for cat_name, cat_data in category_results.items():
+            print(f"📋 PDF - Categoría '{cat_name}': {cat_data}")
         
         if category_results:
             c.setStrokeColor(primary_color)
@@ -2883,19 +3053,49 @@ def generate_result_pdf(result_id):
                     c.showPage()
                     y = page_height - margin
                 
-                # Porcentaje de categoría
+                # Porcentaje de categoría - usar el porcentaje pre-calculado si existe
+                # Verificar que sea un número válido, no solo None
                 cat_percentage = cat_data.get('percentage')
-                if cat_percentage is None:
-                    total = cat_data.get('total', 0)
-                    correct = cat_data.get('correct', 0)
-                    cat_percentage = round((correct / total) * 100) if total > 0 else 0
+                print(f"📋 PDF - cat '{cat_name}' percentage raw: {cat_percentage} (type: {type(cat_percentage)})")
+                
+                # Si no hay percentage o es None/0, calcularlo de earned/max o correct/total
+                if cat_percentage is None or (isinstance(cat_percentage, (int, float)) and cat_percentage == 0):
+                    earned = cat_data.get('earned')
+                    max_score = cat_data.get('max')
+                    
+                    # Si no hay earned/max, usar correct/total como fallback
+                    if earned is None:
+                        earned = cat_data.get('correct', 0)
+                    if max_score is None:
+                        max_score = cat_data.get('total', 0)
+                    
+                    print(f"📋 PDF - cat '{cat_name}' calculando: earned={earned}, max={max_score}")
+                    
+                    if max_score and max_score > 0:
+                        cat_percentage = round((float(earned) / float(max_score)) * 100, 1)
+                    else:
+                        cat_percentage = 0
+                
+                # Asegurar que sea un número
+                try:
+                    cat_percentage = float(cat_percentage)
+                except (TypeError, ValueError):
+                    cat_percentage = 0
+                
+                print(f"📋 PDF - cat '{cat_name}' percentage final: {cat_percentage}")
+                
+                # Formatear porcentaje (mostrar decimal solo si es necesario)
+                if cat_percentage == int(cat_percentage):
+                    cat_percentage_str = f'{int(cat_percentage)}%'
+                else:
+                    cat_percentage_str = f'{cat_percentage}%'
                 
                 # Nombre de categoría
                 c.setFillColor(colors.black)
                 c.setFont('Helvetica-Bold', 9)
                 display_name = strip_html(cat_name).upper()[:40]
                 c.drawString(margin + 5, y, f'{cat_index}. {display_name}')
-                c.drawRightString(page_width - margin - 10, y, f'{cat_percentage}%')
+                c.drawRightString(page_width - margin - 10, y, cat_percentage_str)
                 y -= 12
                 
                 # Topics
@@ -2908,17 +3108,46 @@ def generate_result_pdf(result_id):
                         c.showPage()
                         y = page_height - margin
                     
+                    # Porcentaje del tema - usar el porcentaje pre-calculado si existe
                     topic_percentage = topic_data.get('percentage')
-                    if topic_percentage is None:
-                        total = topic_data.get('total', 0)
-                        correct = topic_data.get('correct', 0)
-                        topic_percentage = round((correct / total) * 100) if total > 0 else 0
+                    print(f"📋 PDF - topic '{topic_name}' percentage raw: {topic_percentage}")
+                    
+                    # Si no hay percentage o es None/0, calcularlo
+                    if topic_percentage is None or (isinstance(topic_percentage, (int, float)) and topic_percentage == 0):
+                        earned = topic_data.get('earned')
+                        max_score = topic_data.get('max')
+                        
+                        if earned is None:
+                            earned = topic_data.get('correct', 0)
+                        if max_score is None:
+                            max_score = topic_data.get('total', 0)
+                        
+                        print(f"📋 PDF - topic '{topic_name}' calculando: earned={earned}, max={max_score}")
+                        
+                        if max_score and max_score > 0:
+                            topic_percentage = round((float(earned) / float(max_score)) * 100, 1)
+                        else:
+                            topic_percentage = 0
+                    
+                    # Asegurar que sea un número
+                    try:
+                        topic_percentage = float(topic_percentage)
+                    except (TypeError, ValueError):
+                        topic_percentage = 0
+                    
+                    print(f"📋 PDF - topic '{topic_name}' percentage final: {topic_percentage}")
+                    
+                    # Formatear porcentaje (mostrar decimal solo si es necesario)
+                    if topic_percentage == int(topic_percentage):
+                        topic_percentage_str = f'{int(topic_percentage)}%'
+                    else:
+                        topic_percentage_str = f'{topic_percentage}%'
                     
                     c.setFillColor(gray_color)
                     c.setFont('Helvetica', 8)
                     topic_display = strip_html(topic_name)[:35]
                     c.drawString(margin + 20, y, f'{cat_index}.{topic_index} {topic_display}')
-                    c.drawRightString(page_width - margin - 10, y, f'{topic_percentage}%')
+                    c.drawRightString(page_width - margin - 10, y, topic_percentage_str)
                     y -= 10
                 
                 # Línea separadora
@@ -2936,34 +3165,16 @@ def generate_result_pdf(result_id):
             c.setFillColor(colors.black)
             c.setFont('Helvetica-Bold', 9)
             c.drawString(margin + 5, y, 'TOTAL')
-            c.drawRightString(page_width - margin - 10, y, f'{score}%')
+            # Mostrar con decimal solo si es necesario
+            if real_percentage == int(real_percentage):
+                c.drawRightString(page_width - margin - 10, y, f'{int(real_percentage)}%')
+            else:
+                c.drawRightString(page_width - margin - 10, y, f'{real_percentage}%')
             y -= 8
             
             c.setLineWidth(0.5)
             c.line(margin, y, page_width - margin, y)
             y -= 15
-        
-        # === CERTIFICACIÓN ===
-        if result.certificate_code:
-            if y < 80:
-                c.showPage()
-                y = page_height - margin
-            
-            c.setFillColor(primary_color)
-            c.setFont('Helvetica-Bold', 10)
-            c.drawString(margin, y, 'CERTIFICACIÓN')
-            y -= 12
-            
-            c.setStrokeColor(primary_color)
-            c.setLineWidth(0.3)
-            c.rect(margin, y - 20, page_width - 2 * margin, 20)
-            
-            c.setFillColor(colors.black)
-            c.setFont('Helvetica', 9)
-            c.drawString(margin + 10, y - 14, 'Código de certificado:')
-            c.setFont('Helvetica-Bold', 9)
-            c.drawString(margin + 110, y - 14, result.certificate_code)
-            y -= 35
         
         # === PIE DE PÁGINA ===
         y = 50
@@ -3012,3 +3223,52 @@ def options_generate_pdf(result_id):
     response.headers['Access-Control-Allow-Methods'] = 'GET,OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
     return response
+
+
+@bp.route('/results/<result_id>/debug-data', methods=['GET'])
+def debug_result_data(result_id):
+    """
+    Endpoint de debug para ver los datos de un resultado (temporal sin auth)
+    """
+    try:
+        from app.models.result import Result
+        
+        # Buscar sin filtrar por user_id para debug
+        result = Result.query.filter_by(id=result_id).first()
+        
+        if not result:
+            return jsonify({'error': 'Resultado no encontrado'}), 404
+        
+        answers_data_raw = result.answers_data
+        if isinstance(answers_data_raw, str):
+            try:
+                answers_data = json.loads(answers_data_raw)
+            except:
+                answers_data = {}
+        else:
+            answers_data = answers_data_raw or {}
+        
+        # Buscar evaluation_breakdown
+        category_results = {}
+        if isinstance(answers_data, dict):
+            category_results = answers_data.get('evaluation_breakdown', {})
+            if not category_results:
+                summary = answers_data.get('summary', {})
+                if isinstance(summary, dict):
+                    category_results = summary.get('evaluation_breakdown', {})
+        
+        return jsonify({
+            'result_id': result_id,
+            'score': result.score,
+            'answers_data_type': str(type(answers_data)),
+            'answers_data_keys': list(answers_data.keys()) if isinstance(answers_data, dict) else None,
+            'evaluation_breakdown': category_results,
+            'summary_in_answers_data': answers_data.get('summary', {}) if isinstance(answers_data, dict) else None
+        }), 200
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500

@@ -42,6 +42,13 @@ interface QuestionResult {
   correct_answers_text?: string[];
   explanation?: string;
   answers: any[];
+  // Campos adicionales para ordenamiento
+  correct_positions?: number;
+  total_positions?: number;
+  // Campos para categoría/tema
+  category_name?: string;
+  topic_name?: string;
+  max_score?: number;
 }
 
 interface ActionResult {
@@ -73,6 +80,19 @@ interface ExerciseResult {
   steps: StepResult[];
 }
 
+interface TopicBreakdown {
+  earned: number;
+  max: number;
+  percentage: number;
+}
+
+interface CategoryBreakdown {
+  topics: Record<string, TopicBreakdown>;
+  earned: number;
+  max: number;
+  percentage: number;
+}
+
 interface EvaluationSummary {
   total_items: number;
   total_questions: number;
@@ -85,6 +105,7 @@ interface EvaluationSummary {
   total_points: number;
   earned_points: number;
   percentage: number;
+  evaluation_breakdown?: Record<string, CategoryBreakdown>;
 }
 
 interface EvaluationResults {
@@ -426,6 +447,86 @@ const ExamTestResultsPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Desglose por Categoría/Tema */}
+        {summary.evaluation_breakdown && Object.keys(summary.evaluation_breakdown).length > 0 && (
+          <div className="bg-white rounded-xl shadow-lg mb-8">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900">Desglose por Área</h2>
+              <p className="text-sm text-gray-500 mt-1">Puntaje obtenido por categoría y tema</p>
+            </div>
+            <div className="p-6">
+              <div className="space-y-6">
+                {Object.entries(summary.evaluation_breakdown).map(([categoryName, categoryData], catIndex) => (
+                  <div key={categoryName} className="border border-gray-200 rounded-lg overflow-hidden">
+                    {/* Categoría */}
+                    <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="w-8 h-8 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-sm font-bold">
+                          {catIndex + 1}
+                        </span>
+                        <span className="font-semibold text-gray-800">{categoryName}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-gray-500">
+                          {categoryData.earned.toFixed(1)}/{categoryData.max} pts
+                        </span>
+                        <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                          categoryData.percentage >= 80 ? 'bg-green-100 text-green-700' :
+                          categoryData.percentage >= 60 ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {categoryData.percentage}%
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Temas */}
+                    <div className="divide-y divide-gray-100">
+                      {Object.entries(categoryData.topics).map(([topicName, topicData], topicIndex) => (
+                        <div key={topicName} className="px-4 py-3 flex items-center justify-between bg-white hover:bg-gray-50">
+                          <div className="flex items-center gap-2 ml-8">
+                            <span className="text-xs text-gray-400 font-medium">
+                              {catIndex + 1}.{topicIndex + 1}
+                            </span>
+                            <span className="text-gray-700">{topicName}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm text-gray-500">
+                              {topicData.earned.toFixed(1)}/{topicData.max} pts
+                            </span>
+                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                              topicData.percentage >= 80 ? 'bg-green-100 text-green-700' :
+                              topicData.percentage >= 60 ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>
+                              {topicData.percentage}%
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Nota sobre puntuación parcial */}
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start">
+                  <AlertCircle className="w-5 h-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-800">
+                    <p className="font-semibold mb-1">Acerca de los puntajes:</p>
+                    <ul className="list-disc list-inside space-y-1 text-blue-700">
+                      <li>Las preguntas de <strong>ordenamiento</strong> otorgan puntos parciales por cada posición correcta.</li>
+                      <li>Las preguntas de <strong>selección múltiple</strong> otorgan puntos parciales según las respuestas correctas seleccionadas.</li>
+                      <li>Los <strong>ejercicios</strong> otorgan puntos por cada acción completada correctamente.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Preguntas */}
         {questions.length > 0 && (
           <div className="bg-white rounded-xl shadow-lg mb-8">
@@ -445,7 +546,7 @@ const ExamTestResultsPage: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-3">
+                      <div className="flex items-center flex-wrap gap-2 mb-3">
                         <span className="text-sm font-bold text-gray-900 bg-gray-100 px-3 py-1 rounded-full">
                           Pregunta {index + 1}
                         </span>
@@ -454,7 +555,15 @@ const ExamTestResultsPage: React.FC = () => {
                         </span>
                         {result.score !== undefined && result.score > 0 && result.score < 1 && (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                            Puntuación parcial: {Math.round(result.score * 100)}%
+                            ⭐ Puntaje parcial: {(result.score * 100).toFixed(1)}%
+                            {result.question_type === 'ordering' && result.correct_positions !== undefined && (
+                              <span className="ml-1">({result.correct_positions}/{result.total_positions} posiciones)</span>
+                            )}
+                          </span>
+                        )}
+                        {result.category_name && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                            {result.category_name}
                           </span>
                         )}
                       </div>

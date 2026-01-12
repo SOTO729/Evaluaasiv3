@@ -37,6 +37,7 @@ const StudyInteractiveExercisePage = lazy(() => import('./pages/study-contents/S
 // Certificates
 const CertificatesPage = lazy(() => import('./pages/certificates/CertificatesPage'))
 const EvaluationReportDetailPage = lazy(() => import('./pages/certificates/EvaluationReportDetailPage'))
+const ResultDetailPage = lazy(() => import('./pages/certificates/ResultDetailPage'))
 
 function App() {
   const { isAuthenticated } = useAuthStore()
@@ -100,6 +101,7 @@ function App() {
               {/* Certificates */}
               <Route path="/certificates" element={<CertificatesPage />} />
               <Route path="/certificates/evaluation-report/:examId" element={<EvaluationReportDetailPage />} />
+              <Route path="/certificates/evaluation-report/:examId/result/:resultId" element={<ResultDetailPage />} />
             </Route>
           </Route>
 

@@ -58,6 +58,52 @@ def ffmpeg_status():
             'error': str(e)
         })
 
+@debug_bp.route('/result-data/<result_id>', methods=['GET'])
+def debug_result_data(result_id):
+    """Ver datos raw de un resultado - SIN AUTH para debug"""
+    try:
+        from app.models.result import Result
+        import json
+        
+        result = Result.query.filter_by(id=result_id).first()
+        if not result:
+            return jsonify({'error': 'Resultado no encontrado', 'result_id': result_id}), 404
+        
+        # Obtener answers_data raw
+        answers_data_raw = result.answers_data
+        answers_data_type = str(type(answers_data_raw))
+        
+        # Parsear si es string
+        if isinstance(answers_data_raw, str):
+            try:
+                answers_data = json.loads(answers_data_raw)
+            except:
+                answers_data = {'parse_error': True, 'raw': answers_data_raw[:500]}
+        else:
+            answers_data = answers_data_raw or {}
+        
+        # Buscar evaluation_breakdown
+        evaluation_breakdown = {}
+        if isinstance(answers_data, dict):
+            evaluation_breakdown = answers_data.get('evaluation_breakdown', {})
+            if not evaluation_breakdown:
+                summary = answers_data.get('summary', {})
+                if isinstance(summary, dict):
+                    evaluation_breakdown = summary.get('evaluation_breakdown', {})
+        
+        return jsonify({
+            'result_id': result_id,
+            'score': result.score,
+            'result_status': result.result,
+            'answers_data_type': answers_data_type,
+            'answers_data_keys': list(answers_data.keys()) if isinstance(answers_data, dict) else None,
+            'evaluation_breakdown': evaluation_breakdown,
+            'summary': answers_data.get('summary') if isinstance(answers_data, dict) else None
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+
 @debug_bp.route('/debug-code', methods=['GET'])
 def debug_code():
     """Ver código actual del init.py"""

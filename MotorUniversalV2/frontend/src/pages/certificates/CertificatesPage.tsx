@@ -471,12 +471,11 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
               Obtenida: {formatDate(exam.user_stats.last_attempt.end_date || exam.user_stats.last_attempt.start_date)}
             </p>
           )}
-
-          <div className="flex gap-2">
+          <div className="flex gap-2">   
             <button className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors">
-              <Download className="w-4 h-4" />
+              <Download className="w-4 h-4" /> 
               Descargar
-            </button>
+            </button>        
             <button className="px-3 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50 transition-colors">
               <ExternalLink className="w-4 h-4" />
             </button>
@@ -485,7 +484,7 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
       ))}
     </div>
   )
-}
+}  
 
 // Sección de Certificados CONOCER
 const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], formatDate: (date: string) => string }) => {
