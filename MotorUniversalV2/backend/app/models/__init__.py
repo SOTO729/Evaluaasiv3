@@ -25,6 +25,7 @@ from app.models.student_progress import (
     StudentContentProgress,
     StudentTopicProgress
 )
+from app.models.conocer_certificate import ConocerCertificate
 
 __all__ = [
     'User',
@@ -48,5 +49,6 @@ __all__ = [
     'StudyInteractiveExerciseStep',
     'StudyInteractiveExerciseAction',
     'StudentContentProgress',
-    'StudentTopicProgress'
+    'StudentTopicProgress',
+    'ConocerCertificate'
 ]

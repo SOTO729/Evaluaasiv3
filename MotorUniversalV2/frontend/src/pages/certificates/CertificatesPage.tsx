@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { FileText, BadgeCheck, Download, Eye, Search, Calendar, CheckCircle, Clock, ExternalLink, Award } from 'lucide-react'
 import { dashboardService } from '../../services/dashboardService'
@@ -556,8 +556,88 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
 } 
  
 // Sección de Certificados CONOCER
-const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], formatDate: (date: string) => string }) => {
-  const [searchCode, setSearchCode] = useState('')
+const ConocerCertificateSection = ({ formatDate }: { exams: any[], formatDate: (date: string) => string }) => {
+  const [certificates, setCertificates] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [downloadingId, setDownloadingId] = useState<number | null>(null)
+  const [rehydratingId, setRehydratingId] = useState<number | null>(null)
+  const { accessToken } = useAuthStore()
+  
+  // Cargar certificados CONOCER del usuario
+  useEffect(() => {
+    const fetchCertificates = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.azurewebsites.net/api'
+        const response = await fetch(`${apiUrl}/conocer/certificates`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        })  
+        
+        if (response.ok) {
+          const data = await response.json()
+          setCertificates(data.certificates || [])
+        }
+      } catch (error) {
+        console.error('Error cargando certificados CONOCER:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    if (accessToken) {
+      fetchCertificates()
+    }
+  }, [accessToken])
+  
+  const handleDownloadCertificate = async (certificate: any) => {
+    setDownloadingId(certificate.id)
+    
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.azurewebsites.net/api'
+      const response = await fetch(`${apiUrl}/conocer/certificates/${certificate.id}/download`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      })
+      
+      if (response.status === 202) {
+        // Certificado en Archive, necesita rehidratación
+        const data = await response.json()
+        setRehydratingId(certificate.id)
+        alert(data.message || 'El certificado está siendo recuperado. Estará disponible en aproximadamente 15 horas.')
+        return
+      }
+      
+      if (!response.ok) {
+        throw new Error('Error al descargar el certificado')
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `CONOCER_${certificate.standard_code}_${certificate.certificate_number}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error: any) {
+      console.error('Error descargando certificado:', error)
+      alert(error.message || 'Error al descargar el certificado')
+    } finally {
+      setDownloadingId(null)
+    }
+  }
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+        <span className="ml-3 text-gray-600">Cargando certificados...</span>
+      </div>
+    )
+  }
   
   return (
     <div className="space-y-6">
@@ -590,27 +670,8 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
         </div>
       </div>
 
-      {/* Search Certificate */}
-      <div className="bg-gray-50 rounded-xl p-6">
-        <h4 className="font-semibold text-gray-900 mb-4">Consultar Certificado</h4>
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="Ingresa tu código de certificado o CURP"
-              value={searchCode}
-              onChange={(e) => setSearchCode(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            />
-          </div>
-          <button className="px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors font-medium">
-            Buscar
-          </button>
-        </div>
-      </div>
-
       {/* Certificates List */}
-      {exams.length === 0 ? (
+      {certificates.length === 0 ? (
         <div className="text-center py-12">
           <div className="w-20 h-20 mx-auto mb-4 rounded-full overflow-hidden bg-gray-100 p-2">
             <img 
@@ -635,9 +696,9 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
         </div>
       ) : (
         <div className="space-y-4">
-          {exams.map((exam) => (
+          {certificates.map((cert) => (
             <div
-              key={exam.id}
+              key={cert.id}
               className="border-2 border-gray-200 rounded-xl p-6 hover:border-blue-300 transition-all"
             >
               <div className="flex items-start justify-between">
@@ -656,36 +717,82 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
                       </span>
                       <span className="text-xs text-gray-500">•</span>
                       <span className="text-xs text-gray-500">Competencia Laboral</span>
+                      {cert.competency_level && (
+                        <>
+                          <span className="text-xs text-gray-500">•</span>
+                          <span className="text-xs text-gray-500">Nivel {cert.competency_level}</span>
+                        </>
+                      )}
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900">{exam.name}</h3>
+                    <h3 className="text-lg font-bold text-gray-900">{cert.standard_name}</h3>
                     <p className="text-sm text-gray-500 mt-1">
-                      Estándar de Competencia: EC0XXX
+                      Estándar de Competencia: {cert.standard_code}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Folio: {cert.certificate_number}
                     </p>
                     
-                    {exam.user_stats.last_attempt && (
-                      <div className="flex items-center gap-4 mt-3 text-sm text-gray-600">
+                    <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-600">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        Emisión: {formatDate(cert.issue_date)}
+                      </span>
+                      {cert.expiration_date && (
                         <span className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          Emisión: {formatDate(exam.user_stats.last_attempt.end_date || exam.user_stats.last_attempt.start_date)}
+                          <Clock className="w-4 h-4" />
+                          Vence: {formatDate(cert.expiration_date)}
                         </span>
-                        <span className="flex items-center gap-1">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          Vigente
+                      )}
+                      <span className={`flex items-center gap-1 ${cert.status === 'active' && !cert.is_expired ? 'text-green-600' : 'text-red-600'}`}>
+                        <CheckCircle className="w-4 h-4" />
+                        {cert.status === 'active' && !cert.is_expired ? 'Vigente' : 'Vencido'}
+                      </span>
+                      {cert.evaluation_center_name && (
+                        <span className="text-xs text-gray-400">
+                          Centro: {cert.evaluation_center_name}
                         </span>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <button className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
-                    <Download className="w-4 h-4" />
-                    Descargar
+                  <button 
+                    onClick={() => handleDownloadCertificate(cert)}
+                    disabled={downloadingId === cert.id}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
+                  >
+                    {downloadingId === cert.id ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Descargando...
+                      </>
+                    ) : rehydratingId === cert.id ? (
+                      <>
+                        <Clock className="w-4 h-4" />
+                        Recuperando...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        Descargar
+                      </>
+                    )}
                   </button>
-                  <button className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm">
-                    <Eye className="w-4 h-4" />
-                    Verificar
-                  </button>
+                  {cert.verification_url && (
+                    <a
+                      href={cert.verification_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                    >
+                      <Eye className="w-4 h-4" />
+                      Verificar
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
