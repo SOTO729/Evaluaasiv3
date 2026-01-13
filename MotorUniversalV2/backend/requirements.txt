@@ -37,6 +37,7 @@ qrcode[pil]==7.4.2
 python-dateutil==2.8.2
 email-validator==2.1.0
 reportlab==4.0.8
+pypdf==4.0.0
 
 # API Documentation
 flasgger==0.9.7.1

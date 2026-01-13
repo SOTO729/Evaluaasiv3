@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { 
   ArrowLeft, Download, CheckCircle, XCircle, FileText, 
-  Target, Calendar, User, Mail, BookOpen, Hash, Timer,
-  TrendingUp, BarChart2, AlertCircle
+  Calendar, User, Mail, BookOpen, Hash, Timer,
+  BarChart2, AlertCircle, HelpCircle, Puzzle
 } from 'lucide-react'
 import { examService } from '../../services/examService'
 import { useAuthStore } from '../../store/authStore'
@@ -80,7 +80,7 @@ const ResultDetailPage = () => {
     if (!result) return
     
     setDownloading(true)
-    setDownloadMessage('Preparando tu constancia de evaluación...')
+    setDownloadMessage('Preparando tu certificado de evaluación...')
     
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.azurewebsites.net/api'
@@ -104,7 +104,7 @@ const ResultDetailPage = () => {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `Constancia_Evaluacion_${examData?.name?.replace(/\s+/g, '_') || 'Examen'}_${result.id.slice(0, 8)}.pdf`
+      a.download = `Certificado_Evaluacion_${examData?.name?.replace(/\s+/g, '_') || 'Examen'}_${result.id.slice(0, 8)}.pdf`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
@@ -112,7 +112,7 @@ const ResultDetailPage = () => {
       
     } catch (error) {
       console.error('Error descargando PDF:', error)
-      alert('Error al descargar la constancia. Por favor intenta de nuevo.')
+      alert('Error al descargar el certificado. Por favor intenta de nuevo.')
     } finally {
       setDownloading(false)
       setDownloadMessage('')
@@ -196,11 +196,11 @@ const ResultDetailPage = () => {
 
       {/* Información General */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Datos del Estudiante */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        {/* Datos del Evaluado */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all duration-300 animate-slide-up" style={{ animationDelay: '0.1s' }}>
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <User className="w-5 h-5 text-primary-600" />
-            Datos del Estudiante
+            Datos del Evaluado
           </h2>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
@@ -217,7 +217,7 @@ const ResultDetailPage = () => {
         </div>
 
         {/* Datos del Examen */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all duration-300 animate-slide-up" style={{ animationDelay: '0.2s' }}>
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-primary-600" />
             Datos del Examen
@@ -231,7 +231,7 @@ const ResultDetailPage = () => {
             <div className="flex items-center gap-3">
               <Hash className="w-4 h-4 text-gray-400" />
               <span className="text-gray-600">Código ECM:</span>
-              <span className="font-medium font-mono">{examData?.version || 'N/A'}</span>
+              <span className="font-bold font-mono text-primary-700">{examData?.version || 'N/A'}</span>
             </div>
             <div className="flex items-center gap-3">
               <Calendar className="w-4 h-4 text-gray-400" />
@@ -243,7 +243,7 @@ const ResultDetailPage = () => {
       </div>
 
       {/* Resultado de la Evaluación */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all duration-300 animate-slide-up" style={{ animationDelay: '0.3s' }}>
         <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <BarChart2 className="w-5 h-5 text-primary-600" />
           Resultado de la Evaluación
@@ -255,57 +255,71 @@ const ResultDetailPage = () => {
             <div className="text-sm text-gray-500">Calificación</div>
           </div>
           <div className="bg-gray-50 rounded-xl p-4 text-center">
-            <div className="text-3xl font-bold text-primary-600">{score1000}</div>
+            <div className={`text-3xl font-bold ${isPassed ? 'text-green-600' : 'text-red-600'}`}>{score1000}</div>
             <div className="text-sm text-gray-500">Puntaje / 1000</div>
-          </div>
-          <div className="bg-gray-50 rounded-xl p-4 text-center">
-            <div className={`text-3xl font-bold ${isPassed ? 'text-green-600' : 'text-red-600'}`}>
-              {isPassed ? 'APROBADO' : 'REPROBADO'}
-            </div>
-            <div className="text-sm text-gray-500">Resultado</div>
           </div>
           <div className="bg-gray-50 rounded-xl p-4 text-center">
             <div className="text-3xl font-bold text-gray-600">{passingScore * 10}</div>
             <div className="text-sm text-gray-500">Puntaje mínimo</div>
           </div>
+          <div className="bg-gray-50 rounded-xl p-4 text-center">
+            <div className={`text-3xl font-bold ${isPassed ? 'text-green-600' : 'text-red-600'}`}>
+              {isPassed ? 'APROBADO' : 'NO APROBADO'}
+            </div>
+            <div className="text-sm text-gray-500">Resultado</div>
+          </div>
         </div>
 
         {/* Métricas adicionales */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-          <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-            <Timer className="w-5 h-5 text-blue-600" />
+        <div className="grid grid-cols-3 gap-4 mt-4">
+          <div className="flex items-center gap-3 p-4 bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl border border-emerald-200 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.02] animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center shadow-sm">
+              <Timer className="w-5 h-5 text-white" />
+            </div>
             <div>
-              <div className="text-sm text-gray-500">Duración</div>
-              <div className="font-semibold">{formatDuration(result.duration_seconds)}</div>
+              <div className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Duración</div>
+              <div className="font-bold text-lg text-emerald-800">{formatDuration(result.duration_seconds)}</div>
             </div>
           </div>
-          <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
-            <FileText className="w-5 h-5 text-purple-600" />
+          <div className="flex items-center gap-3 p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.02] animate-fade-in" style={{ animationDelay: '0.2s' }}>
+            <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center shadow-sm">
+              <HelpCircle className="w-5 h-5 text-white" />
+            </div>
             <div>
-              <div className="text-sm text-gray-500">Preguntas</div>
-              <div className="font-semibold">{summary.total_questions || 'N/A'}</div>
+              <div className="text-xs text-blue-600 font-medium uppercase tracking-wide">Preguntas</div>
+              <div className="font-bold text-lg text-blue-800">{summary.total_questions || 'N/A'}</div>
             </div>
           </div>
-          <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg">
-            <Target className="w-5 h-5 text-orange-600" />
-            <div>
-              <div className="text-sm text-gray-500">Ejercicios</div>
-              <div className="font-semibold">{summary.total_exercises || 'N/A'}</div>
+          <div className="flex items-center gap-3 p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.02] animate-fade-in" style={{ animationDelay: '0.3s' }}>
+            <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center shadow-sm">
+              <Puzzle className="w-5 h-5 text-white" />
             </div>
-          </div>
-          <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-            <TrendingUp className="w-5 h-5 text-green-600" />
             <div>
-              <div className="text-sm text-gray-500">Puntos obtenidos</div>
-              <div className="font-semibold">{summary.earned_points?.toFixed(2) || 'N/A'} / {summary.total_points || 'N/A'}</div>
+              <div className="text-xs text-purple-600 font-medium uppercase tracking-wide">Ejercicios</div>
+              <div className="font-bold text-lg text-purple-800">{summary.total_exercises || 'N/A'}</div>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Botón de descarga destacado */}
+      <button
+        onClick={downloadPDF}
+        disabled={downloading}
+        className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl text-white font-semibold text-lg transition-all transform hover:scale-[1.02] bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 hover:from-blue-600 hover:via-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+      >
+        {downloading ? (
+          <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
+        ) : (
+          <Download className="w-6 h-6" />
+        )}
+        <span>Descargar Reporte de Evaluación</span>
+        {!downloading && <span className="ml-2 px-2 py-0.5 bg-white/20 rounded text-sm">PDF</span>}
+      </button>
+
       {/* Desglose por Categoría/Tema */}
       {Object.keys(evaluationBreakdown).length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all duration-300 animate-slide-up" style={{ animationDelay: '0.4s' }}>
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <BarChart2 className="w-5 h-5 text-primary-600" />
             Desglose por Área / Tema
@@ -367,41 +381,14 @@ const ResultDetailPage = () => {
         </div>
       )}
 
-      {/* Información adicional */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+      {/* Código de Certificado */}
+      {result.certificate_code && (
+        <div className="flex items-center justify-center gap-3 py-4 bg-gray-50 rounded-xl border border-gray-200 animate-slide-up" style={{ animationDelay: '0.5s' }}>
           <Hash className="w-5 h-5 text-primary-600" />
-          Información del Registro
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex items-center gap-3">
-            <span className="text-gray-500">ID del Resultado:</span>
-            <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono">{result.id}</code>
-          </div>
-          {result.certificate_code && (
-            <div className="flex items-center gap-3">
-              <span className="text-gray-500">Código de Certificado:</span>
-              <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono">{result.certificate_code}</code>
-            </div>
-          )}
+          <span className="text-gray-600">Código de Certificado:</span>
+          <code className="bg-white px-3 py-1.5 rounded-lg text-lg font-bold font-mono text-primary-700 border border-primary-200">{result.certificate_code}</code>
         </div>
-      </div>
-
-      {/* Botón de descarga */}
-      <div className="flex justify-center">
-        <button
-          onClick={downloadPDF}
-          disabled={downloading}
-          className={`flex items-center gap-3 px-8 py-4 rounded-xl text-white font-semibold text-lg transition-all ${
-            isPassed 
-              ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700' 
-              : 'bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800'
-          } disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl`}
-        >
-          <Download className="w-6 h-6" />
-          Descargar Constancia de Evaluación
-        </button>
-      </div>
+      )}
     </div>
   )
 }

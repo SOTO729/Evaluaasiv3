@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { FileText, BadgeCheck, Download, Eye, Search, Calendar, CheckCircle, Clock, ExternalLink, Award } from 'lucide-react'
 import { dashboardService } from '../../services/dashboardService'
+import { useAuthStore } from '../../store/authStore'
 import LoadingSpinner from '../../components/LoadingSpinner'
   
 interface DashboardData {
@@ -45,11 +46,11 @@ const CertificatesPage = () => {
       name: 'Reporte de Evaluación',
       icon: null,
       iconImage: '/images/evaluaasi-icon.png',
-      description: 'Constancia con el detalle de tus evaluaciones realizadas'
+      description: 'Certificado con el detalle de tus evaluaciones realizadas'
     },
     {
       id: 'approval-certificate' as TabType,
-      name: 'Constancia de Evaluación',
+      name: 'Certificado de Evaluación',
       icon: null,
       iconImage: '/images/eduit-logo.png',
       description: 'Certificado de evaluación de exámenes'
@@ -125,7 +126,7 @@ const CertificatesPage = () => {
             <Award className="w-8 h-8" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold">Certificados y Constancias</h1>
+            <h1 className="text-3xl font-bold">Certificados</h1>
             <p className="text-primary-100 mt-1">
               Consulta y descarga tus documentos de acreditación
             </p>
@@ -155,12 +156,12 @@ const CertificatesPage = () => {
             <div className="flex items-center gap-3 mb-2">
               <img 
                 src="/images/eduit-logo.png" 
-                alt="Constancia de Evaluación" 
+                alt="Certificado de Evaluación" 
                 className="w-8 h-8 object-contain brightness-0 invert"
               />
               <div className="text-2xl font-bold">{dashboardData?.stats.approved_exams || 0}</div>
             </div>
-            <div className="text-primary-200 text-sm">Constancias de Evaluación</div>
+            <div className="text-primary-200 text-sm">Certificados de Evaluación</div>
           </button>
           <button 
             onClick={() => setActiveTab('digital-badge')}
@@ -348,74 +349,142 @@ const EvaluationReportSection = ({ exams, formatDate }: { exams: any[], formatDa
   )
 }
 
-// Sección de Constancia de Evaluación
+// Sección de Certificado de Evaluación
 const ApprovalCertificateSection = ({ exams, formatDate }: { exams: any[], formatDate: (date: string) => string }) => {
-  const navigate = useNavigate()
+  const [downloadingId, setDownloadingId] = useState<number | null>(null)
+  const { accessToken } = useAuthStore()
+  
+  const handleDownloadCertificate = async (e: React.MouseEvent, exam: any) => {
+    e.stopPropagation()
+    
+    // Obtener el ID del resultado aprobado
+    const resultId = exam.user_stats.approved_result?.id || exam.user_stats.last_attempt?.id
+    if (!resultId) {
+      alert('No se encontró el resultado para generar el certificado')
+      return
+    }
+    
+    setDownloadingId(exam.id)
+    
+    try {
+      // Usar la URL correcta del API (ya incluye /api)
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.azurewebsites.net/api'
+      
+      const response = await fetch(`${apiUrl}/exams/results/${resultId}/generate-certificate`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      })   
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Error al generar el certificado')
+      }
+      
+      // Descargar el PDF
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Certificado_${exam.name.replace(/\s+/g, '_')}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error: any) {
+      console.error('Error descargando certificado:', error)
+      alert(error.message || 'Error al descargar el certificado')
+    } finally {
+      setDownloadingId(null)
+    }
+  }
   
   if (exams.length === 0) {
     return (
       <div className="text-center py-12">
         <Award className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Sin constancias de evaluación</h3>
-        <p className="text-gray-500">Aprueba un examen para obtener tu constancia.</p>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Sin certificados disponibles</h3>
+        <p className="text-gray-500 mb-2">Para obtener tu certificado de evaluación, primero debes aprobar un examen.</p>
+        <p className="text-sm text-gray-400">Completa alguna de las evaluaciones asignadas con el puntaje mínimo requerido.</p>
       </div>
     )
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="space-y-4">
       {exams.map((exam) => (
         <div
           key={exam.id}
-          className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-6 relative overflow-hidden cursor-pointer hover:shadow-lg transition-all"
-          onClick={() => navigate(`/certificates/evaluation-report/${exam.id}`)}
+          className="border border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 hover:border-green-400 hover:shadow-md transition-all"
         >
-          {/* Decorative elements */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-green-200/30 rounded-full -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-emerald-200/30 rounded-full translate-y-1/2 -translate-x-1/2" />
-          
-          <div className="relative">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center">
-                <img 
-                  src="/images/eduit-logo.png" 
-                  alt="Constancia" 
-                  className="w-8 h-8 object-contain brightness-0 invert"
-                />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900">Constancia de Evaluación</h3>
-                <p className="text-sm text-green-600">Verificable digitalmente</p>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
+                  <CheckCircle className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">{exam.name}</h3>
+                  <p className="text-sm text-green-600 font-medium">Examen Aprobado</p>
+                </div>
+              </div> 
+              <p className="text-sm text-gray-500 mt-1 ml-13">{exam.description}</p>
+              
+              <div className="flex flex-wrap gap-4 mt-4 ml-13">
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span className="text-gray-600">
+                    Calificación: <strong className="text-green-600">{exam.user_stats.best_score}%</strong>
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-600">{exam.user_stats.attempts} intentos</span>
+                </div>
+                {(exam.user_stats.approved_result || exam.user_stats.last_attempt) && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <span className="text-gray-600">
+                      Aprobado: {formatDate((exam.user_stats.approved_result || exam.user_stats.last_attempt).end_date || (exam.user_stats.approved_result || exam.user_stats.last_attempt).start_date)}
+                    </span>
+                  </div>
+                )}
+                {(exam.user_stats.approved_result?.certificate_code || exam.user_stats.last_attempt?.certificate_code) && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <FileText className="w-4 h-4 text-gray-400" />
+                    <span className="text-gray-600">
+                      Código: <code className="bg-white px-2 py-0.5 rounded text-xs font-mono">{exam.user_stats.approved_result?.certificate_code || exam.user_stats.last_attempt?.certificate_code}</code>
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="space-y-2 mb-4">
-              <h4 className="text-lg font-semibold text-gray-900">{exam.name}</h4>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-                <span className="text-green-700 font-medium">
-                  Calificación: {exam.user_stats.best_score}%
-                </span>
-              </div>
-              {exam.user_stats.last_attempt && (
-                <p className="text-sm text-gray-600">
-                  Fecha de aprobación: {formatDate(exam.user_stats.last_attempt.end_date || exam.user_stats.last_attempt.start_date)}
-                </p>
-              )}
-              {exam.user_stats.last_attempt?.certificate_code && (
-                <p className="text-xs text-gray-500 font-mono">
-                  Código: {exam.user_stats.last_attempt.certificate_code}
-                </p>
-              )}
-            </div>
-
-            <div className="flex gap-2">
+            <div className="flex flex-col items-end gap-2 ml-4">
+              <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                Certificado disponible
+              </span>
               <button 
-                onClick={(e) => { e.stopPropagation(); navigate(`/certificates/evaluation-report/${exam.id}`) }}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                onClick={(e) => handleDownloadCertificate(e, exam)}
+                disabled={downloadingId === exam.id}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Descargar certificado"
               >
-                <Eye className="w-4 h-4" />
-                Ver Constancias
+                {downloadingId === exam.id ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Generando...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    Descargar Certificado
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -484,8 +553,8 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
       ))}
     </div>
   )
-}  
-
+} 
+ 
 // Sección de Certificados CONOCER
 const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], formatDate: (date: string) => string }) => {
   const [searchCode, setSearchCode] = useState('')

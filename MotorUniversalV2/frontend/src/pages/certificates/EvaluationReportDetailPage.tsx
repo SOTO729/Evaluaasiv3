@@ -100,7 +100,7 @@ const EvaluationReportDetailPage = () => {
   const generatePDF = async (result: ExamResult, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
     setGeneratingPdf(result.id)
-    setDownloadMessage('Preparando tu constancia de evaluación...')
+    setDownloadMessage('Preparando tu certificado de evaluación...')
     
     try {
       // Usar el endpoint del backend para generar el PDF
@@ -128,7 +128,7 @@ const EvaluationReportDetailPage = () => {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `Constancia_Evaluacion_${examData?.name?.replace(/\s+/g, '_') || 'Examen'}_${result.id.slice(0, 8)}.pdf`
+      a.download = `Certificado_Evaluacion_${examData?.name?.replace(/\s+/g, '_') || 'Examen'}_${result.id.slice(0, 8)}.pdf`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
@@ -154,7 +154,7 @@ const EvaluationReportDetailPage = () => {
       {/* Modal de descarga */}
       <DownloadModal isOpen={!!generatingPdf} message={downloadMessage} />
 
-      <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-2xl p-8 text-white">
+      <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-2xl p-8 text-white animate-slide-up">
         <button
           onClick={() => navigate('/certificates')}
           className="flex items-center gap-2 text-white/80 hover:text-white mb-4 transition-colors"
@@ -164,7 +164,7 @@ const EvaluationReportDetailPage = () => {
         </button>
         
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
+          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center animate-pulse-subtle">
             <img 
               src="/images/evaluaasi-icon.png" 
               alt="Reporte de Evaluación" 
@@ -176,27 +176,33 @@ const EvaluationReportDetailPage = () => {
             <p className="text-primary-100 mt-1">
               {examData?.name || 'Cargando...'}
             </p>
+            {examData?.version && (
+              <p className="text-white/70 text-sm mt-1 flex items-center gap-2">
+                <span className="text-white/50">Código ECM:</span>
+                <span className="px-2 py-0.5 bg-white/20 rounded font-mono font-bold">{examData.version}</span>
+              </p>
+            )}
           </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-          <div className="bg-white/10 rounded-xl p-4">
+          <div className="bg-white/10 rounded-xl p-4 hover:bg-white/20 transition-all duration-300 hover:scale-105">
             <div className="text-2xl font-bold">{results.length}</div>
             <div className="text-primary-200 text-sm">Intentos totales</div>
           </div>
-          <div className="bg-white/10 rounded-xl p-4">
+          <div className="bg-white/10 rounded-xl p-4 hover:bg-white/20 transition-all duration-300 hover:scale-105">
             <div className="text-2xl font-bold">
               {results.length > 0 ? Math.max(...results.map(r => r.score)) : 0}%
             </div>
             <div className="text-primary-200 text-sm">Mejor puntaje</div>
           </div>
-          <div className="bg-white/10 rounded-xl p-4">
+          <div className="bg-white/10 rounded-xl p-4 hover:bg-white/20 transition-all duration-300 hover:scale-105">
             <div className="text-2xl font-bold">
               {results.filter(r => r.result === 1).length}
             </div>
             <div className="text-primary-200 text-sm">Aprobados</div>
           </div>
-          <div className="bg-white/10 rounded-xl p-4">
+          <div className="bg-white/10 rounded-xl p-4 hover:bg-white/20 transition-all duration-300 hover:scale-105">
             <div className="text-2xl font-bold">{examData?.passing_score || 70}%</div>
             <div className="text-primary-200 text-sm">Puntaje mínimo</div>
           </div>
@@ -223,7 +229,8 @@ const EvaluationReportDetailPage = () => {
               <div
                 key={result.id}
                 id={`report-${result.id}`}
-                className="p-6 hover:bg-gray-50 transition-colors"
+                onClick={() => navigate(`/certificates/evaluation-report/${examId}/result/${result.id}`)}
+                className="p-6 hover:bg-gray-50 transition-colors cursor-pointer"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -238,10 +245,7 @@ const EvaluationReportDetailPage = () => {
                         )}
                       </div>
                       <div>
-                        <h3 
-                          onClick={() => navigate(`/certificates/evaluation-report/${examId}/result/${result.id}`)}
-                          className="text-lg font-semibold text-primary-600 hover:text-primary-800 hover:underline cursor-pointer"
-                        >
+                        <h3 className="text-lg font-semibold text-primary-600 hover:text-primary-800">
                           Intento #{results.length - index}
                         </h3>
                         <p className="text-sm text-gray-500">
@@ -280,7 +284,8 @@ const EvaluationReportDetailPage = () => {
                       {getStatusText(result.status)}
                     </span>
                     <button 
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation()
                         // Si tiene report_url, descargar desde esa URL
                         if (result.report_url) {
                           window.open(result.report_url, '_blank');

@@ -2620,11 +2620,12 @@ def save_exam_result(exam_id):
             questions_order=questions_order
         )
         
-        # Generar código de certificado con formato ECM-YYYYMMDD-XXXXX
-        from datetime import datetime
-        date_str = datetime.now().strftime('%Y%m%d')
-        random_part = uuid.uuid4().hex[:5].upper()
-        result.certificate_code = f"ECM-{date_str}-{random_part}"
+        # Generar código de certificado con formato ZC + 10 caracteres alfanuméricos
+        import string
+        import random
+        chars = string.ascii_uppercase + string.digits
+        random_part = ''.join(random.choices(chars, k=10))
+        result.certificate_code = f"ZC{random_part}"
         
         result.end_date = db.func.now()
         
@@ -3218,6 +3219,155 @@ def generate_result_pdf(result_id):
 
 @bp.route('/results/<result_id>/generate-pdf', methods=['OPTIONS'])
 def options_generate_pdf(result_id):
+    response = jsonify({'status': 'ok'})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
+    return response
+
+
+@bp.route('/results/<result_id>/generate-certificate', methods=['GET'])
+@jwt_required()
+def generate_certificate_pdf(result_id):
+    """
+    Genera el certificado PDF usando la plantilla
+    Solo disponible para resultados aprobados
+    """
+    from flask import send_file
+    from io import BytesIO
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.colors import HexColor
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    from pypdf import PdfReader, PdfWriter
+    import os
+    
+    try:
+        from app.models.result import Result
+        from app.models.exam import Exam
+        
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        # Obtener resultado
+        result = Result.query.filter_by(id=result_id, user_id=str(user_id)).first()
+        if not result:
+            return jsonify({'error': 'Resultado no encontrado'}), 404
+        
+        # Verificar que el resultado sea aprobado
+        exam = Exam.query.get(result.exam_id)
+        if not exam:
+            return jsonify({'error': 'Examen no encontrado'}), 404
+        
+        if result.score < exam.passing_score:
+            return jsonify({'error': 'Solo se pueden generar certificados para exámenes aprobados'}), 400
+        
+        # Cargar plantilla PDF
+        template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'plantilla.pdf')
+        if not os.path.exists(template_path):
+            return jsonify({'error': 'Plantilla de certificado no encontrada'}), 500
+        
+        reader = PdfReader(template_path)
+        page = reader.pages[0]
+        width = float(page.mediabox.width)
+        height = float(page.mediabox.height)
+        
+        # Crear overlay con el texto
+        buffer_overlay = BytesIO()
+        c = canvas.Canvas(buffer_overlay, pagesize=(width, height))
+        
+        c.setFillColor(HexColor('#1a365d'))
+        
+        # Configuración del área compartida para nombre y certificado
+        x_min = 85
+        x_max = 540
+        max_width = x_max - x_min
+        center_x = (x_min + x_max) / 2
+        
+        # Función para ajustar tamaño de fuente
+        def draw_fitted_text(canv, text, cx, y, mw, font_name, max_font_size, min_font_size=8):
+            font_size = max_font_size
+            while font_size >= min_font_size:
+                text_width = stringWidth(text, font_name, font_size)
+                if text_width <= mw:
+                    canv.setFont(font_name, font_size)
+                    canv.drawCentredString(cx, y, text)
+                    return font_size
+                font_size -= 1
+            canv.setFont(font_name, min_font_size)
+            canv.drawCentredString(cx, y, text)
+            return min_font_size
+        
+        # Construir nombre completo del usuario (Title Case)
+        name_parts = [user.name or '']
+        if user.first_surname:
+            name_parts.append(user.first_surname)
+        if user.second_surname:
+            name_parts.append(user.second_surname)
+        student_name = ' '.join(name_parts).strip() or user.email
+        # Convertir a Title Case
+        student_name = student_name.title()
+        
+        # NOMBRE en (center_x, 375), max 36pt
+        draw_fitted_text(c, student_name, center_x, 375, max_width, 'Helvetica-Bold', 36)
+        
+        # Construir nombre del certificado (MAYÚSCULAS)
+        # Usar solo el nombre del examen (sin código ECM)
+        if exam.name:
+            cert_name = exam.name.upper()
+        else:
+            cert_name = "CERTIFICADO DE COMPETENCIA"
+        
+        # CERTIFICADO en (center_x, 300), max 18pt
+        draw_fitted_text(c, cert_name, center_x, 300, max_width, 'Helvetica-Bold', 18)
+        
+        c.save()
+        
+        # Combinar plantilla con overlay
+        buffer_overlay.seek(0)
+        overlay = PdfReader(buffer_overlay)
+        
+        # Recargar plantilla para combinar
+        reader2 = PdfReader(template_path)
+        page2 = reader2.pages[0]
+        page2.merge_page(overlay.pages[0])
+        
+        writer = PdfWriter()
+        writer.add_page(page2)
+        
+        # Escribir PDF final a buffer
+        buffer_final = BytesIO()
+        writer.write(buffer_final)
+        buffer_final.seek(0)
+        
+        # Generar nombre del archivo
+        import re
+        def strip_html(text):
+            if not text:
+                return ''
+            return re.sub(r'<[^>]+>', '', str(text))
+        
+        exam_short = strip_html(exam.name)[:30] if exam.name else 'Certificado'
+        filename = f"Certificado_{exam_short.replace(' ', '_')}.pdf"
+        
+        return send_file(
+            buffer_final,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        import traceback
+        print(f"ERROR generando certificado: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            'error': 'Error al generar el certificado',
+            'message': str(e)
+        }), 500
+
+
+@bp.route('/results/<result_id>/generate-certificate', methods=['OPTIONS'])
+def options_generate_certificate(result_id):
     response = jsonify({'status': 'ok'})
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET,OPTIONS'

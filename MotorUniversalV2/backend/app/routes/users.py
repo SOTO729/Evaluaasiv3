@@ -160,6 +160,9 @@ def get_dashboard():
             is_completed = any(r['status'] == 1 for r in exam_results)
             is_approved = any(r['result'] == 1 for r in exam_results)
             
+            # Obtener el primer resultado aprobado (para el certificado)
+            approved_result = next((r for r in exam_results if r['result'] == 1), None)
+            
             # Contar categorías de forma segura
             try:
                 categories_count = exam.categories.count() if hasattr(exam.categories, 'count') else len(list(exam.categories))
@@ -181,7 +184,8 @@ def get_dashboard():
                     'best_score': best_score,
                     'is_completed': is_completed,
                     'is_approved': is_approved,
-                    'last_attempt': last_attempt
+                    'last_attempt': last_attempt,
+                    'approved_result': approved_result
                 }
             })
         
