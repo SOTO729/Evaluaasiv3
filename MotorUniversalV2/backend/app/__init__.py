@@ -58,7 +58,7 @@ def create_app(config_name='development'):
     app.register_blueprint(reset.reset_bp, url_prefix='/api')
     app.register_blueprint(debug.debug_bp, url_prefix='/api')
     app.register_blueprint(study_contents_bp, url_prefix='/api/study-contents')
-    app.register_blueprint(conocer_bp, url_prefix='/api')
+    app.register_blueprint(conocer_bp, url_prefix='/api/conocer')
     
     # Verificar y agregar columna label_style si no existe
     with app.app_context():

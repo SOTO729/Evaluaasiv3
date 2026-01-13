@@ -583,7 +583,7 @@ const ConocerCertificateSection = ({ formatDate }: { exams: any[], formatDate: (
       } finally {
         setIsLoading(false)
       }
-    }
+    } 
     
     if (accessToken) {
       fetchCertificates()

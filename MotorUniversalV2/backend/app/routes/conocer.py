@@ -8,10 +8,25 @@ from app import db
 from app.models import User
 from app.models.conocer_certificate import ConocerCertificate
 from app.services.conocer_blob_service import get_conocer_blob_service
-from azure.core.exceptions import ResourceNotFoundError
 import io
 
-conocer_bp = Blueprint('conocer', __name__, url_prefix='/conocer')
+# Lazy import para Azure (puede no estar instalado)
+ResourceNotFoundError = None
+
+def _get_azure_exceptions():
+    global ResourceNotFoundError
+    if ResourceNotFoundError is None:
+        try:
+            from azure.core.exceptions import ResourceNotFoundError as _ResourceNotFoundError
+            ResourceNotFoundError = _ResourceNotFoundError
+        except ImportError:
+            # Crear una excepción dummy si azure no está instalado
+            class _ResourceNotFoundError(Exception):
+                pass
+            ResourceNotFoundError = _ResourceNotFoundError
+    return ResourceNotFoundError
+
+conocer_bp = Blueprint('conocer', __name__)
 
 
 @conocer_bp.route('/certificates', methods=['GET'])
