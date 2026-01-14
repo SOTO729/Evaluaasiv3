@@ -977,31 +977,36 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
 
       {/* Process Info */}
       <div className="bg-gray-50 rounded-xl p-6">
-        <h4 className="font-semibold text-gray-900 mb-4">¿Cómo obtener un certificado CONOCER?</h4>
+        <h4 className="font-semibold text-gray-900 mb-2">¿Cómo obtener un certificado CONOCER?</h4>
+        <p className="text-sm text-gray-500 mb-4 text-center">¡Así de fácil!</p>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="text-center">
             <div className="w-12 h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-2 font-bold">
               1
             </div>
-            <p className="text-sm text-gray-600">Selecciona el estándar de competencia</p>
+            <p className="text-sm font-medium text-gray-700 mb-1">Selecciona el estándar</p>
+            <p className="text-xs text-gray-500">Elige el estándar de competencia que deseas certificar</p>
           </div>
           <div className="text-center">
             <div className="w-12 h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-2 font-bold">
               2
             </div>
-            <p className="text-sm text-gray-600">Contacta un centro evaluador autorizado</p>
+            <p className="text-sm font-medium text-gray-700 mb-1">Estudia</p>
+            <p className="text-xs text-gray-500">Prepárate con los materiales de estudio disponibles</p>
           </div>
           <div className="text-center">
             <div className="w-12 h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-2 font-bold">
               3
             </div>
-            <p className="text-sm text-gray-600">Realiza la evaluación presencial</p>
+            <p className="text-sm font-medium text-gray-700 mb-1">Haz el examen y certifícate</p>
+            <p className="text-xs text-gray-500">Realiza tu evaluación en Evaluaasi y aprueba</p>
           </div>
           <div className="text-center">
             <div className="w-12 h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-2 font-bold">
               4
             </div>
-            <p className="text-sm text-gray-600">Recibe tu certificado oficial</p>
+            <p className="text-sm font-medium text-gray-700 mb-1">Recibe tu certificado</p>
+            <p className="text-xs text-gray-500">Espera el trámite y recibe tu certificado oficial</p>
           </div>
         </div>
       </div>
