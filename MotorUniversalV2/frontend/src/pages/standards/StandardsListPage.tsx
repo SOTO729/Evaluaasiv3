@@ -3,7 +3,7 @@
  */
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuthStore } from '../../store/authStore';
 import {
   getStandards,
   deleteStandard,
@@ -12,7 +12,7 @@ import {
 } from '../../services/standardsService';
 
 export default function StandardsListPage() {
-  const { user } = useAuth();
+  const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
   const [standards, setStandards] = useState<CompetencyStandard[]>([]);
   const [loading, setLoading] = useState(true);

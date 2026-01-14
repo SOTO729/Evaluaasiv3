@@ -3,7 +3,6 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import {
   getStandard,
   createStandard,
@@ -14,7 +13,6 @@ import {
 export default function StandardFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const isEditing = !!id;
 
   const [loading, setLoading] = useState(false);

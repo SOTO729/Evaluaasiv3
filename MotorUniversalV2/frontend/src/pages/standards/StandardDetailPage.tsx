@@ -3,13 +3,13 @@
  */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuthStore } from '../../store/authStore';
 import { getStandard, getStandardExams, CompetencyStandard } from '../../services/standardsService';
 
 export default function StandardDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const user = useAuthStore((state) => state.user);
   const [standard, setStandard] = useState<CompetencyStandard | null>(null);
   const [exams, setExams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

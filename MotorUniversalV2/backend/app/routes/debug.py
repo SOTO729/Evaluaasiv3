@@ -462,3 +462,133 @@ def recent_results():
             'error': str(e),
             'traceback': traceback.format_exc()
         })
+
+
+@debug_bp.route('/ensure-ecm-tables', methods=['POST'])
+def ensure_ecm_tables():
+    """
+    Crear las tablas ECM (competency_standards y deletion_requests) 
+    y agregar las columnas FK a exams y results si no existen
+    """
+    from app import db
+    from sqlalchemy import text, inspect
+    import traceback
+    
+    results = {
+        'competency_standards': {'status': 'unknown'},
+        'deletion_requests': {'status': 'unknown'},
+        'exams_fk': {'status': 'unknown'},
+        'results_fk': {'status': 'unknown'}
+    }
+    
+    try:
+        inspector = inspect(db.engine)
+        existing_tables = inspector.get_table_names()
+        
+        # 1. Crear tabla competency_standards
+        if 'competency_standards' not in existing_tables:
+            try:
+                db.session.execute(text('''
+                    CREATE TABLE competency_standards (
+                        id INT IDENTITY(1,1) PRIMARY KEY,
+                        code NVARCHAR(50) NOT NULL UNIQUE,
+                        name NVARCHAR(255) NOT NULL,
+                        description NVARCHAR(MAX),
+                        sector NVARCHAR(100),
+                        level INT,
+                        validity_years INT DEFAULT 5,
+                        certifying_body NVARCHAR(255) DEFAULT 'CONOCER',
+                        is_active BIT DEFAULT 1 NOT NULL,
+                        created_by NVARCHAR(36) NOT NULL,
+                        created_at DATETIME2 DEFAULT GETUTCDATE() NOT NULL,
+                        updated_by NVARCHAR(36),
+                        updated_at DATETIME2
+                    )
+                '''))
+                db.session.execute(text('''
+                    CREATE INDEX ix_competency_standards_code ON competency_standards(code)
+                '''))
+                db.session.execute(text('''
+                    CREATE INDEX ix_competency_standards_is_active ON competency_standards(is_active)
+                '''))
+                db.session.commit()
+                results['competency_standards'] = {'status': 'created'}
+            except Exception as e:
+                db.session.rollback()
+                results['competency_standards'] = {'status': 'error', 'error': str(e)}
+        else:
+            results['competency_standards'] = {'status': 'already_exists'}
+        
+        # 2. Crear tabla deletion_requests
+        if 'deletion_requests' not in existing_tables:
+            try:
+                db.session.execute(text('''
+                    CREATE TABLE deletion_requests (
+                        id INT IDENTITY(1,1) PRIMARY KEY,
+                        entity_type NVARCHAR(50) NOT NULL,
+                        entity_id INT NOT NULL,
+                        entity_name NVARCHAR(255),
+                        reason NVARCHAR(MAX) NOT NULL,
+                        status NVARCHAR(20) DEFAULT 'pending' NOT NULL,
+                        admin_response NVARCHAR(MAX),
+                        reviewed_by NVARCHAR(36),
+                        reviewed_at DATETIME2,
+                        requested_by NVARCHAR(36) NOT NULL,
+                        requested_at DATETIME2 DEFAULT GETUTCDATE() NOT NULL
+                    )
+                '''))
+                db.session.execute(text('''
+                    CREATE INDEX ix_deletion_requests_status ON deletion_requests(status)
+                '''))
+                db.session.execute(text('''
+                    CREATE INDEX ix_deletion_requests_entity ON deletion_requests(entity_type, entity_id)
+                '''))
+                db.session.commit()
+                results['deletion_requests'] = {'status': 'created'}
+            except Exception as e:
+                db.session.rollback()
+                results['deletion_requests'] = {'status': 'error', 'error': str(e)}
+        else:
+            results['deletion_requests'] = {'status': 'already_exists'}
+        
+        # 3. Agregar columna competency_standard_id a exams
+        try:
+            exam_columns = [col['name'] for col in inspector.get_columns('exams')]
+            if 'competency_standard_id' not in exam_columns:
+                db.session.execute(text('''
+                    ALTER TABLE exams ADD competency_standard_id INT NULL
+                '''))
+                db.session.commit()
+                results['exams_fk'] = {'status': 'column_added'}
+            else:
+                results['exams_fk'] = {'status': 'already_exists'}
+        except Exception as e:
+            db.session.rollback()
+            results['exams_fk'] = {'status': 'error', 'error': str(e)}
+        
+        # 4. Agregar columna competency_standard_id a results
+        try:
+            result_columns = [col['name'] for col in inspector.get_columns('results')]
+            if 'competency_standard_id' not in result_columns:
+                db.session.execute(text('''
+                    ALTER TABLE results ADD competency_standard_id INT NULL
+                '''))
+                db.session.commit()
+                results['results_fk'] = {'status': 'column_added'}
+            else:
+                results['results_fk'] = {'status': 'already_exists'}
+        except Exception as e:
+            db.session.rollback()
+            results['results_fk'] = {'status': 'error', 'error': str(e)}
+        
+        return jsonify({
+            'success': True,
+            'results': results
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        })

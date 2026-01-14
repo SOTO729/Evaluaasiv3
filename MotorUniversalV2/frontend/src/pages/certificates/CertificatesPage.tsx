@@ -905,7 +905,7 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
                       Folio: {cert.certificate_number}
-                    </p>  
+                    </p> 
                     
                     <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-600">
                       <span className="flex items-center gap-1">
