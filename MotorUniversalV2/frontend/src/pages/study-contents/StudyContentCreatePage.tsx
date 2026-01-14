@@ -1,6 +1,7 @@
 /**
  * Página para crear/editar un Material de Estudio
  * Diseño similar a ExamCreatePage con sección para relacionar con examen
+ * Incluye modo de creación: desde cero o copiar existente
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -8,11 +9,14 @@ import { useQuery } from '@tanstack/react-query';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import { 
-  getMaterial, 
+  getMaterial,
+  getMaterials,
   createMaterial, 
   updateMaterial,
   uploadMaterialCoverImage,
-  CreateMaterialData 
+  cloneMaterial,
+  CreateMaterialData,
+  StudyMaterial
 } from '../../services/studyContentService';
 import { examService } from '../../services/examService';
 import { 
@@ -23,9 +27,12 @@ import {
   AlertCircle,
   CheckCircle2,
   Search,
-  Plus
+  Plus,
+  Copy
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+
+type CreationMode = 'scratch' | 'copy';
 
 interface ExamListItem {
   id: number;
@@ -65,6 +72,11 @@ const StudyContentCreatePage = () => {
   const { id } = useParams<{ id: string }>();
   const isEditing = !!id;
   
+  // Modo de creación
+  const [creationMode, setCreationMode] = useState<CreationMode>('scratch');
+  const [selectedMaterialToCopy, setSelectedMaterialToCopy] = useState<StudyMaterial | null>(null);
+  const [searchMaterial, setSearchMaterial] = useState('');
+  
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -84,11 +96,24 @@ const StudyContentCreatePage = () => {
   const [selectedExams, setSelectedExams] = useState<ExamListItem[]>([]);
   const [searchExam, setSearchExam] = useState('');
 
+  // Cargar lista de materiales para copiar
+  const { data: materialsData } = useQuery({
+    queryKey: ['materials-for-copy'],
+    queryFn: () => getMaterials(1, 100),
+    enabled: !isEditing,
+  });
+
   // Cargar lista de exámenes
   const { data: examsData } = useQuery({
     queryKey: ['exams-for-link'],
     queryFn: () => examService.getExams(),
   });
+
+  // Filtrar materiales por búsqueda (excluir el actual si está editando)
+  const filteredMaterials = materialsData?.materials?.filter((material: StudyMaterial) =>
+    material.title.toLowerCase().includes(searchMaterial.toLowerCase()) &&
+    material.id !== (id ? parseInt(id) : -1)
+  ) || [];
 
   // Filtrar exámenes por búsqueda (excluir los ya seleccionados)
   const filteredExams = examsData?.exams?.filter((exam: ExamListItem) =>
@@ -144,8 +169,30 @@ const StudyContentCreatePage = () => {
       newErrors.title = 'El título debe tener al menos 3 caracteres';
     }
     
+    // En modo copia, validar que se haya seleccionado un material
+    if (creationMode === 'copy' && !selectedMaterialToCopy && !isEditing) {
+      newErrors.material = 'Debe seleccionar un material para copiar';
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Handlers para modo de creación
+  const handleModeChange = (mode: CreationMode) => {
+    setCreationMode(mode);
+    setSelectedMaterialToCopy(null);
+    setErrors({});
+  };
+
+  const handleSelectMaterialToCopy = (material: StudyMaterial) => {
+    setSelectedMaterialToCopy(material);
+    // Pre-llenar el título con el nombre del material + "(Copia)"
+    setFormData(prev => ({
+      ...prev,
+      title: `${material.title} (Copia)`
+    }));
+    setErrors({});
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -155,6 +202,20 @@ const StudyContentCreatePage = () => {
 
     setSaving(true);
     try {
+      // Modo copia: clonar el material seleccionado
+      if (creationMode === 'copy' && selectedMaterialToCopy && !isEditing) {
+        const clonedMaterial = await cloneMaterial(
+          selectedMaterialToCopy.id,
+          formData.title
+        );
+        setShowSuccess(true);
+        setTimeout(() => {
+          navigate(`/study-contents/${clonedMaterial.id}`);
+        }, 1000);
+        return;
+      }
+
+      // Modo normal: crear o editar
       const dataToSave = {
         ...formData,
         exam_ids: selectedExams.map(e => e.id),
@@ -333,13 +394,182 @@ const StudyContentCreatePage = () => {
         <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center gap-3">
           <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
           <span className="font-medium">
-            Material {isEditing ? 'actualizado' : 'creado'} exitosamente. Redirigiendo...
+            Material {isEditing ? 'actualizado' : (creationMode === 'copy' ? 'copiado' : 'creado')} exitosamente. Redirigiendo...
           </span>
         </div>
       )}
 
+      {/* Selector de modo de creación (solo al crear) */}
+      {!isEditing && (
+        <div className="card mb-6">
+          <h2 className="text-xl font-semibold mb-4">Modo de Creación</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Opción: Desde cero */}
+            <div
+              onClick={() => handleModeChange('scratch')}
+              className={`cursor-pointer border-2 rounded-lg p-4 transition-all ${
+                creationMode === 'scratch'
+                  ? 'border-primary-600 bg-primary-50'
+                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                  creationMode === 'scratch' ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'
+                }`}>
+                  <Plus className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <h3 className={`font-semibold ${creationMode === 'scratch' ? 'text-primary-900' : 'text-gray-900'}`}>
+                    Crear desde cero
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Crear un nuevo material vacío y agregar sesiones y temas manualmente
+                  </p>
+                </div>
+                {creationMode === 'scratch' && (
+                  <svg className="w-6 h-6 text-primary-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+            </div>
+            
+            {/* Opción: Copiar existente */}
+            <div
+              onClick={() => handleModeChange('copy')}
+              className={`cursor-pointer border-2 rounded-lg p-4 transition-all ${
+                creationMode === 'copy'
+                  ? 'border-blue-600 bg-blue-50'
+                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                  creationMode === 'copy' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                }`}>
+                  <Copy className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <h3 className={`font-semibold ${creationMode === 'copy' ? 'text-blue-900' : 'text-gray-900'}`}>
+                    Copiar material existente
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Duplicar un material con todas sus sesiones, temas y contenidos
+                  </p>
+                </div>
+                {creationMode === 'copy' && (
+                  <svg className="w-6 h-6 text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {/* Lista de materiales para copiar */}
+          {creationMode === 'copy' && (
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Seleccionar material a copiar <span className="text-red-600">*</span>
+              </label>
+              
+              {/* Buscador */}
+              <div className="mb-3 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchMaterial}
+                  onChange={(e) => setSearchMaterial(e.target.value)}
+                  placeholder="Buscar material por título..."
+                  className="input pl-10"
+                />
+              </div>
+              
+              <div className="border border-gray-300 rounded-lg max-h-64 overflow-y-auto">
+                {filteredMaterials.length > 0 ? (
+                  filteredMaterials.map((material: StudyMaterial) => (
+                    <div
+                      key={material.id}
+                      onClick={() => handleSelectMaterialToCopy(material)}
+                      className={`p-3 cursor-pointer border-b last:border-b-0 transition-colors ${
+                        selectedMaterialToCopy?.id === material.id
+                          ? 'bg-blue-50 border-l-4 border-l-blue-500'
+                          : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">{material.title}</p>
+                          {material.description && (
+                            <p className="text-sm text-gray-500 truncate max-w-md" 
+                               dangerouslySetInnerHTML={{ __html: material.description.replace(/<[^>]*>/g, '').slice(0, 80) + '...' }} 
+                            />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-0.5 text-xs rounded-full ${
+                            material.is_published ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {material.is_published ? 'Publicado' : 'Borrador'}
+                          </span>
+                          {selectedMaterialToCopy?.id === material.id && (
+                            <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                        <span>{material.sessions_count || 0} sesiones</span>
+                        <span>{material.topics_count || 0} temas</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-gray-500">
+                    {searchMaterial 
+                      ? 'No se encontraron materiales con ese criterio'
+                      : 'No hay materiales disponibles para copiar'
+                    }
+                  </div>
+                )}
+              </div>
+              
+              {errors.material && (
+                <p className="text-red-600 text-xs mt-2 font-medium flex items-center gap-1">
+                  <AlertCircle className="h-4 w-4" />
+                  {errors.material}
+                </p>
+              )}
+              
+              {/* Info del material seleccionado */}
+              {selectedMaterialToCopy && (
+                <div className="mt-3 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <Copy className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-blue-700">
+                        <span className="font-medium">Se copiará:</span> {selectedMaterialToCopy.title}
+                      </p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        Incluye {selectedMaterialToCopy.sessions_count || 0} sesiones, {selectedMaterialToCopy.topics_count || 0} temas 
+                        y todo su contenido (lecturas, videos, ejercicios)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Información General */}
+        {/* Información General - Solo mostrar si es modo scratch o si está editando */}
+        {(creationMode === 'scratch' || isEditing) && (
         <div className="card">
           <h2 className="text-xl font-semibold mb-4">Información General</h2>
           
@@ -472,8 +702,10 @@ const StudyContentCreatePage = () => {
             )}
           </div>
         </div>
+        )}
 
-        {/* Vincular con Exámenes */}
+        {/* Vincular con Exámenes - Solo mostrar si es modo scratch o si está editando */}
+        {(creationMode === 'scratch' || isEditing) && (
         <div className="card">
           <div className="mb-4">
             <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -589,6 +821,42 @@ const StudyContentCreatePage = () => {
             </p>
           </div>
         </div>
+        )}
+
+        {/* Sección para modo copia: solo título */}
+        {creationMode === 'copy' && !isEditing && (
+          <div className="card">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <Copy className="h-5 w-5 text-blue-600" />
+              Datos del Nuevo Material
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Ingresa el título para la copia. El contenido se duplicará del material seleccionado.
+            </p>
+            
+            {/* Título */}
+            <div>
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+                Título del Material <span className="text-red-600">*</span>
+              </label>
+              <input
+                type="text"
+                id="title"
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+                placeholder="Ej: Introducción a la Mecánica Automotriz (Copia)"
+                className={`input ${errors.title ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+              />
+              {errors.title && (
+                <p className="text-red-600 text-xs mt-1 font-medium">{errors.title}</p>
+              )}
+              {!errors.title && formData.title.trim() && (
+                <p className="text-green-600 text-xs mt-1 font-medium">✓ Título válido</p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Botones de Acción */}
         <div className="flex justify-end gap-3">
@@ -603,16 +871,26 @@ const StudyContentCreatePage = () => {
           <button
             type="submit"
             className="btn btn-primary flex items-center gap-2"
-            disabled={saving || uploadingImage || !formData.title.trim()}
+            disabled={
+              saving || 
+              uploadingImage || 
+              !formData.title.trim() ||
+              (creationMode === 'copy' && !isEditing && !selectedMaterialToCopy)
+            }
           >
             {saving ? (
               <>
                 <Loader2 className="h-5 w-5 animate-spin" />
-                {isEditing ? 'Guardando...' : 'Creando...'}
+                {isEditing ? 'Guardando...' : (creationMode === 'copy' ? 'Copiando...' : 'Creando...')}
               </>
             ) : (
               <>
-                {isEditing ? 'Guardar Cambios' : 'Crear Material'}
+                {isEditing ? 'Guardar Cambios' : (creationMode === 'copy' ? (
+                  <>
+                    <Copy className="h-4 w-4" />
+                    Copiar Material
+                  </>
+                ) : 'Crear Material')}
               </>
             )}
           </button>

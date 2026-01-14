@@ -312,6 +312,189 @@ def get_material(material_id):
         return jsonify({'error': str(e)}), 500
 
 
+@study_contents_bp.route('/<int:material_id>/clone', methods=['POST'])
+@jwt_required()
+@admin_or_editor_required
+def clone_material(material_id):
+    """
+    Clonar un material de estudio existente incluyendo sesiones, temas y todos sus elementos
+    ---
+    tags:
+      - Study Contents
+    security:
+      - Bearer: []
+    parameters:
+      - name: material_id
+        in: path
+        type: integer
+        required: true
+        description: ID del material a clonar
+    responses:
+      201:
+        description: Material clonado exitosamente
+      404:
+        description: Material no encontrado
+    """
+    # Obtener el material original
+    original_material = StudyMaterial.query.get(material_id)
+    if not original_material:
+        return jsonify({'error': 'Material de estudio no encontrado'}), 404
+    
+    data = request.get_json() or {}
+    user = get_current_user()
+    
+    try:
+        # Crear el nuevo material (copia)
+        new_material = StudyMaterial(
+            title=data.get('title', f"{original_material.title} (Copia)"),
+            description=original_material.description,
+            image_url=original_material.image_url,
+            is_published=False,  # Siempre como borrador
+            order=original_material.order,
+            exam_id=original_material.exam_id,
+            created_by=user.id
+        )
+        db.session.add(new_material)
+        db.session.flush()  # Obtener el ID del nuevo material
+        
+        # Copiar relación con exámenes
+        if original_material.exams:
+            ensure_study_material_exams_table()
+            for exam in original_material.exams:
+                new_material.exams.append(exam)
+        
+        # Clonar sesiones
+        for original_session in original_material.sessions.all():
+            new_session = StudySession(
+                material_id=new_material.id,
+                session_number=original_session.session_number,
+                title=original_session.title,
+                description=original_session.description
+            )
+            db.session.add(new_session)
+            db.session.flush()
+            
+            # Clonar temas de esta sesión
+            for original_topic in original_session.topics.all():
+                new_topic = StudyTopic(
+                    session_id=new_session.id,
+                    title=original_topic.title,
+                    description=original_topic.description,
+                    order=original_topic.order,
+                    estimated_time_minutes=original_topic.estimated_time_minutes,
+                    allow_reading=original_topic.allow_reading,
+                    allow_video=original_topic.allow_video,
+                    allow_downloadable=original_topic.allow_downloadable,
+                    allow_interactive=original_topic.allow_interactive
+                )
+                db.session.add(new_topic)
+                db.session.flush()
+                
+                # Clonar lectura si existe
+                if original_topic.reading:
+                    new_reading = StudyReading(
+                        topic_id=new_topic.id,
+                        title=original_topic.reading.title,
+                        content=original_topic.reading.content,
+                        estimated_time_minutes=original_topic.reading.estimated_time_minutes
+                    )
+                    db.session.add(new_reading)
+                
+                # Clonar video si existe
+                if original_topic.video:
+                    new_video = StudyVideo(
+                        topic_id=new_topic.id,
+                        title=original_topic.video.title,
+                        description=original_topic.video.description,
+                        video_url=original_topic.video.video_url,
+                        video_type=original_topic.video.video_type,
+                        thumbnail_url=original_topic.video.thumbnail_url,
+                        duration_minutes=original_topic.video.duration_minutes,
+                        video_width=original_topic.video.video_width,
+                        video_height=original_topic.video.video_height
+                    )
+                    db.session.add(new_video)
+                
+                # Clonar ejercicio descargable si existe
+                if original_topic.downloadable_exercise:
+                    new_downloadable = StudyDownloadableExercise(
+                        topic_id=new_topic.id,
+                        title=original_topic.downloadable_exercise.title,
+                        description=original_topic.downloadable_exercise.description,
+                        file_url=original_topic.downloadable_exercise.file_url,
+                        file_name=original_topic.downloadable_exercise.file_name,
+                        file_type=original_topic.downloadable_exercise.file_type,
+                        file_size_bytes=original_topic.downloadable_exercise.file_size_bytes
+                    )
+                    db.session.add(new_downloadable)
+                
+                # Clonar ejercicio interactivo si existe
+                if original_topic.interactive_exercise:
+                    new_exercise_id = str(uuid.uuid4())
+                    new_interactive = StudyInteractiveExercise(
+                        id=new_exercise_id,
+                        topic_id=new_topic.id,
+                        title=original_topic.interactive_exercise.title,
+                        description=original_topic.interactive_exercise.description,
+                        is_active=original_topic.interactive_exercise.is_active,
+                        created_by=user.id
+                    )
+                    db.session.add(new_interactive)
+                    db.session.flush()
+                    
+                    # Clonar pasos del ejercicio interactivo
+                    for original_step in original_topic.interactive_exercise.steps.all():
+                        new_step_id = str(uuid.uuid4())
+                        new_step = StudyInteractiveExerciseStep(
+                            id=new_step_id,
+                            exercise_id=new_exercise_id,
+                            step_number=original_step.step_number,
+                            title=original_step.title,
+                            description=original_step.description,
+                            image_url=original_step.image_url,
+                            image_width=original_step.image_width,
+                            image_height=original_step.image_height
+                        )
+                        db.session.add(new_step)
+                        db.session.flush()
+                        
+                        # Clonar acciones del paso
+                        for original_action in original_step.actions.all():
+                            new_action = StudyInteractiveExerciseAction(
+                                id=str(uuid.uuid4()),
+                                step_id=new_step_id,
+                                action_number=original_action.action_number,
+                                action_type=original_action.action_type,
+                                position_x=original_action.position_x,
+                                position_y=original_action.position_y,
+                                width=original_action.width,
+                                height=original_action.height,
+                                label=original_action.label,
+                                placeholder=original_action.placeholder,
+                                correct_answer=original_action.correct_answer,
+                                is_case_sensitive=original_action.is_case_sensitive,
+                                scoring_mode=original_action.scoring_mode,
+                                on_error_action=original_action.on_error_action,
+                                error_message=original_action.error_message,
+                                max_attempts=original_action.max_attempts,
+                                text_color=original_action.text_color,
+                                font_family=original_action.font_family,
+                                label_style=original_action.label_style
+                            )
+                            db.session.add(new_action)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Material de estudio clonado exitosamente',
+            'material': new_material.to_dict(include_sessions=True)
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al clonar el material: {str(e)}'}), 500
+
+
 @study_contents_bp.route('', methods=['POST'])
 @jwt_required()
 @admin_or_editor_required

@@ -273,6 +273,17 @@ export const deleteMaterial = async (materialId: number): Promise<void> => {
   await api.delete(`/study-contents/${materialId}`);
 };
 
+// Clonar un material de estudio existente
+export const cloneMaterial = async (
+  materialId: number,
+  newTitle?: string
+): Promise<StudyMaterial> => {
+  const response = await api.post(`/study-contents/${materialId}/clone`, {
+    title: newTitle,
+  });
+  return response.data.material;
+};
+
 // Subir imagen de portada para material de estudio
 export const uploadMaterialCoverImage = async (file: File): Promise<string> => {
   const formData = new FormData();

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { examService } from '../../services/examService'
 import { useAuthStore } from '../../store/authStore'
+import { OptimizedImage } from '../../components/ui/OptimizedImage'
 import { 
   FileText, 
   Plus, 
@@ -41,10 +42,11 @@ const ExamCard = ({
         onClick={() => navigate(`/exams/${exam.id}/edit`)}
       >
         {exam.image_url ? (
-          <img
+          <OptimizedImage
             src={exam.image_url}
             alt={exam.name}
             className="w-full h-full object-cover"
+            fallbackIcon={<FileText className="h-16 w-16 text-white/50" />}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">

@@ -10,6 +10,7 @@ import {
   StudyMaterial, 
   MaterialsResponse 
 } from '../../services/studyContentService';
+import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { 
   BookOpen, 
   Plus, 
@@ -42,14 +43,11 @@ const MaterialCard = ({ material, navigate, index = 0 }: MaterialCardProps) => (
       onClick={() => navigate(`/study-contents/${material.id}`)}
     >
       {material.image_url ? (
-        <img
+        <OptimizedImage
           src={material.image_url}
           alt={material.title}
           className="w-full h-full object-cover"
-          onError={(e) => {
-            // Si falla la carga, ocultar la imagen y mostrar el fallback
-            e.currentTarget.style.display = 'none'
-          }}
+          fallbackIcon={<BookOpen className="h-12 w-12 sm:h-16 sm:w-16 text-white/50" />}
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center">

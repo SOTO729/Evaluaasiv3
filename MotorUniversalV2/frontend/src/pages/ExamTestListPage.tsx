@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../services/examService';
+import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { 
   Play, 
   BookOpen, 
@@ -414,10 +415,11 @@ const ExamTestListPage: React.FC = () => {
                     onClick={() => handleTestExam(exam.id, exam.name, totalQuestions, totalExercises)}
                   >
                     {exam.image_url ? (
-                      <img
+                      <OptimizedImage
                         src={exam.image_url}
                         alt={exam.name}
                         className="w-full h-full object-cover"
+                        fallbackIcon={<FileText className="h-12 w-12 sm:h-16 sm:w-16 text-white/50" />}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
