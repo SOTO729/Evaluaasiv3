@@ -64,6 +64,12 @@ export interface DashboardUser {
   full_name: string
   email: string
   role: string
+  document_options: {
+    evaluation_report: boolean
+    certificate: boolean
+    conocer_certificate: boolean
+    digital_badge: boolean
+  }
 }
 
 export interface DashboardData {

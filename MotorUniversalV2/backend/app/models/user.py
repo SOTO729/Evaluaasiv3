@@ -42,6 +42,14 @@ class User(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
     
+    # Opciones de documentos/certificados habilitados para el usuario
+    # El reporte de evaluación está habilitado por default para todos
+    enable_evaluation_report = db.Column(db.Boolean, default=True, nullable=False)
+    # Las siguientes opciones son opcionales y deben habilitarse explícitamente
+    enable_certificate = db.Column(db.Boolean, default=False, nullable=False)
+    enable_conocer_certificate = db.Column(db.Boolean, default=False, nullable=False)
+    enable_digital_badge = db.Column(db.Boolean, default=False, nullable=False)
+    
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -109,7 +117,14 @@ class User(db.Model):
             'is_active': self.is_active,
             'is_verified': self.is_verified,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None
+            'last_login': self.last_login.isoformat() if self.last_login else None,
+            # Opciones de documentos habilitados
+            'document_options': {
+                'evaluation_report': self.enable_evaluation_report,
+                'certificate': self.enable_certificate,
+                'conocer_certificate': self.enable_conocer_certificate,
+                'digital_badge': self.enable_digital_badge
+            }
         }
         
         if include_private:

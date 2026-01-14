@@ -120,6 +120,84 @@ def update_user(user_id):
     }), 200
 
 
+@bp.route('/<string:user_id>/document-options', methods=['PUT'])
+@jwt_required()
+def update_document_options(user_id):
+    """
+    Actualizar opciones de documentos/certificados de un usuario
+    Solo admin puede modificar estas opciones
+    ---
+    tags:
+      - Users
+    security:
+      - Bearer: []
+    parameters:
+      - name: user_id
+        in: path
+        type: string
+        required: true
+      - name: body
+        in: body
+        schema:
+          type: object
+          properties:
+            evaluation_report:
+              type: boolean
+            certificate:
+              type: boolean
+            conocer_certificate:
+              type: boolean
+            digital_badge:
+              type: boolean
+    responses:
+      200:
+        description: Opciones actualizadas
+      403:
+        description: Sin permisos
+      404:
+        description: Usuario no encontrado
+    """
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    # Solo admin puede actualizar opciones de documentos
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Permiso denegado. Solo administradores pueden modificar estas opciones'}), 403
+    
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    
+    data = request.get_json()
+    
+    # Mapeo de campos del request a columnas de BD
+    option_fields = {
+        'evaluation_report': 'enable_evaluation_report',
+        'certificate': 'enable_certificate',
+        'conocer_certificate': 'enable_conocer_certificate',
+        'digital_badge': 'enable_digital_badge'
+    }
+    
+    updated = []
+    for key, db_field in option_fields.items():
+        if key in data and isinstance(data[key], bool):
+            setattr(user, db_field, data[key])
+            updated.append(key)
+    
+    if updated:
+        db.session.commit()
+    
+    return jsonify({
+        'message': f'Opciones actualizadas: {", ".join(updated)}' if updated else 'No se realizaron cambios',
+        'document_options': {
+            'evaluation_report': user.enable_evaluation_report,
+            'certificate': user.enable_certificate,
+            'conocer_certificate': user.enable_conocer_certificate,
+            'digital_badge': user.enable_digital_badge
+        }
+    }), 200
+
+
 @bp.route('/me/dashboard', methods=['GET'])
 @jwt_required()
 def get_dashboard():

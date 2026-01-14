@@ -4,9 +4,16 @@ import { FileText, BadgeCheck, Download, Eye, Search, Calendar, CheckCircle, Clo
 import { dashboardService } from '../../services/dashboardService'
 import { useAuthStore } from '../../store/authStore'
 import LoadingSpinner from '../../components/LoadingSpinner'
-  
+ 
 interface DashboardData {
-  user: any
+  user: {
+    document_options?: {
+      evaluation_report: boolean
+      certificate: boolean
+      conocer_certificate: boolean
+      digital_badge: boolean
+    }
+  }
   stats: {
     total_exams: number
     completed_exams: number
@@ -30,6 +37,15 @@ interface DashboardData {
 
 type TabType = 'evaluation-report' | 'approval-certificate' | 'digital-badge' | 'conocer-certificate'
 
+interface TabConfig {
+  id: TabType
+  name: string
+  icon: null
+  iconImage: string
+  description: string
+  enableKey: keyof NonNullable<DashboardData['user']['document_options']>
+}
+
 const CertificatesPage = () => {
   const [activeTab, setActiveTab] = useState<TabType>('evaluation-report')
   const [searchTerm, setSearchTerm] = useState('')
@@ -40,36 +56,59 @@ const CertificatesPage = () => {
     queryFn: () => dashboardService.getDashboard()
   })
 
-  const tabs = [
+  // Opciones de documentos del usuario (con defaults)
+  const documentOptions = dashboardData?.user?.document_options || {
+    evaluation_report: true,
+    certificate: false,
+    conocer_certificate: false,
+    digital_badge: false
+  }
+
+  const allTabs: TabConfig[] = [
     {
       id: 'evaluation-report' as TabType,
       name: 'Reporte de Evaluación',
       icon: null,
       iconImage: '/images/evaluaasi-icon.png',
-      description: 'Certificado con el detalle de tus evaluaciones realizadas'
+      description: 'Certificado con el detalle de tus evaluaciones realizadas',
+      enableKey: 'evaluation_report'
     },
     {
       id: 'approval-certificate' as TabType,
       name: 'Certificado de Evaluación',
       icon: null,
       iconImage: '/images/eduit-logo.png',
-      description: 'Certificado de evaluación de exámenes'
+      description: 'Certificado de evaluación de exámenes',
+      enableKey: 'certificate'
     },
     {
       id: 'digital-badge' as TabType,
       name: 'Insignia Digital',
       icon: null,
       iconImage: '/images/evaluaasi-old.png',
-      description: 'Insignias digitales verificables'
+      description: 'Insignias digitales verificables',
+      enableKey: 'digital_badge'
     },
     {
       id: 'conocer-certificate' as TabType,
       name: 'Certificado CONOCER',
       icon: null,
       iconImage: '/images/conocer-icon.png',
-      description: 'Certificados emitidos por CONOCER México'
+      description: 'Certificados emitidos por CONOCER México',
+      enableKey: 'conocer_certificate'
     }
   ]
+
+  // Filtrar tabs según las opciones habilitadas del usuario
+  const tabs = allTabs.filter(tab => documentOptions[tab.enableKey])
+
+  // Asegurarse de que el tab activo sea válido
+  useEffect(() => {
+    const validTabIds = tabs.map(t => t.id)
+    if (!validTabIds.includes(activeTab) && tabs.length > 0) {
+      setActiveTab(tabs[0].id)
+    }
+  }, [tabs, activeTab])
 
   // Filtrar exámenes según el tab activo
   const getFilteredExams = () => {
@@ -133,64 +172,72 @@ const CertificatesPage = () => {
           </div>
         </div>
 
-        {/* Stats - 4 tipos de certificados */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-          <button 
-            onClick={() => setActiveTab('evaluation-report')}
-            className={`bg-white/10 rounded-xl p-4 text-left transition-all hover:bg-white/20 ${activeTab === 'evaluation-report' ? 'ring-2 ring-white/50' : ''}`}
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <img 
-                src="/images/evaluaasi-icon.png" 
-                alt="Reporte de Evaluación" 
-                className="w-8 h-8 object-contain brightness-0 invert"
-              />
-              <div className="text-2xl font-bold">{dashboardData?.exams?.filter(e => e.user_stats.attempts > 0).length || 0}</div>
-            </div>
-            <div className="text-primary-200 text-sm">Reportes de Evaluación</div>
-          </button>
-          <button 
-            onClick={() => setActiveTab('approval-certificate')}
-            className={`bg-white/10 rounded-xl p-4 text-left transition-all hover:bg-white/20 ${activeTab === 'approval-certificate' ? 'ring-2 ring-white/50' : ''}`}
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <img 
-                src="/images/eduit-logo.png" 
-                alt="Certificado de Evaluación" 
-                className="w-8 h-8 object-contain brightness-0 invert"
-              />
-              <div className="text-2xl font-bold">{dashboardData?.stats.approved_exams || 0}</div>
-            </div>
-            <div className="text-primary-200 text-sm">Certificados de Evaluación</div>
-          </button>
-          <button 
-            onClick={() => setActiveTab('digital-badge')}
-            className={`bg-white/10 rounded-xl p-4 text-left transition-all hover:bg-white/20 ${activeTab === 'digital-badge' ? 'ring-2 ring-white/50' : ''}`}
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <img 
-                src="/images/evaluaasi-old.png" 
-                alt="Insignia Digital" 
-                className="w-8 h-8 object-contain brightness-0 invert"
-              />
-              <div className="text-2xl font-bold">{dashboardData?.stats.approved_exams || 0}</div>
-            </div>
-            <div className="text-primary-200 text-sm">Insignias Digitales</div>
-          </button>
-          <button 
-            onClick={() => setActiveTab('conocer-certificate')}
-            className={`bg-white/10 rounded-xl p-4 text-left transition-all hover:bg-white/20 ${activeTab === 'conocer-certificate' ? 'ring-2 ring-white/50' : ''}`}
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <img 
-                src="/images/conocer-icon.png" 
-                alt="Certificado CONOCER" 
-                className="w-8 h-8 object-contain brightness-0 invert"
-              />
-              <div className="text-2xl font-bold">{dashboardData?.stats.approved_exams || 0}</div>
-            </div>
-            <div className="text-primary-200 text-sm">Certificados CONOCER</div>
-          </button>
+        {/* Stats - Solo mostrar tipos de documentos habilitados */}
+        <div className={`grid gap-4 mt-6 ${tabs.length <= 2 ? 'grid-cols-2' : tabs.length === 3 ? 'grid-cols-3' : 'grid-cols-2 md:grid-cols-4'}`}>
+          {documentOptions.evaluation_report && (
+            <button 
+              onClick={() => setActiveTab('evaluation-report')}
+              className={`bg-white/10 rounded-xl p-4 text-left transition-all hover:bg-white/20 ${activeTab === 'evaluation-report' ? 'ring-2 ring-white/50' : ''}`}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <img 
+                  src="/images/evaluaasi-icon.png" 
+                  alt="Reporte de Evaluación" 
+                  className="w-8 h-8 object-contain brightness-0 invert"
+                />
+                <div className="text-2xl font-bold">{dashboardData?.exams?.filter(e => e.user_stats.attempts > 0).length || 0}</div>
+              </div>
+              <div className="text-primary-200 text-sm">Reportes de Evaluación</div>
+            </button>
+          )}
+          {documentOptions.certificate && (
+            <button 
+              onClick={() => setActiveTab('approval-certificate')}
+              className={`bg-white/10 rounded-xl p-4 text-left transition-all hover:bg-white/20 ${activeTab === 'approval-certificate' ? 'ring-2 ring-white/50' : ''}`}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <img 
+                  src="/images/eduit-logo.png" 
+                  alt="Certificado de Evaluación" 
+                  className="w-8 h-8 object-contain brightness-0 invert"
+                />
+                <div className="text-2xl font-bold">{dashboardData?.stats.approved_exams || 0}</div>
+              </div>
+              <div className="text-primary-200 text-sm">Certificados de Evaluación</div>
+            </button>
+          )}
+          {documentOptions.digital_badge && (
+            <button 
+              onClick={() => setActiveTab('digital-badge')}
+              className={`bg-white/10 rounded-xl p-4 text-left transition-all hover:bg-white/20 ${activeTab === 'digital-badge' ? 'ring-2 ring-white/50' : ''}`}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <img 
+                  src="/images/evaluaasi-old.png" 
+                  alt="Insignia Digital" 
+                  className="w-8 h-8 object-contain brightness-0 invert"
+                />
+                <div className="text-2xl font-bold">{dashboardData?.stats.approved_exams || 0}</div>
+              </div>
+              <div className="text-primary-200 text-sm">Insignias Digitales</div>
+            </button>
+          )}
+          {documentOptions.conocer_certificate && (
+            <button 
+              onClick={() => setActiveTab('conocer-certificate')}
+              className={`bg-white/10 rounded-xl p-4 text-left transition-all hover:bg-white/20 ${activeTab === 'conocer-certificate' ? 'ring-2 ring-white/50' : ''}`}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <img 
+                  src="/images/conocer-icon.png" 
+                  alt="Certificado CONOCER" 
+                  className="w-8 h-8 object-contain brightness-0 invert"
+                />
+                <div className="text-2xl font-bold">{dashboardData?.stats.approved_exams || 0}</div>
+              </div>
+              <div className="text-primary-200 text-sm">Certificados CONOCER</div>
+            </button>
+          )}
         </div>
       </div>
 
@@ -556,16 +603,25 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
 } 
  
 // Sección de Certificados CONOCER
-const ConocerCertificateSection = ({ formatDate }: { exams: any[], formatDate: (date: string) => string }) => {
+const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], formatDate: (date: string) => string }) => {
   const [certificates, setCertificates] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [downloadingId, setDownloadingId] = useState<number | null>(null)
   const [rehydratingId, setRehydratingId] = useState<number | null>(null)
   const { accessToken } = useAuthStore()
   
+  // Verificar si el usuario tiene al menos un examen aprobado
+  const hasApprovedExams = exams.some(exam => exam.user_stats.is_approved)
+  
   // Cargar certificados CONOCER del usuario
   useEffect(() => {
     const fetchCertificates = async () => {
+      // Solo cargar certificados si hay exámenes aprobados
+      if (!hasApprovedExams) {
+        setIsLoading(false)
+        return
+      }
+      
       try {
         const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.azurewebsites.net/api'
         const response = await fetch(`${apiUrl}/conocer/certificates`, {
@@ -588,7 +644,7 @@ const ConocerCertificateSection = ({ formatDate }: { exams: any[], formatDate: (
     if (accessToken) {
       fetchCertificates()
     }
-  }, [accessToken])
+  }, [accessToken, hasApprovedExams])
   
   const handleDownloadCertificate = async (certificate: any) => {
     setDownloadingId(certificate.id)
@@ -671,7 +727,20 @@ const ConocerCertificateSection = ({ formatDate }: { exams: any[], formatDate: (
       </div>
 
       {/* Certificates List */}
-      {certificates.length === 0 ? (
+      {!hasApprovedExams ? (
+        <div className="text-center py-12">
+          <div className="w-20 h-20 mx-auto mb-4 rounded-full overflow-hidden bg-yellow-100 p-4">
+            <Award className="w-full h-full text-yellow-500" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Requisito previo: Aprobar un examen</h3>
+          <p className="text-gray-500 mb-4">
+            Para acceder a certificados CONOCER, primero debes aprobar al menos una evaluación en la plataforma.
+          </p>
+          <p className="text-sm text-gray-400">
+            Una vez que apruebes un examen, podrás solicitar tu certificado CONOCER si está disponible para tu evaluación.
+          </p>
+        </div>
+      ) : certificates.length === 0 ? (
         <div className="text-center py-12">
           <div className="w-20 h-20 mx-auto mb-4 rounded-full overflow-hidden bg-gray-100 p-2">
             <img 
@@ -683,6 +752,10 @@ const ConocerCertificateSection = ({ formatDate }: { exams: any[], formatDate: (
           <h3 className="text-lg font-medium text-gray-900 mb-2">Sin certificados CONOCER</h3>
           <p className="text-gray-500 mb-4">
             Los certificados CONOCER se emiten después de completar el proceso de evaluación oficial.
+          </p>
+          <p className="text-sm text-green-600 mb-4">
+            ✓ Ya tienes {exams.filter(e => e.user_stats.is_approved).length} examen(es) aprobado(s). 
+            Contacta a tu institución para solicitar tu certificado CONOCER.
           </p>
           <a 
             href="https://conocer.gob.mx" 
