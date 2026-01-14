@@ -15,6 +15,9 @@ class Result(db.Model):
     voucher_id = db.Column(db.Integer, db.ForeignKey('vouchers.id'), nullable=True)  # Nullable para permitir resultados sin voucher
     exam_id = db.Column(db.Integer, nullable=False)
     
+    # Relación con Estándar de Competencia (ECM) - los resultados se asocian al ECM
+    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id'), nullable=True)
+    
     # Resultado
     score = db.Column(db.Integer, nullable=False)  # Puntaje obtenido (0-100)
     status = db.Column(db.Integer, default=0, nullable=False)  # 0=en proceso, 1=completado, 2=abandonado
@@ -43,6 +46,9 @@ class Result(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Relación con el estándar de competencia
+    competency_standard = db.relationship('CompetencyStandard', backref='results')
+    
     def __init__(self, **kwargs):
         super(Result, self).__init__(**kwargs)
         if not self.id:
@@ -64,6 +70,7 @@ class Result(db.Model):
         data = {
             'id': self.id,
             'exam_id': self.exam_id,
+            'competency_standard_id': self.competency_standard_id,
             'score': self.score,
             'status': self.status,
             'result': self.result,
@@ -74,6 +81,14 @@ class Result(db.Model):
             'certificate_url': self.certificate_url,
             'report_url': self.report_url
         }
+        
+        # Incluir info del estándar de competencia si existe
+        if self.competency_standard:
+            data['competency_standard'] = {
+                'id': self.competency_standard.id,
+                'code': self.competency_standard.code,
+                'name': self.competency_standard.name
+            }
         
         if include_details:
             data['answers_data'] = self.answers_data

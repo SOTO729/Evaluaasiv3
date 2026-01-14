@@ -49,6 +49,7 @@ def create_app(config_name='development'):
     from app.routes import auth, exams, users, health, init, reset, debug
     from app.routes.study_contents import study_contents_bp
     from app.routes.conocer import conocer_bp
+    from app.routes.standards import standards_bp
     
     app.register_blueprint(auth.bp, url_prefix='/api/auth')
     app.register_blueprint(exams.bp, url_prefix='/api/exams')
@@ -59,6 +60,7 @@ def create_app(config_name='development'):
     app.register_blueprint(debug.debug_bp, url_prefix='/api')
     app.register_blueprint(study_contents_bp, url_prefix='/api/study-contents')
     app.register_blueprint(conocer_bp, url_prefix='/api/conocer')
+    app.register_blueprint(standards_bp, url_prefix='/api/competency-standards')
     
     # Verificar y agregar columna label_style si no existe
     with app.app_context():

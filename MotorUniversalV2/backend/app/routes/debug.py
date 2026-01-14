@@ -6,6 +6,50 @@ import inspect
 
 debug_bp = Blueprint('debug', __name__)
 
+@debug_bp.route('/test-conocer-upload', methods=['GET'])
+def test_conocer_upload():
+    """Probar el servicio de upload de CONOCER"""
+    try:
+        from app.services.conocer_blob_service import get_conocer_blob_service, FallbackBlobService
+        from app.utils.azure_storage import azure_storage
+        
+        result = {
+            'azure_storage_configured': azure_storage is not None,
+            'azure_storage_has_blob_client': azure_storage.blob_service_client is not None if azure_storage else False,
+            'azure_storage_container': azure_storage.container_name if azure_storage else None,
+        }
+        
+        # Obtener el servicio
+        blob_service = get_conocer_blob_service()
+        result['conocer_service_type'] = type(blob_service).__name__
+        
+        if isinstance(blob_service, FallbackBlobService):
+            result['fallback_has_blob_client'] = blob_service.blob_client is not None
+            result['fallback_container'] = blob_service.container_name
+        
+        # Intentar un upload de prueba pequeño
+        test_content = b"test pdf content"
+        try:
+            blob_name, file_hash, size = blob_service.upload_certificate(
+                file_content=test_content,
+                user_id="test-user",
+                certificate_number="TEST-001",
+                standard_code="TEST"
+            )
+            result['test_upload_success'] = True
+            result['test_blob_name'] = blob_name[:80] if blob_name else None
+        except Exception as e:
+            result['test_upload_success'] = False
+            result['test_upload_error'] = str(e)
+        
+        return jsonify(result)
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        })
+
 @debug_bp.route('/check-study-topic-model', methods=['GET'])
 def check_study_topic_model():
     """Verificar el modelo StudyTopic"""

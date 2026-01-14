@@ -26,6 +26,7 @@ from app.models.student_progress import (
     StudentTopicProgress
 )
 from app.models.conocer_certificate import ConocerCertificate
+from app.models.competency_standard import CompetencyStandard, DeletionRequest
 
 __all__ = [
     'User',
@@ -50,5 +51,7 @@ __all__ = [
     'StudyInteractiveExerciseAction',
     'StudentContentProgress',
     'StudentTopicProgress',
-    'ConocerCertificate'
+    'ConocerCertificate',
+    'CompetencyStandard',
+    'DeletionRequest'
 ]

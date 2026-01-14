@@ -39,6 +39,12 @@ const CertificatesPage = lazy(() => import('./pages/certificates/CertificatesPag
 const EvaluationReportDetailPage = lazy(() => import('./pages/certificates/EvaluationReportDetailPage'))
 const ResultDetailPage = lazy(() => import('./pages/certificates/ResultDetailPage'))
 
+// Standards (ECM)
+const StandardsListPage = lazy(() => import('./pages/standards/StandardsListPage'))
+const StandardFormPage = lazy(() => import('./pages/standards/StandardFormPage'))
+const StandardDetailPage = lazy(() => import('./pages/standards/StandardDetailPage'))
+const DeletionRequestsPage = lazy(() => import('./pages/standards/DeletionRequestsPage'))
+
 function App() {
   const { isAuthenticated } = useAuthStore()
 
@@ -96,6 +102,13 @@ function App() {
               <Route path="/study-contents/create" element={<StudyContentCreatePage />} />
               <Route path="/study-contents/:id" element={<StudyContentDetailPage />} />
               <Route path="/study-contents/:id/edit" element={<StudyContentCreatePage />} />
+              
+              {/* Standards (ECM) */}
+              <Route path="/standards" element={<StandardsListPage />} />
+              <Route path="/standards/new" element={<StandardFormPage />} />
+              <Route path="/standards/deletion-requests" element={<DeletionRequestsPage />} />
+              <Route path="/standards/:id" element={<StandardDetailPage />} />
+              <Route path="/standards/:id/edit" element={<StandardFormPage />} />
               <Route path="/study-contents/:id/sessions/:sessionId/topics/:topicId/interactive" element={<StudyInteractiveExercisePage />} />
               
               {/* Certificates */}

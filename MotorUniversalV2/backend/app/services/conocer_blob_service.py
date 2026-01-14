@@ -14,18 +14,20 @@ ResourceNotFoundError = None
 ResourceExistsError = None
 generate_blob_sas = None
 BlobSasPermissions = None
+ContentSettings = None
 
 
 def _lazy_load_azure():
     """Cargar módulos de Azure de forma perezosa"""
-    global BlobServiceClient, StandardBlobTier, ResourceNotFoundError, ResourceExistsError, generate_blob_sas, BlobSasPermissions
+    global BlobServiceClient, StandardBlobTier, ResourceNotFoundError, ResourceExistsError, generate_blob_sas, BlobSasPermissions, ContentSettings
     
     if BlobServiceClient is None:
         from azure.storage.blob import (
             BlobServiceClient as BSC,
             StandardBlobTier as SBT,
             generate_blob_sas as GBS,
-            BlobSasPermissions as BSP
+            BlobSasPermissions as BSP,
+            ContentSettings as CS
         )
         from azure.core.exceptions import (
             ResourceNotFoundError as RNFE,
@@ -37,6 +39,7 @@ def _lazy_load_azure():
         ResourceExistsError = REE
         generate_blob_sas = GBS
         BlobSasPermissions = BSP
+        ContentSettings = CS
 
 
 class ConocerBlobService:
@@ -172,10 +175,10 @@ class ConocerBlobService:
         blob_client.upload_blob(
             file_content,
             blob_type="BlockBlob",
-            content_settings={
-                'content_type': content_type,
-                'content_disposition': f'attachment; filename="{standard_code}_{certificate_number}.pdf"'
-            },
+            content_settings=ContentSettings(
+                content_type=content_type,
+                content_disposition=f'attachment; filename="{standard_code}_{certificate_number}.pdf"'
+            ),
             metadata=blob_metadata,
             standard_blob_tier=StandardBlobTier.COOL,
             overwrite=True  # Sobrescribir si existe (por ejemplo, actualización)
@@ -436,16 +439,133 @@ class ConocerBlobService:
 _blob_service_instance = None
 
 
-def get_conocer_blob_service() -> ConocerBlobService:
+class FallbackBlobService:
+    """
+    Servicio fallback cuando no hay Azure Storage dedicado para CONOCER.
+    Usa el storage principal de la aplicación (azure_storage).
+    """
+    CONTAINER_CERTIFICATES = 'conocer-certificates'
+    
+    def __init__(self):
+        self.storage = None
+        self.blob_client = None
+        self.container_name = None
+        self._init_storage()
+    
+    def _init_storage(self):
+        """Inicializar el storage de forma lazy"""
+        try:
+            from app.utils.azure_storage import azure_storage
+            if azure_storage and azure_storage.blob_service_client:
+                self.storage = azure_storage
+                self.blob_client = azure_storage.blob_service_client
+                self.container_name = azure_storage.container_name
+                print("FallbackBlobService: Conectado a Azure Storage principal")
+            else:
+                print("FallbackBlobService: Azure Storage no disponible")
+        except Exception as e:
+            print(f"FallbackBlobService: Error inicializando storage: {e}")
+    
+    def _generate_blob_name(self, user_id: str, certificate_number: str, standard_code: str) -> str:
+        from datetime import datetime
+        now = datetime.utcnow()
+        return f"conocer-certificates/{now.year}/{now.month:02d}/{user_id}/{standard_code}_{certificate_number}.pdf"
+    
+    def _calculate_file_hash(self, file_content: bytes) -> str:
+        return hashlib.sha256(file_content).hexdigest()
+    
+    def upload_certificate(
+        self,
+        file_content: bytes,
+        user_id: str,
+        certificate_number: str,
+        standard_code: str,
+        content_type: str = 'application/pdf',
+        metadata: dict = None
+    ):
+        """Subir certificado usando el storage principal directamente"""
+        if not file_content:
+            raise ValueError("El archivo está vacío")
+        
+        blob_name = self._generate_blob_name(user_id, certificate_number, standard_code)
+        file_hash = self._calculate_file_hash(file_content)
+        file_size = len(file_content)
+        
+        # Reintentar init si no está disponible
+        if not self.blob_client:
+            self._init_storage()
+        
+        if self.blob_client and self.container_name:
+            try:
+                from azure.storage.blob import ContentSettings
+                
+                # Subir directamente usando el blob_client
+                blob_client = self.blob_client.get_blob_client(
+                    container=self.container_name,
+                    blob=blob_name
+                )
+                
+                blob_client.upload_blob(
+                    file_content,
+                    overwrite=True,
+                    content_settings=ContentSettings(
+                        content_type=content_type,
+                        content_disposition=f'attachment; filename="{standard_code}_{certificate_number}.pdf"'
+                    )
+                )
+                
+                # La URL completa del blob
+                blob_url = blob_client.url
+                print(f"FallbackBlobService: Certificado subido: {blob_url[:60]}...")
+                
+                return blob_url, file_hash, file_size
+                    
+            except Exception as e:
+                import traceback
+                print(f"FallbackBlobService: Error subiendo archivo: {e}")
+                print(traceback.format_exc())
+                raise Exception(f"Error al subir certificado: {e}")
+        else:
+            raise Exception("Azure Storage no está configurado o no hay blob_client")
+    
+    def download_certificate(self, blob_name: str):
+        """Descargar certificado"""
+        if blob_name and blob_name.startswith('http'):
+            import requests
+            try:
+                response = requests.get(blob_name, timeout=30)
+                if response.status_code == 200:
+                    return response.content, {'content_type': 'application/pdf'}
+            except Exception as e:
+                print(f"FallbackBlobService: Error descargando: {e}")
+        raise Exception("Certificado no disponible")
+    
+    def get_blob_status(self, blob_name: str):
+        """Retorna estado dummy para fallback"""
+        return {
+            'tier': 'Hot', 
+            'rehydration_status': None,
+            'is_fallback': True
+        }
+
+
+def get_conocer_blob_service():
     """
     Obtener instancia del servicio de blob storage (singleton)
+    Usa FallbackBlobService si no hay connection string específica de CONOCER
     
     Returns:
-        Instancia de ConocerBlobService
+        Instancia de ConocerBlobService o FallbackBlobService
     """
     global _blob_service_instance
     
     if _blob_service_instance is None:
-        _blob_service_instance = ConocerBlobService()
+        # Intentar crear el servicio principal
+        try:
+            _blob_service_instance = ConocerBlobService()
+        except (ValueError, Exception) as e:
+            # Si falla, usar el fallback
+            print(f"Usando FallbackBlobService: {e}")
+            _blob_service_instance = FallbackBlobService()
     
     return _blob_service_instance

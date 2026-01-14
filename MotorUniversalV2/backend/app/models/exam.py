@@ -12,14 +12,17 @@ class Exam(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
-    version = db.Column(db.String(50), nullable=False)  # Código ECM - ampliado para permitir códigos más largos
-    standard = db.Column(db.String(15))
+    version = db.Column(db.String(50), nullable=False)  # Versión del examen (ej: 1.0, 2.0)
+    standard = db.Column(db.String(15))  # Deprecated: usar competency_standard_id
     stage_id = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text)
     instructions = db.Column(db.Text)
     duration_minutes = db.Column(db.Integer)  # Duración en minutos
     passing_score = db.Column(db.Integer, default=70)  # Puntaje mínimo para aprobar
     image_url = db.Column(db.Text)  # URL o base64 de la imagen del examen
+    
+    # Relación con Estándar de Competencia (ECM)
+    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id'), nullable=True)
     
     # Estado
     is_active = db.Column(db.Boolean, default=True, nullable=False)
@@ -62,6 +65,7 @@ class Exam(db.Model):
             'name': self.name,
             'version': self.version,
             'standard': self.standard,
+            'competency_standard_id': self.competency_standard_id,
             'stage_id': self.stage_id,
             'description': self.description,
             'duration_minutes': self.duration_minutes,
@@ -76,6 +80,14 @@ class Exam(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'categories': [{'id': cat.id, 'name': cat.name, 'percentage': cat.percentage} for cat in categories_list]  # Siempre incluir resumen de categorías
         }
+        
+        # Incluir info del estándar de competencia si existe
+        if self.competency_standard:
+            data['competency_standard'] = {
+                'id': self.competency_standard.id,
+                'code': self.competency_standard.code,
+                'name': self.competency_standard.name
+            }
         
         if include_details:
             data['instructions'] = self.instructions

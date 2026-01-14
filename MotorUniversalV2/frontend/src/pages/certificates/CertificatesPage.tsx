@@ -905,22 +905,16 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
                       Folio: {cert.certificate_number}
-                    </p>
+                    </p>  
                     
                     <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-600">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
                         Emisión: {formatDate(cert.issue_date)}
                       </span>
-                      {cert.expiration_date && (
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          Vence: {formatDate(cert.expiration_date)}
-                        </span>
-                      )}
-                      <span className={`flex items-center gap-1 ${cert.status === 'active' && !cert.is_expired ? 'text-green-600' : 'text-red-600'}`}>
+                      <span className={`flex items-center gap-1 ${cert.status === 'active' ? 'text-green-600' : 'text-red-600'}`}>
                         <CheckCircle className="w-4 h-4" />
-                        {cert.status === 'active' && !cert.is_expired ? 'Vigente' : 'Vencido'}
+                        {cert.status === 'active' ? 'Vigente' : 'Inactivo'}
                       </span>
                       {cert.evaluation_center_name && (
                         <span className="text-xs text-gray-400">
@@ -973,7 +967,7 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
             </div>
           ))}
         </div>
-      )}
+      )}          
 
       {/* Process Info */}
       <div className="bg-gray-50 rounded-xl p-4 sm:p-6">
