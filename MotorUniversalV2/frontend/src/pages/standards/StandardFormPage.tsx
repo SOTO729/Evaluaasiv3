@@ -10,6 +10,51 @@ import {
   CreateStandardDTO,
 } from '../../services/standardsService';
 
+// Componente de notificación toast
+interface ToastProps {
+  message: string;
+  type: 'success' | 'error';
+  onClose: () => void;
+}
+
+const Toast = ({ message, type, onClose }: ToastProps) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className="fixed top-4 right-4 z-50 animate-slide-in">
+      <div className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${
+        type === 'success' 
+          ? 'bg-green-600 text-white' 
+          : 'bg-red-600 text-white'
+      }`}>
+        {type === 'success' ? (
+          <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        ) : (
+          <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )}
+        <span className="font-medium">{message}</span>
+        <button
+          onClick={onClose}
+          className="ml-2 hover:opacity-80 transition-opacity"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export default function StandardFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -18,6 +63,7 @@ export default function StandardFormPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [formData, setFormData] = useState<CreateStandardDTO>({
     code: '',
     name: '',
@@ -70,14 +116,16 @@ export default function StandardFormPage() {
     try {
       if (isEditing) {
         await updateStandard(Number(id), formData);
-        alert('Estándar actualizado exitosamente');
+        setToast({ message: '¡Estándar actualizado exitosamente!', type: 'success' });
+        setTimeout(() => navigate('/standards'), 1500);
       } else {
         await createStandard(formData);
-        alert('Estándar creado exitosamente');
+        setToast({ message: '¡Estándar de Competencia creado exitosamente! Ya puedes crear exámenes basados en él.', type: 'success' });
+        setTimeout(() => navigate('/standards'), 2000);
       }
-      navigate('/standards');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al guardar el estándar');
+      setToast({ message: err.response?.data?.error || 'Error al guardar el estándar', type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -92,39 +140,49 @@ export default function StandardFormPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <button
-          onClick={() => navigate('/standards')}
-          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
-        >
-          <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Volver a estándares
-        </button>
-        <h1 className="mt-4 text-2xl font-bold text-gray-900">
-          {isEditing ? 'Editar Estándar' : 'Nuevo Estándar de Competencia'}
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          {isEditing
-            ? 'Actualiza la información del estándar de competencia.'
-            : 'Define un nuevo ECM para crear exámenes basados en él.'}
-        </p>
-      </div>
-
-      {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-          <p className="text-sm text-red-600">{error}</p>
-        </div>
+    <>
+      {/* Toast de notificación */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
+      
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <button
+            onClick={() => navigate('/standards')}
+            className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
+          >
+            <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Volver a estándares
+          </button>
+          <h1 className="mt-4 text-2xl font-bold text-gray-900">
+            {isEditing ? 'Editar Estándar' : 'Nuevo Estándar de Competencia'}
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            {isEditing
+              ? 'Actualiza la información del estándar de competencia.'
+              : 'Define un nuevo ECM para crear exámenes basados en él.'}
+          </p>
+        </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6 bg-white shadow sm:rounded-lg p-6">
-        {/* Código */}
-        <div>
-          <label htmlFor="code" className="block text-sm font-medium text-gray-700">
-            Código del Estándar *
-          </label>
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6 bg-white shadow sm:rounded-lg p-6">
+          {/* Código */}
+          <div>
+            <label htmlFor="code" className="block text-sm font-medium text-gray-700">
+              Código del Estándar *
+            </label>
           <input
             type="text"
             name="code"
@@ -268,7 +326,8 @@ export default function StandardFormPage() {
             {saving ? 'Guardando...' : isEditing ? 'Guardar Cambios' : 'Crear Estándar'}
           </button>
         </div>
-      </form>
-    </div>
+        </form>
+      </div>
+    </>
   );
 }
