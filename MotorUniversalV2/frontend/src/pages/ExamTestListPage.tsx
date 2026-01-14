@@ -348,35 +348,35 @@ const ExamTestListPage: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Play className="h-7 w-7 text-emerald-600" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <Play className="h-6 w-6 sm:h-7 sm:w-7 text-emerald-600" />
             Probar Exámenes
           </h1>
-          <p className="text-gray-600 mt-1">
-            Selecciona un examen para probarlo desde la perspectiva del alumno
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">
+            Selecciona un examen para probarlo
           </p>
         </div>
       </div>
 
       {/* Search */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex gap-4">
+      <div className="bg-white rounded-lg shadow p-3 sm:p-4 mb-4 sm:mb-6">
+        <div className="flex gap-2 sm:gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Buscar exámenes..."
+              placeholder="Buscar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="w-full pl-9 sm:pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm sm:text-base"
             />
           </div>
           <button
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors"
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm sm:text-base"
           >
             Buscar
           </button>
@@ -398,7 +398,7 @@ const ExamTestListPage: React.FC = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {exams.map((exam: any) => {
               const totalQuestions = exam.total_questions || 0;
               const totalExercises = exam.total_exercises || 0;
@@ -410,7 +410,7 @@ const ExamTestListPage: React.FC = () => {
                 >
                   {/* Card Image */}
                   <div 
-                    className="relative h-40 bg-gradient-to-br from-emerald-500 to-teal-600 cursor-pointer"
+                    className="relative h-32 sm:h-40 bg-gradient-to-br from-emerald-500 to-teal-600 cursor-pointer"
                     onClick={() => handleTestExam(exam.id, exam.name, totalQuestions, totalExercises)}
                   >
                     {exam.image_url ? (
@@ -421,13 +421,13 @@ const ExamTestListPage: React.FC = () => {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <FileText className="h-16 w-16 text-white/50" />
+                        <FileText className="h-12 w-12 sm:h-16 sm:w-16 text-white/50" />
                       </div>
                     )}
                     
                     {/* Version Badge */}
-                    <div className="absolute top-3 left-3">
-                      <span className="px-2 py-1 rounded-full text-xs font-mono bg-black/30 text-white">
+                    <div className="absolute top-2 left-2 sm:top-3 sm:left-3">
+                      <span className="px-2 py-1 rounded-full text-[10px] sm:text-xs font-mono bg-black/30 text-white">
                         {exam.version}
                       </span>
                     </div>
@@ -436,9 +436,9 @@ const ExamTestListPage: React.FC = () => {
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                       <button
                         onClick={() => handleTestExam(exam.id, exam.name, totalQuestions, totalExercises)}
-                        className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-90 group-hover:scale-100 bg-white rounded-full p-4 shadow-lg hover:shadow-xl"
+                        className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-90 group-hover:scale-100 bg-white rounded-full p-3 sm:p-4 shadow-lg hover:shadow-xl"
                       >
-                        <Play className="h-8 w-8 text-emerald-600 ml-1" />
+                        <Play className="h-6 w-6 sm:h-8 sm:w-8 text-emerald-600 ml-0.5 sm:ml-1" />
                       </button>
                     </div>
                   </div>
@@ -496,27 +496,27 @@ const ExamTestListPage: React.FC = () => {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="mt-6 flex items-center justify-between bg-white rounded-lg shadow px-6 py-4">
-              <p className="text-sm text-gray-600">
-                Mostrando {exams.length} de {total} exámenes
+            <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white rounded-lg shadow px-4 sm:px-6 py-3 sm:py-4">
+              <p className="text-xs sm:text-sm text-gray-600">
+                {exams.length} de {total}
               </p>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  className="p-1.5 sm:p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
-                  <ChevronLeft className="h-5 w-5" />
+                  <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
-                <span className="px-3 py-1 text-sm">
-                  Página {currentPage} de {totalPages}
+                <span className="px-2 sm:px-3 py-1 text-xs sm:text-sm">
+                  {currentPage} / {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  className="p-1.5 sm:p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
-                  <ChevronRight className="h-5 w-5" />
+                  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
             </div>

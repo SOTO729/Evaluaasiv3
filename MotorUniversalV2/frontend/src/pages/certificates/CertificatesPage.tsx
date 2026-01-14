@@ -157,85 +157,85 @@ const CertificatesPage = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-2xl p-8 text-white">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
-            <Award className="w-8 h-8" />
+      <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-xl sm:rounded-2xl p-4 sm:p-8 text-white">
+        <div className="flex items-center gap-3 sm:gap-4 mb-4">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white/20 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0">
+            <Award className="w-6 h-6 sm:w-8 sm:h-8" />
           </div>
-          <div>
-            <h1 className="text-3xl font-bold">Certificados</h1>
-            <p className="text-primary-100 mt-1">
-              Consulta y descarga tus documentos de acreditación
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-3xl font-bold">Certificados</h1>
+            <p className="text-primary-100 mt-1 text-sm sm:text-base">
+              Consulta y descarga tus documentos
             </p>
           </div>
         </div>
 
         {/* Stats - Solo mostrar tipos de documentos habilitados */}
-        <div className={`grid gap-4 mt-6 ${tabs.length <= 2 ? 'grid-cols-2' : tabs.length === 3 ? 'grid-cols-3' : 'grid-cols-2 md:grid-cols-4'}`}>
+        <div className={`grid gap-2 sm:gap-4 mt-4 sm:mt-6 ${tabs.length <= 2 ? 'grid-cols-2' : tabs.length === 3 ? 'grid-cols-3' : 'grid-cols-2 md:grid-cols-4'}`}>
           {documentOptions.evaluation_report && (
             <button 
               onClick={() => setActiveTab('evaluation-report')}
-              className={`bg-white/10 rounded-xl p-4 text-left transition-all hover:bg-white/20 ${activeTab === 'evaluation-report' ? 'ring-2 ring-white/50' : ''}`}
+              className={`bg-white/10 rounded-lg sm:rounded-xl p-3 sm:p-4 text-left transition-all hover:bg-white/20 ${activeTab === 'evaluation-report' ? 'ring-2 ring-white/50' : ''}`}
             >
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
                 <img 
                   src="/images/evaluaasi-icon.png" 
-                  alt="Reporte de Evaluación" 
-                  className="w-8 h-8 object-contain brightness-0 invert"
+                  alt="Reporte" 
+                  className="w-6 h-6 sm:w-8 sm:h-8 object-contain brightness-0 invert"
                 />
-                <div className="text-2xl font-bold">{dashboardData?.exams?.filter(e => e.user_stats.attempts > 0).length || 0}</div>
+                <div className="text-xl sm:text-2xl font-bold">{dashboardData?.exams?.filter(e => e.user_stats.attempts > 0).length || 0}</div>
               </div>
-              <div className="text-primary-200 text-sm">Reportes de Evaluación</div>
+              <div className="text-primary-200 text-xs sm:text-sm truncate">Reportes</div>
             </button>
           )}
           {documentOptions.certificate && (
             <button 
               onClick={() => setActiveTab('approval-certificate')}
-              className={`bg-white/10 rounded-xl p-4 text-left transition-all hover:bg-white/20 ${activeTab === 'approval-certificate' ? 'ring-2 ring-white/50' : ''}`}
+              className={`bg-white/10 rounded-lg sm:rounded-xl p-3 sm:p-4 text-left transition-all hover:bg-white/20 ${activeTab === 'approval-certificate' ? 'ring-2 ring-white/50' : ''}`}
             >
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
                 <img 
                   src="/images/eduit-logo.png" 
-                  alt="Certificado de Evaluación" 
-                  className="w-8 h-8 object-contain brightness-0 invert"
+                  alt="Certificado" 
+                  className="w-6 h-6 sm:w-8 sm:h-8 object-contain brightness-0 invert"
                 />
-                <div className="text-2xl font-bold">{dashboardData?.stats.approved_exams || 0}</div>
+                <div className="text-xl sm:text-2xl font-bold">{dashboardData?.stats.approved_exams || 0}</div>
               </div>
-              <div className="text-primary-200 text-sm">Certificados de Evaluación</div>
+              <div className="text-primary-200 text-xs sm:text-sm truncate">Certificados</div>
             </button>
           )}
           {documentOptions.digital_badge && (
             <button 
               onClick={() => setActiveTab('digital-badge')}
-              className={`bg-white/10 rounded-xl p-4 text-left transition-all hover:bg-white/20 ${activeTab === 'digital-badge' ? 'ring-2 ring-white/50' : ''}`}
+              className={`bg-white/10 rounded-lg sm:rounded-xl p-3 sm:p-4 text-left transition-all hover:bg-white/20 ${activeTab === 'digital-badge' ? 'ring-2 ring-white/50' : ''}`}
             >
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
                 <img 
                   src="/images/evaluaasi-old.png" 
-                  alt="Insignia Digital" 
-                  className="w-8 h-8 object-contain brightness-0 invert"
+                  alt="Insignia" 
+                  className="w-6 h-6 sm:w-8 sm:h-8 object-contain brightness-0 invert"
                 />
-                <div className="text-2xl font-bold">{dashboardData?.stats.approved_exams || 0}</div>
+                <div className="text-xl sm:text-2xl font-bold">{dashboardData?.stats.approved_exams || 0}</div>
               </div>
-              <div className="text-primary-200 text-sm">Insignias Digitales</div>
+              <div className="text-primary-200 text-xs sm:text-sm truncate">Insignias</div>
             </button>
           )}
           {documentOptions.conocer_certificate && (
             <button 
               onClick={() => setActiveTab('conocer-certificate')}
-              className={`bg-white/10 rounded-xl p-4 text-left transition-all hover:bg-white/20 ${activeTab === 'conocer-certificate' ? 'ring-2 ring-white/50' : ''}`}
+              className={`bg-white/10 rounded-lg sm:rounded-xl p-3 sm:p-4 text-left transition-all hover:bg-white/20 ${activeTab === 'conocer-certificate' ? 'ring-2 ring-white/50' : ''}`}
             >
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
                 <img 
                   src="/images/conocer-icon.png" 
-                  alt="Certificado CONOCER" 
-                  className="w-8 h-8 object-contain brightness-0 invert"
+                  alt="CONOCER" 
+                  className="w-6 h-6 sm:w-8 sm:h-8 object-contain brightness-0 invert"
                 />
-                <div className="text-2xl font-bold">{dashboardData?.stats.approved_exams || 0}</div>
+                <div className="text-xl sm:text-2xl font-bold">{dashboardData?.stats.approved_exams || 0}</div>
               </div>
-              <div className="text-primary-200 text-sm">Certificados CONOCER</div>
+              <div className="text-primary-200 text-xs sm:text-sm truncate">CONOCER</div>
             </button>
           )}
         </div>
@@ -250,18 +250,18 @@ const CertificatesPage = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 min-w-[200px] flex items-center justify-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-all ${
+                  className={`flex-1 min-w-[120px] sm:min-w-[160px] flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-all ${
                     activeTab === tab.id
                       ? 'border-primary-600 text-primary-600 bg-primary-50'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
                   {tab.iconImage && (
-                    <div className="w-6 h-6 rounded flex items-center justify-center">
+                    <div className="w-5 h-5 sm:w-6 sm:h-6 rounded flex items-center justify-center flex-shrink-0">
                       <img 
                         src={tab.iconImage} 
                         alt={tab.name} 
-                        className={`w-5 h-5 object-contain ${
+                        className={`w-4 h-4 sm:w-5 sm:h-5 object-contain ${
                           activeTab !== tab.id ? 'grayscale opacity-60' : ''
                         }`}
                         style={activeTab === tab.id && (tab.id === 'evaluation-report' || tab.id === 'approval-certificate' || tab.id === 'digital-badge') ? { 
@@ -270,7 +270,7 @@ const CertificatesPage = () => {
                       />
                     </div>
                   )}
-                  <span className="whitespace-nowrap">{tab.name}</span>
+                  <span className="whitespace-nowrap truncate">{tab.name}</span>
                 </button>
               )
             })}
@@ -278,14 +278,14 @@ const CertificatesPage = () => {
         </div>
 
         {/* Tab Content */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* Search */}
-          <div className="mb-6">
+          <div className="mb-4 sm:mb-6">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Buscar documento de acreditación..."
+                placeholder="Buscar..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
@@ -976,10 +976,9 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
       )}
 
       {/* Process Info */}
-      <div className="bg-gray-50 rounded-xl p-6">
-        <h4 className="font-semibold text-gray-900 mb-2">¿Cómo obtener un certificado CONOCER?</h4>
-        <p className="text-sm text-gray-500 mb-4 text-center">¡Así de fácil!</p>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="bg-gray-50 rounded-xl p-4 sm:p-6">
+        <h4 className="font-semibold text-gray-900 mb-4 text-center">¿Cómo obtener un certificado CONOCER?</h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <div className="text-center">
             <div className="w-12 h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-2 font-bold">
               1
