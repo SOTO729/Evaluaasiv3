@@ -601,6 +601,144 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
     </div>
   )
 } 
+
+// Componente de Línea del Tiempo para Certificado CONOCER
+const ConocerTimeline = ({ currentStep, approvedExamsCount }: { currentStep: 1 | 2 | 3, approvedExamsCount: number }) => {
+  const steps = [
+    {
+      id: 1,
+      title: 'Aprobar Evaluación',
+      description: 'Debes aprobar al menos una evaluación en la plataforma para iniciar el proceso de certificación CONOCER.',
+      icon: CheckCircle,
+      activeMessage: 'Completa y aprueba una evaluación para continuar con el proceso.'
+    },
+    {
+      id: 2,
+      title: 'Trámite en Proceso',
+      description: 'Una vez aprobada la evaluación, se inicia el trámite oficial ante CONOCER. Este proceso puede tomar varias semanas.',
+      icon: Clock,
+      activeMessage: `¡Felicidades! Has aprobado ${approvedExamsCount} evaluación(es). Tu trámite de certificación está siendo procesado.`
+    },
+    {
+      id: 3,
+      title: 'Certificado Disponible',
+      description: 'Cuando el trámite concluya, podrás consultar y descargar tu certificado CONOCER oficial.',
+      icon: Award,
+      activeMessage: 'Tu certificado CONOCER está listo para consultar y descargar.'
+    }
+  ]
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <h3 className="text-lg font-semibold text-gray-900 mb-6 text-center">
+        Proceso de Certificación CONOCER
+      </h3>
+      
+      {/* Timeline */}
+      <div className="relative">
+        {/* Línea conectora */}
+        <div className="absolute left-8 top-8 bottom-8 w-0.5 bg-gray-200 hidden md:block" />
+        
+        <div className="space-y-6 md:space-y-8">
+          {steps.map((step) => {
+            const isCompleted = step.id < currentStep
+            const isCurrent = step.id === currentStep
+            const isPending = step.id > currentStep
+            const StepIcon = step.icon
+            
+            return (
+              <div key={step.id} className="relative flex flex-col md:flex-row gap-4">
+                {/* Círculo del paso */}
+                <div className={`
+                  relative z-10 flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center
+                  transition-all duration-300
+                  ${isCompleted 
+                    ? 'bg-green-500 text-white shadow-lg shadow-green-200' 
+                    : isCurrent 
+                      ? 'bg-blue-500 text-white shadow-lg shadow-blue-200 ring-4 ring-blue-100 animate-pulse' 
+                      : 'bg-gray-100 text-gray-400 border-2 border-gray-200'
+                  }
+                `}>
+                  {isCompleted ? (
+                    <CheckCircle className="w-8 h-8" />
+                  ) : (
+                    <StepIcon className="w-8 h-8" />
+                  )}
+                </div>
+                
+                {/* Contenido del paso */}
+                <div className={`flex-1 pb-4 md:pb-0 ${isPending ? 'opacity-50' : ''}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      isCompleted 
+                        ? 'bg-green-100 text-green-700' 
+                        : isCurrent 
+                          ? 'bg-blue-100 text-blue-700' 
+                          : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      Paso {step.id}
+                    </span>
+                    {isCompleted && (
+                      <span className="text-xs text-green-600 font-medium">✓ Completado</span>
+                    )}
+                    {isCurrent && (
+                      <span className="text-xs text-blue-600 font-medium">● En progreso</span>
+                    )}
+                  </div>
+                  
+                  <h4 className={`font-semibold mb-1 ${
+                    isCompleted ? 'text-green-700' : isCurrent ? 'text-blue-700' : 'text-gray-500'
+                  }`}>
+                    {step.title}
+                  </h4>
+                  
+                  <p className="text-sm text-gray-500 mb-2">
+                    {step.description}
+                  </p>
+                  
+                  {isCurrent && (
+                    <div className={`mt-3 p-3 rounded-lg ${
+                      currentStep === 1 
+                        ? 'bg-yellow-50 border border-yellow-200' 
+                        : 'bg-blue-50 border border-blue-200'
+                    }`}>
+                      <p className={`text-sm font-medium ${
+                        currentStep === 1 ? 'text-yellow-800' : 'text-blue-800'
+                      }`}>
+                        {step.activeMessage}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+      
+      {/* Información adicional */}
+      <div className="mt-8 pt-6 border-t border-gray-200">
+        <div className="flex items-start gap-3 text-sm text-gray-500">
+          <ExternalLink className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="mb-2">
+              El proceso de certificación CONOCER es gestionado por el Consejo Nacional de Normalización 
+              y Certificación de Competencias Laborales del Gobierno de México.
+            </p>
+            <a 
+              href="https://conocer.gob.mx" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary-600 hover:text-primary-800 font-medium"
+            >
+              Más información en conocer.gob.mx →
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
  
 // Sección de Certificados CONOCER
 const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], formatDate: (date: string) => string }) => {
@@ -728,45 +866,9 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
 
       {/* Certificates List */}
       {!hasApprovedExams ? (
-        <div className="text-center py-12">
-          <div className="w-20 h-20 mx-auto mb-4 rounded-full overflow-hidden bg-yellow-100 p-4">
-            <Award className="w-full h-full text-yellow-500" />
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Requisito previo: Aprobar un examen</h3>
-          <p className="text-gray-500 mb-4">
-            Para acceder a certificados CONOCER, primero debes aprobar al menos una evaluación en la plataforma.
-          </p>
-          <p className="text-sm text-gray-400">
-            Una vez que apruebes un examen, podrás solicitar tu certificado CONOCER si está disponible para tu evaluación.
-          </p>
-        </div>
+        <ConocerTimeline currentStep={1} approvedExamsCount={0} />
       ) : certificates.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="w-20 h-20 mx-auto mb-4 rounded-full overflow-hidden bg-gray-100 p-2">
-            <img 
-              src="/images/conocer-logo.png" 
-              alt="CONOCER Logo" 
-              className="w-full h-full object-contain opacity-50"
-            />
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Sin certificados CONOCER</h3>
-          <p className="text-gray-500 mb-4">
-            Los certificados CONOCER se emiten después de completar el proceso de evaluación oficial.
-          </p>
-          <p className="text-sm text-green-600 mb-4">
-            ✓ Ya tienes {exams.filter(e => e.user_stats.is_approved).length} examen(es) aprobado(s). 
-            Contacta a tu institución para solicitar tu certificado CONOCER.
-          </p>
-          <a 
-            href="https://conocer.gob.mx" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-800 font-medium"
-          >
-            Conocer más sobre la certificación
-            <ExternalLink className="w-4 h-4" />
-          </a>
-        </div>
+        <ConocerTimeline currentStep={2} approvedExamsCount={exams.filter(e => e.user_stats.is_approved).length} />
       ) : (
         <div className="space-y-4">
           {certificates.map((cert) => (
