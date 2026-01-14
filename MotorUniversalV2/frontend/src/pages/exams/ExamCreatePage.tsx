@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
 import { examService } from '../../services/examService'
+import { getStandards, CompetencyStandard } from '../../services/standardsService'
 import type { CreateExamData, CreateCategoryData } from '../../types'
 
 type CreationMode = 'scratch' | 'copy'
@@ -34,10 +35,21 @@ const ExamCreatePage = () => {
   const [creationMode, setCreationMode] = useState<CreationMode>('scratch')
   const [selectedExamToCopy, setSelectedExamToCopy] = useState<ExamListItem | null>(null)
   
+  // Estándar de competencia seleccionado
+  const [selectedStandard, setSelectedStandard] = useState<CompetencyStandard | null>(null)
+  const [standardError, setStandardError] = useState<string | null>(null)
+  
   // Cargar lista de exámenes para copiar
   const { data: examsData } = useQuery({
     queryKey: ['exams'],
     queryFn: () => examService.getExams(),
+    enabled: true,
+  })
+  
+  // Cargar lista de estándares de competencia (ECM)
+  const { data: standardsData, isLoading: loadingStandards } = useQuery({
+    queryKey: ['competency-standards'],
+    queryFn: () => getStandards({ active_only: true }),
     enabled: true,
   })
   
@@ -58,33 +70,35 @@ const ExamCreatePage = () => {
   ])
   
   // Errores de validación
-  const [versionError, setVersionError] = useState<string | null>(null)
   const [nameError, setNameError] = useState<string | null>(null)
   const [durationError, setDurationError] = useState<string | null>(null)
   const [passingScoreError, setPassingScoreError] = useState<string | null>(null)
   const [percentageError, setPercentageError] = useState<string | null>(null)
   const [moduleErrors, setModuleErrors] = useState<ModuleInputErrors[]>([{}])
   
-  // Validar código ECM
-  const validateVersion = (value: string): boolean => {
-    if (!value || value.trim() === '') {
-      setVersionError('El código ECM es requerido')
+  // Validar estándar de competencia seleccionado
+  const validateStandard = (): boolean => {
+    if (!selectedStandard) {
+      setStandardError('Debes seleccionar un Estándar de Competencia (ECM)')
       return false
     }
-    
-    if (!value.includes('ECM')) {
-      setVersionError('El código debe contener "ECM"')
-      return false
-    }
-    
-    // Debe tener exactamente 7 caracteres en total
-    if (value.length !== 7) {
-      setVersionError('El código debe tener exactamente 7 caracteres (incluyendo ECM)')
-      return false
-    }
-    
-    setVersionError(null)
+    setStandardError(null)
     return true
+  }
+  
+  // Manejar selección de estándar
+  const handleStandardChange = (standardId: string) => {
+    if (!standardId) {
+      setSelectedStandard(null)
+      setFormData({ ...formData, version: '' })
+      return
+    }
+    const standard = standardsData?.standards?.find((s: CompetencyStandard) => s.id === Number(standardId))
+    if (standard) {
+      setSelectedStandard(standard)
+      setFormData({ ...formData, version: standard.code })
+      setStandardError(null)
+    }
   }
   
   // Validar nombre del examen
@@ -274,7 +288,7 @@ const ExamCreatePage = () => {
     setError(null)
     
     // Validaciones comunes
-    if (!validateVersion(formData.version)) {
+    if (!validateStandard()) {
       return
     }
     
@@ -293,7 +307,8 @@ const ExamCreatePage = () => {
         setLoading(true)
         await examService.cloneExam(selectedExamToCopy.id, {
           name: formData.name,
-          version: formData.version
+          version: formData.version,
+          competency_standard_id: selectedStandard?.id
         })
         // Redirigir a la lista de exámenes para ver el nuevo examen
         navigate('/exams')
@@ -343,7 +358,8 @@ const ExamCreatePage = () => {
         ...formData,
         standard: 'ECM',
         stage_id: 1,
-        categories: modules
+        categories: modules,
+        competency_standard_id: selectedStandard?.id
       }
       
       await examService.createExam(examData)
@@ -558,30 +574,53 @@ const ExamCreatePage = () => {
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Código ECM */}
-            <div className="md:col-span-1">
+            {/* Estándar de Competencia (ECM) */}
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Código ECM <span className="text-red-600">*</span>
+                Estándar de Competencia (ECM) <span className="text-red-600">*</span>
               </label>
-              <input
-                type="text"
-                value={formData.version}
-                onChange={(e) => {
-                  const value = e.target.value.toUpperCase()
-                  setFormData({ ...formData, version: value })
-                  validateVersion(value)
-                }}
-                onBlur={(e) => validateVersion(e.target.value)}
-                className={`input ${versionError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
-                placeholder="Ej: ECM2024"
-                maxLength={7}
+              <select
+                value={selectedStandard?.id || ''}
+                onChange={(e) => handleStandardChange(e.target.value)}
+                className={`input ${standardError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                 required
-              />
-              {versionError && (
-                <p className="text-red-600 text-xs mt-1 font-medium">{versionError}</p>
+              >
+                <option value="">
+                  {loadingStandards ? 'Cargando estándares...' : '-- Selecciona un ECM --'}
+                </option>
+                {standardsData?.standards?.map((standard: CompetencyStandard) => (
+                  <option key={standard.id} value={standard.id}>
+                    {standard.code} - {standard.name}
+                  </option>
+                ))}
+              </select>
+              {standardError && (
+                <p className="text-red-600 text-xs mt-1 font-medium">{standardError}</p>
               )}
-              {!versionError && formData.version && (
-                <p className="text-green-600 text-xs mt-1 font-medium">✓ Código válido</p>
+              {selectedStandard && (
+                <div className="mt-2 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <svg className="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-indigo-900">{selectedStandard.code}: {selectedStandard.name}</p>
+                      {selectedStandard.description && (
+                        <p className="text-xs text-indigo-700 mt-1">{selectedStandard.description}</p>
+                      )}
+                      <div className="flex gap-3 mt-1 text-xs text-indigo-600">
+                        {selectedStandard.sector && <span>Sector: {selectedStandard.sector}</span>}
+                        {selectedStandard.level && <span>Nivel: {selectedStandard.level}</span>}
+                        <span>Vigencia: {selectedStandard.validity_years} años</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {!loadingStandards && (!standardsData?.standards || standardsData.standards.length === 0) && (
+                <p className="text-amber-600 text-xs mt-1">
+                  No hay estándares disponibles. <a href="/standards/new" className="underline font-medium">Crear uno primero</a>
+                </p>
               )}
             </div>
             
@@ -880,7 +919,7 @@ const ExamCreatePage = () => {
             className="btn btn-primary"
             disabled={
               loading || 
-              !!versionError || 
+              !!standardError || 
               !!nameError || 
               (creationMode === 'scratch' && (!!durationError || !!passingScoreError || !!percentageError)) ||
               (creationMode === 'copy' && !selectedExamToCopy)

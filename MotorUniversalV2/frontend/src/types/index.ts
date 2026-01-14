@@ -169,6 +169,7 @@ export interface CreateExamData {
   passing_score?: number
   image_url?: string  // URL o base64 de la imagen del examen
   categories: CreateCategoryData[]
+  competency_standard_id?: number  // ID del estándar de competencia (ECM)
 }
 
 export interface CreateCategoryData {

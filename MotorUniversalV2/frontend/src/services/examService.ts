@@ -32,7 +32,7 @@ export const examService = {
     return response.data
   },
 
-  cloneExam: async (id: number, data?: { name?: string; version?: string }): Promise<{ message: string; exam: Exam }> => {
+  cloneExam: async (id: number, data?: { name?: string; version?: string; competency_standard_id?: number }): Promise<{ message: string; exam: Exam }> => {
     const response = await api.post<{ message: string; exam: Exam }>(`/exams/${id}/clone`, data || {})
     return response.data
   },

@@ -290,6 +290,7 @@ def create_exam():
             duration_minutes=data.get('duration_minutes'),
             passing_score=data.get('passing_score', 70),
             image_url=data.get('image_url'),
+            competency_standard_id=data.get('competency_standard_id'),
             created_by=user_id
         )
         
@@ -365,6 +366,7 @@ def clone_exam(exam_id):
             duration_minutes=original_exam.duration_minutes,
             passing_score=original_exam.passing_score,
             image_url=original_exam.image_url,
+            competency_standard_id=data.get('competency_standard_id', original_exam.competency_standard_id),
             is_active=True,
             is_published=False,  # Siempre como borrador
             created_by=user_id
