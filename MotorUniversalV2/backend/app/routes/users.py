@@ -204,6 +204,10 @@ def get_dashboard():
     """
     Obtener datos del dashboard del usuario actual
     Incluye exámenes disponibles, resultados y materiales de estudio
+    
+    IMPORTANTE: Los resultados se agrupan por ECM (competency_standard_id) cuando
+    el examen tiene uno asociado, permitiendo ver el historial unificado de todas
+    las versiones de examen para ese estándar de competencia.
     """
     try:
         user_id = get_jwt_identity()
@@ -218,18 +222,35 @@ def get_dashboard():
         # Obtener resultados del usuario
         user_results = Result.query.filter_by(user_id=str(user_id)).order_by(Result.created_at.desc()).all()
         
-        # Crear diccionario de resultados por examen para fácil acceso
-        results_by_exam = {}
+        # Crear diccionarios de resultados por ECM y por exam_id
+        # Prioridad: ECM > exam_id (para exámenes sin ECM)
+        results_by_ecm = {}
+        results_by_exam = {}  # Para exámenes legacy sin ECM
+        
         for result in user_results:
-            exam_id = result.exam_id
-            if exam_id not in results_by_exam:
-                results_by_exam[exam_id] = []
-            results_by_exam[exam_id].append(result.to_dict())
+            # Si el resultado tiene ECM, agruparlo por ECM
+            if result.competency_standard_id:
+                ecm_id = result.competency_standard_id
+                if ecm_id not in results_by_ecm:
+                    results_by_ecm[ecm_id] = []
+                results_by_ecm[ecm_id].append(result.to_dict())
+            else:
+                # Fallback: agrupar por exam_id (legacy)
+                exam_id = result.exam_id
+                if exam_id not in results_by_exam:
+                    results_by_exam[exam_id] = []
+                results_by_exam[exam_id].append(result.to_dict())
         
         # Construir lista de exámenes con resultados
         exams_data = []
         for exam in available_exams:
-            exam_results = results_by_exam.get(exam.id, [])
+            # Obtener resultados según ECM o exam_id
+            if exam.competency_standard_id and exam.competency_standard_id in results_by_ecm:
+                # Usar resultados del ECM (historial unificado de todas las versiones)
+                exam_results = results_by_ecm.get(exam.competency_standard_id, [])
+            else:
+                # Fallback: usar resultados por exam_id (legacy)
+                exam_results = results_by_exam.get(exam.id, [])
             
             # Calcular estadísticas del examen
             best_score = max([r['score'] for r in exam_results], default=None)
@@ -256,6 +277,7 @@ def get_dashboard():
                 'passing_score': exam.passing_score,
                 'is_published': exam.is_published,
                 'categories_count': categories_count,
+                'competency_standard_id': exam.competency_standard_id,  # Incluir ECM ID
                 # Resultados del usuario
                 'user_stats': {
                     'attempts': attempts,

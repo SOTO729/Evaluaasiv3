@@ -319,7 +319,7 @@ const TopicDetailPage = () => {
       </button>
 
       {/* Header con gradiente */}
-      <div className="sticky top-0 z-10 bg-gradient-to-b from-gray-50 via-gray-50 to-transparent pt-4 pb-2 -mx-4 px-4 md:-mx-6 md:px-6">
+      <div className="sticky top-0 z-30 bg-gradient-to-b from-gray-50 via-gray-50 to-transparent pt-4 pb-2 -mx-4 px-4 md:-mx-6 md:px-6">
         {/* Título con fondo destacado */}
         <div className="mb-4 bg-gradient-to-r from-blue-600 via-cyan-600 to-emerald-600 rounded-xl p-5 shadow-lg shadow-blue-500/20">
           <div className="flex items-center gap-3">
@@ -380,7 +380,7 @@ const TopicDetailPage = () => {
         </div>
 
         {/* Pestañas modernas */}
-        <div className="bg-white rounded-t-xl border border-b-0 border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-t-xl border border-b-0 border-gray-200 shadow-sm overflow-hidden relative z-30">
           <nav className="flex" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('questions')}
@@ -437,181 +437,191 @@ const TopicDetailPage = () => {
       </div>
 
       {/* Contenido de las pestañas */}
-      <div className="bg-white rounded-b-xl border border-t-0 border-gray-200 shadow-sm mb-6">
+      <div className="bg-white rounded-b-xl border border-t-0 border-gray-200 shadow-sm mb-6 relative z-10">
         {/* Contenido de la pestaña Preguntas */}
         {activeTab === 'questions' && (
-          <div className="p-6 animate-fadeSlideIn overflow-hidden">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Preguntas</h2>
-                <p className="text-sm text-gray-500 mt-1">Gestiona las preguntas de este tema</p>
-              </div>
-              <button 
-                onClick={() => setIsCreateModalOpen(true)}
-                className="inline-flex items-center px-4 py-2.5 bg-blue-600 text-white font-medium rounded-xl shadow-lg shadow-blue-500/25 hover:bg-blue-700 transition-all duration-200 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Nueva Pregunta
-              </button>
-            </div>
-
-            {isLoadingQuestions ? (
-              <LoadingSpinner message="Cargando preguntas..." />
-            ) : questions.length === 0 ? (
-              <div className="text-center py-16 px-4">
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-blue-100 mb-6">
-                  <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+          <div className="animate-fadeSlideIn">
+            {/* Header FIJO - NO hace scroll */}
+            <div className="p-6 pb-4 border-b border-gray-100 bg-white">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Preguntas</h2>
+                  <p className="text-sm text-gray-500 mt-1">Gestiona las preguntas de este tema</p>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay preguntas creadas</h3>
-                <p className="text-gray-500 mb-6 max-w-sm mx-auto">Comienza agregando tu primera pregunta para este tema</p>
                 <button 
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  className="inline-flex items-center px-4 py-2.5 bg-blue-600 text-white font-medium rounded-xl shadow-lg shadow-blue-500/25 hover:bg-blue-700 transition-all duration-200 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5"
                 >
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /> 
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
-                  Crear primera pregunta
+                  Nueva Pregunta
                 </button>
               </div>
-            ) : (
-              <div className="rounded-xl border border-gray-200 overflow-hidden">
-                <div className="max-h-[400px] overflow-y-auto overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10">
-                <tr>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-16">
-                    #
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-44">
-                    Tipo
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider w-28">
-                    Modo
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Pregunta
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider w-24">
-                    Estado
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider w-28">
-                    Acciones
-                  </th>
-                </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-100">
-                      {questions.map((question, index) => (
-                        <tr 
-                          key={question.id} 
-                          onClick={() => {
-                            if (question.question_type?.name === 'true_false') {
-                              navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/answer`)
-                            } else if (question.question_type?.name === 'multiple_choice') {
-                              navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/multiple-choice`)
-                            } else if (question.question_type?.name === 'multiple_select') {
-                              navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/multiple-select`)
-                            } else if (question.question_type?.name === 'ordering') {
-                              navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/ordering`)
-                            }
-                    }}
-                    className={`group hover:bg-blue-100/60 transition-colors duration-150 ${
-                      question.question_type?.name === 'true_false' || 
-                      question.question_type?.name === 'multiple_choice' || 
-                      question.question_type?.name === 'multiple_select' || 
-                      question.question_type?.name === 'ordering' ? 'cursor-pointer' : ''
-                    }`}
+            </div>
+
+            {/* Contenido - ESTE tiene scroll */}
+            {isLoadingQuestions ? (
+              <div className="p-6">
+                <LoadingSpinner message="Cargando preguntas..." />
+              </div>
+            ) : questions.length === 0 ? (
+              <div className="p-6">
+                <div className="text-center py-16 px-4">
+                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-blue-100 mb-6">
+                    <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay preguntas creadas</h3>
+                  <p className="text-gray-500 mb-6 max-w-sm mx-auto">Comienza agregando tu primera pregunta para este tema</p>
+                  <button 
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-blue-100 text-blue-700 font-bold text-sm shadow-sm">
-                        {index + 1}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
-                        {getQuestionTypeName(question.question_type?.name || '')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <select
-                        value={question.type || 'exam'}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => {
-                          e.stopPropagation()
-                          updateQuestionMutation.mutate({ 
-                            id: question.id, 
-                            data: { type: e.target.value as 'exam' | 'simulator' } 
-                          })
-                        }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200 ${
-                          question.type === 'simulator' 
-                            ? 'bg-amber-100 text-amber-700 border-amber-300' 
-                            : 'bg-teal-100 text-teal-700 border-teal-300'
-                        }`}
-                      >
-                        <option value="exam">📝 Examen</option>
-                        <option value="simulator">🎮 Simulador</option>
-                      </select>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div 
-                        className="text-gray-700 prose prose-sm max-w-none line-clamp-2"
-                        dangerouslySetInnerHTML={{ __html: question.question_text }}
-                      />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      {questionAnswers[question.id] ? (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-gradient-to-r from-green-50 to-emerald-100 text-green-700 border border-green-200/50">
-                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                          Listo
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200/50">
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Pendiente
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleEdit(question)
-                          }}
-                          className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-all duration-200"
-                          title="Editar pregunta"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDelete(question)
-                          }}
-                          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
-                          title="Eliminar pregunta"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                    </tbody>
-                  </table>
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /> 
+                    </svg>
+                    Crear primera pregunta
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-6 pt-4">
+                <div className="rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="max-h-[350px] overflow-y-auto overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-100 sticky top-0 z-10">
+                        <tr>
+                          <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-16 bg-gray-100">
+                            #
+                          </th>
+                          <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-44 bg-gray-100">
+                            Tipo
+                          </th>
+                          <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider w-28 bg-gray-100">
+                            Modo
+                          </th>
+                          <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider bg-gray-100">
+                            Pregunta
+                          </th>
+                          <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider w-24 bg-gray-100">
+                            Estado
+                          </th>
+                          <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider w-28 bg-gray-100">
+                            Acciones
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-100">
+                        {questions.map((question, index) => (
+                          <tr 
+                            key={question.id} 
+                            onClick={() => {
+                              if (question.question_type?.name === 'true_false') {
+                                navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/answer`)
+                              } else if (question.question_type?.name === 'multiple_choice') {
+                                navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/multiple-choice`)
+                              } else if (question.question_type?.name === 'multiple_select') {
+                                navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/multiple-select`)
+                              } else if (question.question_type?.name === 'ordering') {
+                                navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/ordering`)
+                              }
+                            }}
+                            className={`group hover:bg-blue-100/60 transition-colors duration-150 ${
+                              question.question_type?.name === 'true_false' || 
+                              question.question_type?.name === 'multiple_choice' || 
+                              question.question_type?.name === 'multiple_select' || 
+                              question.question_type?.name === 'ordering' ? 'cursor-pointer' : ''
+                            }`}
+                          >
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-blue-100 text-blue-700 font-bold text-sm shadow-sm">
+                                {index + 1}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+                                {getQuestionTypeName(question.question_type?.name || '')}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                              <select
+                                value={question.type || 'exam'}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => {
+                                  e.stopPropagation()
+                                  updateQuestionMutation.mutate({ 
+                                    id: question.id, 
+                                    data: { type: e.target.value as 'exam' | 'simulator' } 
+                                  })
+                                }}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200 ${
+                                  question.type === 'simulator' 
+                                    ? 'bg-amber-100 text-amber-700 border-amber-300' 
+                                    : 'bg-teal-100 text-teal-700 border-teal-300'
+                                }`}
+                              >
+                                <option value="exam">📝 Examen</option>
+                                <option value="simulator">🎮 Simulador</option>
+                              </select>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div 
+                                className="text-gray-700 prose prose-sm max-w-none line-clamp-2"
+                                dangerouslySetInnerHTML={{ __html: question.question_text }}
+                              />
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                              {questionAnswers[question.id] ? (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-gradient-to-r from-green-50 to-emerald-100 text-green-700 border border-green-200/50">
+                                  <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                  Listo
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200/50">
+                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  Pendiente
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleEdit(question)
+                                  }}
+                                  className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-all duration-200"
+                                  title="Editar pregunta"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDelete(question)
+                                  }}
+                                  className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
+                                  title="Eliminar pregunta"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
@@ -620,70 +630,79 @@ const TopicDetailPage = () => {
 
         {/* Contenido de la pestaña Ejercicios */}
         {activeTab === 'exercises' && (
-          <div className="p-6 animate-fadeSlideIn">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Ejercicios Interactivos</h2>
-                <p className="text-sm text-gray-500 mt-1">Gestiona los ejercicios paso a paso de este tema</p>
-              </div>
-              <button 
-                onClick={() => setIsCreateExerciseModalOpen(true)}
-                className="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-medium shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 hover:from-violet-600 hover:to-purple-700 transform hover:-translate-y-0.5 transition-all duration-200"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Crear Ejercicio
-              </button>
-            </div>
-
-            {isLoadingExercises ? (
-              <LoadingSpinner message="Cargando ejercicios..." />
-            ) : exercises.length === 0 ? (
-              <div className="text-center py-16 px-4">
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-200 mb-6">
-                  <svg className="w-10 h-10 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
+          <div className="animate-fadeSlideIn">
+            {/* Header FIJO - NO hace scroll */}
+            <div className="p-6 pb-4 border-b border-gray-100 bg-white">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Ejercicios Interactivos</h2>
+                  <p className="text-sm text-gray-500 mt-1">Gestiona los ejercicios paso a paso de este tema</p>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay ejercicios creados</h3>
-                <p className="text-gray-500 mb-6 max-w-sm mx-auto">Los ejercicios interactivos permiten a los estudiantes practicar con pasos guiados</p>
                 <button 
                   onClick={() => setIsCreateExerciseModalOpen(true)}
-                  className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-medium shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 hover:from-violet-600 hover:to-purple-700 transform hover:-translate-y-0.5 transition-all duration-200"
+                  className="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-medium shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 hover:from-violet-600 hover:to-purple-700 transform hover:-translate-y-0.5 transition-all duration-200"
                 >
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
-                  Crear Primer Ejercicio
+                  Crear Ejercicio
                 </button>
               </div>
+            </div>
+
+            {/* Contenido - ESTE tiene scroll */}
+            {isLoadingExercises ? (
+              <div className="p-6">
+                <LoadingSpinner message="Cargando ejercicios..." />
+              </div>
+            ) : exercises.length === 0 ? (
+              <div className="p-6">
+                <div className="text-center py-16 px-4">
+                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-200 mb-6">
+                    <svg className="w-10 h-10 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay ejercicios creados</h3>
+                  <p className="text-gray-500 mb-6 max-w-sm mx-auto">Los ejercicios interactivos permiten a los estudiantes practicar con pasos guiados</p>
+                  <button 
+                    onClick={() => setIsCreateExerciseModalOpen(true)}
+                    className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-medium shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 hover:from-violet-600 hover:to-purple-700 transform hover:-translate-y-0.5 transition-all duration-200"
+                  >
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Crear Primer Ejercicio
+                  </button>
+                </div>
+              </div>
             ) : (
-              <div className="rounded-xl border border-gray-200 overflow-hidden">
-                <div className="max-h-[400px] overflow-y-auto overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10">
-                      <tr>
-                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider w-16">
-                          #
-                        </th>
-                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                          Ejercicio
-                        </th>
-                        <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-32">
-                          Tipo
-                        </th>
-                        <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-24">
-                          Pasos
-                        </th>
-                        <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-32">
-                          Estado
-                        </th>
-                        <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider w-36">
-                          Acciones
-                        </th>
-                      </tr>
-                    </thead>
+              <div className="p-6 pt-4">
+                <div className="rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="max-h-[350px] overflow-y-auto overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-100 sticky top-0 z-10">
+                        <tr>
+                          <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider w-16 bg-gray-100">
+                            #
+                          </th>
+                          <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider bg-gray-100">
+                            Ejercicio
+                          </th>
+                          <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-32 bg-gray-100">
+                            Tipo
+                          </th>
+                          <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-24 bg-gray-100">
+                            Pasos
+                          </th>
+                          <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-32 bg-gray-100">
+                            Estado
+                          </th>
+                          <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider w-36 bg-gray-100">
+                            Acciones
+                          </th>
+                        </tr>
+                      </thead>
                     <tbody className="bg-white divide-y divide-gray-100">
                       {exercises.map((exercise: any, index: number) => (
                         <tr 
@@ -778,8 +797,9 @@ const TopicDetailPage = () => {
                         </td>
                       </tr>
                     ))}
-                    </tbody>
-                  </table>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}

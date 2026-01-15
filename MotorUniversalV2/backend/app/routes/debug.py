@@ -592,3 +592,121 @@ def ensure_ecm_tables():
             'error': str(e),
             'traceback': traceback.format_exc()
         })
+
+
+@debug_bp.route('/migrate-results-to-ecm', methods=['POST'])
+def migrate_results_to_ecm():
+    """
+    Migrar resultados existentes para asociarlos al ECM de su examen.
+    
+    Esto permite que los resultados históricos se agrupen por ECM,
+    manteniendo el historial unificado entre versiones de examen.
+    """
+    from app import db
+    from app.models.result import Result
+    from app.models.exam import Exam
+    from sqlalchemy import text
+    import traceback
+    
+    try:
+        # Contar resultados que necesitan migración
+        results_to_migrate = Result.query.filter(
+            Result.competency_standard_id.is_(None)
+        ).all()
+        
+        total_to_migrate = len(results_to_migrate)
+        migrated = 0
+        skipped = 0
+        errors = []
+        
+        for result in results_to_migrate:
+            try:
+                # Obtener el examen asociado
+                exam = Exam.query.get(result.exam_id)
+                
+                if exam and exam.competency_standard_id:
+                    # Actualizar el resultado con el ECM del examen
+                    result.competency_standard_id = exam.competency_standard_id
+                    migrated += 1
+                else:
+                    # El examen no tiene ECM asociado
+                    skipped += 1
+                    
+            except Exception as e:
+                errors.append({
+                    'result_id': result.id,
+                    'exam_id': result.exam_id,
+                    'error': str(e)
+                })
+        
+        # Guardar cambios
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'total_to_migrate': total_to_migrate,
+            'migrated': migrated,
+            'skipped': skipped,
+            'errors': errors[:10] if errors else [],  # Mostrar máximo 10 errores
+            'total_errors': len(errors)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        })
+
+
+@debug_bp.route('/results-ecm-status', methods=['GET'])
+def results_ecm_status():
+    """
+    Obtener el estado actual de los resultados respecto a ECM
+    """
+    from app import db
+    from app.models.result import Result
+    from sqlalchemy import func
+    import traceback
+    
+    try:
+        total_results = Result.query.count()
+        results_with_ecm = Result.query.filter(
+            Result.competency_standard_id.isnot(None)
+        ).count()
+        results_without_ecm = Result.query.filter(
+            Result.competency_standard_id.is_(None)
+        ).count()
+        
+        # Muestra de resultados sin ECM
+        sample_without_ecm = []
+        results_sample = Result.query.filter(
+            Result.competency_standard_id.is_(None)
+        ).limit(5).all()
+        
+        for r in results_sample:
+            from app.models.exam import Exam
+            exam = Exam.query.get(r.exam_id)
+            sample_without_ecm.append({
+                'result_id': r.id[:8] + '...',
+                'exam_id': r.exam_id,
+                'exam_has_ecm': exam.competency_standard_id if exam else None,
+                'created_at': r.created_at.isoformat() if r.created_at else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'total_results': total_results,
+            'results_with_ecm': results_with_ecm,
+            'results_without_ecm': results_without_ecm,
+            'percentage_migrated': round(results_with_ecm / total_results * 100, 2) if total_results > 0 else 0,
+            'sample_without_ecm': sample_without_ecm
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        })

@@ -2681,11 +2681,14 @@ def save_exam_result(exam_id):
         result_value = 1 if percentage >= passing_score else 0
         
         # Crear el resultado SIN voucher (voucher_id es nullable)
+        # IMPORTANTE: Los resultados se asocian al ECM (competency_standard_id) para 
+        # mantener historial unificado entre versiones de examen
         result = Result(
             id=str(uuid.uuid4()),
             user_id=str(user_id),
             voucher_id=None,  # Sin voucher - campo es nullable
             exam_id=exam_id,
+            competency_standard_id=exam.competency_standard_id,  # Asociar al ECM para historial unificado
             score=int(round(percentage)),
             status=status,
             result=result_value,
@@ -2739,21 +2742,40 @@ def options_save_exam_result(exam_id):
 @jwt_required()
 def get_my_exam_results(exam_id):
     """
-    Obtiene los resultados del usuario actual para un examen específico
+    Obtiene los resultados del usuario actual para un examen específico.
+    
+    IMPORTANTE: Si el examen tiene un ECM asociado, retorna TODOS los resultados
+    de ese ECM (incluyendo resultados de otras versiones del examen), para mantener
+    un historial unificado por estándar de competencia.
     """
     try:
         from app.models.result import Result
         
         user_id = get_jwt_identity()
         
-        results = Result.query.filter_by(
-            user_id=str(user_id),
-            exam_id=exam_id
-        ).order_by(Result.created_at.desc()).all()
+        # Obtener el examen para ver si tiene ECM asociado
+        exam = Exam.query.get(exam_id)
+        if not exam:
+            return jsonify({'error': 'Examen no encontrado'}), 404
+        
+        # Si el examen tiene ECM, buscar resultados por ECM (historial unificado)
+        # Si no tiene ECM, buscar solo por exam_id (comportamiento legacy)
+        if exam.competency_standard_id:
+            results = Result.query.filter_by(
+                user_id=str(user_id),
+                competency_standard_id=exam.competency_standard_id
+            ).order_by(Result.created_at.desc()).all()
+        else:
+            results = Result.query.filter_by(
+                user_id=str(user_id),
+                exam_id=exam_id
+            ).order_by(Result.created_at.desc()).all()
         
         return jsonify({
             'results': [r.to_dict(include_details=True) for r in results],
-            'total': len(results)
+            'total': len(results),
+            'grouped_by': 'ecm' if exam.competency_standard_id else 'exam',
+            'ecm_id': exam.competency_standard_id
         }), 200
         
     except Exception as e:
