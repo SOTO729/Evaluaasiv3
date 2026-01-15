@@ -437,10 +437,10 @@ const TopicDetailPage = () => {
       </div>
 
       {/* Contenido de las pestañas */}
-      <div className="bg-white rounded-b-xl border border-t-0 border-gray-200 shadow-sm mb-6 overflow-hidden">
+      <div className="bg-white rounded-b-xl border border-t-0 border-gray-200 shadow-sm mb-6">
         {/* Contenido de la pestaña Preguntas */}
         {activeTab === 'questions' && (
-          <div className="p-6 animate-fadeSlideIn">
+          <div className="p-6 animate-fadeSlideIn overflow-hidden">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <div>
                 <h2 className="text-xl font-bold text-gray-900">Preguntas</h2>
@@ -479,10 +479,10 @@ const TopicDetailPage = () => {
                 </button>
               </div>
             ) : (
-              <div className="rounded-xl border border-gray-200">
-                <div className="max-h-[500px] overflow-y-auto overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10">
+              <div className="rounded-xl border border-gray-200 overflow-hidden">
+                <div className="max-h-[400px] overflow-y-auto overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10">
                 <tr>
                   <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-16">
                     #
@@ -503,21 +503,21 @@ const TopicDetailPage = () => {
                     Acciones
                   </th>
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
-                {questions.map((question, index) => (
-                  <tr 
-                    key={question.id} 
-                    onClick={() => {
-                      if (question.question_type?.name === 'true_false') {
-                        navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/answer`)
-                      } else if (question.question_type?.name === 'multiple_choice') {
-                        navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/multiple-choice`)
-                      } else if (question.question_type?.name === 'multiple_select') {
-                        navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/multiple-select`)
-                      } else if (question.question_type?.name === 'ordering') {
-                        navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/ordering`)
-                      }
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                      {questions.map((question, index) => (
+                        <tr 
+                          key={question.id} 
+                          onClick={() => {
+                            if (question.question_type?.name === 'true_false') {
+                              navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/answer`)
+                            } else if (question.question_type?.name === 'multiple_choice') {
+                              navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/multiple-choice`)
+                            } else if (question.question_type?.name === 'multiple_select') {
+                              navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/multiple-select`)
+                            } else if (question.question_type?.name === 'ordering') {
+                              navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/ordering`)
+                            }
                     }}
                     className={`group hover:bg-blue-100/60 transition-colors duration-150 ${
                       question.question_type?.name === 'true_false' || 
@@ -610,11 +610,11 @@ const TopicDetailPage = () => {
                     </td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
+                    </tbody>
+                  </table>
                 </div>
               </div>
-        )}
+            )}
           </div>
         )}
 
@@ -659,65 +659,65 @@ const TopicDetailPage = () => {
                 </button>
               </div>
             ) : (
-              <div className="rounded-xl border border-gray-200">
-                <div className="max-h-[500px] overflow-y-auto overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10">
-                    <tr>
-                      <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider w-16">
-                        #
-                      </th>
-                      <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                        Ejercicio
-                      </th>
-                      <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-32">
-                        Tipo
-                      </th>
-                      <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-24">
-                        Pasos
-                      </th>
-                      <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-32">
-                        Estado
-                      </th>
-                      <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider w-36">
-                        Acciones
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-100">
-                    {exercises.map((exercise: any, index: number) => (
-                      <tr 
-                        key={exercise.id} 
-                        className="hover:bg-gradient-to-r hover:from-violet-50/50 hover:to-transparent cursor-pointer transition-all duration-200 group"
-                        onClick={() => handleOpenExerciseEditor(exercise)}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-violet-100 to-purple-200 text-violet-700 font-bold text-sm shadow-sm">
-                            {index + 1}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4"> 
-                          <div 
-                            className="text-gray-900 prose prose-sm max-w-none line-clamp-2 group-hover:text-violet-900 transition-colors"
-                            dangerouslySetInnerHTML={{ __html: exercise.exercise_text }}
-                          />
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <select
-                            value={exercise.type || 'exam'}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => {
-                              e.stopPropagation()
-                              updateExerciseMutation.mutate({ 
-                                id: exercise.id, 
-                                data: { type: e.target.value as 'exam' | 'simulator' } 
-                              })
-                            }}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200 ${
-                              exercise.type === 'simulator' 
-                                ? 'bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200' 
-                                : 'bg-teal-100 text-teal-700 border-teal-300 hover:bg-teal-200'
-                            }`}
+              <div className="rounded-xl border border-gray-200 overflow-hidden">
+                <div className="max-h-[400px] overflow-y-auto overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10">
+                      <tr>
+                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider w-16">
+                          #
+                        </th>
+                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                          Ejercicio
+                        </th>
+                        <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-32">
+                          Tipo
+                        </th>
+                        <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-24">
+                          Pasos
+                        </th>
+                        <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-32">
+                          Estado
+                        </th>
+                        <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider w-36">
+                          Acciones
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                      {exercises.map((exercise: any, index: number) => (
+                        <tr 
+                          key={exercise.id} 
+                          className="hover:bg-gradient-to-r hover:from-violet-50/50 hover:to-transparent cursor-pointer transition-all duration-200 group"
+                          onClick={() => handleOpenExerciseEditor(exercise)}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-violet-100 to-purple-200 text-violet-700 font-bold text-sm shadow-sm">
+                              {index + 1}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4"> 
+                            <div 
+                              className="text-gray-900 prose prose-sm max-w-none line-clamp-2 group-hover:text-violet-900 transition-colors"
+                              dangerouslySetInnerHTML={{ __html: exercise.exercise_text }}
+                            />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <select
+                              value={exercise.type || 'exam'}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                e.stopPropagation()
+                                updateExerciseMutation.mutate({ 
+                                  id: exercise.id, 
+                                  data: { type: e.target.value as 'exam' | 'simulator' } 
+                                })
+                              }}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200 ${
+                                exercise.type === 'simulator' 
+                                  ? 'bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200' 
+                                  : 'bg-teal-100 text-teal-700 border-teal-300 hover:bg-teal-200'
+                              }`}
                           >
                             <option value="exam">📝 Examen</option>
                             <option value="simulator">🎮 Simulador</option>
@@ -778,8 +778,8 @@ const TopicDetailPage = () => {
                         </td>
                       </tr>
                     ))}
-                  </tbody>
-                </table>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
