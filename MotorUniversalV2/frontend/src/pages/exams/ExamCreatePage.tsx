@@ -1,7 +1,7 @@
 import { useState, FormEvent, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 import { examService } from '../../services/examService'
 import { getStandards, CompetencyStandard } from '../../services/standardsService'
 import type { CreateExamData, CreateCategoryData } from '../../types'
@@ -79,7 +79,7 @@ const ExamCreatePage = () => {
   // Validar estándar de competencia seleccionado
   const validateStandard = (): boolean => {
     if (!selectedStandard) {
-      setStandardError('Debes seleccionar un Estándar de Competencia (ECM)')
+      setStandardError('Selecciona un Estándar de Competencia de la lista')
       return false
     }
     setStandardError(null)
@@ -310,11 +310,10 @@ const ExamCreatePage = () => {
           version: formData.version,
           competency_standard_id: selectedStandard?.id
         })
-        // Redirigir a la lista de exámenes para ver el nuevo examen
-        navigate('/exams')
+        // Redirigir a la lista de exámenes y scroll a borradores
+        window.location.href = '/exams?scrollTo=drafts'
       } catch (err: any) {
         setError(err.response?.data?.error || 'Error al copiar el examen')
-      } finally {
         setLoading(false)
       }
       return
@@ -363,10 +362,10 @@ const ExamCreatePage = () => {
       }
       
       await examService.createExam(examData)
-      navigate('/exams')
+      // Redirigir a la lista de exámenes y scroll a borradores
+      window.location.href = '/exams?scrollTo=drafts'
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al crear el examen')
-    } finally {
       setLoading(false)
     }
   }
@@ -401,7 +400,21 @@ const ExamCreatePage = () => {
   }
   
   return (
-    <div className="max-w-4xl mx-auto">
+    <>
+      {/* Modal de carga */}
+      {loading && (
+        <div className="fixed inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50">
+          <div className="text-center p-12">
+            <div className="inline-block animate-spin rounded-full h-16 w-16 border-b-4 border-primary-600"></div>
+            <p className="mt-6 text-xl font-medium text-gray-700">
+              {creationMode === 'copy' ? 'Copiando examen...' : 'Creando examen...'}
+            </p>
+            <p className="mt-2 text-base text-gray-500">Por favor espere</p>
+          </div>
+        </div>
+      )}
+      
+      <div className="max-w-4xl mx-auto">
       <div className="mb-6">
         <button
           onClick={() => navigate('/exams')}
@@ -916,7 +929,7 @@ const ExamCreatePage = () => {
           </button>
           <button
             type="submit"
-            className="btn btn-primary"
+            className="btn btn-primary flex items-center justify-center gap-2"
             disabled={
               loading || 
               !!standardError || 
@@ -925,14 +938,19 @@ const ExamCreatePage = () => {
               (creationMode === 'copy' && !selectedExamToCopy)
             }
           >
-            {loading 
-              ? (creationMode === 'copy' ? 'Copiando...' : 'Creando...') 
-              : (creationMode === 'copy' ? 'Crear Copia' : 'Crear Examen')
-            }
+            {loading ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                {creationMode === 'copy' ? 'Copiando examen...' : 'Creando examen...'}
+              </>
+            ) : (
+              creationMode === 'copy' ? 'Crear Copia' : 'Crear Examen'
+            )}
           </button>
         </div>
       </form>
     </div>
+    </>
   )
 }
 

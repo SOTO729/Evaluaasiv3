@@ -479,9 +479,10 @@ const TopicDetailPage = () => {
                 </button>
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-gray-200">
+              <div className="rounded-xl border border-gray-200">
+                <div className="max-h-[500px] overflow-y-auto overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10">
                 <tr>
                   <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-16">
                     #
@@ -611,7 +612,8 @@ const TopicDetailPage = () => {
                 ))}
               </tbody>
             </table>
-          </div>
+                </div>
+              </div>
         )}
           </div>
         )}
@@ -657,9 +659,10 @@ const TopicDetailPage = () => {
                 </button>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-xl border border-gray-200">
+              <div className="rounded-xl border border-gray-200">
+                <div className="max-h-[500px] overflow-y-auto overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10">
                     <tr>
                       <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider w-16">
                         #
@@ -777,6 +780,7 @@ const TopicDetailPage = () => {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </div>

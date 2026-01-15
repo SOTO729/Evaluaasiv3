@@ -240,6 +240,26 @@ export const examService = {
     return response.data
   },
 
+  checkEcmConflict: async (examId: number): Promise<{
+    has_conflict: boolean;
+    message: string;
+    current_exam?: {
+      id: number;
+      name: string;
+      version: string;
+      ecm_code: string | null;
+    };
+    conflicting_exam?: {
+      id: number;
+      name: string;
+      version: string;
+      is_published: boolean;
+    };
+  }> => {
+    const response = await api.get(`/exams/${examId}/check-ecm-conflict`)
+    return response.data
+  },
+
   publishExam: async (examId: number): Promise<{ message: string; exam: Exam }> => {
     const response = await api.post<{ message: string; exam: Exam }>(`/exams/${examId}/publish`)
     return response.data

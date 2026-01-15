@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { examService } from '../../services/examService'
 import { useAuthStore } from '../../store/authStore'
 import { OptimizedImage } from '../../components/ui/OptimizedImage'
@@ -138,6 +138,8 @@ const ExamCard = ({
 const ExamsListPage = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const draftsRef = useRef<HTMLDivElement>(null)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [examToDelete, setExamToDelete] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -154,6 +156,24 @@ const ExamsListPage = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
+
+  // Scroll a borradores si viene el parámetro
+  useEffect(() => {
+    if (searchParams.get('scrollTo') === 'drafts' && !isLoading && draftsRef.current) {
+      setTimeout(() => {
+        // Calcular posición con offset para ver el título
+        const element = draftsRef.current
+        if (element) {
+          const elementPosition = element.getBoundingClientRect().top + window.pageYOffset
+          const offsetPosition = elementPosition - 100 // 100px de margen superior
+          window.scrollTo({ top: offsetPosition, behavior: 'smooth' })
+        }
+        // Limpiar el parámetro de la URL
+        searchParams.delete('scrollTo')
+        setSearchParams(searchParams, { replace: true })
+      }, 300)
+    }
+  }, [searchParams, isLoading, setSearchParams])
 
 
 
@@ -274,7 +294,7 @@ const ExamsListPage = () => {
 
           {/* Sección de Borradores */}
           {allExams.filter((e: any) => !e.is_published).length > 0 && (
-            <div className="mb-8">
+            <div ref={draftsRef} className="mb-8 scroll-mt-4">
               <div className="flex items-center gap-2 mb-4">
                 <EyeOff className="h-5 w-5 text-gray-500" />
                 <h2 className="text-lg font-semibold text-gray-800">Borradores</h2>

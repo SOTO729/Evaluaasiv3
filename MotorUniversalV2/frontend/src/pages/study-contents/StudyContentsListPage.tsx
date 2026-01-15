@@ -1,8 +1,8 @@
 /**
  * Página de lista de Materiales de Estudio
  */
-import { useState, useEffect } from 'react';
-import { useNavigate, NavigateFunction } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams, NavigateFunction } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import { 
   getMaterials, 
@@ -132,6 +132,24 @@ const StudyContentsListPage = () => {
   const [total, setTotal] = useState(0);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [materialToDelete, setMaterialToDelete] = useState<StudyMaterial | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const draftsRef = useRef<HTMLDivElement>(null);
+
+  // Scroll a borradores si viene el parámetro
+  useEffect(() => {
+    if (searchParams.get('scrollTo') === 'drafts' && !loading && draftsRef.current) {
+      setTimeout(() => {
+        const element = draftsRef.current;
+        if (element) {
+          const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
+          const offsetPosition = elementPosition - 100;
+          window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+        }
+        searchParams.delete('scrollTo');
+        setSearchParams(searchParams, { replace: true });
+      }, 300);
+    }
+  }, [searchParams, loading, setSearchParams]);
 
   const fetchMaterials = async () => {
     setLoading(true);
@@ -265,7 +283,7 @@ const StudyContentsListPage = () => {
 
           {/* Sección de Borradores */}
           {materials.filter(m => !m.is_published).length > 0 && (
-            <div className="mb-6 sm:mb-8">
+            <div ref={draftsRef} className="mb-6 sm:mb-8 scroll-mt-4">
               <div className="flex items-center gap-2 mb-3 sm:mb-4">
                 <EyeOff className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
                 <h2 className="text-base sm:text-lg font-semibold text-gray-800">Borradores</h2>

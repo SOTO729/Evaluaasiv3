@@ -67,6 +67,11 @@ const ExamEditPage = () => {
   
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showPublishModal, setShowPublishModal] = useState(false)
+  const [showEcmConflictModal, setShowEcmConflictModal] = useState(false)
+  const [ecmConflictData, setEcmConflictData] = useState<{
+    current_exam?: { id: number; name: string; version: string; ecm_code: string | null };
+    conflicting_exam?: { id: number; name: string; version: string; is_published: boolean };
+  } | null>(null)
   const [showCreateCategoryModal, setShowCreateCategoryModal] = useState(false)
   const [showDeleteCategoryModal, setShowDeleteCategoryModal] = useState<number | null>(null)
   const [showEditCategoryModal, setShowEditCategoryModal] = useState<number | null>(null)
@@ -324,14 +329,63 @@ const ExamEditPage = () => {
     }
   }
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     console.log('handlePublish called, validationResult:', validationResult)
     if (validationResult?.is_valid) {
-      console.log('Calling publishExamMutation.mutate()')
-      publishExamMutation.mutate()
+      // Verificar conflicto de ECM antes de publicar
+      try {
+        const conflictResult = await examService.checkEcmConflict(Number(id))
+        if (conflictResult.has_conflict) {
+          // Mostrar modal de conflicto
+          setEcmConflictData({
+            current_exam: conflictResult.current_exam,
+            conflicting_exam: conflictResult.conflicting_exam
+          })
+          setShowPublishModal(false)
+          setShowEcmConflictModal(true)
+          return
+        }
+        // No hay conflicto, publicar directamente
+        console.log('Calling publishExamMutation.mutate()')
+        publishExamMutation.mutate()
+      } catch (error: any) {
+        console.error('Error checking ECM conflict:', error)
+        // Si falla la verificación, publicar de todos modos
+        publishExamMutation.mutate()
+      }
     } else {
       console.log('Cannot publish: validation is not valid')
     }
+  }
+
+  // Publicar el examen actual y despublicar el conflictivo
+  const handlePublishAndReplaceConflicting = async () => {
+    if (!ecmConflictData?.conflicting_exam) return
+    
+    try {
+      // Primero despublicar el examen conflictivo
+      await examService.unpublishExam(ecmConflictData.conflicting_exam.id)
+      // Luego publicar el actual
+      publishExamMutation.mutate()
+      setShowEcmConflictModal(false)
+      setEcmConflictData(null)
+    } catch (error: any) {
+      console.error('Error replacing conflicting exam:', error)
+      setToast({
+        message: `Error al reemplazar el examen: ${error.response?.data?.error || error.message || 'Error desconocido'}`,
+        type: 'error'
+      })
+    }
+  }
+
+  // Mantener el examen publicado actual (no hacer nada)
+  const handleKeepConflictingPublished = () => {
+    setShowEcmConflictModal(false)
+    setEcmConflictData(null)
+    setToast({
+      message: 'Publicación cancelada. El examen existente se mantiene publicado.',
+      type: 'success'
+    })
   }
 
   const handleUnpublish = () => {
@@ -1148,6 +1202,87 @@ const ExamEditPage = () => {
                     {publishExamMutation.isPending ? 'Publicando...' : 'Confirmar Publicación'}
                   </button>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Conflicto ECM */}
+      {showEcmConflictModal && ecmConflictData && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowEcmConflictModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-amber-500 to-orange-600 px-6 py-4">
+              <div className="flex items-center">
+                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mr-3">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Conflicto de Código ECM</h3>
+                  <p className="text-amber-100 text-sm mt-1">
+                    Ya existe un examen publicado con este código
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r mb-6">
+                <p className="text-sm text-amber-800">
+                  El código ECM <span className="font-bold">{ecmConflictData.current_exam?.ecm_code}</span> ya está 
+                  asignado a otro examen publicado. Solo puede haber un examen publicado por código ECM.
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                {/* Examen actual (el que se quiere publicar) */}
+                <div className="border-2 border-primary-200 bg-primary-50 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-primary-600 uppercase tracking-wider">Este examen</span>
+                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">Borrador</span>
+                  </div>
+                  <p className="font-semibold text-gray-900">{ecmConflictData.current_exam?.name}</p>
+                  <p className="text-sm text-gray-600">Versión: {ecmConflictData.current_exam?.version}</p>
+                </div>
+                
+                {/* Examen conflictivo (ya publicado) */}
+                <div className="border-2 border-gray-200 bg-white rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Examen existente</span>
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Publicado</span>
+                  </div>
+                  <p className="font-semibold text-gray-900">{ecmConflictData.conflicting_exam?.name}</p>
+                  <p className="text-sm text-gray-600">Versión: {ecmConflictData.conflicting_exam?.version}</p>
+                </div>
+              </div>
+              
+              <p className="text-sm text-gray-600 mt-6 mb-4">
+                ¿Cuál examen desea mantener publicado?
+              </p>
+              
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handlePublishAndReplaceConflicting}
+                  disabled={publishExamMutation.isPending}
+                  className="w-full px-5 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  {publishExamMutation.isPending ? 'Publicando...' : 'Publicar este y despublicar el existente'}
+                </button>
+                
+                <button
+                  onClick={handleKeepConflictingPublished}
+                  className="w-full px-5 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Mantener el existente publicado
+                </button>
               </div>
             </div>
           </div>

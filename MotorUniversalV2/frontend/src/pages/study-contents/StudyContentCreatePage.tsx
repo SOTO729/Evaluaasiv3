@@ -204,14 +204,12 @@ const StudyContentCreatePage = () => {
     try {
       // Modo copia: clonar el material seleccionado
       if (creationMode === 'copy' && selectedMaterialToCopy && !isEditing) {
-        const clonedMaterial = await cloneMaterial(
+        await cloneMaterial(
           selectedMaterialToCopy.id,
           formData.title
         );
-        setShowSuccess(true);
-        setTimeout(() => {
-          navigate(`/study-contents/${clonedMaterial.id}`);
-        }, 1000);
+        // Redirigir a la lista y scroll a borradores
+        window.location.href = '/study-contents?scrollTo=drafts';
         return;
       }
 
@@ -228,11 +226,9 @@ const StudyContentCreatePage = () => {
           navigate(`/study-contents/${id}`);
         }, 1000);
       } else {
-        const newMaterial = await createMaterial(dataToSave);
-        setShowSuccess(true);
-        setTimeout(() => {
-          navigate(`/study-contents/${newMaterial.id}`);
-        }, 1000);
+        await createMaterial(dataToSave);
+        // Redirigir a la lista y scroll a borradores
+        window.location.href = '/study-contents?scrollTo=drafts';
       }
     } catch (error: unknown) {
       console.error('Error al guardar material:', error);
@@ -367,16 +363,30 @@ const StudyContentCreatePage = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <button
-          onClick={() => navigate('/study-contents')}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4 transition-colors"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          <span>Volver a la lista</span>
-        </button>
+    <>
+      {/* Modal de carga */}
+      {saving && (
+        <div className="fixed inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50">
+          <div className="text-center p-12">
+            <div className="inline-block animate-spin rounded-full h-16 w-16 border-b-4 border-primary-600"></div>
+            <p className="mt-6 text-xl font-medium text-gray-700">
+              {creationMode === 'copy' ? 'Copiando material...' : (isEditing ? 'Guardando cambios...' : 'Creando material...')}
+            </p>
+            <p className="mt-2 text-base text-gray-500">Por favor espere</p>
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="mb-6">
+          <button
+            onClick={() => navigate('/study-contents')}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4 transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span>Volver a la lista</span>
+          </button>
         
         <h1 className="text-3xl font-bold mb-2">
           {isEditing ? 'Editar Material de Estudio' : 'Crear Material de Estudio'}
@@ -923,6 +933,7 @@ const StudyContentCreatePage = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
 

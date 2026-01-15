@@ -287,7 +287,12 @@ def get_materials():
         if search:
             query = query.filter(StudyMaterial.title.ilike(f'%{search}%'))
         
-        query = query.order_by(StudyMaterial.order, StudyMaterial.created_at.desc())
+        # Ordenar: publicados primero, luego por fecha de actualización (más recientes primero)
+        # Esto asegura que al publicar un material de la página 2+, aparezca en la primera página
+        query = query.order_by(
+            StudyMaterial.is_published.desc(),
+            StudyMaterial.updated_at.desc()
+        )
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         
         return jsonify({
@@ -545,6 +550,7 @@ def create_material():
 def update_material(material_id):
     """Actualizar un material de estudio"""
     try:
+        from datetime import datetime
         material = StudyMaterial.query.get_or_404(material_id)
         data = request.get_json()
         user = get_current_user()
@@ -556,6 +562,7 @@ def update_material(material_id):
         material.order = data.get('order', material.order)
         material.exam_id = data.get('exam_id', material.exam_id)
         material.updated_by = user.id
+        material.updated_at = datetime.utcnow()  # Actualizar explícitamente
         
         # Manejar múltiples exámenes
         if 'exam_ids' in data:

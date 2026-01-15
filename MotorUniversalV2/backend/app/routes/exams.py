@@ -170,7 +170,12 @@ def get_exams():
     if user and user.role == 'alumno':
         query = query.filter_by(is_published=True)
     
-    pagination = query.order_by(Exam.created_at.desc()).paginate(
+    # Ordenar: publicados primero, luego por fecha de actualización (más recientes primero)
+    # Esto asegura que al publicar un examen de la página 2+, aparezca en la primera página
+    pagination = query.order_by(
+        Exam.is_published.desc(),
+        Exam.updated_at.desc()
+    ).paginate(
         page=page,
         per_page=per_page,
         error_out=False
@@ -247,18 +252,26 @@ def create_exam():
     user_id = get_jwt_identity()
     
     # Validaciones básicas
-    required_fields = ['name', 'version', 'stage_id']
+    required_fields = ['name', 'stage_id']
     for field in required_fields:
         if not data.get(field):
             return jsonify({'error': f'{field} es requerido'}), 400
     
-    # Validar código ECM (debe contener 'ECM' y tener exactamente 7 caracteres)
-    version = data['version']
-    if 'ECM' not in version:
-        return jsonify({'error': 'El código debe contener "ECM"'}), 400
+    # Validar que se haya seleccionado un estándar de competencia o se proporcione version
+    competency_standard_id = data.get('competency_standard_id')
+    version = data.get('version', '')
     
-    if len(version) != 7:
-        return jsonify({'error': 'El código debe tener exactamente 7 caracteres (incluyendo ECM)'}), 400
+    if not competency_standard_id and not version:
+        return jsonify({'error': 'Debe seleccionar un Estándar de Competencia'}), 400
+    
+    # Si hay competency_standard_id, obtener el código del estándar
+    if competency_standard_id:
+        from app.models.competency_standard import CompetencyStandard
+        standard = CompetencyStandard.query.get(competency_standard_id)
+        if standard:
+            version = standard.code
+        else:
+            return jsonify({'error': 'Estándar de Competencia no encontrado'}), 400
     
     # Validar categorías/módulos
     categories = data.get('categories', [])
@@ -855,7 +868,8 @@ def get_questions(topic_id):
     if not topic:
         return jsonify({'error': 'Tema no encontrado'}), 404
     
-    questions = topic.questions.all()
+    # Ordenar preguntas por question_number para que las nuevas aparezcan al final
+    questions = topic.questions.order_by(Question.question_number).all()
     include_correct = request.args.get('include_correct', 'false').lower() == 'true'
     
     # Solo mostrar respuestas correctas a editores/admins
@@ -1932,6 +1946,64 @@ def validate_exam(exam_id):
 
 @bp.route('/<int:exam_id>/validate', methods=['OPTIONS'])
 def options_validate_exam(exam_id):
+    response = jsonify({'status': 'ok'})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
+    return response
+
+
+@bp.route('/<int:exam_id>/check-ecm-conflict', methods=['GET'])
+@jwt_required()
+@require_permission('exams:read')
+def check_ecm_conflict(exam_id):
+    """
+    Verificar si hay otro examen publicado con el mismo código ECM
+    """
+    exam = Exam.query.get(exam_id)
+    if not exam:
+        return jsonify({'error': 'Examen no encontrado'}), 404
+    
+    # Si el examen no tiene código ECM, no hay conflicto
+    if not exam.competency_standard_id:
+        return jsonify({
+            'has_conflict': False,
+            'message': 'El examen no tiene código ECM asignado'
+        }), 200
+    
+    # Buscar otro examen publicado con el mismo competency_standard_id
+    conflicting_exam = Exam.query.filter(
+        Exam.id != exam_id,
+        Exam.competency_standard_id == exam.competency_standard_id,
+        Exam.is_published == True
+    ).first()
+    
+    if conflicting_exam:
+        return jsonify({
+            'has_conflict': True,
+            'current_exam': {
+                'id': exam.id,
+                'name': exam.name,
+                'version': exam.version,
+                'ecm_code': exam.competency_standard.code if exam.competency_standard else None
+            },
+            'conflicting_exam': {
+                'id': conflicting_exam.id,
+                'name': conflicting_exam.name,
+                'version': conflicting_exam.version,
+                'is_published': conflicting_exam.is_published
+            },
+            'message': f'Ya existe un examen publicado con el mismo código ECM: {conflicting_exam.name}'
+        }), 200
+    
+    return jsonify({
+        'has_conflict': False,
+        'message': 'No hay conflicto de ECM'
+    }), 200
+
+
+@bp.route('/<int:exam_id>/check-ecm-conflict', methods=['OPTIONS'])
+def options_check_ecm_conflict(exam_id):
     response = jsonify({'status': 'ok'})
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET,OPTIONS'

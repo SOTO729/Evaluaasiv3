@@ -111,7 +111,6 @@ export const OptimizedImage = ({
           className={`${className} ${isLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
           onLoad={handleLoad}
           onError={handleError}
-          loading="lazy"
           decoding="async"
         />
       )}
