@@ -246,27 +246,28 @@ const CategoryDetailPage = () => {
               </button>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-xl border border-gray-200 animate-fadeSlideIn">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                  <tr>
-                    <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider w-16">
-                      #
-                    </th>
-                    <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                      Nombre del Tema
-                    </th>
-                    <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-32">
-                      Preguntas
-                    </th>
-                    <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-32">
-                      Ejercicios
-                    </th>
-                    <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider w-32">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
+            <div className="rounded-xl border border-gray-200 overflow-hidden animate-fadeSlideIn">
+              <div className="max-h-[400px] overflow-y-auto overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10">
+                    <tr>
+                      <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider w-16">
+                        #
+                      </th>
+                      <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                        Nombre del Tema
+                      </th>
+                      <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-32">
+                        Preguntas
+                      </th>
+                      <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-32">
+                        Ejercicios
+                      </th>
+                      <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider w-32">
+                        Acciones
+                      </th>
+                    </tr>
+                  </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
                   {topics.map((topic, index) => (
                     <tr
@@ -334,7 +335,8 @@ const CategoryDetailPage = () => {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </div>
             </div>
           )}
         </div>
