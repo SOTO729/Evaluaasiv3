@@ -124,6 +124,8 @@ const ExamInProgressWidget = () => {
   };
 
   const handleContinueExam = (session: ExamSession) => {
+    console.log('handleContinueExam called with session:', session);
+    console.log('Navigating to:', `/test-exams/${session.examId}/run`);
     // Navegar al examen con los valores correctos de la sesión
     navigate(`/test-exams/${session.examId}/run`, { 
       state: { 
@@ -256,7 +258,12 @@ const ExamInProgressWidget = () => {
                   
                   {/* Botón continuar */}
                   <button
-                    onClick={() => handleContinueExam(session)}
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleContinueExam(session);
+                    }}
                     className={`w-full py-2 px-3 rounded-lg text-sm font-medium text-white transition-colors ${
                       session.mode === 'simulator' 
                         ? 'bg-amber-500 hover:bg-amber-600' 
