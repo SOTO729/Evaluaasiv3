@@ -137,79 +137,79 @@ const ExamOnboardingPage = () => {
     switch (currentStep) {
       case 0:
         return (
-          <div className="text-center max-w-2xl mx-auto">
+          <div className="text-center max-w-2xl mx-auto px-2 sm:px-0">
             {/* Icono principal */}
-            <div className={`w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 mx-auto mb-6 rounded-full bg-gradient-to-br ${bgGradient} flex items-center justify-center shadow-xl`}>
+            <div className={`w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 mx-auto mb-4 sm:mb-6 rounded-full bg-gradient-to-br ${bgGradient} flex items-center justify-center shadow-xl`}>
               {isSimulator ? (
-                <FlaskConical className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 text-white" />
+                <FlaskConical className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 text-white" />
               ) : (
-                <ClipboardCheck className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 text-white" />
+                <ClipboardCheck className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 text-white" />
               )}
             </div>
 
             {/* Título */}
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 mb-4">
+            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 mb-2 sm:mb-4">
               Estás a punto de comenzar
             </h1>
-            <h2 className={`text-xl sm:text-2xl md:text-3xl font-bold ${textColor} mb-8`}>
+            <h2 className={`text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold ${textColor} mb-4 sm:mb-6 md:mb-8`}>
               {isSimulator ? 'una prueba de simulación' : 'tu examen de certificación'}
             </h2>
 
             {/* Nombre del examen */}
-            <div className={`${bgLight} rounded-2xl p-6 mb-8 border ${borderColor}`}>
-              <p className="text-lg sm:text-xl font-semibold text-gray-800 mb-1">
+            <div className={`${bgLight} rounded-xl sm:rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 md:mb-8 border ${borderColor}`}>
+              <p className="text-base sm:text-lg md:text-xl font-semibold text-gray-800 mb-1">
                 {exam.name}
               </p>
-              <p className="text-sm text-gray-500">Versión {exam.version}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Versión {exam.version}</p>
             </div>
 
             {/* Info de ejercicios y tiempo */}
-            <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-8 mb-8">
-              <div className="flex items-center justify-center gap-3">
-                <div className={`w-12 h-12 rounded-full ${bgLight} flex items-center justify-center`}>
-                  <Target className={`w-6 h-6 ${textColor}`} />
+            <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-6 md:gap-8 mb-4 sm:mb-6 md:mb-8">
+              <div className="flex items-center justify-center gap-2 sm:gap-3">
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${bgLight} flex items-center justify-center`}>
+                  <Target className={`w-5 h-5 sm:w-6 sm:h-6 ${textColor}`} />
                 </div>
                 <div className="text-left">
-                  <p className="text-2xl font-bold text-gray-800">{totalItems}</p>
-                  <p className="text-sm text-gray-500">ejercicios</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-800">{totalItems}</p>
+                  <p className="text-xs sm:text-sm text-gray-500">ejercicios</p>
                 </div>
               </div>
-              <div className="flex items-center justify-center gap-3">
-                <div className={`w-12 h-12 rounded-full ${bgLight} flex items-center justify-center`}>
-                  <Clock className={`w-6 h-6 ${textColor}`} />
+              <div className="flex items-center justify-center gap-2 sm:gap-3">
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${bgLight} flex items-center justify-center`}>
+                  <Clock className={`w-5 h-5 sm:w-6 sm:h-6 ${textColor}`} />
                 </div>
                 <div className="text-left">
-                  <p className="text-2xl font-bold text-gray-800">{exam.duration_minutes || '--'}</p>
-                  <p className="text-sm text-gray-500">minutos</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-800">{exam.duration_minutes || '--'}</p>
+                  <p className="text-xs sm:text-sm text-gray-500">minutos</p>
                 </div>
               </div>
             </div>
 
             {/* Mensaje principal */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-left space-y-4">
+            <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100 text-left space-y-3 sm:space-y-4">
               {isSimulator ? (
                 <>
-                  <p className="text-gray-700 leading-relaxed">
+                  <p className="text-sm sm:text-base text-gray-700 leading-relaxed">
                     Al finalizar el simulador podrás generar el reporte el cual te indicará si has alcanzado 
                     el nivel para presentar tu examen de certificación.
                   </p>
-                  <p className="text-gray-700 leading-relaxed">
+                  <p className="text-sm sm:text-base text-gray-700 leading-relaxed">
                     Para continuar el simulador haz clic en el botón <strong>SIGUIENTE</strong>.
                   </p>
-                  <p className="text-gray-700 leading-relaxed">
+                  <p className="text-sm sm:text-base text-gray-700 leading-relaxed">
                     Si deseas suspenderlo haz clic en el botón <strong>ATRÁS</strong>.
                   </p>
                 </>
               ) : (
                 <>
-                  <p className="text-gray-700 leading-relaxed">
+                  <p className="text-sm sm:text-base text-gray-700 leading-relaxed">
                     Esta es una evaluación oficial. Al aprobar obtendrás tu certificación.
                     Los resultados serán registrados permanentemente.
                   </p>
-                  <p className="text-gray-700 leading-relaxed">
+                  <p className="text-sm sm:text-base text-gray-700 leading-relaxed">
                     Para continuar con el examen haz clic en el botón <strong>SIGUIENTE</strong>.
                   </p>
-                  <p className="text-gray-700 leading-relaxed">
+                  <p className="text-sm sm:text-base text-gray-700 leading-relaxed">
                     Si deseas regresar haz clic en el botón <strong>ATRÁS</strong>.
                   </p>
                 </>
@@ -217,8 +217,8 @@ const ExamOnboardingPage = () => {
             </div>
 
             {/* Mensaje de éxito */}
-            <div className={`mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-full ${bgLight} ${textColor} font-semibold`}>
-              <CheckCircle2 className="w-5 h-5" />
+            <div className={`mt-4 sm:mt-6 inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 rounded-full ${bgLight} ${textColor} font-semibold text-sm sm:text-base`}>
+              <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
               ¡Éxito!
             </div>
           </div>
@@ -226,71 +226,71 @@ const ExamOnboardingPage = () => {
 
       case 1:
         return (
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-3xl mx-auto px-2 sm:px-0">
             {/* Título */}
-            <div className="text-center mb-8">
-              <div className={`w-16 h-16 mx-auto mb-4 rounded-full ${bgLight} flex items-center justify-center`}>
-                <BookOpen className={`w-8 h-8 ${textColor}`} />
+            <div className="text-center mb-4 sm:mb-6 md:mb-8">
+              <div className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 mx-auto mb-3 sm:mb-4 rounded-full ${bgLight} flex items-center justify-center`}>
+                <BookOpen className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 ${textColor}`} />
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">
                 Instrucciones
               </h1>
-              <p className="text-gray-600">
+              <p className="text-sm sm:text-base text-gray-600">
                 Lee cuidadosamente cómo funciona {isSimulator ? 'el simulador' : 'el examen'}
               </p>
             </div>
 
             {/* Instrucciones de preguntas */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <Info className={`w-5 h-5 ${textColor}`} />
+            <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100 mb-4 sm:mb-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
+                <Info className={`w-4 h-4 sm:w-5 sm:h-5 ${textColor}`} />
                 Tipos de preguntas
               </h3>
               
-              <div className="space-y-4">
-                <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <ToggleLeft className="w-5 h-5 text-blue-600" />
+              <div className="space-y-3 sm:space-y-4">
+                <div className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-50 rounded-lg sm:rounded-xl">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <ToggleLeft className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                   </div>
-                  <div>
-                    <h4 className="font-medium text-gray-800 mb-1">Verdadero / Falso</h4>
-                    <p className="text-sm text-gray-600">
+                  <div className="min-w-0">
+                    <h4 className="font-medium text-gray-800 mb-0.5 sm:mb-1 text-sm sm:text-base">Verdadero / Falso</h4>
+                    <p className="text-xs sm:text-sm text-gray-600">
                       Selecciona si la afirmación presentada es verdadera o falsa.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
-                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-                    <CheckCircle2 className="w-5 h-5 text-purple-600" />
+                <div className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-50 rounded-lg sm:rounded-xl">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
                   </div>
-                  <div>
-                    <h4 className="font-medium text-gray-800 mb-1">Opción múltiple</h4>
-                    <p className="text-sm text-gray-600">
+                  <div className="min-w-0">
+                    <h4 className="font-medium text-gray-800 mb-0.5 sm:mb-1 text-sm sm:text-base">Opción múltiple</h4>
+                    <p className="text-xs sm:text-sm text-gray-600">
                       Selecciona <strong>una sola</strong> respuesta correcta de las opciones disponibles.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
-                  <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                    <CheckSquare className="w-5 h-5 text-emerald-600" />
+                <div className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-50 rounded-lg sm:rounded-xl">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                    <CheckSquare className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
                   </div>
-                  <div>
-                    <h4 className="font-medium text-gray-800 mb-1">Selección múltiple</h4>
-                    <p className="text-sm text-gray-600">
+                  <div className="min-w-0">
+                    <h4 className="font-medium text-gray-800 mb-0.5 sm:mb-1 text-sm sm:text-base">Selección múltiple</h4>
+                    <p className="text-xs sm:text-sm text-gray-600">
                       Selecciona <strong>todas</strong> las respuestas correctas. Puede haber más de una.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
-                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                    <ListOrdered className="w-5 h-5 text-amber-600" />
+                <div className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-50 rounded-lg sm:rounded-xl">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                    <ListOrdered className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
                   </div>
-                  <div>
-                    <h4 className="font-medium text-gray-800 mb-1">Ordenamiento</h4>
-                    <p className="text-sm text-gray-600">
+                  <div className="min-w-0">
+                    <h4 className="font-medium text-gray-800 mb-0.5 sm:mb-1 text-sm sm:text-base">Ordenamiento</h4>
+                    <p className="text-xs sm:text-sm text-gray-600">
                       Arrastra y ordena los elementos en la secuencia correcta.
                     </p>
                   </div>
@@ -299,46 +299,43 @@ const ExamOnboardingPage = () => {
             </div>
 
             {/* Instrucciones de ejercicios interactivos */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <Target className={`w-5 h-5 ${textColor}`} />
+            <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
+                <Target className={`w-4 h-4 sm:w-5 sm:h-5 ${textColor}`} />
                 Ejercicios interactivos
               </h3>
               
-              <div className="space-y-4">
-                <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
-                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                    <MousePointer className="w-5 h-5 text-indigo-600" />
+              <div className="space-y-3 sm:space-y-4">
+                <div className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-50 rounded-lg sm:rounded-xl">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                    <MousePointer className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
                   </div>
-                  <div>
-                    <h4 className="font-medium text-gray-800 mb-1">Arrastrar y soltar (Drag & Drop)</h4>
-                    <p className="text-sm text-gray-600">
-                      Arrastra los elementos desde el panel izquierdo y suéltalos en las zonas 
-                      correspondientes para completar el ejercicio.
+                  <div className="min-w-0">
+                    <h4 className="font-medium text-gray-800 mb-0.5 sm:mb-1 text-sm sm:text-base">Arrastrar y soltar</h4>
+                    <p className="text-xs sm:text-sm text-gray-600">
+                      Arrastra los elementos y suéltalos en las zonas correspondientes.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
-                  <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
-                    <Move className="w-5 h-5 text-rose-600" />
+                <div className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-50 rounded-lg sm:rounded-xl">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
+                    <Move className="w-4 h-4 sm:w-5 sm:h-5 text-rose-600" />
                   </div>
-                  <div>
-                    <h4 className="font-medium text-gray-800 mb-1">Pasos secuenciales</h4>
-                    <p className="text-sm text-gray-600">
-                      Realiza las acciones en el orden correcto. Cada paso debe completarse 
-                      antes de continuar al siguiente.
+                  <div className="min-w-0">
+                    <h4 className="font-medium text-gray-800 mb-0.5 sm:mb-1 text-sm sm:text-base">Pasos secuenciales</h4>
+                    <p className="text-xs sm:text-sm text-gray-600">
+                      Realiza las acciones en el orden correcto.
                     </p>
                   </div>
                 </div>
               </div>
 
               {/* Nota importante */}
-              <div className={`mt-6 p-4 ${bgLight} rounded-xl border ${borderColor}`}>
-                <p className="text-sm text-gray-700">
-                  <strong>Importante:</strong> Navega entre las preguntas usando los botones de 
-                  navegación. Puedes regresar a preguntas anteriores para modificar tus respuestas 
-                  antes de finalizar.
+              <div className={`mt-4 sm:mt-6 p-3 sm:p-4 ${bgLight} rounded-lg sm:rounded-xl border ${borderColor}`}>
+                <p className="text-xs sm:text-sm text-gray-700">
+                  <strong>Importante:</strong> Navega entre las preguntas usando los botones. 
+                  Puedes regresar a preguntas anteriores para modificar tus respuestas.
                 </p>
               </div>
             </div>
@@ -347,82 +344,81 @@ const ExamOnboardingPage = () => {
 
       case 2:
         return (
-          <div className="max-w-2xl mx-auto text-center">
+          <div className="max-w-2xl mx-auto text-center px-2 sm:px-0">
             {/* Icono de alerta */}
-            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-amber-100 flex items-center justify-center">
-              <AlertTriangle className="w-10 h-10 text-amber-600" />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 sm:mb-6 rounded-full bg-amber-100 flex items-center justify-center">
+              <AlertTriangle className="w-8 h-8 sm:w-10 sm:h-10 text-amber-600" />
             </div>
 
             {/* Título */}
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-6">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 mb-4 sm:mb-6">
               Importante
             </h1>
 
             {/* Mensaje principal */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-left mb-8">
-              <p className="text-lg text-gray-700 leading-relaxed mb-4">
+            <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100 text-left mb-4 sm:mb-6 md:mb-8">
+              <p className="text-sm sm:text-base md:text-lg text-gray-700 leading-relaxed mb-3 sm:mb-4">
                 A partir de este momento se iniciará {isSimulator ? 'el simulador' : 'el examen'}. 
                 Si estás seguro da clic en el botón <strong className={textColor}>INICIAR</strong>, 
                 en caso contrario da clic al botón <strong>ATRÁS</strong>.
               </p>
               
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
-                <p className="text-amber-800 font-medium">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg sm:rounded-xl p-3 sm:p-4">
+                <p className="text-xs sm:text-sm md:text-base text-amber-800 font-medium">
                   Si continúas e interrumpes tu prueba, se calificarán solo las preguntas que se hayan resuelto.
                 </p>
               </div>
             </div>
 
             {/* Información de soporte */}
-            <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">
+            <div className="bg-gray-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-gray-200">
+              <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">
                 Si experimentas alguna falla comunícate con soporte:
               </h3>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
-                <div className="flex items-center gap-3 p-3 bg-white rounded-xl">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                    <Mail className="w-5 h-5 text-blue-600" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:gap-4 text-left">
+                <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-white rounded-lg sm:rounded-xl">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Correo</p>
-                    <p className="text-sm font-medium text-gray-800">soporte@grupoeduit.com</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 bg-white rounded-xl">
-                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                    <Phone className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Teléfono</p>
-                    <p className="text-sm font-medium text-gray-800">01 800 808 6240</p>
+                  <div className="min-w-0">
+                    <p className="text-[10px] sm:text-xs text-gray-500">Correo</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-800 truncate">soporte@grupoeduit.com</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-3 bg-white rounded-xl">
-                  <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                    <MessageCircle className="w-5 h-5 text-emerald-600" />
+                <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-white rounded-lg sm:rounded-xl">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500">WhatsApp</p>
-                    <p className="text-sm font-medium text-gray-800">22 21 65 6782</p>
+                  <div className="min-w-0">
+                    <p className="text-[10px] sm:text-xs text-gray-500">Teléfono</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-800">01 800 808 6240</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-3 bg-white rounded-xl">
-                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                    <Calendar className="w-5 h-5 text-purple-600" />
+                <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-white rounded-lg sm:rounded-xl">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                    <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Horario de atención</p>
-                    <p className="text-xs font-medium text-gray-800">Lun - Vie: 9:00 am - 6:00 pm</p>
-                    <p className="text-xs font-medium text-gray-800">Sáb: 9:00 am - 2:00 pm</p>
+                  <div className="min-w-0">
+                    <p className="text-[10px] sm:text-xs text-gray-500">WhatsApp</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-800">22 21 65 6782</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-white rounded-lg sm:rounded-xl">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] sm:text-xs text-gray-500">Horario</p>
+                    <p className="text-[10px] sm:text-xs font-medium text-gray-800">L-V: 9am-6pm | S: 9am-2pm</p>
                   </div>
                 </div>
               </div>
 
-              <p className="text-xs text-gray-500 mt-4">
+              <p className="text-[10px] sm:text-xs text-gray-500 mt-3 sm:mt-4">
                 Hora del centro de México
               </p>
             </div>
@@ -437,19 +433,19 @@ const ExamOnboardingPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Indicador de progreso */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3">
+      <div className="bg-white border-b border-gray-200 px-3 sm:px-4 py-2 sm:py-3">
         <div className="max-w-3xl mx-auto">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500">Paso {currentStep + 1} de 3</span>
-            <span className={`text-sm font-medium ${textColor}`}>
+          <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+            <span className="text-xs sm:text-sm text-gray-500">Paso {currentStep + 1} de 3</span>
+            <span className={`text-xs sm:text-sm font-medium ${textColor}`}>
               {isSimulator ? 'Simulador' : 'Examen'}
             </span>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 sm:gap-2">
             {[0, 1, 2].map((step) => (
               <div
                 key={step}
-                className={`h-1.5 flex-1 rounded-full transition-colors ${
+                className={`h-1 sm:h-1.5 flex-1 rounded-full transition-colors ${
                   step <= currentStep
                     ? isSimulator ? 'bg-amber-500' : 'bg-blue-500'
                     : 'bg-gray-200'
@@ -461,43 +457,43 @@ const ExamOnboardingPage = () => {
       </div>
 
       {/* Contenido principal */}
-      <div className="flex-1 overflow-y-auto px-4 py-8">
+      <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8">
         {renderStepContent()}
       </div>
 
       {/* Botones de navegación */}
-      <div className="bg-white border-t border-gray-200 px-4 py-4">
-        <div className="max-w-3xl mx-auto flex justify-between gap-4">
+      <div className="bg-white border-t border-gray-200 px-3 sm:px-4 py-3 sm:py-4">
+        <div className="max-w-3xl mx-auto flex justify-between gap-3 sm:gap-4">
           <button
             onClick={handleBack}
-            className="flex items-center gap-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors"
+            className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg sm:rounded-xl transition-colors text-sm sm:text-base"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             ATRÁS
           </button>
 
           {currentStep < 2 ? (
             <button
               onClick={handleNext}
-              className={`flex items-center gap-2 px-6 py-3 text-white font-semibold rounded-xl transition-colors ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 text-white font-semibold rounded-lg sm:rounded-xl transition-colors text-sm sm:text-base ${
                 isSimulator 
                   ? 'bg-amber-500 hover:bg-amber-600' 
                   : 'bg-blue-500 hover:bg-blue-600'
               }`}
             >
               SIGUIENTE
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           ) : (
             <button
               onClick={handleStartExam}
-              className={`flex items-center gap-2 px-8 py-3 text-white font-semibold rounded-xl transition-colors shadow-lg ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-5 sm:px-8 py-2.5 sm:py-3 text-white font-semibold rounded-lg sm:rounded-xl transition-colors shadow-lg text-sm sm:text-base ${
                 isSimulator 
                   ? 'bg-amber-500 hover:bg-amber-600' 
                   : 'bg-blue-500 hover:bg-blue-600'
               }`}
             >
-              <Play className="w-5 h-5" />
+              <Play className="w-4 h-4 sm:w-5 sm:h-5" />
               INICIAR
             </button>
           )}
