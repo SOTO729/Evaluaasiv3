@@ -3,9 +3,9 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../services/examService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, ArrowLeft, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, ArrowLeft, X, User } from 'lucide-react';
 import DOMPurify from 'dompurify';
-import { clearExamSessionCache } from '../store/authStore';
+import { clearExamSessionCache, useAuthStore } from '../store/authStore';
 
 // Tipo para representar un ítem del test (pregunta o ejercicio)
 interface TestItem {
@@ -30,6 +30,7 @@ const ExamTestRunPage: React.FC = () => {
   const { examId } = useParams<{ examId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   
   // Obtener valores del state o valores por defecto (se restaurarán desde localStorage)
   const stateData = location.state as { questionCount?: number; exerciseCount?: number; mode?: 'exam' | 'simulator' } | null;
@@ -1607,7 +1608,17 @@ const ExamTestRunPage: React.FC = () => {
             </div>
             
             {/* Derecha: Timer y progreso */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
+              {/* Nombre del usuario */}
+              <div className="hidden md:flex items-center gap-2 text-sm">
+                <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+                  <User className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-white/90 font-medium max-w-[150px] truncate">
+                  {user?.name || user?.username || 'Usuario'}
+                </span>
+              </div>
+              
               {/* Progreso respondidas */}
               <div className="hidden sm:flex items-center gap-2 text-sm">
                 <span className="text-white/60">Completadas:</span>
@@ -1759,7 +1770,7 @@ const ExamTestRunPage: React.FC = () => {
       )}
 
       {/* Contenido principal */}
-      <div className="pt-[125px] pb-[80px] min-h-screen">
+      <div className="pt-[125px] pb-[70px] min-h-screen">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             {/* Header del ítem - más simple */}
@@ -1841,43 +1852,41 @@ const ExamTestRunPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Barra de navegación inferior - FIJA */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3">
-          <div className="flex justify-between items-center">
-            <button
-              onClick={handlePrevious}
-              disabled={currentItemIndex === 0}
-              className="flex items-center px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5 mr-1" />
-              Anterior
-            </button>
+      {/* Botones de navegación flotantes */}
+      <div className="fixed bottom-4 left-4 right-4 z-40 pointer-events-none">
+        <div className="max-w-3xl mx-auto flex justify-between items-center">
+          <button
+            onClick={handlePrevious}
+            disabled={currentItemIndex === 0}
+            className="pointer-events-auto flex items-center px-4 py-2.5 text-sm font-medium bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-xl shadow-lg border border-gray-200"
+          >
+            <ChevronLeft className="w-5 h-5 mr-1" />
+            Anterior
+          </button>
 
-            {/* Indicador central de progreso (móvil) */}
-            <span className="sm:hidden text-xs text-gray-500">
-              {currentItemIndex + 1} / {selectedItems.length}
-            </span>
+          {/* Indicador central de progreso (móvil) */}
+          <span className="sm:hidden text-xs text-gray-600 bg-white/90 px-3 py-1.5 rounded-full shadow pointer-events-auto">
+            {currentItemIndex + 1} / {selectedItems.length}
+          </span>
 
-            <div className="flex items-center gap-2">
-              {currentItemIndex === selectedItems.length - 1 ? (
-                <button
-                  onClick={() => setShowConfirmSubmit(true)}
-                  className="flex items-center px-5 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
-                >
-                  <CheckCircle className="w-4 h-4 mr-1.5" />
-                  Finalizar
-                </button>
-              ) : (
-                <button
-                  onClick={handleNext}
-                  className="flex items-center px-5 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors"
-                >
-                  Siguiente
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </button>
-              )}
-            </div>
+          <div className="pointer-events-auto flex items-center gap-2">
+            {currentItemIndex === selectedItems.length - 1 ? (
+              <button
+                onClick={() => setShowConfirmSubmit(true)}
+                className="flex items-center px-5 py-2.5 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors shadow-lg"
+              >
+                <CheckCircle className="w-4 h-4 mr-1.5" />
+                Finalizar
+              </button>
+            ) : (
+              <button
+                onClick={handleNext}
+                className="flex items-center px-5 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-xl hover:bg-primary-700 transition-colors shadow-lg"
+              >
+                Siguiente
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </button>
+            )}
           </div>
         </div>
       </div>
