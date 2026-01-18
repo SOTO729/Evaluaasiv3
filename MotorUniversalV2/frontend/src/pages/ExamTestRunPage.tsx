@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../services/examService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, ArrowLeft, X, User, Flag } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { clearExamSessionCache, useAuthStore } from '../store/authStore';
 
@@ -1414,9 +1414,9 @@ const ExamTestRunPage: React.FC = () => {
               <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertCircle className="w-6 h-6 text-amber-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">¿Salir de la prueba?</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">¿Salir del examen?</h3>
               <p className="text-sm text-gray-500 mb-6">
-                Perderás todo el progreso de esta prueba.
+                Se perderá todo el progreso de este examen.
               </p>
               <div className="flex gap-3">
                 <button
@@ -1426,8 +1426,11 @@ const ExamTestRunPage: React.FC = () => {
                   Continuar
                 </button>
                 <button
-                  onClick={() => navigate(`/exams/${examId}/edit`)}
-                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors"
+                  onClick={() => {
+                    localStorage.removeItem(examSessionKey);
+                    navigate('/exams');
+                  }}
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
                 >
                   Salir
                 </button>
@@ -1582,10 +1585,11 @@ const ExamTestRunPage: React.FC = () => {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowExitConfirm(true)}
-                className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                title="Volver al editor"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-sm font-medium"
+                title="Salir del examen"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Salir</span>
               </button>
               <div>
                 <div className="flex items-center gap-2">
