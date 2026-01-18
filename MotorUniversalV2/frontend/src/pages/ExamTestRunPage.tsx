@@ -1364,7 +1364,7 @@ const ExamTestRunPage: React.FC = () => {
               })()}
               <button
                 onClick={() => setShowErrorModal(null)}
-                className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                className="w-full px-4 py-2.5 bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700 transition-colors"
               >
                 Intentar de nuevo
               </button>
@@ -1374,7 +1374,7 @@ const ExamTestRunPage: React.FC = () => {
       )}
 
       {/* Header minimalista - FIJO */}
-      <div className="fixed top-0 left-0 right-0 z-40 bg-primary-600 shadow-md">
+      <div className="fixed top-0 left-0 right-0 z-40 bg-teal-600 shadow-md">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3">
           <div className="flex items-center justify-between">
             {/* Izquierda: Volver y título */}
@@ -1393,7 +1393,7 @@ const ExamTestRunPage: React.FC = () => {
                   <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
                     currentMode === 'simulator' 
                       ? 'bg-purple-400 text-purple-900' 
-                      : 'bg-blue-400 text-blue-900'
+                      : 'bg-teal-400 text-teal-900'
                   }`}>
                     {currentMode === 'simulator' ? 'Simulador' : 'Examen'}
                   </span>
@@ -1432,7 +1432,7 @@ const ExamTestRunPage: React.FC = () => {
         </div>
         
         {/* Barra de progreso sutil - basada en preguntas respondidas */}
-        <div className="h-1 bg-primary-700">
+        <div className="h-1 bg-teal-700">
           <div
             className="h-full bg-emerald-400 transition-all duration-500 ease-out"
             style={{ width: `${(getAnsweredCount() / selectedItems.length) * 100}%` }}
@@ -1449,7 +1449,7 @@ const ExamTestRunPage: React.FC = () => {
               onClick={() => setShowNavPanel(!showNavPanel)}
               className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all"
             >
-              <span className="flex items-center justify-center w-7 h-7 bg-primary-600 text-white rounded-full text-sm font-bold">
+              <span className="flex items-center justify-center w-7 h-7 bg-teal-600 text-white rounded-full text-sm font-bold">
                 {currentItemIndex + 1}
               </span>
               <span className="text-sm text-gray-600">
@@ -1524,7 +1524,7 @@ const ExamTestRunPage: React.FC = () => {
                       }}
                       className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all ${
                         isCurrent
-                          ? 'bg-primary-600 text-white ring-2 ring-primary-300 scale-105'
+                          ? 'bg-teal-600 text-white ring-2 ring-teal-300 scale-105'
                           : isAnswered
                           ? 'bg-emerald-500 text-white hover:bg-emerald-600'
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1540,7 +1540,7 @@ const ExamTestRunPage: React.FC = () => {
             {/* Leyenda */}
             <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-center gap-4 text-xs">
               <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded bg-primary-600"></div>
+                <div className="w-4 h-4 rounded bg-teal-600"></div>
                 <span className="text-gray-600">Actual</span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -1568,14 +1568,14 @@ const ExamTestRunPage: React.FC = () => {
                   <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
                     currentMode === 'simulator' 
                       ? 'bg-purple-100 text-purple-700 border border-purple-200' 
-                      : 'bg-blue-100 text-blue-700 border border-blue-200'
+                      : 'bg-teal-100 text-teal-700 border border-teal-200'
                   }`}>
                     {currentMode === 'simulator' ? 'Simulador' : 'Examen'}
                   </span>
                   {/* Tipo de pregunta/ejercicio */}
                   <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${
                     currentItem?.type === 'question' 
-                      ? 'bg-primary-100 text-primary-700' 
+                      ? 'bg-teal-100 text-teal-700' 
                       : 'bg-purple-100 text-purple-700'
                   }`}>
                     {currentItem?.type === 'question' ? (
