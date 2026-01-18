@@ -1562,7 +1562,7 @@ const ExamTestRunPage: React.FC = () => {
 
       {/* Header minimalista - FIJO */}
       <div className={`fixed top-0 left-0 right-0 z-40 shadow-md ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-blue-600'}`}>
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-3">
           <div className="flex items-center justify-between">
             {/* Izquierda: Volver y título */}
             <div className="flex items-center gap-3">
@@ -1580,7 +1580,7 @@ const ExamTestRunPage: React.FC = () => {
                   <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
                     currentMode === 'simulator' 
                       ? 'bg-yellow-300 text-yellow-900' 
-                      : 'bg-blue-400 text-blue-900'
+                      : 'bg-emerald-400 text-emerald-900'
                   }`}>
                     {currentMode === 'simulator' ? 'Simulador' : 'Examen'}
                   </span>
@@ -1641,7 +1641,7 @@ const ExamTestRunPage: React.FC = () => {
 
       {/* Navegación de ítems - FIJO debajo del header */}
       <div className="fixed top-[73px] left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100">
-        <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 py-2">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-2">
           <div className="flex items-center justify-between gap-3">
             {/* Botón para abrir panel de navegación */}
             <button
