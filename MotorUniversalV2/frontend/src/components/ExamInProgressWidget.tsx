@@ -9,6 +9,10 @@ interface ExamSession {
   timeRemaining: number;
   savedAt: number;
   pauseOnDisconnect: boolean;
+  questionCount: number;
+  exerciseCount: number;
+  questionCount: number;
+  exerciseCount: number;
 }
 
 const ExamInProgressWidget = () => {
@@ -41,7 +45,10 @@ const ExamInProgressWidget = () => {
               }
               
               // Solo mostrar sesiones que tengan un nombre válido (no vacío)
-              const examName = data.examName && data.examName.trim() !== '' ? data.examName : null;
+              // Calcular cantidad de preguntas y ejercicios desde selectedItems
+              const selectedItems = data.selectedItems || [];
+              const questionCount = selectedItems.filter((item: any) => item.type === 'question').length;
+              const exerciseCount = selectedItems.filter((item: any) => item.type === 'exercise').length;
               
               if (currentTimeRemaining > 0 && examName) {
                 sessions.push({
@@ -50,7 +57,18 @@ const ExamInProgressWidget = () => {
                   mode,
                   timeRemaining: currentTimeRemaining,
                   savedAt: data.savedAt,
-                  pauseOnDisconnect: data.pauseOnDisconnect ?? true
+                  pauseOnDisconnect: data.pauseOnDisconnect ?? true,
+                  questionCount,
+                  exerciseCount
+                sessions.push({
+                  examId,
+                  examName,
+                  mode,
+                  timeRemaining: currentTimeRemaining,
+                  savedAt: data.savedAt,
+                  pauseOnDisconnect: data.pauseOnDisconnect ?? true,
+                  questionCount,
+                  exerciseCount
                 });
               }
             }
@@ -105,22 +123,22 @@ const ExamInProgressWidget = () => {
 
   // No mostrar si no hay sesiones activas
   if (activeSessions.length === 0) {
-    return null;
-  }
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    return null;session: ExamSsession: ExamSession) => {
+    // Navegar al examen con los valores correctos de la sesión
+    navigate(`/exams/${session.examId}/run`, { 
+      state: { 
+        questionCount: session.questionCount,
+        exerciseCount: session.exerciseCount,
+        mode: session.mode: session.rn `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  const handleContinueExam = (examId: string, mode: 'exam' | 'simulator') => {
-    // Navegar al examen - se necesitará reconstruir la navegación
-    navigate(`/exams/${examId}/run`, { 
+  const handleContinueExam = (session: ExamSession) => {
+    // Navegar al examen con los valores correctos de la sesión
+    navigate(`/exams/${session.examId}/run`, { 
       state: { 
-        questionCount: 10, // Valores por defecto - se recargará del localStorage
-        exerciseCount: 0,
-        mode 
+        questionCount: session.questionCount,
+        exerciseCount: session.exerciseCount,
+        mode: session.mode 
       } 
     });
   };
@@ -229,7 +247,7 @@ const ExamInProgressWidget = () => {
                         ? 'text-amber-500' 
                         : session.mode === 'simulator' ? 'text-amber-600' : 'text-blue-600'
                     }`} />
-                    <span className={`font-mono text-lg font-bold ${
+                    <span className={`font-mono text-lg font-
                       isCritical 
                         ? 'text-red-600' 
                         : isLowTime 
