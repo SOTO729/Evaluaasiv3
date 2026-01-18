@@ -51,13 +51,8 @@ const ExamPreviewPage = () => {
   });
 
   const handleStartExam = () => {
-    navigate(`/test-exams/${id}/run`, {
-      state: {
-        questionCount: exam?.total_questions || 0,
-        exerciseCount: exam?.total_exercises || 0,
-        mode: currentMode // Pasar el modo al run page
-      }
-    });
+    // Navegar al flujo de onboarding en lugar de directamente al examen
+    navigate(`/exams/${id}/onboarding/${currentMode}`);
   };
 
   if (isLoading) {

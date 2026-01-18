@@ -28,6 +28,7 @@ const ExamTestRunPage = lazy(() => import('./pages/ExamTestRunPage'))
 const ExamTestResultsPage = lazy(() => import('./pages/ExamTestResultsPage'))
 const ExamPreviewPage = lazy(() => import('./pages/exams/ExamPreviewPage'))
 const ExamModeSelectorPage = lazy(() => import('./pages/exams/ExamModeSelectorPage'))
+const ExamOnboardingPage = lazy(() => import('./pages/exams/ExamOnboardingPage'))
 
 // Study Contents
 const StudyContentsListPage = lazy(() => import('./pages/study-contents/StudyContentsListPage'))
@@ -98,6 +99,7 @@ function App() {
               <Route path="/exams/:id/select-mode" element={<ExamModeSelectorPage />} />
               <Route path="/exams/:id/preview/:mode" element={<ExamPreviewPage />} />
               <Route path="/exams/:id/preview" element={<ExamPreviewPage />} />
+              <Route path="/exams/:id/onboarding/:mode" element={<ExamOnboardingPage />} />
               
               {/* Categories */}
               <Route path="/exams/:examId/categories/:categoryId" element={<CategoryDetailPage />} />
