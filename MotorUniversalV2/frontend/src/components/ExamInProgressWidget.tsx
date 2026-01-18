@@ -11,8 +11,6 @@ interface ExamSession {
   pauseOnDisconnect: boolean;
   questionCount: number;
   exerciseCount: number;
-  questionCount: number;
-  exerciseCount: number;
 }
 
 const ExamInProgressWidget = () => {
@@ -44,22 +42,15 @@ const ExamInProgressWidget = () => {
                 currentTimeRemaining = Math.max(0, data.timeRemaining - elapsedSeconds);
               }
               
-              // Solo mostrar sesiones que tengan un nombre válido (no vacío)
-              // Calcular cantidad de preguntas y ejercicios desde selectedItems
-              const selectedItems = data.selectedItems || [];
-              const questionCount = selectedItems.filter((item: any) => item.type === 'question').length;
-              const exerciseCount = selectedItems.filter((item: any) => item.type === 'exercise').length;
-              
-              if (currentTimeRemaining > 0 && examName) {
-                sessions.push({
-                  examId,
-                  examName,
-                  mode,
-                  timeRemaining: currentTimeRemaining,
-                  savedAt: data.savedAt,
-                  pauseOnDisconnect: data.pauseOnDisconnect ?? true,
-                  questionCount,
-                  exerciseCount
+              if (currentTimeRemaining > 0) {
+                // Calcular cantidad de preguntas y ejercicios desde selectedItems
+                const selectedItems = data.selectedItems || [];
+                const questionCount = selectedItems.filter((item: any) => item.type === 'question').length;
+                const exerciseCount = selectedItems.filter((item: any) => item.type === 'exercise').length;
+                
+                // Solo mostrar si hay un nombre válido
+                const examName = data.examName && data.examName.trim() !== '' ? data.examName : `Examen ${examId}`;
+                
                 sessions.push({
                   examId,
                   examName,
@@ -123,13 +114,13 @@ const ExamInProgressWidget = () => {
 
   // No mostrar si no hay sesiones activas
   if (activeSessions.length === 0) {
-    return null;session: ExamSsession: ExamSession) => {
-    // Navegar al examen con los valores correctos de la sesión
-    navigate(`/exams/${session.examId}/run`, { 
-      state: { 
-        questionCount: session.questionCount,
-        exerciseCount: session.exerciseCount,
-        mode: session.mode: session.rn `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    return null;
+  }
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
   const handleContinueExam = (session: ExamSession) => {
@@ -247,7 +238,7 @@ const ExamInProgressWidget = () => {
                         ? 'text-amber-500' 
                         : session.mode === 'simulator' ? 'text-amber-600' : 'text-blue-600'
                     }`} />
-                    <span className={`font-mono text-lg font-
+                    <span className={`font-mono text-lg font-bold ${
                       isCritical 
                         ? 'text-red-600' 
                         : isLowTime 
@@ -265,7 +256,7 @@ const ExamInProgressWidget = () => {
                   
                   {/* Botón continuar */}
                   <button
-                    onClick={() => handleContinueExam(session.examId, session.mode)}
+                    onClick={() => handleContinueExam(session)}
                     className={`w-full py-2 px-3 rounded-lg text-sm font-medium text-white transition-colors ${
                       session.mode === 'simulator' 
                         ? 'bg-amber-500 hover:bg-amber-600' 

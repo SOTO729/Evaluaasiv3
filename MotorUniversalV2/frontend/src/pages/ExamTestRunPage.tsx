@@ -30,7 +30,11 @@ const ExamTestRunPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   
-  const { questionCount, exerciseCount, mode } = location.state as { questionCount: number; exerciseCount: number; mode?: 'exam' | 'simulator' };
+  // Obtener valores del state o valores por defecto (se restaurarán desde localStorage)
+  const stateData = location.state as { questionCount?: number; exerciseCount?: number; mode?: 'exam' | 'simulator' } | null;
+  const questionCount = stateData?.questionCount ?? 0;
+  const exerciseCount = stateData?.exerciseCount ?? 0;
+  const mode = stateData?.mode;
   
   // Modo actual (por defecto 'exam' si no viene especificado)
   const currentMode = mode || 'exam';
