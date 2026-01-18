@@ -125,7 +125,7 @@ const ExamInProgressWidget = () => {
 
   const handleContinueExam = (session: ExamSession) => {
     // Navegar al examen con los valores correctos de la sesión
-    navigate(`/exams/${session.examId}/run`, { 
+    navigate(`/test-exams/${session.examId}/run`, { 
       state: { 
         questionCount: session.questionCount,
         exerciseCount: session.exerciseCount,
