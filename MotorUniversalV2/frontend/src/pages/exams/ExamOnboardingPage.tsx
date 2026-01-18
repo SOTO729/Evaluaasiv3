@@ -77,7 +77,8 @@ const ExamOnboardingPage = () => {
 
   const handleBack = () => {
     if (currentStep === 0) {
-      navigate(`/exams/${id}/preview/${mode}`);
+      // Volver a la selección de modo
+      navigate(`/exams/${id}/select-mode`);
     } else {
       setCurrentStep(prev => prev - 1);
     }

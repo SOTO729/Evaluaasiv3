@@ -43,7 +43,8 @@ const ExamModeSelectorPage = () => {
   });
 
   const handleSelectMode = (mode: 'exam' | 'simulator') => {
-    navigate(`/exams/${id}/preview/${mode}`);
+    // Navegar directamente al onboarding (flujo de inicio)
+    navigate(`/exams/${id}/onboarding/${mode}`);
   };
 
   // Determinar qué modos están disponibles
