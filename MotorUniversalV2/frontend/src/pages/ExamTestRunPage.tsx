@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../services/examService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, ArrowLeft, X, User } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, ArrowLeft, X, User, Flag } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { clearExamSessionCache, useAuthStore } from '../store/authStore';
 
@@ -69,6 +69,9 @@ const ExamTestRunPage: React.FC = () => {
   
   // Estado para panel de navegación desplegable
   const [showNavPanel, setShowNavPanel] = useState(false);
+  
+  // Estado para marcar preguntas como pendientes (para volver después)
+  const [flaggedQuestions, setFlaggedQuestions] = useState<Set<number>>(new Set());
   
   // Estado para modal de ejercicio completado
   const [showExerciseCompleted, setShowExerciseCompleted] = useState(false);
@@ -1615,7 +1618,7 @@ const ExamTestRunPage: React.FC = () => {
                   <User className="w-4 h-4 text-white" />
                 </div>
                 <span className="text-white/90 font-medium">
-                  ID: {user?.id || '---'}
+                  {user?.id || '---'}
                 </span>
               </div>
               
@@ -1659,6 +1662,32 @@ const ExamTestRunPage: React.FC = () => {
               </span>
               <span className="text-sm text-gray-600">
                 de <span className="font-semibold text-gray-900">{selectedItems.length}</span>
+
+            {/* Botón para marcar pregunta actual */}
+            <button
+              onClick={() => {
+                setFlaggedQuestions(prev => {
+                  const newSet = new Set(prev);
+                  if (newSet.has(currentItemIndex)) {
+                    newSet.delete(currentItemIndex);
+                  } else {
+                    newSet.add(currentItemIndex);
+                  }
+                  return newSet;
+                });
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                flaggedQuestions.has(currentItemIndex)
+                  ? 'bg-orange-500 text-white hover:bg-orange-600'
+                  : 'bg-gray-100 text-gray-600 hover:bg-orange-100 hover:text-orange-600'
+              }`}
+              title={flaggedQuestions.has(currentItemIndex) ? 'Quitar marca' : 'Marcar para revisar'}
+            >
+              <Flag className="w-4 h-4" />
+              <span className="hidden sm:inline">
+                {flaggedQuestions.has(currentItemIndex) ? 'Marcada' : 'Marcar'}
+              </span>
+            </button>
               </span>
               <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${showNavPanel ? 'rotate-90' : ''}`} />
             </button>
@@ -1726,39 +1755,63 @@ const ExamTestRunPage: React.FC = () => {
                   const isAnswered = item.type === 'question' 
                     ? (item.question_type === 'ordering' 
                         ? orderingInteracted[String(item.question_id)] === true
-                        : answers[String(item.question_id)] !== undefined)
-                    : isExerciseCompleted(item);
-                  const isCurrent = idx === currentItemIndex;
+                  const isFlagged = flaggedQuestions.has(idx);
                   
                   return (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        const currentItem = selectedItems[currentItemIndex];
-                        if (currentItem?.type === 'question' && currentItem.question_type === 'ordering') {
-                          setOrderingInteracted(prev => ({ ...prev, [String(currentItem.question_id)]: true }));
-                        }
-                        setCurrentItemIndex(idx);
-                        setCurrentStepIndex(0);
-                        setShowNavPanel(false);
-                      }}
-                      className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all ${
-                        isCurrent
-                          ? (currentMode === 'simulator' ? 'bg-amber-500 text-white ring-2 ring-amber-300 scale-105' : 'bg-blue-600 text-white ring-2 ring-blue-300 scale-105')
-                          : isAnswered
-                          ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {idx + 1}
-                    </button>
+                    <div key={idx} className="relative">
+                      <button
+                        onClick={() => {
+                          const currentItem = selectedItems[currentItemIndex];
+                          if (currentItem?.type === 'question' && currentItem.question_type === 'ordering') {
+                            setOrderingInteracted(prev => ({ ...prev, [String(currentItem.question_id)]: true }));
+                          }
+                          setCurrentItemIndex(idx);
+                          setCurrentStepIndex(0);
+                          setShowNavPanel(false);
+                        }}
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all ${
+                          isCurrent
+                            ? (currentMode === 'simulator' ? 'bg-amber-500 text-white ring-2 ring-amber-300 scale-105' : 'bg-blue-600 text-white ring-2 ring-blue-300 scale-105')
+                            : isFlagged
+                            ? 'bg-orange-500 text-white hover:bg-orange-600'
+                            : isAnswered
+                            ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {idx + 1}
+                      </button>
+                      {/* Botón pequeño para marcar/desmarcar */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFlaggedQuestions(prev => {
+                            const newSet = new Set(prev);
+                            if (newSet.has(idx)) {
+                              newSet.delete(idx);
+                            } else {
+                              newSet.add(idx);
+                            }
+                            return newSet;
+                          });
+                        }}
+                        className={`absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center transition-all ${
+                          isFlagged 
+                            ? 'bg-orange-600 text-white' 
+                            : 'bg-gray-300 text-gray-500 hover:bg-orange-400 hover:text-white'
+                        }`}
+                        title={isFlagged ? 'Quitar marca' : 'Marcar para revisar'}
+                      >
+                        <Flag className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
                   );
                 })}
               </div>
             </div>
             
             {/* Leyenda */}
-            <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-center gap-4 text-xs">
+            <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex flex-wrap items-center justify-center gap-3 text-xs">
               <div className="flex items-center gap-1.5">
                 <div className={`w-4 h-4 rounded ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-blue-600'}`}></div>
                 <span className="text-gray-600">Actual</span>
@@ -1767,6 +1820,13 @@ const ExamTestRunPage: React.FC = () => {
                 <div className="w-4 h-4 rounded bg-emerald-500"></div>
                 <span className="text-gray-600">Respondida</span>
               </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-4 rounded bg-orange-500"></div>
+                <span className="text-gray-600">Marcada</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-4 rounded bg-gray-200"></div>
+                <span className="text-gray-600">Sin responder
               <div className="flex items-center gap-1.5">
                 <div className="w-4 h-4 rounded bg-gray-200"></div>
                 <span className="text-gray-600">Pendiente</span>
@@ -1788,7 +1848,7 @@ const ExamTestRunPage: React.FC = () => {
                   <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
                     currentMode === 'simulator' 
                       ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' 
-                      : 'bg-blue-100 text-blue-700 border border-blue-200'
+                      : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
                   }`}>
                     {currentMode === 'simulator' ? 'Simulador' : 'Examen'}
                   </span>
