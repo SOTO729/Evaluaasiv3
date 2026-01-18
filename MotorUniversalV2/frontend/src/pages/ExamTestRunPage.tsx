@@ -1659,45 +1659,44 @@ const ExamTestRunPage: React.FC = () => {
       <div className="fixed top-[73px] left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100">
         <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-2">
           <div className="flex items-center justify-between gap-2">
-            {/* Izquierda: Navegación de pregunta */}
-            <button
-              onClick={() => setShowNavPanel(!showNavPanel)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all"
-            >
-              <span className={`flex items-center justify-center w-7 h-7 text-white rounded-full text-sm font-bold ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-blue-600'}`}>
-                {currentItemIndex + 1}
-              </span>
-              <span className="text-sm text-gray-600">
-                de <span className="font-semibold text-gray-900">{selectedItems.length}</span>
-              </span>
-              <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${showNavPanel ? 'rotate-90' : ''}`} />
-            </button>
+            {/* Izquierda: Navegación de pregunta + botón marcar */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowNavPanel(!showNavPanel)}
+                className="flex items-center gap-2 px-4 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all min-w-[120px]"
+              >
+                <span className={`flex items-center justify-center w-8 h-8 text-white rounded-full text-sm font-bold ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-blue-600'}`}>
+                  {currentItemIndex + 1}
+                </span>
+                <span className="text-sm text-gray-600">
+                  de <span className="font-semibold text-gray-900">{selectedItems.length}</span>
+                </span>
+                <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${showNavPanel ? 'rotate-90' : ''}`} />
+              </button>
 
-            {/* Centro: Botón de marcar pregunta (separado) */}
-            <button
-              onClick={() => {
-                setFlaggedQuestions(prev => {
-                  const newSet = new Set(prev);
-                  if (newSet.has(currentItemIndex)) {
-                    newSet.delete(currentItemIndex);
-                  } else {
-                    newSet.add(currentItemIndex);
-                  }
-                  return newSet;
-                });
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors border ${
-                flaggedQuestions.has(currentItemIndex)
-                  ? 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600'
-                  : 'bg-white text-gray-600 border-gray-200 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300'
-              }`}
-              title={flaggedQuestions.has(currentItemIndex) ? 'Quitar marca' : 'Marcar para revisar después'}
-            >
-              <Flag className="w-4 h-4" />
-              <span className="hidden sm:inline">
-                {flaggedQuestions.has(currentItemIndex) ? 'Marcada' : 'Revisar'}
-              </span>
-            </button>
+              {/* Botón de marcar pregunta (junto a navegación) */}
+              <button
+                onClick={() => {
+                  setFlaggedQuestions(prev => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(currentItemIndex)) {
+                      newSet.delete(currentItemIndex);
+                    } else {
+                      newSet.add(currentItemIndex);
+                    }
+                    return newSet;
+                  });
+                }}
+                className={`flex items-center justify-center w-9 h-9 rounded-lg transition-colors ${
+                  flaggedQuestions.has(currentItemIndex)
+                    ? 'bg-orange-500 text-white hover:bg-orange-600'
+                    : 'bg-gray-100 text-gray-500 hover:bg-orange-100 hover:text-orange-600'
+                }`}
+                title={flaggedQuestions.has(currentItemIndex) ? 'Quitar marca de revisión' : 'Marcar para revisar esta pregunta después'}
+              >
+                <Flag className="w-4 h-4" />
+              </button>
+            </div>
             
             {/* Derecha: Botones de navegación */}
             <div className="flex items-center gap-2">
