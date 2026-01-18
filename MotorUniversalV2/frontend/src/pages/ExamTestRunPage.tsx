@@ -1607,10 +1607,10 @@ const ExamTestRunPage: React.FC = () => {
               </div>
             </div>
             
-            {/* Derecha: Timer y progreso */}
-            <div className="flex items-center gap-3 sm:gap-4">
+            {/* Derecha: Timer y navegación */}
+            <div className="flex items-center gap-2 sm:gap-3">
               {/* ID del usuario */}
-              <div className="hidden md:flex items-center gap-2 text-sm">
+              <div className="hidden lg:flex items-center gap-2 text-sm">
                 <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
                   <User className="w-4 h-4 text-white" />
                 </div>
@@ -1619,16 +1619,8 @@ const ExamTestRunPage: React.FC = () => {
                 </span>
               </div>
               
-              {/* Progreso respondidas */}
-              <div className="hidden sm:flex items-center gap-2 text-sm">
-                <span className="text-white/60">Completadas:</span>
-                <span className={`font-semibold ${getAnsweredCount() === selectedItems.length ? 'text-emerald-300' : 'text-white'}`}>
-                  {getAnsweredCount()}/{selectedItems.length}
-                </span>
-              </div>
-              
               {/* Timer */}
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-sm transition-all ${
+              <div className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg font-mono text-sm transition-all ${
                 isTimeCritical 
                   ? 'bg-red-500 text-white animate-pulse' 
                   : isTimeWarning 
@@ -1639,6 +1631,36 @@ const ExamTestRunPage: React.FC = () => {
                 <span className="font-medium">
                   {String(displayMinutes).padStart(2, '0')}:{String(displaySeconds).padStart(2, '0')}
                 </span>
+              </div>
+
+              {/* Botones de navegación */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handlePrevious}
+                  disabled={currentItemIndex === 0}
+                  className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/20 hover:bg-white/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  title="Anterior"
+                >
+                  <ChevronLeft className="w-5 h-5 text-white" />
+                </button>
+                
+                {currentItemIndex === selectedItems.length - 1 ? (
+                  <button
+                    onClick={() => setShowConfirmSubmit(true)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-medium transition-colors"
+                  >
+                    <span className="hidden sm:inline">Finalizar</span>
+                    <CheckCircle className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleNext}
+                    className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
+                    title="Siguiente"
+                  >
+                    <ChevronRight className="w-5 h-5 text-white" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1850,43 +1872,6 @@ const ExamTestRunPage: React.FC = () => {
           </div>
         </div>
         </div>
-      </div>
-
-      {/* Botones de navegación flotantes - esquina inferior derecha */}
-      <div className="fixed bottom-4 right-4 z-40 flex items-center gap-2">
-        {/* Indicador de progreso (móvil) */}
-        <span className="sm:hidden text-xs text-gray-600 bg-white/90 px-3 py-1.5 rounded-full shadow">
-          {currentItemIndex + 1} / {selectedItems.length}
-        </span>
-
-        {/* Botón Anterior */}
-        <button
-          onClick={handlePrevious}
-          disabled={currentItemIndex === 0}
-          className="flex items-center px-4 py-2.5 text-sm font-medium bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-xl shadow-lg border border-gray-200"
-        >
-          <ChevronLeft className="w-5 h-5 mr-1" />
-          <span className="hidden sm:inline">Anterior</span>
-        </button>
-
-        {/* Botón Siguiente/Finalizar */}
-        {currentItemIndex === selectedItems.length - 1 ? (
-          <button
-            onClick={() => setShowConfirmSubmit(true)}
-            className="flex items-center px-5 py-2.5 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors shadow-lg"
-          >
-            <CheckCircle className="w-4 h-4 mr-1.5" />
-            Finalizar
-          </button>
-        ) : (
-          <button
-            onClick={handleNext}
-            className="flex items-center px-5 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-xl hover:bg-primary-700 transition-colors shadow-lg"
-          >
-            <span className="hidden sm:inline">Siguiente</span>
-            <ChevronRight className="w-5 h-5 sm:ml-1" />
-          </button>
-        )}
       </div>
 
       {/* Modal de confirmación - Simplificado */}
