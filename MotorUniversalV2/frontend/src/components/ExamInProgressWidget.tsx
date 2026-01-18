@@ -124,8 +124,6 @@ const ExamInProgressWidget = () => {
   };
 
   const handleContinueExam = (session: ExamSession) => {
-    console.log('handleContinueExam called with session:', session);
-    console.log('Navigating to:', `/test-exams/${session.examId}/run`);
     // Navegar al examen con los valores correctos de la sesión
     navigate(`/test-exams/${session.examId}/run`, { 
       state: { 

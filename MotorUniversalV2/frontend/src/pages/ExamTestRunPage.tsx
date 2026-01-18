@@ -273,6 +273,20 @@ const ExamTestRunPage: React.FC = () => {
       if (sessionRestored) return;
       if (!exam) return;
       
+      // Verificar también directamente en localStorage para evitar race conditions
+      const savedSession = localStorage.getItem(examSessionKey);
+      if (savedSession) {
+        try {
+          const sessionData = JSON.parse(savedSession);
+          if (sessionData.selectedItems && sessionData.selectedItems.length > 0 && sessionData.timeRemaining > 0) {
+            // Ya hay una sesión guardada con items, no cargar nuevos
+            return;
+          }
+        } catch (e) {
+          // Continuar cargando nuevos items si hay error
+        }
+      }
+      
       const allQuestions: TestItem[] = [];
       const allExerciseRefs: { topicId: number; exerciseId: string; category_name: string; topic_name: string; item_mode: 'exam' | 'simulator' }[] = [];
       
