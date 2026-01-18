@@ -307,6 +307,7 @@ def create_exam():
             instructions=data.get('instructions'),
             duration_minutes=data.get('duration_minutes'),
             passing_score=data.get('passing_score', 70),
+            pause_on_disconnect=data.get('pause_on_disconnect', True),
             image_url=data.get('image_url'),
             competency_standard_id=data.get('competency_standard_id'),
             created_by=user_id
@@ -383,6 +384,7 @@ def clone_exam(exam_id):
             instructions=original_exam.instructions,
             duration_minutes=original_exam.duration_minutes,
             passing_score=original_exam.passing_score,
+            pause_on_disconnect=original_exam.pause_on_disconnect,
             image_url=original_exam.image_url,
             competency_standard_id=data.get('competency_standard_id', original_exam.competency_standard_id),
             is_active=True,
@@ -582,7 +584,7 @@ def update_exam(exam_id):
     # Actualizar campos permitidos
     updatable_fields = [
         'name', 'version', 'standard', 'description', 'instructions',
-        'duration_minutes', 'passing_score', 'is_active', 'is_published', 'image_url'
+        'duration_minutes', 'passing_score', 'pause_on_disconnect', 'is_active', 'is_published', 'image_url'
     ]
     
     for field in updatable_fields:

@@ -89,6 +89,7 @@ const ExamEditPage = () => {
   const [editExamVersion, setEditExamVersion] = useState('')
   const [editExamDuration, setEditExamDuration] = useState('')
   const [editExamPassingScore, setEditExamPassingScore] = useState('')
+  const [editExamPauseOnDisconnect, setEditExamPauseOnDisconnect] = useState(true)
   const [editExamImageUrl, setEditExamImageUrl] = useState('')
   const [editExamImagePreview, setEditExamImagePreview] = useState<string | null>(null)
   const [password, setPassword] = useState('')
@@ -235,7 +236,7 @@ const ExamEditPage = () => {
   })
 
   const updateExamMutation = useMutation({
-    mutationFn: (data: { name: string; version: string; duration_minutes: number; passing_score: number; image_url?: string }) => 
+    mutationFn: (data: { name: string; version: string; duration_minutes: number; passing_score: number; pause_on_disconnect: boolean; image_url?: string }) => 
       examService.updateExam(Number(id), data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['exam', id] })
@@ -529,6 +530,7 @@ const ExamEditPage = () => {
       setEditExamVersion(exam.version || '')
       setEditExamDuration(exam.duration_minutes?.toString() || '')
       setEditExamPassingScore(exam.passing_score?.toString() || '70')
+      setEditExamPauseOnDisconnect(exam.pause_on_disconnect ?? true)
       setEditExamImageUrl(exam.image_url || '')
       setEditExamImagePreview(exam.image_url || null)
       setShowEditExamModal(true)
@@ -543,6 +545,7 @@ const ExamEditPage = () => {
         version: editExamVersion.trim(),
         duration_minutes: parseInt(editExamDuration) || 0,
         passing_score: parseInt(editExamPassingScore) || 70,
+        pause_on_disconnect: editExamPauseOnDisconnect,
         image_url: editExamImageUrl || undefined
       })
     }
@@ -1640,6 +1643,41 @@ const ExamEditPage = () => {
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
                     </div>
+                  </div>
+                </div>
+
+                {/* Configuración de temporizador al desconectarse */}
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Comportamiento del temporizador al perder conexión
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="pauseOnDisconnect"
+                        checked={editExamPauseOnDisconnect === true}
+                        onChange={() => setEditExamPauseOnDisconnect(true)}
+                        className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div>
+                        <span className="text-sm font-medium text-gray-800">Pausar tiempo</span>
+                        <p className="text-xs text-gray-500">El tiempo se detiene si el alumno pierde conexión o cierra el navegador</p>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="pauseOnDisconnect"
+                        checked={editExamPauseOnDisconnect === false}
+                        onChange={() => setEditExamPauseOnDisconnect(false)}
+                        className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div>
+                        <span className="text-sm font-medium text-gray-800">Tiempo continúa</span>
+                        <p className="text-xs text-gray-500">El tiempo sigue corriendo aunque el alumno se desconecte</p>
+                      </div>
+                    </label>
                   </div>
                 </div>
 

@@ -20,6 +20,7 @@ class Exam(db.Model):
     duration_minutes = db.Column(db.Integer)  # Duración en minutos
     passing_score = db.Column(db.Integer, default=70)  # Puntaje mínimo para aprobar
     image_url = db.Column(db.Text)  # URL o base64 de la imagen del examen
+    pause_on_disconnect = db.Column(db.Boolean, default=True, nullable=False)  # Pausar tiempo al desconectarse
     
     # Relación con Estándar de Competencia (ECM)
     competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id'), nullable=True)
@@ -102,6 +103,7 @@ class Exam(db.Model):
             'description': self.description,
             'duration_minutes': self.duration_minutes,
             'passing_score': self.passing_score,
+            'pause_on_disconnect': self.pause_on_disconnect,
             'image_url': self.image_url,
             'is_active': self.is_active,
             'is_published': self.is_published,

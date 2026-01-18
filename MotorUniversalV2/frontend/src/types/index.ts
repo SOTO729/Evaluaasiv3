@@ -32,6 +32,7 @@ export interface Exam {
   instructions?: string
   duration_minutes?: number
   passing_score: number
+  pause_on_disconnect?: boolean
   is_active: boolean
   is_published: boolean
   total_questions: number

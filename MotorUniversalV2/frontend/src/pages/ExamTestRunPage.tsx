@@ -35,11 +35,19 @@ const ExamTestRunPage: React.FC = () => {
   // Modo actual (por defecto 'exam' si no viene especificado)
   const currentMode = mode || 'exam';
   
+  // Clave única para almacenar el estado del examen en localStorage
+  const examSessionKey = `exam_session_${examId}_${currentMode}`;
+  
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [startTime] = useState(Date.now());
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  
+  // Estado para detección de conexión
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isPaused, setIsPaused] = useState(false);
+  const lastOnlineTimeRef = useRef<number>(Date.now());
   
   // Estado para ejercicios
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -73,16 +81,114 @@ const ExamTestRunPage: React.FC = () => {
     enabled: !!examId
   });
 
+  // Configuración del examen: pausar tiempo al desconectarse
+  const pauseOnDisconnect = exam?.pause_on_disconnect ?? true;
+
+  // Detectar cambios de conexión (online/offline)
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      if (pauseOnDisconnect) {
+        setIsPaused(false);
+      }
+    };
+    
+    const handleOffline = () => {
+      setIsOnline(false);
+      if (pauseOnDisconnect) {
+        setIsPaused(true);
+        // Guardar el tiempo exacto cuando se desconectó
+        lastOnlineTimeRef.current = Date.now();
+      }
+    };
+    
+    // Detectar cuando la página pierde/recupera visibilidad
+    const handleVisibilityChange = () => {
+      if (document.hidden && pauseOnDisconnect) {
+        // La página está oculta, pausar
+        setIsPaused(true);
+        lastOnlineTimeRef.current = Date.now();
+      } else if (!document.hidden) {
+        // La página es visible de nuevo
+        if (pauseOnDisconnect) {
+          setIsPaused(false);
+        }
+      }
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [pauseOnDisconnect]);
+
+  // Guardar estado del examen en localStorage periódicamente
+  useEffect(() => {
+    if (timeRemaining === null || !examId) return;
+    
+    const saveSession = () => {
+      const sessionData = {
+        timeRemaining,
+        savedAt: Date.now(),
+        examDuration: exam?.duration_minutes ? exam.duration_minutes * 60 : null,
+        pauseOnDisconnect
+      };
+      localStorage.setItem(examSessionKey, JSON.stringify(sessionData));
+    };
+    
+    // Guardar cada 5 segundos
+    const saveInterval = setInterval(saveSession, 5000);
+    
+    // También guardar cuando la página se cierra
+    window.addEventListener('beforeunload', saveSession);
+    
+    return () => {
+      clearInterval(saveInterval);
+      window.removeEventListener('beforeunload', saveSession);
+    };
+  }, [timeRemaining, examId, examSessionKey, exam?.duration_minutes, pauseOnDisconnect]);
+
   // Inicializar tiempo restante cuando se carga el examen
   useEffect(() => {
-    if (exam?.duration_minutes) {
-      setTimeRemaining(exam.duration_minutes * 60);
+    if (!exam?.duration_minutes) return;
+    
+    // Intentar restaurar sesión existente
+    const savedSession = localStorage.getItem(examSessionKey);
+    
+    if (savedSession) {
+      try {
+        const sessionData = JSON.parse(savedSession);
+        const { timeRemaining: savedTime, savedAt, pauseOnDisconnect: savedPauseOnDisconnect } = sessionData;
+        
+        if (savedTime > 0) {
+          if (savedPauseOnDisconnect === false) {
+            // Si NO pausaba al desconectarse, calcular tiempo transcurrido
+            const elapsedSeconds = Math.floor((Date.now() - savedAt) / 1000);
+            const newTimeRemaining = Math.max(0, savedTime - elapsedSeconds);
+            setTimeRemaining(newTimeRemaining);
+          } else {
+            // Si pausaba al desconectarse, restaurar el tiempo tal cual
+            setTimeRemaining(savedTime);
+          }
+          return;
+        }
+      } catch (e) {
+        console.error('Error al restaurar sesión de examen:', e);
+      }
     }
-  }, [exam]);
+    
+    // Si no hay sesión guardada o es inválida, usar tiempo completo
+    setTimeRemaining(exam.duration_minutes * 60);
+  }, [exam, examSessionKey]);
 
-  // Actualizar tiempo restante cada segundo
+  // Actualizar tiempo restante cada segundo (solo si no está pausado)
   useEffect(() => {
-    if (timeRemaining === null || timeRemaining <= 0) return;
+    if (timeRemaining === null || timeRemaining <= 0 || isPaused) return;
     
     const timer = setInterval(() => {
       setTimeRemaining(prev => {
@@ -95,7 +201,7 @@ const ExamTestRunPage: React.FC = () => {
     }, 1000);
     
     return () => clearInterval(timer);
-  }, [timeRemaining]);
+  }, [timeRemaining, isPaused]);
 
   // Estado para envío de examen (declarado aquí para usarlo en auto-submit)
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -105,6 +211,8 @@ const ExamTestRunPage: React.FC = () => {
   useEffect(() => {
     if (timeRemaining === 0 && !isSubmitting && !timeExpired) {
       setTimeExpired(true);
+      // Limpiar sesión guardada
+      localStorage.removeItem(examSessionKey);
       // Cerrar cualquier modal abierto
       setShowConfirmSubmit(false);
       setShowExitConfirm(false);
@@ -113,7 +221,7 @@ const ExamTestRunPage: React.FC = () => {
       setShowErrorModal(null);
       setShowTimeWarning(null);
     }
-  }, [timeRemaining, isSubmitting, timeExpired]);
+  }, [timeRemaining, isSubmitting, timeExpired, examSessionKey]);
 
   // Advertencias de tiempo (30, 15, 5 y 1 minuto)
   useEffect(() => {
@@ -483,6 +591,9 @@ const ExamTestRunPage: React.FC = () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     
+    // Limpiar sesión guardada al terminar el examen
+    localStorage.removeItem(examSessionKey);
+    
     const elapsedTime = exam?.duration_minutes ? exam.duration_minutes * 60 : Math.floor((Date.now() - startTime) / 1000);
     
     try {
@@ -790,6 +901,8 @@ const ExamTestRunPage: React.FC = () => {
         }
       });
     } finally {
+      // Limpiar sesión guardada al terminar el examen
+      localStorage.removeItem(examSessionKey);
       setIsSubmitting(false);
     }
   };
@@ -1388,7 +1501,7 @@ const ExamTestRunPage: React.FC = () => {
               </button>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-sm font-semibold text-white truncate max-w-[150px] sm:max-w-none">{exam.name}</h1>
+                  <h1 className="text-base sm:text-lg md:text-xl font-bold text-white truncate max-w-[180px] sm:max-w-[250px] md:max-w-none drop-shadow-sm">{exam.name}</h1>
                   {/* Badge Examen/Simulador en navbar */}
                   <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
                     currentMode === 'simulator' 
@@ -1397,6 +1510,18 @@ const ExamTestRunPage: React.FC = () => {
                   }`}>
                     {currentMode === 'simulator' ? 'Simulador' : 'Examen'}
                   </span>
+                  {/* Indicador de pausa por desconexión */}
+                  {isPaused && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-amber-400 text-amber-900 animate-pulse">
+                      ⏸ Pausado
+                    </span>
+                  )}
+                  {/* Indicador de sin conexión */}
+                  {!isOnline && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-red-400 text-red-900">
+                      📶 Sin conexión
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-white/60">
                   Reactivo {currentItemIndex + 1} de {selectedItems.length}
