@@ -1609,13 +1609,13 @@ const ExamTestRunPage: React.FC = () => {
             
             {/* Derecha: Timer y progreso */}
             <div className="flex items-center gap-3 sm:gap-4">
-              {/* Nombre del usuario */}
+              {/* ID del usuario */}
               <div className="hidden md:flex items-center gap-2 text-sm">
                 <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
                   <User className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-white/90 font-medium max-w-[150px] truncate">
-                  {user?.name || user?.username || 'Usuario'}
+                <span className="text-white/90 font-medium">
+                  ID: {user?.id || '---'}
                 </span>
               </div>
               
@@ -1852,43 +1852,41 @@ const ExamTestRunPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Botones de navegación flotantes */}
-      <div className="fixed bottom-4 left-4 right-4 z-40 pointer-events-none">
-        <div className="max-w-3xl mx-auto flex justify-between items-center">
+      {/* Botones de navegación flotantes - esquina inferior derecha */}
+      <div className="fixed bottom-4 right-4 z-40 flex items-center gap-2">
+        {/* Indicador de progreso (móvil) */}
+        <span className="sm:hidden text-xs text-gray-600 bg-white/90 px-3 py-1.5 rounded-full shadow">
+          {currentItemIndex + 1} / {selectedItems.length}
+        </span>
+
+        {/* Botón Anterior */}
+        <button
+          onClick={handlePrevious}
+          disabled={currentItemIndex === 0}
+          className="flex items-center px-4 py-2.5 text-sm font-medium bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-xl shadow-lg border border-gray-200"
+        >
+          <ChevronLeft className="w-5 h-5 mr-1" />
+          <span className="hidden sm:inline">Anterior</span>
+        </button>
+
+        {/* Botón Siguiente/Finalizar */}
+        {currentItemIndex === selectedItems.length - 1 ? (
           <button
-            onClick={handlePrevious}
-            disabled={currentItemIndex === 0}
-            className="pointer-events-auto flex items-center px-4 py-2.5 text-sm font-medium bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-xl shadow-lg border border-gray-200"
+            onClick={() => setShowConfirmSubmit(true)}
+            className="flex items-center px-5 py-2.5 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors shadow-lg"
           >
-            <ChevronLeft className="w-5 h-5 mr-1" />
-            Anterior
+            <CheckCircle className="w-4 h-4 mr-1.5" />
+            Finalizar
           </button>
-
-          {/* Indicador central de progreso (móvil) */}
-          <span className="sm:hidden text-xs text-gray-600 bg-white/90 px-3 py-1.5 rounded-full shadow pointer-events-auto">
-            {currentItemIndex + 1} / {selectedItems.length}
-          </span>
-
-          <div className="pointer-events-auto flex items-center gap-2">
-            {currentItemIndex === selectedItems.length - 1 ? (
-              <button
-                onClick={() => setShowConfirmSubmit(true)}
-                className="flex items-center px-5 py-2.5 text-sm font-medium text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors shadow-lg"
-              >
-                <CheckCircle className="w-4 h-4 mr-1.5" />
-                Finalizar
-              </button>
-            ) : (
-              <button
-                onClick={handleNext}
-                className="flex items-center px-5 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-xl hover:bg-primary-700 transition-colors shadow-lg"
-              >
-                Siguiente
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </button>
-            )}
-          </div>
-        </div>
+        ) : (
+          <button
+            onClick={handleNext}
+            className="flex items-center px-5 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-xl hover:bg-primary-700 transition-colors shadow-lg"
+          >
+            <span className="hidden sm:inline">Siguiente</span>
+            <ChevronRight className="w-5 h-5 sm:ml-1" />
+          </button>
+        )}
       </div>
 
       {/* Modal de confirmación - Simplificado */}
