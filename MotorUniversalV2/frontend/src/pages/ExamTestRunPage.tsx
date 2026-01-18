@@ -160,7 +160,8 @@ const ExamTestRunPage: React.FC = () => {
           orderingInteracted: savedOrderingInteracted,
           actionErrors: savedActionErrors,
           stepCompleted: savedStepCompleted,
-          currentStepIndex: savedCurrentStepIndex
+          currentStepIndex: savedCurrentStepIndex,
+          flaggedQuestions: savedFlaggedQuestions
         } = sessionData;
         
         if (savedTime > 0) {
@@ -200,6 +201,10 @@ const ExamTestRunPage: React.FC = () => {
           }
           if (typeof savedCurrentStepIndex === 'number') {
             setCurrentStepIndex(savedCurrentStepIndex);
+          }
+          // Restaurar preguntas marcadas para revisar
+          if (savedFlaggedQuestions && Array.isArray(savedFlaggedQuestions)) {
+            setFlaggedQuestions(new Set(savedFlaggedQuestions));
           }
           
           return;
@@ -430,7 +435,9 @@ const ExamTestRunPage: React.FC = () => {
         orderingInteracted,
         actionErrors,
         stepCompleted,
-        currentStepIndex
+        currentStepIndex,
+        // Guardar preguntas marcadas para revisar
+        flaggedQuestions: Array.from(flaggedQuestions)
       };
       localStorage.setItem(examSessionKey, JSON.stringify(sessionData));
     };
@@ -440,7 +447,7 @@ const ExamTestRunPage: React.FC = () => {
     
     // También guardar cuando la página se cierra
     window.addEventListener('beforeunload', saveSession);
-    
+    , flaggedQuestions
     return () => {
       clearInterval(saveInterval);
       window.removeEventListener('beforeunload', saveSession);
@@ -1755,6 +1762,9 @@ const ExamTestRunPage: React.FC = () => {
                   const isAnswered = item.type === 'question' 
                     ? (item.question_type === 'ordering' 
                         ? orderingInteracted[String(item.question_id)] === true
+                        : answers[String(item.question_id)] !== undefined)
+                    : isExerciseCompleted(item);
+                  const isCurrent = idx === currentItemIndex;
                   const isFlagged = flaggedQuestions.has(idx);
                   
                   return (
@@ -1826,10 +1836,7 @@ const ExamTestRunPage: React.FC = () => {
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-4 h-4 rounded bg-gray-200"></div>
-                <span className="text-gray-600">Sin responder
-              <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded bg-gray-200"></div>
-                <span className="text-gray-600">Pendiente</span>
+                <span className="text-gray-600">Sin responder</span>
               </div>
             </div>
           </div>
