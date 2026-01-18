@@ -118,7 +118,10 @@ const ExamTestResultsPage: React.FC = () => {
   const { examId } = useParams<{ examId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
-  const { accessToken } = useAuthStore();
+  const { accessToken, user } = useAuthStore();
+
+  // Verificar si el usuario puede ver las respuestas detalladas (no candidatos)
+  const canViewAnswers = user?.role && ['admin', 'editor', 'soporte'].includes(user.role);
 
   // Expandir/colapsar secciones
   const [expandedExercises, setExpandedExercises] = useState<Record<string, boolean>>({});
@@ -447,6 +450,22 @@ const ExamTestResultsPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Mensaje para candidatos */}
+        {!canViewAnswers && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8">
+            <div className="flex items-start">
+              <AlertCircle className="w-6 h-6 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-lg font-semibold text-blue-900 mb-1">Resultados del Examen</h3>
+                <p className="text-blue-800">
+                  Aquí puedes ver tu calificación final y el desglose de tu desempeño por cada área evaluada.
+                  Esto te ayudará a identificar tus fortalezas y áreas de oportunidad.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Desglose por Categoría/Tema */}
         {summary.evaluation_breakdown && Object.keys(summary.evaluation_breakdown).length > 0 && (
           <div className="bg-white rounded-xl shadow-lg mb-8">
@@ -527,8 +546,8 @@ const ExamTestResultsPage: React.FC = () => {
           </div>
         )}
 
-        {/* Preguntas */}
-        {questions.length > 0 && (
+        {/* Preguntas - Solo visible para admin/editor/soporte */}
+        {canViewAnswers && questions.length > 0 && (
           <div className="bg-white rounded-xl shadow-lg mb-8">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">
@@ -616,8 +635,8 @@ const ExamTestResultsPage: React.FC = () => {
           </div>
         )}
 
-        {/* Ejercicios */}
-        {exercises.length > 0 && (
+        {/* Ejercicios - Solo visible para admin/editor/soporte */}
+        {canViewAnswers && exercises.length > 0 && (
           <div className="bg-white rounded-xl shadow-lg mb-8">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">
@@ -751,11 +770,11 @@ const ExamTestResultsPage: React.FC = () => {
         {/* Action Buttons */}
         <div className="flex flex-wrap justify-center gap-4">
           <button
-            onClick={() => navigate('/test-exams')}
+            onClick={() => navigate(canViewAnswers ? '/test-exams' : '/exams')}
             className="px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 flex items-center shadow-sm"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Volver a la Lista
+            {canViewAnswers ? 'Volver a la Lista' : 'Volver a Exámenes'}
           </button>
           <button
             onClick={downloadPDFFromBackend}
@@ -769,18 +788,21 @@ const ExamTestResultsPage: React.FC = () => {
             )}
             {downloadingPdf ? 'Generando...' : 'Descargar Reporte PDF'}
           </button>
-          <button
-            onClick={() => navigate(`/test-exams/${examId}/run`, {
-              state: {
-                questionCount: (location.state as any)?.questionCount || 0,
-                exerciseCount: (location.state as any)?.exerciseCount || 0
-              }
-            })}
-            className="px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl hover:from-primary-600 hover:to-primary-700 flex items-center shadow-lg"
-          >
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Reintentar Examen
-          </button>
+          {/* Botón Reintentar solo para admin/editor/soporte */}
+          {canViewAnswers && (
+            <button
+              onClick={() => navigate(`/test-exams/${examId}/run`, {
+                state: {
+                  questionCount: (location.state as any)?.questionCount || 0,
+                  exerciseCount: (location.state as any)?.exerciseCount || 0
+                }
+              })}
+              className="px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl hover:from-primary-600 hover:to-primary-700 flex items-center shadow-lg"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Reintentar Examen
+            </button>
+          )}
         </div>
       </div>
     </div>
