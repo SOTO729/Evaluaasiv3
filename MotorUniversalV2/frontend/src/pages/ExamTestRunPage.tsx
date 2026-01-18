@@ -1607,10 +1607,10 @@ const ExamTestRunPage: React.FC = () => {
               </div>
             </div>
             
-            {/* Derecha: Timer y navegación */}
+            {/* Derecha: Timer e ID */}
             <div className="flex items-center gap-2 sm:gap-3">
               {/* ID del usuario */}
-              <div className="hidden lg:flex items-center gap-2 text-sm">
+              <div className="hidden md:flex items-center gap-2 text-sm">
                 <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
                   <User className="w-4 h-4 text-white" />
                 </div>
@@ -1631,36 +1631,6 @@ const ExamTestRunPage: React.FC = () => {
                 <span className="font-medium">
                   {String(displayMinutes).padStart(2, '0')}:{String(displaySeconds).padStart(2, '0')}
                 </span>
-              </div>
-
-              {/* Botones de navegación */}
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={handlePrevious}
-                  disabled={currentItemIndex === 0}
-                  className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/20 hover:bg-white/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  title="Anterior"
-                >
-                  <ChevronLeft className="w-5 h-5 text-white" />
-                </button>
-                
-                {currentItemIndex === selectedItems.length - 1 ? (
-                  <button
-                    onClick={() => setShowConfirmSubmit(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-medium transition-colors"
-                  >
-                    <span className="hidden sm:inline">Finalizar</span>
-                    <CheckCircle className="w-4 h-4" />
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleNext}
-                    className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
-                    title="Siguiente"
-                  >
-                    <ChevronRight className="w-5 h-5 text-white" />
-                  </button>
-                )}
               </div>
             </div>
           </div>
@@ -1693,19 +1663,34 @@ const ExamTestRunPage: React.FC = () => {
               <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${showNavPanel ? 'rotate-90' : ''}`} />
             </button>
             
-            {/* Indicador de progreso */}
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <span className="flex items-center gap-1">
-                <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
-                {selectedItems.filter((item) => {
-                  if (item.type === 'question') {
-                    return item.question_type === 'ordering' 
-                      ? orderingInteracted[String(item.question_id)] === true
-                      : answers[String(item.question_id)] !== undefined;
-                  }
-                  return isExerciseCompleted(item);
-                }).length} respondidas
-              </span>
+            {/* Botones de navegación */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePrevious}
+                disabled={currentItemIndex === 0}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-lg"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">Anterior</span>
+              </button>
+              
+              {currentItemIndex === selectedItems.length - 1 ? (
+                <button
+                  onClick={() => setShowConfirmSubmit(true)}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors rounded-lg"
+                >
+                  <span>Finalizar</span>
+                  <CheckCircle className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={handleNext}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors rounded-lg"
+                >
+                  <span className="hidden sm:inline">Siguiente</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>
