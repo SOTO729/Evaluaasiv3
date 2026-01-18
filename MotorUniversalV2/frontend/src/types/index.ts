@@ -11,7 +11,7 @@ export interface User {
   second_surname?: string
   full_name: string
   gender?: string
-  role: 'admin' | 'editor' | 'soporte' | 'alumno' | 'auxiliar'
+  role: 'admin' | 'editor' | 'soporte' | 'candidato' | 'auxiliar'
   is_active: boolean
   is_verified: boolean
   created_at: string
@@ -41,6 +41,17 @@ export interface Exam {
   updated_at?: string
   categories?: Category[]
   image_url?: string
+  competency_standard?: {
+    id: number
+    code: string
+    name: string
+  }
+  linked_study_materials?: {
+    id: number
+    title: string
+    description?: string
+    image_url?: string
+  }[]
 }
 
 export interface Category {

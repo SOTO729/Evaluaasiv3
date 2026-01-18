@@ -26,13 +26,22 @@ const MultipleSelectAnswerPage = lazy(() => import('./pages/answers/MultipleSele
 const OrderingAnswerPage = lazy(() => import('./pages/answers/OrderingAnswerPage').then(module => ({ default: module.OrderingAnswerPage })))
 const ExamTestRunPage = lazy(() => import('./pages/ExamTestRunPage'))
 const ExamTestResultsPage = lazy(() => import('./pages/ExamTestResultsPage'))
+const ExamPreviewPage = lazy(() => import('./pages/exams/ExamPreviewPage'))
+const ExamModeSelectorPage = lazy(() => import('./pages/exams/ExamModeSelectorPage'))
 
 // Study Contents
 const StudyContentsListPage = lazy(() => import('./pages/study-contents/StudyContentsListPage'))
 const StudyContentCreatePage = lazy(() => import('./pages/study-contents/StudyContentCreatePage'))
 const StudyContentDetailPage = lazy(() => import('./pages/study-contents/StudyContentDetailPage'))
+const StudyContentCandidatePage = lazy(() => import('./pages/study-contents/StudyContentCandidatePage'))
 const StudyContentPreviewPage = lazy(() => import('./pages/study-contents/StudyContentPreviewPage'))
 const StudyInteractiveExercisePage = lazy(() => import('./pages/study-contents/StudyInteractiveExercisePage'))
+
+// Componente que decide qué página de detalle mostrar según el rol
+const StudyContentDetailRouter = () => {
+  const { user } = useAuthStore()
+  return user?.role === 'candidato' ? <StudyContentCandidatePage /> : <StudyContentDetailPage />
+}
 
 // Certificates
 const CertificatesPage = lazy(() => import('./pages/certificates/CertificatesPage'))
@@ -75,15 +84,20 @@ function App() {
             {/* Rutas de pantalla completa (sin navbar) */}
             <Route path="/test-exams/:examId/run" element={<ExamTestRunPage />} />
             <Route path="/test-exams/:examId/results" element={<ExamTestResultsPage />} />
-            <Route path="/study-contents/:id/preview" element={<StudyContentPreviewPage />} />
             
             <Route element={<Layout />}>
               <Route path="/dashboard" element={<HomePage />} />
+              
+              {/* Study Contents Preview - con navbar */}
+              <Route path="/study-contents/:id/preview" element={<StudyContentPreviewPage />} />
               
               {/* Exams */}
               <Route path="/exams" element={<ExamsListPage />} />
               <Route path="/exams/create" element={<ExamCreatePage />} />
               <Route path="/exams/:id/edit" element={<ExamEditPage />} />
+              <Route path="/exams/:id/select-mode" element={<ExamModeSelectorPage />} />
+              <Route path="/exams/:id/preview/:mode" element={<ExamPreviewPage />} />
+              <Route path="/exams/:id/preview" element={<ExamPreviewPage />} />
               
               {/* Categories */}
               <Route path="/exams/:examId/categories/:categoryId" element={<CategoryDetailPage />} />
@@ -100,7 +114,7 @@ function App() {
               {/* Study Contents */}
               <Route path="/study-contents" element={<StudyContentsListPage />} />
               <Route path="/study-contents/create" element={<StudyContentCreatePage />} />
-              <Route path="/study-contents/:id" element={<StudyContentDetailPage />} />
+              <Route path="/study-contents/:id" element={<StudyContentDetailRouter />} />
               <Route path="/study-contents/:id/edit" element={<StudyContentCreatePage />} />
               
               {/* Standards (ECM) */}

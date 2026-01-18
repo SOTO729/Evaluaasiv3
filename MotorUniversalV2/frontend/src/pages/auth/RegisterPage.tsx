@@ -77,7 +77,7 @@ const RegisterPage = () => {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex overflow-x-hidden overscroll-contain">
       {/* Left Side - Simple Gradient */}
       <div className="hidden lg:flex lg:flex-1 bg-gradient-to-br from-primary-500 to-primary-700 items-center justify-center relative overflow-hidden">
         {/* Background circles */}

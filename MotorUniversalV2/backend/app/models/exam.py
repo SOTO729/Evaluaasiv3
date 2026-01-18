@@ -55,6 +55,38 @@ class Exam(db.Model):
                 total += topic.exercises.count()
         return total
     
+    def get_mode_counts(self):
+        """Calcular conteos de preguntas y ejercicios por tipo (exam/simulator)"""
+        exam_questions = 0
+        simulator_questions = 0
+        exam_exercises = 0
+        simulator_exercises = 0
+        
+        for category in self.categories:
+            for topic in category.topics:
+                # Contar preguntas por tipo
+                for question in topic.questions:
+                    if question.type == 'simulator':
+                        simulator_questions += 1
+                    else:
+                        exam_questions += 1
+                
+                # Contar ejercicios por tipo
+                for exercise in topic.exercises:
+                    if exercise.type == 'simulator':
+                        simulator_exercises += 1
+                    else:
+                        exam_exercises += 1
+        
+        return {
+            'exam_questions_count': exam_questions,
+            'simulator_questions_count': simulator_questions,
+            'exam_exercises_count': exam_exercises,
+            'simulator_exercises_count': simulator_exercises,
+            'has_exam_content': (exam_questions + exam_exercises) > 0,
+            'has_simulator_content': (simulator_questions + simulator_exercises) > 0
+        }
+    
     def to_dict(self, include_details=False):
         """Convertir a diccionario"""
         # Obtener las categorías como lista (lazy='dynamic' devuelve una query)
@@ -81,6 +113,10 @@ class Exam(db.Model):
             'categories': [{'id': cat.id, 'name': cat.name, 'percentage': cat.percentage} for cat in categories_list]  # Siempre incluir resumen de categorías
         }
         
+        # Agregar conteos por modo (exam/simulator)
+        mode_counts = self.get_mode_counts()
+        data.update(mode_counts)
+        
         # Incluir info del estándar de competencia si existe
         if self.competency_standard:
             data['competency_standard'] = {
@@ -88,6 +124,22 @@ class Exam(db.Model):
                 'code': self.competency_standard.code,
                 'name': self.competency_standard.name
             }
+        
+        # Incluir materiales de estudio vinculados
+        try:
+            if hasattr(self, 'linked_study_materials'):
+                linked_materials = []
+                for material in self.linked_study_materials:
+                    linked_materials.append({
+                        'id': material.id,
+                        'title': material.title,
+                        'description': material.description,
+                        'image_url': material.image_url
+                    })
+                data['linked_study_materials'] = linked_materials
+        except Exception:
+            # La tabla puede no existir aún
+            data['linked_study_materials'] = []
         
         if include_details:
             data['instructions'] = self.instructions

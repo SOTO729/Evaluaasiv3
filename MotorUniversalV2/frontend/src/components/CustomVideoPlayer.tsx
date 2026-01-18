@@ -10,9 +10,10 @@ interface CustomVideoPlayerProps {
   className?: string;
   onEnded?: () => void;
   objectFit?: 'contain' | 'cover' | 'fill';
+  onDimensionsLoaded?: (width: number, height: number) => void;
 }
 
-const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = '', onEnded, objectFit = 'contain' }) => {
+const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = '', onEnded, objectFit = 'contain', onDimensionsLoaded }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -33,7 +34,15 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
     if (!video) return;
 
     const handleTimeUpdate = () => setCurrentTime(video.currentTime);
-    const handleLoadedMetadata = () => setDuration(video.duration);
+    const handleLoadedMetadata = () => {
+      setDuration(video.duration);
+      // Obtener dimensiones reales del video y notificar al componente padre
+      const videoWidth = video.videoWidth;
+      const videoHeight = video.videoHeight;
+      if (videoWidth && videoHeight && onDimensionsLoaded) {
+        onDimensionsLoaded(videoWidth, videoHeight);
+      }
+    };
     const handleEnded = () => {
       setIsPlaying(false);
       if (onEnded) onEnded();
@@ -53,7 +62,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
       video.removeEventListener('ended', handleEnded);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
-  }, []);
+  }, [onDimensionsLoaded]);
 
   const togglePlay = () => {
     const video = videoRef.current;
@@ -153,7 +162,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
         ref={videoRef}
         src={src}
         className="w-full h-full cursor-pointer"
-        style={{ maxHeight: isFullscreen ? '100vh' : '70vh', objectFit }}
+        style={{ objectFit }}
         onClick={togglePlay}
         preload="metadata"
       />

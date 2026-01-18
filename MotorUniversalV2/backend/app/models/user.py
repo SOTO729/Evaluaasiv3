@@ -38,7 +38,7 @@ class User(db.Model):
     subsystem_id = db.Column(db.Integer)
     
     # Rol y permisos
-    role = db.Column(db.String(20), nullable=False, default='alumno')  # admin, editor, soporte, alumno, auxiliar
+    role = db.Column(db.String(20), nullable=False, default='candidato')  # admin, editor, soporte, candidato, auxiliar
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
     
@@ -95,7 +95,7 @@ class User(db.Model):
             'admin': ['*'],  # Todos los permisos
             'editor': ['exams:create', 'exams:read', 'exams:update', 'exams:delete'],
             'soporte': ['users:read', 'vouchers:create', 'vouchers:read'],
-            'alumno': ['exams:read', 'evaluations:create'],
+            'candidato': ['exams:read', 'evaluations:create'],
             'auxiliar': ['users:read', 'exams:read']
         }
         

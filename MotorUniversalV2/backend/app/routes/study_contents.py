@@ -278,14 +278,27 @@ def fix_sessions_fk():
 def get_materials():
     """Obtener todos los materiales de estudio"""
     try:
+        from app.models.user import User
+        
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 10, type=int)
         search = request.args.get('search', '')
+        published_only = request.args.get('published_only', type=bool)
         
         query = StudyMaterial.query
         
         if search:
             query = query.filter(StudyMaterial.title.ilike(f'%{search}%'))
+        
+        # Filtrar solo publicados si se solicita explícitamente
+        if published_only:
+            query = query.filter_by(is_published=True)
+        
+        # Para candidatos, solo mostrar materiales publicados
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if user and user.role in ['alumno', 'candidato']:
+            query = query.filter_by(is_published=True)
         
         # Ordenar: publicados primero, luego por fecha de actualización (más recientes primero)
         # Esto asegura que al publicar un material de la página 2+, aparezca en la primera página

@@ -710,3 +710,194 @@ def results_ecm_status():
             'error': str(e),
             'traceback': traceback.format_exc()
         })
+
+
+@debug_bp.route('/exams-ecm-status', methods=['GET'])
+def exams_ecm_status():
+    """
+    Ver estado de exámenes respecto a ECM
+    """
+    from app.models.exam import Exam
+    from app.models.competency_standard import CompetencyStandard
+    import traceback
+    
+    try:
+        exams = Exam.query.all()
+        result = []
+        for exam in exams:
+            ecm = None
+            if exam.competency_standard_id:
+                ecm = CompetencyStandard.query.get(exam.competency_standard_id)
+            result.append({
+                'id': exam.id,
+                'name': exam.name[:50] if exam.name else None,
+                'is_published': exam.is_published,
+                'ecm_id': exam.competency_standard_id,
+                'ecm_code': ecm.code if ecm else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'total_exams': len(result),
+            'exams_with_ecm': sum(1 for e in result if e['ecm_id']),
+            'exams_without_ecm': sum(1 for e in result if not e['ecm_id']),
+            'exams': result
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        })
+
+
+@debug_bp.route('/migrate-results-ecm', methods=['POST'])
+def migrate_results_ecm():
+    """
+    Migrar resultados existentes para asignar competency_standard_id
+    basado en el exam_id
+    """
+    from app import db
+    from app.models.result import Result
+    from app.models.exam import Exam
+    import traceback
+    
+    try:
+        # Obtener resultados sin ECM
+        results_without_ecm = Result.query.filter(
+            Result.competency_standard_id.is_(None)
+        ).all()
+        
+        migrated = 0
+        skipped = 0
+        errors = []
+        
+        for result in results_without_ecm:
+            try:
+                exam = Exam.query.get(result.exam_id)
+                if exam and exam.competency_standard_id:
+                    result.competency_standard_id = exam.competency_standard_id
+                    migrated += 1
+                else:
+                    skipped += 1
+            except Exception as e:
+                errors.append({
+                    'result_id': result.id[:8],
+                    'error': str(e)
+                })
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'total_processed': len(results_without_ecm),
+            'migrated': migrated,
+            'skipped': skipped,
+            'errors': errors[:10] if errors else []
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        })
+
+
+@debug_bp.route('/create-test-candidate', methods=['POST'])
+def create_test_candidate():
+    """
+    Crear un usuario candidato de prueba
+    """
+    from app import db
+    from app.models.user import User
+    import traceback
+    
+    try:
+        # Verificar si ya existe
+        existing = User.query.filter_by(email='candidato@test.com').first()
+        if existing:
+            return jsonify({
+                'success': True,
+                'message': 'Usuario ya existe',
+                'credentials': {
+                    'email': 'candidato@test.com',
+                    'password': 'Candidato123!'
+                },
+                'user': existing.to_dict()
+            })
+        
+        # Crear nuevo usuario candidato
+        user = User(
+            email='candidato@test.com',
+            username='candidato_test',
+            name='Usuario',
+            first_surname='Candidato',
+            second_surname='Prueba',
+            role='candidato',
+            is_active=True,
+            is_verified=True
+        )
+        user.set_password('Candidato123!')
+        
+        db.session.add(user)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Usuario candidato creado exitosamente',
+            'credentials': {
+                'email': 'candidato@test.com',
+                'password': 'Candidato123!'
+            },
+            'user': user.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        })
+
+
+@debug_bp.route('/list-users-summary', methods=['GET'])
+def list_users_summary():
+    """
+    Listar resumen de usuarios por rol
+    """
+    from app import db
+    from app.models.user import User
+    from sqlalchemy import func
+    import traceback
+    
+    try:
+        # Contar por rol
+        role_counts = db.session.query(
+            User.role, 
+            func.count(User.id).label('count')
+        ).group_by(User.role).all()
+        
+        # Obtener algunos usuarios de cada rol
+        users_by_role = {}
+        for role, count in role_counts:
+            users = User.query.filter_by(role=role).limit(3).all()
+            users_by_role[role] = {
+                'count': count,
+                'sample': [{'id': u.id[:8] + '...', 'email': u.email, 'name': u.full_name} for u in users]
+            }
+        
+        return jsonify({
+            'success': True,
+            'total_users': sum(c for _, c in role_counts),
+            'users_by_role': users_by_role
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        })

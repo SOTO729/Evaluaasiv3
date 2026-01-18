@@ -30,7 +30,10 @@ const ExamTestRunPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   
-  const { questionCount, exerciseCount } = location.state as { questionCount: number; exerciseCount: number };
+  const { questionCount, exerciseCount, mode } = location.state as { questionCount: number; exerciseCount: number; mode?: 'exam' | 'simulator' };
+  
+  // Modo actual (por defecto 'exam' si no viene especificado)
+  const currentMode = mode || 'exam';
   
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
@@ -143,44 +146,52 @@ const ExamTestRunPage: React.FC = () => {
       
       exam.categories?.forEach((category: any) => {
         category.topics?.forEach((topic: any) => {
-          // Agregar preguntas
+          // Agregar preguntas - filtrar por modo
           topic.questions?.forEach((question: any) => {
-            allQuestions.push({
-              type: 'question',
-              id: question.id,
-              category_name: category.name,
-              topic_name: topic.name,
-              item_mode: question.type || 'exam', // exam o simulator
-              question_id: question.id,
-              question_text: question.question_text,
-              question_type: question.question_type?.name || question.question_type,
-              options: question.answers || question.options
-            });
+            const questionMode = question.type || 'exam';
+            // Solo incluir si el modo coincide
+            if (questionMode === currentMode) {
+              allQuestions.push({
+                type: 'question',
+                id: question.id,
+                category_name: category.name,
+                topic_name: topic.name,
+                item_mode: questionMode,
+                question_id: question.id,
+                question_text: question.question_text,
+                question_type: question.question_type?.name || question.question_type,
+                options: question.answers || question.options
+              });
+            }
           });
           
-          // Recopilar referencias a ejercicios
+          // Recopilar referencias a ejercicios - filtrar por modo
           topic.exercises?.forEach((exercise: any) => {
-            allExerciseRefs.push({
-              topicId: topic.id,
-              exerciseId: exercise.id,
-              category_name: category.name,
-              topic_name: topic.name,
-              item_mode: exercise.type || 'exam' // exam o simulator
-            });
+            const exerciseMode = exercise.type || 'exam';
+            // Solo incluir si el modo coincide
+            if (exerciseMode === currentMode) {
+              allExerciseRefs.push({
+                topicId: topic.id,
+                exerciseId: exercise.id,
+                category_name: category.name,
+                topic_name: topic.name,
+                item_mode: exerciseMode
+              });
+            }
           });
         });
       });
 
-      // Seleccionar preguntas aleatorias
+      // Seleccionar preguntas aleatorias (del modo seleccionado)
       const shuffledQuestions = [...allQuestions].sort(() => Math.random() - 0.5);
-      const selectedQuestions = shuffledQuestions.slice(0, questionCount);
+      const selectedQuestions = shuffledQuestions.slice(0, Math.min(questionCount, allQuestions.length));
       
-      // Seleccionar y cargar ejercicios aleatorios
+      // Seleccionar y cargar ejercicios aleatorios (del modo seleccionado)
       let selectedExercises: TestItem[] = [];
       if (exerciseCount > 0 && allExerciseRefs.length > 0) {
         setLoadingExercises(true);
         const shuffledExercises = [...allExerciseRefs].sort(() => Math.random() - 0.5);
-        const exercisesToLoad = shuffledExercises.slice(0, exerciseCount);
+        const exercisesToLoad = shuffledExercises.slice(0, Math.min(exerciseCount, allExerciseRefs.length));
         
         // Cargar detalles de cada ejercicio
         const exercisePromises = exercisesToLoad.map(async (ref) => {
@@ -247,7 +258,7 @@ const ExamTestRunPage: React.FC = () => {
     };
     
     loadItems();
-  }, [exam, questionCount, exerciseCount]);
+  }, [exam, questionCount, exerciseCount, currentMode]);
 
   const currentItem = selectedItems[currentItemIndex];
 
@@ -1193,7 +1204,7 @@ const ExamTestRunPage: React.FC = () => {
   const isTimeCritical = timeRemaining !== null && timeRemaining <= 30; // Últimos 30 segundos
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 overflow-x-hidden overscroll-contain">
       {/* Modal de confirmación de salida */}
       {showExitConfirm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -1379,15 +1390,13 @@ const ExamTestRunPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <h1 className="text-sm font-semibold text-white truncate max-w-[150px] sm:max-w-none">{exam.name}</h1>
                   {/* Badge Examen/Simulador en navbar */}
-                  {currentItem && (
-                    <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
-                      currentItem.item_mode === 'simulator' 
-                        ? 'bg-amber-400 text-amber-900' 
-                        : 'bg-teal-400 text-teal-900'
-                    }`}>
-                      {currentItem.item_mode === 'simulator' ? 'Simulador' : 'Examen'}
-                    </span>
-                  )}
+                  <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
+                    currentMode === 'simulator' 
+                      ? 'bg-purple-400 text-purple-900' 
+                      : 'bg-blue-400 text-blue-900'
+                  }`}>
+                    {currentMode === 'simulator' ? 'Simulador' : 'Examen'}
+                  </span>
                 </div>
                 <p className="text-xs text-white/60">
                   Reactivo {currentItemIndex + 1} de {selectedItems.length}
@@ -1557,11 +1566,11 @@ const ExamTestRunPage: React.FC = () => {
                 <div className="flex items-center gap-2 flex-wrap">
                   {/* Badge Examen/Simulador */}
                   <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
-                    currentItem?.item_mode === 'simulator' 
-                      ? 'bg-amber-100 text-amber-700 border border-amber-200' 
-                      : 'bg-teal-100 text-teal-700 border border-teal-200'
+                    currentMode === 'simulator' 
+                      ? 'bg-purple-100 text-purple-700 border border-purple-200' 
+                      : 'bg-blue-100 text-blue-700 border border-blue-200'
                   }`}>
-                    {currentItem?.item_mode === 'simulator' ? 'Simulador' : 'Examen'}
+                    {currentMode === 'simulator' ? 'Simulador' : 'Examen'}
                   </span>
                   {/* Tipo de pregunta/ejercicio */}
                   <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${

@@ -436,7 +436,7 @@ const TopicDetailPage = () => {
         </div>
       </div>
 
-      {/* Contenido de las pestañas */}
+      {/* Contenido de las pestañas   */}
       <div className="bg-white rounded-b-xl border border-t-0 border-gray-200 shadow-sm mb-6 relative z-10">
         {/* Contenido de la pestaña Preguntas */}
         {activeTab === 'questions' && (
@@ -444,14 +444,14 @@ const TopicDetailPage = () => {
             {/* Header FIJO - NO hace scroll */}
             <div className="p-6 pb-4 border-b border-gray-100 bg-white">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
+                <div>  
                   <h2 className="text-xl font-bold text-gray-900">Preguntas</h2>
                   <p className="text-sm text-gray-500 mt-1">Gestiona las preguntas de este tema</p>
                 </div>
                 <button 
                   onClick={() => setIsCreateModalOpen(true)}
                   className="inline-flex items-center px-4 py-2.5 bg-blue-600 text-white font-medium rounded-xl shadow-lg shadow-blue-500/25 hover:bg-blue-700 transition-all duration-200 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5"
-                >
+                > 
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>

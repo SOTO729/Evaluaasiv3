@@ -7,6 +7,12 @@
     @apply border-gray-200;
   }
   
+  /* Mejoras globales de scroll para todos los dispositivos */
+  html {
+    scroll-behavior: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
   body {
     @apply bg-gray-50 text-gray-900;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -14,6 +20,45 @@
       sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior: contain;
+    overflow-x: hidden;
+  }
+  
+  /* Contenedores con scroll - mejoras para ratón y touch */
+  .scroll-container,
+  [class*="overflow-y-auto"],
+  [class*="overflow-auto"] {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: auto;
+  }
+  
+  /* Scrollbars más sutiles en desktop */
+  @media (min-width: 1024px) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+    }
+    
+    *::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    *::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    *::-webkit-scrollbar-thumb {
+      background-color: rgba(156, 163, 175, 0.5);
+      border-radius: 4px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+    }
+    
+    *::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(156, 163, 175, 0.8);
+    }
   }
 }
 
@@ -319,4 +364,61 @@
   word-break: normal !important;
   overflow-wrap: anywhere !important;
   white-space: normal !important;
+}
+
+/* Estilos para imagen de ejercicio interactivo - debe caber siempre en la pantalla sin cortarse */
+.interactive-exercise-image {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+}
+
+/* Contenedor del ejercicio - altura reducida considerando barra inferior fija */
+.interactive-exercise-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+  height: calc(100vh - 420px);
+  max-height: calc(100vh - 420px);
+}
+
+@media (max-width: 639px) {
+  .interactive-exercise-container {
+    height: calc(100vh - 380px);
+    max-height: calc(100vh - 380px);
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .interactive-exercise-container {
+    height: calc(100vh - 400px);
+    max-height: calc(100vh - 400px);
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .interactive-exercise-container {
+    height: calc(100vh - 410px);
+    max-height: calc(100vh - 410px);
+  }
+}
+
+@media (min-width: 1280px) {
+  .interactive-exercise-container {
+    height: calc(100vh - 430px);
+    max-height: calc(100vh - 430px);
+  }
+}
+
+/* Contenedor de la imagen - centrado y flexible, sin cortar */
+.interactive-exercise-image-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
 }

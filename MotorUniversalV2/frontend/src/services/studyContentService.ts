@@ -239,13 +239,15 @@ export interface MaterialsResponse {
 export const getMaterials = async (
   page: number = 1,
   perPage: number = 10,
-  search: string = ''
+  search: string = '',
+  publishedOnly: boolean = false
 ): Promise<MaterialsResponse> => {
   const params = new URLSearchParams({
     page: page.toString(),
     per_page: perPage.toString(),
   });
   if (search) params.append('search', search);
+  if (publishedOnly) params.append('published_only', 'true');
   
   const response = await api.get(`/study-contents?${params}`);
   return response.data;

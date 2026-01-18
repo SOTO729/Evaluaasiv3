@@ -24,22 +24,34 @@ import LoadingSpinner from '../../components/LoadingSpinner'
 // Componente de tarjeta de examen con nuevo diseño
 const ExamCard = ({ 
   exam,
-  index = 0
+  index = 0,
+  showStatus = true
 }: { 
   exam: any;
   index?: number;
+  showStatus?: boolean;
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const isCandidate = user?.role === 'candidato';
+
+  const handleCardClick = () => {
+    if (isCandidate) {
+      navigate(`/exams/${exam.id}/select-mode`);
+    } else {
+      navigate(`/exams/${exam.id}/edit`);
+    }
+  };
 
   return (
     <div 
-      className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 group animate-stagger-in"
+      className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 group animate-stagger-in relative hover:shadow-lg cursor-pointer transition-all duration-300"
       style={{ animationDelay: `${index * 50}ms` }}
     >
       {/* Card Image */}
       <div 
         className="relative h-40 bg-gradient-to-br from-blue-600 to-blue-800 cursor-pointer"
-        onClick={() => navigate(`/exams/${exam.id}/edit`)}
+        onClick={handleCardClick}
       >
         {exam.image_url ? (
           <OptimizedImage
@@ -54,28 +66,30 @@ const ExamCard = ({
           </div>
         )}
         
-        {/* Status Badge */}
-        <div className="absolute top-3 left-3">
-          <span
-            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-              exam.is_published
-                ? 'bg-green-500 text-white'
-                : 'bg-gray-800/70 text-white'
-            }`}
-          >
-            {exam.is_published ? (
-              <>
-                <Eye className="h-3 w-3" />
-                Publicado
-              </>
-            ) : (
-              <>
-                <EyeOff className="h-3 w-3" />
-                Borrador
-              </>
-            )}
-          </span>
-        </div>
+        {/* Status Badge - Solo mostrar si showStatus es true */}
+        {showStatus && !isCandidate && (
+          <div className="absolute top-3 left-3">
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                exam.is_published
+                  ? 'bg-green-500 text-white'
+                  : 'bg-gray-800/70 text-white'
+              }`}
+            >
+              {exam.is_published ? (
+                <>
+                  <Eye className="h-3 w-3" />
+                  Publicado
+                </>
+              ) : (
+                <>
+                  <EyeOff className="h-3 w-3" />
+                  Borrador
+                </>
+              )}
+            </span>
+          </div>
+        )}
 
         {/* Version Badge */}
         <div className="absolute top-3 right-3">
@@ -88,8 +102,8 @@ const ExamCard = ({
       {/* Card Content */}
       <div className="p-4">
         <h3 
-          className="font-semibold text-gray-900 mb-2 line-clamp-1 cursor-pointer hover:text-blue-600 transition-colors"
-          onClick={() => navigate(`/exams/${exam.id}/edit`)}
+          className="font-semibold text-gray-900 mb-2 line-clamp-1 transition-colors cursor-pointer hover:text-blue-600"
+          onClick={handleCardClick}
         >
           {exam.name}
         </h3>
@@ -145,6 +159,7 @@ const ExamsListPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 12;
+  const isCandidate = user?.role === 'candidato';
   
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['exams', currentPage, searchTerm],
@@ -209,10 +224,13 @@ const ExamsListPage = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
             <FileText className="h-7 w-7 text-blue-600" />
-            Exámenes
+            {isCandidate ? 'Exámenes Disponibles' : 'Exámenes'}
           </h1>
           <p className="text-gray-600 mt-1">
-            Gestiona los exámenes con sus categorías, preguntas y ejercicios
+            {isCandidate 
+              ? 'Explora los exámenes disponibles para tu certificación'
+              : 'Gestiona los exámenes con sus categorías, preguntas y ejercicios'
+            }
           </p>
         </div>
         {canCreateExam && (

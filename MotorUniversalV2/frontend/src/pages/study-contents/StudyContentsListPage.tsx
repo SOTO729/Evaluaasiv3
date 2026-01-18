@@ -10,6 +10,7 @@ import {
   StudyMaterial, 
   MaterialsResponse 
 } from '../../services/studyContentService';
+import { useAuthStore } from '../../store/authStore';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { 
   BookOpen, 
@@ -30,16 +31,17 @@ interface MaterialCardProps {
   material: StudyMaterial;
   navigate: NavigateFunction;
   index?: number;
+  showStatus?: boolean;
 }
 
-const MaterialCard = ({ material, navigate, index = 0 }: MaterialCardProps) => (
+const MaterialCard = ({ material, navigate, index = 0, showStatus = true }: MaterialCardProps) => (
   <div
     className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 group animate-stagger-in"
     style={{ animationDelay: `${index * 50}ms` }}
   >
-    {/* Card Image */}
+    {/* Card Image - altura fija como en exámenes */}
     <div 
-      className="relative h-32 sm:h-40 bg-gradient-to-br from-blue-500 to-blue-700 cursor-pointer"
+      className="relative h-40 bg-gradient-to-br from-blue-500 to-blue-700 cursor-pointer"
       onClick={() => navigate(`/study-contents/${material.id}`)}
     >
       {material.image_url ? (
@@ -47,56 +49,59 @@ const MaterialCard = ({ material, navigate, index = 0 }: MaterialCardProps) => (
           src={material.image_url}
           alt={material.title}
           className="w-full h-full object-cover"
-          fallbackIcon={<BookOpen className="h-12 w-12 sm:h-16 sm:w-16 text-white/50" />}
+          fallbackIcon={<BookOpen className="h-16 w-16 text-white/50" />}
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center">
-          <BookOpen className="h-12 w-12 sm:h-16 sm:w-16 text-white/50" />
+          <BookOpen className="h-16 w-16 text-white/50" />
         </div>
       )}
       
-      {/* Status Badge */}
-      <div className="absolute top-2 left-2 sm:top-3 sm:left-3">
-        <span
-          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] sm:text-xs font-medium ${
-            material.is_published
-              ? 'bg-green-500 text-white'
-              : 'bg-gray-800/70 text-white'
-          }`}
-        >
-          {material.is_published ? (
-            <>
-              <Eye className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-              Publicado
-            </>
-          ) : (
-            <>
-              <EyeOff className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-              Borrador
-            </>
-          )}
-        </span>
-      </div>
+      {/* Status Badge - Solo mostrar si showStatus es true */}
+      {showStatus && (
+        <div className="absolute top-3 left-3">
+          <span
+            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+              material.is_published
+                ? 'bg-green-500 text-white'
+                : 'bg-gray-800/70 text-white'
+            }`}
+          >
+            {material.is_published ? (
+              <>
+                <Eye className="h-3 w-3" />
+                Publicado
+              </>
+            ) : (
+              <>
+                <EyeOff className="h-3 w-3" />
+                Borrador
+              </>
+            )}
+          </span>
+        </div>
+      )}
     </div>
 
-    {/* Card Content */}
-    <div className="p-3 sm:p-4">
+    {/* Card Content - mismo padding que exámenes */}
+    <div className="p-4">
       <h3 
-        className="font-semibold text-gray-900 mb-1 line-clamp-1 cursor-pointer hover:text-blue-600 transition-colors"
+        className="font-semibold text-gray-900 mb-2 line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors"
         onClick={() => navigate(`/study-contents/${material.id}`)}
+        title={material.title}
       >
         {material.title}
       </h3>
       {material.description && (
         <p 
-          className="text-sm text-gray-500 line-clamp-2 mb-3"
+          className="text-xs text-gray-500 line-clamp-2 mb-3"
           dangerouslySetInnerHTML={{ 
             __html: DOMPurify.sanitize(material.description, { ALLOWED_TAGS: [] }) 
           }}
         />
       )}
       
-      {/* Card Footer */}
+      {/* Card Footer - mismo estilo que exámenes */}
       <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1" title="Sesiones">
@@ -124,6 +129,7 @@ const MaterialCard = ({ material, navigate, index = 0 }: MaterialCardProps) => (
 
 const StudyContentsListPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [materials, setMaterials] = useState<StudyMaterial[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -134,6 +140,9 @@ const StudyContentsListPage = () => {
   const [materialToDelete, setMaterialToDelete] = useState<StudyMaterial | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const draftsRef = useRef<HTMLDivElement>(null);
+  
+  const isCandidate = user?.role === 'candidato';
+  const canCreate = user?.role === 'admin' || user?.role === 'editor';
 
   // Scroll a borradores si viene el parámetro
   useEffect(() => {
@@ -154,7 +163,7 @@ const StudyContentsListPage = () => {
   const fetchMaterials = async () => {
     setLoading(true);
     try {
-      const response: MaterialsResponse = await getMaterials(currentPage, 10, searchTerm);
+      const response: MaterialsResponse = await getMaterials(currentPage, 10, searchTerm, isCandidate);
       setMaterials(response.materials);
       setTotalPages(response.pages);
       setTotal(response.total);
@@ -194,44 +203,49 @@ const StudyContentsListPage = () => {
   // };
 
   return (
-    <div className="p-4 sm:p-6 animate-fade-in-up">
+    <div className="min-h-screen overflow-x-hidden overscroll-contain">
+      <div className="max-w-[2000px] 3xl:max-w-[2400px] mx-auto p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 animate-fade-in-up">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6 lg:mb-8 xl:mb-10">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <BookOpen className="h-6 w-6 sm:h-7 sm:w-7 text-blue-600" />
-            Materiales de Estudio
+          <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-gray-800 flex items-center gap-2 lg:gap-3 xl:gap-4">
+            <BookOpen className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12 text-blue-600" />
+            {isCandidate ? 'Materiales Disponibles' : 'Materiales de Estudio'}
           </h1>
-          <p className="text-gray-600 mt-1 text-sm sm:text-base">
-            Materiales organizados por sesiones
+          <p className="text-gray-600 mt-1 lg:mt-2 text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl">
+            {isCandidate 
+              ? 'Explora los materiales de estudio disponibles' 
+              : 'Materiales organizados por sesiones'}
           </p>
         </div>
-        <button
-          onClick={() => navigate('/study-contents/create')}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm sm:text-base"
-        >
-          <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="hidden sm:inline">Nuevo Material</span>
-          <span className="sm:hidden">Nuevo</span>
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => navigate('/study-contents/create')}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 lg:px-5 xl:px-6 2xl:px-8 py-2 lg:py-2.5 xl:py-3 2xl:py-4 rounded-lg xl:rounded-xl flex items-center justify-center gap-2 lg:gap-3 transition-colors text-sm sm:text-base lg:text-lg xl:text-xl"
+          >
+            <Plus className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7" />
+            <span className="hidden sm:inline">Nuevo Material</span>
+            <span className="sm:hidden">Nuevo</span>
+          </button>
+        )}
       </div>
 
       {/* Search */}
-      <div className="bg-white rounded-lg shadow p-3 sm:p-4 mb-4 sm:mb-6">
-        <form onSubmit={handleSearch} className="flex gap-2 sm:gap-4">
+      <div className="bg-white rounded-lg xl:rounded-xl shadow p-3 sm:p-4 lg:p-5 xl:p-6 2xl:p-8 mb-4 sm:mb-6 lg:mb-8 xl:mb-10">
+        <form onSubmit={handleSearch} className="flex gap-2 sm:gap-4 lg:gap-5 xl:gap-6">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+            <Search className="absolute left-3 lg:left-4 xl:left-5 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-gray-400" />
             <input
               type="text"
               placeholder="Buscar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 sm:pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
+              className="w-full pl-9 sm:pl-10 lg:pl-12 xl:pl-14 2xl:pl-16 pr-4 py-2 lg:py-3 xl:py-4 border border-gray-300 rounded-lg xl:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base lg:text-lg xl:text-xl"
             />
           </div>
           <button
             type="submit"
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm sm:text-base"
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 sm:px-4 lg:px-5 xl:px-6 2xl:px-8 py-2 lg:py-3 xl:py-4 rounded-lg xl:rounded-xl transition-colors text-sm sm:text-base lg:text-lg xl:text-xl"
           >
             Buscar
           </button>
@@ -240,93 +254,120 @@ const StudyContentsListPage = () => {
 
       {/* Materials Grid */}
       {loading ? (
-        <div className="bg-white rounded-lg shadow p-8">
+        <div className="bg-white rounded-lg xl:rounded-xl 2xl:rounded-2xl shadow p-8 lg:p-12 xl:p-16 2xl:p-20">
           <LoadingSpinner message="Cargando materiales..." />
         </div>
       ) : materials.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center">
-          <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-700 mb-2">No hay materiales</h3>
-          <p className="text-gray-500 mb-4">Crea tu primer material de estudio</p>
-          <button
-            onClick={() => navigate('/study-contents/create')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg inline-flex items-center gap-2"
-          >
-            <Plus className="h-5 w-5" />
-            Crear Material
-          </button>
+        <div className="bg-white rounded-lg xl:rounded-xl 2xl:rounded-2xl shadow p-8 lg:p-12 xl:p-16 2xl:p-20 text-center">
+          <BookOpen className="h-16 w-16 lg:h-20 lg:w-20 xl:h-24 xl:w-24 2xl:h-28 2xl:w-28 text-gray-300 mx-auto mb-4 lg:mb-6" />
+          <h3 className="text-lg lg:text-xl xl:text-2xl 2xl:text-3xl font-medium text-gray-700 mb-2 lg:mb-3">
+            {isCandidate ? 'No hay materiales disponibles' : 'No hay materiales'}
+          </h3>
+          <p className="text-gray-500 mb-4 lg:mb-6 text-sm lg:text-base xl:text-lg 2xl:text-xl">
+            {isCandidate 
+              ? 'Aún no hay materiales de estudio publicados' 
+              : 'Crea tu primer material de estudio'}
+          </p>
+          {canCreate && (
+            <button
+              onClick={() => navigate('/study-contents/create')}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 lg:px-6 xl:px-8 py-2 lg:py-3 xl:py-4 rounded-lg xl:rounded-xl inline-flex items-center gap-2 lg:gap-3 text-sm lg:text-base xl:text-lg"
+            >
+              <Plus className="h-5 w-5 lg:h-6 lg:w-6" />
+              Crear Material
+            </button>
+          )}
         </div>
       ) : (
         <>
-          {/* Sección de Publicados */}
-          {materials.filter(m => m.is_published).length > 0 && (
-            <div className="mb-6 sm:mb-8">
-              <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-                <h2 className="text-base sm:text-lg font-semibold text-gray-800">Publicados</h2>
-                <span className="bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">
-                  {materials.filter(m => m.is_published).length}
-                </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                {materials.filter(m => m.is_published).map((material, index) => (
-                  <MaterialCard 
-                    key={material.id} 
-                    material={material} 
-                    navigate={navigate}
-                    index={index}
-                  />
-                ))}
-              </div>
+          {/* Para candidatos: mostrar todos en una sola lista sin secciones */}
+          {isCandidate ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+              {materials.map((material, index) => (
+                <MaterialCard 
+                  key={material.id} 
+                  material={material} 
+                  navigate={navigate}
+                  index={index}
+                  showStatus={false}
+                />
+              ))}
             </div>
-          )}
+          ) : (
+            <>
+              {/* Sección de Publicados */}
+              {materials.filter(m => m.is_published).length > 0 && (
+                <div className="mb-6 sm:mb-8 lg:mb-10 xl:mb-12">
+                  <div className="flex items-center gap-2 lg:gap-3 mb-3 sm:mb-4 lg:mb-5 xl:mb-6">
+                    <Eye className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-green-600" />
+                    <h2 className="text-base sm:text-lg lg:text-xl xl:text-2xl 2xl:text-3xl font-semibold text-gray-800">Publicados</h2>
+                    <span className="bg-green-100 text-green-700 text-xs lg:text-sm xl:text-base font-medium px-2 lg:px-3 xl:px-4 py-0.5 lg:py-1 rounded-full">
+                      {materials.filter(m => m.is_published).length}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+                    {materials.filter(m => m.is_published).map((material, index) => (
+                      <MaterialCard 
+                        key={material.id} 
+                        material={material} 
+                        navigate={navigate}
+                        index={index}
+                        showStatus={true}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
 
-          {/* Sección de Borradores */}
-          {materials.filter(m => !m.is_published).length > 0 && (
-            <div ref={draftsRef} className="mb-6 sm:mb-8 scroll-mt-4">
-              <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                <EyeOff className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
-                <h2 className="text-base sm:text-lg font-semibold text-gray-800">Borradores</h2>
-                <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded-full">
-                  {materials.filter(m => !m.is_published).length}
-                </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                {materials.filter(m => !m.is_published).map((material, index) => (
-                  <MaterialCard 
-                    key={material.id} 
-                    material={material} 
-                    navigate={navigate}
-                    index={index}
-                  />
-                ))}
-              </div>
-            </div>
+              {/* Sección de Borradores */}
+              {materials.filter(m => !m.is_published).length > 0 && (
+                <div ref={draftsRef} className="mb-6 sm:mb-8 lg:mb-10 xl:mb-12 scroll-mt-4">
+                  <div className="flex items-center gap-2 lg:gap-3 mb-3 sm:mb-4 lg:mb-5 xl:mb-6">
+                    <EyeOff className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-gray-500" />
+                    <h2 className="text-base sm:text-lg lg:text-xl xl:text-2xl 2xl:text-3xl font-semibold text-gray-800">Borradores</h2>
+                    <span className="bg-gray-100 text-gray-600 text-xs lg:text-sm xl:text-base font-medium px-2 lg:px-3 xl:px-4 py-0.5 lg:py-1 rounded-full">
+                      {materials.filter(m => !m.is_published).length}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+                    {materials.filter(m => !m.is_published).map((material, index) => (
+                      <MaterialCard 
+                        key={material.id} 
+                        material={material} 
+                        navigate={navigate}
+                        index={index}
+                        showStatus={true}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white rounded-lg shadow px-4 sm:px-6 py-3 sm:py-4">
-              <p className="text-xs sm:text-sm text-gray-600">
+            <div className="mt-4 sm:mt-6 lg:mt-8 xl:mt-10 flex flex-col sm:flex-row items-center justify-between gap-3 lg:gap-4 bg-white rounded-lg xl:rounded-xl shadow px-4 sm:px-6 lg:px-8 xl:px-10 py-3 sm:py-4 lg:py-5 xl:py-6">
+              <p className="text-xs sm:text-sm lg:text-base xl:text-lg text-gray-600">
                 {materials.length} de {total}
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 lg:gap-3 xl:gap-4">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="p-1.5 sm:p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  className="p-1.5 sm:p-2 lg:p-2.5 xl:p-3 rounded-lg xl:rounded-xl border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
-                  <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7" />
                 </button>
-                <span className="px-2 sm:px-3 py-1 text-xs sm:text-sm">
+                <span className="px-2 sm:px-3 lg:px-4 xl:px-5 py-1 lg:py-1.5 xl:py-2 text-xs sm:text-sm lg:text-base xl:text-lg">
                   {currentPage} / {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="p-1.5 sm:p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  className="p-1.5 sm:p-2 lg:p-2.5 xl:p-3 rounded-lg xl:rounded-xl border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
-                  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7" />
                 </button>
               </div>
             </div>
@@ -363,6 +404,7 @@ const StudyContentsListPage = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

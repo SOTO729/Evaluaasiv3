@@ -146,6 +146,7 @@ def get_exams():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     is_published = request.args.get('is_published', type=bool)
+    published_only = request.args.get('published_only', type=bool)
     search = request.args.get('search', '', type=str).strip()
     
     query = Exam.query
@@ -164,10 +165,14 @@ def get_exams():
     if is_published is not None:
         query = query.filter_by(is_published=is_published)
     
-    # Para alumnos, solo mostrar exámenes publicados
+    # Filtrar solo publicados si se solicita explícitamente
+    if published_only:
+        query = query.filter_by(is_published=True)
+    
+    # Para candidatos, solo mostrar exámenes publicados
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
-    if user and user.role == 'alumno':
+    if user and user.role in ['alumno', 'candidato']:
         query = query.filter_by(is_published=True)
     
     # Ordenar: publicados primero, luego por fecha de actualización (más recientes primero)
