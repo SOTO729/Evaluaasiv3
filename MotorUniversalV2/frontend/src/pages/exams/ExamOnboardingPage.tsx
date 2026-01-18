@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../../services/examService';
@@ -24,7 +24,8 @@ import {
   CheckSquare,
   ToggleLeft,
   ListOrdered,
-  Info
+  Info,
+  ChevronDown
 } from 'lucide-react';
 
 interface ExamData {
@@ -47,6 +48,9 @@ const ExamOnboardingPage = () => {
   const { id, mode } = useParams<{ id: string; mode: 'exam' | 'simulator' }>();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const buttonsRef = useRef<HTMLDivElement>(null);
 
   const currentMode = mode === 'simulator' ? 'simulator' : 'exam';
   const isSimulator = currentMode === 'simulator';
@@ -74,6 +78,36 @@ const ExamOnboardingPage = () => {
   };
 
   const { total: totalItems } = getTotalItems();
+
+  // Detectar si hay contenido que requiere scroll
+  const checkScrollNeeded = useCallback(() => {
+    if (!contentRef.current) return;
+    
+    const container = contentRef.current;
+    const scrollTop = container.scrollTop;
+    const scrollHeight = container.scrollHeight;
+    const clientHeight = container.clientHeight;
+    
+    // Mostrar hint si hay más de 50px de contenido por scrollear
+    const hasMoreContent = scrollHeight - scrollTop - clientHeight > 50;
+    setShowScrollHint(hasMoreContent);
+  }, []);
+
+  // Verificar scroll al cambiar de paso o cargar
+  useEffect(() => {
+    // Pequeño delay para que el DOM se actualice
+    const timer = setTimeout(() => {
+      checkScrollNeeded();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [currentStep, exam, checkScrollNeeded]);
+
+  // Scroll hacia abajo
+  const handleScrollDown = () => {
+    if (buttonsRef.current) {
+      buttonsRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  };
 
   const handleBack = () => {
     if (currentStep === 0) {
@@ -461,12 +495,33 @@ const ExamOnboardingPage = () => {
       </div>
 
       {/* Contenido principal */}
-      <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8">
+      <div 
+        ref={contentRef}
+        onScroll={checkScrollNeeded}
+        className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8"
+      >
         {renderStepContent()}
+        
+        {/* Botón flotante de scroll hacia abajo */}
+        {showScrollHint && (
+          <div className="fixed bottom-20 sm:bottom-24 right-4 sm:right-6 z-50">
+            <button
+              onClick={handleScrollDown}
+              className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce ${
+                isSimulator 
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white' 
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+              title="Desplazarse hacia abajo"
+            >
+              <ChevronDown className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Botones de navegación */}
-      <div className="bg-white border-t border-gray-200 px-3 sm:px-4 py-3 sm:py-4">
+      <div ref={buttonsRef} className="bg-white border-t border-gray-200 px-3 sm:px-4 py-3 sm:py-4">
         <div className="max-w-3xl mx-auto flex justify-between gap-3 sm:gap-4">
           <button
             onClick={handleBack}
