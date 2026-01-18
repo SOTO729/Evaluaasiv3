@@ -447,12 +447,12 @@ const ExamTestRunPage: React.FC = () => {
     
     // También guardar cuando la página se cierra
     window.addEventListener('beforeunload', saveSession);
-    , flaggedQuestions
+    
     return () => {
       clearInterval(saveInterval);
       window.removeEventListener('beforeunload', saveSession);
     };
-  }, [timeRemaining, examId, examSessionKey, exam?.duration_minutes, exam?.name, pauseOnDisconnect, answers, exerciseResponses, currentItemIndex, selectedItems, orderingInteracted, actionErrors, stepCompleted, currentStepIndex]);
+  }, [timeRemaining, examId, examSessionKey, exam?.duration_minutes, exam?.name, pauseOnDisconnect, answers, exerciseResponses, currentItemIndex, selectedItems, orderingInteracted, actionErrors, stepCompleted, currentStepIndex, flaggedQuestions]);
 
   const currentItem = selectedItems[currentItemIndex];
 
@@ -1658,8 +1658,8 @@ const ExamTestRunPage: React.FC = () => {
       {/* Navegación de ítems - FIJO debajo del header */}
       <div className="fixed top-[73px] left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100">
         <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-2">
-          <div className="flex items-center justify-between gap-3">
-            {/* Botón para abrir panel de navegación */}
+          <div className="flex items-center justify-between gap-2">
+            {/* Izquierda: Navegación de pregunta */}
             <button
               onClick={() => setShowNavPanel(!showNavPanel)}
               className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all"
@@ -1669,8 +1669,11 @@ const ExamTestRunPage: React.FC = () => {
               </span>
               <span className="text-sm text-gray-600">
                 de <span className="font-semibold text-gray-900">{selectedItems.length}</span>
+              </span>
+              <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${showNavPanel ? 'rotate-90' : ''}`} />
+            </button>
 
-            {/* Botón para marcar pregunta actual */}
+            {/* Centro: Botón de marcar pregunta (separado) */}
             <button
               onClick={() => {
                 setFlaggedQuestions(prev => {
@@ -1683,23 +1686,20 @@ const ExamTestRunPage: React.FC = () => {
                   return newSet;
                 });
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors border ${
                 flaggedQuestions.has(currentItemIndex)
-                  ? 'bg-orange-500 text-white hover:bg-orange-600'
-                  : 'bg-gray-100 text-gray-600 hover:bg-orange-100 hover:text-orange-600'
+                  ? 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600'
+                  : 'bg-white text-gray-600 border-gray-200 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300'
               }`}
-              title={flaggedQuestions.has(currentItemIndex) ? 'Quitar marca' : 'Marcar para revisar'}
+              title={flaggedQuestions.has(currentItemIndex) ? 'Quitar marca' : 'Marcar para revisar después'}
             >
               <Flag className="w-4 h-4" />
               <span className="hidden sm:inline">
-                {flaggedQuestions.has(currentItemIndex) ? 'Marcada' : 'Marcar'}
+                {flaggedQuestions.has(currentItemIndex) ? 'Marcada' : 'Revisar'}
               </span>
-            </button>
-              </span>
-              <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${showNavPanel ? 'rotate-90' : ''}`} />
             </button>
             
-            {/* Botones de navegación */}
+            {/* Derecha: Botones de navegación */}
             <div className="flex items-center gap-2">
               <button
                 onClick={handlePrevious}
