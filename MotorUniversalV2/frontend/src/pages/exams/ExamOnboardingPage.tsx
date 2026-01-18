@@ -81,12 +81,16 @@ const ExamOnboardingPage = () => {
       navigate(`/exams/${id}/select-mode`);
     } else {
       setCurrentStep(prev => prev - 1);
+      // Scroll hacia arriba al cambiar de paso
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const handleNext = () => {
     if (currentStep < 2) {
       setCurrentStep(prev => prev + 1);
+      // Scroll hacia arriba al cambiar de paso
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
