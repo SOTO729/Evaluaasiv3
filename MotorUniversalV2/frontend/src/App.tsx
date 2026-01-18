@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import { useAuthStore } from './store/authStore'
 import LoadingSpinner from './components/LoadingSpinner'
+import InactivityWatcher from './components/InactivityWatcher'
 
 // Eager imports (necesarios inmediatamente)
 import Layout from './components/layout/Layout'
@@ -60,8 +61,9 @@ function App() {
 
   return (
     <BrowserRouter>
-      <Suspense fallback={<LoadingSpinner message="Cargando..." fullScreen />}>
-        <Routes>
+      <InactivityWatcher timeoutMinutes={15}>
+        <Suspense fallback={<LoadingSpinner message="Cargando..." fullScreen />}>
+          <Routes>
           {/* Landing Page - Public */}
           <Route path="/" element={
             isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />
@@ -138,6 +140,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Suspense>
+      </InactivityWatcher>
     </BrowserRouter>
   )
 }

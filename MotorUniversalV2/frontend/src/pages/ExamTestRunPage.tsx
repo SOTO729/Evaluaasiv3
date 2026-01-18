@@ -5,6 +5,7 @@ import { examService } from '../services/examService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, ArrowLeft, X } from 'lucide-react';
 import DOMPurify from 'dompurify';
+import { clearExamSessionCache } from '../store/authStore';
 
 // Tipo para representar un ítem del test (pregunta o ejercicio)
 interface TestItem {
@@ -977,6 +978,8 @@ const ExamTestRunPage: React.FC = () => {
     } finally {
       // Limpiar sesión guardada al terminar el examen
       localStorage.removeItem(examSessionKey);
+      // Limpiar toda la cache de sesiones de examen
+      clearExamSessionCache();
       setIsSubmitting(false);
     }
   };
