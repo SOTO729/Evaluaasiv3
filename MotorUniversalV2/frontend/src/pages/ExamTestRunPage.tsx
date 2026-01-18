@@ -127,34 +127,10 @@ const ExamTestRunPage: React.FC = () => {
     };
   }, [pauseOnDisconnect]);
 
-  // Guardar estado del examen en localStorage periódicamente
-  useEffect(() => {
-    if (timeRemaining === null || !examId) return;
-    
-    const saveSession = () => {
-      const sessionData = {
-        timeRemaining,
-        savedAt: Date.now(),
-        examDuration: exam?.duration_minutes ? exam.duration_minutes * 60 : null,
-        pauseOnDisconnect,
-        examName: exam?.name || `Examen ${examId}`
-      };
-      localStorage.setItem(examSessionKey, JSON.stringify(sessionData));
-    };
-    
-    // Guardar cada 5 segundos
-    const saveInterval = setInterval(saveSession, 5000);
-    
-    // También guardar cuando la página se cierra
-    window.addEventListener('beforeunload', saveSession);
-    
-    return () => {
-      clearInterval(saveInterval);
-      window.removeEventListener('beforeunload', saveSession);
-    };
-  }, [timeRemaining, examId, examSessionKey, exam?.duration_minutes, exam?.name, pauseOnDisconnect]);
+  // Estado para controlar si ya se restauró la sesión
+  const [sessionRestored, setSessionRestored] = useState(false);
 
-  // Inicializar tiempo restante cuando se carga el examen
+  // Inicializar tiempo restante y restaurar estado cuando se carga el examen
   useEffect(() => {
     if (!exam?.duration_minutes) return;
     
@@ -164,9 +140,22 @@ const ExamTestRunPage: React.FC = () => {
     if (savedSession) {
       try {
         const sessionData = JSON.parse(savedSession);
-        const { timeRemaining: savedTime, savedAt, pauseOnDisconnect: savedPauseOnDisconnect } = sessionData;
+        const { 
+          timeRemaining: savedTime, 
+          savedAt, 
+          pauseOnDisconnect: savedPauseOnDisconnect,
+          answers: savedAnswers,
+          exerciseResponses: savedExerciseResponses,
+          currentItemIndex: savedItemIndex,
+          selectedItems: savedSelectedItems,
+          orderingInteracted: savedOrderingInteracted,
+          actionErrors: savedActionErrors,
+          stepCompleted: savedStepCompleted,
+          currentStepIndex: savedCurrentStepIndex
+        } = sessionData;
         
         if (savedTime > 0) {
+          // Restaurar tiempo
           if (savedPauseOnDisconnect === false) {
             // Si NO pausaba al desconectarse, calcular tiempo transcurrido
             const elapsedSeconds = Math.floor((Date.now() - savedAt) / 1000);
@@ -176,6 +165,34 @@ const ExamTestRunPage: React.FC = () => {
             // Si pausaba al desconectarse, restaurar el tiempo tal cual
             setTimeRemaining(savedTime);
           }
+          
+          // Restaurar respuestas y estado
+          if (savedAnswers && Object.keys(savedAnswers).length > 0) {
+            setAnswers(savedAnswers);
+          }
+          if (savedExerciseResponses && Object.keys(savedExerciseResponses).length > 0) {
+            setExerciseResponses(savedExerciseResponses);
+          }
+          if (typeof savedItemIndex === 'number') {
+            setCurrentItemIndex(savedItemIndex);
+          }
+          if (savedSelectedItems && savedSelectedItems.length > 0) {
+            setSelectedItems(savedSelectedItems);
+            setSessionRestored(true); // Marcar que ya se restauró para evitar cargar nuevos items
+          }
+          if (savedOrderingInteracted) {
+            setOrderingInteracted(savedOrderingInteracted);
+          }
+          if (savedActionErrors) {
+            setActionErrors(savedActionErrors);
+          }
+          if (savedStepCompleted) {
+            setStepCompleted(savedStepCompleted);
+          }
+          if (typeof savedCurrentStepIndex === 'number') {
+            setCurrentStepIndex(savedCurrentStepIndex);
+          }
+          
           return;
         }
       } catch (e) {
@@ -248,6 +265,8 @@ const ExamTestRunPage: React.FC = () => {
 
   useEffect(() => {
     const loadItems = async () => {
+      // Si ya se restauró la sesión con items guardados, no cargar nuevos
+      if (sessionRestored) return;
       if (!exam) return;
       
       const allQuestions: TestItem[] = [];
@@ -367,7 +386,43 @@ const ExamTestRunPage: React.FC = () => {
     };
     
     loadItems();
-  }, [exam, questionCount, exerciseCount, currentMode]);
+  }, [exam, questionCount, exerciseCount, currentMode, sessionRestored]);
+
+  // Guardar estado del examen en localStorage periódicamente
+  useEffect(() => {
+    if (timeRemaining === null || !examId || selectedItems.length === 0) return;
+    
+    const saveSession = () => {
+      const sessionData = {
+        timeRemaining,
+        savedAt: Date.now(),
+        examDuration: exam?.duration_minutes ? exam.duration_minutes * 60 : null,
+        pauseOnDisconnect,
+        examName: exam?.name || '',
+        // Guardar respuestas y estado completo
+        answers,
+        exerciseResponses,
+        currentItemIndex,
+        selectedItems,
+        orderingInteracted,
+        actionErrors,
+        stepCompleted,
+        currentStepIndex
+      };
+      localStorage.setItem(examSessionKey, JSON.stringify(sessionData));
+    };
+    
+    // Guardar cada 5 segundos
+    const saveInterval = setInterval(saveSession, 5000);
+    
+    // También guardar cuando la página se cierra
+    window.addEventListener('beforeunload', saveSession);
+    
+    return () => {
+      clearInterval(saveInterval);
+      window.removeEventListener('beforeunload', saveSession);
+    };
+  }, [timeRemaining, examId, examSessionKey, exam?.duration_minutes, exam?.name, pauseOnDisconnect, answers, exerciseResponses, currentItemIndex, selectedItems, orderingInteracted, actionErrors, stepCompleted, currentStepIndex]);
 
   const currentItem = selectedItems[currentItemIndex];
 

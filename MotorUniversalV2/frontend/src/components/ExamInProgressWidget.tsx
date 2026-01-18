@@ -40,10 +40,13 @@ const ExamInProgressWidget = () => {
                 currentTimeRemaining = Math.max(0, data.timeRemaining - elapsedSeconds);
               }
               
-              if (currentTimeRemaining > 0) {
+              // Solo mostrar sesiones que tengan un nombre válido (no vacío)
+              const examName = data.examName && data.examName.trim() !== '' ? data.examName : null;
+              
+              if (currentTimeRemaining > 0 && examName) {
                 sessions.push({
                   examId,
-                  examName: data.examName || `Examen ${examId}`,
+                  examName,
                   mode,
                   timeRemaining: currentTimeRemaining,
                   savedAt: data.savedAt,
