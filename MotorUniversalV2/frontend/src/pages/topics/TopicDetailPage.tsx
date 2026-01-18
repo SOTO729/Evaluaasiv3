@@ -436,7 +436,7 @@ const TopicDetailPage = () => {
         </div>
       </div>
 
-      {/* Contenido de las pestañas   */}
+      {/* Contenido de las pestañas */}
       <div className="bg-white rounded-b-xl border border-t-0 border-gray-200 shadow-sm mb-6 relative z-10">
         {/* Contenido de la pestaña Preguntas */}
         {activeTab === 'questions' && (

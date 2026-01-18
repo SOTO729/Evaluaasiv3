@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { authService } from '../../services/authService'
+import ExamInProgressWidget from '../ExamInProgressWidget'
 
 const Layout = () => {
   const { user, logout } = useAuthStore()
@@ -339,6 +340,11 @@ const Layout = () => {
           </div>
         )}
       </header>
+
+      {/* Widget de examen en curso - solo mostrar si no estamos en una página de examen */}
+      {!location.pathname.includes('/run') && !location.pathname.includes('/results') && (
+        <ExamInProgressWidget />
+      )}
 
       {/* Main Content */}
       <main className={isFullContentPage ? 'flex-1 overflow-hidden' : 'max-w-7xl xl:max-w-[1400px] 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-4 sm:py-6 lg:py-8'}>
