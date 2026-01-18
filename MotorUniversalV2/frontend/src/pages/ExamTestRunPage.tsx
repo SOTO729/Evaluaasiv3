@@ -1581,16 +1581,8 @@ const ExamTestRunPage: React.FC = () => {
       <div className={`fixed top-0 left-0 right-0 z-40 shadow-md ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-blue-600'}`}>
         <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-3">
           <div className="flex items-center justify-between">
-            {/* Izquierda: Volver y título */}
+            {/* Izquierda: Título */}
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowExitConfirm(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-sm font-medium"
-                title="Salir del examen"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Salir</span>
-              </button>
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-base sm:text-lg md:text-xl font-bold text-white truncate max-w-[180px] sm:max-w-[250px] md:max-w-none drop-shadow-sm">{exam.name}</h1>
@@ -1621,7 +1613,7 @@ const ExamTestRunPage: React.FC = () => {
               </div>
             </div>
             
-            {/* Derecha: Timer e ID */}
+            {/* Derecha: Timer, ID y Salir */}
             <div className="flex items-center gap-2 sm:gap-3">
               {/* ID del usuario */}
               <div className="hidden md:flex items-center gap-2 text-sm">
@@ -1646,6 +1638,16 @@ const ExamTestRunPage: React.FC = () => {
                   {String(displayMinutes).padStart(2, '0')}:{String(displaySeconds).padStart(2, '0')}
                 </span>
               </div>
+
+              {/* Botón Salir */}
+              <button
+                onClick={() => setShowExitConfirm(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-white/90 hover:text-white bg-white/10 hover:bg-red-500/80 rounded-lg transition-colors text-sm font-medium"
+                title="Salir del examen"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Salir</span>
+              </button>
             </div>
           </div>
         </div>
