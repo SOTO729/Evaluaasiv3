@@ -85,7 +85,7 @@ const Layout = () => {
   }
 
   return (
-    <div className={isFullContentPage ? 'h-screen flex flex-col overflow-hidden' : 'min-h-screen bg-gray-50 overflow-x-hidden'}>
+    <div className={isFullContentPage ? 'h-screen flex flex-col overflow-hidden' : 'min-h-screen bg-gray-50 overflow-x-hidden overflow-y-auto overscroll-contain'}>
       {/* Header */}
       <header className="bg-white shadow-sm border-b sticky top-0 z-40 flex-shrink-0">
         <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
