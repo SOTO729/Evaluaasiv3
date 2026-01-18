@@ -1687,7 +1687,7 @@ const ExamTestRunPage: React.FC = () => {
                     return newSet;
                   });
                 }}
-                className={`flex items-center justify-center w-9 h-9 rounded-lg transition-colors ${
+                className={`flex items-center justify-center px-3 py-1.5 h-[38px] rounded-lg transition-colors ${
                   flaggedQuestions.has(currentItemIndex)
                     ? 'bg-orange-500 text-white hover:bg-orange-600'
                     : 'bg-gray-100 text-gray-500 hover:bg-orange-100 hover:text-orange-600'
