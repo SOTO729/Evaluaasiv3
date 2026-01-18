@@ -97,7 +97,7 @@ export default function DeletionRequestsPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -130,7 +130,7 @@ export default function DeletionRequestsPage() {
               onClick={() => setStatusFilter(status)}
               className={`px-4 py-2 text-sm font-medium rounded-md ${
                 statusFilter === status
-                  ? 'bg-indigo-600 text-white'
+                  ? 'bg-primary-600 text-white'
                   : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
               }`}
             >
@@ -227,7 +227,7 @@ export default function DeletionRequestsPage() {
                 value={reviewModal.response}
                 onChange={(e) => setReviewModal({ ...reviewModal, response: e.target.value })}
                 rows={3}
-                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                 placeholder="Agrega un comentario para el solicitante..."
               />
             </div>

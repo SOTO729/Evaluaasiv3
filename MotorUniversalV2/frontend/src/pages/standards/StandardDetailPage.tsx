@@ -65,7 +65,7 @@ export default function StandardDetailPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -78,7 +78,7 @@ export default function StandardDetailPage() {
         </div>
         <button
           onClick={() => navigate('/standards')}
-          className="mt-4 text-indigo-600 hover:text-indigo-500"
+          className="mt-4 text-primary-600 hover:text-primary-500"
         >
           ← Volver a estándares
         </button>
@@ -87,9 +87,9 @@ export default function StandardDetailPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       {/* Navegación */}
-      <div className="mb-6">
+      <div className="mb-4 sm:mb-6">
         <button
           onClick={() => navigate('/standards')}
           className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
@@ -102,12 +102,12 @@ export default function StandardDetailPage() {
       </div>
 
       {/* Header */}
-      <div className="bg-white shadow sm:rounded-lg overflow-hidden">
-        <div className="px-4 py-5 sm:px-6 bg-gradient-to-r from-indigo-600 to-indigo-700">
-          <div className="flex items-center justify-between">
+      <div className="bg-white shadow rounded-lg sm:rounded-lg overflow-hidden">
+        <div className="px-4 py-4 sm:px-6 sm:py-5 bg-gradient-to-r from-primary-600 to-primary-700">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="text-white">
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold">{standard.code}</h1>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <h1 className="text-xl sm:text-2xl font-bold">{standard.code}</h1>
                 {standard.level && (
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getLevelBadgeColor(standard.level)}`}>
                     Nivel {standard.level}
@@ -119,12 +119,12 @@ export default function StandardDetailPage() {
                   </span>
                 )}
               </div>
-              <p className="mt-1 text-lg text-indigo-100">{standard.name}</p>
+              <p className="mt-1 text-base sm:text-lg text-primary-100">{standard.name}</p>
             </div>
             {(isAdmin || (isEditor && standard.created_by === user?.id)) && (
               <button
                 onClick={() => navigate(`/standards/${standard.id}/edit`)}
-                className="inline-flex items-center px-4 py-2 border border-white border-opacity-30 rounded-md text-sm font-medium text-white hover:bg-white hover:bg-opacity-10"
+                className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-white border-opacity-30 rounded-md text-sm font-medium text-white hover:bg-white hover:bg-opacity-10"
               >
                 <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -164,14 +164,14 @@ export default function StandardDetailPage() {
           </div>
 
           {/* Estadísticas */}
-          <div className="mt-8 grid grid-cols-2 gap-4">
-            <div className="bg-indigo-50 rounded-lg p-4">
-              <div className="text-2xl font-bold text-indigo-600">{standard.exam_count || 0}</div>
-              <div className="text-sm text-indigo-700">Exámenes asociados</div>
+          <div className="mt-6 sm:mt-8 grid grid-cols-2 gap-3 sm:gap-4">
+            <div className="bg-primary-50 rounded-lg p-3 sm:p-4">
+              <div className="text-xl sm:text-2xl font-bold text-primary-600">{standard.exam_count || 0}</div>
+              <div className="text-xs sm:text-sm text-primary-700">Exámenes asociados</div>
             </div>
-            <div className="bg-green-50 rounded-lg p-4">
-              <div className="text-2xl font-bold text-green-600">{standard.results_count || 0}</div>
-              <div className="text-sm text-green-700">Resultados totales</div>
+            <div className="bg-green-50 rounded-lg p-3 sm:p-4">
+              <div className="text-xl sm:text-2xl font-bold text-green-600">{standard.results_count || 0}</div>
+              <div className="text-xs sm:text-sm text-green-700">Resultados totales</div>
             </div>
           </div>
         </div>
@@ -184,7 +184,7 @@ export default function StandardDetailPage() {
           {(isAdmin || isEditor) && (
             <Link
               to={`/exams/new?standard=${standard.id}`}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
             >
               <svg className="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -213,7 +213,7 @@ export default function StandardDetailPage() {
                     <div className="px-4 py-4 sm:px-6">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <p className="text-sm font-medium text-indigo-600">{exam.name}</p>
+                          <p className="text-sm font-medium text-primary-600">{exam.name}</p>
                           {exam.version && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
                               v{exam.version}

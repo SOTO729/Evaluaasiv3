@@ -92,26 +92,26 @@ export default function StandardsListPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       {/* Header */}
-      <div className="sm:flex sm:items-center sm:justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Estándares de Competencia</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Estándares de Competencia</h1>
           <p className="mt-1 text-sm text-gray-500">
             Gestiona los ECM (Estándares de Competencia) del sistema CONOCER
           </p>
         </div>
-        <div className="mt-4 sm:mt-0 flex gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           {canCreate && (
             <Link
               to="/standards/new"
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
             >
               <svg className="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -142,7 +142,7 @@ export default function StandardsListPage() {
             onChange={(e) => setShowInactive(e.target.checked)}
             className="sr-only peer"
           />
-          <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+          <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           <span className="ms-3 text-sm font-medium text-gray-700">
             Mostrar inactivos
           </span>
@@ -169,7 +169,7 @@ export default function StandardsListPage() {
             <div className="mt-6">
               <Link
                 to="/standards/new"
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
               >
                 Crear Estándar
               </Link>
@@ -177,15 +177,17 @@ export default function StandardsListPage() {
           )}
         </div>
       ) : (
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
+        <div className="bg-white shadow overflow-hidden rounded-lg sm:rounded-md">
           <ul className="divide-y divide-gray-200">
             {standards.map((standard) => (
               <li key={standard.id}>
                 <div className="px-4 py-4 sm:px-6 hover:bg-gray-50">
-                  <div className="flex items-center justify-between">
+                  {/* Layout responsivo: columna en móvil, fila en desktop */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3">
-                        <p className="text-lg font-semibold text-indigo-600 truncate">
+                      {/* Código y badges */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-lg font-semibold text-primary-600">
                           {standard.code}
                         </p>
                         {standard.level && (
@@ -199,47 +201,50 @@ export default function StandardsListPage() {
                           </span>
                         )}
                       </div>
+                      {/* Nombre */}
                       <p className="mt-1 text-sm text-gray-900">{standard.name}</p>
-                      <div className="mt-2 flex items-center gap-4 text-sm text-gray-500">
+                      {/* Estadísticas - grid responsivo */}
+                      <div className="mt-2 grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
                         {standard.sector && (
                           <span className="flex items-center">
-                            <svg className="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="mr-1 h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
-                            {standard.sector}
+                            <span className="truncate">{standard.sector}</span>
                           </span>
                         )}
                         <span className="flex items-center">
-                          <svg className="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="mr-1 h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          {standard.validity_years} años vigencia
+                          {standard.validity_years} años
                         </span>
                         <span className="flex items-center">
-                          <svg className="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="mr-1 h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
                           {standard.exam_count || 0} exámenes
                         </span>
                         <span className="flex items-center">
-                          <svg className="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="mr-1 h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                           </svg>
                           {standard.results_count || 0} resultados
                         </span>
                       </div>
                     </div>
-                    <div className="ml-4 flex items-center gap-2">
+                    {/* Botones de acción - full width en móvil */}
+                    <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:ml-4">
                       <button
                         onClick={() => navigate(`/standards/${standard.id}`)}
-                        className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                        className="flex-1 sm:flex-none inline-flex items-center justify-center px-3 py-2 sm:py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                       >
                         Ver
                       </button>
                       {(isAdmin || (isEditor && standard.created_by === user?.id)) && (
                         <button
                           onClick={() => navigate(`/standards/${standard.id}/edit`)}
-                          className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                          className="flex-1 sm:flex-none inline-flex items-center justify-center px-3 py-2 sm:py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                         >
                           Editar
                         </button>
@@ -247,9 +252,9 @@ export default function StandardsListPage() {
                       {(isAdmin || isEditor) && (
                         <button
                           onClick={() => handleDeleteClick(standard)}
-                          className="inline-flex items-center px-3 py-1.5 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50"
+                          className="flex-1 sm:flex-none inline-flex items-center justify-center px-3 py-2 sm:py-1.5 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50"
                         >
-                          {isAdmin ? 'Eliminar' : 'Solicitar Baja'}
+                          {isAdmin ? 'Eliminar' : 'Baja'}
                         </button>
                       )}
                     </div>
@@ -282,7 +287,7 @@ export default function StandardsListPage() {
                   value={deleteModal.reason}
                   onChange={(e) => setDeleteModal({ ...deleteModal, reason: e.target.value })}
                   rows={3}
-                  className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Explica por qué debe eliminarse este estándar..."
                 />
               </div>
