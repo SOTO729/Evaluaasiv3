@@ -50,6 +50,7 @@ const CertificatesPage = () => {
   const [activeTab, setActiveTab] = useState<TabType>('evaluation-report')
   const [searchTerm, setSearchTerm] = useState('')
   const [tabKey, setTabKey] = useState(0) // Para forzar re-render y animaciones al cambiar tab
+  const [isLoadingContent, setIsLoadingContent] = useState(false) // Para simular carga al cambiar tab
 
   // Obtener datos del dashboard
   const { data: dashboardData, isLoading } = useQuery<DashboardData>({
@@ -57,11 +58,14 @@ const CertificatesPage = () => {
     queryFn: () => dashboardService.getDashboard()
   })
 
-  // Handler para cambiar tab con animación
+  // Handler para cambiar tab con animación y loading
   const handleTabChange = (tabId: TabType) => {
     if (tabId !== activeTab) {
+      setIsLoadingContent(true)
       setActiveTab(tabId)
       setTabKey(prev => prev + 1) // Fuerza re-render para animaciones
+      // Simular pequeña carga para transición suave
+      setTimeout(() => setIsLoadingContent(false), 300)
     }
   }
 
@@ -262,20 +266,28 @@ const CertificatesPage = () => {
         
         {/* Content based on active tab */}
         <div className="relative z-10">
-          {activeTab === 'evaluation-report' && (
-            <EvaluationReportSection exams={filteredExams} formatDate={formatDate} />
-          )}
-          
-          {activeTab === 'approval-certificate' && (
-            <ApprovalCertificateSection exams={filteredExams} formatDate={formatDate} />
-          )}
-          
-          {activeTab === 'digital-badge' && (
-            <DigitalBadgeSection exams={filteredExams} formatDate={formatDate} />
-          )}
-          
-          {activeTab === 'conocer-certificate' && (
-            <ConocerCertificateSection exams={filteredExams} formatDate={formatDate} />
+          {isLoadingContent ? (
+            <div className="flex flex-col items-center justify-center py-12 sm:py-16">
+              <LoadingSpinner message="Cargando..." />
+            </div>
+          ) : (
+            <>
+              {activeTab === 'evaluation-report' && (
+                <EvaluationReportSection exams={filteredExams} formatDate={formatDate} />
+              )}
+              
+              {activeTab === 'approval-certificate' && (
+                <ApprovalCertificateSection exams={filteredExams} formatDate={formatDate} />
+              )}
+              
+              {activeTab === 'digital-badge' && (
+                <DigitalBadgeSection exams={filteredExams} formatDate={formatDate} />
+              )}
+              
+              {activeTab === 'conocer-certificate' && (
+                <ConocerCertificateSection exams={filteredExams} formatDate={formatDate} />
+              )}
+            </>
           )}
         </div>
       </div>
@@ -607,17 +619,17 @@ const ConocerTimeline = ({ currentStep, approvedExamsCount }: { currentStep: 1 |
   ]
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-6 text-center">
+    <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 animate-fade-in">
+      <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6 text-center">
         Proceso de Certificación CONOCER
       </h3>
       
       {/* Timeline */}
       <div className="relative">
-        {/* Línea conectora */}
-        <div className="absolute left-8 top-8 bottom-8 w-0.5 bg-gray-200 hidden md:block" />
+        {/* Línea conectora - visible solo en desktop */}
+        <div className="absolute left-6 sm:left-8 top-8 bottom-8 w-0.5 bg-gray-200 hidden md:block" />
         
-        <div className="space-y-6 md:space-y-8">
+        <div className="space-y-4 sm:space-y-6 md:space-y-8">
           {steps.map((step) => {
             const isCompleted = step.id < currentStep
             const isCurrent = step.id === currentStep
@@ -625,29 +637,29 @@ const ConocerTimeline = ({ currentStep, approvedExamsCount }: { currentStep: 1 |
             const StepIcon = step.icon
             
             return (
-              <div key={step.id} className="relative flex flex-col md:flex-row gap-4">
+              <div key={step.id} className="relative flex flex-row gap-3 sm:gap-4">
                 {/* Círculo del paso */}
                 <div className={`
-                  relative z-10 flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center
+                  relative z-10 flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center
                   transition-all duration-300
                   ${isCompleted 
                     ? 'bg-green-500 text-white shadow-lg shadow-green-200' 
                     : isCurrent 
-                      ? 'bg-blue-500 text-white shadow-lg shadow-blue-200 ring-4 ring-blue-100 animate-pulse' 
+                      ? 'bg-blue-500 text-white shadow-lg shadow-blue-200 ring-2 sm:ring-4 ring-blue-100 animate-pulse' 
                       : 'bg-gray-100 text-gray-400 border-2 border-gray-200'
                   }
                 `}>
                   {isCompleted ? (
-                    <CheckCircle className="w-8 h-8" />
+                    <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8" />
                   ) : (
-                    <StepIcon className="w-8 h-8" />
+                    <StepIcon className="w-6 h-6 sm:w-8 sm:h-8" />
                   )}
                 </div>
                 
                 {/* Contenido del paso */}
-                <div className={`flex-1 pb-4 md:pb-0 ${isPending ? 'opacity-50' : ''}`}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                <div className={`flex-1 pb-3 sm:pb-4 md:pb-0 ${isPending ? 'opacity-50' : ''}`}>
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1">
+                    <span className={`text-xs font-medium px-1.5 sm:px-2 py-0.5 rounded-full ${
                       isCompleted 
                         ? 'bg-green-100 text-green-700' 
                         : isCurrent 
@@ -664,23 +676,23 @@ const ConocerTimeline = ({ currentStep, approvedExamsCount }: { currentStep: 1 |
                     )}
                   </div>
                   
-                  <h4 className={`font-semibold mb-1 ${
+                  <h4 className={`text-sm sm:text-base font-semibold mb-1 ${
                     isCompleted ? 'text-green-700' : isCurrent ? 'text-blue-700' : 'text-gray-500'
                   }`}>
                     {step.title}
                   </h4>
                   
-                  <p className="text-sm text-gray-500 mb-2">
+                  <p className="text-xs sm:text-sm text-gray-500 mb-2">
                     {step.description}
                   </p>
                   
                   {isCurrent && (
-                    <div className={`mt-3 p-3 rounded-lg ${
+                    <div className={`mt-2 sm:mt-3 p-2 sm:p-3 rounded-lg ${
                       currentStep === 1 
                         ? 'bg-yellow-50 border border-yellow-200' 
                         : 'bg-blue-50 border border-blue-200'
                     }`}>
-                      <p className={`text-sm font-medium ${
+                      <p className={`text-xs sm:text-sm font-medium ${
                         currentStep === 1 ? 'text-yellow-800' : 'text-blue-800'
                       }`}>
                         {step.activeMessage}
@@ -695,9 +707,9 @@ const ConocerTimeline = ({ currentStep, approvedExamsCount }: { currentStep: 1 |
       </div>
       
       {/* Información adicional */}
-      <div className="mt-8 pt-6 border-t border-gray-200">
-        <div className="flex items-start gap-3 text-sm text-gray-500">
-          <ExternalLink className="w-5 h-5 flex-shrink-0 mt-0.5" />
+      <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-200">
+        <div className="flex items-start gap-2 sm:gap-3 text-xs sm:text-sm text-gray-500">
+          <ExternalLink className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" />
           <div>
             <p className="mb-2">
               El proceso de certificación CONOCER es gestionado por el Consejo Nacional de Normalización 
@@ -707,9 +719,10 @@ const ConocerTimeline = ({ currentStep, approvedExamsCount }: { currentStep: 1 |
               href="https://conocer.gob.mx" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-primary-600 hover:text-primary-800 font-medium"
+              className="text-primary-600 hover:text-primary-800 font-medium inline-flex items-center gap-1"
             >
-              Más información en conocer.gob.mx →
+              Más información en conocer.gob.mx
+              <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
             </a>
           </div>
         </div>
@@ -804,9 +817,8 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
   
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-        <span className="ml-3 text-gray-600">Cargando certificados...</span>
+      <div className="flex flex-col items-center justify-center py-12 sm:py-16">
+        <LoadingSpinner message="Cargando certificados CONOCER..." />
       </div>
     )
   }
@@ -814,9 +826,9 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
   return (
     <div className="space-y-6">
       {/* Info Banner */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-        <div className="flex items-start gap-4">
-          <div className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden bg-white shadow-sm">
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-6 animate-fade-in">
+        <div className="flex flex-col sm:flex-row items-start gap-4">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden bg-white shadow-sm">
             <img 
               src="/images/conocer-logo.png" 
               alt="CONOCER Logo" 
@@ -852,32 +864,33 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
           {certificates.map((cert) => (
             <div
               key={cert.id}
-              className="border-2 border-gray-200 rounded-xl p-6 hover:border-blue-300 transition-all"
+              className="border-2 border-gray-200 rounded-xl p-4 sm:p-6 hover:border-blue-300 hover:shadow-lg transition-all duration-300 animate-stagger-in"
+              style={{ animationDelay: `${exams.indexOf(exams[0]) * 50}ms` }}
             >
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 rounded-xl flex items-center justify-center overflow-hidden bg-white shadow-md border border-gray-100">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4 flex-1 min-w-0">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl flex items-center justify-center overflow-hidden bg-white shadow-md border border-gray-100 flex-shrink-0">
                     <img 
                       src="/images/conocer-logo.png" 
                       alt="CONOCER Logo" 
                       className="w-full h-full object-contain"
                     />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1">
                       <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
                         CONOCER
                       </span>
-                      <span className="text-xs text-gray-500">•</span>
-                      <span className="text-xs text-gray-500">Competencia Laboral</span>
+                      <span className="text-xs text-gray-500 hidden sm:inline">•</span>
+                      <span className="text-xs text-gray-500 hidden sm:inline">Competencia Laboral</span>
                       {cert.competency_level && (
                         <>
-                          <span className="text-xs text-gray-500">•</span>
+                          <span className="text-xs text-gray-500 hidden sm:inline">•</span>
                           <span className="text-xs text-gray-500">Nivel {cert.competency_level}</span>
                         </>
                       )}
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900">{cert.standard_name}</h3>
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 line-clamp-2">{cert.standard_name}</h3>
                     <p className="text-sm text-gray-500 mt-1">
                       Estándar de Competencia: {cert.standard_code}
                     </p>
@@ -903,11 +916,11 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 mt-4 sm:mt-0">
                   <button 
                     onClick={() => handleDownloadCertificate(cert)}
                     disabled={downloadingId === cert.id}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 text-sm disabled:opacity-50 hover:shadow-md active:scale-95"
                   >
                     {downloadingId === cert.id ? (
                       <>
@@ -948,36 +961,36 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
       )}          
 
       {/* Process Info */}
-      <div className="bg-gray-50 rounded-xl p-4 sm:p-6">
-        <h4 className="font-semibold text-gray-900 mb-4 text-center">¿Cómo obtener un certificado CONOCER?</h4>
+      <div className="bg-gray-50 rounded-xl p-4 sm:p-6 animate-fade-in">
+        <h4 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 sm:mb-4 text-center">¿Cómo obtener un certificado CONOCER?</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <div className="text-center">
-            <div className="w-12 h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-2 font-bold">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-2 font-bold text-sm sm:text-base">
               1
             </div>
-            <p className="text-sm font-medium text-gray-700 mb-1">Selecciona el estándar</p>
-            <p className="text-xs text-gray-500">Elige el estándar de competencia que deseas certificar</p>
+            <p className="text-xs sm:text-sm font-medium text-gray-700 mb-0.5 sm:mb-1">Selecciona el estándar</p>
+            <p className="text-[10px] sm:text-xs text-gray-500 hidden sm:block">Elige el estándar de competencia que deseas certificar</p>
           </div>
           <div className="text-center">
-            <div className="w-12 h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-2 font-bold">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-2 font-bold text-sm sm:text-base">
               2
             </div>
-            <p className="text-sm font-medium text-gray-700 mb-1">Estudia</p>
-            <p className="text-xs text-gray-500">Prepárate con los materiales de estudio disponibles</p>
+            <p className="text-xs sm:text-sm font-medium text-gray-700 mb-0.5 sm:mb-1">Estudia</p>
+            <p className="text-[10px] sm:text-xs text-gray-500 hidden sm:block">Prepárate con los materiales de estudio disponibles</p>
           </div>
           <div className="text-center">
-            <div className="w-12 h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-2 font-bold">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-2 font-bold text-sm sm:text-base">
               3
             </div>
-            <p className="text-sm font-medium text-gray-700 mb-1">Haz el examen y certifícate</p>
-            <p className="text-xs text-gray-500">Realiza tu evaluación en Evaluaasi y aprueba</p>
+            <p className="text-xs sm:text-sm font-medium text-gray-700 mb-0.5 sm:mb-1">Certifícate</p>
+            <p className="text-[10px] sm:text-xs text-gray-500 hidden sm:block">Realiza tu evaluación en Evaluaasi y aprueba</p>
           </div>
           <div className="text-center">
-            <div className="w-12 h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-2 font-bold">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-2 font-bold text-sm sm:text-base">
               4
             </div>
-            <p className="text-sm font-medium text-gray-700 mb-1">Recibe tu certificado</p>
-            <p className="text-xs text-gray-500">Espera el trámite y recibe tu certificado oficial</p>
+            <p className="text-xs sm:text-sm font-medium text-gray-700 mb-0.5 sm:mb-1">Recibe tu certificado</p>
+            <p className="text-[10px] sm:text-xs text-gray-500 hidden sm:block">Espera el trámite y recibe tu certificado oficial</p>
           </div>
         </div>
       </div>
