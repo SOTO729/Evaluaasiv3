@@ -1583,30 +1583,28 @@ const ExamTestRunPage: React.FC = () => {
           <div className="flex items-center justify-between">
             {/* Izquierda: Título */}
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                  <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-white truncate max-w-[160px] xs:max-w-[200px] sm:max-w-[260px] md:max-w-[360px] lg:max-w-none drop-shadow-sm">{exam.name}</h1>
-                  {/* Badge Examen/Simulador en navbar */}
-                  <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
-                    currentMode === 'simulator' 
-                      ? 'bg-yellow-300 text-yellow-900' 
-                      : 'bg-emerald-400 text-emerald-900'
-                  }`}>
-                    {currentMode === 'simulator' ? 'Simulador' : 'Examen'}
+              <div className="min-w-0 flex items-center gap-2 sm:gap-3">
+                <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-white truncate max-w-[160px] xs:max-w-[200px] sm:max-w-[260px] md:max-w-[360px] lg:max-w-none drop-shadow-sm">{exam.name}</h1>
+                {/* Badge Examen/Simulador en navbar */}
+                <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
+                  currentMode === 'simulator' 
+                    ? 'bg-yellow-300 text-yellow-900' 
+                    : 'bg-emerald-400 text-emerald-900'
+                }`}>
+                  {currentMode === 'simulator' ? 'Simulador' : 'Examen'}
+                </span>
+                {/* Indicador de pausa por desconexión */}
+                {isPaused && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-amber-400 text-amber-900 animate-pulse">
+                    ⏸ Pausado
                   </span>
-                  {/* Indicador de pausa por desconexión */}
-                  {isPaused && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-amber-400 text-amber-900 animate-pulse">
-                      ⏸ Pausado
-                    </span>
-                  )}
-                  {/* Indicador de sin conexión */}
-                  {!isOnline && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-red-400 text-red-900">
-                      📶 Sin conexión
-                    </span>
-                  )}
-                </div>
+                )}
+                {/* Indicador de sin conexión */}
+                {!isOnline && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-red-400 text-red-900">
+                    📶 Sin conexión
+                  </span>
+                )}
               </div>
             </div>
             
