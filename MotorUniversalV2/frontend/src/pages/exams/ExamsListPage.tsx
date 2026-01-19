@@ -108,73 +108,81 @@ const ExamCard = ({
           {exam.name}
         </h3>
         
-        {/* Stats Grid - Diferente para candidatos */}
+        {/* Stats - Diseño diferente para candidatos */}
         {isCandidate ? (
-          <div className="flex items-center gap-2 mb-3 text-xs text-gray-500">
-            <div className="flex items-center gap-1">
-              <Award className="h-3.5 w-3.5 text-emerald-500" />
-              <span>Mínimo {exam.passing_score}%</span>
+          <>
+            {/* Info principal para candidato: puntaje y simulador */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-1.5 text-sm">
+                <Award className="h-4 w-4 text-emerald-500" />
+                <span className="text-gray-700 font-medium">Mínimo {exam.passing_score}%</span>
+              </div>
+              {exam.has_simulator_content && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                  <Gamepad2 className="h-3 w-3" />
+                  Simulador
+                </span>
+              )}
             </div>
-          </div>
+            
+            {/* Footer para candidato: info secundaria en gris */}
+            <div className="flex items-center gap-4 text-xs text-gray-400 pt-3 border-t">
+              <div className="flex items-center gap-1" title="Duración">
+                <Timer className="h-3.5 w-3.5" />
+                <span>{exam.duration_minutes || 0} min</span>
+              </div>
+              <div className="flex items-center gap-1" title="Temas">
+                <BookOpen className="h-3.5 w-3.5" />
+                <span>{exam.total_topics || 0} temas</span>
+              </div>
+              <div className="flex items-center gap-1" title="Categorías">
+                <Layers className="h-3.5 w-3.5" />
+                <span>{exam.total_categories || 0}</span>
+              </div>
+            </div>
+          </>
         ) : (
-          <div className="grid grid-cols-2 gap-2 mb-3 text-xs text-gray-500">
-            <div className="flex items-center gap-1">
-              <BookOpen className="h-3.5 w-3.5 text-blue-500" />
-              <span>{exam.total_topics || 0} temas</span>
+          <>
+            {/* Stats Grid para admin/editor */}
+            <div className="grid grid-cols-2 gap-2 mb-3 text-xs text-gray-500">
+              <div className="flex items-center gap-1">
+                <BookOpen className="h-3.5 w-3.5 text-blue-500" />
+                <span>{exam.total_topics || 0} temas</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Timer className="h-3.5 w-3.5 text-slate-500" />
+                <span>{exam.duration_minutes || 0} min</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Award className="h-3.5 w-3.5 text-emerald-500" />
+                <span>Mínimo {exam.passing_score}%</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Gamepad2 className={`h-3.5 w-3.5 ${exam.has_simulator_content ? 'text-purple-500' : 'text-gray-300'}`} />
+                <span className={exam.has_simulator_content ? 'text-purple-600 font-medium' : 'text-gray-400'}>
+                  {exam.has_simulator_content ? 'Simulador' : 'Sin simulador'}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <Timer className="h-3.5 w-3.5 text-slate-500" />
-              <span>{exam.duration_minutes || 0} min</span>
+            
+            {/* Card Footer para admin/editor */}
+            <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t">
+              <div className="flex items-center gap-1">
+                <Layers className="h-3.5 w-3.5" />
+                <span>{exam.total_categories || 0} categorías</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5" />
+                <span>
+                  {new Date(exam.created_at).toLocaleDateString('es-ES', {
+                    day: 'numeric',
+                    month: 'short',
+                  })}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <Award className="h-3.5 w-3.5 text-emerald-500" />
-              <span>Mínimo {exam.passing_score}%</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Gamepad2 className={`h-3.5 w-3.5 ${exam.has_simulator_content ? 'text-purple-500' : 'text-gray-300'}`} />
-              <span className={exam.has_simulator_content ? 'text-purple-600 font-medium' : 'text-gray-400'}>
-                {exam.has_simulator_content ? 'Simulador' : 'Sin simulador'}
-              </span>
-            </div>
-          </div>
+          </>
         )}
-        
-        {/* Card Footer */}
-        <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1">
-              <Layers className="h-3.5 w-3.5" />
-              <span>{exam.total_categories || 0} categorías</span>
-            </div>
-            {isCandidate && (
-              <>
-                <div className="flex items-center gap-1" title="Temas">
-                  <BookOpen className="h-3.5 w-3.5" />
-                  <span>{exam.total_topics || 0}</span>
-                </div>
-                <div className="flex items-center gap-1" title="Duración">
-                  <Timer className="h-3.5 w-3.5" />
-                  <span>{exam.duration_minutes || 0} min</span>
-                </div>
-                <div className="flex items-center gap-1" title={exam.has_simulator_content ? 'Con simulador' : 'Sin simulador'}>
-                  <Gamepad2 className={`h-3.5 w-3.5 ${exam.has_simulator_content ? 'text-purple-400' : ''}`} />
-                  {exam.has_simulator_content && <span className="text-purple-400">Sim</span>}
-                </div>
-              </>
-            )}
-          </div>
-          {!isCandidate && (
-            <div className="flex items-center gap-1">
-              <Calendar className="h-3.5 w-3.5" />
-              <span>
-                {new Date(exam.created_at).toLocaleDateString('es-ES', {
-                  day: 'numeric',
-                  month: 'short',
-                })}
-              </span>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
