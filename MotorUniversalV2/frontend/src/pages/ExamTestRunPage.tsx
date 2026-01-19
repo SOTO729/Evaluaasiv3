@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../services/examService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag, BookOpen } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { clearExamSessionCache, useAuthStore } from '../store/authStore';
 
@@ -1581,11 +1581,23 @@ const ExamTestRunPage: React.FC = () => {
       <div className={`fixed top-0 left-0 right-0 z-40 shadow-md ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-blue-600'}`}>
         <div className="w-full px-2 sm:px-4 md:px-6 lg:px-8 xl:px-12 py-2 sm:py-3">
           <div className="flex items-center justify-between">
-            {/* Izquierda: Título */}
+            {/* Izquierda: Título con icono */}
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+              {/* Icono del examen */}
+              {exam.image_url ? (
+                <img 
+                  src={exam.image_url} 
+                  alt="" 
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-cover flex-shrink-0 border-2 border-white/30 shadow-sm"
+                />
+              ) : (
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                </div>
+              )}
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                  <h1 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-white truncate max-w-[120px] xs:max-w-[150px] sm:max-w-[200px] md:max-w-[300px] lg:max-w-none drop-shadow-sm">{exam.name}</h1>
+                  <h1 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-white truncate max-w-[100px] xs:max-w-[130px] sm:max-w-[180px] md:max-w-[280px] lg:max-w-none drop-shadow-sm">{exam.name}</h1>
                   {/* Badge Examen/Simulador en navbar */}
                   <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
                     currentMode === 'simulator' 

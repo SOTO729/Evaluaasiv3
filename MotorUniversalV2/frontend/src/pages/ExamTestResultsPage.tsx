@@ -383,134 +383,134 @@ const ExamTestResultsPage: React.FC = () => {
   return (
     <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-x-hidden overscroll-contain ${!canViewAnswers ? '' : ''}`}>
       {/* Header con gradiente y bordes suaves */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        <div className={`bg-gradient-to-r ${getScoreBgColor(summary.percentage)} text-white rounded-2xl shadow-xl`}>
-          <div className="px-6 sm:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 pt-4 sm:pt-6">
+        <div className={`bg-gradient-to-r ${getScoreBgColor(summary.percentage)} text-white rounded-xl sm:rounded-2xl shadow-xl`}>
+          <div className="px-4 sm:px-6 md:px-8 py-5 sm:py-6 md:py-8">
           {/* Botón volver a exámenes para candidatos */}
           {!canViewAnswers && (
-            <div className="mb-4">
+            <div className="mb-3 sm:mb-4">
               <button
                 onClick={() => navigate('/exams')}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-white text-sm font-medium transition-colors"
+                className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white/20 hover:bg-white/30 rounded-lg text-white text-xs sm:text-sm font-medium transition-colors"
               >
-                <ArrowLeft className="w-4 h-4" />
-                Volver a Exámenes
+                <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">Volver a</span> Exámenes
               </button>
             </div>
           )}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             <div>
-              <h1 className="text-3xl font-bold mb-2">Resultados del Examen</h1>
-              <p className="text-white/80">Evaluación completada</p>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">Resultados del Examen</h1>
+              <p className="text-white/80 text-sm sm:text-base">Evaluación completada</p>
             </div>
-            <div className="text-right">
-              <div className="text-5xl font-bold">{summary.percentage}%</div>
-              <div className="text-white/80 text-sm">Calificación Final</div>
+            <div className="text-left sm:text-right">
+              <div className="text-3xl sm:text-4xl md:text-5xl font-bold">{summary.percentage}%</div>
+              <div className="text-white/80 text-xs sm:text-sm">Calificación Final</div>
             </div>
           </div>
         </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 pt-4 sm:pt-6 pb-6 sm:pb-8">
         {/* Summary Cards - Diferentes para candidatos */}
         {!canViewAnswers ? (
           /* Tarjetas para candidatos: Tiempo, Puntos, Respuestas enviadas, Estatus */
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white rounded-xl shadow-lg p-5 border-t-4 border-blue-500">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4 md:grid-cols-4 mb-6 sm:mb-8">
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-5 border-t-4 border-blue-500">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tiempo</p>
-                  <p className="text-2xl font-bold text-blue-600">{formatTime(elapsedTime)}</p>
+                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide">Tiempo</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600">{formatTime(elapsedTime)}</p>
                 </div>
-                <Clock className="w-8 h-8 text-blue-500" />
+                <Clock className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-blue-500" />
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-lg p-5 border-t-4 border-yellow-500">
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-5 border-t-4 border-yellow-500">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Puntos</p>
-                  <p className="text-2xl font-bold text-yellow-600">{Math.round(1000 * summary.percentage / 100)}</p>
+                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide">Puntos</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-yellow-600">{Math.round(1000 * summary.percentage / 100)}</p>
                 </div>
-                <Trophy className="w-8 h-8 text-yellow-500" />
+                <Trophy className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-yellow-500" />
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-lg p-5 border-t-4 border-green-500">
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-5 border-t-4 border-green-500">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Respuestas</p>
-                  <p className="text-2xl font-bold text-green-600">{summary.total_questions + summary.total_exercises}</p>
+                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide">Respuestas</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-green-600">{summary.total_questions + summary.total_exercises}</p>
                 </div>
-                <Send className="w-8 h-8 text-green-500" />
+                <Send className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-green-500" />
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-lg p-5 border-t-4 border-amber-500">
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-5 border-t-4 border-amber-500">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Estatus</p>
-                  <p className={`text-lg font-bold ${summary.percentage >= 70 ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide">Estatus</p>
+                  <p className={`text-sm sm:text-base md:text-lg font-bold ${summary.percentage >= 70 ? 'text-green-600' : 'text-red-600'}`}>
                     {summary.percentage >= 70 ? 'Aprobado' : 'No aprobado'}
                   </p>
                 </div>
-                <Award className={`w-8 h-8 ${summary.percentage >= 70 ? 'text-green-500' : 'text-red-500'}`} />
+                <Award className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 ${summary.percentage >= 70 ? 'text-green-500' : 'text-red-500'}`} />
               </div>
             </div>
           </div>
         ) : (
           /* Tarjetas para admin/editor: Vista completa */
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 -mt-12">
-          <div className="bg-white rounded-xl shadow-lg p-5 border-t-4 border-gray-400">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4 md:grid-cols-5 mb-6 sm:mb-8 -mt-8 sm:-mt-10 md:-mt-12">
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-5 border-t-4 border-gray-400">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Respuestas</p>
-                <p className="text-2xl font-bold text-gray-700">{summary.earned_points}/{summary.total_points}</p>
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide">Respuestas</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-700">{summary.earned_points}/{summary.total_points}</p>
               </div>
-              <CheckCircle className="w-8 h-8 text-gray-400" />
+              <CheckCircle className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-gray-400" />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-5 border-t-4 border-primary-500">
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-5 border-t-4 border-primary-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Preguntas</p>
-                <p className="text-2xl font-bold text-primary-600">{summary.correct_questions}/{summary.total_questions}</p>
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide">Preguntas</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-primary-600">{summary.correct_questions}/{summary.total_questions}</p>
               </div>
-              <BookOpen className="w-8 h-8 text-primary-500" />
+              <BookOpen className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-primary-500" />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-5 border-t-4 border-purple-500">
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-5 border-t-4 border-purple-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Ejercicios</p>
-                <p className="text-2xl font-bold text-purple-600">{summary.correct_exercises}/{summary.total_exercises}</p>
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide">Ejercicios</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-purple-600">{summary.correct_exercises}/{summary.total_exercises}</p>
               </div>
-              <Target className="w-8 h-8 text-purple-500" />
+              <Target className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-purple-500" />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-5 border-t-4 border-green-500">
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-5 border-t-4 border-green-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tiempo</p>
-                <p className="text-2xl font-bold text-green-600">{formatTime(elapsedTime)}</p>
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide">Tiempo</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-green-600">{formatTime(elapsedTime)}</p>
               </div>
-              <Clock className="w-8 h-8 text-green-500" />
+              <Clock className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-green-500" />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-5 border-t-4 border-red-500">
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-5 border-t-4 border-red-500 col-span-2 md:col-span-1">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Errores</p>
-                <p className="text-2xl font-bold text-red-600">
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide">Errores</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-red-600">
                   {(summary.total_questions - summary.correct_questions) + (summary.total_exercises - summary.correct_exercises)}
                 </p>
               </div>
-              <XCircle className="w-8 h-8 text-red-500" />
+              <XCircle className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-red-500" />
             </div>
           </div>
           </div>
@@ -518,14 +518,14 @@ const ExamTestResultsPage: React.FC = () => {
 
         {/* Mensaje para candidatos */}
         {!canViewAnswers && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg sm:rounded-xl p-4 sm:p-5 md:p-6 mb-6 sm:mb-8">
             <div className="flex items-start">
-              <AlertCircle className="w-6 h-6 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 mr-2 sm:mr-3 flex-shrink-0 mt-0.5" />
               <div>
-                <h3 className="text-lg font-semibold text-blue-900 mb-1">Resultados del Examen</h3>
-                <p className="text-blue-800">
+                <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-1">Resultados del Examen</h3>
+                <p className="text-sm sm:text-base text-blue-800">
                   Aquí puedes ver tu calificación final y el desglose de tu desempeño por cada área evaluada.
-                  Esto te ayudará a identificar tus fortalezas y áreas de oportunidad.
+                  <span className="hidden sm:inline"> Esto te ayudará a identificar tus fortalezas y áreas de oportunidad.</span>
                 </p>
               </div>
             </div>
@@ -552,12 +552,12 @@ const ExamTestResultsPage: React.FC = () => {
 
         {/* Desglose por Categoría/Tema */}
         {summary.evaluation_breakdown && Object.keys(summary.evaluation_breakdown).length > 0 && (
-          <div id="breakdown-section" className="bg-white rounded-xl shadow-lg mb-8">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">Desglose por Área</h2>
-              <p className="text-sm text-gray-500 mt-1">Puntaje obtenido por categoría y tema</p>
+          <div id="breakdown-section" className="bg-white rounded-lg sm:rounded-xl shadow-lg mb-6 sm:mb-8">
+            <div className="px-4 sm:px-5 md:px-6 py-3 sm:py-4 border-b border-gray-200">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Desglose por Área</h2>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1">Puntaje obtenido por categoría y tema</p>
             </div>
-            <div className="p-6">
+            <div className="p-3 sm:p-4 md:p-6">
               <div className="space-y-6">
                 {Object.entries(summary.evaluation_breakdown).map(([categoryName, categoryData], catIndex) => (
                   <div key={categoryName} className="border border-gray-200 rounded-lg overflow-hidden">
@@ -852,34 +852,34 @@ const ExamTestResultsPage: React.FC = () => {
         )}
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap justify-center gap-4">
+        <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-2 sm:gap-3 md:gap-4">
           <button
             onClick={() => navigate(canViewAnswers ? '/test-exams' : '/exams')}
-            className="px-6 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 flex items-center shadow-sm"
+            className="px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg sm:rounded-xl hover:bg-gray-50 flex items-center justify-center shadow-sm"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
             {canViewAnswers ? 'Volver a la Lista' : 'Volver a Exámenes'}
           </button>
           <button
             onClick={downloadPDFFromBackend}
             disabled={downloadingPdf || !resultId}
-            className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl hover:from-blue-600 hover:to-blue-700 flex items-center shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg sm:rounded-xl hover:from-blue-600 hover:to-blue-700 flex items-center justify-center shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {downloadingPdf ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2 animate-spin" />
             ) : (
-              <Download className="w-4 h-4 mr-2" />
+              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
             )}
-            {downloadingPdf ? 'Generando...' : 'Descargar Reporte de Evaluación'}
+            {downloadingPdf ? 'Generando...' : 'Descargar Reporte'}
           </button>
           {/* Botón Detalle del intento para candidatos */}
           {!canViewAnswers && resultId && (
             <button
               onClick={() => navigate(`/certificates/evaluation-report/${examId}/result/${resultId}`)}
-              className="px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl hover:from-emerald-600 hover:to-emerald-700 flex items-center shadow-lg"
+              className="px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-lg sm:rounded-xl hover:from-emerald-600 hover:to-emerald-700 flex items-center justify-center shadow-lg"
             >
-              <FileText className="w-4 h-4 mr-2" />
-              Ir a Detalle del Intento
+              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+              Detalle del Intento
             </button>
           )}
           {/* Botón Reintentar solo para admin/editor/soporte */}
@@ -891,9 +891,9 @@ const ExamTestResultsPage: React.FC = () => {
                   exerciseCount: (location.state as any)?.exerciseCount || 0
                 }
               })}
-              className="px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl hover:from-primary-600 hover:to-primary-700 flex items-center shadow-lg"
+              className="px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg sm:rounded-xl hover:from-primary-600 hover:to-primary-700 flex items-center justify-center shadow-lg"
             >
-              <RotateCcw className="w-4 h-4 mr-2" />
+              <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
               Reintentar Examen
             </button>
           )}
