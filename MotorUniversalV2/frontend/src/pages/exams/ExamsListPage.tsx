@@ -288,48 +288,64 @@ const ExamsListPage = () => {
         </div>
       ) : (
         <>
-          {/* Sección de Publicados */}
-          {allExams.filter((e: any) => e.is_published).length > 0 && (
-            <div className="mb-8">
-              <div className="flex items-center gap-2 mb-4">
-                <Eye className="h-5 w-5 text-green-600" />
-                <h2 className="text-lg font-semibold text-gray-800">Publicados</h2>
-                <span className="bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">
-                  {allExams.filter((e: any) => e.is_published).length}
-                </span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {allExams.filter((e: any) => e.is_published).map((exam: any, index: number) => (
-                  <ExamCard 
-                    key={exam.id} 
-                    exam={exam}
-                    index={index}
-                  />
-                ))}
-              </div>
+          {/* Para candidatos: mostrar solo grid sin secciones */}
+          {isCandidate ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+              {allExams.map((exam: any, index: number) => (
+                <ExamCard 
+                  key={exam.id} 
+                  exam={exam}
+                  index={index}
+                  showStatus={false}
+                />
+              ))}
             </div>
-          )}
+          ) : (
+            <>
+              {/* Sección de Publicados */}
+              {allExams.filter((e: any) => e.is_published).length > 0 && (
+                <div className="mb-8">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Eye className="h-5 w-5 text-green-600" />
+                    <h2 className="text-lg font-semibold text-gray-800">Publicados</h2>
+                    <span className="bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                      {allExams.filter((e: any) => e.is_published).length}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {allExams.filter((e: any) => e.is_published).map((exam: any, index: number) => (
+                      <ExamCard 
+                        key={exam.id} 
+                        exam={exam}
+                        index={index}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
 
-          {/* Sección de Borradores */}
-          {allExams.filter((e: any) => !e.is_published).length > 0 && (
-            <div ref={draftsRef} className="mb-8 scroll-mt-4">
-              <div className="flex items-center gap-2 mb-4">
-                <EyeOff className="h-5 w-5 text-gray-500" />
-                <h2 className="text-lg font-semibold text-gray-800">Borradores</h2>
-                <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded-full">
-                  {allExams.filter((e: any) => !e.is_published).length}
-                </span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {allExams.filter((e: any) => !e.is_published).map((exam: any, index: number) => (
-                  <ExamCard 
-                    key={exam.id} 
-                    exam={exam}
-                    index={index}
-                  />
-                ))}
-              </div>
-            </div>
+              {/* Sección de Borradores */}
+              {allExams.filter((e: any) => !e.is_published).length > 0 && (
+                <div ref={draftsRef} className="mb-8 scroll-mt-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <EyeOff className="h-5 w-5 text-gray-500" />
+                    <h2 className="text-lg font-semibold text-gray-800">Borradores</h2>
+                    <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded-full">
+                      {allExams.filter((e: any) => !e.is_published).length}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {allExams.filter((e: any) => !e.is_published).map((exam: any, index: number) => (
+                      <ExamCard 
+                        key={exam.id} 
+                        exam={exam}
+                        index={index}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* Pagination */}
