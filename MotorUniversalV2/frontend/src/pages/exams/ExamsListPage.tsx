@@ -218,15 +218,15 @@ const ExamsListPage = () => {
   const total = data?.total || 0;
 
   return (
-    <div className="p-6 animate-fade-in-up">
+    <div className="p-4 sm:p-6 animate-fade-in-up">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <FileText className="h-7 w-7 text-blue-600" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <FileText className="h-6 w-6 sm:h-7 sm:w-7 text-blue-600" />
             {isCandidate ? 'Exámenes Disponibles' : 'Exámenes'}
           </h1>
-          <p className="text-gray-600 mt-1">
+          <p className="text-sm sm:text-base text-gray-600 mt-1">
             {isCandidate 
               ? 'Explora los exámenes disponibles para tu certificación'
               : 'Gestiona los exámenes con sus categorías, preguntas y ejercicios'
@@ -236,7 +236,7 @@ const ExamsListPage = () => {
         {canCreateExam && (
           <button 
             onClick={() => navigate('/exams/create')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors w-full sm:w-auto"
           >
             <Plus className="h-5 w-5" />
             Nuevo Examen
@@ -245,8 +245,8 @@ const ExamsListPage = () => {
       </div>
 
       {/* Search */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex gap-4">
+      <div className="bg-white rounded-lg shadow p-3 sm:p-4 mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
@@ -254,12 +254,12 @@ const ExamsListPage = () => {
               placeholder="Buscar exámenes..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
             />
           </div>
           <button
             onClick={() => refetch()}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors"
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 sm:py-2 rounded-lg transition-colors w-full sm:w-auto"
           >
             Buscar
           </button>
@@ -290,7 +290,7 @@ const ExamsListPage = () => {
         <>
           {/* Para candidatos: mostrar solo grid sin secciones */}
           {isCandidate ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
               {allExams.map((exam: any, index: number) => (
                 <ExamCard 
                   key={exam.id} 
@@ -350,25 +350,25 @@ const ExamsListPage = () => {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="mt-6 flex items-center justify-between bg-white rounded-lg shadow px-6 py-4">
-              <p className="text-sm text-gray-600">
+            <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white rounded-lg shadow px-4 sm:px-6 py-3 sm:py-4">
+              <p className="text-xs sm:text-sm text-gray-600 order-2 sm:order-1">
                 Mostrando {allExams.length} de {total} exámenes
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 order-1 sm:order-2">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 active:bg-gray-100"
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
-                <span className="px-3 py-1 text-sm">
-                  Página {currentPage} de {totalPages}
+                <span className="px-3 py-1 text-sm min-w-[100px] text-center">
+                  {currentPage} de {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 active:bg-gray-100"
                 >
                   <ChevronRight className="h-5 w-5" />
                 </button>
