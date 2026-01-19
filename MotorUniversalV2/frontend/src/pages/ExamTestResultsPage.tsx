@@ -385,6 +385,18 @@ const ExamTestResultsPage: React.FC = () => {
       {/* Header con gradiente */}
       <div className={`bg-gradient-to-r ${getScoreBgColor(summary.percentage)} text-white`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Botón volver a exámenes para candidatos */}
+          {!canViewAnswers && (
+            <div className="mb-4">
+              <button
+                onClick={() => navigate('/exams')}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-white text-sm font-medium transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Volver a Exámenes
+              </button>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold mb-2">Resultados del Examen</h1>
