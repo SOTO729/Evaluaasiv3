@@ -15,7 +15,10 @@ import {
   Type,
   Download,
   BookOpen,
-  Loader2
+  Loader2,
+  Award,
+  Send,
+  FileText
 } from 'lucide-react';
 
 // Función para traducir tipos de pregunta al español
@@ -395,8 +398,55 @@ const ExamTestResultsPage: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 -mt-12">
+        {/* Summary Cards - Diferentes para candidatos */}
+        {!canViewAnswers ? (
+          /* Tarjetas para candidatos: Tiempo, Puntos, Respuestas enviadas, Estatus */
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 -mt-12">
+            <div className="bg-white rounded-xl shadow-lg p-5 border-t-4 border-blue-500">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tiempo</p>
+                  <p className="text-2xl font-bold text-blue-600">{formatTime(elapsedTime)}</p>
+                </div>
+                <Clock className="w-8 h-8 text-blue-500" />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-5 border-t-4 border-purple-500">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Puntos</p>
+                  <p className="text-2xl font-bold text-purple-600">{summary.earned_points}/{summary.total_points}</p>
+                </div>
+                <Target className="w-8 h-8 text-purple-500" />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-5 border-t-4 border-green-500">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Respuestas</p>
+                  <p className="text-2xl font-bold text-green-600">{summary.total_questions + summary.total_exercises}</p>
+                </div>
+                <Send className="w-8 h-8 text-green-500" />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-5 border-t-4 border-amber-500">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Estatus</p>
+                  <p className={`text-lg font-bold ${summary.percentage >= 70 ? 'text-green-600' : 'text-red-600'}`}>
+                    {summary.percentage >= 70 ? 'Aprobado' : 'No aprobado'}
+                  </p>
+                </div>
+                <Award className={`w-8 h-8 ${summary.percentage >= 70 ? 'text-green-500' : 'text-red-500'}`} />
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Tarjetas para admin/editor: Vista completa */
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 -mt-12">
           <div className="bg-white rounded-xl shadow-lg p-5 border-t-4 border-gray-400">
             <div className="flex items-center justify-between">
               <div>
@@ -448,7 +498,8 @@ const ExamTestResultsPage: React.FC = () => {
               <XCircle className="w-8 h-8 text-red-500" />
             </div>
           </div>
-        </div>
+          </div>
+        )}
 
         {/* Mensaje para candidatos */}
         {!canViewAnswers && (
@@ -788,6 +839,16 @@ const ExamTestResultsPage: React.FC = () => {
             )}
             {downloadingPdf ? 'Generando...' : 'Descargar Reporte PDF'}
           </button>
+          {/* Botón Certificados para candidatos */}
+          {!canViewAnswers && (
+            <button
+              onClick={() => navigate('/certificates')}
+              className="px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl hover:from-emerald-600 hover:to-emerald-700 flex items-center shadow-lg"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Ver Certificados
+            </button>
+          )}
           {/* Botón Reintentar solo para admin/editor/soporte */}
           {canViewAnswers && (
             <button
