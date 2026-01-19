@@ -382,9 +382,10 @@ const ExamTestResultsPage: React.FC = () => {
 
   return (
     <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-x-hidden overscroll-contain ${!canViewAnswers ? '' : ''}`}>
-      {/* Header con gradiente */}
-      <div className={`bg-gradient-to-r ${getScoreBgColor(summary.percentage)} text-white`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header con gradiente y bordes suaves */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <div className={`bg-gradient-to-r ${getScoreBgColor(summary.percentage)} text-white rounded-2xl shadow-xl`}>
+          <div className="px-6 sm:px-8 py-8">
           {/* Botón volver a exámenes para candidatos */}
           {!canViewAnswers && (
             <div className="mb-4">
@@ -408,13 +409,14 @@ const ExamTestResultsPage: React.FC = () => {
             </div>
           </div>
         </div>
+        </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8">
         {/* Summary Cards - Diferentes para candidatos */}
         {!canViewAnswers ? (
           /* Tarjetas para candidatos: Tiempo, Puntos, Respuestas enviadas, Estatus */
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 -mt-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <div className="bg-white rounded-xl shadow-lg p-5 border-t-4 border-blue-500">
               <div className="flex items-center justify-between">
                 <div>
