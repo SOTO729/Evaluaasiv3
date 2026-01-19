@@ -45,6 +45,19 @@ const StudyContentDetailRouter = () => {
   return user?.role === 'candidato' ? <StudyContentCandidatePage /> : <StudyContentDetailPage />
 }
 
+// Componente que envuelve ExamTestResultsPage en Layout para candidatos
+const ExamTestResultsRouter = () => {
+  const { user } = useAuthStore()
+  if (user?.role === 'candidato') {
+    return (
+      <Layout>
+        <ExamTestResultsPage />
+      </Layout>
+    )
+  }
+  return <ExamTestResultsPage />
+}
+
 // Certificates
 const CertificatesPage = lazy(() => import('./pages/certificates/CertificatesPage'))
 const EvaluationReportDetailPage = lazy(() => import('./pages/certificates/EvaluationReportDetailPage'))
@@ -86,7 +99,7 @@ function App() {
           <Route element={<ProtectedRoute />}>
             {/* Rutas de pantalla completa (sin navbar) */}
             <Route path="/test-exams/:examId/run" element={<ExamTestRunPage />} />
-            <Route path="/test-exams/:examId/results" element={<ExamTestResultsPage />} />
+            <Route path="/test-exams/:examId/results" element={<ExamTestResultsRouter />} />
             
             <Route element={<Layout />}>
               <Route path="/dashboard" element={<HomePage />} />
