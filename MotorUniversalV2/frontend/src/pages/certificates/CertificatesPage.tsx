@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileText, BadgeCheck, Download, Eye, Search, Calendar, CheckCircle, Clock, ExternalLink, Award, ChevronRight } from 'lucide-react'
+import { FileText, BadgeCheck, Download, Eye, Search, Calendar, CheckCircle, Clock, ExternalLink, Award, ChevronRight, Sparkles } from 'lucide-react'
 import { dashboardService } from '../../services/dashboardService'
 import { useAuthStore } from '../../store/authStore'
 import LoadingSpinner from '../../components/LoadingSpinner'
@@ -49,12 +49,21 @@ interface TabConfig {
 const CertificatesPage = () => {
   const [activeTab, setActiveTab] = useState<TabType>('evaluation-report')
   const [searchTerm, setSearchTerm] = useState('')
+  const [tabKey, setTabKey] = useState(0) // Para forzar re-render y animaciones al cambiar tab
 
   // Obtener datos del dashboard
   const { data: dashboardData, isLoading } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
     queryFn: () => dashboardService.getDashboard()
   })
+
+  // Handler para cambiar tab con animación
+  const handleTabChange = (tabId: TabType) => {
+    if (tabId !== activeTab) {
+      setActiveTab(tabId)
+      setTabKey(prev => prev + 1) // Fuerza re-render para animaciones
+    }
+  }
 
   // Opciones de documentos del usuario (con defaults)
   const documentOptions = dashboardData?.user?.document_options || {
@@ -159,13 +168,16 @@ const CertificatesPage = () => {
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 animate-fade-in">
       {/* Header - Estilo simple como otras páginas */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in-up" style={{ animationDelay: '0ms' }}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 rounded-xl flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-primary-100 to-primary-200 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
             <Award className="w-5 h-5 sm:w-6 sm:h-6 text-primary-600" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Mis Certificados</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Mis Certificados</h1>
+              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
+            </div>
             <p className="text-gray-500 text-sm mt-0.5">
               Consulta y descarga tus documentos
             </p>
@@ -180,14 +192,14 @@ const CertificatesPage = () => {
             placeholder="Buscar certificado..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm bg-white shadow-sm transition-shadow hover:shadow-md"
           />
         </div>
       </div>
 
       {/* Tabs como tarjetas seleccionables */}
       <div className={`grid gap-3 ${tabs.length <= 2 ? 'grid-cols-1 sm:grid-cols-2' : tabs.length === 3 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2 lg:grid-cols-4'}`}>
-        {tabs.map((tab) => {
+        {tabs.map((tab, index) => {
           const isActive = activeTab === tab.id
           const count = tab.id === 'evaluation-report' 
             ? dashboardData?.exams?.filter(e => e.user_stats.attempts > 0).length || 0
@@ -196,63 +208,79 @@ const CertificatesPage = () => {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`relative flex items-center gap-3 p-4 rounded-xl border-2 transition-all text-left ${
+              onClick={() => handleTabChange(tab.id)}
+              className={`relative flex items-center gap-3 p-3 sm:p-4 rounded-xl border-2 transition-all duration-300 text-left animate-stagger-in group ${
                 isActive
-                  ? 'border-primary-500 bg-primary-50 shadow-sm'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                  ? 'border-primary-500 bg-gradient-to-br from-primary-50 to-white shadow-md scale-[1.02]'
+                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md hover:scale-[1.01]'
               }`}
+              style={{ animationDelay: `${index * 75}ms` }}
             >
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                isActive ? 'bg-primary-100' : 'bg-gray-100'
+              {/* Decoración sutil en esquina */}
+              {isActive && (
+                <div className="absolute top-0 right-0 w-12 h-12 bg-gradient-to-bl from-primary-100/50 to-transparent rounded-tr-xl rounded-bl-3xl" />
+              )}
+              
+              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+                isActive ? 'bg-primary-100 shadow-sm' : 'bg-gray-100 group-hover:bg-gray-200'
               }`}>
                 <img 
                   src={tab.iconImage} 
                   alt={tab.name} 
-                  className={`w-7 h-7 object-contain ${!isActive ? 'grayscale opacity-60' : ''}`}
+                  className={`w-6 h-6 sm:w-7 sm:h-7 object-contain transition-all duration-300 ${!isActive ? 'grayscale opacity-60 group-hover:opacity-80' : ''}`}
                 />
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 relative z-10">
                 <div className="flex items-center gap-2">
-                  <span className={`font-semibold text-sm truncate ${isActive ? 'text-primary-700' : 'text-gray-700'}`}>
+                  <span className={`font-semibold text-sm truncate transition-colors ${isActive ? 'text-primary-700' : 'text-gray-700 group-hover:text-gray-900'}`}>
                     {tab.name}
                   </span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                    isActive ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold transition-all ${
+                    isActive ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-200 text-gray-600 group-hover:bg-gray-300'
                   }`}>
                     {count}
                   </span>
                 </div>
-                <p className={`text-xs mt-0.5 truncate ${isActive ? 'text-primary-600' : 'text-gray-500'}`}>
+                <p className={`text-xs mt-0.5 truncate transition-colors hidden sm:block ${isActive ? 'text-primary-600' : 'text-gray-500 group-hover:text-gray-600'}`}>
                   {tab.description}
                 </p>
               </div>
-              {isActive && (
-                <ChevronRight className="w-5 h-5 text-primary-500 flex-shrink-0" />
-              )}
+              <ChevronRight className={`w-5 h-5 flex-shrink-0 transition-all duration-300 ${
+                isActive ? 'text-primary-500 translate-x-0 opacity-100' : 'text-gray-300 -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-50'
+              }`} />
             </button>
           )
         })}
       </div>
 
       {/* Content */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+      <div 
+        key={tabKey}
+        className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 animate-fade-in-up relative overflow-hidden"
+        style={{ animationDelay: '150ms' }}
+      >
+        {/* Decoración de fondo sutil */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary-50/30 to-transparent rounded-bl-full pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-gray-50/50 to-transparent rounded-tr-full pointer-events-none" />
+        
         {/* Content based on active tab */}
-        {activeTab === 'evaluation-report' && (
-          <EvaluationReportSection exams={filteredExams} formatDate={formatDate} />
-        )}
-        
-        {activeTab === 'approval-certificate' && (
-          <ApprovalCertificateSection exams={filteredExams} formatDate={formatDate} />
-        )}
-        
-        {activeTab === 'digital-badge' && (
-          <DigitalBadgeSection exams={filteredExams} formatDate={formatDate} />
-        )}
-        
-        {activeTab === 'conocer-certificate' && (
-          <ConocerCertificateSection exams={filteredExams} formatDate={formatDate} />
-        )}
+        <div className="relative z-10">
+          {activeTab === 'evaluation-report' && (
+            <EvaluationReportSection exams={filteredExams} formatDate={formatDate} />
+          )}
+          
+          {activeTab === 'approval-certificate' && (
+            <ApprovalCertificateSection exams={filteredExams} formatDate={formatDate} />
+          )}
+          
+          {activeTab === 'digital-badge' && (
+            <DigitalBadgeSection exams={filteredExams} formatDate={formatDate} />
+          )}
+          
+          {activeTab === 'conocer-certificate' && (
+            <ConocerCertificateSection exams={filteredExams} formatDate={formatDate} />
+          )}
+        </div>
       </div>
     </div>
   )
@@ -266,7 +294,7 @@ const EvaluationReportSection = ({ exams, formatDate }: { exams: any[], formatDa
   
   if (exams.length === 0) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-12 animate-fade-in">
         <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">Sin evaluaciones</h3>
         <p className="text-gray-500">Aún no has realizado ninguna evaluación.</p>
@@ -275,16 +303,17 @@ const EvaluationReportSection = ({ exams, formatDate }: { exams: any[], formatDa
   }
 
   return (
-    <div className="space-y-4">
-      {exams.map((exam) => (
+    <div className="space-y-3 sm:space-y-4">
+      {exams.map((exam, index) => (
         <div
           key={exam.id}
           onClick={() => navigate(`/certificates/evaluation-report/${exam.id}`)}
-          className="border border-gray-200 rounded-xl p-4 sm:p-6 hover:border-primary-300 hover:shadow-md transition-all cursor-pointer"
+          className="border border-gray-200 rounded-xl p-4 sm:p-6 hover:border-primary-300 hover:shadow-lg transition-all duration-300 cursor-pointer animate-stagger-in group bg-gradient-to-r from-white to-gray-50/50"
+          style={{ animationDelay: `${index * 50}ms` }}
         >
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-semibold text-gray-900">{exam.name}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">{exam.name}</h3>
               <p className="text-sm text-gray-500 mt-1 line-clamp-2">{exam.description}</p>
               
               <div className="flex flex-wrap gap-3 sm:gap-4 mt-4">
@@ -310,7 +339,7 @@ const EvaluationReportSection = ({ exams, formatDate }: { exams: any[], formatDa
             </div>
 
             <div className="flex items-center gap-2 sm:ml-4 flex-shrink-0">
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+              <span className={`px-3 py-1 rounded-full text-xs font-medium transition-transform group-hover:scale-105 ${
                 exam.user_stats.is_approved 
                   ? 'bg-green-100 text-green-800' 
                   : 'bg-yellow-100 text-yellow-800'
@@ -319,7 +348,7 @@ const EvaluationReportSection = ({ exams, formatDate }: { exams: any[], formatDa
               </span>
               <button 
                 onClick={(e) => { e.stopPropagation(); navigate(`/certificates/evaluation-report/${exam.id}`) }}
-                className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                className="p-2 text-primary-600 hover:bg-primary-100 rounded-lg transition-all duration-200 hover:scale-110"
                 title="Ver reportes"
               >
                 <Eye className="w-5 h-5" />
@@ -385,7 +414,7 @@ const ApprovalCertificateSection = ({ exams, formatDate }: { exams: any[], forma
   
   if (exams.length === 0) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-12 animate-fade-in">
         <Award className="w-16 h-16 text-gray-300 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">Sin certificados disponibles</h3>
         <p className="text-gray-500 mb-2">Para obtener tu certificado de evaluación, primero debes aprobar un examen.</p>
@@ -395,20 +424,23 @@ const ApprovalCertificateSection = ({ exams, formatDate }: { exams: any[], forma
   }
 
   return (
-    <div className="space-y-4">
-      {exams.map((exam) => (
+    <div className="space-y-3 sm:space-y-4">
+      {exams.map((exam, index) => (
         <div
           key={exam.id}
-          className="border border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 sm:p-6 hover:border-green-400 hover:shadow-md transition-all"
+          className="border border-green-200 bg-gradient-to-r from-green-50 via-emerald-50 to-green-50 rounded-xl p-4 sm:p-6 hover:border-green-400 hover:shadow-lg transition-all duration-300 animate-stagger-in group relative overflow-hidden"
+          style={{ animationDelay: `${index * 50}ms` }}
         >
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          {/* Decoración sutil */}
+          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-green-100/50 to-transparent rounded-bl-full pointer-events-none" />
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 relative z-10">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-110 transition-transform duration-300">
                   <CheckCircle className="w-5 h-5 text-white" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-lg font-semibold text-gray-900 truncate">{exam.name}</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 truncate group-hover:text-green-700 transition-colors">{exam.name}</h3>
                   <p className="text-sm text-green-600 font-medium">Examen Aprobado</p>
                 </div>
               </div> 
@@ -445,13 +477,13 @@ const ApprovalCertificateSection = ({ exams, formatDate }: { exams: any[], forma
             </div>
 
             <div className="flex flex-col items-start sm:items-end gap-2 sm:ml-4 flex-shrink-0">
-              <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 group-hover:bg-green-200 transition-colors">
                 Certificado disponible
               </span>
               <button 
                 onClick={(e) => handleDownloadCertificate(e, exam)}
                 disabled={downloadingId === exam.id}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md hover:scale-105 active:scale-95"
                 title="Descargar certificado"
               >
                 {downloadingId === exam.id ? (
@@ -481,7 +513,7 @@ const ApprovalCertificateSection = ({ exams, formatDate }: { exams: any[], forma
 const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: (date: string) => string }) => {
   if (exams.length === 0) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-12 animate-fade-in">
         <BadgeCheck className="w-16 h-16 text-gray-300 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">Sin insignias digitales</h3>
         <p className="text-gray-500">Aprueba un examen para obtener tu insignia digital.</p>
@@ -490,45 +522,48 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      {exams.map((exam) => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      {exams.map((exam, index) => (
         <div
           key={exam.id}
-          className="bg-white border-2 border-gray-200 rounded-2xl p-6 text-center hover:border-primary-300 hover:shadow-lg transition-all group"
+          className="bg-white border-2 border-gray-200 rounded-2xl p-4 sm:p-6 text-center hover:border-primary-300 hover:shadow-xl transition-all duration-300 group animate-stagger-in relative overflow-hidden"
+          style={{ animationDelay: `${index * 75}ms` }}
         >
+          {/* Decoración de fondo */}
+          <div className="absolute inset-0 bg-gradient-to-br from-primary-50/0 via-transparent to-primary-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
           {/* Badge Visual */}
-          <div className="relative mx-auto w-32 h-32 mb-4">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full animate-pulse group-hover:animate-none" />
-            <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
-              <div className="w-full h-full bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center">
-                <BadgeCheck className="w-12 h-12 text-white" />
+          <div className="relative mx-auto w-28 h-28 sm:w-32 sm:h-32 mb-4 z-10">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full animate-pulse group-hover:animate-none group-hover:scale-110 transition-transform duration-500" />
+            <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center shadow-inner">
+              <div className="w-full h-full bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center group-hover:from-primary-600 group-hover:to-primary-800 transition-all duration-300">
+                <BadgeCheck className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
               </div>
             </div>
             {/* Stars decoration */}
-            <div className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center">
+            <div className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center shadow-md group-hover:scale-125 group-hover:rotate-12 transition-all duration-300">
               <span className="text-white text-xs">★</span>
             </div>
           </div>
 
-          <h3 className="font-bold text-gray-900 mb-1">{exam.name}</h3>
-          <p className="text-sm text-gray-500 mb-2">Insignia de Competencia</p>
+          <h3 className="font-bold text-gray-900 mb-1 relative z-10 group-hover:text-primary-700 transition-colors">{exam.name}</h3>
+          <p className="text-sm text-gray-500 mb-2 relative z-10">Insignia de Competencia</p>
           
-          <div className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium mb-4">
+          <div className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium mb-4 relative z-10 group-hover:bg-green-200 transition-colors">
             <CheckCircle className="w-4 h-4" />
             Verificada
           </div>
 
           {exam.user_stats.last_attempt && (
-            <p className="text-xs text-gray-400 mb-4">
+            <p className="text-xs text-gray-400 mb-4 relative z-10">
               Obtenida: {formatDate(exam.user_stats.last_attempt.end_date || exam.user_stats.last_attempt.start_date)}
             </p>
           )}
-          <div className="flex gap-2">   
-            <button className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors">
+          <div className="flex gap-2 relative z-10">   
+            <button className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-all duration-200 hover:shadow-md hover:scale-105 active:scale-95">
               <Download className="w-4 h-4" /> 
               Descargar
             </button>        
-            <button className="px-3 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+            <button className="px-3 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-100 hover:border-gray-400 transition-all duration-200 hover:scale-105 active:scale-95">
               <ExternalLink className="w-4 h-4" />
             </button>
           </div>
