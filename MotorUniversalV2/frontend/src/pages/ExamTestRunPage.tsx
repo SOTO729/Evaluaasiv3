@@ -1579,13 +1579,13 @@ const ExamTestRunPage: React.FC = () => {
 
       {/* Header minimalista - FIJO */}
       <div className={`fixed top-0 left-0 right-0 z-40 shadow-md ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-blue-600'}`}>
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-3">
+        <div className="w-full px-2 sm:px-4 md:px-6 lg:px-8 xl:px-12 py-2 sm:py-3">
           <div className="flex items-center justify-between">
             {/* Izquierda: Título */}
-            <div className="flex items-center gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-base sm:text-lg md:text-xl font-bold text-white truncate max-w-[180px] sm:max-w-[250px] md:max-w-none drop-shadow-sm">{exam.name}</h1>
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                  <h1 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-white truncate max-w-[120px] xs:max-w-[150px] sm:max-w-[200px] md:max-w-[300px] lg:max-w-none drop-shadow-sm">{exam.name}</h1>
                   {/* Badge Examen/Simulador en navbar */}
                   <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
                     currentMode === 'simulator' 
@@ -1607,16 +1607,16 @@ const ExamTestRunPage: React.FC = () => {
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-white/60">
-                  Reactivo {currentItemIndex + 1} de {selectedItems.length}
+                <p className="text-[10px] sm:text-xs text-white/60">
+                  <span className="hidden xs:inline">Reactivo </span>{currentItemIndex + 1}/{selectedItems.length}
                 </p>
               </div>
             </div>
             
             {/* Derecha: Timer, ID y Salir */}
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0">
               {/* ID del usuario */}
-              <div className="hidden md:flex items-center gap-2 text-sm">
+              <div className="hidden lg:flex items-center gap-2 text-sm">
                 <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
                   <User className="w-4 h-4 text-white" />
                 </div>
@@ -1626,7 +1626,7 @@ const ExamTestRunPage: React.FC = () => {
               </div>
               
               {/* Timer */}
-              <div className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg font-mono text-sm transition-all ${
+              <div className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 md:px-3 py-1 sm:py-1.5 rounded-lg font-mono text-xs sm:text-sm transition-all ${
                 isTimeCritical 
                   ? 'bg-red-500 text-white animate-pulse' 
                   : isTimeWarning 
@@ -1642,11 +1642,11 @@ const ExamTestRunPage: React.FC = () => {
               {/* Botón Salir */}
               <button
                 onClick={() => setShowExitConfirm(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-white/90 hover:text-white bg-white/10 hover:bg-red-500/80 rounded-lg transition-colors text-sm font-medium"
+                className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-white/90 hover:text-white bg-white/10 hover:bg-red-500/80 rounded-lg transition-colors text-xs sm:text-sm font-medium"
                 title="Salir del examen"
               >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Salir</span>
+                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden md:inline">Salir</span>
               </button>
             </div>
           </div>
@@ -1662,22 +1662,22 @@ const ExamTestRunPage: React.FC = () => {
       </div>
 
       {/* Navegación de ítems - FIJO debajo del header */}
-      <div className="fixed top-[73px] left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100">
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-2">
+      <div className="fixed top-[57px] sm:top-[65px] md:top-[73px] left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100">
+        <div className="w-full px-2 sm:px-4 md:px-6 lg:px-8 xl:px-12 py-1.5 sm:py-2">
           <div className="flex items-center justify-between gap-2">
             {/* Izquierda: Navegación de pregunta + botón marcar */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 onClick={() => setShowNavPanel(!showNavPanel)}
-                className="flex items-center gap-2 px-4 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all min-w-[120px]"
+                className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1 sm:py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all min-w-[90px] sm:min-w-[120px]"
               >
-                <span className={`flex items-center justify-center w-8 h-8 text-white rounded-full text-sm font-bold ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-blue-600'}`}>
+                <span className={`flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 text-white rounded-full text-xs sm:text-sm font-bold ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-blue-600'}`}>
                   {currentItemIndex + 1}
                 </span>
-                <span className="text-sm text-gray-600">
-                  de <span className="font-semibold text-gray-900">{selectedItems.length}</span>
+                <span className="text-xs sm:text-sm text-gray-600">
+                  <span className="hidden xs:inline">de </span><span className="font-semibold text-gray-900">{selectedItems.length}</span>
                 </span>
-                <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${showNavPanel ? 'rotate-90' : ''}`} />
+                <ChevronRight className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 transition-transform ${showNavPanel ? 'rotate-90' : ''}`} />
               </button>
 
               {/* Botón de marcar pregunta (junto a navegación) */}
@@ -1693,7 +1693,7 @@ const ExamTestRunPage: React.FC = () => {
                     return newSet;
                   });
                 }}
-                className={`flex items-center justify-center px-3 py-1.5 h-[38px] rounded-lg transition-colors ${
+                className={`flex items-center justify-center px-2 sm:px-3 py-1 sm:py-1.5 h-[30px] sm:h-[38px] rounded-lg transition-colors ${
                   flaggedQuestions.has(currentItemIndex)
                     ? 'bg-orange-500 text-white hover:bg-orange-600'
                     : 'bg-gray-100 text-gray-500 hover:bg-orange-100 hover:text-orange-600'
@@ -1705,31 +1705,31 @@ const ExamTestRunPage: React.FC = () => {
             </div>
             
             {/* Derecha: Botones de navegación */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 onClick={handlePrevious}
                 disabled={currentItemIndex === 0}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-lg"
+                className="flex items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-lg"
               >
-                <ChevronLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Anterior</span>
+                <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden md:inline">Anterior</span>
               </button>
               
               {currentItemIndex === selectedItems.length - 1 ? (
                 <button
                   onClick={() => setShowConfirmSubmit(true)}
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors rounded-lg"
+                  className="flex items-center gap-0.5 sm:gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors rounded-lg"
                 >
-                  <span>Finalizar</span>
-                  <CheckCircle className="w-4 h-4" />
+                  <span className="hidden xs:inline">Finalizar</span>
+                  <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </button>
               ) : (
                 <button
                   onClick={handleNext}
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors rounded-lg"
+                  className="flex items-center gap-0.5 sm:gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors rounded-lg"
                 >
-                  <span className="hidden sm:inline">Siguiente</span>
-                  <ChevronRight className="w-4 h-4" />
+                  <span className="hidden md:inline">Siguiente</span>
+                  <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </button>
               )}
             </div>
@@ -1747,7 +1747,7 @@ const ExamTestRunPage: React.FC = () => {
           />
           
           {/* Panel */}
-          <div className="fixed top-[120px] left-1/2 -translate-x-1/2 z-50 w-[90vw] max-w-md bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
+          <div className="fixed top-[95px] sm:top-[105px] md:top-[120px] left-1/2 -translate-x-1/2 z-50 w-[95vw] sm:w-[90vw] max-w-md bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
             <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-gray-900">Navegación del examen</h3>
@@ -1761,8 +1761,8 @@ const ExamTestRunPage: React.FC = () => {
               <p className="text-xs text-gray-500 mt-1">Selecciona una pregunta para ir directamente</p>
             </div>
             
-            <div className="p-4 max-h-[50vh] overflow-y-auto">
-              <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-2">
+            <div className="p-3 sm:p-4 max-h-[45vh] sm:max-h-[50vh] overflow-y-auto">
+              <div className="grid grid-cols-4 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-1.5 sm:gap-2">
                 {selectedItems.map((item, idx) => {
                   const isAnswered = item.type === 'question' 
                     ? (item.question_type === 'ordering' 
@@ -1784,7 +1784,7 @@ const ExamTestRunPage: React.FC = () => {
                           setCurrentStepIndex(0);
                           setShowNavPanel(false);
                         }}
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium transition-all ${
+                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-xs sm:text-sm font-medium transition-all ${
                           isCurrent
                             ? (currentMode === 'simulator' ? 'bg-amber-500 text-white ring-2 ring-amber-300 scale-105' : 'bg-blue-600 text-white ring-2 ring-blue-300 scale-105')
                             : isFlagged
@@ -1849,13 +1849,13 @@ const ExamTestRunPage: React.FC = () => {
       )}
 
       {/* Contenido principal */}
-      <div className="pt-[125px] pb-[70px] min-h-screen">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+      <div className="pt-[100px] sm:pt-[110px] md:pt-[125px] pb-[50px] sm:pb-[70px] min-h-screen">
+        <div className="max-w-3xl mx-auto px-2 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             {/* Header del ítem - más simple */}
-            <div className="px-5 py-3 bg-gray-50 border-b border-gray-100">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 flex-wrap">
+            <div className="px-3 sm:px-4 md:px-5 py-2 sm:py-3 bg-gray-50 border-b border-gray-100">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                   {/* Badge Examen/Simulador */}
                   <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
                     currentMode === 'simulator' 
@@ -1901,7 +1901,7 @@ const ExamTestRunPage: React.FC = () => {
             </div>
           
             {/* Contenido */}
-            <div className="p-5 sm:p-6">
+            <div className="p-3 sm:p-4 md:p-5 lg:p-6">
               {currentItem?.type === 'question' ? (
                 <>
                   <div
