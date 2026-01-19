@@ -837,16 +837,16 @@ const ExamTestResultsPage: React.FC = () => {
             ) : (
               <Download className="w-4 h-4 mr-2" />
             )}
-            {downloadingPdf ? 'Generando...' : 'Descargar Reporte PDF'}
+            {downloadingPdf ? 'Generando...' : 'Descargar Reporte de Evaluación'}
           </button>
-          {/* Botón Certificados para candidatos */}
-          {!canViewAnswers && (
+          {/* Botón Detalle del intento para candidatos */}
+          {!canViewAnswers && resultId && (
             <button
-              onClick={() => navigate('/certificates')}
+              onClick={() => navigate(`/certificates/evaluation-report/${examId}/result/${resultId}`)}
               className="px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl hover:from-emerald-600 hover:to-emerald-700 flex items-center shadow-lg"
             >
               <FileText className="w-4 h-4 mr-2" />
-              Ver Certificados
+              Ir a Detalle del Intento
             </button>
           )}
           {/* Botón Reintentar solo para admin/editor/soporte */}
