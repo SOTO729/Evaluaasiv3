@@ -22,7 +22,8 @@ import {
   ChevronRight,
   Layers,
   FileText,
-  Calendar
+  Calendar,
+  Clock
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
@@ -113,6 +114,12 @@ const MaterialCard = ({ material, navigate, index = 0, showStatus = true, isCand
             <FileText className="h-3.5 w-3.5" />
             <span>{material.topics_count || 0}</span>
           </div>
+          {(material.estimated_time_minutes && material.estimated_time_minutes > 0) && (
+            <div className="flex items-center gap-1" title="Tiempo estimado">
+              <Clock className="h-3.5 w-3.5" />
+              <span>{material.estimated_time_minutes} min</span>
+            </div>
+          )}
         </div>
         {!isCandidate && (
           <div className="flex items-center gap-1">

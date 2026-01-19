@@ -110,6 +110,7 @@ class Exam(db.Model):
             'total_questions': self.get_total_questions(),
             'total_exercises': self.get_total_exercises(),
             'total_categories': len(categories_list),
+            'total_topics': sum(cat.topics.count() for cat in categories_list),
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'categories': [{'id': cat.id, 'name': cat.name, 'percentage': cat.percentage} for cat in categories_list]  # Siempre incluir resumen de categorías

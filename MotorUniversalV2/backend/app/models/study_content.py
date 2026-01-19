@@ -76,9 +76,14 @@ class StudyMaterial(db.Model):
         # Calcular total de sesiones y temas
         sessions_count = self.sessions.count() if self.sessions else 0
         topics_count = 0
+        total_estimated_time = 0
         if self.sessions:
             for session in self.sessions.all():
-                topics_count += session.topics.count() if session.topics else 0
+                if session.topics:
+                    for topic in session.topics.all():
+                        topics_count += 1
+                        if topic.estimated_time_minutes:
+                            total_estimated_time += topic.estimated_time_minutes
         
         data = {
             'id': self.id,
@@ -94,6 +99,7 @@ class StudyMaterial(db.Model):
             'sessions_count': sessions_count,
             'topics_count': topics_count,
             'total_sessions': sessions_count,  # Para compatibilidad
+            'estimated_time_minutes': total_estimated_time,
             'created_by': self.created_by,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_by': self.updated_by,

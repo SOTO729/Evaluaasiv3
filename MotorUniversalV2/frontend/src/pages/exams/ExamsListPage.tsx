@@ -9,15 +9,15 @@ import {
   Plus, 
   Eye, 
   EyeOff, 
-  HelpCircle,
-  Target,
+  BookOpen,
   Layers,
   Calendar,
   Search,
   ChevronLeft,
   ChevronRight,
   Award,
-  Timer
+  Timer,
+  Gamepad2
 } from 'lucide-react'
 import LoadingSpinner from '../../components/LoadingSpinner'
 
@@ -111,12 +111,8 @@ const ExamCard = ({
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-2 mb-3 text-xs text-gray-500">
           <div className="flex items-center gap-1">
-            <HelpCircle className="h-3.5 w-3.5 text-blue-500" />
-            <span>{exam.total_questions} preguntas</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Target className="h-3.5 w-3.5 text-purple-500" />
-            <span>{exam.total_exercises} ejercicios</span>
+            <BookOpen className="h-3.5 w-3.5 text-blue-500" />
+            <span>{exam.total_topics || 0} temas</span>
           </div>
           <div className="flex items-center gap-1">
             <Timer className="h-3.5 w-3.5 text-slate-500" />
@@ -125,6 +121,12 @@ const ExamCard = ({
           <div className="flex items-center gap-1">
             <Award className="h-3.5 w-3.5 text-emerald-500" />
             <span>Mínimo {exam.passing_score}%</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Gamepad2 className={`h-3.5 w-3.5 ${exam.has_simulator_content ? 'text-purple-500' : 'text-gray-300'}`} />
+            <span className={exam.has_simulator_content ? 'text-purple-600 font-medium' : 'text-gray-400'}>
+              {exam.has_simulator_content ? 'Simulador' : 'Sin simulador'}
+            </span>
           </div>
         </div>
         
