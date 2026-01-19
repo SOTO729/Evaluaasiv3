@@ -416,7 +416,7 @@ const ExamTestResultsPage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Puntos</p>
-                  <p className="text-2xl font-bold text-purple-600">{summary.earned_points}/{summary.total_points}</p>
+                  <p className="text-2xl font-bold text-purple-600">{Math.round(1000 * summary.percentage / 100)}</p>
                 </div>
                 <Target className="w-8 h-8 text-purple-500" />
               </div>
