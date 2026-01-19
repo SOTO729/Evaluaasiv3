@@ -609,9 +609,9 @@ const StudyContentPreviewPage: React.FC = () => {
   const startExercise = () => {
     resetExerciseState();
     setExerciseStarted(true);
-    // Hacer scroll al contenedor del ejercicio después de un pequeño delay
+    // Scroll suave al inicio del contenedor principal para que el header sticky siga visible
     setTimeout(() => {
-      exerciseContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      mainContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     }, 100);
   };
 
