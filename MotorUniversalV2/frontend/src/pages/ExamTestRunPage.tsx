@@ -1585,7 +1585,7 @@ const ExamTestRunPage: React.FC = () => {
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                  <h1 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-white truncate max-w-[140px] xs:max-w-[180px] sm:max-w-[220px] md:max-w-[320px] lg:max-w-none drop-shadow-sm">{exam.name}</h1>
+                  <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-white truncate max-w-[160px] xs:max-w-[200px] sm:max-w-[260px] md:max-w-[360px] lg:max-w-none drop-shadow-sm">{exam.name}</h1>
                   {/* Badge Examen/Simulador en navbar */}
                   <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
                     currentMode === 'simulator' 
@@ -1607,9 +1607,6 @@ const ExamTestRunPage: React.FC = () => {
                     </span>
                   )}
                 </div>
-                <p className="text-[10px] sm:text-xs text-white/60">
-                  <span className="hidden xs:inline">Reactivo </span>{currentItemIndex + 1}/{selectedItems.length}
-                </p>
               </div>
             </div>
             
@@ -1675,7 +1672,7 @@ const ExamTestRunPage: React.FC = () => {
                   {currentItemIndex + 1}
                 </span>
                 <span className="text-xs sm:text-sm text-gray-600">
-                  <span className="hidden xs:inline">de </span><span className="font-semibold text-gray-900">{selectedItems.length}</span>
+                  de <span className="font-semibold text-gray-900">{selectedItems.length}</span>
                 </span>
                 <ChevronRight className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 transition-transform ${showNavPanel ? 'rotate-90' : ''}`} />
               </button>
