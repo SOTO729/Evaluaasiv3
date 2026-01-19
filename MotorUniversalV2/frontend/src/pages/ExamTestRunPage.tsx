@@ -1398,7 +1398,7 @@ const ExamTestRunPage: React.FC = () => {
     );
   }
 
-  // Calcular tiempo restante para mostrar
+  // Calcular tiempo restante para mostrar 
   const displayMinutes = timeRemaining !== null ? Math.floor(timeRemaining / 60) : 0;
   const displaySeconds = timeRemaining !== null ? timeRemaining % 60 : 0;
   const isTimeWarning = timeRemaining !== null && timeRemaining <= 60; // Último minuto

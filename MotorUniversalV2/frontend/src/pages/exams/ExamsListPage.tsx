@@ -108,33 +108,62 @@ const ExamCard = ({
           {exam.name}
         </h3>
         
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-2 mb-3 text-xs text-gray-500">
-          <div className="flex items-center gap-1">
-            <BookOpen className="h-3.5 w-3.5 text-blue-500" />
-            <span>{exam.total_topics || 0} temas</span>
+        {/* Stats Grid - Diferente para candidatos */}
+        {isCandidate ? (
+          <div className="grid grid-cols-2 gap-2 mb-3 text-xs text-gray-500">
+            <div className="flex items-center gap-1">
+              <Award className="h-3.5 w-3.5 text-emerald-500" />
+              <span>Mínimo {exam.passing_score}%</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Gamepad2 className={`h-3.5 w-3.5 ${exam.has_simulator_content ? 'text-purple-500' : 'text-gray-300'}`} />
+              <span className={exam.has_simulator_content ? 'text-purple-600 font-medium' : 'text-gray-400'}>
+                {exam.has_simulator_content ? 'Simulador' : 'Sin simulador'}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Timer className="h-3.5 w-3.5 text-slate-500" />
-            <span>{exam.duration_minutes || 0} min</span>
+        ) : (
+          <div className="grid grid-cols-2 gap-2 mb-3 text-xs text-gray-500">
+            <div className="flex items-center gap-1">
+              <BookOpen className="h-3.5 w-3.5 text-blue-500" />
+              <span>{exam.total_topics || 0} temas</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Timer className="h-3.5 w-3.5 text-slate-500" />
+              <span>{exam.duration_minutes || 0} min</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Award className="h-3.5 w-3.5 text-emerald-500" />
+              <span>Mínimo {exam.passing_score}%</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Gamepad2 className={`h-3.5 w-3.5 ${exam.has_simulator_content ? 'text-purple-500' : 'text-gray-300'}`} />
+              <span className={exam.has_simulator_content ? 'text-purple-600 font-medium' : 'text-gray-400'}>
+                {exam.has_simulator_content ? 'Simulador' : 'Sin simulador'}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Award className="h-3.5 w-3.5 text-emerald-500" />
-            <span>Mínimo {exam.passing_score}%</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Gamepad2 className={`h-3.5 w-3.5 ${exam.has_simulator_content ? 'text-purple-500' : 'text-gray-300'}`} />
-            <span className={exam.has_simulator_content ? 'text-purple-600 font-medium' : 'text-gray-400'}>
-              {exam.has_simulator_content ? 'Simulador' : 'Sin simulador'}
-            </span>
-          </div>
-        </div>
+        )}
         
         {/* Card Footer */}
         <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t">
-          <div className="flex items-center gap-1">
-            <Layers className="h-3.5 w-3.5" />
-            <span>{exam.total_categories || 0} categorías</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              <Layers className="h-3.5 w-3.5" />
+              <span>{exam.total_categories || 0} categorías</span>
+            </div>
+            {isCandidate && (
+              <>
+                <div className="flex items-center gap-1" title="Temas">
+                  <BookOpen className="h-3.5 w-3.5" />
+                  <span>{exam.total_topics || 0}</span>
+                </div>
+                <div className="flex items-center gap-1" title="Duración">
+                  <Timer className="h-3.5 w-3.5" />
+                  <span>{exam.duration_minutes || 0} min</span>
+                </div>
+              </>
+            )}
           </div>
           {!isCandidate && (
             <div className="flex items-center gap-1">
