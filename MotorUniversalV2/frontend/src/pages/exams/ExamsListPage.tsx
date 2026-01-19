@@ -134,15 +134,17 @@ const ExamCard = ({
             <Layers className="h-3.5 w-3.5" />
             <span>{exam.total_categories || 0} categorías</span>
           </div>
-          <div className="flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5" />
-            <span>
-              {new Date(exam.created_at).toLocaleDateString('es-ES', {
-                day: 'numeric',
-                month: 'short',
-              })}
-            </span>
-          </div>
+          {!isCandidate && (
+            <div className="flex items-center gap-1">
+              <Calendar className="h-3.5 w-3.5" />
+              <span>
+                {new Date(exam.created_at).toLocaleDateString('es-ES', {
+                  day: 'numeric',
+                  month: 'short',
+                })}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>

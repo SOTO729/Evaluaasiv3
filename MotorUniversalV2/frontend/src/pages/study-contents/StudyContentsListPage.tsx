@@ -32,9 +32,10 @@ interface MaterialCardProps {
   navigate: NavigateFunction;
   index?: number;
   showStatus?: boolean;
+  isCandidate?: boolean;
 }
 
-const MaterialCard = ({ material, navigate, index = 0, showStatus = true }: MaterialCardProps) => (
+const MaterialCard = ({ material, navigate, index = 0, showStatus = true, isCandidate = false }: MaterialCardProps) => (
   <div
     className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 group animate-stagger-in"
     style={{ animationDelay: `${index * 50}ms` }}
@@ -113,15 +114,17 @@ const MaterialCard = ({ material, navigate, index = 0, showStatus = true }: Mate
             <span>{material.topics_count || 0}</span>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <Calendar className="h-3.5 w-3.5" />
-          <span>
-            {new Date(material.created_at).toLocaleDateString('es-ES', {
-              day: 'numeric',
-              month: 'short',
-            })}
-          </span>
-        </div>
+        {!isCandidate && (
+          <div className="flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5" />
+            <span>
+              {new Date(material.created_at).toLocaleDateString('es-ES', {
+                day: 'numeric',
+                month: 'short',
+              })}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   </div>
@@ -288,6 +291,7 @@ const StudyContentsListPage = () => {
                   navigate={navigate}
                   index={index}
                   showStatus={false}
+                  isCandidate={true}
                 />
               ))}
             </div>
