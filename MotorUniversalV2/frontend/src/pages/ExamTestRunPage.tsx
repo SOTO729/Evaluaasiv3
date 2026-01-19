@@ -1416,7 +1416,7 @@ const ExamTestRunPage: React.FC = () => {
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">¿Salir del examen?</h3>
               <p className="text-sm text-gray-500 mb-6">
-                Se perderá todo el progreso de este examen.
+                Tu progreso será guardado y podrás continuar después.
               </p>
               <div className="flex gap-3">
                 <button
@@ -1427,10 +1427,28 @@ const ExamTestRunPage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => {
-                    localStorage.removeItem(examSessionKey);
+                    // Guardar estado actual como si fuera pérdida de conexión
+                    const sessionData = {
+                      timeRemaining,
+                      savedAt: Date.now(),
+                      examDuration: exam?.duration_minutes ? exam.duration_minutes * 60 : null,
+                      pauseOnDisconnect: true, // Forzar pausa para que se pueda retomar
+                      examName: exam?.name || '',
+                      answers,
+                      exerciseResponses,
+                      currentItemIndex,
+                      selectedItems,
+                      orderingInteracted,
+                      actionErrors,
+                      stepCompleted,
+                      currentStepIndex,
+                      flaggedQuestions: Array.from(flaggedQuestions),
+                      exitedManually: true // Marcar que salió manualmente
+                    };
+                    localStorage.setItem(examSessionKey, JSON.stringify(sessionData));
                     navigate('/exams');
                   }}
-                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors"
                 >
                   Salir
                 </button>
