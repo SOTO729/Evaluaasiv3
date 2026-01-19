@@ -110,16 +110,10 @@ const ExamCard = ({
         
         {/* Stats Grid - Diferente para candidatos */}
         {isCandidate ? (
-          <div className="grid grid-cols-2 gap-2 mb-3 text-xs text-gray-500">
+          <div className="flex items-center gap-2 mb-3 text-xs text-gray-500">
             <div className="flex items-center gap-1">
               <Award className="h-3.5 w-3.5 text-emerald-500" />
               <span>Mínimo {exam.passing_score}%</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Gamepad2 className={`h-3.5 w-3.5 ${exam.has_simulator_content ? 'text-purple-500' : 'text-gray-300'}`} />
-              <span className={exam.has_simulator_content ? 'text-purple-600 font-medium' : 'text-gray-400'}>
-                {exam.has_simulator_content ? 'Simulador' : 'Sin simulador'}
-              </span>
             </div>
           </div>
         ) : (
@@ -161,6 +155,10 @@ const ExamCard = ({
                 <div className="flex items-center gap-1" title="Duración">
                   <Timer className="h-3.5 w-3.5" />
                   <span>{exam.duration_minutes || 0} min</span>
+                </div>
+                <div className="flex items-center gap-1" title={exam.has_simulator_content ? 'Con simulador' : 'Sin simulador'}>
+                  <Gamepad2 className={`h-3.5 w-3.5 ${exam.has_simulator_content ? 'text-purple-400' : ''}`} />
+                  {exam.has_simulator_content && <span className="text-purple-400">Sim</span>}
                 </div>
               </>
             )}
