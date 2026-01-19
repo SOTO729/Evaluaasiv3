@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileText, BadgeCheck, Download, Eye, Search, Calendar, CheckCircle, Clock, ExternalLink, Award, ChevronRight, Sparkles } from 'lucide-react'
+import { FileText, BadgeCheck, Download, Eye, Search, Calendar, CheckCircle, Clock, ExternalLink, Award, ChevronRight } from 'lucide-react'
 import { dashboardService } from '../../services/dashboardService'
 import { useAuthStore } from '../../store/authStore'
 import LoadingSpinner from '../../components/LoadingSpinner'
@@ -174,10 +174,7 @@ const CertificatesPage = () => {
             <Award className="w-5 h-5 sm:w-6 sm:h-6 text-primary-600" />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Mis Certificados</h1>
-              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
-            </div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Mis Certificados</h1>
             <p className="text-gray-500 text-sm mt-0.5">
               Consulta y descarga tus documentos
             </p>
@@ -308,18 +305,22 @@ const EvaluationReportSection = ({ exams, formatDate }: { exams: any[], formatDa
         <div
           key={exam.id}
           onClick={() => navigate(`/certificates/evaluation-report/${exam.id}`)}
-          className="border border-gray-200 rounded-xl p-4 sm:p-6 hover:border-primary-400 hover:shadow-lg hover:bg-primary-50/30 transition-all duration-300 cursor-pointer animate-stagger-in group bg-gradient-to-r from-white to-gray-50/50 relative"
+          className="border border-gray-200 rounded-xl p-4 sm:p-6 hover:border-primary-400 hover:shadow-lg hover:bg-primary-50/30 transition-all duration-300 cursor-pointer animate-stagger-in group bg-gradient-to-r from-white to-gray-50/50"
           style={{ animationDelay: `${index * 50}ms` }}
         >
-          {/* Indicador de clickeable */}
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-            <span className="text-xs text-primary-600 font-medium hidden sm:block">Ver reporte</span>
-            <ChevronRight className="w-5 h-5 text-primary-500" />
-          </div>
-          
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pr-8 sm:pr-24">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">{exam.name}</h3>
+              <div className="flex items-start justify-between gap-3 sm:block">
+                <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">{exam.name}</h3>
+                {/* Badge de estado - visible en móvil aquí, en desktop a la derecha */}
+                <span className={`sm:hidden px-3 py-1 rounded-full text-xs font-medium flex-shrink-0 ${
+                  exam.user_stats.is_approved 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {exam.user_stats.is_approved ? 'Aprobado' : 'En proceso'}
+                </span>
+              </div>
               <p className="text-sm text-gray-500 mt-1 line-clamp-2">{exam.description}</p>
               
               <div className="flex flex-wrap gap-3 sm:gap-4 mt-4">
@@ -344,14 +345,21 @@ const EvaluationReportSection = ({ exams, formatDate }: { exams: any[], formatDa
               </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className={`px-3 py-1 rounded-full text-xs font-medium transition-transform group-hover:scale-105 ${
+            {/* Sección derecha: Badge + Ver reporte (solo desktop) */}
+            <div className="hidden sm:flex items-center gap-3 flex-shrink-0">
+              <span className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ${
                 exam.user_stats.is_approved 
                   ? 'bg-green-100 text-green-800' 
                   : 'bg-yellow-100 text-yellow-800'
               }`}>
                 {exam.user_stats.is_approved ? 'Aprobado' : 'En proceso'}
               </span>
+              
+              {/* Separador y Ver reporte */}
+              <div className="flex items-center gap-2 pl-3 border-l border-gray-200 opacity-0 group-hover:opacity-100 transition-all duration-300 -translate-x-2 group-hover:translate-x-0">
+                <span className="text-xs text-primary-600 font-medium whitespace-nowrap">Ver reporte</span>
+                <ChevronRight className="w-4 h-4 text-primary-500" />
+              </div>
             </div>
           </div>
         </div>
