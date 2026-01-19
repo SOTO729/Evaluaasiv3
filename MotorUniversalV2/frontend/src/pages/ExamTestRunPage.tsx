@@ -1718,10 +1718,9 @@ const ExamTestRunPage: React.FC = () => {
               {currentItemIndex === selectedItems.length - 1 ? (
                 <button
                   onClick={() => setShowConfirmSubmit(true)}
-                  className="flex items-center gap-0.5 sm:gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors rounded-lg"
+                  className="flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors rounded-lg"
                 >
-                  <span className="hidden xs:inline">Finalizar</span>
-                  <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span>Entregar Examen</span>
                 </button>
               ) : (
                 <button
