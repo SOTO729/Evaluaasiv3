@@ -131,13 +131,13 @@ const ExamCard = ({
                 <Timer className="h-3.5 w-3.5" />
                 <span>{exam.duration_minutes || 0} min</span>
               </div>
+              <div className="flex items-center gap-1" title="Categorías">
+                <Layers className="h-3.5 w-3.5" />
+                <span>{exam.total_categories || 0} {exam.total_categories === 1 ? 'categoría' : 'categorías'}</span>
+              </div>
               <div className="flex items-center gap-1" title="Temas">
                 <BookOpen className="h-3.5 w-3.5" />
                 <span>{exam.total_topics || 0} temas</span>
-              </div>
-              <div className="flex items-center gap-1" title="Categorías">
-                <Layers className="h-3.5 w-3.5" />
-                <span>{exam.total_categories || 0}</span>
               </div>
             </div>
           </>
