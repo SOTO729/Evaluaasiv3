@@ -18,7 +18,8 @@ import {
   Loader2,
   Award,
   Send,
-  FileText
+  FileText,
+  Trophy
 } from 'lucide-react';
 
 // Función para traducir tipos de pregunta al español
@@ -412,13 +413,13 @@ const ExamTestResultsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-lg p-5 border-t-4 border-purple-500">
+            <div className="bg-white rounded-xl shadow-lg p-5 border-t-4 border-yellow-500">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Puntos</p>
-                  <p className="text-2xl font-bold text-purple-600">{Math.round(1000 * summary.percentage / 100)}</p>
+                  <p className="text-2xl font-bold text-yellow-600">{Math.round(1000 * summary.percentage / 100)}</p>
                 </div>
-                <Target className="w-8 h-8 text-purple-500" />
+                <Trophy className="w-8 h-8 text-yellow-500" />
               </div>
             </div>
 
@@ -517,9 +518,27 @@ const ExamTestResultsPage: React.FC = () => {
           </div>
         )}
 
+        {/* Indicador de scroll para ver más detalles - solo para candidatos */}
+        {!canViewAnswers && summary.evaluation_breakdown && Object.keys(summary.evaluation_breakdown).length > 0 && (
+          <div className="flex justify-center mb-6">
+            <button
+              onClick={() => {
+                const breakdownSection = document.getElementById('breakdown-section');
+                if (breakdownSection) {
+                  breakdownSection.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
+              className="flex flex-col items-center gap-1 text-gray-400 hover:text-primary-600 transition-colors"
+            >
+              <span className="text-sm font-medium">Ver desglose por área</span>
+              <ChevronDown className="w-5 h-5 animate-bounce" />
+            </button>
+          </div>
+        )}
+
         {/* Desglose por Categoría/Tema */}
         {summary.evaluation_breakdown && Object.keys(summary.evaluation_breakdown).length > 0 && (
-          <div className="bg-white rounded-xl shadow-lg mb-8">
+          <div id="breakdown-section" className="bg-white rounded-xl shadow-lg mb-8">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-xl font-bold text-gray-900">Desglose por Área</h2>
               <p className="text-sm text-gray-500 mt-1">Puntaje obtenido por categoría y tema</p>
