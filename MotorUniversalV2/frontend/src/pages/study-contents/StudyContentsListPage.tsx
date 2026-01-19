@@ -203,16 +203,15 @@ const StudyContentsListPage = () => {
   // };
 
   return (
-    <div className="min-h-screen overflow-x-hidden overscroll-contain">
-      <div className="max-w-[2000px] 3xl:max-w-[2400px] mx-auto p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 animate-fade-in-up">
+    <div className="p-6 animate-fade-in-up">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6 lg:mb-8 xl:mb-10">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-gray-800 flex items-center gap-2 lg:gap-3 xl:gap-4">
-            <BookOpen className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12 text-blue-600" />
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <BookOpen className="h-7 w-7 text-blue-600" />
             {isCandidate ? 'Materiales Disponibles' : 'Materiales de Estudio'}
           </h1>
-          <p className="text-gray-600 mt-1 lg:mt-2 text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl">
+          <p className="text-gray-600 mt-1">
             {isCandidate 
               ? 'Explora los materiales de estudio disponibles' 
               : 'Materiales organizados por sesiones'}
@@ -221,31 +220,30 @@ const StudyContentsListPage = () => {
         {canCreate && (
           <button
             onClick={() => navigate('/study-contents/create')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 lg:px-5 xl:px-6 2xl:px-8 py-2 lg:py-2.5 xl:py-3 2xl:py-4 rounded-lg xl:rounded-xl flex items-center justify-center gap-2 lg:gap-3 transition-colors text-sm sm:text-base lg:text-lg xl:text-xl"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
           >
-            <Plus className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7" />
-            <span className="hidden sm:inline">Nuevo Material</span>
-            <span className="sm:hidden">Nuevo</span>
+            <Plus className="h-5 w-5" />
+            Nuevo Material
           </button>
         )}
       </div>
 
       {/* Search */}
-      <div className="bg-white rounded-lg xl:rounded-xl shadow p-3 sm:p-4 lg:p-5 xl:p-6 2xl:p-8 mb-4 sm:mb-6 lg:mb-8 xl:mb-10">
-        <form onSubmit={handleSearch} className="flex gap-2 sm:gap-4 lg:gap-5 xl:gap-6">
+      <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <form onSubmit={handleSearch} className="flex gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 lg:left-4 xl:left-5 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Buscar..."
+              placeholder="Buscar materiales..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 sm:pl-10 lg:pl-12 xl:pl-14 2xl:pl-16 pr-4 py-2 lg:py-3 xl:py-4 border border-gray-300 rounded-lg xl:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base lg:text-lg xl:text-xl"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <button
             type="submit"
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 sm:px-4 lg:px-5 xl:px-6 2xl:px-8 py-2 lg:py-3 xl:py-4 rounded-lg xl:rounded-xl transition-colors text-sm sm:text-base lg:text-lg xl:text-xl"
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors"
           >
             Buscar
           </button>
@@ -254,16 +252,16 @@ const StudyContentsListPage = () => {
 
       {/* Materials Grid */}
       {loading ? (
-        <div className="bg-white rounded-lg xl:rounded-xl 2xl:rounded-2xl shadow p-8 lg:p-12 xl:p-16 2xl:p-20">
+        <div className="bg-white rounded-lg shadow p-8">
           <LoadingSpinner message="Cargando materiales..." />
         </div>
       ) : materials.length === 0 ? (
-        <div className="bg-white rounded-lg xl:rounded-xl 2xl:rounded-2xl shadow p-8 lg:p-12 xl:p-16 2xl:p-20 text-center">
-          <BookOpen className="h-16 w-16 lg:h-20 lg:w-20 xl:h-24 xl:w-24 2xl:h-28 2xl:w-28 text-gray-300 mx-auto mb-4 lg:mb-6" />
-          <h3 className="text-lg lg:text-xl xl:text-2xl 2xl:text-3xl font-medium text-gray-700 mb-2 lg:mb-3">
+        <div className="bg-white rounded-lg shadow p-8 text-center">
+          <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-700 mb-2">
             {isCandidate ? 'No hay materiales disponibles' : 'No hay materiales'}
           </h3>
-          <p className="text-gray-500 mb-4 lg:mb-6 text-sm lg:text-base xl:text-lg 2xl:text-xl">
+          <p className="text-gray-500 mb-4">
             {isCandidate 
               ? 'Aún no hay materiales de estudio publicados' 
               : 'Crea tu primer material de estudio'}
@@ -271,9 +269,9 @@ const StudyContentsListPage = () => {
           {canCreate && (
             <button
               onClick={() => navigate('/study-contents/create')}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 lg:px-6 xl:px-8 py-2 lg:py-3 xl:py-4 rounded-lg xl:rounded-xl inline-flex items-center gap-2 lg:gap-3 text-sm lg:text-base xl:text-lg"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg inline-flex items-center gap-2"
             >
-              <Plus className="h-5 w-5 lg:h-6 lg:w-6" />
+              <Plus className="h-5 w-5" />
               Crear Material
             </button>
           )}
@@ -282,7 +280,7 @@ const StudyContentsListPage = () => {
         <>
           {/* Para candidatos: mostrar todos en una sola lista sin secciones */}
           {isCandidate ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
               {materials.map((material, index) => (
                 <MaterialCard 
                   key={material.id} 
@@ -297,15 +295,15 @@ const StudyContentsListPage = () => {
             <>
               {/* Sección de Publicados */}
               {materials.filter(m => m.is_published).length > 0 && (
-                <div className="mb-6 sm:mb-8 lg:mb-10 xl:mb-12">
-                  <div className="flex items-center gap-2 lg:gap-3 mb-3 sm:mb-4 lg:mb-5 xl:mb-6">
-                    <Eye className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-green-600" />
-                    <h2 className="text-base sm:text-lg lg:text-xl xl:text-2xl 2xl:text-3xl font-semibold text-gray-800">Publicados</h2>
-                    <span className="bg-green-100 text-green-700 text-xs lg:text-sm xl:text-base font-medium px-2 lg:px-3 xl:px-4 py-0.5 lg:py-1 rounded-full">
+                <div className="mb-8">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Eye className="h-5 w-5 text-green-600" />
+                    <h2 className="text-lg font-semibold text-gray-800">Publicados</h2>
+                    <span className="bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">
                       {materials.filter(m => m.is_published).length}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {materials.filter(m => m.is_published).map((material, index) => (
                       <MaterialCard 
                         key={material.id} 
@@ -321,15 +319,15 @@ const StudyContentsListPage = () => {
 
               {/* Sección de Borradores */}
               {materials.filter(m => !m.is_published).length > 0 && (
-                <div ref={draftsRef} className="mb-6 sm:mb-8 lg:mb-10 xl:mb-12 scroll-mt-4">
-                  <div className="flex items-center gap-2 lg:gap-3 mb-3 sm:mb-4 lg:mb-5 xl:mb-6">
-                    <EyeOff className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-gray-500" />
-                    <h2 className="text-base sm:text-lg lg:text-xl xl:text-2xl 2xl:text-3xl font-semibold text-gray-800">Borradores</h2>
-                    <span className="bg-gray-100 text-gray-600 text-xs lg:text-sm xl:text-base font-medium px-2 lg:px-3 xl:px-4 py-0.5 lg:py-1 rounded-full">
+                <div ref={draftsRef} className="mb-8 scroll-mt-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <EyeOff className="h-5 w-5 text-gray-500" />
+                    <h2 className="text-lg font-semibold text-gray-800">Borradores</h2>
+                    <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded-full">
                       {materials.filter(m => !m.is_published).length}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {materials.filter(m => !m.is_published).map((material, index) => (
                       <MaterialCard 
                         key={material.id} 
@@ -347,27 +345,27 @@ const StudyContentsListPage = () => {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="mt-4 sm:mt-6 lg:mt-8 xl:mt-10 flex flex-col sm:flex-row items-center justify-between gap-3 lg:gap-4 bg-white rounded-lg xl:rounded-xl shadow px-4 sm:px-6 lg:px-8 xl:px-10 py-3 sm:py-4 lg:py-5 xl:py-6">
-              <p className="text-xs sm:text-sm lg:text-base xl:text-lg text-gray-600">
-                {materials.length} de {total}
+            <div className="mt-6 flex items-center justify-between bg-white rounded-lg shadow px-6 py-4">
+              <p className="text-sm text-gray-600">
+                Mostrando {materials.length} de {total} materiales
               </p>
-              <div className="flex items-center gap-2 lg:gap-3 xl:gap-4">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="p-1.5 sm:p-2 lg:p-2.5 xl:p-3 rounded-lg xl:rounded-xl border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
-                  <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7" />
+                  <ChevronLeft className="h-5 w-5" />
                 </button>
-                <span className="px-2 sm:px-3 lg:px-4 xl:px-5 py-1 lg:py-1.5 xl:py-2 text-xs sm:text-sm lg:text-base xl:text-lg">
-                  {currentPage} / {totalPages}
+                <span className="px-3 py-1 text-sm">
+                  Página {currentPage} de {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="p-1.5 sm:p-2 lg:p-2.5 xl:p-3 rounded-lg xl:rounded-xl border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  className="p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
-                  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7" />
+                  <ChevronRight className="h-5 w-5" />
                 </button>
               </div>
             </div>
@@ -404,7 +402,6 @@ const StudyContentsListPage = () => {
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 };
