@@ -154,74 +154,74 @@ const EvaluationReportDetailPage = () => {
       {/* Modal de descarga */}
       <DownloadModal isOpen={!!generatingPdf} message={downloadMessage} />
 
-      <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-2xl p-8 text-white animate-slide-up">
+      <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-white animate-slide-up">
         <button
           onClick={() => navigate('/certificates')}
-          className="flex items-center gap-2 text-white/80 hover:text-white mb-4 transition-colors"
+          className="flex items-center gap-2 text-white/80 hover:text-white mb-3 sm:mb-4 transition-colors text-sm sm:text-base"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           <span>Volver a certificados</span>
         </button>
         
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center animate-pulse-subtle">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-white/20 rounded-xl sm:rounded-2xl flex items-center justify-center animate-pulse-subtle flex-shrink-0">
             <img 
               src="/images/evaluaasi-icon.png" 
               alt="Reporte de Evaluación" 
-              className="w-10 h-10 object-contain brightness-0 invert"
+              className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 object-contain brightness-0 invert"
             />
           </div>
-          <div>
-            <h1 className="text-3xl font-bold">Reportes de Evaluación</h1>
-            <p className="text-primary-100 mt-1">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold truncate">Reportes de Evaluación</h1>
+            <p className="text-primary-100 mt-0.5 sm:mt-1 text-sm sm:text-base truncate">
               {examData?.name || 'Cargando...'}
             </p>
             {examData?.version && (
-              <p className="text-white/70 text-sm mt-1 flex items-center gap-2">
+              <p className="text-white/70 text-xs sm:text-sm mt-0.5 sm:mt-1 flex items-center gap-1 sm:gap-2 flex-wrap">
                 <span className="text-white/50">Código ECM:</span>
-                <span className="px-2 py-0.5 bg-white/20 rounded font-mono font-bold">{examData.version}</span>
+                <span className="px-1.5 sm:px-2 py-0.5 bg-white/20 rounded font-mono font-bold text-xs sm:text-sm">{examData.version}</span>
               </p>
             )}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-          <div className="bg-white/10 rounded-xl p-4 hover:bg-white/20 transition-all duration-300 hover:scale-105">
-            <div className="text-2xl font-bold">{results.length}</div>
-            <div className="text-primary-200 text-sm">Intentos totales</div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 mt-4 sm:mt-6">
+          <div className="bg-white/10 rounded-lg sm:rounded-xl p-3 sm:p-4 hover:bg-white/20 transition-all duration-300 hover:scale-105">
+            <div className="text-lg sm:text-xl md:text-2xl font-bold">{results.length}</div>
+            <div className="text-primary-200 text-xs sm:text-sm">Intentos totales</div>
           </div>
-          <div className="bg-white/10 rounded-xl p-4 hover:bg-white/20 transition-all duration-300 hover:scale-105">
-            <div className="text-2xl font-bold">
+          <div className="bg-white/10 rounded-lg sm:rounded-xl p-3 sm:p-4 hover:bg-white/20 transition-all duration-300 hover:scale-105">
+            <div className="text-lg sm:text-xl md:text-2xl font-bold">
               {results.length > 0 ? Math.max(...results.map(r => r.score)) : 0}%
             </div>
-            <div className="text-primary-200 text-sm">Mejor puntaje</div>
+            <div className="text-primary-200 text-xs sm:text-sm">Mejor puntaje</div>
           </div>
-          <div className="bg-white/10 rounded-xl p-4 hover:bg-white/20 transition-all duration-300 hover:scale-105">
-            <div className="text-2xl font-bold">
+          <div className="bg-white/10 rounded-lg sm:rounded-xl p-3 sm:p-4 hover:bg-white/20 transition-all duration-300 hover:scale-105">
+            <div className="text-lg sm:text-xl md:text-2xl font-bold">
               {results.filter(r => r.result === 1).length}
             </div>
-            <div className="text-primary-200 text-sm">Aprobados</div>
+            <div className="text-primary-200 text-xs sm:text-sm">Aprobados</div>
           </div>
-          <div className="bg-white/10 rounded-xl p-4 hover:bg-white/20 transition-all duration-300 hover:scale-105">
-            <div className="text-2xl font-bold">{examData?.passing_score || 70}%</div>
-            <div className="text-primary-200 text-sm">Puntaje mínimo</div>
+          <div className="bg-white/10 rounded-lg sm:rounded-xl p-3 sm:p-4 hover:bg-white/20 transition-all duration-300 hover:scale-105">
+            <div className="text-lg sm:text-xl md:text-2xl font-bold">{examData?.passing_score || 70}%</div>
+            <div className="text-primary-200 text-xs sm:text-sm">Puntaje mínimo</div>
           </div>
         </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Historial de Evaluaciones</h2>
-          <p className="text-sm text-gray-500 mt-1">
+        <div className="p-4 sm:p-6 border-b border-gray-200">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900">Historial de Evaluaciones</h2>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">
             Lista de todas las evaluaciones realizadas para este examen
           </p>
         </div>
 
         {results.length === 0 ? (
-          <div className="text-center py-12">
-            <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Sin evaluaciones</h3>
-            <p className="text-gray-500">Aún no has realizado ninguna evaluación para este examen.</p>
+          <div className="text-center py-8 sm:py-12 px-4">
+            <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
+            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-1 sm:mb-2">Sin evaluaciones</h3>
+            <p className="text-gray-500 text-sm sm:text-base">Aún no has realizado ninguna evaluación para este examen.</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
@@ -230,57 +230,57 @@ const EvaluationReportDetailPage = () => {
                 key={result.id}
                 id={`report-${result.id}`}
                 onClick={() => navigate(`/certificates/evaluation-report/${examId}/result/${result.id}`)}
-                className="p-6 hover:bg-gray-50 transition-colors cursor-pointer"
+                className="p-3 sm:p-4 md:p-6 hover:bg-gray-50 transition-colors cursor-pointer"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 ${
                         result.result === 1 ? 'bg-green-100' : 'bg-red-100'
                       }`}>
                         {result.result === 1 ? (
-                          <CheckCircle className="w-6 h-6 text-green-600" />
+                          <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                         ) : (
-                          <XCircle className="w-6 h-6 text-red-600" />
+                          <XCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
                         )}
                       </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-primary-600 hover:text-primary-800">
+                      <div className="min-w-0">
+                        <h3 className="text-base sm:text-lg font-semibold text-primary-600 hover:text-primary-800 truncate">
                           Intento #{results.length - index}
                         </h3>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-xs sm:text-sm text-gray-500">
                           {formatDate(result.start_date)}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-4 mt-4 ml-15">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Target className="w-4 h-4 text-gray-400" />
+                    <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 sm:mt-4 ml-0 sm:ml-15">
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+                        <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
                         <span className="text-gray-600">Puntaje: <strong className={result.result === 1 ? 'text-green-600' : 'text-red-600'}>{result.score}%</strong></span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Clock className="w-4 h-4 text-gray-400" />
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+                        <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
                         <span className="text-gray-600">Duración: {formatDuration(result.duration_seconds)}</span>
                       </div>
                       {result.certificate_code && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Award className="w-4 h-4 text-yellow-500" />
-                          <span className="text-gray-600">Certificado: <code className="bg-gray-100 px-2 py-0.5 rounded text-xs">{result.certificate_code}</code></span>
+                        <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+                          <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-500" />
+                          <span className="text-gray-600">Certificado: <code className="bg-gray-100 px-1.5 sm:px-2 py-0.5 rounded text-xs">{result.certificate_code}</code></span>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 ml-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  <div className="flex items-center gap-1.5 sm:gap-2 ml-0 sm:ml-4 self-start sm:self-center flex-wrap sm:flex-nowrap">
+                    <span className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-medium ${
                       result.result === 1 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-red-100 text-red-800'
                     }`}>
                       {result.result === 1 ? 'Aprobado' : 'No aprobado'}
                     </span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(result.status)}`}>
+                    <span className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-medium hidden sm:inline-flex ${getStatusColor(result.status)}`}>
                       {getStatusText(result.status)}
                     </span>
                     <button 
@@ -295,13 +295,13 @@ const EvaluationReportDetailPage = () => {
                         }
                       }}
                       disabled={!!generatingPdf}
-                      className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors disabled:opacity-50"
+                      className="p-1.5 sm:p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors disabled:opacity-50"
                       title="Descargar PDF"
                     >
                       {generatingPdf === result.id ? (
-                        <div className="w-5 h-5 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <Download className="w-5 h-5" />
+                        <Download className="w-4 h-4 sm:w-5 sm:h-5" />
                       )}
                     </button>
                   </div>

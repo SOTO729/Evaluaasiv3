@@ -1565,14 +1565,14 @@ const ExamTestRunPage: React.FC = () => {
             {/* Footer fijo */}
             <div className="p-6 pt-4 border-t border-gray-100">
               {(() => {
-                // max_attempts son oportunidades ADICIONALES después del primer error
+                // max_attempts son oportunidades ADICIONALES después del primer error  
                 const currentExercise = currentItem;
                 const action = currentExercise?.steps
                   ?.flatMap((s: any) => s.actions || [])
                   ?.find((a: any) => `${a.step_id}_${a.id}` === showErrorModal.actionKey);
                 const additionalAttempts = action?.max_attempts ?? 1;
                 const usedAttempts = actionErrors[showErrorModal.actionKey]?.attempts || 0;
-                // El error actual (oportunidad 0) no cuenta, las oportunidades adicionales empiezan después
+                // El error actual (oportunidad 0) no cuenta, las oportunidades adicionales empiezan después  
                 const remaining = additionalAttempts - usedAttempts + 1;
                 
                 return (
@@ -1596,7 +1596,7 @@ const ExamTestRunPage: React.FC = () => {
       )}
 
       {/* Header minimalista - FIJO */}
-      <div className={`fixed top-0 left-0 right-0 z-40 shadow-md ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-blue-600'}`}>
+      <div className="fixed top-0 left-0 right-0 z-40 shadow-md bg-blue-600">
         <div className="w-full px-2 sm:px-4 md:px-6 lg:px-8 xl:px-12 py-2 sm:py-3">
           <div className="flex items-center justify-between">
             {/* Izquierda: Título */}
@@ -1684,7 +1684,7 @@ const ExamTestRunPage: React.FC = () => {
                 onClick={() => setShowNavPanel(!showNavPanel)}
                 className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1 sm:py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all min-w-[90px] sm:min-w-[120px]"
               >
-                <span className={`flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 text-white rounded-full text-xs sm:text-sm font-bold ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-blue-600'}`}>
+                <span className="flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 text-white rounded-full text-xs sm:text-sm font-bold bg-blue-600">
                   {currentItemIndex + 1}
                 </span>
                 <span className="text-xs sm:text-sm text-gray-600">

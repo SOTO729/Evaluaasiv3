@@ -16,6 +16,7 @@ const TermsOfServicePage = lazy(() => import('./pages/landing/TermsOfServicePage
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
 const HomePage = lazy(() => import('./pages/HomePage'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const ExamsListPage = lazy(() => import('./pages/exams/ExamsListPage'))
 const ExamCreatePage = lazy(() => import('./pages/exams/ExamCreatePage'))
 const ExamEditPage = lazy(() => import('./pages/exams/ExamEditPage'))
@@ -103,6 +104,7 @@ function App() {
             
             <Route element={<Layout />}>
               <Route path="/dashboard" element={<HomePage />} />
+              <Route path="/profile" element={<ProfilePage />} />
               
               {/* Study Contents Preview - con navbar */}
               <Route path="/study-contents/:id/preview" element={<StudyContentPreviewPage />} />

@@ -339,3 +339,76 @@ def verify_password():
         return jsonify({'error': 'Contraseña incorrecta'}), 401
     
     return jsonify({'message': 'Contraseña verificada correctamente'}), 200
+
+
+@bp.route('/request-email-change', methods=['POST'])
+@jwt_required()
+def request_email_change():
+    """
+    Solicitar cambio de correo electrónico
+    ---
+    tags:
+      - Authentication
+    security:
+      - Bearer: []
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - new_email
+            - password
+          properties:
+            new_email:
+              type: string
+            password:
+              type: string
+    responses:
+      200:
+        description: Correo actualizado exitosamente
+      400:
+        description: Datos inválidos
+      401:
+        description: Contraseña incorrecta
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    
+    data = request.get_json()
+    new_email = data.get('new_email')
+    password = data.get('password')
+    
+    if not new_email or not password:
+        return jsonify({'error': 'Nuevo correo y contraseña son requeridos'}), 400
+    
+    # Verificar contraseña
+    if not user.check_password(password):
+        return jsonify({'error': 'Contraseña incorrecta'}), 401
+    
+    # Validar formato de email
+    import re
+    email_regex = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
+    if not re.match(email_regex, new_email):
+        return jsonify({'error': 'Formato de correo electrónico inválido'}), 400
+    
+    # Verificar que el email no esté en uso
+    existing_user = User.query.filter_by(email=new_email).first()
+    if existing_user and existing_user.id != user.id:
+        return jsonify({'error': 'Este correo electrónico ya está registrado'}), 400
+    
+    # En producción, aquí se enviaría un correo de verificación
+    # Por ahora, actualizamos directamente
+    old_email = user.email
+    user.email = new_email
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Correo electrónico actualizado exitosamente',
+        'old_email': old_email,
+        'new_email': new_email
+    }), 200

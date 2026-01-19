@@ -2,6 +2,20 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { dashboardService, DashboardData } from '../services/dashboardService'
+import { 
+  BookOpen, 
+  FileText, 
+  Award, 
+  ChevronRight, 
+  Target, 
+  CheckCircle2,
+  Play,
+  ArrowRight,
+  Sparkles,
+  Trophy,
+  Zap,
+  Star
+} from 'lucide-react'
 
 const HomePage = () => {
   const { user } = useAuthStore()
@@ -31,7 +45,7 @@ const HomePage = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
       </div>
     )
   }
@@ -52,6 +66,7 @@ const HomePage = () => {
 
   const exams = dashboardData?.exams || []
   const materials = dashboardData?.materials || []
+  const stats = dashboardData?.stats
 
   const completedMaterials = materials.filter(m => m.progress.percentage === 100)
   const approvedExams = exams.filter(e => e.user_stats.is_approved)
@@ -66,319 +81,473 @@ const HomePage = () => {
     ? Math.round(materials.reduce((acc, m) => acc + m.progress.percentage, 0) / materials.length)
     : 0
 
+  // Calcular progreso general (materiales 40%, exámenes 60%)
+  const examApprovalRate = exams.length > 0 ? (approvedExams.length / exams.length) * 100 : 0
+  const overallProgress = Math.round((avgMaterialProgress * 0.4) + (examApprovalRate * 0.6))
+
+  // Determinar el paso actual
+  const getCurrentStep = () => {
+    if (allExamsApproved) return 3 // Certificado
+    if (materialCompleted) return 2 // Listo para examen
+    return 1 // Estudiando
+  }
+  const currentStep = getCurrentStep()
+
+  // Mensaje motivacional según el progreso
+  const getMotivationalMessage = () => {
+    if (allExamsApproved) {
+      return { title: '¡Felicidades! 🎉', subtitle: 'Has completado tu certificación exitosamente' }
+    }
+    if (materialCompleted && pendingExams > 0) {
+      return { title: '¡Estás listo!', subtitle: 'Es momento de demostrar lo aprendido en el examen' }
+    }
+    if (avgMaterialProgress >= 50) {
+      return { title: '¡Vas muy bien!', subtitle: 'Continúa con tu preparación para el examen' }
+    }
+    if (avgMaterialProgress > 0) {
+      return { title: '¡Buen comienzo!', subtitle: 'Sigue estudiando para alcanzar tu certificación' }
+    }
+    return { title: '¡Bienvenido!', subtitle: 'Comienza tu camino hacia la certificación' }
+  }
+  const motivationalMessage = getMotivationalMessage()
+
+  // Determinar la siguiente acción recomendada
+  const getNextAction = () => {
+    if (allExamsApproved) {
+      return { 
+        text: 'Ver mis certificados', 
+        route: '/certificates',
+        icon: Award,
+        color: 'bg-green-600 hover:bg-green-700'
+      }
+    }
+    if (materialCompleted || materials.length === 0) {
+      return { 
+        text: 'Presentar examen', 
+        route: '/exams',
+        icon: FileText,
+        color: 'bg-blue-600 hover:bg-blue-700'
+      }
+    }
+    // Encontrar el material con menos progreso que no esté completo
+    const nextMaterial = materials.find(m => m.progress.percentage < 100)
+    if (nextMaterial) {
+      return { 
+        text: 'Continuar estudiando', 
+        route: '/study-contents',
+        icon: BookOpen,
+        color: 'bg-blue-600 hover:bg-blue-700'
+      }
+    }
+    return { 
+      text: 'Ir a materiales', 
+      route: '/study-contents',
+      icon: BookOpen,
+      color: 'bg-blue-600 hover:bg-blue-700'
+    }
+  }
+  const nextAction = getNextAction()
+
   return (
-    <div>
-      {/* Header */}
-      <div className="mb-4 sm:mb-6 animate-fade-in-up">
-        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">
-          Bienvenido, {user?.name}
-        </h1>
-        <p className="text-gray-500 mt-1 text-sm sm:text-base">Tu ruta de certificación</p>
-      </div>
-
-      {/* Tarjetas Informativas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 mb-6 sm:mb-8">
-        <div 
-          onClick={() => navigate('/study-contents')}
-          className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-lg hover:border-blue-300 animate-fade-in-up"
-          style={{ animationDelay: '0ms' }}
-        >
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
+    <div className="space-y-4 sm:space-y-6">
+      {/* Hero Section */}
+      <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-white relative overflow-hidden">
+        {/* Decoración de fondo */}
+        <div className="absolute top-0 right-0 w-32 sm:w-64 h-32 sm:h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-24 sm:w-48 h-24 sm:h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+        
+        <div className="relative z-10">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex-1">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">
+                {motivationalMessage.title}
+              </h1>
+              <p className="text-blue-100 text-xs sm:text-sm md:text-base">
+                {motivationalMessage.subtitle}
+              </p>
+              <p className="text-blue-200 text-xs sm:text-sm mt-1">
+                Hola, <span className="font-medium text-white">{user?.name}</span>
+              </p>
             </div>
-            <div className="min-w-0">
-              <p className="text-[10px] sm:text-xs text-gray-500 truncate">Material Pendiente</p>
-              <p className="text-lg sm:text-xl font-semibold text-gray-900">{pendingMaterials}</p>
-            </div>
-          </div>
-        </div>
-
-        <div 
-          onClick={() => navigate('/exams')}
-          className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-lg hover:border-amber-300 animate-fade-in-up"
-          style={{ animationDelay: '100ms' }}
-        >
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] sm:text-xs text-gray-500 truncate">Exámenes Pendientes</p>
-              <p className="text-lg sm:text-xl font-semibold text-gray-900">{pendingExams}</p>
-            </div>
-          </div>
-        </div>
-
-        <div 
-          className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 transform transition-all duration-300 hover:scale-105 hover:shadow-lg hover:border-green-300 animate-fade-in-up"
-          style={{ animationDelay: '200ms' }}
-        >
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] sm:text-xs text-gray-500 truncate">Certificaciones</p>
-              <p className="text-lg sm:text-xl font-semibold text-gray-900">{approvedExams.length}</p>
+            
+            {/* Progreso circular */}
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24">
+                <svg className="w-full h-full transform -rotate-90">
+                  <circle
+                    cx="50%"
+                    cy="50%"
+                    r="45%"
+                    stroke="rgba(255,255,255,0.2)"
+                    strokeWidth="8"
+                    fill="none"
+                  />
+                  <circle
+                    cx="50%"
+                    cy="50%"
+                    r="45%"
+                    stroke="white"
+                    strokeWidth="8"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeDasharray={`${overallProgress * 2.83} 283`}
+                    className="transition-all duration-1000"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-base sm:text-xl md:text-2xl font-bold">{overallProgress}%</span>
+                </div>
+              </div>
+              <div className="text-xs sm:text-sm">
+                <p className="text-blue-100">Progreso</p>
+                <p className="font-semibold">General</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div 
-          onClick={() => navigate('/study-contents')}
-          className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-lg hover:border-purple-300 animate-fade-in-up"
-          style={{ animationDelay: '300ms' }}
-        >
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] sm:text-xs text-gray-500 truncate">Progreso Estudio</p>
-              <p className="text-lg sm:text-xl font-semibold text-gray-900">{avgMaterialProgress}%</p>
-            </div>
-          </div>
+          {/* Botón de acción principal */}
+          <button
+            onClick={() => navigate(nextAction.route)}
+            className={`mt-4 sm:mt-6 w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 ${nextAction.color} rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105`}
+          >
+            <nextAction.icon className="w-4 h-4 sm:w-5 sm:h-5" />
+            {nextAction.text}
+            <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
+          </button>
         </div>
       </div>
 
-      {/* Timeline Horizontal */}
-      <div className="mb-6 sm:mb-8 max-w-2xl mx-auto px-2 sm:px-0">
-        <div className="relative flex items-start justify-between">
-          {/* Línea de conexión de fondo */}
-          <div className="absolute top-4 sm:top-6 left-0 right-0 flex items-center px-8 sm:px-16">
-            <div className="flex-1 h-0.5 sm:h-1 bg-gray-200 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full transition-all duration-500 ${materialCompleted ? 'bg-green-400' : 'bg-gray-200'}`} style={{ width: materialCompleted ? '100%' : '0%' }} />
-            </div>
-            <div className="flex-1 h-0.5 sm:h-1 bg-gray-200 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full transition-all duration-500 ${allExamsApproved ? 'bg-green-400' : 'bg-gray-200'}`} style={{ width: allExamsApproved ? '100%' : '0%' }} />
-            </div>
+      {/* Timeline de Progreso Mejorado */}
+      <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 p-4 sm:p-6">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-4 sm:mb-6 flex items-center gap-2">
+          <Target className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+          Tu ruta de certificación
+        </h2>
+        
+        <div className="relative">
+          {/* Línea de conexión */}
+          <div className="absolute top-6 sm:top-8 left-6 right-6 sm:left-8 sm:right-8 md:left-[60px] md:right-[60px] h-0.5 sm:h-1 bg-gray-200 rounded-full">
+            <div 
+              className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-1000"
+              style={{ width: `${(currentStep - 1) * 50}%` }}
+            />
           </div>
 
-          {/* Paso 1 */}
-          <div className="flex flex-col items-center flex-1 z-10">
-            <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold shadow-sm transition-all ${
-              materialCompleted 
-                ? 'bg-green-500 text-white ring-2 sm:ring-4 ring-green-100' 
-                : 'bg-primary-500 text-white ring-2 sm:ring-4 ring-primary-100'
-            }`}>
-              {materialCompleted ? (
-                <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-              ) : '1'}
-            </div>
-            <span className={`text-xs sm:text-sm font-medium mt-1 sm:mt-2 ${materialCompleted ? 'text-green-600' : 'text-primary-600'}`}>Estudio</span>
-            <span className="text-[10px] sm:text-xs text-gray-400">{completedMaterials.length}/{materials.length}</span>
-          </div>
-
-          {/* Paso 2 */}
-          <div className="flex flex-col items-center flex-1 z-10">
-            <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold shadow-sm transition-all ${
-              allExamsApproved 
-                ? 'bg-green-500 text-white ring-2 sm:ring-4 ring-green-100' 
-                : materialCompleted
-                  ? 'bg-primary-500 text-white ring-2 sm:ring-4 ring-primary-100'
-                  : 'bg-gray-100 text-gray-400 ring-2 sm:ring-4 ring-gray-50'
-            }`}>
-              {allExamsApproved ? (
-                <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-              ) : '2'}
-            </div>
-            <span className={`text-xs sm:text-sm font-medium mt-1 sm:mt-2 ${allExamsApproved ? 'text-green-600' : materialCompleted ? 'text-primary-600' : 'text-gray-400'}`}>Examen</span>
-            <span className="text-[10px] sm:text-xs text-gray-400">{approvedExams.length}/{exams.length}</span>
-          </div>
-
-          {/* Paso 3 */}
-          <div className="flex flex-col items-center flex-1 z-10">
-            <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold shadow-sm transition-all ${
-              allExamsApproved 
-                ? 'bg-green-500 text-white ring-2 sm:ring-4 ring-green-100' 
-                : 'bg-gray-100 text-gray-400 ring-2 sm:ring-4 ring-gray-50'
-            }`}>
-              {allExamsApproved ? (
-                <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-              ) : (
-                <svg className="w-3 h-3 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                </svg>
+          <div className="grid grid-cols-3 gap-1 sm:gap-2 md:gap-4 relative">
+            {/* Paso 1: Estudiar */}
+            <div className="flex flex-col items-center text-center">
+              <div className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-2 sm:mb-3 transition-all duration-300 ${
+                currentStep >= 1 
+                  ? materialCompleted 
+                    ? 'bg-green-500 text-white shadow-lg shadow-green-500/30' 
+                    : 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 ring-2 sm:ring-4 ring-blue-100'
+                  : 'bg-gray-100 text-gray-400'
+              }`}>
+                {materialCompleted ? (
+                  <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8" />
+                ) : (
+                  <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
+                )}
+              </div>
+              <h3 className={`font-semibold text-xs sm:text-sm md:text-base ${currentStep >= 1 ? 'text-gray-800' : 'text-gray-400'}`}>
+                Estudiar
+              </h3>
+              <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">
+                {completedMaterials.length}/{materials.length} materiales
+              </p>
+              {currentStep === 1 && !materialCompleted && (
+                <span className="mt-1 sm:mt-2 text-[10px] sm:text-xs bg-blue-100 text-blue-700 px-1.5 sm:px-2 py-0.5 rounded-full font-medium">
+                  En progreso
+                </span>
               )}
             </div>
-            <span className={`text-xs sm:text-sm font-medium mt-1 sm:mt-2 ${allExamsApproved ? 'text-green-600' : 'text-gray-400'}`}>Certificación</span>
-            <span className="text-[10px] sm:text-xs text-gray-400">{allExamsApproved ? 'Obtenida' : 'Pendiente'}</span>
+
+            {/* Paso 2: Examinar */}
+            <div className="flex flex-col items-center text-center">
+              <div className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-2 sm:mb-3 transition-all duration-300 ${
+                currentStep >= 2
+                  ? allExamsApproved
+                    ? 'bg-green-500 text-white shadow-lg shadow-green-500/30'
+                    : 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 ring-2 sm:ring-4 ring-blue-100'
+                  : 'bg-gray-100 text-gray-400'
+              }`}>
+                {allExamsApproved ? (
+                  <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8" />
+                ) : (
+                  <FileText className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
+                )}
+              </div>
+              <h3 className={`font-semibold text-xs sm:text-sm md:text-base ${currentStep >= 2 ? 'text-gray-800' : 'text-gray-400'}`}>
+                Examinar
+              </h3>
+              <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">
+                {approvedExams.length}/{exams.length} aprobados
+              </p>
+              {currentStep === 2 && !allExamsApproved && (
+                <span className="mt-1 sm:mt-2 text-[10px] sm:text-xs bg-blue-100 text-blue-700 px-1.5 sm:px-2 py-0.5 rounded-full font-medium">
+                  En progreso
+                </span>
+              )}
+            </div>
+
+            {/* Paso 3: Certificar */}
+            <div className="flex flex-col items-center text-center">
+              <div className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-2 sm:mb-3 transition-all duration-300 ${
+                currentStep >= 3
+                  ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white shadow-lg shadow-amber-500/30'
+                  : 'bg-gray-100 text-gray-400'
+              }`}>
+                {allExamsApproved ? (
+                  <Trophy className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8" />
+                ) : (
+                  <Award className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
+                )}
+              </div>
+              <h3 className={`font-semibold text-xs sm:text-sm md:text-base ${currentStep >= 3 ? 'text-gray-800' : 'text-gray-400'}`}>
+                Certificar
+              </h3>
+              <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">
+                {allExamsApproved ? '¡Completado!' : 'Pendiente'}
+              </p>
+              {allExamsApproved && (
+                <span className="mt-1 sm:mt-2 text-[10px] sm:text-xs bg-green-100 text-green-700 px-1.5 sm:px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                  Logrado
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Contenido en columnas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-        {/* Columna 1: Material de Estudio */}
-        <div className={`bg-white border rounded-lg p-4 ${materialCompleted ? 'border-green-300' : 'border-gray-200'}`}>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-medium text-gray-900 text-sm">Material de Estudio</h2>
-            {materialCompleted && (
-              <span className="text-xs text-green-600 font-medium">✓</span>
-            )}
+      {/* Tarjetas de Acceso Rápido */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        {/* Materiales de Estudio */}
+        <div 
+          onClick={() => navigate('/study-contents')}
+          className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 p-4 sm:p-6 cursor-pointer group hover:border-blue-300 hover:shadow-lg transition-all duration-300 active:scale-[0.98]"
+        >
+          <div className="flex items-start justify-between mb-3 sm:mb-4">
+            <div className={`w-11 h-11 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl flex items-center justify-center ${
+              materialCompleted ? 'bg-green-100' : 'bg-blue-100'
+            }`}>
+              <BookOpen className={`w-5 h-5 sm:w-7 sm:h-7 ${materialCompleted ? 'text-green-600' : 'text-blue-600'}`} />
+            </div>
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
           </div>
           
-          {/* Estadísticas del material */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="bg-blue-50 rounded-lg p-3 text-center">
-              <p className="text-xl font-bold text-blue-600">{materials.length}</p>
-              <p className="text-xs text-blue-600">Asignados</p>
-            </div>
-            <div className="bg-green-50 rounded-lg p-3 text-center">
-              <p className="text-xl font-bold text-green-600">{completedMaterials.length}</p>
-              <p className="text-xs text-green-600">Completados</p>
-            </div>
-          </div>
-
+          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-0.5 sm:mb-1">Materiales</h3>
+          <p className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">Material de estudio para tu preparación</p>
+          
           {/* Barra de progreso */}
-          <div className="mb-4">
-            <div className="flex justify-between text-xs text-gray-500 mb-1">
-              <span>Avance General</span>
-              <span className="font-medium">{avgMaterialProgress}%</span>
+          <div className="mb-2 sm:mb-3">
+            <div className="flex justify-between text-[10px] sm:text-xs text-gray-500 mb-1">
+              <span>Progreso</span>
+              <span className="font-medium text-gray-700">{avgMaterialProgress}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-100 rounded-full h-1.5 sm:h-2">
               <div 
-                className="bg-primary-500 h-2 rounded-full transition-all duration-500"
+                className={`h-1.5 sm:h-2 rounded-full transition-all duration-500 ${
+                  materialCompleted ? 'bg-green-500' : 'bg-blue-500'
+                }`}
                 style={{ width: `${avgMaterialProgress}%` }}
               />
             </div>
           </div>
-
-          {/* Info adicional */}
-          <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-            <span>{pendingMaterials} pendiente{pendingMaterials !== 1 ? 's' : ''}</span>
-            <span>{materials.reduce((acc, m) => acc + (m.sessions_count || 0), 0)} sesiones totales</span>
-          </div>
           
-          {materials.length === 0 ? (
-            <p className="text-gray-500 text-xs text-center py-2">No hay material disponible</p>
-          ) : (
-            <button
-              onClick={() => navigate('/study-contents')}
-              className="w-full bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-              Ir a Materiales
-            </button>
-          )}
+          <div className="flex items-center justify-between">
+            <span className="text-xs sm:text-sm text-gray-600">
+              {completedMaterials.length} de {materials.length} completos
+            </span>
+            {materialCompleted && (
+              <span className="flex items-center gap-1 text-green-600 text-[10px] sm:text-xs font-medium">
+                <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                Completado
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Columna 2: Exámenes */}
-        <div className={`bg-white border rounded-lg p-4 ${
-          allExamsApproved ? 'border-green-300' : 'border-gray-200'
-        }`}>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-medium text-gray-900 text-sm">Exámenes</h2>
-            {allExamsApproved ? (
-              <span className="text-xs text-green-600 font-medium">✓</span>
-            ) : !materialCompleted && materials.length > 0 ? (
-              <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            ) : null}
+        {/* Exámenes */}
+        <div 
+          onClick={() => navigate('/exams')}
+          className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 p-4 sm:p-6 cursor-pointer group hover:border-amber-300 hover:shadow-lg transition-all duration-300 active:scale-[0.98]"
+        >
+          <div className="flex items-start justify-between mb-3 sm:mb-4">
+            <div className={`w-11 h-11 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl flex items-center justify-center ${
+              allExamsApproved ? 'bg-green-100' : 'bg-amber-100'
+            }`}>
+              <FileText className={`w-5 h-5 sm:w-7 sm:h-7 ${allExamsApproved ? 'text-green-600' : 'text-amber-600'}`} />
+            </div>
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-300 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
           </div>
           
-          {/* Estadísticas de exámenes */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="bg-amber-50 rounded-lg p-3 text-center">
-              <p className="text-xl font-bold text-amber-600">{exams.length}</p>
-              <p className="text-xs text-amber-600">Asignados</p>
-            </div>
-            <div className="bg-green-50 rounded-lg p-3 text-center">
-              <p className="text-xl font-bold text-green-600">{approvedExams.length}</p>
-              <p className="text-xs text-green-600">Aprobados</p>
-            </div>
-          </div>
-
+          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-0.5 sm:mb-1">Exámenes</h3>
+          <p className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">Demuestra tu conocimiento y certifícate</p>
+          
           {/* Barra de progreso */}
-          <div className="mb-4">
-            <div className="flex justify-between text-xs text-gray-500 mb-1">
-              <span>Tasa de Aprobación</span>
-              <span className="font-medium">{exams.length > 0 ? Math.round((approvedExams.length / exams.length) * 100) : 0}%</span>
+          <div className="mb-2 sm:mb-3">
+            <div className="flex justify-between text-[10px] sm:text-xs text-gray-500 mb-1">
+              <span>Aprobación</span>
+              <span className="font-medium text-gray-700">{Math.round(examApprovalRate)}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-100 rounded-full h-1.5 sm:h-2">
               <div 
-                className="bg-amber-500 h-2 rounded-full transition-all duration-500"
-                style={{ width: `${exams.length > 0 ? (approvedExams.length / exams.length) * 100 : 0}%` }}
+                className={`h-1.5 sm:h-2 rounded-full transition-all duration-500 ${
+                  allExamsApproved ? 'bg-green-500' : 'bg-amber-500'
+                }`}
+                style={{ width: `${examApprovalRate}%` }}
               />
             </div>
           </div>
-
-          {/* Info adicional */}
-          <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-            <span>{pendingExams} pendiente{pendingExams !== 1 ? 's' : ''}</span>
-            <span>{exams.reduce((acc, e) => acc + (e.user_stats?.attempts || 0), 0)} intentos totales</span>
-          </div>
           
-          {exams.length === 0 ? (
-            <p className="text-gray-500 text-xs text-center py-2">No hay exámenes disponibles</p>
-          ) : (
-            <button
-              onClick={() => navigate('/exams')}
-              disabled={!materialCompleted && materials.length > 0}
-              className={`w-full text-sm font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 ${
-                !materialCompleted && materials.length > 0
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-amber-500 hover:bg-amber-600 text-white'
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              {!materialCompleted && materials.length > 0 ? 'Completa el estudio' : 'Ir a Exámenes'}
-            </button>
-          )}
-        </div>
-
-        {/* Columna 3: Certificación */}
-        <div className={`bg-white border rounded-lg p-4 ${allExamsApproved ? 'border-green-300' : 'border-gray-200 opacity-60'}`}>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-medium text-gray-900 text-sm">Certificación</h2>
+          <div className="flex items-center justify-between">
+            <span className="text-xs sm:text-sm text-gray-600">
+              {approvedExams.length} de {exams.length} aprobados
+            </span>
             {allExamsApproved && (
-              <span className="text-xs text-green-600 font-medium">✓</span>
+              <span className="flex items-center gap-1 text-green-600 text-[10px] sm:text-xs font-medium">
+                <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                Completado
+              </span>
             )}
           </div>
+        </div>
+
+        {/* Certificados */}
+        <div 
+          onClick={() => navigate('/certificates')}
+          className="bg-white rounded-xl sm:rounded-2xl border border-green-200 p-4 sm:p-6 cursor-pointer group hover:border-green-400 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-white to-green-50 active:scale-[0.98] sm:col-span-2 lg:col-span-1"
+        >
+          <div className="flex items-start justify-between mb-3 sm:mb-4">
+            <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl flex items-center justify-center bg-gradient-to-br from-yellow-100 to-amber-100">
+              <Award className="w-5 h-5 sm:w-7 sm:h-7 text-amber-600" />
+            </div>
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-green-400 group-hover:text-green-600 group-hover:translate-x-1 transition-all" />
+          </div>
           
-          {allExamsApproved ? (
-            <div className="text-center py-4">
-              <div className="w-12 h-12 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-2">
-                <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                </svg>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-0.5 sm:mb-1">Certificados</h3>
+          <p className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">
+            {approvedExams.length > 0 ? 'Descarga tus certificaciones' : 'Consulta tus certificaciones'}
+          </p>
+          
+          {approvedExams.length > 0 ? (
+            <div className="flex items-center gap-2 p-2.5 sm:p-3 bg-green-100 rounded-lg sm:rounded-xl">
+              <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+              <div>
+                <p className="text-xs sm:text-sm font-medium text-green-800">{approvedExams.length} certificación{approvedExams.length !== 1 ? 'es' : ''}</p>
+                <p className="text-[10px] sm:text-xs text-green-600">Disponibles para descargar</p>
               </div>
-              <p className="text-sm text-green-600 font-medium">¡Obtenida!</p>
-              <p className="text-xs text-gray-500 mt-1">Proceso completado</p>
             </div>
           ) : (
-            <div className="text-center py-4">
-              <div className="w-12 h-12 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-2">
-                <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
+            <div className="flex items-center gap-2 p-2.5 sm:p-3 bg-amber-50 rounded-lg sm:rounded-xl">
+              <Target className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
+              <div>
+                <p className="text-xs sm:text-sm font-medium text-amber-700">En progreso</p>
+                <p className="text-[10px] sm:text-xs text-amber-500">Aprueba exámenes para obtener certificados</p>
               </div>
-              <p className="text-sm text-gray-400">Pendiente</p>
-              <p className="text-xs text-gray-400 mt-1">Completa los pasos anteriores</p>
             </div>
           )}
         </div>
       </div>
+
+      {/* Estadísticas Rápidas */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+        <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 p-3 sm:p-4 text-center">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-1.5 sm:mb-2 bg-blue-100 rounded-full flex items-center justify-center">
+            <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+          </div>
+          <p className="text-lg sm:text-2xl font-bold text-gray-800">{materials.length}</p>
+          <p className="text-[10px] sm:text-xs text-gray-500">Materiales</p>
+        </div>
+        
+        <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 p-3 sm:p-4 text-center">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-1.5 sm:mb-2 bg-amber-100 rounded-full flex items-center justify-center">
+            <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
+          </div>
+          <p className="text-lg sm:text-2xl font-bold text-gray-800">{exams.length}</p>
+          <p className="text-[10px] sm:text-xs text-gray-500">Exámenes</p>
+        </div>
+        
+        <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 p-3 sm:p-4 text-center">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-1.5 sm:mb-2 bg-green-100 rounded-full flex items-center justify-center">
+            <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+          </div>
+          <p className="text-lg sm:text-2xl font-bold text-gray-800">{approvedExams.length}</p>
+          <p className="text-[10px] sm:text-xs text-gray-500">Certificaciones</p>
+        </div>
+        
+        <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 p-3 sm:p-4 text-center">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-1.5 sm:mb-2 bg-purple-100 rounded-full flex items-center justify-center">
+            <Star className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+          </div>
+          <p className="text-lg sm:text-2xl font-bold text-gray-800">{stats?.average_score ? Math.round(stats.average_score) : '--'}%</p>
+          <p className="text-[10px] sm:text-xs text-gray-500">Promedio</p>
+        </div>
+      </div>
+
+      {/* Próximos Pasos - Recomendaciones */}
+      {!allExamsApproved && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl sm:rounded-2xl border border-blue-100 p-4 sm:p-6">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
+            <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+            Próximos pasos recomendados
+          </h2>
+          
+          <div className="space-y-2 sm:space-y-3">
+            {!materialCompleted && materials.length > 0 && (
+              <div 
+                onClick={() => navigate('/study-contents')}
+                className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white rounded-lg sm:rounded-xl border border-blue-100 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group active:scale-[0.98]"
+              >
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Play className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm sm:text-base text-gray-800">Continúa estudiando</p>
+                  <p className="text-xs sm:text-sm text-gray-500">Te falta completar {pendingMaterials} material{pendingMaterials !== 1 ? 'es' : ''}</p>
+                </div>
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+              </div>
+            )}
+            
+            {(materialCompleted || materials.length === 0) && pendingExams > 0 && (
+              <div 
+                onClick={() => navigate('/exams')}
+                className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white rounded-lg sm:rounded-xl border border-amber-100 cursor-pointer hover:border-amber-300 hover:shadow-md transition-all group active:scale-[0.98]"
+              >
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Target className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm sm:text-base text-gray-800">Presenta tu examen</p>
+                  <p className="text-xs sm:text-sm text-gray-500">Tienes {pendingExams} examen{pendingExams !== 1 ? 'es' : ''} por aprobar</p>
+                </div>
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-300 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Mensaje de felicitación cuando todo está completo */}
+      {allExamsApproved && (
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl sm:rounded-2xl border border-green-200 p-4 sm:p-6 text-center">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-500/30">
+            <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+          </div>
+          <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-1 sm:mb-2">¡Proceso de certificación completado!</h2>
+          <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">Has aprobado todos tus exámenes exitosamente.</p>
+          <button
+            onClick={() => navigate('/certificates')}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base transition-all transform hover:scale-105 active:scale-[0.98]"
+          >
+            <Award className="w-4 h-4 sm:w-5 sm:h-5" />
+            Ver mis certificados
+            <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }

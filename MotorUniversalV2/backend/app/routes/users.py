@@ -97,7 +97,7 @@ def update_user(user_id):
     data = request.get_json()
     
     # Campos que puede actualizar cualquier usuario
-    self_updatable_fields = ['name', 'first_surname', 'second_surname', 'phone']
+    self_updatable_fields = ['name', 'first_surname', 'second_surname', 'phone', 'gender']
     
     # Campos que solo admin puede actualizar
     admin_only_fields = ['role', 'is_active', 'campus_id', 'subsystem_id']
