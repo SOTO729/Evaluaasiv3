@@ -308,10 +308,16 @@ const EvaluationReportSection = ({ exams, formatDate }: { exams: any[], formatDa
         <div
           key={exam.id}
           onClick={() => navigate(`/certificates/evaluation-report/${exam.id}`)}
-          className="border border-gray-200 rounded-xl p-4 sm:p-6 hover:border-primary-300 hover:shadow-lg transition-all duration-300 cursor-pointer animate-stagger-in group bg-gradient-to-r from-white to-gray-50/50"
+          className="border border-gray-200 rounded-xl p-4 sm:p-6 hover:border-primary-400 hover:shadow-lg hover:bg-primary-50/30 transition-all duration-300 cursor-pointer animate-stagger-in group bg-gradient-to-r from-white to-gray-50/50 relative"
           style={{ animationDelay: `${index * 50}ms` }}
         >
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          {/* Indicador de clickeable */}
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+            <span className="text-xs text-primary-600 font-medium hidden sm:block">Ver reporte</span>
+            <ChevronRight className="w-5 h-5 text-primary-500" />
+          </div>
+          
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pr-8 sm:pr-24">
             <div className="flex-1 min-w-0">
               <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">{exam.name}</h3>
               <p className="text-sm text-gray-500 mt-1 line-clamp-2">{exam.description}</p>
@@ -338,7 +344,7 @@ const EvaluationReportSection = ({ exams, formatDate }: { exams: any[], formatDa
               </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:ml-4 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <span className={`px-3 py-1 rounded-full text-xs font-medium transition-transform group-hover:scale-105 ${
                 exam.user_stats.is_approved 
                   ? 'bg-green-100 text-green-800' 
@@ -346,13 +352,6 @@ const EvaluationReportSection = ({ exams, formatDate }: { exams: any[], formatDa
               }`}>
                 {exam.user_stats.is_approved ? 'Aprobado' : 'En proceso'}
               </span>
-              <button 
-                onClick={(e) => { e.stopPropagation(); navigate(`/certificates/evaluation-report/${exam.id}`) }}
-                className="p-2 text-primary-600 hover:bg-primary-100 rounded-lg transition-all duration-200 hover:scale-110"
-                title="Ver reportes"
-              >
-                <Eye className="w-5 h-5" />
-              </button>
             </div>
           </div>
         </div>
