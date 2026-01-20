@@ -27,6 +27,23 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
+// Hook para debounce
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [value, delay])
+
+  return debouncedValue
+}
+
 // Componente de tarjeta de material
 interface MaterialCardProps {
   material: StudyMaterial;
@@ -127,7 +144,8 @@ const MaterialCard = ({ material, navigate, index = 0, showStatus = true, isCand
             <span>
               {new Date(material.created_at).toLocaleDateString('es-ES', {
                 day: 'numeric',
-                month: 'short',
+                month: 'long',
+                year: 'numeric'
               })}
             </span>
           </div>
@@ -153,6 +171,9 @@ const StudyContentsListPage = () => {
   
   const isCandidate = user?.role === 'candidato';
   const canCreate = user?.role === 'admin' || user?.role === 'editor';
+  
+  // Debounce del término de búsqueda (300ms)
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   // Scroll a borradores si viene el parámetro
   useEffect(() => {
@@ -173,7 +194,7 @@ const StudyContentsListPage = () => {
   const fetchMaterials = async () => {
     setLoading(true);
     try {
-      const response: MaterialsResponse = await getMaterials(currentPage, 10, searchTerm, isCandidate);
+      const response: MaterialsResponse = await getMaterials(currentPage, 10, debouncedSearchTerm, isCandidate);
       setMaterials(response.materials);
       setTotalPages(response.pages);
       setTotal(response.total);
@@ -184,15 +205,14 @@ const StudyContentsListPage = () => {
     }
   };
 
+  // Reset page when debounced search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm]);
+
   useEffect(() => {
     fetchMaterials();
-  }, [currentPage, searchTerm]);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setCurrentPage(1);
-    fetchMaterials();
-  };
+  }, [currentPage, debouncedSearchTerm]);
 
   const handleDelete = async () => {
     if (!materialToDelete) return;
@@ -240,7 +260,7 @@ const StudyContentsListPage = () => {
 
       {/* Search */}
       <div className="bg-white rounded-lg shadow p-3 sm:p-4 mb-4 sm:mb-6">
-        <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
@@ -248,16 +268,22 @@ const StudyContentsListPage = () => {
               placeholder="Buscar materiales..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  fetchMaterials()
+                }
+              }}
               className="w-full pl-10 pr-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
             />
           </div>
           <button
-            type="submit"
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 sm:py-2 rounded-lg transition-colors w-full sm:w-auto"
+            onClick={() => fetchMaterials()}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 sm:py-2 rounded-lg transition-colors w-full sm:w-auto flex items-center justify-center gap-2 font-medium"
           >
+            <Search className="h-4 w-4" />
             Buscar
           </button>
-        </form>
+        </div>
       </div>
 
       {/* Materials Grid */}

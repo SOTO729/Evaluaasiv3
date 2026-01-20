@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { dashboardService, DashboardData } from '../services/dashboardService'
+import EditorDashboard from './EditorDashboard'
 import { 
   BookOpen, 
   FileText, 
@@ -23,10 +24,8 @@ const HomePage = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    loadDashboard()
-  }, [])
+  
+  const isEditor = user?.role === 'editor'
 
   const loadDashboard = async () => {
     try {
@@ -40,6 +39,18 @@ const HomePage = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  useEffect(() => {
+    // Solo cargar el dashboard del candidato si no es editor
+    if (!isEditor) {
+      loadDashboard()
+    }
+  }, [isEditor])
+
+  // Si es editor, mostrar el dashboard del editor
+  if (isEditor) {
+    return <EditorDashboard />
   }
 
   if (loading) {

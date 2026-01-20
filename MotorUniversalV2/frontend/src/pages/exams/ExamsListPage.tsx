@@ -4,6 +4,23 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { examService } from '../../services/examService'
 import { useAuthStore } from '../../store/authStore'
 import { OptimizedImage } from '../../components/ui/OptimizedImage'
+
+// Hook para debounce
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [value, delay])
+
+  return debouncedValue
+}
 import { 
   FileText, 
   Plus, 
@@ -176,7 +193,8 @@ const ExamCard = ({
                 <span>
                   {new Date(exam.created_at).toLocaleDateString('es-ES', {
                     day: 'numeric',
-                    month: 'short',
+                    month: 'long',
+                    year: 'numeric'
                   })}
                 </span>
               </div>
@@ -200,16 +218,19 @@ const ExamsListPage = () => {
   const ITEMS_PER_PAGE = 12;
   const isCandidate = user?.role === 'candidato';
   
+  // Debounce del término de búsqueda (300ms)
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['exams', currentPage, searchTerm],
-    queryFn: () => examService.getExams(currentPage, ITEMS_PER_PAGE, searchTerm),
+    queryKey: ['exams', currentPage, debouncedSearchTerm],
+    queryFn: () => examService.getExams(currentPage, ITEMS_PER_PAGE, debouncedSearchTerm),
     staleTime: 30000,
   })
 
-  // Reset page when search changes
+  // Reset page when debounced search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [debouncedSearchTerm]);
 
   // Scroll a borradores si viene el parámetro
   useEffect(() => {
@@ -293,13 +314,22 @@ const ExamsListPage = () => {
               placeholder="Buscar exámenes..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  refetch()
+                }
+              }}
               className="w-full pl-10 pr-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
             />
           </div>
           <button
-            onClick={() => refetch()}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 sm:py-2 rounded-lg transition-colors w-full sm:w-auto"
+            onClick={() => {
+              // Forzar la búsqueda inmediatamente
+              refetch()
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 sm:py-2 rounded-lg transition-colors w-full sm:w-auto flex items-center justify-center gap-2 font-medium"
           >
+            <Search className="h-4 w-4" />
             Buscar
           </button>
         </div>

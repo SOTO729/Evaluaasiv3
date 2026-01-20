@@ -1565,7 +1565,7 @@ const ExamTestRunPage: React.FC = () => {
             {/* Footer fijo */}
             <div className="p-6 pt-4 border-t border-gray-100">
               {(() => {
-                // max_attempts son oportunidades ADICIONALES después del primer error  
+                // max_attempts son oportunidades ADICIONALES después del primer error 
                 const currentExercise = currentItem;
                 const action = currentExercise?.steps
                   ?.flatMap((s: any) => s.actions || [])

@@ -129,16 +129,18 @@ const Layout = ({ children }: LayoutProps) => {
                 >
                   Inicio
                 </Link>
-                <Link 
-                  to="/certificates" 
-                  className={`px-3 py-2 xl:px-4 xl:py-2.5 rounded-lg text-sm xl:text-base transition-all ${
-                    location.pathname.startsWith('/certificates') 
-                      ? 'text-primary-600 font-semibold bg-primary-50' 
-                      : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
-                  }`}
-                >
-                  Certificados
-                </Link>
+                {user?.role !== 'editor' && (
+                  <Link 
+                    to="/certificates" 
+                    className={`px-3 py-2 xl:px-4 xl:py-2.5 rounded-lg text-sm xl:text-base transition-all ${
+                      location.pathname.startsWith('/certificates') 
+                        ? 'text-primary-600 font-semibold bg-primary-50' 
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Certificados
+                  </Link>
+                )}
                 <Link 
                   to="/exams" 
                   className={`px-3 py-2 xl:px-4 xl:py-2.5 rounded-lg text-sm xl:text-base transition-all ${
@@ -274,21 +276,23 @@ const Layout = ({ children }: LayoutProps) => {
                   Inicio
                 </div>
               </Link>
-              <Link 
-                to="/certificates" 
-                className={`block px-3 py-3 rounded-lg transition-all ${
-                  location.pathname.startsWith('/certificates') 
-                    ? 'bg-primary-50 text-primary-600 font-medium' 
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <div className="flex items-center">
-                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                  </svg>
-                  Certificados
-                </div>
-              </Link>
+              {user?.role !== 'editor' && (
+                <Link 
+                  to="/certificates" 
+                  className={`block px-3 py-3 rounded-lg transition-all ${
+                    location.pathname.startsWith('/certificates') 
+                      ? 'bg-primary-50 text-primary-600 font-medium' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                    </svg>
+                    Certificados
+                  </div>
+                </Link>
+              )}
               <Link 
                 to="/exams" 
                 className={`block px-3 py-3 rounded-lg transition-all ${

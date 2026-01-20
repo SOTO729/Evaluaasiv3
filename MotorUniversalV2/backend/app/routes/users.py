@@ -415,3 +415,170 @@ def get_dashboard():
         import traceback
         traceback.print_exc()
         return jsonify({'error': 'Error interno del servidor', 'message': str(e)}), 500
+
+@bp.route('/me/editor-dashboard', methods=['GET'])
+@jwt_required()
+def get_editor_dashboard():
+    """
+    Dashboard para usuarios tipo editor con métricas de creación
+    ---
+    tags:
+      - Users
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Dashboard del editor con estadísticas de creación
+      403:
+        description: No es un editor
+    """
+    try:
+        from app.models.exam import Exam
+        from app.models.competency_standard import CompetencyStandard
+        from app.models.study_content import StudyMaterial
+        from sqlalchemy import func
+        
+        user_id = get_jwt_identity()
+        current_user = User.query.get(user_id)
+        
+        if not current_user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        # Verificar que sea editor o admin
+        if current_user.role not in ['admin', 'editor']:
+            return jsonify({'error': 'Acceso solo para editores'}), 403
+        
+        # ===== ESTADÍSTICAS DE ESTÁNDARES (ECM) =====
+        total_standards = CompetencyStandard.query.count()
+        active_standards = CompetencyStandard.query.filter_by(is_active=True).count()
+        
+        # Estándares recientes (ordenados por updated_at, más reciente primero)
+        recent_standards = CompetencyStandard.query.order_by(
+            CompetencyStandard.updated_at.desc()
+        ).limit(5).all()
+        
+        recent_standards_data = [{
+            'id': s.id,
+            'code': s.code,
+            'name': s.name,
+            'sector': s.sector,
+            'level': s.level,
+            'is_active': s.is_active,
+            'created_at': s.created_at.isoformat() if s.created_at else None,
+            'updated_at': s.updated_at.isoformat() if s.updated_at else None
+        } for s in recent_standards]
+        
+        # ===== ESTADÍSTICAS DE EXÁMENES =====
+        total_exams = Exam.query.count()
+        published_exams = Exam.query.filter_by(is_published=True).count()
+        draft_exams = Exam.query.filter_by(is_published=False).count()
+        
+        # Exámenes recientes (ordenados por updated_at, más reciente primero)
+        recent_exams = Exam.query.order_by(
+            Exam.updated_at.desc()
+        ).limit(5).all()
+        
+        recent_exams_data = [{
+            'id': e.id,
+            'name': e.name,
+            'version': e.version,
+            'is_published': e.is_published,
+            'passing_score': e.passing_score,
+            'duration_minutes': e.duration_minutes,
+            'total_categories': e.categories.count() if e.categories else 0,
+            'created_at': e.created_at.isoformat() if e.created_at else None,
+            'updated_at': e.updated_at.isoformat() if e.updated_at else None,
+            'competency_standard': {
+                'id': e.competency_standard.id,
+                'code': e.competency_standard.code,
+                'name': e.competency_standard.name
+            } if e.competency_standard else None
+        } for e in recent_exams]
+        
+        # ===== ESTADÍSTICAS DE MATERIALES DE ESTUDIO =====
+        total_materials = StudyMaterial.query.count()
+        published_materials = StudyMaterial.query.filter_by(is_published=True).count()
+        draft_materials = StudyMaterial.query.filter_by(is_published=False).count()
+        
+        # Materiales recientes (ordenados por updated_at, más reciente primero)
+        recent_materials = StudyMaterial.query.order_by(
+            StudyMaterial.updated_at.desc()
+        ).limit(5).all()
+        
+        recent_materials_data = []
+        for m in recent_materials:
+            # Calcular conteo de sesiones y temas
+            sessions_count = m.sessions.count() if m.sessions else 0
+            topics_count = 0
+            total_estimated_time = 0
+            if m.sessions:
+                for session in m.sessions.all():
+                    if session.topics:
+                        topics_count += session.topics.count()
+                        # Sumar tiempo estimado de cada tema
+                        for topic in session.topics.all():
+                            total_estimated_time += getattr(topic, 'estimated_time_minutes', 0) or 0
+            
+            recent_materials_data.append({
+                'id': m.id,
+                'title': m.title,
+                'description': m.description,
+                'image_url': m.image_url,
+                'is_published': m.is_published,
+                'sessions_count': sessions_count,
+                'topics_count': topics_count,
+                'estimated_time_minutes': total_estimated_time,
+                'created_at': m.created_at.isoformat() if m.created_at else None,
+                'updated_at': m.updated_at.isoformat() if m.updated_at else None
+            })
+        
+        # ===== ESTADÍSTICAS DE PREGUNTAS =====
+        from app.models.question import Question, QuestionType
+        from app.models.topic import Topic
+        
+        total_questions = Question.query.count()
+        
+        # Contar preguntas por tipo usando un join con question_types
+        questions_by_type = db.session.query(
+            QuestionType.name,
+            func.count(Question.id)
+        ).join(Question, Question.question_type_id == QuestionType.id
+        ).group_by(QuestionType.name).all()
+        
+        questions_by_type_data = {qt_name: count for qt_name, count in questions_by_type}
+        
+        # ===== RESUMEN RÁPIDO =====
+        summary = {
+            'standards': {
+                'total': total_standards,
+                'active': active_standards
+            },
+            'exams': {
+                'total': total_exams,
+                'published': published_exams,
+                'draft': draft_exams
+            },
+            'materials': {
+                'total': total_materials,
+                'published': published_materials,
+                'draft': draft_materials
+            },
+            'questions': {
+                'total': total_questions,
+                'by_type': questions_by_type_data
+            }
+        }
+        
+        return jsonify({
+            'user': current_user.to_dict(),
+            'summary': summary,
+            'recent_standards': recent_standards_data,
+            'recent_exams': recent_exams_data,
+            'recent_materials': recent_materials_data
+        }), 200
+        
+    except Exception as e:
+        print(f"Error en get_editor_dashboard: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Error interno del servidor', 'message': str(e)}), 500
