@@ -9,6 +9,7 @@ from app.models.exam import Exam
 from app.models.voucher import Voucher
 from app.models.result import Result
 from app.utils.cache_utils import make_cache_key_with_user
+from app.utils.cdn_helper import transform_to_cdn_url
 
 bp = Blueprint('users', __name__)
 
@@ -441,7 +442,7 @@ def get_dashboard():
                         'id': material.id,
                         'title': material.title,
                         'description': material.description,
-                        'image_url': material.image_url,
+                        'image_url': transform_to_cdn_url(material.image_url) if material.image_url else None,
                         'sessions_count': sessions_count,
                         'progress': {
                             'total_contents': total,
@@ -581,7 +582,7 @@ def get_editor_dashboard():
                 'id': m.id,
                 'title': m.title,
                 'description': m.description,
-                'image_url': m.image_url,
+                'image_url': transform_to_cdn_url(m.image_url) if m.image_url else None,
                 'is_published': m.is_published,
                 'sessions_count': sessions_count,
                 'topics_count': topics_count,

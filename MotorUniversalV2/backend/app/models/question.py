@@ -3,6 +3,7 @@ Modelo de Pregunta
 """
 from datetime import datetime
 from app import db
+from app.utils.cdn_helper import transform_to_cdn_url
 
 
 class QuestionType(db.Model):
@@ -65,7 +66,7 @@ class Question(db.Model):
             'question_type': self.question_type.to_dict() if self.question_type else None,
             'question_number': self.question_number,
             'question_text': self.question_text,
-            'image_url': self.image_url,
+            'image_url': transform_to_cdn_url(self.image_url) if self.image_url else None,
             'points': self.points,
             'difficulty': self.difficulty,
             'type': self.type or 'exam',  # exam o simulator

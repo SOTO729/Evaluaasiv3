@@ -144,7 +144,7 @@ class Exam(db.Model):
                         'id': material.id,
                         'title': material.title,
                         'description': material.description,
-                        'image_url': material.image_url
+                        'image_url': transform_to_cdn_url(material.image_url) if material.image_url else None
                     })
                 data['linked_study_materials'] = linked_materials
         except Exception:
