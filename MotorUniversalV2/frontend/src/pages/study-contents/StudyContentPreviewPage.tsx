@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import CustomVideoPlayer from '../../components/CustomVideoPlayer';
+import { isAzureUrl } from '../../lib/urlHelpers';
 
 // Función para calcular similitud entre dos strings (algoritmo de Levenshtein)
 const calculateSimilarity = (str1: string, str2: string): number => {
@@ -352,7 +353,7 @@ const StudyContentPreviewPage: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'video' && currentTopic?.video) {
       const videoUrl = currentTopic.video.video_url;
-      const isExternalVideo = videoUrl && !videoUrl.includes('blob.core.windows.net');
+      const isExternalVideo = videoUrl && !isAzureUrl(videoUrl);
       const isNotCompleted = !completedContents.video.has(currentTopic.video.id);
       
       if (isExternalVideo && isNotCompleted) {
@@ -374,8 +375,8 @@ const StudyContentPreviewPage: React.FC = () => {
 
       const videoUrl = currentTopic.video.video_url;
       
-      // Solo necesitamos obtener URL firmada para videos de Azure Blob Storage
-      if (!videoUrl?.includes('blob.core.windows.net')) {
+      // Solo necesitamos obtener URL firmada para videos de Azure Blob Storage o CDN
+      if (!isAzureUrl(videoUrl)) {
         setSignedVideoUrl(videoUrl);
         return;
       }
@@ -1496,8 +1497,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       <h2 className="text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl 2xl:text-2xl font-semibold text-gray-900 pb-1 sm:pb-1.5 xl:pb-2 border-b border-gray-300">{currentTopic.video.title}</h2>
                       
                       {/* Video container - responsivo según tipo de video */}
-                      {currentTopic.video.video_url?.includes('blob.core.windows.net') ? (
-                        // Contenedor para videos de Azure Blob
+                      {isAzureUrl(currentTopic.video.video_url) ? (
+                        // Contenedor para videos de Azure Blob/CDN
                         <div className="relative w-full bg-black rounded-md sm:rounded-lg lg:rounded-xl overflow-hidden shadow-md">
                           {/* Wrapper con aspect ratio 16:9, el video usa contain para ajustarse */}
                           <div className="relative w-full aspect-video">
@@ -1560,8 +1561,8 @@ const StudyContentPreviewPage: React.FC = () => {
                             </span>
                             <span className="font-medium">Video completado</span>
                           </div>
-                        ) : currentTopic.video.video_url?.includes('blob.core.windows.net') ? (
-                          // Para videos blob - instrucción de ver completo
+                        ) : isAzureUrl(currentTopic.video.video_url) ? (
+                          // Para videos blob/CDN - instrucción de ver completo
                           <div className="flex items-center justify-center gap-1.5 py-2 px-3 bg-gray-50 text-gray-500 rounded-md sm:rounded-lg text-xs sm:text-sm">
                             <PlayCircle className="w-4 h-4" />
                             <span>Mira el video completo para marcarlo como completado</span>

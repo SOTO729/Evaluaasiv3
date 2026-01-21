@@ -65,6 +65,7 @@ import {
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
+import { isAzureUrl } from '../../lib/urlHelpers';
 
 // Modal genérico
 interface ModalProps {
@@ -1979,8 +1980,8 @@ const StudyContentDetailPage = () => {
                   <PlayCircle className="w-4 h-4 text-purple-500" />
                   URL del video
                 </label>
-                {/* Si el video está en Azure, mostrar mensaje informativo con opción de cambiar a enlace */}
-                {(videoForm.video_url && videoForm.video_url.includes('blob.core.windows.net')) ? (
+                {/* Si el video está en Azure (Blob o CDN), mostrar mensaje informativo con opción de cambiar a enlace */}
+                {(videoForm.video_url && isAzureUrl(videoForm.video_url)) ? (
                   <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-4">
                     <div className="flex items-start gap-3">
                       <div className="p-2 bg-purple-100 rounded-lg flex-shrink-0">
