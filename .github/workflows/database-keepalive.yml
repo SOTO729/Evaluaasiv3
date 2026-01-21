@@ -1,0 +1,54 @@
+name: Database Keep-Alive
+
+on:
+  schedule:
+    # Cada 45 minutos durante horario laboral (6am-11pm UTC, que es ~12am-5pm en México)
+    - cron: '*/45 6-23 * * 1-5'  # Lunes a Viernes
+    - cron: '0 8,12,16,20 * * 0,6'  # Sábados y Domingos (cada 4 horas)
+  workflow_dispatch:  # Permite ejecución manual
+
+jobs:
+  warmup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - name: Wake up database
+        id: warmup
+        run: |
+          echo "Sending warmup request to API..."
+          
+          # Intentar hasta 3 veces con reintentos
+          for i in 1 2 3; do
+            response=$(curl -s -w "\n%{http_code}" \
+              --max-time 120 \
+              "https://evaluaasi-api.whiteforest-44e7c57b.eastus.azurecontainerapps.io/api/health/warmup" \
+              2>/dev/null)
+            
+            http_code=$(echo "$response" | tail -n1)
+            body=$(echo "$response" | head -n -1)
+            
+            echo "Attempt $i: HTTP $http_code"
+            echo "Response: $body"
+            
+            if [ "$http_code" = "200" ]; then
+              echo "✅ Database is warm and ready!"
+              echo "status=success" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            
+            if [ "$i" -lt 3 ]; then
+              echo "⏳ Waiting 30 seconds before retry..."
+              sleep 30
+            fi
+          done
+          
+          echo "⚠️ Database may still be waking up after 3 attempts"
+          echo "status=waking" >> $GITHUB_OUTPUT
+          # No fallamos el job, solo advertimos
+          exit 0
+
+      - name: Report status
+        if: always()
+        run: |
+          echo "Database warmup completed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"

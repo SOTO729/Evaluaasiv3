@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react'
 import { useAuthStore } from './store/authStore'
 import LoadingSpinner from './components/LoadingSpinner'
 import InactivityWatcher from './components/InactivityWatcher'
+import SystemReadyGuard from './components/SystemReadyGuard'
 
 // Eager imports (necesarios inmediatamente)
 import Layout from './components/layout/Layout'
@@ -74,14 +75,15 @@ function App() {
   const { isAuthenticated } = useAuthStore()
 
   return (
-    <BrowserRouter>
-      <InactivityWatcher timeoutMinutes={15}>
-        <Suspense fallback={<LoadingSpinner message="Cargando..." fullScreen />}>
-          <Routes>
-          {/* Landing Page - Public */}
-          <Route path="/" element={
-            isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />
-          } />
+    <SystemReadyGuard>
+      <BrowserRouter>
+        <InactivityWatcher timeoutMinutes={15}>
+          <Suspense fallback={<LoadingSpinner message="Cargando..." fullScreen />}>
+            <Routes>
+            {/* Landing Page - Public */}
+            <Route path="/" element={
+              isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />
+            } />
           
           {/* Privacy Policy - Public */}
           <Route path="/privacidad" element={<PrivacyPolicyPage />} />
@@ -153,10 +155,11 @@ function App() {
 
           {/* 404 */}
           <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </Suspense>
-      </InactivityWatcher>
-    </BrowserRouter>
+          </Routes>
+        </Suspense>
+        </InactivityWatcher>
+      </BrowserRouter>
+    </SystemReadyGuard>
   )
 }
 

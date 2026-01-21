@@ -1,9 +1,9 @@
-azure-functions-core-tools
 azure-functions
 azure-storage-queue
 azure-storage-blob
-pyodbc
+pymssql
 sqlalchemy
 reportlab
 pypdf
 pillow
+qrcode
