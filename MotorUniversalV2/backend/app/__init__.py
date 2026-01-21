@@ -201,5 +201,29 @@ def ensure_label_style_column(app):
     except Exception as e:
         db.session.rollback()
         print(f"[AUTO-MIGRATE] Error verificando/agregando label_style: {e}")
+    
+    # Verificar y agregar columna pdf_status en results
+    try:
+        result = db.session.execute(text("""
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_NAME = 'results' 
+            AND COLUMN_NAME = 'pdf_status'
+        """))
+        exists = result.scalar()
+        
+        if exists == 0:
+            print("[AUTO-MIGRATE] La columna pdf_status NO existe en results. Agregando...")
+            db.session.execute(text("""
+                ALTER TABLE results 
+                ADD pdf_status VARCHAR(50) DEFAULT 'pending'
+            """))
+            db.session.commit()
+            print("[AUTO-MIGRATE] Columna pdf_status agregada exitosamente a results")
+        else:
+            print("[AUTO-MIGRATE] Columna pdf_status ya existe en results")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[AUTO-MIGRATE] Error verificando/agregando pdf_status: {e}")
+
 # Force reload at Sat Jan  3 16:25:57 UTC 2026
 # Force deploy Sun Jan  4 21:04:10 UTC 2026
