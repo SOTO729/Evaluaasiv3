@@ -2,6 +2,93 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ========================================
+   SISTEMA DE ESCALADO FLUIDO
+   Permite que la app se adapte a cualquier
+   tamaño de pantalla (móvil, desktop, TV)
+   ======================================== */
+
+:root {
+  /* Factor de escala base - se ajusta según el viewport */
+  --scale-factor: 1;
+  
+  /* Tamaños de fuente fluidos usando clamp() */
+  --font-xs: clamp(0.65rem, 0.6rem + 0.25vw, 0.75rem);
+  --font-sm: clamp(0.75rem, 0.7rem + 0.3vw, 0.875rem);
+  --font-base: clamp(0.875rem, 0.8rem + 0.4vw, 1rem);
+  --font-lg: clamp(1rem, 0.9rem + 0.5vw, 1.125rem);
+  --font-xl: clamp(1.125rem, 1rem + 0.6vw, 1.25rem);
+  --font-2xl: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
+  --font-3xl: clamp(1.5rem, 1.25rem + 1vw, 1.875rem);
+  --font-4xl: clamp(1.875rem, 1.5rem + 1.5vw, 2.25rem);
+  --font-5xl: clamp(2.25rem, 1.75rem + 2vw, 3rem);
+  
+  /* Espaciado fluido */
+  --space-1: clamp(0.2rem, 0.15rem + 0.25vw, 0.25rem);
+  --space-2: clamp(0.4rem, 0.35rem + 0.25vw, 0.5rem);
+  --space-3: clamp(0.6rem, 0.5rem + 0.5vw, 0.75rem);
+  --space-4: clamp(0.8rem, 0.7rem + 0.5vw, 1rem);
+  --space-5: clamp(1rem, 0.85rem + 0.75vw, 1.25rem);
+  --space-6: clamp(1.25rem, 1rem + 1vw, 1.5rem);
+  --space-8: clamp(1.5rem, 1.25rem + 1.25vw, 2rem);
+  --space-10: clamp(2rem, 1.5rem + 2vw, 2.5rem);
+  --space-12: clamp(2.5rem, 2rem + 2.5vw, 3rem);
+  
+  /* Radios fluidos */
+  --radius-sm: clamp(0.125rem, 0.1rem + 0.1vw, 0.25rem);
+  --radius-md: clamp(0.25rem, 0.2rem + 0.2vw, 0.375rem);
+  --radius-lg: clamp(0.375rem, 0.3rem + 0.3vw, 0.5rem);
+  --radius-xl: clamp(0.5rem, 0.4rem + 0.4vw, 0.75rem);
+}
+
+/* Escalado para pantallas grandes (TV, monitores 4K) */
+@media (min-width: 1920px) {
+  :root {
+    --scale-factor: 1.25;
+    --font-xs: clamp(0.75rem, 0.5vw + 0.5rem, 1rem);
+    --font-sm: clamp(0.875rem, 0.6vw + 0.5rem, 1.125rem);
+    --font-base: clamp(1rem, 0.7vw + 0.5rem, 1.25rem);
+    --font-lg: clamp(1.125rem, 0.8vw + 0.5rem, 1.5rem);
+    --font-xl: clamp(1.25rem, 0.9vw + 0.5rem, 1.75rem);
+    --font-2xl: clamp(1.5rem, 1vw + 0.5rem, 2rem);
+    --font-3xl: clamp(1.875rem, 1.25vw + 0.5rem, 2.5rem);
+    --font-4xl: clamp(2.25rem, 1.5vw + 0.5rem, 3rem);
+    --font-5xl: clamp(3rem, 2vw + 0.5rem, 4rem);
+  }
+}
+
+/* Escalado para pantallas muy grandes (4K, 8K) */
+@media (min-width: 2560px) {
+  :root {
+    --scale-factor: 1.5;
+    --font-xs: clamp(0.875rem, 0.4vw + 0.5rem, 1.25rem);
+    --font-sm: clamp(1rem, 0.5vw + 0.5rem, 1.375rem);
+    --font-base: clamp(1.125rem, 0.6vw + 0.5rem, 1.5rem);
+    --font-lg: clamp(1.25rem, 0.7vw + 0.5rem, 1.75rem);
+    --font-xl: clamp(1.5rem, 0.8vw + 0.5rem, 2rem);
+    --font-2xl: clamp(1.75rem, 0.9vw + 0.5rem, 2.5rem);
+    --font-3xl: clamp(2.25rem, 1.1vw + 0.5rem, 3rem);
+    --font-4xl: clamp(2.75rem, 1.3vw + 0.5rem, 3.75rem);
+    --font-5xl: clamp(3.5rem, 1.75vw + 0.5rem, 5rem);
+  }
+}
+
+/* Escalado para pantallas 4K+ */
+@media (min-width: 3840px) {
+  :root {
+    --scale-factor: 2;
+    --font-xs: clamp(1rem, 0.3vw + 0.5rem, 1.5rem);
+    --font-sm: clamp(1.125rem, 0.4vw + 0.5rem, 1.75rem);
+    --font-base: clamp(1.25rem, 0.5vw + 0.5rem, 2rem);
+    --font-lg: clamp(1.5rem, 0.6vw + 0.5rem, 2.25rem);
+    --font-xl: clamp(1.75rem, 0.7vw + 0.5rem, 2.5rem);
+    --font-2xl: clamp(2rem, 0.8vw + 0.5rem, 3rem);
+    --font-3xl: clamp(2.5rem, 1vw + 0.5rem, 4rem);
+    --font-4xl: clamp(3rem, 1.2vw + 0.5rem, 5rem);
+    --font-5xl: clamp(4rem, 1.5vw + 0.5rem, 6rem);
+  }
+}
+
 @layer base {
   * {
     @apply border-gray-200;
@@ -14,6 +101,8 @@
     height: 100%;
     overflow-x: hidden;
     overflow-y: auto;
+    /* Usar tamaño de fuente fluido como base */
+    font-size: var(--font-base);
   }
   
   body {
@@ -28,6 +117,8 @@
     overflow-y: auto;
     min-height: 100%;
     height: auto;
+    /* Restaurar tamaño de fuente base para que Tailwind funcione */
+    font-size: 16px;
   }
   
   /* Fix para el root de React */
@@ -72,6 +163,14 @@
     
     *::-webkit-scrollbar-thumb:hover {
       background-color: rgba(156, 163, 175, 0.8);
+    }
+  }
+  
+  /* Scrollbars más grandes para pantallas TV */
+  @media (min-width: 1920px) {
+    *::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
     }
   }
 }
@@ -435,4 +534,135 @@
   align-items: center;
   justify-content: center;
   overflow: visible;
+}
+
+/* ========================================
+   CLASES DE UTILIDAD PARA ESCALADO FLUIDO
+   Usar estas clases para elementos que
+   deben escalar automáticamente
+   ======================================== */
+
+/* Textos fluidos - escalan según el viewport */
+.text-fluid-xs { font-size: var(--font-xs); }
+.text-fluid-sm { font-size: var(--font-sm); }
+.text-fluid-base { font-size: var(--font-base); }
+.text-fluid-lg { font-size: var(--font-lg); }
+.text-fluid-xl { font-size: var(--font-xl); }
+.text-fluid-2xl { font-size: var(--font-2xl); }
+.text-fluid-3xl { font-size: var(--font-3xl); }
+.text-fluid-4xl { font-size: var(--font-4xl); }
+.text-fluid-5xl { font-size: var(--font-5xl); }
+
+/* Espaciado fluido */
+.p-fluid-1 { padding: var(--space-1); }
+.p-fluid-2 { padding: var(--space-2); }
+.p-fluid-3 { padding: var(--space-3); }
+.p-fluid-4 { padding: var(--space-4); }
+.p-fluid-5 { padding: var(--space-5); }
+.p-fluid-6 { padding: var(--space-6); }
+.p-fluid-8 { padding: var(--space-8); }
+.p-fluid-10 { padding: var(--space-10); }
+.p-fluid-12 { padding: var(--space-12); }
+
+.gap-fluid-1 { gap: var(--space-1); }
+.gap-fluid-2 { gap: var(--space-2); }
+.gap-fluid-3 { gap: var(--space-3); }
+.gap-fluid-4 { gap: var(--space-4); }
+.gap-fluid-5 { gap: var(--space-5); }
+.gap-fluid-6 { gap: var(--space-6); }
+.gap-fluid-8 { gap: var(--space-8); }
+
+.m-fluid-1 { margin: var(--space-1); }
+.m-fluid-2 { margin: var(--space-2); }
+.m-fluid-3 { margin: var(--space-3); }
+.m-fluid-4 { margin: var(--space-4); }
+.m-fluid-5 { margin: var(--space-5); }
+.m-fluid-6 { margin: var(--space-6); }
+
+/* Bordes redondeados fluidos */
+.rounded-fluid-sm { border-radius: var(--radius-sm); }
+.rounded-fluid-md { border-radius: var(--radius-md); }
+.rounded-fluid-lg { border-radius: var(--radius-lg); }
+.rounded-fluid-xl { border-radius: var(--radius-xl); }
+
+/* Escalado automático para contenedores principales */
+.scale-container {
+  transform: scale(var(--scale-factor));
+  transform-origin: top left;
+}
+
+/* Contenedor que mantiene proporciones en cualquier pantalla */
+.fluid-container {
+  width: 100%;
+  max-width: 100vw;
+  min-height: 100vh;
+  padding: var(--space-4);
+}
+
+/* Grids fluidos para pantallas grandes */
+@media (min-width: 1920px) {
+  .grid-cols-fluid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-cols-fluid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .grid-cols-fluid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .grid-cols-fluid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .grid-cols-fluid-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+
+@media (min-width: 2560px) {
+  .grid-cols-fluid-2 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .grid-cols-fluid-3 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .grid-cols-fluid-4 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .grid-cols-fluid-5 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .grid-cols-fluid-6 { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+}
+
+/* Botones escalables para TV */
+@media (min-width: 1920px) {
+  .btn, button, [role="button"] {
+    min-height: 48px;
+    padding: var(--space-3) var(--space-5);
+    font-size: var(--font-base);
+  }
+  
+  /* Inputs más grandes para facilidad de uso */
+  input, select, textarea {
+    min-height: 48px;
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--font-base);
+  }
+}
+
+@media (min-width: 2560px) {
+  .btn, button, [role="button"] {
+    min-height: 56px;
+    padding: var(--space-4) var(--space-6);
+    font-size: var(--font-lg);
+  }
+  
+  input, select, textarea {
+    min-height: 56px;
+    padding: var(--space-4) var(--space-5);
+    font-size: var(--font-lg);
+  }
+}
+
+/* Tarjetas escalables */
+@media (min-width: 1920px) {
+  .card {
+    padding: var(--space-8);
+    border-radius: var(--radius-xl);
+  }
+}
+
+/* Iconos escalables */
+@media (min-width: 1920px) {
+  .lucide, svg.icon, [class*="w-4"], [class*="w-5"], [class*="w-6"] {
+    transform: scale(1.25);
+  }
+}
+
+@media (min-width: 2560px) {
+  .lucide, svg.icon, [class*="w-4"], [class*="w-5"], [class*="w-6"] {
+    transform: scale(1.5);
+  }
 }
