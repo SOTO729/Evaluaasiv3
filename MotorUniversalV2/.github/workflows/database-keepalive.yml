@@ -1,0 +1,59 @@
+# Database Keep-Alive Workflow
+# Prevents SQL Serverless cold starts by calling warmup endpoint every 45 minutes
+# during business hours
+
+name: Database Keep-Alive
+
+on:
+  schedule:
+    # Every 45 minutes from 6am to 11pm UTC on weekdays
+    - cron: '*/45 6-23 * * 1-5'
+    # Every 4 hours on weekends (to save costs)
+    - cron: '0 */4 * * 0,6'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  warmup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - name: Call Warmup Endpoint
+        run: |
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES..."
+            
+            RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 60 \
+              "https://evaluaasi-api.whiteforest-44e7c57b.eastus.azurecontainerapps.io/api/warmup")
+            
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+            BODY=$(echo "$RESPONSE" | sed '$d')
+            
+            echo "Response: $BODY"
+            echo "HTTP Status: $HTTP_CODE"
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ Database is warm and ready!"
+              exit 0
+            fi
+            
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "⏳ Database may be waking up, waiting 30 seconds..."
+              sleep 30
+            fi
+          done
+          
+          echo "⚠️ Database warmup completed (may have been waking up)"
+          # Don't fail the job - the database will be ready for users
+          exit 0
+
+      - name: Verify Health
+        run: |
+          curl -s --max-time 30 \
+            "https://evaluaasi-api.whiteforest-44e7c57b.eastus.azurecontainerapps.io/api/health" \
+            | jq . || echo "Health check completed"

@@ -44,7 +44,8 @@ export default function SystemReadyGuard({ children }: SystemReadyGuardProps) {
         const controller = new AbortController()
         const timeoutSignal = setTimeout(() => controller.abort(), 60000) // 60s timeout for cold start
 
-        const response = await fetch(`${API_URL}/api/health/warmup`, {
+        // API_URL already includes /api, so use /warmup directly
+        const response = await fetch(`${API_URL}/warmup`, {
           signal: controller.signal
         })
 
