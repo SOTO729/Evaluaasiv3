@@ -48,22 +48,60 @@ def create_app(config_name='development'):
          methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
          expose_headers=['Content-Type', 'Authorization'])
     
-    # Registrar blueprints
-    from app.routes import auth, exams, users, health, init, reset, debug
-    from app.routes.study_contents import study_contents_bp
-    from app.routes.conocer import conocer_bp
-    from app.routes.standards import standards_bp
+    # Registrar blueprints con logging
+    print("[INIT] Importando blueprints...")
+    try:
+        from app.routes import auth, exams, users, health, init, reset, debug
+        print("[INIT] ✅ Blueprints principales importados")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando blueprints principales: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
     
+    try:
+        from app.routes.study_contents import study_contents_bp
+        print("[INIT] ✅ study_contents_bp importado")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando study_contents_bp: {e}")
+        raise
+        
+    try:
+        from app.routes.conocer import conocer_bp
+        print("[INIT] ✅ conocer_bp importado")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando conocer_bp: {e}")
+        raise
+        
+    try:
+        from app.routes.standards import standards_bp
+        print("[INIT] ✅ standards_bp importado")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando standards_bp: {e}")
+        raise
+    
+    print("[INIT] Registrando blueprints...")
     app.register_blueprint(auth.bp, url_prefix='/api/auth')
+    print("[INIT] ✅ auth registrado")
     app.register_blueprint(exams.bp, url_prefix='/api/exams')
+    print("[INIT] ✅ exams registrado en /api/exams")
     app.register_blueprint(users.bp, url_prefix='/api/users')
+    print("[INIT] ✅ users registrado")
     app.register_blueprint(health.bp, url_prefix='/api')
+    print("[INIT] ✅ health registrado")
     app.register_blueprint(init.init_bp, url_prefix='/api')
+    print("[INIT] ✅ init registrado")
     app.register_blueprint(reset.reset_bp, url_prefix='/api')
+    print("[INIT] ✅ reset registrado")
     app.register_blueprint(debug.debug_bp, url_prefix='/api')
+    print("[INIT] ✅ debug registrado")
     app.register_blueprint(study_contents_bp, url_prefix='/api/study-contents')
+    print("[INIT] ✅ study-contents registrado")
     app.register_blueprint(conocer_bp, url_prefix='/api/conocer')
+    print("[INIT] ✅ conocer registrado")
     app.register_blueprint(standards_bp, url_prefix='/api/competency-standards')
+    print("[INIT] ✅ standards registrado")
+    print("[INIT] ✅ Todos los blueprints registrados correctamente")
     
     # Verificar y agregar columna label_style si no existe
     with app.app_context():
