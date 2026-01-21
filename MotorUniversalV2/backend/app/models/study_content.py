@@ -6,6 +6,13 @@ from datetime import datetime
 from app import db
 import re
 
+# CDN Helper para transformar URLs
+try:
+    from app.utils.cdn_helper import transform_to_cdn_url
+except ImportError:
+    def transform_to_cdn_url(url):
+        return url
+
 
 def normalize_html_spaces(html_content: str) -> str:
     """
@@ -89,7 +96,7 @@ class StudyMaterial(db.Model):
             'id': self.id,
             'title': self.title,
             'description': self.description,
-            'image_url': self.image_url,
+            'image_url': transform_to_cdn_url(self.image_url),
             'is_published': self.is_published,
             'order': self.order,
             'exam_id': self.exam_id,
@@ -269,9 +276,9 @@ class StudyVideo(db.Model):
             'topic_id': self.topic_id,
             'title': normalize_html_spaces(self.title) if self.title else self.title,
             'description': normalize_html_spaces(self.description) if self.description else self.description,
-            'video_url': self.video_url,
+            'video_url': transform_to_cdn_url(self.video_url),
             'video_type': self.video_type,
-            'thumbnail_url': self.thumbnail_url,
+            'thumbnail_url': transform_to_cdn_url(self.thumbnail_url),
             'duration_minutes': self.duration_minutes,
             'video_width': self.video_width,
             'video_height': self.video_height,
@@ -306,7 +313,7 @@ class StudyDownloadableExercise(db.Model):
             'topic_id': self.topic_id,
             'title': normalize_html_spaces(self.title) if self.title else self.title,
             'description': normalize_html_spaces(self.description) if self.description else self.description,
-            'file_url': self.file_url,
+            'file_url': transform_to_cdn_url(self.file_url),
             'file_name': self.file_name,
             'file_type': self.file_type,
             'file_size_bytes': self.file_size_bytes,
@@ -388,7 +395,7 @@ class StudyInteractiveExerciseStep(db.Model):
             'step_number': self.step_number,
             'title': normalize_html_spaces(self.title) if self.title else self.title,
             'description': normalize_html_spaces(self.description) if self.description else self.description,
-            'image_url': self.image_url,
+            'image_url': transform_to_cdn_url(self.image_url),
             'image_width': self.image_width,
             'image_height': self.image_height,
             'total_actions': self.actions.count() if self.actions else 0,

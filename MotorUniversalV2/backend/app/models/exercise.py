@@ -4,6 +4,13 @@ Modelo de Ejercicio
 from datetime import datetime
 from app import db
 
+# CDN Helper para transformar URLs
+try:
+    from app.utils.cdn_helper import transform_to_cdn_url
+except ImportError:
+    def transform_to_cdn_url(url):
+        return url
+
 
 class Exercise(db.Model):
     """Modelo de ejercicio"""
@@ -84,7 +91,7 @@ class ExerciseStep(db.Model):
             'step_number': self.step_number,
             'title': self.title,
             'description': self.description,
-            'image_url': self.image_url,
+            'image_url': transform_to_cdn_url(self.image_url),
             'image_width': self.image_width,
             'image_height': self.image_height,
             'total_actions': self.actions.count() if self.actions else 0,

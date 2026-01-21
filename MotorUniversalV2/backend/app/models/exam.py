@@ -4,6 +4,13 @@ Modelo de Examen
 from datetime import datetime
 from app import db
 
+# CDN Helper para transformar URLs
+try:
+    from app.utils.cdn_helper import transform_to_cdn_url
+except ImportError:
+    def transform_to_cdn_url(url):
+        return url
+
 
 class Exam(db.Model):
     """Modelo de examen"""
@@ -104,7 +111,7 @@ class Exam(db.Model):
             'duration_minutes': self.duration_minutes,
             'passing_score': self.passing_score,
             'pause_on_disconnect': self.pause_on_disconnect,
-            'image_url': self.image_url,
+            'image_url': transform_to_cdn_url(self.image_url),
             'is_active': self.is_active,
             'is_published': self.is_published,
             'total_questions': self.get_total_questions(),
