@@ -11,7 +11,7 @@ class Category(db.Model):
     __tablename__ = 'categories'
     
     id = db.Column(db.Integer, primary_key=True)
-    exam_id = db.Column(db.Integer, db.ForeignKey('exams.id'), nullable=False)
+    exam_id = db.Column(db.Integer, db.ForeignKey('exams.id'), nullable=False, index=True)
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     percentage = db.Column(db.Integer, nullable=False)  # Peso en el examen (%)

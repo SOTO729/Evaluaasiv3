@@ -220,7 +220,7 @@ const ExamTestResultsPage: React.FC = () => {
     setDownloadingPdf(true);
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.azurewebsites.net/api';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-api.whiteforest-44e7c57b.eastus.azurecontainerapps.io/api';
       
       console.log('📤 Descargando PDF:', { resultId, apiUrl, hasToken: !!accessToken });
       

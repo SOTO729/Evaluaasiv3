@@ -1572,7 +1572,7 @@ const ExamTestRunPage: React.FC = () => {
                   ?.find((a: any) => `${a.step_id}_${a.id}` === showErrorModal.actionKey);
                 const additionalAttempts = action?.max_attempts ?? 1;
                 const usedAttempts = actionErrors[showErrorModal.actionKey]?.attempts || 0;
-                // El error actual (oportunidad 0) no cuenta, las oportunidades adicionales empiezan después  
+                // El error actual (oportunidad 0) no cuenta, las oportunidades adicionales empiezan después   
                 const remaining = additionalAttempts - usedAttempts + 1;
                 
                 return (

@@ -55,8 +55,9 @@ const HomePage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-blue-900"></div>
+        <p className="mt-4 text-base font-medium text-gray-700">Cargando panel...</p>
       </div>
     )
   }

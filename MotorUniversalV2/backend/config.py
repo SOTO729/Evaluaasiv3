@@ -18,6 +18,15 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False
     
+    # Connection Pooling para escalabilidad
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_size': int(os.getenv('DB_POOL_SIZE', 20)),
+        'pool_recycle': int(os.getenv('DB_POOL_RECYCLE', 300)),
+        'pool_pre_ping': True,
+        'max_overflow': int(os.getenv('DB_MAX_OVERFLOW', 10)),
+        'pool_timeout': int(os.getenv('DB_POOL_TIMEOUT', 30)),
+    }
+    
     # JWT
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key-change-in-production')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(seconds=int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES', 900)))

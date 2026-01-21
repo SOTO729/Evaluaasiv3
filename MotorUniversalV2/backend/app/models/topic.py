@@ -11,7 +11,7 @@ class Topic(db.Model):
     __tablename__ = 'topics'
     
     id = db.Column(db.Integer, primary_key=True)
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False, index=True)
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     order = db.Column(db.Integer, default=0)

@@ -4,14 +4,16 @@ Rutas para gestión de Estándares de Competencia (ECM)
 from datetime import datetime
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app import db
+from app import db, cache
 from app.models import User, CompetencyStandard, DeletionRequest, Exam
+from app.utils.cache_utils import make_cache_key, invalidate_standards_cache
 
 standards_bp = Blueprint('standards', __name__)
 
 
 @standards_bp.route('/', methods=['GET'])
 @jwt_required()
+@cache.cached(timeout=300, key_prefix='standards_list')
 def get_standards():
     """
     Obtener lista de estándares de competencia

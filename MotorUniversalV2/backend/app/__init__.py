@@ -40,10 +40,13 @@ def create_app(config_name='development'):
     cache.init_app(app)
     swagger.init_app(app)
     
-    # Configurar CORS
+    # Configurar CORS con opciones completas
     CORS(app, 
          origins=app.config['CORS_ORIGINS'],
-         supports_credentials=app.config['CORS_SUPPORTS_CREDENTIALS'])
+         supports_credentials=app.config['CORS_SUPPORTS_CREDENTIALS'],
+         allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+         expose_headers=['Content-Type', 'Authorization'])
     
     # Registrar blueprints
     from app.routes import auth, exams, users, health, init, reset, debug

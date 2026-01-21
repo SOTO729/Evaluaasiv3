@@ -1,10 +1,10 @@
 import axios, { AxiosError } from 'axios'
 import { useAuthStore } from '../store/authStore'
 
-// Usar la URL del backend de Azure en producción
+// Usar la URL del backend de Azure Container Apps en producción
 const API_URL = import.meta.env.VITE_API_URL || 
   (import.meta.env.MODE === 'production' 
-    ? 'https://evaluaasi-motorv2-api.azurewebsites.net/api' 
+    ? 'https://evaluaasi-api.whiteforest-44e7c57b.eastus.azurecontainerapps.io/api' 
     : '/api')
 
 // Debug: Log de la URL del API

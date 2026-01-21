@@ -11,12 +11,12 @@ class Result(db.Model):
     __tablename__ = 'results'
     
     id = db.Column(db.String(36), primary_key=True)
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False, index=True)
     voucher_id = db.Column(db.Integer, db.ForeignKey('vouchers.id'), nullable=True)  # Nullable para permitir resultados sin voucher
-    exam_id = db.Column(db.Integer, nullable=False)
+    exam_id = db.Column(db.Integer, nullable=False, index=True)
     
     # Relación con Estándar de Competencia (ECM) - los resultados se asocian al ECM
-    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id'), nullable=True)
+    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id'), nullable=True, index=True)
     
     # Resultado
     score = db.Column(db.Integer, nullable=False)  # Puntaje obtenido (0-100)
@@ -41,6 +41,7 @@ class Result(db.Model):
     certificate_url = db.Column(db.String(500))  # URL del certificado en Azure Blob
     certificate_code = db.Column(db.String(100), unique=True)  # Código único del certificado
     report_url = db.Column(db.String(500))  # URL del reporte PDF en Azure Blob
+    pdf_status = db.Column(db.String(50), default='pending')  # pending, processing, completed, error
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -79,7 +80,8 @@ class Result(db.Model):
             'duration_seconds': self.duration_seconds,
             'certificate_code': self.certificate_code,
             'certificate_url': self.certificate_url,
-            'report_url': self.report_url
+            'report_url': self.report_url,
+            'pdf_status': self.pdf_status
         }
         
         # Incluir info del estándar de competencia si existe

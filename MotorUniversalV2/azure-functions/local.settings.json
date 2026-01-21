@@ -1,0 +1,11 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "DATABASE_URL": "",
+    "AZURE_STORAGE_CONNECTION_STRING": "",
+    "AZURE_STORAGE_CONTAINER": "evaluaasi-files",
+    "PDF_QUEUE_NAME": "pdf-generation-queue"
+  }
+}

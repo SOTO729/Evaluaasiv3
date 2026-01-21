@@ -28,14 +28,14 @@ class Question(db.Model):
     __tablename__ = 'questions'
     
     id = db.Column(db.String(36), primary_key=True)
-    topic_id = db.Column(db.Integer, db.ForeignKey('topics.id'), nullable=False)
+    topic_id = db.Column(db.Integer, db.ForeignKey('topics.id'), nullable=False, index=True)
     question_type_id = db.Column(db.Integer, db.ForeignKey('question_types.id'), nullable=False)
     question_number = db.Column(db.Integer, nullable=False)
     question_text = db.Column(db.Text, nullable=False)
     image_url = db.Column(db.String(500))  # URL de imagen en Azure Blob
     points = db.Column(db.Integer, default=1)  # Puntos que vale la pregunta
     difficulty = db.Column(db.String(20), default='medium')  # easy, medium, hard
-    type = db.Column(db.String(20), default='exam', nullable=False)  # exam, simulator
+    type = db.Column(db.String(20), default='exam', nullable=False, index=True)  # exam, simulator
     
     # Auditoría
     created_by = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)

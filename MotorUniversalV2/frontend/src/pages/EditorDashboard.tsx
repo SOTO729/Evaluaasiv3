@@ -48,8 +48,9 @@ const EditorDashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-blue-900"></div>
+        <p className="mt-4 text-base font-medium text-gray-700">Cargando panel...</p>
       </div>
     )
   }
@@ -75,8 +76,21 @@ const EditorDashboard = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Estilos para gradiente animado */}
+      <style>{`
+        @keyframes gradientShift {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        .animated-gradient-editor {
+          background: linear-gradient(-45deg, #1e3a8a, #1e40af, #1d4ed8, #2563eb, #1e3a8a, #172554, #1e40af, #1d4ed8);
+          background-size: 400% 400%;
+          animation: gradientShift 20s ease infinite;
+        }
+      `}</style>
+
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-indigo-600 via-blue-700 to-purple-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-white relative overflow-hidden">
+      <div className="animated-gradient-editor rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 sm:w-64 h-32 sm:h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-24 sm:w-48 h-24 sm:h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
         

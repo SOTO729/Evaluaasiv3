@@ -11,6 +11,7 @@ from flask_jwt_extended import (
 )
 from app import db, cache
 from app.models.user import User
+from app.utils.rate_limit import rate_limit_login, rate_limit_register
 from datetime import datetime
 import redis
 
@@ -24,6 +25,7 @@ except:
 
 
 @bp.route('/register', methods=['POST'])
+@rate_limit_register(limit=3, window=3600)  # 3 registros por hora por IP
 def register():
     """
     Registro de nuevo usuario
@@ -106,6 +108,7 @@ def register():
 
 
 @bp.route('/login', methods=['POST'])
+@rate_limit_login(limit=5, window=300)  # 5 intentos cada 5 minutos por IP
 def login():
     """
     Iniciar sesión

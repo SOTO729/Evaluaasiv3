@@ -12,6 +12,8 @@ from app.models.topic import Topic
 from app.models.question import Question, QuestionType
 from app.models.answer import Answer
 from app.models.exercise import Exercise, ExerciseStep, ExerciseAction
+from app.utils.rate_limit import rate_limit_exams, rate_limit_evaluation, rate_limit_pdf
+from app.utils.cache_utils import invalidate_on_exam_complete
 
 bp = Blueprint('exams', __name__)
 
@@ -115,6 +117,7 @@ def fix_ordering_answers():
 
 @bp.route('', methods=['GET'])
 @jwt_required()
+@rate_limit_exams(limit=50, window=60)
 def get_exams():
     """
     Listar todos los exámenes
@@ -2410,6 +2413,7 @@ def evaluate_exercise(exercise_data: dict, exercise_responses: dict) -> dict:
 
 @bp.route('/<int:exam_id>/evaluate', methods=['POST'])
 @jwt_required()
+@rate_limit_evaluation(limit=10, window=60)
 def evaluate_exam(exam_id):
     """
     Evalúa las respuestas de un examen
@@ -2716,6 +2720,9 @@ def save_exam_result(exam_id):
         db.session.add(result)
         db.session.commit()
         
+        # Invalidar cache del dashboard del usuario para que vea los resultados actualizados
+        invalidate_on_exam_complete(str(user_id), exam_id, exam.competency_standard_id)
+        
         print(f"✅ Resultado guardado: id={result.id}, score={score}, percentage={percentage}, aprobado={result_value == 1}")
         print(f"=== FIN GUARDAR RESULTADO ===\n")
         
@@ -2873,11 +2880,12 @@ def options_upload_result_report(result_id):
 
 @bp.route('/results/<result_id>/generate-pdf', methods=['GET'])
 @jwt_required()
+@rate_limit_pdf(limit=5, window=60)
 def generate_result_pdf(result_id):
     """
     Genera el PDF del reporte de evaluación en el backend
     """
-    from flask import send_file
+    from flask import send_file, current_app
     from io import BytesIO
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter
@@ -2887,6 +2895,10 @@ def generate_result_pdf(result_id):
     from reportlab.pdfgen import canvas
     from datetime import datetime
     import re
+    import time
+    
+    start_time = time.time()
+    current_app.logger.info(f'📥 [PDF] Iniciando generación de reporte - result_id: {result_id}')
     
     try:
         from app.models.result import Result
@@ -2895,15 +2907,22 @@ def generate_result_pdf(result_id):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
+        current_app.logger.info(f'📥 [PDF] Usuario: {user.email if user else "Unknown"}')
+        
         # Obtener resultado
         result = Result.query.filter_by(id=result_id, user_id=str(user_id)).first()
         if not result:
+            current_app.logger.warning(f'📥 [PDF] Resultado no encontrado: {result_id}')
             return jsonify({'error': 'Resultado no encontrado'}), 404
         
         # Obtener examen
         exam = Exam.query.get(result.exam_id)
         if not exam:
+            current_app.logger.warning(f'📥 [PDF] Examen no encontrado para resultado: {result_id}')
             return jsonify({'error': 'Examen no encontrado'}), 404
+        
+        current_app.logger.info(f'📥 [PDF] Examen: {exam.name[:50] if exam.name else "Sin nombre"}')
+        current_app.logger.info(f'📥 [PDF] Score: {result.score}% - Resultado: {"Aprobado" if result.result == 1 else "No aprobado"}')
         
         # Crear PDF en memoria
         buffer = BytesIO()
@@ -3303,6 +3322,13 @@ def generate_result_pdf(result_id):
         exam_short = strip_html(exam.name)[:20] if exam.name else 'Examen'
         filename = f"Reporte_Evaluacion_{exam_short.replace(' ', '_')}.pdf"
         
+        # Log de completado
+        elapsed_time = time.time() - start_time
+        pdf_size = buffer.getbuffer().nbytes
+        current_app.logger.info(f'✅ [PDF] Reporte generado exitosamente')
+        current_app.logger.info(f'✅ [PDF] Archivo: {filename} - Tamaño: {pdf_size/1024:.2f} KB')
+        current_app.logger.info(f'✅ [PDF] Tiempo de generación: {elapsed_time*1000:.0f} ms')
+        
         return send_file(
             buffer,
             mimetype='application/pdf',
@@ -3312,8 +3338,8 @@ def generate_result_pdf(result_id):
         
     except Exception as e:
         import traceback
-        print(f"ERROR generando PDF: {str(e)}")
-        print(traceback.format_exc())
+        current_app.logger.error(f"❌ [PDF] Error generando PDF: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         return jsonify({
             'error': 'Error al generar el PDF',
             'message': str(e)
@@ -3331,18 +3357,23 @@ def options_generate_pdf(result_id):
 
 @bp.route('/results/<result_id>/generate-certificate', methods=['GET'])
 @jwt_required()
+@rate_limit_pdf(limit=5, window=60)
 def generate_certificate_pdf(result_id):
     """
     Genera el certificado PDF usando la plantilla
     Solo disponible para resultados aprobados
     """
-    from flask import send_file
+    from flask import send_file, current_app
     from io import BytesIO
     from reportlab.pdfgen import canvas
     from reportlab.lib.colors import HexColor
     from reportlab.pdfbase.pdfmetrics import stringWidth
     from pypdf import PdfReader, PdfWriter
     import os
+    import time
+    
+    start_time = time.time()
+    current_app.logger.info(f'🎓 [CERTIFICADO] Iniciando generación - result_id: {result_id}')
     
     try:
         from app.models.result import Result
@@ -3351,22 +3382,31 @@ def generate_certificate_pdf(result_id):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
+        current_app.logger.info(f'🎓 [CERTIFICADO] Usuario: {user.email if user else "Unknown"}')
+        
         # Obtener resultado
         result = Result.query.filter_by(id=result_id, user_id=str(user_id)).first()
         if not result:
+            current_app.logger.warning(f'🎓 [CERTIFICADO] Resultado no encontrado: {result_id}')
             return jsonify({'error': 'Resultado no encontrado'}), 404
         
         # Verificar que el resultado sea aprobado
         exam = Exam.query.get(result.exam_id)
         if not exam:
+            current_app.logger.warning(f'🎓 [CERTIFICADO] Examen no encontrado para resultado: {result_id}')
             return jsonify({'error': 'Examen no encontrado'}), 404
         
+        current_app.logger.info(f'🎓 [CERTIFICADO] Examen: {exam.name[:50] if exam.name else "Sin nombre"}')
+        current_app.logger.info(f'🎓 [CERTIFICADO] Score: {result.score}% - Passing: {exam.passing_score}%')
+        
         if result.score < exam.passing_score:
+            current_app.logger.warning(f'🎓 [CERTIFICADO] Examen no aprobado - Score insuficiente')
             return jsonify({'error': 'Solo se pueden generar certificados para exámenes aprobados'}), 400
         
         # Cargar plantilla PDF
         template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'plantilla.pdf')
         if not os.path.exists(template_path):
+            current_app.logger.error(f'🎓 [CERTIFICADO] Plantilla no encontrada: {template_path}')
             return jsonify({'error': 'Plantilla de certificado no encontrada'}), 500
         
         reader = PdfReader(template_path)
@@ -3452,6 +3492,13 @@ def generate_certificate_pdf(result_id):
         exam_short = strip_html(exam.name)[:30] if exam.name else 'Certificado'
         filename = f"Certificado_{exam_short.replace(' ', '_')}.pdf"
         
+        # Log de completado
+        elapsed_time = time.time() - start_time
+        pdf_size = buffer_final.getbuffer().nbytes
+        current_app.logger.info(f'✅ [CERTIFICADO] Certificado generado exitosamente')
+        current_app.logger.info(f'✅ [CERTIFICADO] Archivo: {filename} - Tamaño: {pdf_size/1024:.2f} KB')
+        current_app.logger.info(f'✅ [CERTIFICADO] Tiempo de generación: {elapsed_time*1000:.0f} ms')
+        
         return send_file(
             buffer_final,
             mimetype='application/pdf',
@@ -3461,8 +3508,8 @@ def generate_certificate_pdf(result_id):
         
     except Exception as e:
         import traceback
-        print(f"ERROR generando certificado: {str(e)}")
-        print(traceback.format_exc())
+        current_app.logger.error(f"❌ [CERTIFICADO] Error generando certificado: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         return jsonify({
             'error': 'Error al generar el certificado',
             'message': str(e)
@@ -3525,3 +3572,142 @@ def debug_result_data(result_id):
             'error': str(e),
             'traceback': traceback.format_exc()
         }), 500
+
+
+# ============= GENERACIÓN ASÍNCRONA DE PDFs =============
+
+@bp.route('/results/<result_id>/request-pdf', methods=['POST'])
+@jwt_required()
+@rate_limit_pdf(limit=5, window=60)
+def request_pdf_generation(result_id):
+    """
+    Solicita la generación asíncrona de un PDF.
+    El PDF se genera en segundo plano y se almacena en Azure Blob Storage.
+    
+    Body opcional:
+    {
+        "type": "evaluation_report" | "certificate"
+    }
+    """
+    from app.models.result import Result
+    from app.utils.queue_utils import queue_pdf_generation, is_async_pdf_enabled
+    
+    user_id = get_jwt_identity()
+    
+    try:
+        # Verificar que el resultado pertenece al usuario
+        result = Result.query.filter_by(id=result_id, user_id=user_id).first()
+        
+        if not result:
+            return jsonify({'error': 'Resultado no encontrado'}), 404
+        
+        # Obtener tipo de PDF
+        data = request.get_json() or {}
+        pdf_type = data.get('type', 'evaluation_report')
+        
+        if pdf_type not in ['evaluation_report', 'certificate']:
+            return jsonify({'error': 'Tipo de PDF inválido'}), 400
+        
+        # Verificar si la generación async está habilitada
+        if not is_async_pdf_enabled():
+            # Fallback: redirigir a la generación síncrona
+            return jsonify({
+                'message': 'Async PDF generation not enabled',
+                'fallback_url': f'/api/exams/results/{result_id}/generate-pdf' if pdf_type == 'evaluation_report' 
+                               else f'/api/exams/results/{result_id}/generate-certificate',
+                'status': 'sync'
+            }), 200
+        
+        # Verificar si ya existe el PDF
+        if pdf_type == 'evaluation_report' and result.report_url:
+            return jsonify({
+                'status': 'completed',
+                'url': result.report_url
+            }), 200
+        
+        if pdf_type == 'certificate' and result.certificate_url:
+            return jsonify({
+                'status': 'completed',
+                'url': result.certificate_url
+            }), 200
+        
+        # Marcar como procesando
+        if hasattr(result, 'pdf_status'):
+            result.pdf_status = 'processing'
+            db.session.commit()
+        
+        # Encolar la generación
+        queued = queue_pdf_generation(
+            result_id=str(result_id),
+            user_id=str(user_id),
+            pdf_type=pdf_type
+        )
+        
+        if queued:
+            return jsonify({
+                'status': 'queued',
+                'message': 'PDF generation queued. Check status with GET /results/<id>/pdf-status',
+                'result_id': result_id
+            }), 202  # Accepted
+        else:
+            return jsonify({
+                'error': 'Failed to queue PDF generation',
+                'fallback_url': f'/api/exams/results/{result_id}/generate-pdf'
+            }), 500
+            
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+@bp.route('/results/<result_id>/pdf-status', methods=['GET'])
+@jwt_required()
+def get_pdf_status(result_id):
+    """
+    Verifica el estado de la generación del PDF.
+    
+    Retorna:
+    - pending: En cola, esperando procesamiento
+    - processing: Generándose
+    - completed: Listo, incluye URL
+    - error: Error en la generación
+    """
+    from app.models.result import Result
+    
+    user_id = get_jwt_identity()
+    
+    try:
+        result = Result.query.filter_by(id=result_id, user_id=user_id).first()
+        
+        if not result:
+            return jsonify({'error': 'Resultado no encontrado'}), 404
+        
+        response = {
+            'result_id': result_id,
+            'report_url': result.report_url if hasattr(result, 'report_url') else None,
+            'certificate_url': result.certificate_url if hasattr(result, 'certificate_url') else None,
+            'status': getattr(result, 'pdf_status', 'unknown')
+        }
+        
+        # Determinar estado basado en URLs disponibles
+        if result.report_url or result.certificate_url:
+            response['status'] = 'completed'
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/results/<result_id>/request-pdf', methods=['OPTIONS'])
+@bp.route('/results/<result_id>/pdf-status', methods=['OPTIONS'])
+def options_pdf_async(result_id):
+    """Maneja CORS para endpoints async de PDF"""
+    response = jsonify({'status': 'ok'})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
+    return response

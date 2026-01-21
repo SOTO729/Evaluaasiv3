@@ -13,6 +13,7 @@
     -webkit-overflow-scrolling: touch;
     height: 100%;
     overflow-x: hidden;
+    overflow-y: auto;
   }
   
   body {
@@ -22,17 +23,19 @@
       sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overscroll-behavior: contain;
+    overscroll-behavior-x: none;
     overflow-x: hidden;
+    overflow-y: auto;
     min-height: 100%;
-    position: relative;
+    height: auto;
   }
   
   /* Fix para el root de React */
   #root {
     min-height: 100vh;
-    display: flex;
-    flex-direction: column;
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: visible;
   }
   
   /* Contenedores con scroll - mejoras para ratón y touch */

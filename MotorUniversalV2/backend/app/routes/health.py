@@ -2,6 +2,7 @@
 Rutas de health check
 """
 from flask import Blueprint, jsonify
+from sqlalchemy import text
 from app import db
 from datetime import datetime
 
@@ -22,7 +23,7 @@ def health_check():
     # Verificar conexión a DB
     db_status = 'healthy'
     try:
-        db.session.execute('SELECT 1')
+        db.session.execute(text('SELECT 1'))
     except Exception as e:
         db_status = f'unhealthy: {str(e)}'
     

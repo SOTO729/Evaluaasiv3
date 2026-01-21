@@ -12,11 +12,11 @@ class Exercise(db.Model):
     __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.String(36), primary_key=True)
-    topic_id = db.Column(db.Integer, db.ForeignKey('topics.id'), nullable=False)
+    topic_id = db.Column(db.Integer, db.ForeignKey('topics.id'), nullable=False, index=True)
     exercise_number = db.Column(db.Integer, nullable=False)
     title = db.Column(db.String(500))
     description = db.Column(db.Text)
-    type = db.Column(db.String(20), default='exam', nullable=False)  # exam, simulator
+    type = db.Column(db.String(20), default='exam', nullable=False, index=True)  # exam, simulator
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
     # Auditoría

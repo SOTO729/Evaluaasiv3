@@ -395,36 +395,55 @@ const ApprovalCertificateSection = ({ exams, formatDate }: { exams: any[], forma
       return
     }
     
+    // Log inicio de descarga de certificado
+    console.log('🎓 [CERTIFICADO] Iniciando descarga de certificado')
+    console.log('🎓 [CERTIFICADO] Result ID:', resultId)
+    console.log('🎓 [CERTIFICADO] Examen:', exam.name)
+    console.log('🎓 [CERTIFICADO] Timestamp:', new Date().toISOString())
+    
     setDownloadingId(exam.id)
     
     try {
       // Usar la URL correcta del API (ya incluye /api)
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.azurewebsites.net/api'
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-api.whiteforest-44e7c57b.eastus.azurecontainerapps.io/api'
       
+      console.log('🎓 [CERTIFICADO] Llamando a:', `${apiUrl}/exams/results/${resultId}/generate-certificate`)
+      
+      const startTime = performance.now()
       const response = await fetch(`${apiUrl}/exams/results/${resultId}/generate-certificate`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
       })   
+      const endTime = performance.now()
+      
+      console.log('🎓 [CERTIFICADO] Respuesta en:', Math.round(endTime - startTime), 'ms')
+      console.log('🎓 [CERTIFICADO] Status:', response.status)
       
       if (!response.ok) {
         const error = await response.json()
+        console.error('❌ [CERTIFICADO] Error:', error)
         throw new Error(error.message || 'Error al generar el certificado')
       }
       
       // Descargar el PDF
       const blob = await response.blob()
+      console.log('🎓 [CERTIFICADO] Tamaño del archivo:', (blob.size / 1024).toFixed(2), 'KB')
+      
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `Certificado_${exam.name.replace(/\s+/g, '_')}.pdf`
+      const filename = `Certificado_${exam.name.replace(/\s+/g, '_')}.pdf`
+      a.download = filename
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
+      
+      console.log('✅ [CERTIFICADO] Descarga completada:', filename)
     } catch (error: any) {
-      console.error('Error descargando certificado:', error)
+      console.error('❌ [CERTIFICADO] Error descargando certificado:', error)
       alert(error.message || 'Error al descargar el certificado')
     } finally {
       setDownloadingId(null)
@@ -752,7 +771,7 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
       }
       
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.azurewebsites.net/api'
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-api.whiteforest-44e7c57b.eastus.azurecontainerapps.io/api'
         const response = await fetch(`${apiUrl}/conocer/certificates`, {
           headers: {
             'Authorization': `Bearer ${accessToken}`
@@ -779,7 +798,7 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
     setDownloadingId(certificate.id)
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.azurewebsites.net/api'
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-api.whiteforest-44e7c57b.eastus.azurecontainerapps.io/api'
       const response = await fetch(`${apiUrl}/conocer/certificates/${certificate.id}/download`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`

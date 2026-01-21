@@ -102,22 +102,34 @@ const EvaluationReportDetailPage = () => {
     setGeneratingPdf(result.id)
     setDownloadMessage('Preparando tu certificado de evaluación...')
     
+    // Log inicio de descarga
+    console.log('📥 [PDF] Iniciando descarga de reporte de evaluación')
+    console.log('📥 [PDF] Result ID:', result.id)
+    console.log('📥 [PDF] Examen:', examData?.name)
+    console.log('📥 [PDF] Timestamp:', new Date().toISOString())
+    
     try {
       // Usar el endpoint del backend para generar el PDF
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.azurewebsites.net/api'
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-api.whiteforest-44e7c57b.eastus.azurecontainerapps.io/api'
       
       setDownloadMessage('Generando PDF...')
+      console.log('📥 [PDF] Llamando a:', `${apiUrl}/exams/results/${result.id}/generate-pdf`)
       
+      const startTime = performance.now()
       const response = await fetch(`${apiUrl}/exams/results/${result.id}/generate-pdf`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
       })
+      const endTime = performance.now()
+      
+      console.log('📥 [PDF] Respuesta recibida en:', Math.round(endTime - startTime), 'ms')
+      console.log('📥 [PDF] Status:', response.status)
       
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('❌ Error response:', response.status, errorText)
+        console.error('❌ [PDF] Error response:', response.status, errorText)
         throw new Error(`Error ${response.status}: ${errorText}`)
       }
       
@@ -125,17 +137,22 @@ const EvaluationReportDetailPage = () => {
       
       // Descargar el PDF
       const blob = await response.blob()
+      console.log('📥 [PDF] Tamaño del archivo:', (blob.size / 1024).toFixed(2), 'KB')
+      
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `Certificado_Evaluacion_${examData?.name?.replace(/\s+/g, '_') || 'Examen'}_${result.id.slice(0, 8)}.pdf`
+      const filename = `Certificado_Evaluacion_${examData?.name?.replace(/\s+/g, '_') || 'Examen'}_${result.id.slice(0, 8)}.pdf`
+      a.download = filename
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
       
+      console.log('✅ [PDF] Descarga completada:', filename)
+      
     } catch (error) {
-      console.error('Error generando PDF:', error)
+      console.error('❌ [PDF] Error generando PDF:', error)
       alert('Error al generar el PDF. Por favor intenta de nuevo.')
     } finally {
       setGeneratingPdf(null)

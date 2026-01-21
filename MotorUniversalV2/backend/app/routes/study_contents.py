@@ -25,6 +25,8 @@ from app.models.study_content import (
 from app.models.exam import Exam
 from app.models.student_progress import StudentContentProgress, StudentTopicProgress
 from app.utils.azure_storage import azure_storage
+from app.utils.rate_limit import rate_limit_study_contents, rate_limit_upload
+from app.utils.cache_utils import invalidate_on_progress_update
 
 study_contents_bp = Blueprint('study_contents', __name__)
 
@@ -2321,6 +2323,9 @@ def register_content_progress(content_type, content_id):
         print(f"DEBUG: Before commit - progress.score={progress.score}, progress.is_completed={progress.is_completed}")
         db.session.commit()
         print(f"DEBUG: Commit successful")
+        
+        # Invalidar cache del dashboard del usuario
+        invalidate_on_progress_update(user_id)
         
         # Actualizar progreso del tema
         update_topic_progress(user_id, topic_id)

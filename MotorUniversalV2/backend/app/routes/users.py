@@ -3,11 +3,12 @@ Rutas de usuarios
 """
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app import db
+from app import db, cache
 from app.models.user import User
 from app.models.exam import Exam
 from app.models.voucher import Voucher
 from app.models.result import Result
+from app.utils.cache_utils import make_cache_key_with_user
 
 bp = Blueprint('users', __name__)
 
@@ -200,42 +201,60 @@ def update_document_options(user_id):
 
 @bp.route('/me/dashboard', methods=['GET'])
 @jwt_required()
+@cache.cached(timeout=60, make_cache_key=make_cache_key_with_user)  # Cache por usuario, 60 segundos
 def get_dashboard():
     """
     Obtener datos del dashboard del usuario actual
     Incluye exámenes disponibles, resultados y materiales de estudio
+    
+    OPTIMIZADO: Usa queries agregadas para evitar N+1
     
     IMPORTANTE: Los resultados se agrupan por ECM (competency_standard_id) cuando
     el examen tiene uno asociado, permitiendo ver el historial unificado de todas
     las versiones de examen para ese estándar de competencia.
     """
     try:
+        from sqlalchemy import func, and_, or_, case, literal
+        from sqlalchemy.orm import joinedload
+        
         user_id = get_jwt_identity()
         current_user = User.query.get(user_id)
         
         if not current_user:
             return jsonify({'error': 'Usuario no encontrado'}), 404
         
-        # Obtener exámenes publicados disponibles para todos
-        available_exams = Exam.query.filter_by(is_published=True).order_by(Exam.name).all()
+        # ========== OPTIMIZACIÓN: Query única para exámenes con conteo de categorías ==========
+        # Usamos subquery para contar categorías en lugar de lazy loading
+        from app.models.category import Category
         
-        # Obtener resultados del usuario
+        category_counts = db.session.query(
+            Category.exam_id,
+            func.count(Category.id).label('count')
+        ).group_by(Category.exam_id).subquery()
+        
+        available_exams = db.session.query(
+            Exam,
+            func.coalesce(category_counts.c.count, 0).label('categories_count')
+        ).outerjoin(
+            category_counts, Exam.id == category_counts.c.exam_id
+        ).filter(
+            Exam.is_published == True
+        ).order_by(Exam.name).all()
+        
+        # ========== OPTIMIZACIÓN: Una sola query para todos los resultados ==========
         user_results = Result.query.filter_by(user_id=str(user_id)).order_by(Result.created_at.desc()).all()
         
         # Crear diccionarios de resultados por ECM y por exam_id
-        # Prioridad: ECM > exam_id (para exámenes sin ECM)
         results_by_ecm = {}
-        results_by_exam = {}  # Para exámenes legacy sin ECM
+        results_by_exam = {}
         
         for result in user_results:
-            # Si el resultado tiene ECM, agruparlo por ECM
             if result.competency_standard_id:
                 ecm_id = result.competency_standard_id
                 if ecm_id not in results_by_ecm:
                     results_by_ecm[ecm_id] = []
                 results_by_ecm[ecm_id].append(result.to_dict())
             else:
-                # Fallback: agrupar por exam_id (legacy)
                 exam_id = result.exam_id
                 if exam_id not in results_by_exam:
                     results_by_exam[exam_id] = []
@@ -243,30 +262,18 @@ def get_dashboard():
         
         # Construir lista de exámenes con resultados
         exams_data = []
-        for exam in available_exams:
-            # Obtener resultados según ECM o exam_id
+        for exam, categories_count in available_exams:
             if exam.competency_standard_id and exam.competency_standard_id in results_by_ecm:
-                # Usar resultados del ECM (historial unificado de todas las versiones)
                 exam_results = results_by_ecm.get(exam.competency_standard_id, [])
             else:
-                # Fallback: usar resultados por exam_id (legacy)
                 exam_results = results_by_exam.get(exam.id, [])
             
-            # Calcular estadísticas del examen
             best_score = max([r['score'] for r in exam_results], default=None)
             attempts = len(exam_results)
             last_attempt = exam_results[0] if exam_results else None
             is_completed = any(r['status'] == 1 for r in exam_results)
             is_approved = any(r['result'] == 1 for r in exam_results)
-            
-            # Obtener el primer resultado aprobado (para el certificado)
             approved_result = next((r for r in exam_results if r['result'] == 1), None)
-            
-            # Contar categorías de forma segura
-            try:
-                categories_count = exam.categories.count() if hasattr(exam.categories, 'count') else len(list(exam.categories))
-            except:
-                categories_count = 0
             
             exams_data.append({
                 'id': exam.id,
@@ -277,8 +284,7 @@ def get_dashboard():
                 'passing_score': exam.passing_score,
                 'is_published': exam.is_published,
                 'categories_count': categories_count,
-                'competency_standard_id': exam.competency_standard_id,  # Incluir ECM ID
-                # Resultados del usuario
+                'competency_standard_id': exam.competency_standard_id,
                 'user_stats': {
                     'attempts': attempts,
                     'best_score': best_score,
@@ -293,106 +299,157 @@ def get_dashboard():
         total_exams = len(available_exams)
         completed_exams = sum(1 for e in exams_data if e['user_stats']['is_completed'])
         approved_exams = sum(1 for e in exams_data if e['user_stats']['is_approved'])
-        
-        # Calcular promedio solo de exámenes completados
         scores = [e['user_stats']['best_score'] for e in exams_data if e['user_stats']['best_score'] is not None]
         average_score = sum(scores) / len(scores) if scores else 0
         
-        # Obtener materiales de estudio publicados
+        # ========== OPTIMIZACIÓN: Materiales con queries agregadas ==========
         materials_data = []
         try:
-            from app.models.study_content import StudyMaterial, StudyTopic, StudyReading, StudyVideo, StudyDownloadableExercise, StudyInteractiveExercise
+            from app.models.study_content import StudyMaterial, StudySession, StudyTopic, StudyReading, StudyVideo, StudyDownloadableExercise, StudyInteractiveExercise
             from app.models.student_progress import StudentContentProgress
-            from sqlalchemy import text
             
+            # Query para obtener materiales publicados
             available_materials = StudyMaterial.query.filter_by(is_published=True).order_by(StudyMaterial.order, StudyMaterial.title).all()
             
-            for material in available_materials:
-                # Calcular progreso del material
-                sessions_count = 0
-                total_contents = 0
-                completed_contents = 0
+            if available_materials:
+                material_ids = [m.id for m in available_materials]
                 
-                try:
-                    sessions = material.sessions.all() if hasattr(material.sessions, 'all') else list(material.sessions)
-                    sessions_count = len(sessions)
+                # ========== OPTIMIZACIÓN: Contar sesiones por material en una query ==========
+                sessions_count_query = db.session.query(
+                    StudySession.material_id,
+                    func.count(StudySession.id).label('count')
+                ).filter(
+                    StudySession.material_id.in_(material_ids)
+                ).group_by(StudySession.material_id).all()
+                
+                sessions_count_map = {row[0]: row[1] for row in sessions_count_query}
+                
+                # ========== OPTIMIZACIÓN: Obtener todos los topic_ids de una vez ==========
+                sessions_subquery = db.session.query(StudySession.id).filter(
+                    StudySession.material_id.in_(material_ids)
+                ).subquery()
+                
+                all_topics = db.session.query(
+                    StudyTopic.id,
+                    StudySession.material_id
+                ).join(
+                    StudySession, StudyTopic.session_id == StudySession.id
+                ).filter(
+                    StudySession.material_id.in_(material_ids)
+                ).all()
+                
+                # Mapear topics por material
+                topics_by_material = {}
+                all_topic_ids = []
+                for topic_id, material_id in all_topics:
+                    if material_id not in topics_by_material:
+                        topics_by_material[material_id] = []
+                    topics_by_material[material_id].append(topic_id)
+                    all_topic_ids.append(topic_id)
+                
+                # ========== OPTIMIZACIÓN: Contar contenidos por tipo en queries agregadas ==========
+                content_counts = {}
+                
+                if all_topic_ids:
+                    # Contar readings
+                    readings = db.session.query(
+                        StudyReading.topic_id,
+                        StudyReading.id
+                    ).filter(StudyReading.topic_id.in_(all_topic_ids)).all()
                     
-                    # Obtener todos los temas de todas las sesiones
-                    for session in sessions:
-                        topics = session.topics.all() if hasattr(session.topics, 'all') else list(session.topics)
+                    # Contar videos
+                    videos = db.session.query(
+                        StudyVideo.topic_id,
+                        StudyVideo.id
+                    ).filter(StudyVideo.topic_id.in_(all_topic_ids)).all()
+                    
+                    # Contar downloadables
+                    downloadables = db.session.query(
+                        StudyDownloadableExercise.topic_id,
+                        StudyDownloadableExercise.id
+                    ).filter(StudyDownloadableExercise.topic_id.in_(all_topic_ids)).all()
+                    
+                    # Contar ejercicios interactivos
+                    try:
+                        interactives = db.session.query(
+                            StudyInteractiveExercise.topic_id,
+                            StudyInteractiveExercise.id
+                        ).filter(StudyInteractiveExercise.topic_id.in_(all_topic_ids)).all()
+                    except:
+                        interactives = []
+                    
+                    # Crear mapeo de todos los content_ids por tipo
+                    all_content_ids = []
+                    content_type_map = {}  # content_id -> (content_type, topic_id)
+                    
+                    for topic_id, content_id in readings:
+                        all_content_ids.append(str(content_id))
+                        content_type_map[str(content_id)] = ('reading', topic_id)
+                    
+                    for topic_id, content_id in videos:
+                        all_content_ids.append(str(content_id))
+                        content_type_map[str(content_id)] = ('video', topic_id)
+                    
+                    for topic_id, content_id in downloadables:
+                        all_content_ids.append(str(content_id))
+                        content_type_map[str(content_id)] = ('downloadable', topic_id)
+                    
+                    for topic_id, content_id in interactives:
+                        all_content_ids.append(str(content_id))
+                        content_type_map[str(content_id)] = ('interactive', topic_id)
+                    
+                    # ========== OPTIMIZACIÓN: Una sola query para progreso del usuario ==========
+                    completed_content_ids = set()
+                    if all_content_ids:
+                        user_progress = db.session.query(
+                            StudentContentProgress.content_id
+                        ).filter(
+                            StudentContentProgress.user_id == str(user_id),
+                            StudentContentProgress.content_id.in_(all_content_ids),
+                            StudentContentProgress.is_completed == True
+                        ).all()
                         
-                        for topic in topics:
-                            # Contar contenidos de lectura (buscar en tabla study_readings)
-                            reading = StudyReading.query.filter_by(topic_id=topic.id).first()
-                            if reading:
-                                total_contents += 1
-                                progress = StudentContentProgress.query.filter_by(
-                                    user_id=str(user_id),
-                                    content_type='reading',
-                                    content_id=str(reading.id)
-                                ).first()
-                                if progress and progress.is_completed:
-                                    completed_contents += 1
-                            
-                            # Contar videos (buscar en tabla study_videos)
-                            video = StudyVideo.query.filter_by(topic_id=topic.id).first()
-                            if video:
-                                total_contents += 1
-                                progress = StudentContentProgress.query.filter_by(
-                                    user_id=str(user_id),
-                                    content_type='video',
-                                    content_id=str(video.id)
-                                ).first()
-                                if progress and progress.is_completed:
-                                    completed_contents += 1
-                            
-                            # Contar descargables (buscar en tabla study_downloadable_exercises)
-                            downloadable = StudyDownloadableExercise.query.filter_by(topic_id=topic.id).first()
-                            if downloadable:
-                                total_contents += 1
-                                progress = StudentContentProgress.query.filter_by(
-                                    user_id=str(user_id),
-                                    content_type='downloadable',
-                                    content_id=str(downloadable.id)
-                                ).first()
-                                if progress and progress.is_completed:
-                                    completed_contents += 1
-                            
-                            # Contar ejercicios interactivos
-                            try:
-                                exercises = StudyInteractiveExercise.query.filter_by(topic_id=topic.id).all()
-                                for exercise in exercises:
-                                    total_contents += 1
-                                    progress = StudentContentProgress.query.filter_by(
-                                        user_id=str(user_id),
-                                        content_type='interactive',
-                                        content_id=str(exercise.id)
-                                    ).first()
-                                    if progress and progress.is_completed:
-                                        completed_contents += 1
-                            except:
-                                pass
+                        completed_content_ids = {row[0] for row in user_progress}
                     
-                except Exception as e:
-                    print(f"[DASHBOARD] Error calculando progreso material {material.id}: {e}")
-                    import traceback
-                    traceback.print_exc()
+                    # Calcular totales y completados por material
+                    for material in available_materials:
+                        topic_ids_for_material = topics_by_material.get(material.id, [])
+                        total_contents = 0
+                        completed_contents = 0
+                        
+                        for content_id, (content_type, topic_id) in content_type_map.items():
+                            if topic_id in topic_ids_for_material:
+                                total_contents += 1
+                                if content_id in completed_content_ids:
+                                    completed_contents += 1
+                        
+                        content_counts[material.id] = {
+                            'total': total_contents,
+                            'completed': completed_contents
+                        }
                 
-                # Calcular porcentaje
-                progress_percentage = round((completed_contents / total_contents * 100)) if total_contents > 0 else 0
-                
-                materials_data.append({
-                    'id': material.id,
-                    'title': material.title,
-                    'description': material.description,
-                    'image_url': material.image_url,
-                    'sessions_count': sessions_count,
-                    'progress': {
-                        'total_contents': total_contents,
-                        'completed_contents': completed_contents,
-                        'percentage': progress_percentage
-                    }
-                })
+                # Construir respuesta de materiales
+                for material in available_materials:
+                    sessions_count = sessions_count_map.get(material.id, 0)
+                    counts = content_counts.get(material.id, {'total': 0, 'completed': 0})
+                    total = counts['total']
+                    completed = counts['completed']
+                    
+                    progress_percentage = round((completed / total * 100)) if total > 0 else 0
+                    
+                    materials_data.append({
+                        'id': material.id,
+                        'title': material.title,
+                        'description': material.description,
+                        'image_url': material.image_url,
+                        'sessions_count': sessions_count,
+                        'progress': {
+                            'total_contents': total,
+                            'completed_contents': completed,
+                            'percentage': progress_percentage
+                        }
+                    })
+                    
         except Exception as e:
             print(f"[DASHBOARD] Error al obtener materiales: {e}")
             import traceback
@@ -418,6 +475,7 @@ def get_dashboard():
 
 @bp.route('/me/editor-dashboard', methods=['GET'])
 @jwt_required()
+@cache.cached(timeout=120, make_cache_key=make_cache_key_with_user)  # Cache por usuario, 2 minutos
 def get_editor_dashboard():
     """
     Dashboard para usuarios tipo editor con métricas de creación
