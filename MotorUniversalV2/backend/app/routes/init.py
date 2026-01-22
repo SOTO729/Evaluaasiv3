@@ -281,3 +281,123 @@ def recreate_study_tables():
             'status': 'error',
             'message': str(e)
         }), 500
+
+
+@init_bp.route('/add-performance-indexes', methods=['POST'])
+def add_performance_indexes():
+    """
+    Añadir índices de rendimiento a la base de datos
+    """
+    from sqlalchemy import text
+    
+    # Verificar token
+    token = request.headers.get('X-Init-Token') or request.args.get('token')
+    if token != INIT_TOKEN:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    try:
+        # Lista de índices a crear
+        indexes = [
+            # Study Contents - filtrado frecuente por is_published
+            ('ix_study_contents_is_published', 'study_contents', 'is_published'),
+            ('ix_study_contents_order', 'study_contents', '[order]'),
+            # Study Sessions - FK material_id
+            ('ix_study_sessions_material_id', 'study_sessions', 'material_id'),
+            # Study Topics - FK session_id
+            ('ix_study_topics_session_id', 'study_topics', 'session_id'),
+            ('ix_study_topics_order', 'study_topics', '[order]'),
+            # Study Readings - FK topic_id
+            ('ix_study_readings_topic_id', 'study_readings', 'topic_id'),
+            # Study Videos - FK topic_id
+            ('ix_study_videos_topic_id', 'study_videos', 'topic_id'),
+            # Study Downloadable Exercises - FK topic_id
+            ('ix_study_downloadable_exercises_topic_id', 'study_downloadable_exercises', 'topic_id'),
+            # Study Interactive Exercises - FK topic_id
+            ('ix_study_interactive_exercises_topic_id', 'study_interactive_exercises', 'topic_id'),
+            # Student Progress
+            ('ix_student_content_progress_user_id', 'student_content_progress', 'user_id'),
+            ('ix_student_progress_user_content', 'student_content_progress', 'user_id, content_type'),
+            ('ix_student_content_progress_topic_id', 'student_content_progress', 'topic_id'),
+            # Results
+            ('ix_results_user_created', 'results', 'user_id, created_at DESC'),
+            # Exams
+            ('ix_exams_published_active', 'exams', 'is_published, is_active'),
+            # Categories
+            ('ix_categories_exam_order', 'categories', 'exam_id, category_number'),
+            # Topics
+            ('ix_topics_category_order', 'topics', 'category_id, topic_number'),
+            # Questions
+            ('ix_questions_topic_type', 'questions', 'topic_id, type'),
+            # Exercise Steps
+            ('ix_exercise_steps_exercise_order', 'exercise_steps', 'exercise_id, step_number'),
+            # Vouchers
+            ('ix_vouchers_user_id', 'vouchers', 'user_id'),
+            ('ix_vouchers_exam_id', 'vouchers', 'exam_id'),
+            # CONOCER Certificates
+            ('ix_conocer_certificates_status', 'conocer_certificates', 'status'),
+        ]
+        
+        created = []
+        skipped = []
+        errors = []
+        
+        for idx_name, table, columns in indexes:
+            try:
+                # Verificar si el índice ya existe
+                check_sql = text(f"""
+                    SELECT 1 FROM sys.indexes 
+                    WHERE name = '{idx_name}' 
+                    AND object_id = OBJECT_ID('{table}')
+                """)
+                result = db.session.execute(check_sql).fetchone()
+                
+                if result:
+                    skipped.append(idx_name)
+                    continue
+                
+                # Verificar si la tabla existe
+                check_table = text(f"""
+                    SELECT 1 FROM INFORMATION_SCHEMA.TABLES 
+                    WHERE TABLE_NAME = '{table}'
+                """)
+                table_exists = db.session.execute(check_table).fetchone()
+                
+                if not table_exists:
+                    skipped.append(f"{idx_name} (tabla no existe)")
+                    continue
+                
+                # Crear el índice
+                create_sql = text(f"""
+                    CREATE NONCLUSTERED INDEX {idx_name}
+                    ON {table} ({columns})
+                """)
+                db.session.execute(create_sql)
+                db.session.commit()
+                created.append(idx_name)
+                
+            except Exception as e:
+                error_msg = str(e)
+                if 'already exists' in error_msg.lower():
+                    skipped.append(idx_name)
+                else:
+                    errors.append(f"{idx_name}: {error_msg[:80]}")
+                db.session.rollback()
+        
+        return jsonify({
+            'status': 'success',
+            'created': created,
+            'skipped': skipped,
+            'errors': errors,
+            'summary': {
+                'created': len(created),
+                'skipped': len(skipped),
+                'errors': len(errors)
+            }
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
