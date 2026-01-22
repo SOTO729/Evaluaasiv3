@@ -79,20 +79,33 @@ def init_database():
         )
         editor.set_password('editor123')
         
-        alumno = User(
-            email='alumno@evaluaasi.com',
-            username='alumno',
-            name='Alumno',
+        coordinator = User(
+            email='coordinador@evaluaasi.com',
+            username='coordinador',
+            name='Coordinador',
             first_surname='Prueba',
-            second_surname='Alumno',
-            curp='AAAA000000HDFAAA02',
-            role='alumno',
+            second_surname='Sistema',
+            curp='COPR000000HDFCOO01',
+            role='coordinator',
             is_active=True,
             is_verified=True
         )
-        alumno.set_password('alumno123')
+        coordinator.set_password('Coordinador123!')
         
-        db.session.add_all([admin, editor, alumno])
+        candidato = User(
+            email='candidato@evaluaasi.com',
+            username='candidato',
+            name='Candidato',
+            first_surname='Prueba',
+            second_surname='Demo',
+            curp='CAND000000HDFAAA02',
+            role='candidato',
+            is_active=True,
+            is_verified=True
+        )
+        candidato.set_password('Candidato123!')
+        
+        db.session.add_all([admin, editor, coordinator, candidato])
         db.session.commit()
         
         # Examen de prueba
@@ -167,13 +180,14 @@ def init_database():
         return jsonify({
             'status': 'success',
             'message': 'Base de datos inicializada correctamente',
-            'users_created': 3,
+            'users_created': 4,
             'exams_created': 1,
             'questions_created': 1,
             'credentials': {
                 'admin': 'admin@evaluaasi.com / admin123',
                 'editor': 'editor@evaluaasi.com / editor123',
-                'alumno': 'alumno@evaluaasi.com / alumno123'
+                'coordinador': 'coordinador@evaluaasi.com / Coordinador123!',
+                'candidato': 'candidato@evaluaasi.com / Candidato123!'
             }
         }), 200
         

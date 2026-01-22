@@ -80,6 +80,13 @@ def create_app(config_name='development'):
         print(f"[INIT] ❌ Error importando standards_bp: {e}")
         raise
     
+    try:
+        from app.routes.partners import bp as partners_bp
+        print("[INIT] ✅ partners_bp importado")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando partners_bp: {e}")
+        raise
+    
     print("[INIT] Registrando blueprints...")
     app.register_blueprint(auth.bp, url_prefix='/api/auth')
     print("[INIT] ✅ auth registrado")
@@ -101,6 +108,14 @@ def create_app(config_name='development'):
     print("[INIT] ✅ conocer registrado")
     app.register_blueprint(standards_bp, url_prefix='/api/competency-standards')
     print("[INIT] ✅ standards registrado")
+    app.register_blueprint(partners_bp, url_prefix='/api/partners')
+    print("[INIT] ✅ partners registrado")
+    
+    # Importar y registrar user_management
+    from app.routes.user_management import bp as user_management_bp
+    app.register_blueprint(user_management_bp)
+    print("[INIT] ✅ user-management registrado")
+    
     print("[INIT] ✅ Todos los blueprints registrados correctamente")
     
     # Verificar y agregar columna label_style si no existe

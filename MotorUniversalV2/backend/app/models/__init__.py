@@ -27,6 +27,15 @@ from app.models.student_progress import (
 )
 from app.models.conocer_certificate import ConocerCertificate
 from app.models.competency_standard import CompetencyStandard, DeletionRequest
+from app.models.partner import (
+    Partner,
+    PartnerStatePresence,
+    Campus,
+    CandidateGroup,
+    GroupMember,
+    MEXICAN_STATES,
+    user_partners
+)
 
 __all__ = [
     'User',
@@ -53,5 +62,12 @@ __all__ = [
     'StudentTopicProgress',
     'ConocerCertificate',
     'CompetencyStandard',
-    'DeletionRequest'
+    'DeletionRequest',
+    'Partner',
+    'PartnerStatePresence',
+    'Campus',
+    'CandidateGroup',
+    'GroupMember',
+    'MEXICAN_STATES',
+    'user_partners'
 ]

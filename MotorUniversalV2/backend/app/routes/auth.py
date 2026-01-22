@@ -94,7 +94,7 @@ def register():
         curp=data.get('curp'),
         campus_id=data.get('campus_id', 0),
         subsystem_id=data.get('subsystem_id', 0),
-        role=data.get('role', 'alumno')
+        role=data.get('role', 'candidato')  # Cambiado de 'alumno' a 'candidato'
     )
     user.set_password(data['password'])
     

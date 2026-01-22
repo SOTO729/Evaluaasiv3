@@ -38,7 +38,7 @@ class User(db.Model):
     subsystem_id = db.Column(db.Integer)
     
     # Rol y permisos
-    role = db.Column(db.String(20), nullable=False, default='candidato')  # admin, editor, soporte, candidato, auxiliar
+    role = db.Column(db.String(20), nullable=False, default='candidato')  # admin, editor, soporte, coordinator, candidato, auxiliar
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
     
@@ -102,7 +102,7 @@ class User(db.Model):
         permissions = role_permissions.get(self.role, [])
         return '*' in permissions or permission in permissions
     
-    def to_dict(self, include_private=False):
+    def to_dict(self, include_private=False, include_partners=False):
         """Convertir a diccionario"""
         data = {
             'id': self.id,
@@ -134,6 +134,14 @@ class User(db.Model):
                 'campus_id': self.campus_id,
                 'subsystem_id': self.subsystem_id
             })
+        
+        if include_partners:
+            # Incluir información de partners asociados
+            data['partners'] = [{
+                'id': p.id,
+                'name': p.name,
+                'logo_url': p.logo_url
+            } for p in self.partners.all()]
         
         return data
     

@@ -71,6 +71,21 @@ const StandardFormPage = lazy(() => import('./pages/standards/StandardFormPage')
 const StandardDetailPage = lazy(() => import('./pages/standards/StandardDetailPage'))
 const DeletionRequestsPage = lazy(() => import('./pages/standards/DeletionRequestsPage'))
 
+// Partners (Coordinador)
+const PartnersDashboardPage = lazy(() => import('./pages/partners/PartnersDashboardPage'))
+const PartnersListPage = lazy(() => import('./pages/partners/PartnersListPage'))
+const PartnerFormPage = lazy(() => import('./pages/partners/PartnerFormPage'))
+const PartnerDetailPage = lazy(() => import('./pages/partners/PartnerDetailPage'))
+const CampusFormPage = lazy(() => import('./pages/partners/CampusFormPage'))
+const CampusDetailPage = lazy(() => import('./pages/partners/CampusDetailPage'))
+const GroupFormPage = lazy(() => import('./pages/partners/GroupFormPage'))
+const GroupDetailPage = lazy(() => import('./pages/partners/GroupDetailPage'))
+
+// User Management (Gestión de Usuarios)
+const UsersListPage = lazy(() => import('./pages/users/UsersListPage'))
+const UserFormPage = lazy(() => import('./pages/users/UserFormPage'))
+const UserDetailPage = lazy(() => import('./pages/users/UserDetailPage'))
+
 function App() {
   const { isAuthenticated } = useAuthStore()
 
@@ -150,6 +165,25 @@ function App() {
               <Route path="/certificates" element={<CertificatesPage />} />
               <Route path="/certificates/evaluation-report/:examId" element={<EvaluationReportDetailPage />} />
               <Route path="/certificates/evaluation-report/:examId/result/:resultId" element={<ResultDetailPage />} />
+              
+              {/* Partners (Coordinador) */}
+              <Route path="/partners/dashboard" element={<PartnersDashboardPage />} />
+              <Route path="/partners" element={<PartnersListPage />} />
+              <Route path="/partners/new" element={<PartnerFormPage />} />
+              <Route path="/partners/:partnerId" element={<PartnerDetailPage />} />
+              <Route path="/partners/:partnerId/edit" element={<PartnerFormPage />} />
+              <Route path="/partners/:partnerId/campuses/new" element={<CampusFormPage />} />
+              <Route path="/partners/campuses/:campusId" element={<CampusDetailPage />} />
+              <Route path="/partners/campuses/:campusId/edit" element={<CampusFormPage />} />
+              <Route path="/partners/campuses/:campusId/groups/new" element={<GroupFormPage />} />
+              <Route path="/partners/groups/:groupId" element={<GroupDetailPage />} />
+              <Route path="/partners/groups/:groupId/edit" element={<GroupFormPage />} />
+              
+              {/* User Management (Gestión de Usuarios) */}
+              <Route path="/user-management" element={<UsersListPage />} />
+              <Route path="/user-management/new" element={<UserFormPage />} />
+              <Route path="/user-management/:userId" element={<UserDetailPage />} />
+              <Route path="/user-management/:userId/edit" element={<UserFormPage />} />
             </Route>
           </Route>
 

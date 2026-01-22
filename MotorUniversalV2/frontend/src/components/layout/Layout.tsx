@@ -70,6 +70,8 @@ const Layout = ({ children }: LayoutProps) => {
         return 'bg-blue-100 text-blue-800'
       case 'candidato':
         return 'bg-green-100 text-green-800'
+      case 'coordinator':
+        return 'bg-amber-100 text-amber-800'
       default:
         return 'bg-gray-100 text-gray-800'
     }
@@ -84,6 +86,8 @@ const Layout = ({ children }: LayoutProps) => {
         return 'Editor'
       case 'candidato':
         return 'Candidato'
+      case 'coordinator':
+        return 'Coordinador'
       default:
         return role
     }
@@ -171,6 +175,30 @@ const Layout = ({ children }: LayoutProps) => {
                     }`}
                   >
                     ECM
+                  </Link>
+                )}
+                {(user?.role === 'admin' || user?.role === 'coordinator') && (
+                  <Link 
+                    to="/partners/dashboard" 
+                    className={`px-3 py-2 xl:px-4 xl:py-2.5 rounded-lg text-sm xl:text-base transition-all ${
+                      location.pathname.startsWith('/partners') 
+                        ? 'text-primary-600 font-semibold bg-primary-50' 
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Partners
+                  </Link>
+                )}
+                {(user?.role === 'admin' || user?.role === 'coordinator') && (
+                  <Link 
+                    to="/user-management" 
+                    className={`px-3 py-2 xl:px-4 xl:py-2.5 rounded-lg text-sm xl:text-base transition-all ${
+                      location.pathname.startsWith('/user-management') 
+                        ? 'text-primary-600 font-semibold bg-primary-50' 
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Usuarios
                   </Link>
                 )}
               </nav>
@@ -337,6 +365,40 @@ const Layout = ({ children }: LayoutProps) => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     Estándares (ECM)
+                  </div>
+                </Link>
+              )}
+              {(user?.role === 'admin' || user?.role === 'coordinator') && (
+                <Link 
+                  to="/partners/dashboard" 
+                  className={`block px-3 py-3 rounded-lg transition-all ${
+                    location.pathname.startsWith('/partners') 
+                      ? 'bg-primary-50 text-primary-600 font-medium' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    Partners
+                  </div>
+                </Link>
+              )}
+              {(user?.role === 'admin' || user?.role === 'coordinator') && (
+                <Link 
+                  to="/user-management" 
+                  className={`block px-3 py-3 rounded-lg transition-all ${
+                    location.pathname.startsWith('/user-management') 
+                      ? 'bg-primary-50 text-primary-600 font-medium' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    Usuarios
                   </div>
                 </Link>
               )}
