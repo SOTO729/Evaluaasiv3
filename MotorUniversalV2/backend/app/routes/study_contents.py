@@ -2306,13 +2306,13 @@ def register_content_progress(content_type, content_id):
         
         print(f"DEBUG: Processing score={score}, is_completed={is_completed}")
         
-        # Para interactivos, verificar si la calificación es >= 80%
+        # Para interactivos, verificar si la calificación es 100% (todas las respuestas correctas)
         if content_type == 'interactive' and score is not None:
             # Solo actualizar el score si es mayor al existente (guardar la mejor calificación)
             if progress.score is None or score > progress.score:
                 progress.score = score
                 print(f"DEBUG: Updated score to {score}")
-            if score >= 80:
+            if score >= 100:
                 is_completed = True
         
         # Actualizar estado de completado

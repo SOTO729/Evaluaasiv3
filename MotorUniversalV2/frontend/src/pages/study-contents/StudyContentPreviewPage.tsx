@@ -739,8 +739,8 @@ const StudyContentPreviewPage: React.FC = () => {
         return prev;
       });
       
-      // Si >= 80%, agregar a completados
-      if (result.percentage >= 80 && !completedContents.interactive.has(exerciseId)) {
+      // Si 100%, agregar a completados (todas las respuestas deben ser correctas)
+      if (result.percentage >= 100 && !completedContents.interactive.has(exerciseId)) {
         setCompletedContents(prev => ({
           ...prev,
           interactive: new Set([...prev.interactive, exerciseId])
@@ -1773,7 +1773,7 @@ const StudyContentPreviewPage: React.FC = () => {
                         {/* Estado de completado / mejor calificación del ejercicio interactivo */}
                         <div className="mt-2 sm:mt-3 lg:mt-4 xl:mt-5 pt-2 sm:pt-3 lg:pt-4 xl:pt-5 border-t border-gray-200">
                           {currentTopic.interactive_exercise.id && savedInteractiveScores[currentTopic.interactive_exercise.id] !== undefined ? (
-                            savedInteractiveScores[currentTopic.interactive_exercise.id] >= 80 ? (
+                            savedInteractiveScores[currentTopic.interactive_exercise.id] >= 100 ? (
                               <div className="flex items-center justify-center gap-1.5 lg:gap-2 xl:gap-3 py-1.5 sm:py-2 lg:py-2.5 xl:py-3 px-2 sm:px-3 lg:px-4 xl:px-5 bg-green-50 text-green-700 rounded-md sm:rounded-lg xl:rounded-xl text-xs lg:text-sm xl:text-base">
                                 <span className="flex items-center justify-center w-2.5 h-2.5 sm:w-3 sm:h-3 lg:w-4 lg:h-4 xl:w-5 xl:h-5 bg-green-500 rounded-full">
                                   <Check className="w-1.5 h-1.5 sm:w-2 sm:h-2 lg:w-2.5 lg:h-2.5 xl:w-3 xl:h-3 text-white" strokeWidth={3} />
@@ -1805,7 +1805,7 @@ const StudyContentPreviewPage: React.FC = () => {
                     ) : exerciseCompleted ? (
                       // Vista de ejercicio completado con calificación
                       <div className={`rounded-md sm:rounded-lg xl:rounded-xl 2xl:rounded-2xl p-3 sm:p-4 lg:p-6 xl:p-8 2xl:p-10 text-center ${
-                        exerciseScore && exerciseScore.percentage >= 70 
+                        exerciseScore && exerciseScore.percentage >= 100 
                           ? 'bg-gradient-to-br from-green-50 to-emerald-50' 
                           : 'bg-gradient-to-br from-amber-50 to-orange-50'
                       }`}>
@@ -1829,13 +1829,13 @@ const StudyContentPreviewPage: React.FC = () => {
                               strokeWidth="5"
                               fill="none"
                               strokeDasharray={`${(exerciseScore?.percentage || 0) * 2.64} 264`}
-                              className={exerciseScore && exerciseScore.percentage >= 70 ? 'text-green-500' : 'text-amber-500'}
+                              className={exerciseScore && exerciseScore.percentage >= 100 ? 'text-green-500' : 'text-amber-500'}
                               strokeLinecap="round"
                             />
                           </svg>
                           <div className="absolute inset-0 flex flex-col items-center justify-center">
                             <span className={`text-base sm:text-lg lg:text-xl xl:text-2xl 2xl:text-3xl font-bold ${
-                              exerciseScore && exerciseScore.percentage >= 70 ? 'text-green-600' : 'text-amber-600'
+                              exerciseScore && exerciseScore.percentage >= 100 ? 'text-green-600' : 'text-amber-600'
                             }`}>
                               {exerciseScore?.percentage || 0}%
                             </span>
@@ -1846,7 +1846,7 @@ const StudyContentPreviewPage: React.FC = () => {
                         </div>
 
                         <h2 className="text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl font-bold text-gray-900 mb-0.5 sm:mb-1 lg:mb-2">
-                          {exerciseScore && exerciseScore.percentage >= 70 
+                          {exerciseScore && exerciseScore.percentage >= 100 
                             ? '¡Excelente trabajo!' 
                             : 'Sigue practicando'}
                         </h2>
@@ -1854,13 +1854,11 @@ const StudyContentPreviewPage: React.FC = () => {
                           Has completado el ejercicio "{currentTopic.interactive_exercise.title}"
                         </p>
                         <p className={`text-[10px] sm:text-xs lg:text-sm xl:text-base mb-2 sm:mb-3 lg:mb-4 xl:mb-5 ${
-                          exerciseScore && exerciseScore.percentage >= 70 ? 'text-green-600' : 'text-amber-600'
+                          exerciseScore && exerciseScore.percentage >= 100 ? 'text-green-600' : 'text-amber-600'
                         }`}>
                           {exerciseScore && exerciseScore.percentage >= 100 
                             ? '¡Perfecto! Todas las respuestas correctas'
-                            : exerciseScore && exerciseScore.percentage >= 70 
-                            ? '¡Buen trabajo! Excelente desempeño'
-                            : 'Puedes mejorar practicando más'}
+                            : 'Necesitas 100% para completar este ejercicio'}
                         </p>
 
                         <div className="flex flex-col sm:flex-row justify-center gap-1.5 sm:gap-2 lg:gap-3 xl:gap-4">
@@ -1875,7 +1873,7 @@ const StudyContentPreviewPage: React.FC = () => {
                             <button
                               onClick={goToNextContent}
                               className={`px-2.5 sm:px-3 lg:px-4 xl:px-6 2xl:px-8 py-1 sm:py-1.5 lg:py-2 xl:py-3 2xl:py-4 text-white text-[11px] sm:text-xs lg:text-sm xl:text-base 2xl:text-lg rounded-md sm:rounded-lg xl:rounded-xl font-medium transition-colors inline-flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 ${
-                                exerciseScore && exerciseScore.percentage >= 70 
+                                exerciseScore && exerciseScore.percentage >= 100 
                                   ? 'bg-green-600 hover:bg-green-700' 
                                   : 'bg-amber-500 hover:bg-amber-600'
                               }`}
