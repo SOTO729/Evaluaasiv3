@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../services/examService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag, List, ArrowDown } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { clearExamSessionCache, useAuthStore } from '../store/authStore';
 
@@ -1459,7 +1459,7 @@ const ExamTestRunPage: React.FC = () => {
               onDrop={handleDropOnAvailable}
             >
               <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <span className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs">📋</span>
+                <List className="w-5 h-5 text-gray-500" />
                 Opciones disponibles
               </p>
               <div className="flex flex-wrap gap-2">
@@ -1590,7 +1590,7 @@ const ExamTestRunPage: React.FC = () => {
               onDrop={handleDropOnUnclassified}
             >
               <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <span className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs">📋</span>
+                <List className="w-5 h-5 text-gray-500" />
                 Elementos por clasificar
               </p>
               <div className="flex flex-wrap gap-2">
@@ -1645,7 +1645,7 @@ const ExamTestRunPage: React.FC = () => {
                       {colItems.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full min-h-[120px] text-gray-400">
                           <div className="w-12 h-12 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center mb-2">
-                            <span className="text-2xl">↓</span>
+                            <ArrowDown className="w-6 h-6 text-gray-400" />
                           </div>
                           <p className="text-xs text-center">Suelta elementos aquí</p>
                         </div>

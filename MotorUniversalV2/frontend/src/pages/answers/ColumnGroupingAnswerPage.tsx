@@ -319,7 +319,7 @@ export const ColumnGroupingAnswerPage = () => {
                 type="button"
                 onClick={handleAddColumn}
                 disabled={columns.length >= 6}
-                className="btn btn-secondary text-sm disabled:opacity-50"
+                className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium disabled:opacity-50"
               >
                 + Agregar Columna
               </button>
@@ -368,7 +368,7 @@ export const ColumnGroupingAnswerPage = () => {
                 type="button"
                 onClick={handleAddItem}
                 disabled={items.length >= 20}
-                className="btn btn-primary text-sm disabled:opacity-50"
+                className="px-4 py-2 text-sm bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
               >
                 + Agregar Elemento
               </button>
@@ -475,14 +475,14 @@ export const ColumnGroupingAnswerPage = () => {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="btn btn-secondary"
+            className="px-6 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors font-medium"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={!isValid}
-            className="btn btn-primary disabled:opacity-50"
+            className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
             Guardar Respuestas
           </button>
