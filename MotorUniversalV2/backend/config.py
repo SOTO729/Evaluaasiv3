@@ -69,7 +69,7 @@ class Config:
     # Swagger
     SWAGGER = {
         'title': 'Evaluaasi Motor Universal API',
-        'version': '2.0.0',
+        'version': '2.0.17',
         'description': 'API RESTful para gestión de exámenes',
         'termsOfService': '',
         'hide_top_bar': True,

@@ -3,26 +3,69 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { examService } from '../../services/examService';
 
-interface Answer {
+interface DragDropItem {
   id?: string;
-  answer_text: string;
-  is_correct: boolean;
+  answer_text: string;       // El elemento a arrastrar
+  correct_answer: string;    // La zona/destino correcto
   answer_number: number;
 }
 
-const ANSWER_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+interface DropZone {
+  id: string;
+  name: string;
+}
+
+// Toast component
+interface ToastProps {
+  message: string;
+  type: 'success' | 'error' | 'warning';
+  onClose: () => void;
+}
+
+const Toast = ({ message, type, onClose }: ToastProps) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const bgColor = type === 'success' 
+    ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
+    : type === 'error' 
+    ? 'bg-gradient-to-r from-red-500 to-rose-600' 
+    : 'bg-gradient-to-r from-amber-500 to-yellow-600';
+
+  return (
+    <div className="fixed top-4 right-4 z-50 animate-fadeSlideIn">
+      <div className={`${bgColor} text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px]`}>
+        <span className="font-medium">{message}</span>
+        <button onClick={onClose} className="ml-auto p-1 hover:bg-white/20 rounded-full">
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export const DragDropAnswerPage = () => {
   const { questionId } = useParams<{ questionId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [answers, setAnswers] = useState<Answer[]>([
-    { answer_text: '', is_correct: false, answer_number: 1 },
-    { answer_text: '', is_correct: false, answer_number: 2 }
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
+  
+  // Zonas de destino (drop zones)
+  const [dropZones, setDropZones] = useState<DropZone[]>([
+    { id: 'zona_1', name: 'Zona 1' },
+    { id: 'zona_2', name: 'Zona 2' }
   ]);
-
-  const [allowMultipleCorrect, setAllowMultipleCorrect] = useState(false);
+  
+  // Elementos arrastrables
+  const [items, setItems] = useState<DragDropItem[]>([
+    { answer_text: '', correct_answer: 'zona_1', answer_number: 1 },
+    { answer_text: '', correct_answer: 'zona_2', answer_number: 2 }
+  ]);
 
   // Obtener respuestas existentes
   const { data: answersResponse } = useQuery({
@@ -32,140 +75,130 @@ export const DragDropAnswerPage = () => {
 
   const answersData = answersResponse?.answers || [];
 
-  // Cargar respuestas existentes
+  // Cargar datos existentes
   useEffect(() => {
     if (answersData && answersData.length > 0) {
-      const loadedAnswers = answersData.map((a: any) => ({
-        id: a.id,
-        answer_text: a.answer_text,
-        is_correct: a.is_correct,
-        answer_number: a.answer_number || 0
+      // Extraer zonas únicas de correct_answer
+      const zonesSet = new Set<string>();
+      const loadedItems: DragDropItem[] = [];
+      
+      answersData.forEach((a: any, idx: number) => {
+        const correctPos = a.correct_answer || `zona_${idx + 1}`;
+        zonesSet.add(correctPos);
+        
+        loadedItems.push({
+          id: a.id,
+          answer_text: a.answer_text,
+          correct_answer: correctPos,
+          answer_number: a.answer_number || idx + 1
+        });
+      });
+      
+      // Reconstruir zonas
+      const zonesArray = Array.from(zonesSet).map((z) => ({
+        id: z,
+        name: z.replace('zona_', 'Zona ').replace(/_/g, ' ')
       }));
       
-      // Ordenar por answer_number
-      loadedAnswers.sort((a: Answer, b: Answer) => a.answer_number - b.answer_number);
-      setAnswers(loadedAnswers);
+      if (zonesArray.length > 0) {
+        setDropZones(zonesArray);
+      }
       
-      // Detectar si permite múltiples correctas
-      const correctCount = loadedAnswers.filter((a: Answer) => a.is_correct).length;
-      setAllowMultipleCorrect(correctCount > 1);
+      // Ordenar por answer_number
+      loadedItems.sort((a, b) => a.answer_number - b.answer_number);
+      setItems(loadedItems);
     }
   }, [answersData]);
 
-  // Mutación para crear respuesta
+  // Mutaciones
   const createAnswerMutation = useMutation({
-    mutationFn: (data: { answer_text: string; is_correct: boolean; answer_number: number }) =>
+    mutationFn: (data: { answer_text: string; is_correct: boolean; correct_answer?: string; answer_number: number }) =>
       examService.createAnswer(questionId!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['answers', questionId] });
-      queryClient.invalidateQueries({ queryKey: ['questions'] });
     }
   });
 
-  // Mutación para actualizar respuesta
   const updateAnswerMutation = useMutation({
-    mutationFn: ({ answerId, data }: { answerId: string; data: { answer_text: string; is_correct: boolean } }) =>
+    mutationFn: ({ answerId, data }: { answerId: string; data: any }) =>
       examService.updateAnswer(answerId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['answers', questionId] });
-      queryClient.invalidateQueries({ queryKey: ['questions'] });
     }
   });
 
-  // Mutación para eliminar respuesta
   const deleteAnswerMutation = useMutation({
     mutationFn: (answerId: string) => examService.deleteAnswer(answerId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['answers', questionId] });
-      queryClient.invalidateQueries({ queryKey: ['questions'] });
     }
   });
 
-  const handleAddAnswer = () => {
-    if (answers.length < 10) {
-      setAnswers([...answers, { 
+  // Handlers para zonas
+  const handleAddZone = () => {
+    if (dropZones.length < 6) {
+      const newId = `zona_${dropZones.length + 1}`;
+      setDropZones([...dropZones, { id: newId, name: `Zona ${dropZones.length + 1}` }]);
+    }
+  };
+
+  const handleRemoveZone = (zoneId: string) => {
+    if (dropZones.length > 2) {
+      setDropZones(dropZones.filter(z => z.id !== zoneId));
+      // Reasignar items que estaban en esta zona a la primera zona
+      setItems(items.map(item => 
+        item.correct_answer === zoneId 
+          ? { ...item, correct_answer: dropZones[0].id }
+          : item
+      ));
+    }
+  };
+
+  const handleZoneNameChange = (zoneId: string, name: string) => {
+    setDropZones(dropZones.map(z => z.id === zoneId ? { ...z, name } : z));
+  };
+
+  // Handlers para items
+  const handleAddItem = () => {
+    if (items.length < 12) {
+      setItems([...items, { 
         answer_text: '', 
-        is_correct: false, 
-        answer_number: answers.length + 1 
+        correct_answer: dropZones[0]?.id || 'zona_1',
+        answer_number: items.length + 1 
       }]);
     }
   };
 
-  const handleRemoveAnswer = (index: number) => {
-    if (answers.length > 2) {
-      const newAnswers = answers.filter((_, i) => i !== index);
-      // Renumerar las respuestas
-      newAnswers.forEach((answer, idx) => {
-        answer.answer_number = idx + 1;
-      });
-      setAnswers(newAnswers);
+  const handleRemoveItem = (index: number) => {
+    if (items.length > 2) {
+      const newItems = items.filter((_, i) => i !== index);
+      newItems.forEach((item, idx) => item.answer_number = idx + 1);
+      setItems(newItems);
     }
   };
 
-  const handleAnswerTextChange = (index: number, text: string) => {
-    const newAnswers = [...answers];
-    newAnswers[index].answer_text = text;
-    setAnswers(newAnswers);
+  const handleItemTextChange = (index: number, text: string) => {
+    const newItems = [...items];
+    newItems[index].answer_text = text;
+    setItems(newItems);
   };
 
-  const handleCorrectChange = (index: number) => {
-    const newAnswers = [...answers];
-    
-    if (allowMultipleCorrect) {
-      // Modo múltiple: toggle el checkbox
-      newAnswers[index].is_correct = !newAnswers[index].is_correct;
-    } else {
-      // Modo único: deseleccionar todas y seleccionar solo esta
-      newAnswers.forEach((answer, idx) => {
-        answer.is_correct = idx === index;
-      });
-    }
-    
-    setAnswers(newAnswers);
-  };
-
-  const handleMoveUp = (index: number) => {
-    if (index > 0) {
-      const newAnswers = [...answers];
-      [newAnswers[index - 1], newAnswers[index]] = [newAnswers[index], newAnswers[index - 1]];
-      // Actualizar los números
-      newAnswers.forEach((answer, idx) => {
-        answer.answer_number = idx + 1;
-      });
-      setAnswers(newAnswers);
-    }
-  };
-
-  const handleMoveDown = (index: number) => {
-    if (index < answers.length - 1) {
-      const newAnswers = [...answers];
-      [newAnswers[index], newAnswers[index + 1]] = [newAnswers[index + 1], newAnswers[index]];
-      // Actualizar los números
-      newAnswers.forEach((answer, idx) => {
-        answer.answer_number = idx + 1;
-      });
-      setAnswers(newAnswers);
-    }
+  const handleItemZoneChange = (index: number, zoneId: string) => {
+    const newItems = [...items];
+    newItems[index].correct_answer = zoneId;
+    setItems(newItems);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validaciones
-    const correctAnswers = answers.filter(a => a.is_correct);
-    if (correctAnswers.length === 0) {
-      alert('Debes seleccionar al menos una respuesta correcta');
-      return;
-    }
-
-    if (answers.some(a => !a.answer_text.trim())) {
-      alert('Todas las opciones deben tener texto');
+    if (items.some(i => !i.answer_text.trim())) {
+      setToast({ message: 'Todos los elementos deben tener texto', type: 'warning' });
       return;
     }
 
     try {
-      // Obtener IDs de respuestas existentes
-      const existingIds = answers.filter(a => a.id).map(a => a.id!);
+      const existingIds = items.filter(i => i.id).map(i => i.id!);
       const currentIds = answersData?.map((a: any) => a.id) || [];
 
       // Eliminar respuestas que ya no están
@@ -174,40 +207,43 @@ export const DragDropAnswerPage = () => {
         await deleteAnswerMutation.mutateAsync(id);
       }
 
-      // Crear o actualizar respuestas
-      const promises = answers.map((answer) => {
-        if (answer.id) {
-          // Actualizar existente
-          return updateAnswerMutation.mutateAsync({
-            answerId: answer.id,
-            data: {
-              answer_text: answer.answer_text,
-              is_correct: answer.is_correct
-            }
-          });
+      // Crear o actualizar
+      const promises = items.map((item, index) => {
+        const data = {
+          answer_text: item.answer_text,
+          is_correct: true,
+          correct_answer: item.correct_answer,
+          answer_number: index + 1
+        };
+        
+        if (item.id) {
+          return updateAnswerMutation.mutateAsync({ answerId: item.id, data });
         } else {
-          // Crear nueva
-          return createAnswerMutation.mutateAsync({
-            answer_text: answer.answer_text,
-            is_correct: answer.is_correct,
-            answer_number: answer.answer_number
-          });
+          return createAnswerMutation.mutateAsync(data);
         }
       });
 
       await Promise.all(promises);
-      navigate(-1); // Volver a la lista de preguntas
+      setToast({ message: 'Respuestas guardadas correctamente', type: 'success' });
+      setTimeout(() => navigate(-1), 1000);
     } catch (error) {
-      console.error('Error al guardar respuestas:', error);
-      alert('Error al guardar las respuestas');
+      console.error('Error al guardar:', error);
+      setToast({ message: 'Error al guardar las respuestas', type: 'error' });
     }
   };
 
-  const correctCount = answers.filter(a => a.is_correct).length;
-  const isValid = correctCount >= 1 && answers.every(a => a.answer_text.trim());
+  const isValid = items.every(i => i.answer_text.trim()) && dropZones.length >= 2;
+
+  // Agrupar items por zona para preview
+  const itemsByZone = dropZones.map(zone => ({
+    zone,
+    items: items.filter(i => i.correct_answer === zone.id)
+  }));
 
   return (
     <div className="container mx-auto px-4 py-6">
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+      
       {/* Header */}
       <div className="mb-6">
         <button
@@ -221,194 +257,161 @@ export const DragDropAnswerPage = () => {
         </button>
 
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Configurar Respuestas - Arrastrar y Soltar
+          Configurar - Arrastrar y Soltar
         </h1>
         <p className="text-gray-600">
-          Define las opciones que el estudiante podrá arrastrar. El orden importa.
+          Define las zonas de destino y los elementos que el estudiante deberá arrastrar a cada zona.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit}>
-        {/* Configuración */}
-        <div className="card mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Configuración</h3>
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={allowMultipleCorrect}
-              onChange={(e) => {
-                setAllowMultipleCorrect(e.target.checked);
-                if (!e.target.checked) {
-                  // Si se deshabilita múltiple, mantener solo la primera correcta
-                  const firstCorrectIndex = answers.findIndex(a => a.is_correct);
-                  const newAnswers = answers.map((a, idx) => ({
-                    ...a,
-                    is_correct: idx === firstCorrectIndex && firstCorrectIndex !== -1
-                  }));
-                  setAnswers(newAnswers);
-                }
-              }}
-              className="w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-            />
-            <div>
-              <div className="font-medium text-gray-900">Permitir múltiples respuestas correctas</div>
-              <div className="text-sm text-gray-600">
-                Útil cuando varias opciones pueden completar correctamente los espacios
-              </div>
-            </div>
-          </label>
+      {/* Información */}
+      <div className="card mb-6 bg-purple-50 border-purple-200">
+        <div className="flex gap-3">
+          <div className="flex-shrink-0">
+            <svg className="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="font-semibold text-purple-900 mb-1">Arrastrar y Soltar</h3>
+            <p className="text-sm text-purple-700">
+              El estudiante verá todos los elementos mezclados y deberá arrastrar cada uno 
+              a su zona correcta. Cada elemento tiene una única zona destino correcta.
+            </p>
+          </div>
         </div>
+      </div>
 
-        {/* Opciones de Respuesta */}
-        <div className="card mb-6">
-          <div className="mb-6">
-            <div className="flex justify-between items-start mb-3">
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Columna izquierda: Zonas de destino */}
+          <div className="card">
+            <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Opciones para Arrastrar</h3>
-                <p className="text-sm text-gray-600">
-                  Agrega las opciones en el orden que aparecerán al estudiante
-                </p>
+                <h3 className="text-xl font-semibold text-gray-900 mb-1">Zonas de Destino</h3>
+                <p className="text-sm text-gray-600">Define las áreas donde se soltarán los elementos</p>
               </div>
               <button
                 type="button"
-                onClick={handleAddAnswer}
-                disabled={answers.length >= 10}
-                className="btn btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                onClick={handleAddZone}
+                disabled={dropZones.length >= 6}
+                className="btn btn-secondary text-sm disabled:opacity-50"
               >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Agregar Opción
+                + Agregar Zona
               </button>
             </div>
-          </div>
 
-          {/* Lista de respuestas */}
-          <div className="space-y-3">
-            {answers.map((answer, index) => (
-              <div
-                key={index}
-                className={`border rounded-lg p-4 transition-all ${
-                  answer.is_correct
-                    ? 'bg-green-50 border-green-400 shadow-sm'
-                    : 'bg-white border-gray-300'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  {/* Controles de orden */}
-                  <div className="flex flex-col gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleMoveUp(index)}
-                      disabled={index === 0}
-                      className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="Mover arriba"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleMoveDown(index)}
-                      disabled={index === answers.length - 1}
-                      className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="Mover abajo"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  {/* Checkbox/Radio personalizado */}
-                  <button
-                    type="button"
-                    onClick={() => handleCorrectChange(index)}
-                    className={`flex-shrink-0 w-6 h-6 rounded ${allowMultipleCorrect ? '' : 'rounded-full'} border-2 flex items-center justify-center transition-all ${
-                      answer.is_correct
-                        ? 'bg-green-500 border-green-500'
-                        : 'bg-white border-gray-400 hover:border-green-400'
-                    }`}
-                  >
-                    {answer.is_correct && (
-                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </button>
-
-                  {/* Número de orden */}
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-semibold flex items-center justify-center text-sm">
-                    {answer.answer_number}
-                  </div>
-
-                  {/* Input de texto */}
+            <div className="space-y-3">
+              {dropZones.map((zone, index) => (
+                <div key={zone.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                  <span className="w-8 h-8 flex items-center justify-center bg-purple-100 text-purple-700 rounded-full font-bold text-sm">
+                    {index + 1}
+                  </span>
                   <input
                     type="text"
-                    value={answer.answer_text}
-                    onChange={(e) => handleAnswerTextChange(index, e.target.value)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    placeholder={`Opción ${ANSWER_LETTERS[index]}`}
-                    required
+                    value={zone.name}
+                    onChange={(e) => handleZoneNameChange(zone.id, e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    placeholder="Nombre de la zona"
                   />
-
-                  {/* Botón eliminar */}
-                  {answers.length > 2 && (
+                  {dropZones.length > 2 && (
                     <button
                       type="button"
-                      onClick={() => handleRemoveAnswer(index)}
-                      className="flex-shrink-0 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Eliminar opción"
+                      onClick={() => handleRemoveZone(zone.id)}
+                      className="p-2 text-red-500 hover:bg-red-50 rounded"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
                     </button>
                   )}
                 </div>
-
-                {/* Indicador de correcta */}
-                {answer.is_correct && (
-                  <div className="mt-2 ml-14 flex items-center text-sm text-green-700">
-                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    Respuesta correcta
-                  </div>
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          {/* Estado y validación */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-4">
-                <span className="text-gray-600">
-                  <strong>{answers.length}</strong> de 10 opciones
-                </span>
-                <span className="text-gray-600">
-                  <strong className="text-green-600">{correctCount}</strong> correcta{correctCount !== 1 ? 's' : ''}
-                </span>
-                <span className="text-gray-500">
-                  {allowMultipleCorrect ? '• Múltiples respuestas permitidas' : '• Solo una respuesta correcta'}
-                </span>
+          {/* Columna derecha: Elementos a arrastrar */}
+          <div className="card">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-1">Elementos</h3>
+                <p className="text-sm text-gray-600">Define los elementos y su zona correcta</p>
               </div>
-              {!isValid && (
-                <div className="flex items-center text-amber-600">
-                  <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  Completa todos los campos y selecciona al menos una respuesta correcta
+              <button
+                type="button"
+                onClick={handleAddItem}
+                disabled={items.length >= 12}
+                className="btn btn-primary text-sm disabled:opacity-50"
+              >
+                + Agregar Elemento
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {items.map((item, index) => (
+                <div key={index} className="p-3 bg-gray-50 rounded-lg space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-700 rounded-full font-bold text-sm">
+                      {index + 1}
+                    </span>
+                    <input
+                      type="text"
+                      value={item.answer_text}
+                      onChange={(e) => handleItemTextChange(index, e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Texto del elemento"
+                    />
+                    {items.length > 2 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveItem(index)}
+                        className="p-2 text-red-500 hover:bg-red-50 rounded"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 ml-10">
+                    <span className="text-sm text-gray-600">Zona correcta:</span>
+                    <select
+                      value={item.correct_answer}
+                      onChange={(e) => handleItemZoneChange(index, e.target.value)}
+                      className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                    >
+                      {dropZones.map(zone => (
+                        <option key={zone.id} value={zone.id}>{zone.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              )}
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Botones de acción */}
-        <div className="flex justify-end gap-4">
+        {/* Preview */}
+        <div className="card mt-6">
+          <h3 className="text-xl font-semibold text-gray-900 mb-4">Vista Previa</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {itemsByZone.map(({ zone, items: zoneItems }) => (
+              <div key={zone.id} className="border-2 border-dashed border-purple-300 rounded-lg p-3 min-h-[120px]">
+                <div className="text-sm font-semibold text-purple-700 mb-2 text-center">{zone.name}</div>
+                <div className="space-y-2">
+                  {zoneItems.map((item, idx) => (
+                    <div key={idx} className="bg-blue-100 text-blue-800 px-3 py-2 rounded text-sm text-center">
+                      {item.answer_text || '(sin texto)'}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Botones */}
+        <div className="flex justify-end gap-4 mt-6">
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -419,7 +422,7 @@ export const DragDropAnswerPage = () => {
           <button
             type="submit"
             disabled={!isValid}
-            className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn btn-primary disabled:opacity-50"
           >
             Guardar Respuestas
           </button>
@@ -428,3 +431,5 @@ export const DragDropAnswerPage = () => {
     </div>
   );
 };
+
+export default DragDropAnswerPage;

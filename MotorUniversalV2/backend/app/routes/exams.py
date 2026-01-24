@@ -2267,6 +2267,67 @@ def evaluate_question(question_data: dict, user_answer: any) -> dict:
         else:
             result['score'] = 0
     
+    elif q_type == 'drag_drop':
+        # Para arrastrar y soltar a zonas
+        # user_answer es un dict {zone_id: [item_ids]}
+        # Cada respuesta tiene correct_answer que indica su zona correcta
+        user_zones = user_answer if isinstance(user_answer, dict) else {}
+        
+        # Construir el mapa correcto: qué items van en qué zona
+        correct_zones = {}
+        for a in answers:
+            zone = a.get('correct_answer', '')
+            if zone:
+                if zone not in correct_zones:
+                    correct_zones[zone] = []
+                correct_zones[zone].append(str(a.get('id')))
+        
+        # Verificar si la respuesta del usuario es correcta
+        total_items = len(answers)
+        correct_items = 0
+        
+        for zone_id, correct_items_list in correct_zones.items():
+            user_items_in_zone = [str(i) for i in user_zones.get(zone_id, [])]
+            for item_id in correct_items_list:
+                if item_id in user_items_in_zone:
+                    correct_items += 1
+        
+        result['is_correct'] = correct_items == total_items
+        result['correct_answer'] = correct_zones
+        result['score'] = correct_items / total_items if total_items > 0 else 0
+        result['correct_items'] = correct_items
+        result['total_items'] = total_items
+    
+    elif q_type == 'column_grouping':
+        # Para clasificar en columnas - similar a drag_drop
+        # user_answer es un dict {column_id: [item_ids]}
+        user_columns = user_answer if isinstance(user_answer, dict) else {}
+        
+        # Construir el mapa correcto: qué items van en qué columna
+        correct_columns = {}
+        for a in answers:
+            col = a.get('correct_answer', '')
+            if col:
+                if col not in correct_columns:
+                    correct_columns[col] = []
+                correct_columns[col].append(str(a.get('id')))
+        
+        # Verificar si la respuesta del usuario es correcta
+        total_items = len(answers)
+        correct_items = 0
+        
+        for col_id, correct_items_list in correct_columns.items():
+            user_items_in_col = [str(i) for i in user_columns.get(col_id, [])]
+            for item_id in correct_items_list:
+                if item_id in user_items_in_col:
+                    correct_items += 1
+        
+        result['is_correct'] = correct_items == total_items
+        result['correct_answer'] = correct_columns
+        result['score'] = correct_items / total_items if total_items > 0 else 0
+        result['correct_items'] = correct_items
+        result['total_items'] = total_items
+    
     return result
 
 

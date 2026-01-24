@@ -44,7 +44,11 @@ def init_database():
         question_types = [
             QuestionType(name='multiple_choice', description='Opción múltiple'),
             QuestionType(name='true_false', description='Verdadero/Falso'),
-            QuestionType(name='fill_blank', description='Llenar el espacio')
+            QuestionType(name='fill_blank', description='Llenar el espacio'),
+            QuestionType(name='multiple_select', description='Selección múltiple'),
+            QuestionType(name='ordering', description='Ordenar elementos'),
+            QuestionType(name='drag_drop', description='Arrastrar y Soltar'),
+            QuestionType(name='column_grouping', description='Agrupamiento en Columnas'),
         ]
         
         for qt in question_types:

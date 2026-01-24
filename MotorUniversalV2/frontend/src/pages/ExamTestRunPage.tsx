@@ -1279,6 +1279,262 @@ const ExamTestRunPage: React.FC = () => {
           </div>
         );
 
+      case 'drag_drop':
+        // Para preguntas de arrastrar y soltar a zonas
+        const dragDropOptions = currentItem.options || [];
+        const dragDropAnswer = currentAnswer || {};
+        
+        // Extraer zonas únicas de las opciones (correct_answer contiene el id de zona)
+        const zonesSet = new Set<string>();
+        dragDropOptions.forEach((opt: any) => {
+          if (opt.correct_answer) zonesSet.add(opt.correct_answer);
+        });
+        const zones = Array.from(zonesSet);
+        
+        // Elementos sin asignar (no están en ninguna zona)
+        const assignedItems = new Set(Object.values(dragDropAnswer).flat());
+        const unassignedItems = dragDropOptions.filter((o: any) => !assignedItems.has(o.id));
+        
+        const handleDragDropAssign = (itemId: string, zoneId: string) => {
+          const newAnswer = { ...dragDropAnswer };
+          // Remover de cualquier zona anterior
+          Object.keys(newAnswer).forEach(z => {
+            newAnswer[z] = (newAnswer[z] || []).filter((id: string) => id !== itemId);
+          });
+          // Agregar a la nueva zona
+          newAnswer[zoneId] = [...(newAnswer[zoneId] || []), itemId];
+          handleAnswerChange(currentItem.question_id!, newAnswer);
+        };
+        
+        const handleDragDropUnassign = (itemId: string) => {
+          const newAnswer = { ...dragDropAnswer };
+          Object.keys(newAnswer).forEach(z => {
+            newAnswer[z] = (newAnswer[z] || []).filter((id: string) => id !== itemId);
+          });
+          handleAnswerChange(currentItem.question_id!, newAnswer);
+        };
+
+        return (
+          <div className="space-y-4">
+            <p className="text-xs text-gray-500 mb-3 flex items-center gap-1.5">
+              <GripVertical className="w-4 h-4 text-gray-400" />
+              Haz clic en un elemento y luego en la zona donde debe ir
+            </p>
+            
+            {/* Elementos sin asignar */}
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">Elementos disponibles:</p>
+              <div className="flex flex-wrap gap-2">
+                {unassignedItems.map((option: any) => (
+                  <div
+                    key={option.id}
+                    className="px-3 py-2 bg-blue-100 text-blue-800 rounded-lg cursor-pointer hover:bg-blue-200 transition-colors text-sm"
+                    onClick={() => {
+                      // Asignar a la primera zona por defecto (el usuario puede reasignar)
+                      if (zones.length > 0) {
+                        handleDragDropAssign(option.id, zones[0]);
+                      }
+                    }}
+                  >
+                    {option.answer_text}
+                  </div>
+                ))}
+                {unassignedItems.length === 0 && (
+                  <p className="text-gray-400 text-sm italic">Todos los elementos han sido asignados</p>
+                )}
+              </div>
+            </div>
+            
+            {/* Zonas */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {zones.map((zoneId) => {
+                const zoneItems = (dragDropAnswer[zoneId] || []).map((id: string) => 
+                  dragDropOptions.find((o: any) => o.id === id)
+                ).filter(Boolean);
+                
+                return (
+                  <div
+                    key={zoneId}
+                    className="border-2 border-dashed border-purple-300 rounded-lg p-3 min-h-[120px] bg-purple-50"
+                    onClick={(e) => {
+                      // Si hay un elemento seleccionado en el clipboard, asignarlo aquí
+                      const target = e.target as HTMLElement;
+                      if (target.classList.contains('draggable-item')) return;
+                    }}
+                  >
+                    <div className="text-sm font-semibold text-purple-700 mb-2 text-center">
+                      {zoneId.replace('zona_', 'Zona ').replace(/_/g, ' ')}
+                    </div>
+                    <div className="space-y-2">
+                      {zoneItems.map((item: any) => (
+                        <div
+                          key={item.id}
+                          className="draggable-item bg-white border border-purple-200 text-purple-800 px-3 py-2 rounded text-sm text-center cursor-pointer hover:bg-red-50 hover:border-red-200 transition-colors flex items-center justify-between"
+                          onClick={() => handleDragDropUnassign(item.id)}
+                        >
+                          <span className="flex-1">{item.answer_text}</span>
+                          <span className="text-red-400 text-xs ml-2">✕</span>
+                        </div>
+                      ))}
+                      {zoneItems.length === 0 && (
+                        <div className="text-center text-gray-400 text-xs py-4">
+                          Arrastra elementos aquí
+                        </div>
+                      )}
+                    </div>
+                    {/* Botón para asignar elemento disponible */}
+                    {unassignedItems.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-purple-200">
+                        <select
+                          className="w-full text-xs p-1 rounded border border-purple-300"
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              handleDragDropAssign(e.target.value, zoneId);
+                            }
+                          }}
+                        >
+                          <option value="">+ Agregar elemento...</option>
+                          {unassignedItems.map((item: any) => (
+                            <option key={item.id} value={item.id}>{item.answer_text}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+
+      case 'column_grouping':
+        // Para preguntas de clasificar en columnas
+        const columnOptions = currentItem.options || [];
+        const columnAnswer = currentAnswer || {};
+        
+        // Extraer columnas únicas
+        const columnsSet = new Set<string>();
+        columnOptions.forEach((opt: any) => {
+          if (opt.correct_answer) columnsSet.add(opt.correct_answer);
+        });
+        const columns = Array.from(columnsSet);
+        
+        // Elementos sin clasificar
+        const classifiedItems = new Set(Object.values(columnAnswer).flat());
+        const unclassifiedItems = columnOptions.filter((o: any) => !classifiedItems.has(o.id));
+        
+        const handleClassify = (itemId: string, columnId: string) => {
+          const newAnswer = { ...columnAnswer };
+          // Remover de cualquier columna anterior
+          Object.keys(newAnswer).forEach(c => {
+            newAnswer[c] = (newAnswer[c] || []).filter((id: string) => id !== itemId);
+          });
+          // Agregar a la nueva columna
+          newAnswer[columnId] = [...(newAnswer[columnId] || []), itemId];
+          handleAnswerChange(currentItem.question_id!, newAnswer);
+        };
+        
+        const handleUnclassify = (itemId: string) => {
+          const newAnswer = { ...columnAnswer };
+          Object.keys(newAnswer).forEach(c => {
+            newAnswer[c] = (newAnswer[c] || []).filter((id: string) => id !== itemId);
+          });
+          handleAnswerChange(currentItem.question_id!, newAnswer);
+        };
+        
+        const COLUMN_COLORS = [
+          { bg: 'bg-blue-50', border: 'border-blue-300', header: 'bg-blue-500', item: 'bg-blue-100 text-blue-800 border-blue-200' },
+          { bg: 'bg-green-50', border: 'border-green-300', header: 'bg-green-500', item: 'bg-green-100 text-green-800 border-green-200' },
+          { bg: 'bg-purple-50', border: 'border-purple-300', header: 'bg-purple-500', item: 'bg-purple-100 text-purple-800 border-purple-200' },
+          { bg: 'bg-orange-50', border: 'border-orange-300', header: 'bg-orange-500', item: 'bg-orange-100 text-orange-800 border-orange-200' },
+          { bg: 'bg-pink-50', border: 'border-pink-300', header: 'bg-pink-500', item: 'bg-pink-100 text-pink-800 border-pink-200' },
+          { bg: 'bg-teal-50', border: 'border-teal-300', header: 'bg-teal-500', item: 'bg-teal-100 text-teal-800 border-teal-200' },
+        ];
+
+        return (
+          <div className="space-y-4">
+            <p className="text-xs text-gray-500 mb-3 flex items-center gap-1.5">
+              <GripVertical className="w-4 h-4 text-gray-400" />
+              Clasifica cada elemento en la columna correcta
+            </p>
+            
+            {/* Elementos sin clasificar */}
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">Elementos por clasificar:</p>
+              <div className="flex flex-wrap gap-2">
+                {unclassifiedItems.map((option: any) => (
+                  <div
+                    key={option.id}
+                    className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg cursor-pointer hover:bg-gray-200 transition-colors text-sm border border-gray-300"
+                  >
+                    {option.answer_text}
+                  </div>
+                ))}
+                {unclassifiedItems.length === 0 && (
+                  <p className="text-green-600 text-sm italic flex items-center gap-1">
+                    ✓ Todos los elementos han sido clasificados
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            {/* Columnas */}
+            <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(columns.length, 3)}, minmax(0, 1fr))` }}>
+              {columns.map((columnId, idx) => {
+                const color = COLUMN_COLORS[idx % COLUMN_COLORS.length];
+                const colItems = (columnAnswer[columnId] || []).map((id: string) => 
+                  columnOptions.find((o: any) => o.id === id)
+                ).filter(Boolean);
+                
+                return (
+                  <div
+                    key={columnId}
+                    className={`rounded-lg overflow-hidden border-2 ${color.border}`}
+                  >
+                    <div className={`${color.header} text-white px-4 py-2 text-center font-semibold text-sm`}>
+                      {columnId.replace('columna_', 'Columna ').replace(/_/g, ' ')}
+                    </div>
+                    <div className={`${color.bg} p-3 min-h-[120px]`}>
+                      <div className="space-y-2">
+                        {colItems.map((item: any) => (
+                          <div
+                            key={item.id}
+                            className={`${color.item} border px-3 py-2 rounded text-sm text-center cursor-pointer hover:opacity-70 transition-opacity flex items-center justify-between`}
+                            onClick={() => handleUnclassify(item.id)}
+                          >
+                            <span className="flex-1">{item.answer_text}</span>
+                            <span className="text-red-400 text-xs ml-2">✕</span>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Selector para agregar elementos */}
+                      {unclassifiedItems.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-gray-200">
+                          <select
+                            className="w-full text-xs p-1 rounded border border-gray-300"
+                            value=""
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                handleClassify(e.target.value, columnId);
+                              }
+                            }}
+                          >
+                            <option value="">+ Agregar elemento...</option>
+                            {unclassifiedItems.map((item: any) => (
+                              <option key={item.id} value={item.id}>{item.answer_text}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+
       default:
         return <p className="text-gray-500">Tipo de pregunta no soportado: {currentItem.question_type}</p>;
     }

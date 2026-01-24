@@ -262,7 +262,8 @@ const TopicDetailPage = () => {
       'fill_blank': 'Llenar Espacio',
       'ordering': 'Ordenar',
       'drag_drop': 'Arrastrar y Soltar',
-      'drag_order': 'Arrastrar y Ordenar'
+      'drag_order': 'Arrastrar y Ordenar',
+      'column_grouping': 'Agrupamiento en Columnas'
     }
     return types[name] || name
   }
@@ -526,13 +527,19 @@ const TopicDetailPage = () => {
                                 navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/multiple-select`)
                               } else if (question.question_type?.name === 'ordering') {
                                 navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/ordering`)
+                              } else if (question.question_type?.name === 'drag_drop') {
+                                navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/drag-drop`)
+                              } else if (question.question_type?.name === 'column_grouping') {
+                                navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/column-grouping`)
                               }
                             }}
                             className={`group hover:bg-blue-100/60 transition-colors duration-150 ${
                               question.question_type?.name === 'true_false' || 
                               question.question_type?.name === 'multiple_choice' || 
                               question.question_type?.name === 'multiple_select' || 
-                              question.question_type?.name === 'ordering' ? 'cursor-pointer' : ''
+                              question.question_type?.name === 'ordering' ||
+                              question.question_type?.name === 'drag_drop' ||
+                              question.question_type?.name === 'column_grouping' ? 'cursor-pointer' : ''
                             }`}
                           >
                             <td className="px-6 py-4 whitespace-nowrap">

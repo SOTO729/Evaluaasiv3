@@ -28,7 +28,9 @@ const getQuestionTypeLabel = (type: string): string => {
     'true_false': 'Verdadero / Falso',
     'multiple_choice': 'Selección Única',
     'multiple_select': 'Selección Múltiple',
-    'ordering': 'Ordenamiento'
+    'ordering': 'Ordenamiento',
+    'drag_drop': 'Arrastrar y Soltar',
+    'column_grouping': 'Clasificación en Columnas'
   };
   return labels[type] || type;
 };
@@ -317,6 +319,60 @@ const ExamTestResultsPage: React.FC = () => {
         });
         return <div>{orderedAnswers}</div>;
 
+      case 'drag_drop': {
+        // La respuesta del usuario es un objeto {zoneId: [itemIds]}
+        const userAnswer = result.user_answer || {};
+        const allAnswers = result.answers || [];
+        
+        return (
+          <div className="space-y-2">
+            {Object.entries(userAnswer).map(([zoneId, itemIds]) => (
+              <div key={zoneId} className="border border-gray-200 rounded p-2 bg-gray-50">
+                <div className="text-xs font-medium text-gray-600 mb-1">
+                  {zoneId.replace('zona_', 'Zona ').replace(/_/g, ' ')}:
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {(itemIds as string[]).map((itemId: string) => {
+                    const answer = allAnswers.find((a: any) => String(a.id) === String(itemId));
+                    return (
+                      <span key={itemId} className="px-2 py-1 bg-gray-200 rounded text-xs">
+                        {answer?.answer_text || itemId}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      }
+
+      case 'column_grouping': {
+        // Similar a drag_drop
+        const userAnswer = result.user_answer || {};
+        const allAnswers = result.answers || [];
+        
+        return (
+          <div className="grid grid-cols-2 gap-2">
+            {Object.entries(userAnswer).map(([colId, itemIds]) => (
+              <div key={colId} className="border border-gray-200 rounded p-2 bg-gray-50">
+                <div className="text-xs font-medium text-gray-600 mb-1">
+                  {colId.replace('columna_', 'Columna ').replace(/_/g, ' ')}:
+                </div>
+                <div className="space-y-1">
+                  {(itemIds as string[]).map((itemId: string) => {
+                    const answer = allAnswers.find((a: any) => String(a.id) === String(itemId));
+                    return (
+                      <div key={itemId} className="text-xs">• {answer?.answer_text || itemId}</div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      }
+
       default:
         return <span className="text-gray-500">-</span>;
     }
@@ -374,6 +430,71 @@ const ExamTestResultsPage: React.FC = () => {
                 <span className="font-bold" dangerouslySetInnerHTML={{ __html: text }} />
               </div>
             ))}
+          </div>
+        );
+      }
+
+      case 'drag_drop': {
+        // Agrupar respuestas por zona correcta
+        const answers = result.answers || [];
+        const zonesMap = new Map<string, any[]>();
+        answers.forEach((a: any) => {
+          const zone = a.correct_answer || 'zona_1';
+          if (!zonesMap.has(zone)) zonesMap.set(zone, []);
+          zonesMap.get(zone)!.push(a);
+        });
+        
+        return (
+          <div className="space-y-3">
+            {Array.from(zonesMap.entries()).map(([zoneId, zoneAnswers]) => (
+              <div key={zoneId} className="border border-purple-200 rounded-lg p-2 bg-purple-50">
+                <div className="text-xs font-semibold text-purple-700 mb-1">
+                  {zoneId.replace('zona_', 'Zona ').replace(/_/g, ' ')}:
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {zoneAnswers.map((a: any, idx: number) => (
+                    <span key={idx} className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
+                      {a.answer_text}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      }
+
+      case 'column_grouping': {
+        // Agrupar respuestas por columna correcta
+        const answers = result.answers || [];
+        const columnsMap = new Map<string, any[]>();
+        answers.forEach((a: any) => {
+          const col = a.correct_answer || 'columna_1';
+          if (!columnsMap.has(col)) columnsMap.set(col, []);
+          columnsMap.get(col)!.push(a);
+        });
+        
+        const COLORS = ['blue', 'green', 'purple', 'orange', 'pink', 'teal'];
+        
+        return (
+          <div className="grid grid-cols-2 gap-2">
+            {Array.from(columnsMap.entries()).map(([colId, colAnswers], idx) => {
+              const color = COLORS[idx % COLORS.length];
+              return (
+                <div key={colId} className={`border rounded-lg overflow-hidden border-${color}-200`}>
+                  <div className={`bg-${color}-500 text-white text-xs font-semibold px-2 py-1 text-center`}>
+                    {colId.replace('columna_', 'Columna ').replace(/_/g, ' ')}
+                  </div>
+                  <div className={`bg-${color}-50 p-2`}>
+                    {colAnswers.map((a: any, i: number) => (
+                      <div key={i} className={`text-xs text-${color}-800 py-0.5`}>
+                        • {a.answer_text}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         );
       }
