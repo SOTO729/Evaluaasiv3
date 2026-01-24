@@ -837,7 +837,7 @@ const TopicDetailPage = () => {
                 >
                   <option value="">Selecciona un tipo</option>
                   {questionTypes?.question_types
-                    .filter((type) => !['fill_blank', 'drag_order'].includes(type.name)) // Ocultar tipos no disponibles
+                    .filter((type) => !['fill_blank', 'drag_order', 'fill_blank_drag'].includes(type.name)) // Ocultar tipos no disponibles
                     .map((type) => (
                       <option key={type.id} value={type.id}>
                         {type.description}
@@ -907,7 +907,7 @@ const TopicDetailPage = () => {
                 >
                   <option value="">Selecciona un tipo</option>
                   {questionTypes?.question_types
-                    .filter((type) => !['fill_blank', 'drag_order'].includes(type.name)) // Ocultar tipos no disponibles
+                    .filter((type) => !['fill_blank', 'drag_order', 'fill_blank_drag'].includes(type.name)) // Ocultar tipos no disponibles
                     .map((type) => (
                       <option key={type.id} value={type.id}>
                         {type.description}
