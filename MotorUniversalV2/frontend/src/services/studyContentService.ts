@@ -139,6 +139,8 @@ export interface StudyInteractiveExerciseAction {
   comment_bg_color?: string;
   comment_text_color?: string;
   comment_font_size?: number;
+  pointer_x?: number;  // X del punto de origen de la punta del bocadillo
+  pointer_y?: number;  // Y del punto de origen de la punta del bocadillo
 }
 
 // Interfaces para crear/actualizar

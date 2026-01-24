@@ -1805,7 +1805,14 @@ def create_action(material_id, session_id, topic_id, step_id):
             max_attempts=data.get('max_attempts', 3),
             text_color=data.get('text_color', '#000000'),
             font_family=data.get('font_family', 'Arial'),
-            label_style=data.get('label_style', 'invisible') if data.get('label_style') in ['invisible', 'text_only', 'text_with_shadow', 'shadow_only'] else 'invisible'
+            label_style=data.get('label_style', 'invisible') if data.get('label_style') in ['invisible', 'text_only', 'text_with_shadow', 'shadow_only'] else 'invisible',
+            # Propiedades de comentario
+            comment_text=data.get('comment_text'),
+            comment_bg_color=data.get('comment_bg_color', '#fef3c7'),
+            comment_text_color=data.get('comment_text_color', '#92400e'),
+            comment_font_size=data.get('comment_font_size', 14),
+            pointer_x=data.get('pointer_x'),
+            pointer_y=data.get('pointer_y')
         )
         
         db.session.add(action)
@@ -1884,6 +1891,20 @@ def update_action(material_id, session_id, topic_id, step_id, action_id):
             print(f"[UPDATE_ACTION] Setting label_style from '{action.label_style}' to '{data['label_style']}'")
             action.label_style = data['label_style'] if data['label_style'] in valid_label_styles else action.label_style
             print(f"[UPDATE_ACTION] label_style after assignment: '{action.label_style}'")
+        
+        # Propiedades de comentario
+        if 'comment_text' in data:
+            action.comment_text = data['comment_text']
+        if 'comment_bg_color' in data:
+            action.comment_bg_color = data['comment_bg_color']
+        if 'comment_text_color' in data:
+            action.comment_text_color = data['comment_text_color']
+        if 'comment_font_size' in data:
+            action.comment_font_size = data['comment_font_size']
+        if 'pointer_x' in data:
+            action.pointer_x = data['pointer_x']
+        if 'pointer_y' in data:
+            action.pointer_y = data['pointer_y']
         
         db.session.commit()
         

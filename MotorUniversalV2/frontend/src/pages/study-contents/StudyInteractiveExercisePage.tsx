@@ -1120,7 +1120,10 @@ const StudyInteractiveExercisePage = () => {
           comment_text: 'Escribe tu comentario aquí',
           comment_bg_color: '#fef3c7',
           comment_text_color: '#92400e',
-          comment_font_size: 14
+          comment_font_size: 14,
+          // Guardar el punto de origen de la punta (donde se hizo clic primero)
+          pointer_x: drawingState.startX,
+          pointer_y: drawingState.startY
         })
       }
 
@@ -1932,13 +1935,104 @@ const StudyInteractiveExercisePage = () => {
                         .length
                       const displayNumber = isCorrectAction || isComment ? null : incorrectIndex + 1
                       
-                      // Renderizar comentario con estilo especial
+                      // Renderizar comentario con estilo especial (bocadillo de cómic)
                       if (isComment) {
+                        // Calcular la posición de la punta del bocadillo
+                        const pointerX = action.pointer_x ?? action.position_x
+                        const pointerY = action.pointer_y ?? action.position_y
+                        
+                        // Calcular en qué dirección está la punta respecto al bocadillo
+                        const bubbleLeft = action.position_x
+                        const bubbleTop = action.position_y
+                        const bubbleRight = action.position_x + action.width
+                        const bubbleBottom = action.position_y + action.height
+                        
+                        // Determinar de qué lado sale la punta
+                        const isPointerLeft = pointerX < bubbleLeft
+                        const isPointerRight = pointerX > bubbleRight
+                        const isPointerTop = pointerY < bubbleTop
+                        const isPointerBottom = pointerY > bubbleBottom
+                        
+                        // Calcular offset para la punta (relativo al bocadillo)
+                        let pointerStyle: React.CSSProperties = {}
+                        const bgColor = action.comment_bg_color || '#fef3c7'
+                        const borderColor = action.comment_text_color || '#92400e'
+                        
+                        // Si la punta está fuera del bocadillo, calcular el triángulo
+                        const showPointer = isPointerLeft || isPointerRight || isPointerTop || isPointerBottom
+                        
+                        if (showPointer) {
+                          // Tamaño base del triángulo en porcentaje del contenedor
+                          const triangleSize = 15
+                          
+                          if (isPointerBottom) {
+                            // Punta hacia abajo
+                            const xPos = Math.max(10, Math.min(90, ((pointerX - bubbleLeft) / action.width) * 100))
+                            pointerStyle = {
+                              position: 'absolute' as const,
+                              bottom: '-12px',
+                              left: `${xPos}%`,
+                              transform: 'translateX(-50%)',
+                              width: 0,
+                              height: 0,
+                              borderLeft: `${triangleSize}px solid transparent`,
+                              borderRight: `${triangleSize}px solid transparent`,
+                              borderTop: `${triangleSize}px solid ${bgColor}`,
+                              filter: `drop-shadow(0 2px 0 ${borderColor})`,
+                            }
+                          } else if (isPointerTop) {
+                            // Punta hacia arriba
+                            const xPos = Math.max(10, Math.min(90, ((pointerX - bubbleLeft) / action.width) * 100))
+                            pointerStyle = {
+                              position: 'absolute' as const,
+                              top: '-12px',
+                              left: `${xPos}%`,
+                              transform: 'translateX(-50%)',
+                              width: 0,
+                              height: 0,
+                              borderLeft: `${triangleSize}px solid transparent`,
+                              borderRight: `${triangleSize}px solid transparent`,
+                              borderBottom: `${triangleSize}px solid ${bgColor}`,
+                              filter: `drop-shadow(0 -2px 0 ${borderColor})`,
+                            }
+                          } else if (isPointerLeft) {
+                            // Punta hacia la izquierda
+                            const yPos = Math.max(10, Math.min(90, ((pointerY - bubbleTop) / action.height) * 100))
+                            pointerStyle = {
+                              position: 'absolute' as const,
+                              left: '-12px',
+                              top: `${yPos}%`,
+                              transform: 'translateY(-50%)',
+                              width: 0,
+                              height: 0,
+                              borderTop: `${triangleSize}px solid transparent`,
+                              borderBottom: `${triangleSize}px solid transparent`,
+                              borderRight: `${triangleSize}px solid ${bgColor}`,
+                              filter: `drop-shadow(-2px 0 0 ${borderColor})`,
+                            }
+                          } else if (isPointerRight) {
+                            // Punta hacia la derecha
+                            const yPos = Math.max(10, Math.min(90, ((pointerY - bubbleTop) / action.height) * 100))
+                            pointerStyle = {
+                              position: 'absolute' as const,
+                              right: '-12px',
+                              top: `${yPos}%`,
+                              transform: 'translateY(-50%)',
+                              width: 0,
+                              height: 0,
+                              borderTop: `${triangleSize}px solid transparent`,
+                              borderBottom: `${triangleSize}px solid transparent`,
+                              borderLeft: `${triangleSize}px solid ${bgColor}`,
+                              filter: `drop-shadow(2px 0 0 ${borderColor})`,
+                            }
+                          }
+                        }
+                        
                         return (
                           <div
                             key={action.id}
                             data-action-id={action.id}
-                            className={`absolute rounded cursor-move ${
+                            className={`absolute cursor-move ${
                               (dragState.isDragging && dragState.actionId === action.id) ||
                               (resizeState.isResizing && resizeState.actionId === action.id)
                                 ? 'border-2 border-dashed border-blue-500'
@@ -1951,20 +2045,23 @@ const StudyInteractiveExercisePage = () => {
                               top: `${action.position_y}%`,
                               width: `${action.width}%`,
                               height: `${action.height}%`,
-                              zIndex: 5, // Por debajo de botones y campos
-                              backgroundColor: action.comment_bg_color || '#fef3c7',
-                              border: `2px solid ${action.comment_text_color || '#92400e'}`,
-                              borderRadius: '8px',
-                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                              zIndex: 5,
+                              backgroundColor: bgColor,
+                              border: `2px solid ${borderColor}`,
+                              borderRadius: '12px',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                             }}
                             onClick={(e) => e.stopPropagation()}
                             onMouseDown={(e) => handleActionMouseDown(e, action)}
                             onDoubleClick={() => handleEditAction(action)}
                           >
+                            {/* Punta del bocadillo (estilo cómic) */}
+                            {showPointer && <div style={pointerStyle} />}
+                            
                             <div 
                               className="absolute inset-0 flex items-center justify-center p-2 overflow-hidden"
                               style={{
-                                color: action.comment_text_color || '#92400e',
+                                color: borderColor,
                                 fontSize: `${action.comment_font_size || 14}px`,
                                 fontWeight: 500,
                                 textAlign: 'center',

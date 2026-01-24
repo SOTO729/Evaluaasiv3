@@ -443,6 +443,14 @@ class StudyInteractiveExerciseAction(db.Model):
     font_family = db.Column(db.String(50), default='Arial')
     label_style = db.Column(db.String(20), default='invisible')  # invisible, text_only, text_with_shadow, shadow_only
     
+    # Propiedades de comentario (tipo bocadillo de cómic)
+    comment_text = db.Column(db.Text)
+    comment_bg_color = db.Column(db.String(20), default='#fef3c7')
+    comment_text_color = db.Column(db.String(20), default='#92400e')
+    comment_font_size = db.Column(db.Integer, default=14)
+    pointer_x = db.Column(db.Float)  # Posición X de la punta del bocadillo
+    pointer_y = db.Column(db.Float)  # Posición Y de la punta del bocadillo
+    
     # Auditoría
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -473,6 +481,12 @@ class StudyInteractiveExerciseAction(db.Model):
             'text_color': self.text_color,
             'font_family': self.font_family,
             'label_style': label_style_value,
+            'comment_text': self.comment_text,
+            'comment_bg_color': self.comment_bg_color,
+            'comment_text_color': self.comment_text_color,
+            'comment_font_size': self.comment_font_size,
+            'pointer_x': self.pointer_x,
+            'pointer_y': self.pointer_y,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
