@@ -2990,7 +2990,7 @@ def generate_result_pdf(result_id):
         c.setFillColor(gray_color)
         c.setFont('Helvetica', 7)
         c.drawRightString(page_width - margin, y, 'Sistema de Evaluación y Certificación')
-        c.drawRightString(page_width - margin, y - 12, now_local.strftime('%d/%m/%Y %H:%M'))
+        c.drawRightString(page_width - margin, y - 12, f'Fecha de descarga: {now_local.strftime("%d/%m/%Y %H:%M")}')
         
         y -= 45
         c.setStrokeColor(primary_color)
@@ -3061,9 +3061,9 @@ def generate_result_pdf(result_id):
         else:
             start_date = 'N/A'
         c.setFont('Helvetica-Bold', 9)
-        c.drawString(margin + 5, y, 'Fecha:')
+        c.drawString(margin + 5, y, 'Fecha de certificación:')
         c.setFont('Helvetica', 9)
-        c.drawString(margin + 40, y, start_date)
+        c.drawString(margin + 115, y, start_date)
         y -= 25
         
         # === OBTENER DATOS DE ANSWERS_DATA PARA PORCENTAJE REAL ===
