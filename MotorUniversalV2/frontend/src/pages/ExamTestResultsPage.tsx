@@ -29,7 +29,6 @@ const getQuestionTypeLabel = (type: string): string => {
     'multiple_choice': 'Selección Única',
     'multiple_select': 'Selección Múltiple',
     'ordering': 'Ordenamiento',
-    'column_grouping': 'Clasificación en Columnas',
     'drag_drop': 'Arrastrar y Soltar'
   };
   return labels[type] || type;
