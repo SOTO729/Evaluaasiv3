@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { examService } from '../../services/examService';
-import { GripVertical, Plus, Trash2, ArrowLeft, Save, Eye, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Save, Eye, AlertCircle, Type } from 'lucide-react';
 
 interface BlankItem {
   id?: string;
-  answer_text: string;       // El texto que va en el espacio en blanco
-  correct_answer: string;    // ID del blank donde va (blank_1, blank_2, etc.)
+  answer_text: string;
+  correct_answer: string;
   answer_number: number;
   is_correct: boolean;
 }
@@ -49,20 +49,14 @@ export const FillBlankDragAnswerPage = () => {
   const { questionId } = useParams<{ questionId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const editorRef = useRef<HTMLDivElement>(null);
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
-  
-  // Texto con marcadores de espacio en blanco (usar ___BLANK_1___, ___BLANK_2___, etc.)
-  const [templateText, setTemplateText] = useState('');
-  
-  // Elementos que van en los espacios en blanco
   const [items, setItems] = useState<BlankItem[]>([]);
-  
-  // Distractores (opciones incorrectas)
   const [distractors, setDistractors] = useState<BlankItem[]>([]);
-  
-  // Mostrar preview
   const [showPreview, setShowPreview] = useState(false);
+  const [blankCount, setBlankCount] = useState(0);
+  const [editorReady, setEditorReady] = useState(false);
 
   // Obtener datos de la pregunta
   const { data: questionResponse } = useQuery({
@@ -80,14 +74,80 @@ export const FillBlankDragAnswerPage = () => {
 
   const answersData = answersResponse?.answers || [];
 
+  // Crear el HTML visual de un blank
+  const createBlankHtml = useCallback((num: number): string => {
+    return `<span contenteditable="false" class="inline-flex items-center gap-1 px-3 py-1 mx-1 bg-indigo-100 border-2 border-indigo-400 rounded-lg text-indigo-700 font-semibold text-sm cursor-default select-none" data-blank="${num}">Espacio ${num}<button class="ml-1 text-indigo-500 hover:text-red-500 font-bold text-lg leading-none" data-remove-blank="${num}" style="line-height: 1;">×</button></span>`;
+  }, []);
+
+  // Convertir marcadores internos a HTML visual para el editor
+  const markersToVisual = useCallback((text: string): string => {
+    if (!text) return '';
+    return text.replace(/___BLANK_(\d+)___/g, (_, num) => createBlankHtml(num));
+  }, [createBlankHtml]);
+
+  // Convertir HTML visual a marcadores internos
+  const visualToMarkers = useCallback((element: HTMLDivElement): string => {
+    const clone = element.cloneNode(true) as HTMLDivElement;
+    
+    // Reemplazar spans de blank por marcadores
+    const blankSpans = clone.querySelectorAll('span[data-blank]');
+    blankSpans.forEach(span => {
+      const num = span.getAttribute('data-blank');
+      const marker = document.createTextNode(`___BLANK_${num}___`);
+      span.parentNode?.replaceChild(marker, span);
+    });
+    
+    // Convertir BRs a newlines y obtener texto
+    const brs = clone.querySelectorAll('br');
+    brs.forEach(br => {
+      br.replaceWith('\n');
+    });
+    
+    // Procesar divs como párrafos
+    const divs = clone.querySelectorAll('div');
+    divs.forEach(div => {
+      if (div.textContent || div.querySelector('span[data-blank]')) {
+        const content = div.innerHTML;
+        div.replaceWith('\n' + content);
+      }
+    });
+    
+    return clone.textContent?.trim() || '';
+  }, []);
+
+  // Extraer blanks del editor
+  const getBlanksFromEditor = useCallback((): string[] => {
+    if (!editorRef.current) return [];
+    const blankSpans = editorRef.current.querySelectorAll('span[data-blank]');
+    const blanks: string[] = [];
+    blankSpans.forEach(span => {
+      const num = span.getAttribute('data-blank');
+      if (num) blanks.push(`blank_${num}`);
+    });
+    return [...new Set(blanks)].sort((a, b) => {
+      const numA = parseInt(a.replace('blank_', ''));
+      const numB = parseInt(b.replace('blank_', ''));
+      return numA - numB;
+    });
+  }, []);
+
   // Cargar datos existentes
   useEffect(() => {
-    if (questionData?.question_text) {
-      // El texto de la pregunta contiene el template
-      setTemplateText(questionData.question_text);
+    if (questionData?.question_text && editorRef.current && !editorReady) {
+      const visualHtml = markersToVisual(questionData.question_text);
+      editorRef.current.innerHTML = visualHtml || '';
+      
+      // Contar blanks existentes
+      const matches = questionData.question_text.match(/___BLANK_(\d+)___/g) || [];
+      const maxNum = matches.reduce((max: number, m: string) => {
+        const num = parseInt(m.match(/\d+/)?.[0] || '0');
+        return Math.max(max, num);
+      }, 0);
+      setBlankCount(maxNum);
+      setEditorReady(true);
     }
     
-    if (answersData && answersData.length > 0) {
+    if (answersData && answersData.length > 0 && !editorReady) {
       const loadedItems: BlankItem[] = [];
       const loadedDistractors: BlankItem[] = [];
       
@@ -100,11 +160,9 @@ export const FillBlankDragAnswerPage = () => {
           is_correct: a.is_correct || false
         };
         
-        // Si tiene correct_answer (ej: blank_1) es una respuesta correcta
-        // Si no tiene, es un distractor
         if (a.correct_answer && a.correct_answer.startsWith('blank_')) {
           loadedItems.push(item);
-        } else {
+        } else if (a.correct_answer === 'distractor' || !a.is_correct) {
           loadedDistractors.push(item);
         }
       });
@@ -113,7 +171,7 @@ export const FillBlankDragAnswerPage = () => {
       setItems(loadedItems);
       setDistractors(loadedDistractors);
     }
-  }, [questionData, answersData]);
+  }, [questionData, answersData, markersToVisual, editorReady]);
 
   // Mutaciones
   const updateQuestionMutation = useMutation({
@@ -147,31 +205,80 @@ export const FillBlankDragAnswerPage = () => {
     }
   });
 
-  // Extraer blanks del template
-  const extractBlanks = (text: string): string[] => {
-    const regex = /___BLANK_(\d+)___/g;
-    const blanks: string[] = [];
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      blanks.push(`blank_${match[1]}`);
+  // Insertar espacio en blanco en la posición del cursor
+  const insertBlank = useCallback(() => {
+    if (!editorRef.current) return;
+    
+    editorRef.current.focus();
+    
+    const newNum = blankCount + 1;
+    setBlankCount(newNum);
+    
+    const blankHtml = createBlankHtml(newNum);
+    
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      
+      // Verificar si el cursor está dentro del editor
+      if (editorRef.current.contains(range.commonAncestorContainer)) {
+        range.deleteContents();
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = blankHtml + '\u200B'; // Zero-width space for cursor positioning
+        const fragment = document.createDocumentFragment();
+        let lastNode: Node | null = null;
+        while (tempDiv.firstChild) {
+          lastNode = tempDiv.firstChild;
+          fragment.appendChild(lastNode);
+        }
+        
+        range.insertNode(fragment);
+        
+        // Mover cursor después del blank
+        if (lastNode) {
+          range.setStartAfter(lastNode);
+          range.setEndAfter(lastNode);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      } else {
+        // Si el cursor no está en el editor, agregar al final
+        editorRef.current.innerHTML += blankHtml;
+      }
+    } else {
+      // Sin selección, agregar al final
+      editorRef.current.innerHTML += blankHtml;
     }
-    return [...new Set(blanks)]; // Eliminar duplicados
-  };
-
-  const blanks = extractBlanks(templateText);
-
-  // Agregar un nuevo espacio en blanco al texto
-  const addBlankToText = () => {
-    const nextBlankNum = blanks.length + 1;
-    setTemplateText(prev => prev + ` ___BLANK_${nextBlankNum}___`);
+    
     // Agregar item para este blank
     setItems(prev => [...prev, {
       answer_text: '',
-      correct_answer: `blank_${nextBlankNum}`,
+      correct_answer: `blank_${newNum}`,
       answer_number: prev.length + 1,
       is_correct: true
     }]);
-  };
+  }, [blankCount, createBlankHtml]);
+
+  // Manejar clicks en el editor (para eliminar blanks)
+  const handleEditorClick = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const removeBlankNum = target.getAttribute('data-remove-blank');
+    
+    if (removeBlankNum) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Encontrar y eliminar el span del blank
+      const blankSpan = editorRef.current?.querySelector(`span[data-blank="${removeBlankNum}"]`);
+      if (blankSpan) {
+        blankSpan.remove();
+      }
+      
+      // Eliminar el item correspondiente
+      setItems(prev => prev.filter(item => item.correct_answer !== `blank_${removeBlankNum}`));
+    }
+  }, []);
 
   // Agregar distractor
   const addDistractor = () => {
@@ -204,13 +311,16 @@ export const FillBlankDragAnswerPage = () => {
 
   // Guardar todo
   const handleSave = async () => {
-    // Validar que haya al menos un blank
+    if (!editorRef.current) return;
+    
+    const templateText = visualToMarkers(editorRef.current);
+    const blanks = getBlanksFromEditor();
+    
     if (blanks.length === 0) {
       setToast({ message: 'Agrega al menos un espacio en blanco al texto', type: 'warning' });
       return;
     }
 
-    // Validar que todos los blanks tengan respuesta
     const missingAnswers = blanks.filter(blankId => 
       !items.find(item => item.correct_answer === blankId && item.answer_text.trim())
     );
@@ -220,7 +330,6 @@ export const FillBlankDragAnswerPage = () => {
     }
 
     try {
-      // Guardar el texto de la pregunta con los marcadores
       await updateQuestionMutation.mutateAsync({ question_text: templateText });
 
       // Obtener IDs existentes
@@ -279,17 +388,21 @@ export const FillBlankDragAnswerPage = () => {
 
   // Renderizar texto con blanks para preview
   const renderPreviewText = () => {
+    if (!editorRef.current) return '';
+    const templateText = visualToMarkers(editorRef.current);
     let text = templateText;
-    blanks.forEach((blankId) => {
+    
+    const regex = /___BLANK_(\d+)___/g;
+    text = text.replace(regex, (_, num) => {
+      const blankId = `blank_${num}`;
       const item = items.find(i => i.correct_answer === blankId);
-      const marker = `___BLANK_${blankId.replace('blank_', '')}___`;
-      text = text.replace(
-        marker,
-        `<span class="inline-block min-w-[100px] px-3 py-1 mx-1 bg-green-100 border-2 border-green-400 rounded-lg text-green-800 font-medium">${item?.answer_text || '???'}</span>`
-      );
+      return `<span class="inline-block min-w-[100px] px-3 py-1 mx-1 bg-green-100 border-2 border-green-400 rounded-lg text-green-800 font-medium">${item?.answer_text || '???'}</span>`;
     });
-    return text;
+    
+    return text.replace(/\n/g, '<br>');
   };
+
+  const blanks = getBlanksFromEditor();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -337,9 +450,9 @@ export const FillBlankDragAnswerPage = () => {
             <div className="text-sm text-blue-800">
               <p className="font-semibold mb-1">Cómo funciona:</p>
               <ol className="list-decimal ml-4 space-y-1">
-                <li>Escribe el texto de la pregunta en el área de texto</li>
-                <li>Usa el botón "Agregar Espacio" para insertar marcadores <code className="bg-blue-100 px-1 rounded">___BLANK_N___</code></li>
-                <li>Define la respuesta correcta para cada espacio en blanco</li>
+                <li>Escribe o pega el texto de la pregunta en el editor</li>
+                <li>Posiciona el cursor donde quieras un espacio en blanco y haz clic en <strong>"+ Insertar Espacio"</strong></li>
+                <li>Define la respuesta correcta para cada espacio en la sección de abajo</li>
                 <li>Opcionalmente, agrega distractores (opciones incorrectas)</li>
               </ol>
             </div>
@@ -347,40 +460,53 @@ export const FillBlankDragAnswerPage = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Editor de texto */}
+          {/* Editor de texto visual */}
           <div className="bg-white rounded-xl shadow-md p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Texto de la pregunta</h2>
+              <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <Type className="w-5 h-5 text-gray-600" />
+                Texto de la pregunta
+              </h2>
               <button
-                onClick={addBlankToText}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors"
+                onClick={insertBlank}
+                className="flex items-center gap-1 px-4 py-2 text-sm bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors shadow-sm"
               >
                 <Plus className="w-4 h-4" />
-                Agregar Espacio
+                Insertar Espacio
               </button>
             </div>
-            <textarea
-              value={templateText}
-              onChange={(e) => setTemplateText(e.target.value)}
-              placeholder="Escribe el texto aquí. Usa ___BLANK_1___, ___BLANK_2___ para marcar los espacios en blanco..."
-              className="w-full h-48 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none font-mono text-sm"
+            
+            {/* Editor contentEditable */}
+            <div
+              ref={editorRef}
+              contentEditable
+              onClick={handleEditorClick}
+              className="w-full min-h-[200px] max-h-[400px] overflow-y-auto p-4 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-gray-800 leading-relaxed"
+              style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+              suppressContentEditableWarning
             />
-            <p className="text-xs text-gray-500 mt-2">
-              Espacios detectados: {blanks.length > 0 ? blanks.join(', ') : 'Ninguno'}
-            </p>
+            
+            <div className="flex items-center justify-between mt-3 text-sm">
+              <p className="text-gray-500">
+                Espacios insertados: <span className="font-semibold text-indigo-600">{blanks.length}</span>
+              </p>
+              <p className="text-gray-400 text-xs">
+                Haz clic en × para eliminar un espacio
+              </p>
+            </div>
           </div>
 
           {/* Preview */}
           {showPreview && (
             <div className="bg-white rounded-xl shadow-md p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">Vista previa</h2>
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">Vista previa (con respuestas)</h2>
               <div 
                 className="p-4 bg-gray-50 rounded-lg min-h-[180px] text-gray-700 leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: renderPreviewText() }}
               />
               
               <div className="mt-4 pt-4 border-t">
-                <p className="text-sm font-medium text-gray-600 mb-2">Opciones disponibles para arrastrar:</p>
+                <p className="text-sm font-medium text-gray-600 mb-2">Opciones que verá el estudiante:</p>
                 <div className="flex flex-wrap gap-2">
                   {[...items, ...distractors].filter(i => i.answer_text.trim()).map((item, idx) => (
                     <div
@@ -391,8 +517,8 @@ export const FillBlankDragAnswerPage = () => {
                           : 'bg-gray-50 border-gray-300 text-gray-700'
                       }`}
                     >
-                      <GripVertical className="w-3 h-3 inline mr-1 opacity-50" />
                       {item.answer_text}
+                      {!item.is_correct && <span className="ml-1 text-xs text-gray-400">(distractor)</span>}
                     </div>
                   ))}
                 </div>
@@ -413,28 +539,24 @@ export const FillBlankDragAnswerPage = () => {
             </h2>
             
             <div className="space-y-3">
-              {blanks.map((blankId, idx) => {
-                const item = items.find(i => i.correct_answer === blankId) || {
-                  answer_text: '',
-                  correct_answer: blankId,
-                  answer_number: idx + 1,
-                  is_correct: true
-                };
+              {blanks.length > 0 ? blanks.map((blankId) => {
+                const blankNum = blankId.replace('blank_', '');
+                const item = items.find(i => i.correct_answer === blankId);
                 const itemIndex = items.findIndex(i => i.correct_answer === blankId);
                 
                 return (
                   <div key={blankId} className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                    <span className="text-xs font-mono bg-green-200 text-green-800 px-2 py-1 rounded">
-                      {blankId.replace('blank_', 'Espacio ')}
+                    <span className="flex-shrink-0 w-24 text-xs font-semibold bg-indigo-100 text-indigo-700 px-2 py-1.5 rounded-lg text-center border border-indigo-200">
+                      Espacio {blankNum}
                     </span>
+                    <span className="text-gray-400">→</span>
                     <input
                       type="text"
-                      value={item.answer_text}
+                      value={item?.answer_text || ''}
                       onChange={(e) => {
                         if (itemIndex >= 0) {
                           updateItem(itemIndex, 'answer_text', e.target.value);
                         } else {
-                          // Agregar nuevo item
                           setItems(prev => [...prev, {
                             answer_text: e.target.value,
                             correct_answer: blankId,
@@ -443,16 +565,14 @@ export const FillBlankDragAnswerPage = () => {
                           }]);
                         }
                       }}
-                      placeholder="Respuesta correcta..."
-                      className="flex-1 px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
+                      placeholder="Escribe la respuesta correcta..."
+                      className="flex-1 px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white text-sm"
                     />
                   </div>
                 );
-              })}
-              
-              {blanks.length === 0 && (
-                <p className="text-gray-400 text-sm italic text-center py-4">
-                  Agrega espacios en blanco al texto para definir las respuestas
+              }) : (
+                <p className="text-gray-400 text-sm italic text-center py-6 bg-gray-50 rounded-lg">
+                  Inserta espacios en blanco en el texto para definir las respuestas
                 </p>
               )}
             </div>
@@ -477,7 +597,7 @@ export const FillBlankDragAnswerPage = () => {
             </div>
             
             <p className="text-xs text-gray-500 mb-3">
-              Los distractores son opciones incorrectas que aparecerán junto a las respuestas correctas
+              Los distractores son opciones incorrectas que aumentan la dificultad
             </p>
             
             <div className="space-y-2">
