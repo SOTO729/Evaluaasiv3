@@ -271,7 +271,9 @@ const TopicDetailPage = () => {
       'fill_blank': 'Llenar Espacio',
       'ordering': 'Ordenar',
       'drag_order': 'Arrastrar y Ordenar',
-      'drag_drop': 'Arrastrar y Soltar'
+      'drag_drop': 'Arrastrar y Soltar',
+      'column_grouping': 'Agrupamiento en Columnas',
+      'fill_blank_drag': 'Completar Espacios Arrastrando'
     }
     return types[name] || name
   }
@@ -849,7 +851,7 @@ const TopicDetailPage = () => {
                     .filter((type) => !['fill_blank', 'drag_order', 'fill_blank_drag'].includes(type.name)) // Ocultar tipos no disponibles
                     .map((type) => (
                       <option key={type.id} value={type.id}>
-                        {type.description}
+                        {getQuestionTypeName(type.name)}
                       </option>
                     ))}
                 </select>
@@ -919,7 +921,7 @@ const TopicDetailPage = () => {
                     .filter((type) => !['fill_blank', 'drag_order', 'fill_blank_drag'].includes(type.name)) // Ocultar tipos no disponibles
                     .map((type) => (
                       <option key={type.id} value={type.id}>
-                        {type.description}
+                        {getQuestionTypeName(type.name)}
                       </option>
                     ))}
                 </select>
