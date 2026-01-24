@@ -3061,7 +3061,7 @@ def generate_result_pdf(result_id):
         else:
             start_date = 'N/A'
         c.setFont('Helvetica-Bold', 9)
-        c.drawString(margin + 5, y, 'Fecha de certificación:')
+        c.drawString(margin + 5, y, 'Fecha de la evaluación:')
         c.setFont('Helvetica', 9)
         c.drawString(margin + 115, y, start_date)
         y -= 25
