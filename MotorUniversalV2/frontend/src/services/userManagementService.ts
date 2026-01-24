@@ -234,20 +234,15 @@ export async function downloadBulkUploadTemplate(): Promise<void> {
       responseType: 'blob'
     });
     
-    // Verificar que la respuesta es un archivo Excel válido
-    const contentType = response.headers['content-type'];
-    if (contentType && contentType.includes('application/json')) {
-      // Si es JSON, probablemente es un error
+    // Verificar que la respuesta no sea un error JSON
+    if (response.data.type === 'application/json') {
       const text = await response.data.text();
       const error = JSON.parse(text);
       throw new Error(error.error || 'Error al descargar la plantilla');
     }
     
-    // Crear blob y descargar
-    const blob = new Blob([response.data], { 
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-    });
-    const url = window.URL.createObjectURL(blob);
+    // Usar directamente el blob de la respuesta
+    const url = window.URL.createObjectURL(response.data);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'plantilla_candidatos.xlsx';
