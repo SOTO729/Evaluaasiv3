@@ -57,6 +57,7 @@ export const FillBlankDragAnswerPage = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [blankCount, setBlankCount] = useState(0);
   const [editorReady, setEditorReady] = useState(false);
+  const [instructions, setInstructions] = useState('');
 
   // Obtener datos de la pregunta
   const { data: questionResponse } = useQuery({
@@ -131,14 +132,37 @@ export const FillBlankDragAnswerPage = () => {
     });
   }, []);
 
+  // Parsear question_text que puede contener instrucciones
+  const parseQuestionText = useCallback((fullText: string): { instructions: string; template: string } => {
+    if (fullText.includes('___INSTRUCTIONS___') && fullText.includes('___TEMPLATE___')) {
+      const parts = fullText.split('___TEMPLATE___');
+      const instructionsPart = parts[0].replace('___INSTRUCTIONS___', '').trim();
+      const templatePart = parts[1]?.trim() || '';
+      return { instructions: instructionsPart, template: templatePart };
+    }
+    // Si no tiene el formato estructurado, todo es template
+    return { instructions: '', template: fullText };
+  }, []);
+
+  // Combinar instrucciones y template para guardar
+  const combineQuestionText = useCallback((instr: string, template: string): string => {
+    if (instr.trim()) {
+      return `___INSTRUCTIONS___\n${instr.trim()}\n___TEMPLATE___\n${template}`;
+    }
+    return template;
+  }, []);
+
   // Cargar datos existentes
   useEffect(() => {
     if (questionData?.question_text && editorRef.current && !editorReady) {
-      const visualHtml = markersToVisual(questionData.question_text);
+      const { instructions: loadedInstructions, template } = parseQuestionText(questionData.question_text);
+      setInstructions(loadedInstructions);
+      
+      const visualHtml = markersToVisual(template);
       editorRef.current.innerHTML = visualHtml || '';
       
       // Contar blanks existentes
-      const matches = questionData.question_text.match(/___BLANK_(\d+)___/g) || [];
+      const matches = template.match(/___BLANK_(\d+)___/g) || [];
       const maxNum = matches.reduce((max: number, m: string) => {
         const num = parseInt(m.match(/\d+/)?.[0] || '0');
         return Math.max(max, num);
@@ -314,6 +338,7 @@ export const FillBlankDragAnswerPage = () => {
     if (!editorRef.current) return;
     
     const templateText = visualToMarkers(editorRef.current);
+    const fullQuestionText = combineQuestionText(instructions, templateText);
     const blanks = getBlanksFromEditor();
     
     if (blanks.length === 0) {
@@ -330,7 +355,7 @@ export const FillBlankDragAnswerPage = () => {
     }
 
     try {
-      await updateQuestionMutation.mutateAsync({ question_text: templateText });
+      await updateQuestionMutation.mutateAsync({ question_text: fullQuestionText });
 
       // Obtener IDs existentes
       const existingIds = new Set(answersData.map((a: any) => a.id));
@@ -443,13 +468,14 @@ export const FillBlankDragAnswerPage = () => {
           </div>
         </div>
 
-        {/* Instrucciones */}
+        {/* Instrucciones de ayuda */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5" />
             <div className="text-sm text-blue-800">
               <p className="font-semibold mb-1">Cómo funciona:</p>
               <ol className="list-decimal ml-4 space-y-1">
+                <li>Escribe las instrucciones que verá el estudiante (opcional)</li>
                 <li>Escribe o pega el texto de la pregunta en el editor</li>
                 <li>Posiciona el cursor donde quieras un espacio en blanco y haz clic en <strong>"+ Insertar Espacio"</strong></li>
                 <li>Define la respuesta correcta para cada espacio en la sección de abajo</li>
@@ -457,6 +483,23 @@ export const FillBlankDragAnswerPage = () => {
               </ol>
             </div>
           </div>
+        </div>
+
+        {/* Campo de instrucciones para el estudiante */}
+        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-amber-500" />
+            Instrucciones para el estudiante
+          </h2>
+          <p className="text-xs text-gray-500 mb-3">
+            Escribe las instrucciones que verá el estudiante antes de la pregunta (opcional)
+          </p>
+          <textarea
+            value={instructions}
+            onChange={(e) => setInstructions(e.target.value)}
+            placeholder="Ej: Arrastra las palabras correctas a los espacios en blanco para completar el texto..."
+            className="w-full h-24 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none text-sm"
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -500,6 +543,15 @@ export const FillBlankDragAnswerPage = () => {
           {showPreview && (
             <div className="bg-white rounded-xl shadow-md p-6">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">Vista previa (con respuestas)</h2>
+              
+              {/* Instrucciones en preview */}
+              {instructions.trim() && (
+                <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-sm font-medium text-amber-800 mb-1">📋 Instrucciones:</p>
+                  <p className="text-sm text-amber-700">{instructions}</p>
+                </div>
+              )}
+              
               <div 
                 className="p-4 bg-gray-50 rounded-lg min-h-[180px] text-gray-700 leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: renderPreviewText() }}

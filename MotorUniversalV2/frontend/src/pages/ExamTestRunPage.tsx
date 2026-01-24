@@ -1669,8 +1669,18 @@ const ExamTestRunPage: React.FC = () => {
         const fillBlankOptions = currentItem.options || [];
         const fillBlankAnswer = currentAnswer || {}; // { blank_1: 'answerId', blank_2: 'answerId' }
         
+        // Parsear question_text para extraer instrucciones y template
+        const fullQuestionText = currentItem.question_text || '';
+        let fillBlankInstructions = '';
+        let questionTextWithBlanks = fullQuestionText;
+        
+        if (fullQuestionText.includes('___INSTRUCTIONS___') && fullQuestionText.includes('___TEMPLATE___')) {
+          const parts = fullQuestionText.split('___TEMPLATE___');
+          fillBlankInstructions = parts[0].replace('___INSTRUCTIONS___', '').trim();
+          questionTextWithBlanks = parts[1]?.trim() || '';
+        }
+        
         // Extraer blanks del texto de la pregunta
-        const questionTextWithBlanks = currentItem.question_text || '';
         const blankRegex = /___BLANK_(\d+)___/g;
         const blanksFound: string[] = [];
         let blankMatch;
@@ -1813,6 +1823,16 @@ const ExamTestRunPage: React.FC = () => {
 
         return (
           <div className="space-y-4">
+            {/* Instrucciones personalizadas si existen */}
+            {fillBlankInstructions && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                <p className="text-sm font-medium text-amber-800 mb-1 flex items-center gap-2">
+                  📋 Instrucciones:
+                </p>
+                <p className="text-sm text-amber-700">{fillBlankInstructions}</p>
+              </div>
+            )}
+            
             <p className="text-sm text-gray-600 mb-3 flex items-center gap-2 bg-indigo-50 p-3 rounded-lg">
               <GripVertical className="w-5 h-5 text-indigo-500" />
               <span><strong>Arrastra</strong> cada opción al espacio en blanco correspondiente</span>
