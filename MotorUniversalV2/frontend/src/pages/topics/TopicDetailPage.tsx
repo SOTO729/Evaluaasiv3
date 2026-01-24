@@ -164,12 +164,12 @@ const TopicDetailPage = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (formData.question_text && formData.question_type_id) {
-      // Determinar si es tipo drag_drop para formatear correctamente
+      // Determinar si es tipo drag_drop o column_grouping para formatear correctamente
       const selectedType = questionTypes?.question_types.find(t => t.id === Number(formData.question_type_id))
       let questionText = formData.question_text
       
-      if (selectedType?.name === 'drag_drop') {
-        // Para drag_drop, el texto ingresado va como instrucciones
+      if (selectedType?.name === 'drag_drop' || selectedType?.name === 'column_grouping') {
+        // Para drag_drop y column_grouping, el texto ingresado va como instrucciones
         questionText = `___INSTRUCTIONS___\n${formData.question_text}\n___TEMPLATE___\n`
       }
       
