@@ -537,7 +537,7 @@ const TopicDetailPage = () => {
                                 navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/multiple-select`)
                               } else if (question.question_type?.name === 'ordering') {
                                 navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/ordering`)
-                              } else if (question.question_type?.name === 'drag_drop') {
+                              } else if (question.question_type?.name === 'drag_drop' || question.question_type?.name === 'column_grouping') {
                                 navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/drag-drop`)
                               }
                             }}
@@ -546,7 +546,8 @@ const TopicDetailPage = () => {
                               question.question_type?.name === 'multiple_choice' || 
                               question.question_type?.name === 'multiple_select' || 
                               question.question_type?.name === 'ordering' ||
-                              question.question_type?.name === 'drag_drop' ? 'cursor-pointer' : ''
+                              question.question_type?.name === 'drag_drop' ||
+                              question.question_type?.name === 'column_grouping' ? 'cursor-pointer' : ''
                             }`}
                           >
                             <td className="px-6 py-4 whitespace-nowrap">
