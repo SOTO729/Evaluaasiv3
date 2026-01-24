@@ -1671,12 +1671,10 @@ const ExamTestRunPage: React.FC = () => {
         
         // Parsear question_text para extraer instrucciones y template
         const fullQuestionText = currentItem.question_text || '';
-        let fillBlankInstructions = '';
         let questionTextWithBlanks = fullQuestionText;
         
         if (fullQuestionText.includes('___INSTRUCTIONS___') && fullQuestionText.includes('___TEMPLATE___')) {
           const parts = fullQuestionText.split('___TEMPLATE___');
-          fillBlankInstructions = parts[0].replace('___INSTRUCTIONS___', '').trim();
           questionTextWithBlanks = parts[1]?.trim() || '';
         }
         
@@ -1823,16 +1821,6 @@ const ExamTestRunPage: React.FC = () => {
 
         return (
           <div className="space-y-4">
-            {/* Instrucciones personalizadas si existen */}
-            {fillBlankInstructions && (
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                <p className="text-sm font-medium text-amber-800 mb-1 flex items-center gap-2">
-                  📋 Instrucciones:
-                </p>
-                <p className="text-sm text-amber-700">{fillBlankInstructions}</p>
-              </div>
-            )}
-            
             <p className="text-sm text-gray-600 mb-3 flex items-center gap-2 bg-indigo-50 p-3 rounded-lg">
               <GripVertical className="w-5 h-5 text-indigo-500" />
               <span><strong>Arrastra</strong> cada opción al espacio en blanco correspondiente</span>
@@ -2523,7 +2511,16 @@ const ExamTestRunPage: React.FC = () => {
                 <>
                   <div
                     className="prose prose-gray max-w-none mb-6 text-gray-800 leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: currentItem.question_text || '' }}
+                    dangerouslySetInnerHTML={{ __html: (() => {
+                      // Para fill_blank_drag, extraer solo las instrucciones del question_text
+                      const text = currentItem.question_text || '';
+                      if (currentItem.question_type === 'fill_blank_drag' && text.includes('___INSTRUCTIONS___') && text.includes('___TEMPLATE___')) {
+                        const parts = text.split('___TEMPLATE___');
+                        const instructionsOnly = parts[0].replace('___INSTRUCTIONS___', '').trim();
+                        return instructionsOnly || '';
+                      }
+                      return text;
+                    })() }}
                   />
                   <div className="mt-4">
                     {renderQuestionInput()}
