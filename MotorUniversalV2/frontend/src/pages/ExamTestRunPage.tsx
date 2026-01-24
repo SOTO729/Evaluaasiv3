@@ -1664,6 +1664,206 @@ const ExamTestRunPage: React.FC = () => {
           </div>
         );
 
+      case 'fill_blank_drag':
+        // Para preguntas de completar espacios en blanco arrastrando
+        const fillBlankOptions = currentItem.options || [];
+        const fillBlankAnswer = currentAnswer || {}; // { blank_1: 'answerId', blank_2: 'answerId' }
+        
+        // Extraer blanks del texto de la pregunta
+        const questionTextWithBlanks = currentItem.question_text || '';
+        const blankRegex = /___BLANK_(\d+)___/g;
+        const blanksFound: string[] = [];
+        let blankMatch;
+        while ((blankMatch = blankRegex.exec(questionTextWithBlanks)) !== null) {
+          blanksFound.push(`blank_${blankMatch[1]}`);
+        }
+        // uniqueBlanks se usa implícitamente en el renderizado
+        
+        // Opciones asignadas a blanks
+        const assignedOptionIds = new Set(Object.values(fillBlankAnswer));
+        const availableOptions = fillBlankOptions.filter((o: any) => !assignedOptionIds.has(o.id));
+        
+        // Handlers para drag and drop
+        const handleFillDragStart = (e: React.DragEvent, optionId: string) => {
+          e.dataTransfer.setData('text/plain', optionId);
+          e.dataTransfer.effectAllowed = 'move';
+          (e.target as HTMLElement).classList.add('opacity-50', 'scale-95');
+        };
+        
+        const handleFillDragEnd = (e: React.DragEvent) => {
+          (e.target as HTMLElement).classList.remove('opacity-50', 'scale-95');
+        };
+        
+        const handleFillDragOver = (e: React.DragEvent) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          (e.currentTarget as HTMLElement).classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-100');
+        };
+        
+        const handleFillDragLeave = (e: React.DragEvent) => {
+          (e.currentTarget as HTMLElement).classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-100');
+        };
+        
+        const handleDropOnBlank = (e: React.DragEvent, blankId: string) => {
+          e.preventDefault();
+          (e.currentTarget as HTMLElement).classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-100');
+          const optionId = e.dataTransfer.getData('text/plain');
+          if (optionId) {
+            // Remover la opción de cualquier otro blank
+            const newAnswer = { ...fillBlankAnswer };
+            Object.keys(newAnswer).forEach(key => {
+              if (newAnswer[key] === optionId) delete newAnswer[key];
+            });
+            // Asignar al nuevo blank
+            newAnswer[blankId] = optionId;
+            handleAnswerChange(currentItem.question_id!, newAnswer);
+          }
+        };
+        
+        const handleRemoveFromBlank = (blankId: string) => {
+          const newAnswer = { ...fillBlankAnswer };
+          delete newAnswer[blankId];
+          handleAnswerChange(currentItem.question_id!, newAnswer);
+        };
+        
+        const handleDropOnAvailable = (e: React.DragEvent) => {
+          e.preventDefault();
+          (e.currentTarget as HTMLElement).classList.remove('ring-2', 'ring-gray-400', 'bg-gray-100');
+          const optionId = e.dataTransfer.getData('text/plain');
+          if (optionId) {
+            // Remover de cualquier blank
+            const newAnswer = { ...fillBlankAnswer };
+            Object.keys(newAnswer).forEach(key => {
+              if (newAnswer[key] === optionId) delete newAnswer[key];
+            });
+            handleAnswerChange(currentItem.question_id!, newAnswer);
+          }
+        };
+        
+        // Renderizar el texto con los blanks interactivos
+        const renderTextWithBlanks = () => {
+          let textParts: React.ReactNode[] = [];
+          let lastIndex = 0;
+          const regex = /___BLANK_(\d+)___/g;
+          let match;
+          
+          while ((match = regex.exec(questionTextWithBlanks)) !== null) {
+            // Agregar texto antes del blank
+            if (match.index > lastIndex) {
+              textParts.push(
+                <span key={`text-${lastIndex}`} dangerouslySetInnerHTML={{ 
+                  __html: DOMPurify.sanitize(questionTextWithBlanks.slice(lastIndex, match.index)) 
+                }} />
+              );
+            }
+            
+            const blankId = `blank_${match[1]}`;
+            const assignedOptionId = fillBlankAnswer[blankId];
+            const assignedOption = fillBlankOptions.find((o: any) => o.id === assignedOptionId);
+            
+            // Renderizar el blank
+            textParts.push(
+              <span
+                key={blankId}
+                className={`inline-block min-w-[120px] mx-1 px-3 py-1.5 rounded-lg border-2 border-dashed transition-all ${
+                  assignedOption 
+                    ? 'bg-indigo-100 border-indigo-400 cursor-grab' 
+                    : 'bg-gray-100 border-gray-300'
+                }`}
+                onDragOver={handleFillDragOver}
+                onDragLeave={handleFillDragLeave}
+                onDrop={(e) => handleDropOnBlank(e, blankId)}
+              >
+                {assignedOption ? (
+                  <span 
+                    draggable
+                    onDragStart={(e) => handleFillDragStart(e, assignedOption.id)}
+                    onDragEnd={handleFillDragEnd}
+                    className="flex items-center gap-1 text-indigo-800 font-medium cursor-grab active:cursor-grabbing"
+                  >
+                    <GripVertical className="w-3 h-3 opacity-50" />
+                    {assignedOption.answer_text}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleRemoveFromBlank(blankId); }}
+                      className="ml-1 p-0.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ) : (
+                  <span className="text-gray-400 text-sm">Espacio {match[1]}</span>
+                )}
+              </span>
+            );
+            
+            lastIndex = match.index + match[0].length;
+          }
+          
+          // Agregar texto restante
+          if (lastIndex < questionTextWithBlanks.length) {
+            textParts.push(
+              <span key={`text-${lastIndex}`} dangerouslySetInnerHTML={{ 
+                __html: DOMPurify.sanitize(questionTextWithBlanks.slice(lastIndex)) 
+              }} />
+            );
+          }
+          
+          return textParts;
+        };
+
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 mb-3 flex items-center gap-2 bg-indigo-50 p-3 rounded-lg">
+              <GripVertical className="w-5 h-5 text-indigo-500" />
+              <span><strong>Arrastra</strong> cada opción al espacio en blanco correspondiente</span>
+            </p>
+            
+            {/* Texto con blanks */}
+            <div className="p-5 bg-white rounded-xl border border-gray-200 shadow-sm text-gray-800 leading-relaxed text-lg">
+              {renderTextWithBlanks()}
+            </div>
+            
+            {/* Opciones disponibles */}
+            <div 
+              className="p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 min-h-[80px] transition-all"
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.add('ring-2', 'ring-gray-400', 'bg-gray-100');
+              }}
+              onDragLeave={(e) => {
+                e.currentTarget.classList.remove('ring-2', 'ring-gray-400', 'bg-gray-100');
+              }}
+              onDrop={handleDropOnAvailable}
+            >
+              <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <span className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs">📋</span>
+                Opciones disponibles
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {availableOptions.map((option: any) => (
+                  <div
+                    key={option.id}
+                    draggable
+                    onDragStart={(e) => handleFillDragStart(e, option.id)}
+                    onDragEnd={handleFillDragEnd}
+                    className="px-4 py-2 bg-white border-2 border-gray-300 text-gray-800 rounded-lg cursor-grab active:cursor-grabbing hover:bg-gray-50 hover:border-gray-400 transition-all text-sm font-medium shadow-sm select-none"
+                  >
+                    <span className="flex items-center gap-2">
+                      <GripVertical className="w-4 h-4 text-gray-400" />
+                      {option.answer_text}
+                    </span>
+                  </div>
+                ))}
+                {availableOptions.length === 0 && (
+                  <p className="text-green-600 text-sm italic flex items-center gap-1">
+                    ✓ Todas las opciones han sido asignadas
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+
       default:
         return <p className="text-gray-500">Tipo de pregunta no soportado: {currentItem.question_type}</p>;
     }

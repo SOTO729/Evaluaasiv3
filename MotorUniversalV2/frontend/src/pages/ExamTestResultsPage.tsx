@@ -30,7 +30,8 @@ const getQuestionTypeLabel = (type: string): string => {
     'multiple_select': 'Selección Múltiple',
     'ordering': 'Ordenamiento',
     'drag_drop': 'Arrastrar y Soltar',
-    'column_grouping': 'Clasificación en Columnas'
+    'column_grouping': 'Clasificación en Columnas',
+    'fill_blank_drag': 'Completar Arrastrando'
   };
   return labels[type] || type;
 };
@@ -373,6 +374,36 @@ const ExamTestResultsPage: React.FC = () => {
         );
       }
 
+      case 'fill_blank_drag': {
+        // Mostrar qué respuesta puso el usuario en cada espacio
+        const userAnswer = result.user_answer || {};
+        const allAnswers = result.answers || [];
+        
+        return (
+          <div className="space-y-1">
+            {Object.entries(userAnswer).map(([blankId, answerId]) => {
+              const answer = allAnswers.find((a: any) => String(a.id) === String(answerId));
+              const correctAnswer = allAnswers.find((a: any) => a.correct_answer === blankId);
+              const isCorrect = String(answerId) === String(correctAnswer?.id);
+              
+              return (
+                <div key={blankId} className="flex items-center gap-2 text-sm">
+                  <span className="px-2 py-0.5 bg-gray-200 rounded text-xs font-mono">
+                    {blankId.replace('blank_', 'Espacio ')}
+                  </span>
+                  <span className="text-gray-500">→</span>
+                  <span className={`px-2 py-0.5 rounded font-medium ${
+                    isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  }`}>
+                    {answer?.answer_text || 'Sin respuesta'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
+
       default:
         return <span className="text-gray-500">-</span>;
     }
@@ -495,6 +526,33 @@ const ExamTestResultsPage: React.FC = () => {
                 </div>
               );
             })}
+          </div>
+        );
+      }
+
+      case 'fill_blank_drag': {
+        // Mostrar qué respuesta va en cada espacio
+        const answers = result.answers || [];
+        const blanksMap = new Map<string, any>();
+        answers.forEach((a: any) => {
+          if (a.correct_answer && a.correct_answer.startsWith('blank_')) {
+            blanksMap.set(a.correct_answer, a);
+          }
+        });
+        
+        return (
+          <div className="space-y-1">
+            {Array.from(blanksMap.entries()).map(([blankId, answer]) => (
+              <div key={blankId} className="flex items-center gap-2 text-sm">
+                <span className="px-2 py-0.5 bg-gray-200 rounded text-xs font-mono">
+                  {blankId.replace('blank_', 'Espacio ')}
+                </span>
+                <span className="text-gray-500">→</span>
+                <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded font-medium">
+                  {answer.answer_text}
+                </span>
+              </div>
+            ))}
           </div>
         );
       }

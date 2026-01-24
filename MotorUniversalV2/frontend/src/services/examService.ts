@@ -95,6 +95,11 @@ export const examService = {
     return response.data
   },
 
+  getQuestion: async (questionId: string): Promise<{ question: Question }> => {
+    const response = await api.get<{ question: Question }>(`/exams/questions/${questionId}`)
+    return response.data
+  },
+
   createQuestion: async (topicId: number, data: Partial<Question>): Promise<{ message: string; question: Question }> => {
     const response = await api.post<{ message: string; question: Question }>(`/exams/topics/${topicId}/questions`, data)
     return response.data

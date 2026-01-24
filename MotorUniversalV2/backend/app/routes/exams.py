@@ -991,6 +991,19 @@ def delete_question(question_id):
     return jsonify({'message': 'Pregunta eliminada exitosamente'}), 200
 
 
+@bp.route('/questions/<question_id>', methods=['GET'])
+@jwt_required()
+def get_question(question_id):
+    """Obtener una pregunta por ID"""
+    question = Question.query.get(question_id)
+    if not question:
+        return jsonify({'error': 'Pregunta no encontrada'}), 404
+    
+    return jsonify({
+        'question': question.to_dict(include_correct=True)
+    }), 200
+
+
 # ============= RESPUESTAS =============
 
 @bp.route('/questions/<question_id>/answers', methods=['GET'])
@@ -2330,6 +2343,33 @@ def evaluate_question(question_data: dict, user_answer: any) -> dict:
         result['score'] = correct_items / total_items if total_items > 0 else 0
         result['correct_items'] = correct_items
         result['total_items'] = total_items
+    
+    elif q_type == 'fill_blank_drag':
+        # Para completar espacios en blanco arrastrando
+        # user_answer es un dict {blank_id: answer_id}
+        user_blanks = user_answer if isinstance(user_answer, dict) else {}
+        
+        # Construir el mapa correcto: qué respuesta va en qué blank
+        correct_blanks = {}
+        for a in answers:
+            blank = a.get('correct_answer', '')
+            if blank and blank.startswith('blank_'):
+                correct_blanks[blank] = str(a.get('id'))
+        
+        # Verificar si la respuesta del usuario es correcta
+        total_blanks = len(correct_blanks)
+        correct_count = 0
+        
+        for blank_id, correct_answer_id in correct_blanks.items():
+            user_answer_id = str(user_blanks.get(blank_id, ''))
+            if user_answer_id == correct_answer_id:
+                correct_count += 1
+        
+        result['is_correct'] = correct_count == total_blanks
+        result['correct_answer'] = correct_blanks
+        result['score'] = correct_count / total_blanks if total_blanks > 0 else 0
+        result['correct_count'] = correct_count
+        result['total_blanks'] = total_blanks
     
     return result
 

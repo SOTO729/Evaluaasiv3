@@ -263,7 +263,8 @@ const TopicDetailPage = () => {
       'ordering': 'Ordenar',
       'drag_drop': 'Arrastrar y Soltar',
       'drag_order': 'Arrastrar y Ordenar',
-      'column_grouping': 'Agrupamiento en Columnas'
+      'column_grouping': 'Agrupamiento en Columnas',
+      'fill_blank_drag': 'Completar Arrastrando'
     }
     return types[name] || name
   }
@@ -531,6 +532,8 @@ const TopicDetailPage = () => {
                                 navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/drag-drop`)
                               } else if (question.question_type?.name === 'column_grouping') {
                                 navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/column-grouping`)
+                              } else if (question.question_type?.name === 'fill_blank_drag') {
+                                navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/fill-blank-drag`)
                               }
                             }}
                             className={`group hover:bg-blue-100/60 transition-colors duration-150 ${
@@ -539,7 +542,8 @@ const TopicDetailPage = () => {
                               question.question_type?.name === 'multiple_select' || 
                               question.question_type?.name === 'ordering' ||
                               question.question_type?.name === 'drag_drop' ||
-                              question.question_type?.name === 'column_grouping' ? 'cursor-pointer' : ''
+                              question.question_type?.name === 'column_grouping' ||
+                              question.question_type?.name === 'fill_blank_drag' ? 'cursor-pointer' : ''
                             }`}
                           >
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -841,7 +845,7 @@ const TopicDetailPage = () => {
                 >
                   <option value="">Selecciona un tipo</option>
                   {questionTypes?.question_types
-                    .filter((type) => !['fill_blank', 'drag_drop', 'drag_order'].includes(type.name)) // Ocultar tipos no disponibles
+                    .filter((type) => !['fill_blank', 'drag_order'].includes(type.name)) // Ocultar tipos no disponibles
                     .map((type) => (
                       <option key={type.id} value={type.id}>
                         {type.description}
@@ -911,7 +915,7 @@ const TopicDetailPage = () => {
                 >
                   <option value="">Selecciona un tipo</option>
                   {questionTypes?.question_types
-                    .filter((type) => !['fill_blank', 'drag_drop', 'drag_order'].includes(type.name)) // Ocultar tipos no disponibles
+                    .filter((type) => !['fill_blank', 'drag_order'].includes(type.name)) // Ocultar tipos no disponibles
                     .map((type) => (
                       <option key={type.id} value={type.id}>
                         {type.description}

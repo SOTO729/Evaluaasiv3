@@ -164,3 +164,57 @@ def check_and_add_answers_columns():
     except Exception as e:
         print(f"❌ Error en auto-migración answers: {e}")
         db.session.rollback()
+
+
+def check_and_add_question_types():
+    """Verificar y agregar tipos de pregunta faltantes"""
+    print("🔍 Verificando tipos de pregunta...")
+    
+    # Tipos de pregunta que deben existir
+    required_types = [
+        {'name': 'column_grouping', 'description': 'Agrupamiento en columnas'},
+        {'name': 'fill_blank_drag', 'description': 'Completar espacios arrastrando'}
+    ]
+    
+    try:
+        # Verificar si la tabla existe
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        if 'question_types' not in tables:
+            print("  ⚠️  Tabla question_types no existe, saltando...")
+            return
+        
+        added_count = 0
+        
+        for qt in required_types:
+            # Verificar si el tipo ya existe
+            result = db.session.execute(
+                text("SELECT id FROM question_types WHERE name = :name"),
+                {'name': qt['name']}
+            ).fetchone()
+            
+            if not result:
+                print(f"  📝 Agregando tipo de pregunta: {qt['name']}...")
+                try:
+                    db.session.execute(
+                        text("INSERT INTO question_types (name, description) VALUES (:name, :description)"),
+                        {'name': qt['name'], 'description': qt['description']}
+                    )
+                    db.session.commit()
+                    print(f"     ✓ Tipo {qt['name']} agregado")
+                    added_count += 1
+                except Exception as e:
+                    print(f"     ❌ Error al agregar {qt['name']}: {e}")
+                    db.session.rollback()
+            else:
+                print(f"  ✓ Tipo {qt['name']} ya existe (ID: {result[0]})")
+        
+        if added_count > 0:
+            print(f"\n✅ Auto-migración question_types completada: {added_count} tipos agregados")
+        else:
+            print(f"✅ Tipos de pregunta actualizados: todos ya existen")
+                
+    except Exception as e:
+        print(f"❌ Error en auto-migración question_types: {e}")
+        db.session.rollback()
