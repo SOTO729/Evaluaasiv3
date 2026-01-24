@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { examService } from '../../services/examService';
-import { Plus, Trash2, ArrowLeft, Save, Eye, AlertCircle, Type } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Eye, AlertCircle, Type } from 'lucide-react';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 interface BlankItem {
   id?: string;
@@ -473,7 +474,6 @@ export const DragDropAnswerPage = () => {
               disabled={isSaving}
               className="flex items-center gap-2 px-6 py-2 lg:px-7 lg:py-2.5 xl:px-8 xl:py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm lg:text-base xl:text-lg rounded-lg xl:rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Save className="w-4 h-4 lg:w-5 lg:h-5" />
               {isSaving ? 'Guardando...' : 'Guardar'}
             </button>
           </div>
@@ -481,11 +481,8 @@ export const DragDropAnswerPage = () => {
 
         {/* Pantalla de carga mientras se guarda */}
         {isSaving && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4">
-              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-lg font-medium text-gray-700">Guardando cambios...</p>
-            </div>
+          <div className="fixed inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50">
+            <LoadingSpinner message="Guardando cambios..." />
           </div>
         )}
 
