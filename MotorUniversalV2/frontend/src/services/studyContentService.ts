@@ -119,7 +119,7 @@ export interface StudyInteractiveExerciseAction {
   id: string;
   step_id: string;
   action_number: number;
-  action_type: 'button' | 'text_input';
+  action_type: 'button' | 'text_input' | 'comment';
   position_x: number;
   position_y: number;
   width: number;
@@ -135,6 +135,10 @@ export interface StudyInteractiveExerciseAction {
   text_color?: string;
   font_family?: string;
   label_style?: 'invisible' | 'text_only' | 'text_with_shadow' | 'shadow_only';
+  comment_text?: string;
+  comment_bg_color?: string;
+  comment_text_color?: string;
+  comment_font_size?: number;
 }
 
 // Interfaces para crear/actualizar

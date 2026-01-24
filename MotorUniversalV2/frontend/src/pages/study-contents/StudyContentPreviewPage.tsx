@@ -2413,6 +2413,47 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
     );
   }
 
+  // Renderizar comentario/letrero
+  if (action.action_type === 'comment') {
+    const commentText = action.comment_text || action.label || 'Comentario';
+    const bgColor = action.comment_bg_color || '#fef3c7';
+    const textColor = action.comment_text_color || '#92400e';
+    const fontSize = action.comment_font_size || 14;
+    
+    return (
+      <div
+        style={{
+          ...baseStyle,
+          pointerEvents: 'none', // Los comentarios no son interactivos
+          zIndex: 5, // Debajo de botones y campos de texto
+          backgroundColor: bgColor,
+          border: `2px solid ${textColor}40`,
+          borderRadius: '6px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '4px 8px',
+          overflow: 'hidden',
+        }}
+      >
+        <span
+          style={{
+            color: textColor,
+            fontSize: `${fontSize}px`,
+            fontWeight: 500,
+            textAlign: 'center',
+            lineHeight: 1.3,
+            wordBreak: 'break-word',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {commentText}
+        </span>
+      </div>
+    );
+  }
+
   return null;
 };
 

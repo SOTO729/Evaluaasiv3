@@ -218,7 +218,7 @@ const LabelStyleDropdown: React.FC<LabelStyleDropdownProps> = ({ value, onChange
   );
 };
 
-type Tool = 'select' | 'button' | 'button-wrong' | 'text_input'
+type Tool = 'select' | 'button' | 'button-wrong' | 'text_input' | 'comment'
 
 interface DragState {
   isDragging: boolean
@@ -343,7 +343,12 @@ const StudyInteractiveExercisePage = () => {
     error_message: '',
     max_attempts: 3,
     text_color: '#000000',
-    font_family: 'Arial'
+    font_family: 'Arial',
+    // Campos para comentarios
+    comment_text: '',
+    comment_bg_color: '#fef3c7',
+    comment_text_color: '#92400e',
+    comment_font_size: 14
   })
 
   // Modal de advertencia para validaciones
@@ -1035,22 +1040,26 @@ const StudyInteractiveExercisePage = () => {
       const isButton = selectedTool === 'button' || selectedTool === 'button-wrong'
       const isCorrectButton = selectedTool === 'button'
       const isTextInput = selectedTool === 'text_input'
+      const isComment = selectedTool === 'comment'
       
-      // Validar que solo haya una respuesta correcta por paso
-      // Incluye todos los text_input (incluso sin respuesta configurada aún)
-      const hasCorrectAnswer = currentActions.some(a => 
-        (a.action_type === 'button' && a.correct_answer === 'correct') ||
-        (a.action_type === 'text_input')
-      )
+      // Los comentarios no necesitan validación de respuesta correcta
+      if (!isComment) {
+        // Validar que solo haya una respuesta correcta por paso
+        // Incluye todos los text_input (incluso sin respuesta configurada aún)
+        const hasCorrectAnswer = currentActions.some(a => 
+          (a.action_type === 'button' && a.correct_answer === 'correct') ||
+          (a.action_type === 'text_input')
+        )
       
-      if ((isCorrectButton || isTextInput) && hasCorrectAnswer) {
-        setWarningModal({
-          isOpen: true,
-          title: 'Respuesta correcta ya existe',
-          message: 'Este paso ya tiene una respuesta correcta configurada. Solo puede haber un botón correcto o un campo de texto por cada paso del ejercicio.'
-        })
-        setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
-        return
+        if ((isCorrectButton || isTextInput) && hasCorrectAnswer) {
+          setWarningModal({
+            isOpen: true,
+            title: 'Respuesta correcta ya existe',
+            message: 'Este paso ya tiene una respuesta correcta configurada. Solo puede haber un botón correcto o un campo de texto por cada paso del ejercicio.'
+          })
+          setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
+          return
+        }
       }
       
       // Validar que campos incorrectos no se superpongan con respuestas correctas
@@ -1088,16 +1097,31 @@ const StudyInteractiveExercisePage = () => {
         }
       }
       
+      // Determinar tipo de acción a crear
+      let actionType: 'button' | 'text_input' | 'comment' = 'button'
+      if (isComment) {
+        actionType = 'comment'
+      } else if (isTextInput) {
+        actionType = 'text_input'
+      }
+      
       const newAction = {
-        action_type: isButton ? 'button' : 'text_input',
+        action_type: actionType,
         position_x: left,
         position_y: top,
         width: width,
         height: height,
-        label: isButton ? `Acción ${nextActionNumber}` : '',
+        label: isComment ? 'Escribe tu comentario aquí' : (isButton ? `Acción ${nextActionNumber}` : ''),
         placeholder: '',
         correct_answer: isButton ? (isCorrectButton ? 'correct' : 'wrong') : '',
-        scoring_mode: 'exact'
+        scoring_mode: 'exact',
+        // Propiedades específicas para comentarios
+        ...(isComment && {
+          comment_text: 'Escribe tu comentario aquí',
+          comment_bg_color: '#fef3c7',
+          comment_text_color: '#92400e',
+          comment_font_size: 14
+        })
       }
 
       createActionMutation.mutate({ stepId: currentStep.id, data: newAction })
@@ -1287,7 +1311,12 @@ const StudyInteractiveExercisePage = () => {
       error_message: (action as any).error_message || '',
       max_attempts: (action as any).max_attempts || 3,
       text_color: (action as any).text_color || '#000000',
-      font_family: (action as any).font_family || 'Arial'
+      font_family: (action as any).font_family || 'Arial',
+      // Campos para comentarios
+      comment_text: (action as any).comment_text || action.label || '',
+      comment_bg_color: (action as any).comment_bg_color || '#fef3c7',
+      comment_text_color: (action as any).comment_text_color || '#92400e',
+      comment_font_size: (action as any).comment_font_size || 14
     })
     setIsEditActionModalOpen(true)
   }
@@ -1300,13 +1329,32 @@ const StudyInteractiveExercisePage = () => {
       return
     }
     
-    // Validar que el texto descriptivo sea obligatorio para estilos que lo requieren
-    if (styleHasText(actionFormData.label_style) && (!actionFormData.placeholder || actionFormData.placeholder.trim() === '')) {
+    // Validar que el texto descriptivo sea obligatorio para estilos que lo requieren (no aplica a comentarios)
+    if (selectedAction.action_type !== 'comment' && styleHasText(actionFormData.label_style) && (!actionFormData.placeholder || actionFormData.placeholder.trim() === '')) {
       setWarningModal({
         isOpen: true,
         title: 'Texto descriptivo requerido',
         message: `El estilo "${getLabelStyleInfo(actionFormData.label_style).name}" requiere un texto descriptivo. Por favor, ingresa el texto que se mostrará sobre la acción.`
       })
+      return
+    }
+    
+    // Para comentarios, preparar datos específicos
+    if (selectedAction.action_type === 'comment') {
+      const commentData = {
+        label: actionFormData.comment_text || 'Comentario',
+        comment_text: actionFormData.comment_text || '',
+        comment_bg_color: actionFormData.comment_bg_color || '#fef3c7',
+        comment_text_color: actionFormData.comment_text_color || '#92400e',
+        comment_font_size: actionFormData.comment_font_size || 14
+      }
+      
+      updateActionMutation.mutate({
+        stepId: currentStep.id,
+        actionId: selectedAction.id,
+        data: commentData
+      })
+      setIsEditActionModalOpen(false)
       return
     }
     
@@ -1533,6 +1581,19 @@ const StudyInteractiveExercisePage = () => {
 
         <div className="h-6 w-px bg-gray-300"></div>
 
+        {/* Comentario/Letrero (azul) */}
+        <button
+          onClick={() => setSelectedTool('comment')}
+          className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'comment' ? 'bg-blue-600 text-white' : 'bg-white border hover:bg-blue-50 hover:border-blue-300'}`}
+          title="Agregar Comentario/Letrero"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+          </svg>
+        </button>
+
+        <div className="h-6 w-px bg-gray-300"></div>
+
         {/* Controles de zoom en la toolbar */}
         <div className="flex items-center gap-1">
           <span className="text-sm font-medium text-gray-700">Zoom:</span>
@@ -1588,6 +1649,11 @@ const StudyInteractiveExercisePage = () => {
           {selectedTool === 'text_input' && (
             <span className="px-3 py-1.5 bg-lime-50 text-lime-700 rounded-lg">
               ✏️ Dibuja un área en la imagen para agregar un campo de texto
+            </span>
+          )}
+          {selectedTool === 'comment' && (
+            <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg">
+              💬 Dibuja un área en la imagen para agregar un comentario/letrero
             </span>
           )}
           {selectedTool === 'select' && currentStep?.image_url && (
@@ -1852,6 +1918,7 @@ const StudyInteractiveExercisePage = () => {
                       const isWrongButton = action.action_type === 'button' && action.correct_answer === 'wrong'
                       const isCorrectButton = action.action_type === 'button' && action.correct_answer === 'correct'
                       const isCorrectAction = isCorrectButton || (isTextbox && action.correct_answer !== 'wrong')
+                      const isComment = action.action_type === 'comment'
                       
                       // Calcular el número de acción solo para las incorrectas usando el array ordenado
                       const incorrectIndex = sortedActions
@@ -1859,10 +1926,73 @@ const StudyInteractiveExercisePage = () => {
                         .filter((a: StudyInteractiveExerciseAction) => {
                           const aIsCorrectButton = a.action_type === 'button' && a.correct_answer === 'correct'
                           const aIsTextbox = a.action_type === 'text_input'
-                          return !(aIsCorrectButton || aIsTextbox)
+                          const aIsComment = a.action_type === 'comment'
+                          return !(aIsCorrectButton || aIsTextbox || aIsComment)
                         })
                         .length
-                      const displayNumber = isCorrectAction ? null : incorrectIndex + 1
+                      const displayNumber = isCorrectAction || isComment ? null : incorrectIndex + 1
+                      
+                      // Renderizar comentario con estilo especial
+                      if (isComment) {
+                        return (
+                          <div
+                            key={action.id}
+                            data-action-id={action.id}
+                            className={`absolute rounded cursor-move ${
+                              (dragState.isDragging && dragState.actionId === action.id) ||
+                              (resizeState.isResizing && resizeState.actionId === action.id)
+                                ? 'border-2 border-dashed border-blue-500'
+                                : selectedAction?.id === action.id
+                                ? 'ring-2 ring-blue-500 shadow-lg'
+                                : ''
+                            }`}
+                            style={{
+                              left: `${action.position_x}%`,
+                              top: `${action.position_y}%`,
+                              width: `${action.width}%`,
+                              height: `${action.height}%`,
+                              zIndex: 5, // Por debajo de botones y campos
+                              backgroundColor: action.comment_bg_color || '#fef3c7',
+                              border: `2px solid ${action.comment_text_color || '#92400e'}`,
+                              borderRadius: '8px',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => handleActionMouseDown(e, action)}
+                            onDoubleClick={() => handleEditAction(action)}
+                          >
+                            <div 
+                              className="absolute inset-0 flex items-center justify-center p-2 overflow-hidden"
+                              style={{
+                                color: action.comment_text_color || '#92400e',
+                                fontSize: `${action.comment_font_size || 14}px`,
+                                fontWeight: 500,
+                                textAlign: 'center',
+                                lineHeight: 1.3,
+                              }}
+                            >
+                              <span className="truncate">{action.comment_text || action.label || 'Comentario'}</span>
+                            </div>
+                            
+                            {/* Icono de comentario en la esquina */}
+                            <div className="absolute -top-2 -left-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center shadow">
+                              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                              </svg>
+                            </div>
+                            
+                            {/* Resize handles */}
+                            {selectedAction?.id === action.id && (
+                              <>
+                                <div
+                                  className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-blue-500 rounded-full cursor-se-resize border-2 border-white"
+                                  onMouseDown={(e) => handleResizeMouseDown(e, action, 'se')}
+                                />
+                              </>
+                            )}
+                          </div>
+                        )
+                      }
                       
                       return (
                       <div
@@ -2399,7 +2529,7 @@ const StudyInteractiveExercisePage = () => {
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl my-8 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">
-                Editar {selectedAction.action_type === 'button' ? 'Botón' : 'Campo de Texto'}
+                Editar {selectedAction.action_type === 'button' ? 'Botón' : selectedAction.action_type === 'comment' ? 'Comentario' : 'Campo de Texto'}
               </h3>
               <button
                 onClick={() => setIsEditActionModalOpen(false)}
@@ -2413,8 +2543,120 @@ const StudyInteractiveExercisePage = () => {
             </div>
             
             <div className="space-y-4">
-              {/* Campos específicos según el tipo */}
-              {selectedAction.action_type === 'button' ? (
+              {/* Campos específicos para Comentario */}
+              {selectedAction.action_type === 'comment' ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4">
+                  <h4 className="text-sm font-semibold text-blue-900 flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                    </svg>
+                    Configuración del Comentario
+                  </h4>
+                  
+                  {/* Texto del comentario */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Texto del Comentario <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={actionFormData.comment_text || actionFormData.label || ''}
+                      onChange={(e) => setActionFormData({ 
+                        ...actionFormData, 
+                        comment_text: e.target.value,
+                        label: e.target.value 
+                      })}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Escribe el texto del comentario..."
+                      rows={3}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Este texto será visible para el candidato durante el ejercicio
+                    </p>
+                  </div>
+                  
+                  {/* Color de fondo */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Color de Fondo
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={actionFormData.comment_bg_color || '#fef3c7'}
+                          onChange={(e) => setActionFormData({ ...actionFormData, comment_bg_color: e.target.value })}
+                          className="w-10 h-10 rounded border cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={actionFormData.comment_bg_color || '#fef3c7'}
+                          onChange={(e) => setActionFormData({ ...actionFormData, comment_bg_color: e.target.value })}
+                          className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                          placeholder="#fef3c7"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Color de texto */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Color de Texto
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={actionFormData.comment_text_color || '#92400e'}
+                          onChange={(e) => setActionFormData({ ...actionFormData, comment_text_color: e.target.value })}
+                          className="w-10 h-10 rounded border cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={actionFormData.comment_text_color || '#92400e'}
+                          onChange={(e) => setActionFormData({ ...actionFormData, comment_text_color: e.target.value })}
+                          className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                          placeholder="#92400e"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Tamaño de fuente */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tamaño de Fuente: {actionFormData.comment_font_size || 14}px
+                    </label>
+                    <input
+                      type="range"
+                      min="10"
+                      max="36"
+                      value={actionFormData.comment_font_size || 14}
+                      onChange={(e) => setActionFormData({ ...actionFormData, comment_font_size: parseInt(e.target.value) })}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>10px</span>
+                      <span>36px</span>
+                    </div>
+                  </div>
+                  
+                  {/* Vista previa */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Vista Previa</label>
+                    <div 
+                      className="p-4 rounded-lg border-2 flex items-center justify-center min-h-[60px]"
+                      style={{
+                        backgroundColor: actionFormData.comment_bg_color || '#fef3c7',
+                        borderColor: actionFormData.comment_text_color || '#92400e',
+                        color: actionFormData.comment_text_color || '#92400e',
+                        fontSize: `${actionFormData.comment_font_size || 14}px`,
+                        fontWeight: 500,
+                      }}
+                    >
+                      {actionFormData.comment_text || actionFormData.label || 'Texto del comentario'}
+                    </div>
+                  </div>
+                </div>
+              ) : selectedAction.action_type === 'button' ? (
                 <>
                   {/* Sección 1: Identificación del Botón */}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
