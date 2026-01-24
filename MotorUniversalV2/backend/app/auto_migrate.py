@@ -171,9 +171,9 @@ def check_and_add_question_types():
     print("🔍 Verificando tipos de pregunta...")
     
     # Tipos de pregunta que deben existir
+    # Nota: drag_drop ahora usa la lógica de espacios en blanco (fill_blank_drag fue fusionado)
     required_types = [
-        {'name': 'column_grouping', 'description': 'Agrupamiento en columnas'},
-        {'name': 'fill_blank_drag', 'description': 'Completar espacios arrastrando'}
+        # column_grouping ha sido eliminado
     ]
     
     try:

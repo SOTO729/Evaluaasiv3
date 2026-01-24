@@ -261,10 +261,9 @@ const TopicDetailPage = () => {
       'multiple_select': 'Selección Múltiple',
       'fill_blank': 'Llenar Espacio',
       'ordering': 'Ordenar',
-      'drag_drop': 'Arrastrar y Soltar',
       'drag_order': 'Arrastrar y Ordenar',
       'column_grouping': 'Agrupamiento en Columnas',
-      'fill_blank_drag': 'Completar Arrastrando'
+      'drag_drop': 'Arrastrar y Soltar'
     }
     return types[name] || name
   }
@@ -528,12 +527,10 @@ const TopicDetailPage = () => {
                                 navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/multiple-select`)
                               } else if (question.question_type?.name === 'ordering') {
                                 navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/ordering`)
-                              } else if (question.question_type?.name === 'drag_drop') {
-                                navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/drag-drop`)
                               } else if (question.question_type?.name === 'column_grouping') {
                                 navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/column-grouping`)
-                              } else if (question.question_type?.name === 'fill_blank_drag') {
-                                navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/fill-blank-drag`)
+                              } else if (question.question_type?.name === 'drag_drop') {
+                                navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/drag-drop`)
                               }
                             }}
                             className={`group hover:bg-blue-100/60 transition-colors duration-150 ${
@@ -541,9 +538,8 @@ const TopicDetailPage = () => {
                               question.question_type?.name === 'multiple_choice' || 
                               question.question_type?.name === 'multiple_select' || 
                               question.question_type?.name === 'ordering' ||
-                              question.question_type?.name === 'drag_drop' ||
                               question.question_type?.name === 'column_grouping' ||
-                              question.question_type?.name === 'fill_blank_drag' ? 'cursor-pointer' : ''
+                              question.question_type?.name === 'drag_drop' ? 'cursor-pointer' : ''
                             }`}
                           >
                             <td className="px-6 py-4 whitespace-nowrap">

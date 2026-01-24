@@ -1279,197 +1279,6 @@ const ExamTestRunPage: React.FC = () => {
           </div>
         );
 
-      case 'drag_drop':
-        // Para preguntas de arrastrar y soltar a zonas
-        const dragDropOptions = currentItem.options || [];
-        const dragDropAnswer = currentAnswer || {};
-        
-        // Extraer zonas únicas de las opciones (correct_answer contiene el id de zona)
-        const zonesSet = new Set<string>();
-        dragDropOptions.forEach((opt: any) => {
-          if (opt.correct_answer) zonesSet.add(opt.correct_answer);
-        });
-        const zones = Array.from(zonesSet);
-        
-        // Elementos sin asignar (no están en ninguna zona)
-        const assignedItems = new Set(Object.values(dragDropAnswer).flat());
-        const unassignedItems = dragDropOptions.filter((o: any) => !assignedItems.has(o.id));
-        
-        const handleDragDropAssign = (itemId: string, zoneId: string) => {
-          const newAnswer = { ...dragDropAnswer };
-          // Remover de cualquier zona anterior
-          Object.keys(newAnswer).forEach(z => {
-            newAnswer[z] = (newAnswer[z] || []).filter((id: string) => id !== itemId);
-          });
-          // Agregar a la nueva zona
-          newAnswer[zoneId] = [...(newAnswer[zoneId] || []), itemId];
-          handleAnswerChange(currentItem.question_id!, newAnswer);
-        };
-        
-        const handleDragDropUnassign = (itemId: string) => {
-          const newAnswer = { ...dragDropAnswer };
-          Object.keys(newAnswer).forEach(z => {
-            newAnswer[z] = (newAnswer[z] || []).filter((id: string) => id !== itemId);
-          });
-          handleAnswerChange(currentItem.question_id!, newAnswer);
-        };
-
-        // Handlers para drag and drop HTML5
-        const handleDragStart = (e: React.DragEvent, itemId: string) => {
-          e.dataTransfer.setData('text/plain', itemId);
-          e.dataTransfer.effectAllowed = 'move';
-          (e.target as HTMLElement).classList.add('opacity-50', 'scale-95');
-        };
-        
-        const handleDragEnd = (e: React.DragEvent) => {
-          (e.target as HTMLElement).classList.remove('opacity-50', 'scale-95');
-        };
-        
-        const handleDragOver = (e: React.DragEvent) => {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
-          (e.currentTarget as HTMLElement).classList.add('ring-2', 'ring-purple-500', 'bg-purple-100');
-        };
-        
-        const handleDragLeave = (e: React.DragEvent) => {
-          (e.currentTarget as HTMLElement).classList.remove('ring-2', 'ring-purple-500', 'bg-purple-100');
-        };
-        
-        const handleDropOnZone = (e: React.DragEvent, zoneId: string) => {
-          e.preventDefault();
-          (e.currentTarget as HTMLElement).classList.remove('ring-2', 'ring-purple-500', 'bg-purple-100');
-          const itemId = e.dataTransfer.getData('text/plain');
-          if (itemId) {
-            handleDragDropAssign(itemId, zoneId);
-          }
-        };
-        
-        const handleDropOnUnassigned = (e: React.DragEvent) => {
-          e.preventDefault();
-          (e.currentTarget as HTMLElement).classList.remove('ring-2', 'ring-gray-400', 'bg-gray-100');
-          const itemId = e.dataTransfer.getData('text/plain');
-          if (itemId) {
-            handleDragDropUnassign(itemId);
-          }
-        };
-
-        return (
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600 mb-3 flex items-center gap-2 bg-blue-50 p-3 rounded-lg">
-              <GripVertical className="w-5 h-5 text-blue-500" />
-              <span><strong>Arrastra</strong> cada elemento y <strong>suéltalo</strong> en la zona correcta</span>
-            </p>
-            
-            {/* Elementos sin asignar - Área de origen */}
-            <div 
-              className="p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 min-h-[80px] transition-all"
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.currentTarget.classList.add('ring-2', 'ring-gray-400', 'bg-gray-100');
-              }}
-              onDragLeave={(e) => {
-                e.currentTarget.classList.remove('ring-2', 'ring-gray-400', 'bg-gray-100');
-              }}
-              onDrop={handleDropOnUnassigned}
-            >
-              <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <span className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs">📦</span>
-                Elementos disponibles
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {unassignedItems.map((option: any) => (
-                  <div
-                    key={option.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, option.id)}
-                    onDragEnd={handleDragEnd}
-                    className="px-4 py-2 bg-white border-2 border-blue-300 text-blue-800 rounded-lg cursor-grab active:cursor-grabbing hover:bg-blue-50 hover:border-blue-400 transition-all text-sm font-medium shadow-sm select-none"
-                  >
-                    <span className="flex items-center gap-2">
-                      <GripVertical className="w-4 h-4 text-blue-400" />
-                      {option.answer_text}
-                    </span>
-                  </div>
-                ))}
-                {unassignedItems.length === 0 && (
-                  <p className="text-green-600 text-sm italic flex items-center gap-1">
-                    ✓ Todos los elementos han sido asignados
-                  </p>
-                )}
-              </div>
-            </div>
-            
-            {/* Zonas de destino */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {zones.map((zoneId, idx) => {
-                const zoneItems = (dragDropAnswer[zoneId] || []).map((id: string) => 
-                  dragDropOptions.find((o: any) => o.id === id)
-                ).filter(Boolean);
-                
-                const zoneColors = [
-                  { border: 'border-purple-400', bg: 'bg-purple-50', header: 'bg-purple-500', headerText: 'text-white' },
-                  { border: 'border-teal-400', bg: 'bg-teal-50', header: 'bg-teal-500', headerText: 'text-white' },
-                  { border: 'border-orange-400', bg: 'bg-orange-50', header: 'bg-orange-500', headerText: 'text-white' },
-                  { border: 'border-pink-400', bg: 'bg-pink-50', header: 'bg-pink-500', headerText: 'text-white' },
-                  { border: 'border-indigo-400', bg: 'bg-indigo-50', header: 'bg-indigo-500', headerText: 'text-white' },
-                  { border: 'border-emerald-400', bg: 'bg-emerald-50', header: 'bg-emerald-500', headerText: 'text-white' },
-                ];
-                const zoneColor = zoneColors[idx % zoneColors.length];
-                
-                return (
-                  <div
-                    key={zoneId}
-                    className={`rounded-xl overflow-hidden border-2 ${zoneColor.border} shadow-md transition-all`}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDropOnZone(e, zoneId)}
-                  >
-                    {/* Header de la zona */}
-                    <div className={`${zoneColor.header} ${zoneColor.headerText} px-4 py-3 font-bold text-center`}>
-                      {zoneId.replace('zona_', 'Zona ').replace(/_/g, ' ')}
-                    </div>
-                    
-                    {/* Área de soltar */}
-                    <div className={`${zoneColor.bg} p-3 min-h-[140px]`}>
-                      {zoneItems.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full min-h-[100px] text-gray-400">
-                          <div className="w-12 h-12 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center mb-2">
-                            <span className="text-2xl">↓</span>
-                          </div>
-                          <p className="text-xs text-center">Suelta elementos aquí</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {zoneItems.map((item: any) => (
-                            <div
-                              key={item.id}
-                              draggable
-                              onDragStart={(e) => handleDragStart(e, item.id)}
-                              onDragEnd={handleDragEnd}
-                              className="bg-white border border-gray-200 px-3 py-2 rounded-lg text-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-all flex items-center justify-between group"
-                            >
-                              <span className="flex items-center gap-2">
-                                <GripVertical className="w-4 h-4 text-gray-400" />
-                                <span>{item.answer_text}</span>
-                              </span>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleDragDropUnassign(item.id); }}
-                                className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-
       case 'column_grouping':
         // Para preguntas de clasificar en columnas
         const columnOptions = currentItem.options || [];
@@ -1664,8 +1473,8 @@ const ExamTestRunPage: React.FC = () => {
           </div>
         );
 
-      case 'fill_blank_drag':
-        // Para preguntas de completar espacios en blanco arrastrando
+      case 'drag_drop':
+        // Para preguntas de arrastrar y soltar (completar espacios en blanco)
         const fillBlankOptions = currentItem.options || [];
         const fillBlankAnswer = currentAnswer || {}; // { blank_1: 'answerId', blank_2: 'answerId' }
         
@@ -2512,9 +2321,9 @@ const ExamTestRunPage: React.FC = () => {
                   <div
                     className="prose prose-gray max-w-none mb-6 text-gray-800 leading-relaxed"
                     dangerouslySetInnerHTML={{ __html: (() => {
-                      // Para fill_blank_drag, extraer solo las instrucciones del question_text
+                      // Para drag_drop, extraer solo las instrucciones del question_text
                       const text = currentItem.question_text || '';
-                      if (currentItem.question_type === 'fill_blank_drag' && text.includes('___INSTRUCTIONS___') && text.includes('___TEMPLATE___')) {
+                      if (currentItem.question_type === 'drag_drop' && text.includes('___INSTRUCTIONS___') && text.includes('___TEMPLATE___')) {
                         const parts = text.split('___TEMPLATE___');
                         const instructionsOnly = parts[0].replace('___INSTRUCTIONS___', '').trim();
                         return instructionsOnly || '';
