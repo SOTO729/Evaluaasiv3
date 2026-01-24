@@ -28,6 +28,7 @@ const MultipleChoiceAnswerPage = lazy(() => import('./pages/answers/MultipleChoi
 const MultipleSelectAnswerPage = lazy(() => import('./pages/answers/MultipleSelectAnswerPage').then(module => ({ default: module.MultipleSelectAnswerPage })))
 const OrderingAnswerPage = lazy(() => import('./pages/answers/OrderingAnswerPage').then(module => ({ default: module.OrderingAnswerPage })))
 const DragDropAnswerPage = lazy(() => import('./pages/answers/DragDropAnswerPage').then(module => ({ default: module.DragDropAnswerPage })))
+const ColumnGroupingAnswerPage = lazy(() => import('./pages/answers/ColumnGroupingAnswerPage').then(module => ({ default: module.ColumnGroupingAnswerPage })))
 const ExamTestRunPage = lazy(() => import('./pages/ExamTestRunPage'))
 const ExamTestResultsPage = lazy(() => import('./pages/ExamTestResultsPage'))
 const ExamPreviewPage = lazy(() => import('./pages/exams/ExamPreviewPage'))
@@ -157,6 +158,7 @@ function App() {
               <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/multiple-select" element={<RestrictedForCoordinator><MultipleSelectAnswerPage /></RestrictedForCoordinator>} />
               <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/ordering" element={<RestrictedForCoordinator><OrderingAnswerPage /></RestrictedForCoordinator>} />
               <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/drag-drop" element={<RestrictedForCoordinator><DragDropAnswerPage /></RestrictedForCoordinator>} />
+              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/column-grouping" element={<RestrictedForCoordinator><ColumnGroupingAnswerPage /></RestrictedForCoordinator>} />
               
               {/* Study Contents - Restringido para coordinador */}
               <Route path="/study-contents" element={<RestrictedForCoordinator><StudyContentsListPage /></RestrictedForCoordinator>} />

@@ -164,12 +164,12 @@ const TopicDetailPage = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (formData.question_text && formData.question_type_id) {
-      // Determinar si es tipo drag_drop o column_grouping para formatear correctamente
+      // Determinar si es tipo drag_drop para formatear correctamente
       const selectedType = questionTypes?.question_types.find(t => t.id === Number(formData.question_type_id))
       let questionText = formData.question_text
       
-      if (selectedType?.name === 'drag_drop' || selectedType?.name === 'column_grouping') {
-        // Para drag_drop y column_grouping, el texto ingresado va como instrucciones
+      if (selectedType?.name === 'drag_drop') {
+        // Para drag_drop, el texto ingresado va como instrucciones
         questionText = `___INSTRUCTIONS___\n${formData.question_text}\n___TEMPLATE___\n`
       }
       
@@ -537,8 +537,10 @@ const TopicDetailPage = () => {
                                 navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/multiple-select`)
                               } else if (question.question_type?.name === 'ordering') {
                                 navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/ordering`)
-                              } else if (question.question_type?.name === 'drag_drop' || question.question_type?.name === 'column_grouping') {
+                              } else if (question.question_type?.name === 'drag_drop') {
                                 navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/drag-drop`)
+                              } else if (question.question_type?.name === 'column_grouping') {
+                                navigate(`/exams/${examId}/categories/${categoryId}/topics/${topicId}/questions/${question.id}/column-grouping`)
                               }
                             }}
                             className={`group hover:bg-blue-100/60 transition-colors duration-150 ${

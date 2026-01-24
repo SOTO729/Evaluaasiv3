@@ -121,12 +121,12 @@ export const examService = {
     return response.data
   },
 
-  createAnswer: async (questionId: string, data: { answer_text: string; is_correct: boolean }): Promise<{ message: string; answer: any }> => {
+  createAnswer: async (questionId: string, data: { answer_text: string; is_correct: boolean; correct_answer?: string }): Promise<{ message: string; answer: any }> => {
     const response = await api.post<{ message: string; answer: any }>(`/exams/questions/${questionId}/answers`, data)
     return response.data
   },
 
-  updateAnswer: async (answerId: string, data: { answer_text?: string; is_correct?: boolean }): Promise<{ message: string; answer: any }> => {
+  updateAnswer: async (answerId: string, data: { answer_text?: string; is_correct?: boolean; correct_answer?: string }): Promise<{ message: string; answer: any }> => {
     const response = await api.put<{ message: string; answer: any }>(`/exams/answers/${answerId}`, data)
     return response.data
   },
