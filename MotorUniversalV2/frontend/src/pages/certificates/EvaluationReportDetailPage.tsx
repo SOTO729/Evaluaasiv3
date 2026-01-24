@@ -63,12 +63,14 @@ const EvaluationReportDetailPage = () => {
   })
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-MX', {
+    // Usar toLocaleString para incluir hora y mostrar en zona horaria local del usuario
+    return new Date(dateString).toLocaleString('es-MX', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone // Usar zona horaria del equipo
     })
   }
 
