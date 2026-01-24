@@ -110,3 +110,57 @@ def check_and_add_columns():
         print(f"❌ Error en auto-migración: {e}")
         # No lanzar error para no impedir que el backend arranque
         pass
+
+
+def check_and_add_answers_columns():
+    """Verificar y agregar columnas faltantes a answers (para drag_drop y column_grouping)"""
+    print("🔍 Verificando esquema de answers...")
+    
+    # Columnas que deben existir
+    required_columns = {
+        'correct_answer': "VARCHAR(100)"  # Para drag_drop: zona correcta, para column_grouping: columna correcta
+    }
+    
+    try:
+        # Verificar si la tabla existe
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        if 'answers' not in tables:
+            print("  ⚠️  Tabla answers no existe, saltando...")
+            return
+        
+        # Obtener columnas existentes
+        existing_columns = [col['name'] for col in inspector.get_columns('answers')]
+        
+        added_count = 0
+        skipped_count = 0
+        
+        for column_name, column_def in required_columns.items():
+            if column_name not in existing_columns:
+                print(f"  📝 [answers] Agregando columna: {column_name}...")
+                try:
+                    sql = f"ALTER TABLE answers ADD {column_name} {column_def}"
+                    db.session.execute(text(sql))
+                    db.session.commit()
+                    print(f"     ✓ Columna {column_name} agregada a answers")
+                    added_count += 1
+                except Exception as e:
+                    if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+                        print(f"     ⚠️  Columna {column_name} ya existe")
+                        skipped_count += 1
+                    else:
+                        print(f"     ❌ Error al agregar {column_name}: {e}")
+                        db.session.rollback()
+            else:
+                print(f"  ✓ Columna {column_name} ya existe en answers")
+                skipped_count += 1
+        
+        if added_count > 0:
+            print(f"\n✅ Auto-migración answers completada: {added_count} columnas agregadas")
+        else:
+            print(f"✅ Esquema answers actualizado: todas las columnas ya existen ({skipped_count}/{len(required_columns)})")
+                
+    except Exception as e:
+        print(f"❌ Error en auto-migración answers: {e}")
+        db.session.rollback()

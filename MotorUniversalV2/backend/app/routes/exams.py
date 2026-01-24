@@ -1031,6 +1031,7 @@ def create_answer(question_id):
             answer_text=data['answer_text'],
             is_correct=data.get('is_correct', False),
             answer_number=data.get('answer_number'),  # Guardar el número de orden
+            correct_answer=data.get('correct_answer'),  # Para drag_drop y column_grouping
             created_by=user_id
         )
         
@@ -1065,6 +1066,8 @@ def update_answer(answer_id):
         answer.is_correct = data['is_correct']
     if 'answer_number' in data:
         answer.answer_number = data['answer_number']
+    if 'correct_answer' in data:
+        answer.correct_answer = data['correct_answer']
     
     answer.updated_by = user_id
     

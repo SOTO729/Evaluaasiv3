@@ -16,6 +16,7 @@ class Answer(db.Model):
     answer_text = db.Column(db.Text, nullable=False)
     is_correct = db.Column(db.Boolean, default=False, nullable=False)
     explanation = db.Column(db.Text)  # Explicación de por qué es correcta/incorrecta
+    correct_answer = db.Column(db.String(100))  # Para drag_drop: zona correcta, para column_grouping: columna correcta
     
     # Auditoría
     created_by = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
@@ -35,7 +36,8 @@ class Answer(db.Model):
             'id': self.id,
             'question_id': self.question_id,
             'answer_number': self.answer_number,
-            'answer_text': self.answer_text
+            'answer_text': self.answer_text,
+            'correct_answer': self.correct_answer  # Para drag_drop y column_grouping
         }
         
         # Solo incluir si es correcto cuando se solicita (para evaluación)
