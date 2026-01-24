@@ -505,6 +505,22 @@ export const DragDropAnswerPage = () => {
           </div>
         </div>
 
+        {/* Mostrar instrucciones si existen (solo lectura) */}
+        {instructions && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl lg:rounded-2xl p-4 lg:p-6 mb-6 lg:mb-8">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 lg:w-6 lg:h-6 text-amber-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold text-amber-800 mb-2">Instrucciones para el estudiante:</h3>
+                <div 
+                  className="text-amber-900 prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: instructions }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Editor de texto visual */}
           <div className="bg-white rounded-xl shadow-md p-6">
