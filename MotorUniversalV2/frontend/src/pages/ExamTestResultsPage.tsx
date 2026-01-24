@@ -222,9 +222,12 @@ const ExamTestResultsPage: React.FC = () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-api.whiteforest-44e7c57b.eastus.azurecontainerapps.io/api';
       
-      console.log('📤 Descargando PDF:', { resultId, apiUrl, hasToken: !!accessToken });
+      // Obtener zona horaria del equipo del usuario
+      const clientTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       
-      const response = await fetch(`${apiUrl}/exams/results/${resultId}/generate-pdf`, {
+      console.log('📤 Descargando PDF:', { resultId, apiUrl, hasToken: !!accessToken, timezone: clientTimezone });
+      
+      const response = await fetch(`${apiUrl}/exams/results/${resultId}/generate-pdf?timezone=${encodeURIComponent(clientTimezone)}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`

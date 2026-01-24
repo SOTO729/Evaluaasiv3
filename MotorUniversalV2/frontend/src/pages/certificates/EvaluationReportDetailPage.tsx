@@ -114,11 +114,14 @@ const EvaluationReportDetailPage = () => {
       // Usar el endpoint del backend para generar el PDF
       const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-api.whiteforest-44e7c57b.eastus.azurecontainerapps.io/api'
       
+      // Obtener zona horaria del equipo del usuario
+      const clientTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+      
       setDownloadMessage('Generando PDF...')
-      console.log('📥 [PDF] Llamando a:', `${apiUrl}/exams/results/${result.id}/generate-pdf`)
+      console.log('📥 [PDF] Llamando a:', `${apiUrl}/exams/results/${result.id}/generate-pdf?timezone=${clientTimezone}`)
       
       const startTime = performance.now()
-      const response = await fetch(`${apiUrl}/exams/results/${result.id}/generate-pdf`, {
+      const response = await fetch(`${apiUrl}/exams/results/${result.id}/generate-pdf?timezone=${encodeURIComponent(clientTimezone)}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`

@@ -2885,7 +2885,7 @@ def generate_result_pdf(result_id):
     """
     Genera el PDF del reporte de evaluación en el backend
     """
-    from flask import send_file, current_app
+    from flask import send_file, current_app, request
     from io import BytesIO
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter
@@ -2894,11 +2894,21 @@ def generate_result_pdf(result_id):
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
     from reportlab.pdfgen import canvas
     from datetime import datetime
+    import pytz
     import re
     import time
     
     start_time = time.time()
     current_app.logger.info(f'📥 [PDF] Iniciando generación de reporte - result_id: {result_id}')
+    
+    # Obtener zona horaria del cliente (enviada como query param)
+    client_timezone = request.args.get('timezone', 'America/Mexico_City')
+    try:
+        tz = pytz.timezone(client_timezone)
+    except:
+        tz = pytz.timezone('America/Mexico_City')
+    
+    current_app.logger.info(f'📥 [PDF] Zona horaria del cliente: {client_timezone}')
     
     try:
         from app.models.result import Result
@@ -2974,10 +2984,13 @@ def generate_result_pdf(result_id):
             c.drawString(margin, y, 'Evaluaasi')
         
         # Esquina superior derecha - ajustado para que quepa
+        # Usar zona horaria del cliente para la fecha de generación
+        now_utc = datetime.now(pytz.utc)
+        now_local = now_utc.astimezone(tz)
         c.setFillColor(gray_color)
         c.setFont('Helvetica', 7)
         c.drawRightString(page_width - margin, y, 'Sistema de Evaluación y Certificación')
-        c.drawRightString(page_width - margin, y - 12, datetime.now().strftime('%d/%m/%Y %H:%M'))
+        c.drawRightString(page_width - margin, y - 12, now_local.strftime('%d/%m/%Y %H:%M'))
         
         y -= 45
         c.setStrokeColor(primary_color)
@@ -3039,7 +3052,14 @@ def generate_result_pdf(result_id):
         c.drawString(margin + 70, y, ecm_code)
         y -= 12
         
-        start_date = result.start_date.strftime('%d/%m/%Y %H:%M') if result.start_date else 'N/A'
+        # Convertir fecha a zona horaria del cliente
+        if result.start_date:
+            # Asumir que start_date está en UTC
+            utc_date = pytz.utc.localize(result.start_date) if result.start_date.tzinfo is None else result.start_date
+            local_date = utc_date.astimezone(tz)
+            start_date = local_date.strftime('%d/%m/%Y %H:%M')
+        else:
+            start_date = 'N/A'
         c.setFont('Helvetica-Bold', 9)
         c.drawString(margin + 5, y, 'Fecha:')
         c.setFont('Helvetica', 9)
