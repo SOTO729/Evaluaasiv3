@@ -127,14 +127,14 @@ export default function CampusFormPage() {
 
   if (loading) {
     return (
-      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-14 max-w-[1920px] mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto">
         <LoadingSpinner message="Cargando..." />
       </div>
     );
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-14 max-w-4xl xl:max-w-5xl 2xl:max-w-6xl mx-auto animate-fade-in-up">
+    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-4xl xl:max-w-5xl 2xl:max-w-6xl 3xl:max-w-7xl 4xl:max-w-[2000px] mx-auto animate-fade-in-up">
       {/* Header */}
       <div className="flex items-center gap-4 lg:gap-6 mb-6 lg:mb-8">
         <Link
@@ -144,8 +144,8 @@ export default function CampusFormPage() {
           <ArrowLeft className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-gray-600" />
         </Link>
         <div>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-800 flex items-center gap-2 lg:gap-3">
-            <MapPin className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 xl:h-10 xl:w-10 text-blue-600" />
+          <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-gray-800 flex items-center gap-2 lg:gap-3">
+            <MapPin className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12 text-blue-600" />
             {isEditing ? 'Editar Plantel' : 'Nuevo Plantel'}
           </h1>
           <p className="text-sm lg:text-base text-gray-600 mt-1 flex items-center gap-2">

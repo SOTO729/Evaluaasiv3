@@ -83,7 +83,7 @@ const ExamPreviewPage = () => {
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50">
-      <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
+      <div className="max-w-4xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16">
         {/* Botón volver */}
         <button
           onClick={() => navigate(`/exams/${id}/select-mode`)}
@@ -146,7 +146,7 @@ const ExamPreviewPage = () => {
                 </span>
               )}
             </div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white line-clamp-2">{exam.name}</h1>
+            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-4xl 2xl:text-5xl 3xl:text-6xl 4xl:text-7xl font-bold text-white line-clamp-2">{exam.name}</h1>
           </div>
         </div>
 

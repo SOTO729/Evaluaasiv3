@@ -256,11 +256,11 @@ const ProfilePage = () => {
       `}</style>
 
       {/* Contenedor principal con max-width para pantallas grandes */}
-      <div className="max-w-5xl mx-auto px-4 lg:px-8">
+      <div className="max-w-5xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto px-4 lg:px-8 xl:px-10 2xl:px-12 3xl:px-14 4xl:px-16">
         
         {/* Hero Header */}
         <div className="animated-gradient-dark rounded-2xl mb-6 overflow-hidden shadow-lg">
-          <div className="px-6 py-6 lg:px-8 lg:py-8">
+          <div className="px-6 py-6 lg:px-8 lg:py-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16">
             <div className="flex flex-col sm:flex-row items-center gap-5 sm:gap-6">
               {/* Avatar */}
               <div className="relative flex-shrink-0">
@@ -276,7 +276,7 @@ const ProfilePage = () => {
               
               {/* Info Principal */}
               <div className="text-center sm:text-left flex-1 min-w-0">
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1 truncate">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-white mb-1 truncate">
                   {profile?.full_name}
                 </h1>
                 <p className="text-blue-200 text-sm sm:text-base mb-3">@{profile?.username}</p>

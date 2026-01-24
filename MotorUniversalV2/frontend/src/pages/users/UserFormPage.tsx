@@ -177,14 +177,14 @@ export default function UserFormPage() {
 
   if (loading) {
     return (
-      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-14 max-w-[1920px] mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto">
         <LoadingSpinner message="Cargando usuario..." />
       </div>
     );
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-14 max-w-4xl mx-auto animate-fade-in-up">
+    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-4xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto animate-fade-in-up">
       <div className="mb-6 lg:mb-8">
         <Link
           to="/user-management"
@@ -194,8 +194,8 @@ export default function UserFormPage() {
           Volver a usuarios
         </Link>
         
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-3">
-          <Users className="h-6 w-6 lg:h-8 lg:w-8 text-blue-600" />
+        <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-gray-800 flex items-center gap-3">
+          <Users className="h-6 w-6 lg:h-8 lg:w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12 text-blue-600" />
           {isEditing ? 'Editar Usuario' : 'Nuevo Usuario'}
         </h1>
         <p className="text-sm lg:text-base text-gray-600 mt-1">

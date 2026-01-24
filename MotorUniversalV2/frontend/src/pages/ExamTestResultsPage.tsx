@@ -444,7 +444,7 @@ const ExamTestResultsPage: React.FC = () => {
   return (
     <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-x-hidden overscroll-contain ${!canViewAnswers ? '' : ''}`}>
       {/* Header con gradiente y bordes suaves */}
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 pt-4 sm:pt-6">
+      <div className="max-w-7xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 xl:px-10 2xl:px-12 3xl:px-14 4xl:px-16 pt-4 sm:pt-6">
         <div className={`bg-gradient-to-r ${getScoreBgColor(summary.percentage)} text-white rounded-xl sm:rounded-2xl shadow-xl`}>
           <div className="px-4 sm:px-6 md:px-8 py-5 sm:py-6 md:py-8">
           {/* Botón volver a exámenes para candidatos */}
@@ -461,8 +461,8 @@ const ExamTestResultsPage: React.FC = () => {
           )}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             <div>
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">Resultados del Examen</h1>
-              <p className="text-white/80 text-sm sm:text-base">Evaluación completada</p>
+              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold mb-1 sm:mb-2">Resultados del Examen</h1>
+              <p className="text-white/80 text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl">Evaluación completada</p>
             </div>
             <div className="text-left sm:text-right">
               <div className="text-3xl sm:text-4xl md:text-5xl font-bold">{summary.percentage}%</div>
@@ -473,7 +473,7 @@ const ExamTestResultsPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 pt-4 sm:pt-6 pb-6 sm:pb-8">
+      <div className="max-w-7xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 xl:px-10 2xl:px-12 3xl:px-14 4xl:px-16 pt-4 sm:pt-6 pb-6 sm:pb-8">
         {/* Summary Cards - Diferentes para candidatos */}
         {!canViewAnswers ? (
           /* Tarjetas para candidatos: Tiempo, Puntos, Respuestas enviadas, Estatus */

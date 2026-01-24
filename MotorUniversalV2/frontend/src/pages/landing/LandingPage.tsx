@@ -13,7 +13,7 @@ import Footer from '../../components/landing/Footer'
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden overscroll-contain">
+    <div className="min-h-screen bg-white overflow-x-hidden overscroll-contain 3xl:text-lg 4xl:text-xl">
       <LandingNavbar />
       <main>
         <HeroSection />

@@ -163,7 +163,7 @@ const HomePage = () => {
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-white relative overflow-hidden">
+      <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-xl sm:rounded-2xl 3xl:rounded-3xl p-4 sm:p-6 md:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 text-white relative overflow-hidden">
         {/* Decoración de fondo */}
         <div className="absolute top-0 right-0 w-32 sm:w-64 h-32 sm:h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-24 sm:w-48 h-24 sm:h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
@@ -171,10 +171,10 @@ const HomePage = () => {
         <div className="relative z-10">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex-1">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">
+              <h1 className="text-xl sm:text-2xl md:text-3xl xl:text-4xl 2xl:text-5xl 3xl:text-6xl 4xl:text-7xl font-bold mb-1 sm:mb-2 3xl:mb-4">
                 {motivationalMessage.title}
               </h1>
-              <p className="text-blue-100 text-xs sm:text-sm md:text-base">
+              <p className="text-blue-100 text-xs sm:text-sm md:text-base xl:text-lg 2xl:text-xl 3xl:text-2xl 4xl:text-3xl">
                 {motivationalMessage.subtitle}
               </p>
               <p className="text-blue-200 text-xs sm:text-sm mt-1">
@@ -230,7 +230,7 @@ const HomePage = () => {
       </div>
 
       {/* Timeline de Progreso Mejorado */}
-      <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 p-4 sm:p-6">
+      <div className="bg-white rounded-xl sm:rounded-2xl 3xl:rounded-3xl border border-gray-200 p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16">
         <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-4 sm:mb-6 flex items-center gap-2">
           <Target className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
           Tu ruta de certificación
@@ -333,7 +333,7 @@ const HomePage = () => {
       </div>
 
       {/* Tarjetas de Acceso Rápido */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-3 3xl:grid-cols-4 4xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 xl:gap-8 2xl:gap-10 3xl:gap-12">
         {/* Materiales de Estudio */}
         <div 
           onClick={() => navigate('/study-contents')}
@@ -464,7 +464,7 @@ const HomePage = () => {
       </div>
 
       {/* Estadísticas Rápidas */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 lg:gap-6 xl:gap-8 2xl:gap-10 3xl:gap-12">
         <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 p-3 sm:p-4 text-center">
           <div className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-1.5 sm:mb-2 bg-blue-100 rounded-full flex items-center justify-center">
             <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />

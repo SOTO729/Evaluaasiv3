@@ -1810,7 +1810,7 @@ const ExamTestRunPage: React.FC = () => {
             {/* Izquierda: Título */}
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
               <div className="min-w-0 flex items-center gap-2 sm:gap-3">
-                <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-white truncate max-w-[160px] xs:max-w-[200px] sm:max-w-[260px] md:max-w-[360px] lg:max-w-none drop-shadow-sm">{exam.name}</h1>
+                <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl 2xl:text-4xl font-bold text-white truncate max-w-[160px] xs:max-w-[200px] sm:max-w-[260px] md:max-w-[360px] lg:max-w-none drop-shadow-sm">{exam.name}</h1>
                 {/* Badge Examen/Simulador en navbar */}
                 <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
                   currentMode === 'simulator' 
@@ -2069,11 +2069,11 @@ const ExamTestRunPage: React.FC = () => {
       )}
 
       {/* Contenido principal */}
-      <div className="pt-[100px] sm:pt-[110px] md:pt-[125px] pb-[50px] sm:pb-[70px] min-h-screen">
-        <div className="max-w-3xl mx-auto px-2 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6">
+      <div className="pt-[100px] sm:pt-[110px] md:pt-[125px] lg:pt-[140px] xl:pt-[150px] 2xl:pt-[160px] 3xl:pt-[180px] 4xl:pt-[200px] pb-[50px] sm:pb-[70px] lg:pb-[90px] xl:pb-[100px] 2xl:pb-[120px] 3xl:pb-[140px] 4xl:pb-[160px] min-h-screen">
+        <div className="max-w-3xl xl:max-w-4xl 2xl:max-w-5xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 xl:px-10 2xl:px-12 3xl:px-14 4xl:px-16 py-3 sm:py-4 md:py-6 lg:py-8 xl:py-10 2xl:py-12 3xl:py-14 4xl:py-16">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             {/* Header del ítem - más simple */}
-            <div className="px-3 sm:px-4 md:px-5 py-2 sm:py-3 bg-gray-50 border-b border-gray-100">
+            <div className="px-3 sm:px-4 md:px-5 lg:px-6 xl:px-8 2xl:px-10 3xl:px-12 4xl:px-14 py-2 sm:py-3 lg:py-4 xl:py-5 2xl:py-6 3xl:py-7 4xl:py-8 bg-gray-50 border-b border-gray-100">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                   {/* Badge Examen/Simulador */}

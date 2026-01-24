@@ -54,7 +54,7 @@ export default function PartnersListPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-14 max-w-[1920px] mx-auto animate-fade-in-up">
+    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8 xl:mb-10">
         <div>
@@ -156,7 +156,7 @@ export default function PartnersListPage() {
           </div>
           
           {/* Grid de Partners */}
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5 xl:gap-6">
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 4xl:grid-cols-6 gap-4 lg:gap-5 xl:gap-6 2xl:gap-8">
             {partners.map((partner) => (
               <div
                 key={partner.id}

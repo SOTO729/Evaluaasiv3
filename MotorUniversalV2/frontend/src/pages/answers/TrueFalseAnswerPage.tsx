@@ -111,7 +111,7 @@ const TrueFalseAnswerPage = () => {
   if (!question) return <div className="text-center py-12 text-gray-600">Pregunta no encontrada</div>
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-3xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16">
       {/* Header */}
       <div className="mb-6">
         <button
@@ -123,8 +123,8 @@ const TrueFalseAnswerPage = () => {
           </svg>
           Volver a Preguntas
         </button>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Configurar Respuesta Verdadero/Falso</h1>
-        <p className="text-gray-600">Selecciona la respuesta correcta para esta pregunta</p>
+        <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl 3xl:text-6xl 4xl:text-7xl font-bold text-gray-900 mb-2">Configurar Respuesta Verdadero/Falso</h1>
+        <p className="text-gray-600 lg:text-lg xl:text-xl 2xl:text-2xl 3xl:text-3xl 4xl:text-4xl">Selecciona la respuesta correcta para esta pregunta</p>
       </div>
 
       {/* Pregunta */}

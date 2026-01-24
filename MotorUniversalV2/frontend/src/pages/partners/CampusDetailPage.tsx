@@ -72,7 +72,7 @@ export default function CampusDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-14 max-w-[1920px] mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto">
         <LoadingSpinner message="Cargando plantel..." />
       </div>
     );
@@ -80,7 +80,7 @@ export default function CampusDetailPage() {
 
   if (error || !campus) {
     return (
-      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-14 max-w-[1920px] mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto">
         <div className="bg-red-50 border border-red-200 rounded-lg lg:rounded-xl p-4 lg:p-6 flex items-center gap-3 lg:gap-4">
           <AlertCircle className="h-5 w-5 lg:h-6 lg:w-6 text-red-600" />
           <p className="text-red-700 text-sm lg:text-base">{error || 'Plantel no encontrado'}</p>
@@ -93,7 +93,7 @@ export default function CampusDetailPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-14 max-w-[1920px] mx-auto animate-fade-in-up">
+    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 lg:gap-6 mb-6 lg:mb-8">
         <div className="flex items-center gap-4 lg:gap-6">
@@ -111,7 +111,7 @@ export default function CampusDetailPage() {
               </Link>
             </div>
             <div className="flex items-center gap-2 lg:gap-3">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-800">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-gray-800">
                 {campus.name}
               </h1>
               {campus.code && (

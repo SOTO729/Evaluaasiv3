@@ -199,15 +199,15 @@ export default function UsersListPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-14 max-w-[1920px] mx-auto animate-fade-in-up">
+    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 lg:gap-6 mb-6 lg:mb-8">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 lg:gap-6 mb-6 lg:mb-8 xl:mb-10">
         <div>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-800 flex items-center gap-2 lg:gap-3">
-            <Users className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 xl:h-10 xl:w-10 text-blue-600" />
+          <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-gray-800 flex items-center gap-2 lg:gap-3 xl:gap-4">
+            <Users className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12 text-blue-600" />
             Gestión de Usuarios
           </h1>
-          <p className="text-sm lg:text-base text-gray-600 mt-1">
+          <p className="text-sm lg:text-base xl:text-lg 2xl:text-xl text-gray-600 mt-1 lg:mt-2">
             {currentUser?.role === 'coordinator' 
               ? 'Administra los candidatos del sistema'
               : 'Administra todos los usuarios del sistema'
@@ -249,48 +249,48 @@ export default function UsersListPage() {
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
-          <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-5">
-            <div className="flex items-center gap-3">
-              <div className="p-2 lg:p-3 bg-blue-100 rounded-lg lg:rounded-xl">
-                <Users className="h-5 w-5 lg:h-6 lg:w-6 text-blue-600" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 xl:gap-8 mb-6 lg:mb-8 xl:mb-10">
+          <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-5 xl:p-6">
+            <div className="flex items-center gap-3 lg:gap-4">
+              <div className="p-2 lg:p-3 xl:p-4 bg-blue-100 rounded-lg lg:rounded-xl">
+                <Users className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-blue-600" />
               </div>
               <div>
-                <p className="text-xs lg:text-sm text-gray-500">Total</p>
-                <p className="text-xl lg:text-2xl font-bold text-gray-900">{stats.total_users}</p>
+                <p className="text-xs lg:text-sm xl:text-base text-gray-500">Total</p>
+                <p className="text-xl lg:text-2xl xl:text-3xl font-bold text-gray-900">{stats.total_users}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-5">
-            <div className="flex items-center gap-3">
-              <div className="p-2 lg:p-3 bg-green-100 rounded-lg lg:rounded-xl">
-                <UserCheck className="h-5 w-5 lg:h-6 lg:w-6 text-green-600" />
+          <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-5 xl:p-6">
+            <div className="flex items-center gap-3 lg:gap-4">
+              <div className="p-2 lg:p-3 xl:p-4 bg-green-100 rounded-lg lg:rounded-xl">
+                <UserCheck className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-green-600" />
               </div>
               <div>
-                <p className="text-xs lg:text-sm text-gray-500">Activos</p>
-                <p className="text-xl lg:text-2xl font-bold text-gray-900">{stats.active_users}</p>
+                <p className="text-xs lg:text-sm xl:text-base text-gray-500">Activos</p>
+                <p className="text-xl lg:text-2xl xl:text-3xl font-bold text-gray-900">{stats.active_users}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-5">
-            <div className="flex items-center gap-3">
-              <div className="p-2 lg:p-3 bg-red-100 rounded-lg lg:rounded-xl">
-                <UserX className="h-5 w-5 lg:h-6 lg:w-6 text-red-600" />
+          <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-5 xl:p-6">
+            <div className="flex items-center gap-3 lg:gap-4">
+              <div className="p-2 lg:p-3 xl:p-4 bg-red-100 rounded-lg lg:rounded-xl">
+                <UserX className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-red-600" />
               </div>
               <div>
-                <p className="text-xs lg:text-sm text-gray-500">Inactivos</p>
-                <p className="text-xl lg:text-2xl font-bold text-gray-900">{stats.inactive_users}</p>
+                <p className="text-xs lg:text-sm xl:text-base text-gray-500">Inactivos</p>
+                <p className="text-xl lg:text-2xl xl:text-3xl font-bold text-gray-900">{stats.inactive_users}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-5">
-            <div className="flex items-center gap-3">
-              <div className="p-2 lg:p-3 bg-purple-100 rounded-lg lg:rounded-xl">
-                <BarChart3 className="h-5 w-5 lg:h-6 lg:w-6 text-purple-600" />
+          <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-5 xl:p-6">
+            <div className="flex items-center gap-3 lg:gap-4">
+              <div className="p-2 lg:p-3 xl:p-4 bg-purple-100 rounded-lg lg:rounded-xl">
+                <BarChart3 className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-purple-600" />
               </div>
               <div>
-                <p className="text-xs lg:text-sm text-gray-500">Verificados</p>
-                <p className="text-xl lg:text-2xl font-bold text-gray-900">{stats.verified_users}</p>
+                <p className="text-xs lg:text-sm xl:text-base text-gray-500">Verificados</p>
+                <p className="text-xl lg:text-2xl xl:text-3xl font-bold text-gray-900">{stats.verified_users}</p>
               </div>
             </div>
           </div>

@@ -1432,20 +1432,20 @@ const StudyInteractiveExercisePage = () => {
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b bg-white shadow-sm">
+      <div className="flex items-center justify-between px-6 py-4 lg:px-8 lg:py-5 xl:px-10 xl:py-6 2xl:px-12 2xl:py-7 3xl:px-14 3xl:py-8 4xl:px-16 4xl:py-9 border-b bg-white shadow-sm">
         <div className="flex items-center gap-4">
           <button
             onClick={handleExitAttempt}
             className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
             title="Volver"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6 lg:h-8 lg:w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-semibold text-gray-900">
+              <h1 className="text-xl lg:text-2xl xl:text-3xl 2xl:text-4xl font-semibold text-gray-900">
                 {exercise?.title || 'Ejercicio Interactivo'}
               </h1>
               <button

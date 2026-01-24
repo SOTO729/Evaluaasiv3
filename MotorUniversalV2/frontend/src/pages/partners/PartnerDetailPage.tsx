@@ -88,7 +88,7 @@ export default function PartnerDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-14 max-w-[1920px] mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto">
         <LoadingSpinner message="Cargando partner..." />
       </div>
     );
@@ -96,7 +96,7 @@ export default function PartnerDetailPage() {
 
   if (error || !partner) {
     return (
-      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-14 max-w-[1920px] mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto">
         <div className="bg-red-50 border border-red-200 rounded-lg lg:rounded-xl p-4 lg:p-6 flex items-center gap-3 lg:gap-4">
           <AlertCircle className="h-5 w-5 lg:h-6 lg:w-6 text-red-600" />
           <p className="text-red-700 text-sm lg:text-base">{error || 'Partner no encontrado'}</p>
@@ -109,7 +109,7 @@ export default function PartnerDetailPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-14 max-w-[1920px] mx-auto animate-fade-in-up">
+    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Success Message */}
       {successMessage && (
         <div className="mb-4 lg:mb-6 bg-green-50 border border-green-200 rounded-lg lg:rounded-xl p-4 lg:p-5 flex items-center gap-3 lg:gap-4 animate-fade-in-up">
@@ -147,7 +147,7 @@ export default function PartnerDetailPage() {
             )}
             <div>
               <div className="flex items-center gap-2 lg:gap-3">
-                <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-800">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-gray-800">
                   {partner.name}
                 </h1>
                 {partner.is_active ? (

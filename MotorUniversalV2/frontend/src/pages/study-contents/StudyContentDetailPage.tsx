@@ -890,7 +890,7 @@ const StudyContentDetailPage = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto">
       {/* Toast notification */}
       {toast && (
         <Toast

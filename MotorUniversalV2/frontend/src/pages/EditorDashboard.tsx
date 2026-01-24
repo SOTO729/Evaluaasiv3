@@ -90,21 +90,21 @@ const EditorDashboard = () => {
       `}</style>
 
       {/* Hero Section */}
-      <div className="animated-gradient-editor rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-white relative overflow-hidden">
+      <div className="animated-gradient-editor rounded-xl sm:rounded-2xl 3xl:rounded-3xl p-4 sm:p-6 md:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 sm:w-64 h-32 sm:h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-24 sm:w-48 h-24 sm:h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
         
         <div className="relative z-10">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <Edit3 className="w-5 h-5 sm:w-6 sm:h-6 text-blue-200" />
+              <div className="flex items-center gap-2 3xl:gap-4 mb-2 3xl:mb-4">
+                <Edit3 className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 xl:w-8 xl:h-8 2xl:w-10 2xl:h-10 3xl:w-12 3xl:h-12 4xl:w-14 4xl:h-14 text-blue-200" />
                 <span className="text-blue-200 text-sm font-medium uppercase tracking-wider">Panel de Editor</span>
               </div>
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">
+              <h1 className="text-xl sm:text-2xl md:text-3xl xl:text-4xl 2xl:text-5xl 3xl:text-6xl 4xl:text-7xl font-bold mb-1 sm:mb-2 3xl:mb-4">
                 ¡Bienvenido, {user?.name}!
               </h1>
-              <p className="text-blue-100 text-xs sm:text-sm md:text-base">
+              <p className="text-blue-100 text-xs sm:text-sm md:text-base xl:text-lg 2xl:text-xl 3xl:text-2xl 4xl:text-3xl">
                 Gestiona y crea contenido para la plataforma de certificación
               </p>
             </div>
@@ -128,7 +128,7 @@ const EditorDashboard = () => {
       </div>
 
       {/* Cards de Resumen con Acciones Rápidas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 lg:gap-6 xl:gap-8 2xl:gap-10 3xl:gap-12">
         {/* Estándares ECM */}
         <div className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between mb-4">
@@ -278,7 +278,7 @@ const EditorDashboard = () => {
       </div>
 
       {/* Actividad Reciente - Mejorada */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6 xl:gap-8 2xl:gap-10 3xl:gap-12">
         {/* Estándares Recientes */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">

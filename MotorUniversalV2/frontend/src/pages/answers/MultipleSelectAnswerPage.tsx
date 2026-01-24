@@ -217,44 +217,44 @@ export const MultipleSelectAnswerPage = () => {
   const isValid = correctCount >= 1 && answers.every(a => a.answer_text.trim());
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="max-w-5xl 2xl:max-w-6xl 3xl:max-w-7xl 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 xl:py-10">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-6 lg:mb-8 xl:mb-10">
         <button
           onClick={() => navigate(-1)}
-          className="text-primary-600 hover:text-primary-700 mb-4 flex items-center"
+          className="text-primary-600 hover:text-primary-700 mb-4 flex items-center text-sm lg:text-base xl:text-lg"
         >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 lg:w-6 lg:h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           Volver a Preguntas
         </button>
 
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-gray-900 mb-2 lg:mb-3">
           Configurar Respuestas - Selección Múltiple
         </h1>
-        <p className="text-gray-600">
+        <p className="text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl text-gray-600">
           Configura las respuestas para esta pregunta (puedes seleccionar varias correctas)
         </p>
       </div>
 
       <form onSubmit={handleSubmit}>
         {/* Opciones de Respuesta */}
-        <div className="card mb-6">
-          <div className="mb-6">
-            <div className="flex justify-between items-start mb-3">
+        <div className="card mb-6 lg:mb-8">
+          <div className="mb-6 lg:mb-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-3 lg:mb-4">
               <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Opciones de Respuesta</h3>
-                <p className="text-sm text-gray-600">
+                <h3 className="text-lg lg:text-xl xl:text-2xl 2xl:text-3xl font-semibold text-gray-900 mb-2 lg:mb-3">Opciones de Respuesta</h3>
+                <p className="text-xs sm:text-sm lg:text-base xl:text-lg text-gray-600">
                   Agrega las posibles respuestas y marca cuáles son correctas (puedes seleccionar varias)
                 </p>
               </div>
               <button
                 onClick={handleAddAnswer}
                 disabled={answers.length >= 6}
-                className="btn btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                className="btn btn-primary text-sm lg:text-base xl:text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center px-4 py-2 lg:px-5 lg:py-2.5 xl:px-6 xl:py-3"
               >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 lg:w-5 lg:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
                 Agregar Opción
@@ -263,36 +263,36 @@ export const MultipleSelectAnswerPage = () => {
           </div>
 
           {/* Lista de respuestas */}
-          <div className="space-y-4">
+          <div className="space-y-4 lg:space-y-5">
             {answers.map((answer, index) => (
               <div
                 key={index}
-                className={`border rounded-lg p-4 transition-all ${
+                className={`border rounded-lg xl:rounded-xl p-4 lg:p-5 xl:p-6 transition-all ${
                   answer.is_correct
                     ? 'bg-green-50 border-green-400 shadow-sm'
                     : 'bg-white border-gray-300'
                 }`}
               >
-                <div className="flex items-start gap-4">
+                <div className="flex items-start gap-3 lg:gap-4">
                   {/* Checkbox personalizado */}
                   <button
                     type="button"
                     onClick={() => handleCorrectChange(index)}
-                    className={`flex-shrink-0 w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
+                    className={`flex-shrink-0 w-6 h-6 lg:w-7 lg:h-7 xl:w-8 xl:h-8 rounded border-2 flex items-center justify-center transition-all ${
                       answer.is_correct
                         ? 'bg-green-500 border-green-500'
                         : 'bg-white border-gray-400 hover:border-green-400'
                     }`}
                   >
                     {answer.is_correct && (
-                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 lg:w-5 lg:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                       </svg>
                     )}
                   </button>
 
                   {/* Letra de la opción */}
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-100 text-primary-700 font-semibold flex items-center justify-center">
+                  <div className="flex-shrink-0 w-8 h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 rounded-full bg-primary-100 text-primary-700 font-semibold flex items-center justify-center text-sm lg:text-base xl:text-lg">
                     {ANSWER_LETTERS[index]}
                   </div>
 
@@ -301,7 +301,7 @@ export const MultipleSelectAnswerPage = () => {
                     type="text"
                     value={answer.answer_text}
                     onChange={(e) => handleAnswerTextChange(index, e.target.value)}
-                    className={`flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 ${
+                    className={`flex-1 px-4 py-2 lg:px-5 lg:py-3 xl:py-4 border rounded-lg xl:rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 text-sm lg:text-base xl:text-lg 2xl:text-xl ${
                       !answer.answer_text.trim() ? 'border-amber-300 bg-amber-50/50' : 'border-gray-300'
                     }`}
                     placeholder={`Opción ${ANSWER_LETTERS[index]}`}
@@ -312,10 +312,10 @@ export const MultipleSelectAnswerPage = () => {
                     <button
                       type="button"
                       onClick={() => handleRemoveAnswer(index)}
-                      className="flex-shrink-0 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      className="flex-shrink-0 p-2 lg:p-3 text-red-600 hover:bg-red-50 rounded-lg xl:rounded-xl transition-colors"
                       title="Eliminar opción"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 lg:w-6 lg:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
@@ -324,8 +324,8 @@ export const MultipleSelectAnswerPage = () => {
 
                 {/* Indicador de correcta */}
                 {answer.is_correct && (
-                  <div className="mt-2 ml-10 flex items-center text-sm text-green-700">
-                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <div className="mt-2 lg:mt-3 ml-10 lg:ml-12 flex items-center text-sm lg:text-base text-green-700">
+                    <svg className="w-4 h-4 lg:w-5 lg:h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
                     Respuesta correcta
@@ -336,9 +336,9 @@ export const MultipleSelectAnswerPage = () => {
           </div>
 
           {/* Estado y validación */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-4">
+          <div className="mt-6 lg:mt-8 pt-6 lg:pt-8 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-sm lg:text-base">
+              <div className="flex items-center gap-4 lg:gap-6">
                 <span className="text-gray-600">
                   <strong>{answers.length}</strong> de 6 opciones
                 </span>
@@ -348,7 +348,7 @@ export const MultipleSelectAnswerPage = () => {
               </div>
               {!isValid && (
                 <div className="flex items-center text-amber-600">
-                  <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-4 h-4 lg:w-5 lg:h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
                   Completa todos los campos y selecciona al menos una respuesta correcta
@@ -359,18 +359,18 @@ export const MultipleSelectAnswerPage = () => {
         </div>
 
         {/* Botones de acción */}
-        <div className="flex justify-end gap-4">
+        <div className="flex justify-end gap-4 lg:gap-5">
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="btn btn-secondary"
+            className="btn btn-secondary px-4 py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 text-sm lg:text-base xl:text-lg"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={!isValid}
-            className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 text-sm lg:text-base xl:text-lg"
           >
             Guardar Respuestas
           </button>

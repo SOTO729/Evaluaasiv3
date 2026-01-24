@@ -129,7 +129,7 @@ const CategoryDetailPage = () => {
   ]
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16">
       {/* Breadcrumb */}
       <Breadcrumb items={breadcrumbItems} />
 
@@ -149,7 +149,7 @@ const CategoryDetailPage = () => {
         <div className="bg-gradient-to-r from-blue-600 via-sky-600 to-blue-700 rounded-2xl p-6 shadow-xl shadow-blue-500/20">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white">{category.name}</h1>
+              <h1 className="text-2xl sm:text-3xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-white">{category.name}</h1>
               {category.description && (
                 <p className="text-blue-100 mt-2">{category.description}</p>
               )}

@@ -169,7 +169,7 @@ export default function StandardsListPage() {
     : standards;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-14 max-w-[1920px] mx-auto animate-fade-in-up">
+    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 lg:gap-6 xl:gap-8 mb-4 sm:mb-6 lg:mb-8 xl:mb-10 2xl:mb-12">
         <div>

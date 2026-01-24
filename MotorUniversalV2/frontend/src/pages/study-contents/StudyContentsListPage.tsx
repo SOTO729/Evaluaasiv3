@@ -233,15 +233,15 @@ const StudyContentsListPage = () => {
   // };
 
   return (
-    <div className="p-4 sm:p-6 animate-fade-in-up">
+    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 animate-fade-in-up">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6 lg:mb-8 xl:mb-10">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <BookOpen className="h-6 w-6 sm:h-7 sm:w-7 text-blue-600" />
+          <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-gray-800 flex items-center gap-2 lg:gap-3 xl:gap-4">
+            <BookOpen className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12 text-blue-600" />
             {isCandidate ? 'Materiales Disponibles' : 'Materiales de Estudio'}
           </h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1">
+          <p className="text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl text-gray-600 mt-1 lg:mt-2">
             {isCandidate 
               ? 'Explora los materiales de estudio disponibles' 
               : 'Materiales organizados por sesiones'}
@@ -250,19 +250,19 @@ const StudyContentsListPage = () => {
         {canCreate && (
           <button
             onClick={() => navigate('/study-contents/create')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors w-full sm:w-auto"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 2xl:px-10 2xl:py-5 rounded-lg xl:rounded-xl flex items-center justify-center gap-2 lg:gap-3 transition-colors w-full sm:w-auto text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl"
           >
-            <Plus className="h-5 w-5" />
+            <Plus className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 2xl:h-8 2xl:w-8" />
             Nuevo Material
           </button>
         )}
       </div>
 
       {/* Search */}
-      <div className="bg-white rounded-lg shadow p-3 sm:p-4 mb-4 sm:mb-6">
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+      <div className="bg-white rounded-lg xl:rounded-xl shadow p-3 sm:p-4 lg:p-5 xl:p-6 2xl:p-8 mb-4 sm:mb-6 lg:mb-8">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 lg:gap-6">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Search className="absolute left-3 lg:left-4 top-1/2 -translate-y-1/2 h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-gray-400" />
             <input
               type="text"
               placeholder="Buscar materiales..."
@@ -273,14 +273,14 @@ const StudyContentsListPage = () => {
                   fetchMaterials()
                 }
               }}
-              className="w-full pl-10 pr-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+              className="w-full pl-10 lg:pl-12 xl:pl-14 pr-4 py-2.5 sm:py-2 lg:py-3 xl:py-4 2xl:py-5 border border-gray-300 rounded-lg xl:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base lg:text-lg xl:text-xl 2xl:text-2xl"
             />
           </div>
           <button
             onClick={() => fetchMaterials()}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 sm:py-2 rounded-lg transition-colors w-full sm:w-auto flex items-center justify-center gap-2 font-medium"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 lg:px-8 xl:px-10 py-2.5 sm:py-2 lg:py-3 xl:py-4 2xl:py-5 rounded-lg xl:rounded-xl transition-colors w-full sm:w-auto flex items-center justify-center gap-2 lg:gap-3 font-medium text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl"
           >
-            <Search className="h-4 w-4" />
+            <Search className="h-4 w-4 lg:h-5 lg:w-5 xl:h-6 xl:w-6" />
             Buscar
           </button>
         </div>
@@ -316,7 +316,7 @@ const StudyContentsListPage = () => {
         <>
           {/* Para candidatos: mostrar todos en una sola lista sin secciones */}
           {isCandidate ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 gap-4 sm:gap-6 lg:gap-8 xl:gap-10 mb-6 sm:mb-8 lg:mb-10">
               {materials.map((material, index) => (
                 <MaterialCard 
                   key={material.id} 
@@ -332,15 +332,15 @@ const StudyContentsListPage = () => {
             <>
               {/* Sección de Publicados */}
               {materials.filter(m => m.is_published).length > 0 && (
-                <div className="mb-8">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Eye className="h-5 w-5 text-green-600" />
-                    <h2 className="text-lg font-semibold text-gray-800">Publicados</h2>
-                    <span className="bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                <div className="mb-8 lg:mb-10 xl:mb-12">
+                  <div className="flex items-center gap-2 lg:gap-3 mb-4 lg:mb-6">
+                    <Eye className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-green-600" />
+                    <h2 className="text-lg lg:text-xl xl:text-2xl 2xl:text-3xl font-semibold text-gray-800">Publicados</h2>
+                    <span className="bg-green-100 text-green-700 text-xs lg:text-sm xl:text-base font-medium px-2 py-0.5 lg:px-3 lg:py-1 rounded-full">
                       {materials.filter(m => m.is_published).length}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 gap-6 lg:gap-8 xl:gap-10">
                     {materials.filter(m => m.is_published).map((material, index) => (
                       <MaterialCard 
                         key={material.id} 
@@ -356,15 +356,15 @@ const StudyContentsListPage = () => {
 
               {/* Sección de Borradores */}
               {materials.filter(m => !m.is_published).length > 0 && (
-                <div ref={draftsRef} className="mb-8 scroll-mt-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <EyeOff className="h-5 w-5 text-gray-500" />
-                    <h2 className="text-lg font-semibold text-gray-800">Borradores</h2>
-                    <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded-full">
+                <div ref={draftsRef} className="mb-8 lg:mb-10 xl:mb-12 scroll-mt-4">
+                  <div className="flex items-center gap-2 lg:gap-3 mb-4 lg:mb-6">
+                    <EyeOff className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-gray-500" />
+                    <h2 className="text-lg lg:text-xl xl:text-2xl 2xl:text-3xl font-semibold text-gray-800">Borradores</h2>
+                    <span className="bg-gray-100 text-gray-600 text-xs lg:text-sm xl:text-base font-medium px-2 py-0.5 lg:px-3 lg:py-1 rounded-full">
                       {materials.filter(m => !m.is_published).length}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 gap-6 lg:gap-8 xl:gap-10">
                     {materials.filter(m => !m.is_published).map((material, index) => (
                       <MaterialCard 
                         key={material.id} 

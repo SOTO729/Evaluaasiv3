@@ -87,7 +87,7 @@ export default function StandardDetailPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <div className="max-w-5xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto px-4 sm:px-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 py-6 sm:py-8">
       {/* Navegación */}
       <div className="mb-4 sm:mb-6">
         <button
@@ -107,7 +107,7 @@ export default function StandardDetailPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="text-white">
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <h1 className="text-xl sm:text-2xl font-bold">{standard.code}</h1>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold">{standard.code}</h1>
                 {standard.level && (
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getLevelBadgeColor(standard.level)}`}>
                     Nivel {standard.level}

@@ -1225,7 +1225,7 @@ const StudyContentPreviewPage: React.FC = () => {
     <div className="bg-white flex flex-col h-screen overflow-hidden">
       {/* Header minimalista - responsivo */}
       <header className="bg-white border-b border-gray-200 flex-shrink-0 z-40">
-        <div className="max-w-[1920px] mx-auto flex items-center justify-between px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 2xl:px-10 h-10 sm:h-11 md:h-12 lg:h-14 xl:h-16 2xl:h-18">
+        <div className="max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto flex items-center justify-between px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 2xl:px-10 3xl:px-12 4xl:px-14 h-10 sm:h-11 md:h-12 lg:h-14 xl:h-16 2xl:h-18 3xl:h-20 4xl:h-22">
           <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 lg:gap-4 flex-1 min-w-0">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -1241,7 +1241,7 @@ const StudyContentPreviewPage: React.FC = () => {
               <span className="hidden sm:inline font-medium text-xs sm:text-sm md:text-base xl:text-lg">Volver</span>
             </button>
             <div className="h-4 sm:h-5 md:h-6 xl:h-7 w-px bg-gray-200 hidden sm:block flex-shrink-0" />
-            <h1 className="font-semibold text-gray-900 truncate text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl 2xl:text-2xl max-w-[100px] xs:max-w-[140px] sm:max-w-[180px] md:max-w-[280px] lg:max-w-md xl:max-w-xl 2xl:max-w-2xl">
+            <h1 className="font-semibold text-gray-900 truncate text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl 2xl:text-2xl 3xl:text-3xl 4xl:text-4xl max-w-[100px] xs:max-w-[140px] sm:max-w-[180px] md:max-w-[280px] lg:max-w-md xl:max-w-xl 2xl:max-w-2xl 3xl:max-w-3xl 4xl:max-w-4xl">
               {material.title}
             </h1>
           </div>
@@ -1383,7 +1383,7 @@ const StudyContentPreviewPage: React.FC = () => {
         <main ref={mainContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden bg-white overscroll-contain" onScroll={handleMainScroll}>
           {/* Header sticky con título y pestañas - más compacto */}
           <div className={`sticky top-0 z-20 bg-white border-b border-gray-100 transition-all duration-300 ease-out ${isScrolled ? 'py-0.5' : ''}`}>
-            <div className={`max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl mx-auto px-3 sm:px-4 md:px-5 lg:px-6 xl:px-8 2xl:px-10 transition-all duration-300 ease-out ${isScrolled ? 'pt-0.5 pb-0' : 'pt-2 sm:pt-3 xl:pt-4 pb-0'}`}>
+            <div className={`max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto px-3 sm:px-4 md:px-5 lg:px-6 xl:px-8 2xl:px-10 3xl:px-12 4xl:px-14 transition-all duration-300 ease-out ${isScrolled ? 'pt-0.5 pb-0' : 'pt-2 sm:pt-3 xl:pt-4 3xl:pt-5 4xl:pt-6 pb-0'}`}>
               {/* Breadcrumb - se oculta al hacer scroll */}
               <div className={`flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-gray-500 transition-all duration-300 ease-out overflow-hidden ${isScrolled ? 'h-0 opacity-0 mb-0' : 'h-auto opacity-100 mb-1'}`}>
                 <span className="truncate max-w-[80px] sm:max-w-[120px] md:max-w-none">{currentSession?.title}</span>
@@ -1392,7 +1392,7 @@ const StudyContentPreviewPage: React.FC = () => {
               </div>
 
               {/* Título del tema - más compacto */}
-              <h1 className={`font-bold text-gray-900 transition-all duration-300 ease-out ${isScrolled ? 'text-[11px] sm:text-xs md:text-sm xl:text-base mb-0' : 'text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl 2xl:text-3xl mb-0.5 xl:mb-1'}`}>{currentTopic?.title}</h1>
+              <h1 className={`font-bold text-gray-900 transition-all duration-300 ease-out ${isScrolled ? 'text-[11px] sm:text-xs md:text-sm xl:text-base 3xl:text-lg 4xl:text-xl mb-0' : 'text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl 2xl:text-3xl 3xl:text-4xl 4xl:text-5xl mb-0.5 xl:mb-1 3xl:mb-2'}`}>{currentTopic?.title}</h1>
               {/* Descripción - se oculta al hacer scroll */}
               {currentTopic?.description && (
                 <p className={`text-gray-600 transition-all duration-300 ease-out overflow-hidden ${isScrolled ? 'h-0 opacity-0 mb-0' : 'text-[11px] sm:text-xs md:text-sm xl:text-base 2xl:text-lg h-auto opacity-100 mb-1.5 sm:mb-2 xl:mb-3'}`}>{currentTopic.description}</p>
@@ -1400,7 +1400,7 @@ const StudyContentPreviewPage: React.FC = () => {
 
               {/* Tabs de contenido - más compactas */}
               <div className={`border-b border-gray-200 transition-all duration-300 ease-out ${isScrolled ? 'mb-0 mt-0' : 'mb-1.5 sm:mb-2 md:mb-3 xl:mb-4 mt-1 sm:mt-1.5 md:mt-2 xl:mt-3'}`}>
-                <nav className={`flex overflow-x-auto scrollbar-hide transition-all duration-300 ease-out ${isScrolled ? 'gap-1.5 sm:gap-2 xl:gap-3' : 'gap-2 sm:gap-3 md:gap-5 lg:gap-6 xl:gap-8 2xl:gap-10'}`}>
+                <nav className={`flex overflow-x-auto scrollbar-hide transition-all duration-300 ease-out ${isScrolled ? 'gap-1.5 sm:gap-2 xl:gap-3 3xl:gap-4' : 'gap-2 sm:gap-3 md:gap-5 lg:gap-6 xl:gap-8 2xl:gap-10 3xl:gap-12 4xl:gap-14'}`}>
                   {currentTopic?.allow_reading !== false && (
                     <button
                       onClick={() => handleTabChange('reading')}

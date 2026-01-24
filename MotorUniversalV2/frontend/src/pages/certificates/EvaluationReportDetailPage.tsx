@@ -176,7 +176,7 @@ const EvaluationReportDetailPage = () => {
       {/* Modal de descarga */}
       <DownloadModal isOpen={!!generatingPdf} message={downloadMessage} />
 
-      <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-white animate-slide-up">
+      <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 text-white animate-slide-up">
         <button
           onClick={() => navigate('/certificates')}
           className="flex items-center gap-2 text-white/80 hover:text-white mb-3 sm:mb-4 transition-colors text-sm sm:text-base"
@@ -186,15 +186,15 @@ const EvaluationReportDetailPage = () => {
         </button>
         
         <div className="flex items-center gap-3 sm:gap-4">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-white/20 rounded-xl sm:rounded-2xl flex items-center justify-center animate-pulse-subtle flex-shrink-0">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-18 lg:h-18 xl:w-20 xl:h-20 2xl:w-24 2xl:h-24 bg-white/20 rounded-xl sm:rounded-2xl flex items-center justify-center animate-pulse-subtle flex-shrink-0">
             <img 
               src="/images/evaluaasi-icon.png" 
               alt="Reporte de Evaluación" 
-              className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 object-contain brightness-0 invert"
+              className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 lg:h-8 lg:w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12 3xl:h-14 3xl:w-14 4xl:h-16 4xl:w-16 object-contain brightness-0 invert"
             />
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold truncate">Reportes de Evaluación</h1>
+            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-3xl xl:text-4xl 2xl:text-5xl 3xl:text-6xl 4xl:text-7xl font-bold truncate">Reportes de Evaluación</h1>
             <p className="text-primary-100 mt-0.5 sm:mt-1 text-sm sm:text-base truncate">
               {examData?.name || 'Cargando...'}
             </p>

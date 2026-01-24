@@ -328,7 +328,7 @@ export default function StandardFormPage() {
         />
       )}
       
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-3xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16">
         <div className="mb-8">
           <button
             onClick={() => navigate('/standards')}
@@ -339,7 +339,7 @@ export default function StandardFormPage() {
             </svg>
             Volver a estándares
           </button>
-          <h1 className="mt-4 text-2xl font-bold text-gray-900">
+          <h1 className="mt-4 text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl 3xl:text-6xl 4xl:text-7xl font-bold text-gray-900">
             {isEditing ? 'Editar Estándar' : 'Nuevo Estándar de Competencia'}
           </h1>
           <p className="mt-1 text-sm text-gray-500">
