@@ -183,3 +183,80 @@ export const ROLE_COLORS: Record<string, string> = {
   candidato: 'bg-green-100 text-green-800',
   auxiliar: 'bg-gray-100 text-gray-800'
 };
+
+// ============== CARGA MASIVA ==============
+
+export interface BulkUploadResult {
+  message: string;
+  summary: {
+    total_processed: number;
+    created: number;
+    errors: number;
+    skipped: number;
+  };
+  details: {
+    created: Array<{
+      row: number;
+      email: string;
+      name: string;
+      username: string;
+      password: string | null;
+    }>;
+    errors: Array<{
+      row: number;
+      email: string;
+      error: string;
+    }>;
+    skipped: Array<{
+      row: number;
+      email: string;
+      reason: string;
+    }>;
+    total_processed: number;
+  };
+}
+
+export async function bulkUploadCandidates(file: File): Promise<BulkUploadResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await api.post('/user-management/candidates/bulk-upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+  return response.data;
+}
+
+export async function downloadBulkUploadTemplate(): Promise<void> {
+  try {
+    const response = await api.get('/user-management/candidates/bulk-upload/template', {
+      responseType: 'blob'
+    });
+    
+    // Verificar que la respuesta es un archivo Excel válido
+    const contentType = response.headers['content-type'];
+    if (contentType && contentType.includes('application/json')) {
+      // Si es JSON, probablemente es un error
+      const text = await response.data.text();
+      const error = JSON.parse(text);
+      throw new Error(error.error || 'Error al descargar la plantilla');
+    }
+    
+    // Crear blob y descargar
+    const blob = new Blob([response.data], { 
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'plantilla_candidatos.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+  } catch (error) {
+    console.error('Error downloading template:', error);
+    throw error;
+  }
+}

@@ -18,8 +18,10 @@ import {
   BarChart3,
   Briefcase,
   GraduationCap,
+  Upload,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import BulkUploadModal from '../../components/users/BulkUploadModal';
 import {
   getUsers,
   getUserStats,
@@ -69,6 +71,9 @@ export default function UsersListPage() {
   const [roleFilter, setRoleFilter] = useState(searchParams.get('role') || '');
   const [activeFilter, setActiveFilter] = useState(searchParams.get('is_active') || '');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Modal de carga masiva
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
   
   // Roles filtrados según el tab activo
   const filteredRoles = useMemo(() => {
@@ -210,14 +215,37 @@ export default function UsersListPage() {
           </p>
         </div>
         
-        <Link
-          to="/user-management/new"
-          className="inline-flex items-center justify-center gap-2 lg:gap-3 px-4 lg:px-5 xl:px-6 py-2 lg:py-2.5 xl:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg lg:rounded-xl font-medium text-sm lg:text-base xl:text-lg transition-colors"
-        >
-          <Plus className="h-4 w-4 lg:h-5 lg:w-5" />
-          Nuevo Usuario
-        </Link>
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Botón de carga masiva - solo visible en tab de candidatos o todos */}
+          {(activeTab === 'candidates' || activeTab === 'all') && (
+            <button
+              onClick={() => setShowBulkUploadModal(true)}
+              className="inline-flex items-center justify-center gap-2 lg:gap-3 px-4 lg:px-5 xl:px-6 py-2 lg:py-2.5 xl:py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg lg:rounded-xl font-medium text-sm lg:text-base xl:text-lg transition-colors"
+            >
+              <Upload className="h-4 w-4 lg:h-5 lg:w-5" />
+              Carga Masiva
+            </button>
+          )}
+          
+          <Link
+            to="/user-management/new"
+            className="inline-flex items-center justify-center gap-2 lg:gap-3 px-4 lg:px-5 xl:px-6 py-2 lg:py-2.5 xl:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg lg:rounded-xl font-medium text-sm lg:text-base xl:text-lg transition-colors"
+          >
+            <Plus className="h-4 w-4 lg:h-5 lg:w-5" />
+            Nuevo Usuario
+          </Link>
+        </div>
       </div>
+
+      {/* Modal de carga masiva */}
+      <BulkUploadModal
+        isOpen={showBulkUploadModal}
+        onClose={() => setShowBulkUploadModal(false)}
+        onSuccess={() => {
+          loadData();
+          loadStats();
+        }}
+      />
 
       {/* Stats Cards */}
       {stats && (

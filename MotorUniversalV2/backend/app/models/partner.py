@@ -290,3 +290,157 @@ class GroupMember(db.Model):
             data['group'] = self.group.to_dict(include_campus=True)
             
         return data
+
+
+class GroupExam(db.Model):
+    """Examen asignado a un grupo - incluye automáticamente los materiales de estudio relacionados"""
+    
+    __tablename__ = 'group_exams'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='CASCADE'), nullable=False)
+    exam_id = db.Column(db.Integer, db.ForeignKey('exams.id', ondelete='CASCADE'), nullable=False)
+    
+    # Fecha de asignación
+    assigned_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    assigned_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    
+    # Período de disponibilidad (opcional)
+    available_from = db.Column(db.DateTime, nullable=True)
+    available_until = db.Column(db.DateTime, nullable=True)
+    
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    
+    # Índice único para evitar duplicados
+    __table_args__ = (
+        db.UniqueConstraint('group_id', 'exam_id', name='uq_group_exam'),
+    )
+    
+    # Relaciones
+    group = db.relationship('CandidateGroup', backref=db.backref('assigned_exams', lazy='dynamic'))
+    exam = db.relationship('Exam', backref=db.backref('group_assignments', lazy='dynamic'))
+    assigned_by = db.relationship('User', foreign_keys=[assigned_by_id])
+    
+    def to_dict(self, include_exam=False, include_group=False, include_materials=False):
+        data = {
+            'id': self.id,
+            'group_id': self.group_id,
+            'exam_id': self.exam_id,
+            'assigned_at': self.assigned_at.isoformat() if self.assigned_at else None,
+            'assigned_by_id': self.assigned_by_id,
+            'available_from': self.available_from.isoformat() if self.available_from else None,
+            'available_until': self.available_until.isoformat() if self.available_until else None,
+            'is_active': self.is_active,
+        }
+        
+        if include_exam and self.exam:
+            data['exam'] = {
+                'id': self.exam.id,
+                'name': self.exam.name,
+                'version': self.exam.version,
+                'standard': self.exam.standard,
+                'description': self.exam.description,
+                'duration_minutes': self.exam.duration_minutes,
+                'passing_score': self.exam.passing_score,
+                'is_published': self.exam.is_published,
+            }
+            
+        if include_group and self.group:
+            data['group'] = self.group.to_dict()
+            
+        if include_materials and self.exam:
+            # Obtener materiales de estudio asociados al examen
+            from app.models.study_content import StudyMaterial
+            from sqlalchemy import text
+            
+            # Verificar si hay personalizaciones para este group_exam
+            custom_materials = self.custom_materials.all() if self.custom_materials else []
+            has_customizations = len(custom_materials) > 0
+            
+            materials = []
+            
+            if has_customizations:
+                # Si hay personalizaciones, usar solo los materiales marcados como incluidos
+                included_ids = [cm.study_material_id for cm in custom_materials if cm.is_included]
+                if included_ids:
+                    try:
+                        placeholders = ','.join([str(id) for id in included_ids])
+                        query = f'''
+                            SELECT sc.id, sc.title, sc.description, sc.image_url
+                            FROM study_contents sc
+                            WHERE sc.id IN ({placeholders})
+                        '''
+                        linked_materials = db.session.execute(text(query)).fetchall()
+                        
+                        for m in linked_materials:
+                            materials.append({
+                                'id': m[0],
+                                'title': m[1],
+                                'description': m[2],
+                                'cover_image_url': m[3],
+                                'is_custom': True,
+                            })
+                    except Exception:
+                        pass
+            else:
+                # Sin personalizaciones: usar materiales vinculados al examen que estén PUBLICADOS
+                # Buscar por relación muchos a muchos usando la tabla intermedia
+                try:
+                    linked_materials = db.session.execute(text('''
+                        SELECT sc.id, sc.title, sc.description, sc.image_url
+                        FROM study_contents sc
+                        INNER JOIN study_material_exams sme ON sc.id = sme.study_material_id
+                        WHERE sme.exam_id = :exam_id AND sc.is_published = 1
+                    '''), {'exam_id': self.exam.id}).fetchall()
+                    
+                    for m in linked_materials:
+                        materials.append({
+                            'id': m[0],
+                            'title': m[1],
+                            'description': m[2],
+                            'cover_image_url': m[3],
+                            'is_custom': False,
+                        })
+                except Exception:
+                    pass
+                
+                # También buscar por campo exam_id directo (legacy) - solo publicados
+                if not materials:
+                    legacy_materials = StudyMaterial.query.filter_by(exam_id=self.exam.id, is_published=True).all()
+                    materials = [{
+                        'id': m.id,
+                        'title': m.title,
+                        'description': m.description,
+                        'cover_image_url': getattr(m, 'cover_image_url', m.image_url),
+                        'is_custom': False,
+                    } for m in legacy_materials]
+            
+            data['study_materials'] = materials
+            data['has_custom_materials'] = has_customizations
+            
+        return data
+
+
+class GroupExamMaterial(db.Model):
+    """Modelo para materiales personalizados por grupo-examen"""
+    
+    __tablename__ = 'group_exam_materials'
+    __table_args__ = {'extend_existing': True}
+    
+    id = db.Column(db.Integer, primary_key=True)
+    group_exam_id = db.Column(db.Integer, db.ForeignKey('group_exams.id', ondelete='CASCADE'), nullable=False)
+    study_material_id = db.Column(db.Integer, db.ForeignKey('study_contents.id', ondelete='CASCADE'), nullable=False)
+    is_included = db.Column(db.Boolean, default=True)
+    added_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relaciones
+    group_exam = db.relationship('GroupExam', backref=db.backref('custom_materials', lazy='dynamic', cascade='all, delete-orphan'))
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'group_exam_id': self.group_exam_id,
+            'study_material_id': self.study_material_id,
+            'is_included': self.is_included,
+            'added_at': self.added_at.isoformat() if self.added_at else None,
+        }

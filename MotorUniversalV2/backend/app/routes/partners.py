@@ -1201,3 +1201,327 @@ def unlink_from_partner(partner_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+
+# ============== EXÁMENES ASIGNADOS A GRUPOS ==============
+
+@bp.route('/groups/<int:group_id>/exams', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_group_exams(group_id):
+    """Listar exámenes asignados a un grupo"""
+    try:
+        from app.models import GroupExam, Exam
+        from app.models.study_content import StudyMaterial
+        
+        group = CandidateGroup.query.get_or_404(group_id)
+        
+        group_exams = GroupExam.query.filter_by(group_id=group_id, is_active=True).all()
+        
+        exams_data = []
+        for ge in group_exams:
+            exam_data = ge.to_dict(include_exam=True, include_materials=True)
+            exams_data.append(exam_data)
+        
+        return jsonify({
+            'group_id': group_id,
+            'group_name': group.name,
+            'assigned_exams': exams_data,
+            'total': len(exams_data)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/exams', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def assign_exam_to_group(group_id):
+    """Asignar un examen a un grupo (automáticamente incluye materiales de estudio)"""
+    try:
+        from app.models import GroupExam, Exam
+        from app.models.study_content import StudyMaterial
+        
+        group = CandidateGroup.query.get_or_404(group_id)
+        data = request.get_json()
+        
+        exam_id = data.get('exam_id')
+        if not exam_id:
+            return jsonify({'error': 'El ID del examen es requerido'}), 400
+        
+        # Verificar que el examen existe
+        exam = Exam.query.get(exam_id)
+        if not exam:
+            return jsonify({'error': 'Examen no encontrado'}), 404
+        
+        # Verificar que no esté ya asignado
+        existing = GroupExam.query.filter_by(group_id=group_id, exam_id=exam_id).first()
+        if existing:
+            if existing.is_active:
+                return jsonify({'error': 'Este examen ya está asignado al grupo'}), 400
+            else:
+                # Reactivar la asignación
+                existing.is_active = True
+                existing.assigned_at = db.func.now()
+                existing.assigned_by_id = g.current_user.id
+                existing.available_from = data.get('available_from')
+                existing.available_until = data.get('available_until')
+                db.session.commit()
+                
+                # Obtener materiales asociados
+                materials = StudyMaterial.query.filter_by(exam_id=exam_id, is_published=True).all()
+                
+                return jsonify({
+                    'message': 'Examen reactivado exitosamente',
+                    'assignment': existing.to_dict(include_exam=True, include_materials=True),
+                    'study_materials_count': len(materials)
+                })
+        
+        # Crear nueva asignación
+        group_exam = GroupExam(
+            group_id=group_id,
+            exam_id=exam_id,
+            assigned_by_id=g.current_user.id,
+            available_from=data.get('available_from'),
+            available_until=data.get('available_until')
+        )
+        
+        db.session.add(group_exam)
+        db.session.commit()
+        
+        # Obtener materiales asociados al examen
+        materials = StudyMaterial.query.filter_by(exam_id=exam_id, is_published=True).all()
+        
+        return jsonify({
+            'message': 'Examen asignado exitosamente. Los materiales de estudio asociados también están disponibles.',
+            'assignment': group_exam.to_dict(include_exam=True, include_materials=True),
+            'study_materials_count': len(materials)
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/exams/<int:exam_id>', methods=['DELETE'])
+@jwt_required()
+@coordinator_required
+def unassign_exam_from_group(group_id, exam_id):
+    """Desasignar un examen de un grupo"""
+    try:
+        from app.models import GroupExam
+        
+        group_exam = GroupExam.query.filter_by(
+            group_id=group_id, 
+            exam_id=exam_id
+        ).first_or_404()
+        
+        group_exam.is_active = False
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Examen desasignado del grupo'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/exams/available', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_available_exams():
+    """Obtener exámenes disponibles para asignar a grupos"""
+    try:
+        from app.models import Exam
+        from app.models.study_content import StudyMaterial
+        
+        search = request.args.get('search', '')
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        query = Exam.query.filter(Exam.is_published == True)
+        
+        if search:
+            search_term = f'%{search}%'
+            query = query.filter(
+                db.or_(
+                    Exam.name.ilike(search_term),
+                    Exam.standard.ilike(search_term),
+                    Exam.description.ilike(search_term)
+                )
+            )
+        
+        query = query.order_by(Exam.name)
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        exams_data = []
+        for exam in pagination.items:
+            # Contar materiales de estudio asociados
+            materials_count = StudyMaterial.query.filter_by(exam_id=exam.id, is_published=True).count()
+            
+            exams_data.append({
+                'id': exam.id,
+                'name': exam.name,
+                'version': exam.version,
+                'standard': exam.standard,
+                'description': exam.description,
+                'duration_minutes': exam.duration_minutes,
+                'passing_score': exam.passing_score,
+                'is_published': exam.is_published,
+                'study_materials_count': materials_count
+            })
+        
+        return jsonify({
+            'exams': exams_data,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'current_page': page
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ============== MATERIALES PERSONALIZADOS POR GRUPO-EXAMEN ==============
+
+@bp.route('/group-exams/<int:group_exam_id>/materials', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_group_exam_materials(group_exam_id):
+    """Obtener materiales disponibles y seleccionados para un grupo-examen"""
+    try:
+        from app.models import GroupExam, GroupExamMaterial
+        from app.models.study_content import StudyMaterial
+        from sqlalchemy import text
+        
+        group_exam = GroupExam.query.get_or_404(group_exam_id)
+        
+        # Obtener materiales vinculados al examen (desde study_material_exams)
+        linked_material_ids = []
+        try:
+            result = db.session.execute(text('''
+                SELECT study_material_id FROM study_material_exams 
+                WHERE exam_id = :exam_id
+            '''), {'exam_id': group_exam.exam_id})
+            linked_material_ids = [r[0] for r in result.fetchall()]
+        except Exception:
+            pass
+        
+        # Obtener materiales personalizados para este group_exam
+        custom_materials = GroupExamMaterial.query.filter_by(group_exam_id=group_exam_id).all()
+        custom_dict = {cm.study_material_id: cm.is_included for cm in custom_materials}
+        
+        # Obtener todos los materiales publicados para selección adicional
+        all_published = StudyMaterial.query.filter_by(is_published=True).all()
+        
+        # Construir respuesta
+        materials_data = []
+        
+        # Primero los materiales vinculados al examen (solo mostrar publicados en esta sección)
+        for mat in StudyMaterial.query.filter(StudyMaterial.id.in_(linked_material_ids), StudyMaterial.is_published == True).all():
+            # Por defecto incluido SOLO si está vinculado Y publicado
+            is_included = custom_dict.get(mat.id, True)
+            materials_data.append({
+                'id': mat.id,
+                'title': mat.title,
+                'description': mat.description,
+                'cover_image_url': mat.image_url,
+                'is_published': mat.is_published,
+                'is_linked': True,  # Vinculado directamente al examen
+                'is_included': is_included,
+            })
+        
+        # Luego los materiales publicados que no están vinculados
+        linked_set = set(linked_material_ids)
+        for mat in all_published:
+            if mat.id not in linked_set:
+                is_included = custom_dict.get(mat.id, False)  # Por defecto no incluido
+                materials_data.append({
+                    'id': mat.id,
+                    'title': mat.title,
+                    'description': mat.description,
+                    'cover_image_url': mat.image_url,
+                    'is_published': mat.is_published,
+                    'is_linked': False,  # No vinculado directamente
+                    'is_included': is_included,
+                })
+        
+        return jsonify({
+            'group_exam_id': group_exam_id,
+            'exam_id': group_exam.exam_id,
+            'exam_name': group_exam.exam.name if group_exam.exam else None,
+            'materials': materials_data,
+            'has_customizations': len(custom_materials) > 0
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/group-exams/<int:group_exam_id>/materials', methods=['PUT'])
+@jwt_required()
+@coordinator_required
+def update_group_exam_materials(group_exam_id):
+    """Actualizar materiales seleccionados para un grupo-examen"""
+    try:
+        from app.models import GroupExam, GroupExamMaterial
+        
+        group_exam = GroupExam.query.get_or_404(group_exam_id)
+        data = request.get_json()
+        
+        # data.materials = [{id: number, is_included: boolean}, ...]
+        materials_config = data.get('materials', [])
+        
+        # Eliminar configuraciones anteriores
+        GroupExamMaterial.query.filter_by(group_exam_id=group_exam_id).delete()
+        
+        # Crear nuevas configuraciones
+        for mat_config in materials_config:
+            mat_id = mat_config.get('id')
+            is_included = mat_config.get('is_included', False)
+            
+            if mat_id:
+                gem = GroupExamMaterial(
+                    group_exam_id=group_exam_id,
+                    study_material_id=mat_id,
+                    is_included=is_included
+                )
+                db.session.add(gem)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Materiales actualizados exitosamente',
+            'group_exam_id': group_exam_id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/group-exams/<int:group_exam_id>/materials/reset', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def reset_group_exam_materials(group_exam_id):
+    """Resetear materiales a los vinculados por defecto del examen"""
+    try:
+        from app.models import GroupExam, GroupExamMaterial
+        
+        group_exam = GroupExam.query.get_or_404(group_exam_id)
+        
+        # Eliminar todas las personalizaciones
+        GroupExamMaterial.query.filter_by(group_exam_id=group_exam_id).delete()
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Materiales reseteados a valores por defecto',
+            'group_exam_id': group_exam_id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500

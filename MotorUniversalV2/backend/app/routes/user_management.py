@@ -498,3 +498,396 @@ def get_available_roles():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ============== CARGA MASIVA DE CANDIDATOS ==============
+
+@bp.route('/candidates/bulk-upload', methods=['POST'])
+@jwt_required()
+@management_required
+def bulk_upload_candidates():
+    """
+    Carga masiva de candidatos desde archivo Excel
+    
+    Formato esperado del Excel (columnas):
+    - email (requerido)
+    - nombre (requerido)  
+    - primer_apellido (requerido)
+    - segundo_apellido (opcional)
+    - genero (opcional: M, F, O)
+    - curp (opcional)
+    - telefono (opcional)
+    - password (opcional, si no se proporciona se genera uno automático)
+    """
+    try:
+        import io
+        import secrets
+        import string
+        from openpyxl import load_workbook
+        
+        current_user = g.current_user
+        
+        # Verificar que se envió un archivo
+        if 'file' not in request.files:
+            return jsonify({'error': 'No se envió ningún archivo'}), 400
+        
+        file = request.files['file']
+        
+        if not file.filename:
+            return jsonify({'error': 'No se seleccionó ningún archivo'}), 400
+        
+        # Verificar extensión
+        if not file.filename.lower().endswith(('.xlsx', '.xls')):
+            return jsonify({'error': 'El archivo debe ser formato Excel (.xlsx o .xls)'}), 400
+        
+        # Leer el archivo Excel
+        try:
+            workbook = load_workbook(filename=io.BytesIO(file.read()), data_only=True)
+            sheet = workbook.active
+        except Exception as e:
+            return jsonify({'error': f'Error al leer el archivo Excel: {str(e)}'}), 400
+        
+        # Obtener encabezados (primera fila)
+        headers = []
+        for cell in sheet[1]:
+            value = cell.value
+            if value:
+                headers.append(str(value).strip().lower())
+            else:
+                headers.append('')
+        
+        # Mapeo de nombres de columna esperados
+        column_mapping = {
+            'email': ['email', 'correo', 'correo electronico', 'correo electrónico', 'e-mail'],
+            'nombre': ['nombre', 'name', 'nombres'],
+            'primer_apellido': ['primer_apellido', 'primer apellido', 'apellido paterno', 'apellido_paterno', 'first_surname', 'apellido1'],
+            'segundo_apellido': ['segundo_apellido', 'segundo apellido', 'apellido materno', 'apellido_materno', 'second_surname', 'apellido2'],
+            'genero': ['genero', 'género', 'sexo', 'gender'],
+            'curp': ['curp'],
+            'telefono': ['telefono', 'teléfono', 'phone', 'celular', 'cel'],
+            'password': ['password', 'contraseña', 'clave']
+        }
+        
+        # Encontrar índices de columnas
+        column_indices = {}
+        for field, aliases in column_mapping.items():
+            for i, header in enumerate(headers):
+                if header in aliases:
+                    column_indices[field] = i
+                    break
+        
+        # Verificar columnas requeridas
+        required_columns = ['email', 'nombre', 'primer_apellido']
+        missing_columns = [col for col in required_columns if col not in column_indices]
+        if missing_columns:
+            return jsonify({
+                'error': f'Faltan columnas requeridas: {", ".join(missing_columns)}',
+                'hint': 'Las columnas requeridas son: email, nombre, primer_apellido'
+            }), 400
+        
+        # Función para generar contraseña aleatoria
+        def generate_password(length=10):
+            alphabet = string.ascii_letters + string.digits
+            # Asegurar al menos una mayúscula, una minúscula y un número
+            password = [
+                secrets.choice(string.ascii_uppercase),
+                secrets.choice(string.ascii_lowercase),
+                secrets.choice(string.digits)
+            ]
+            password += [secrets.choice(alphabet) for _ in range(length - 3)]
+            secrets.SystemRandom().shuffle(password)
+            return ''.join(password)
+        
+        # Procesar filas
+        results = {
+            'created': [],
+            'errors': [],
+            'skipped': [],
+            'total_processed': 0
+        }
+        
+        for row_idx, row in enumerate(sheet.iter_rows(min_row=2), start=2):
+            results['total_processed'] += 1
+            
+            # Obtener valores de la fila
+            def get_cell_value(field):
+                if field not in column_indices:
+                    return None
+                idx = column_indices[field]
+                if idx < len(row):
+                    value = row[idx].value
+                    return str(value).strip() if value is not None else None
+                return None
+            
+            email = get_cell_value('email')
+            nombre = get_cell_value('nombre')
+            primer_apellido = get_cell_value('primer_apellido')
+            segundo_apellido = get_cell_value('segundo_apellido')
+            genero = get_cell_value('genero')
+            curp = get_cell_value('curp')
+            telefono = get_cell_value('telefono')
+            password = get_cell_value('password')
+            
+            # Validar campos requeridos
+            if not email or not nombre or not primer_apellido:
+                results['errors'].append({
+                    'row': row_idx,
+                    'email': email or '(vacío)',
+                    'error': 'Campos requeridos vacíos (email, nombre, primer_apellido)'
+                })
+                continue
+            
+            # Normalizar email
+            email = email.lower().strip()
+            
+            # Validar formato de email
+            if not validate_email(email):
+                results['errors'].append({
+                    'row': row_idx,
+                    'email': email,
+                    'error': 'Formato de email inválido'
+                })
+                continue
+            
+            # Verificar si el email ya existe
+            if User.query.filter_by(email=email).first():
+                results['skipped'].append({
+                    'row': row_idx,
+                    'email': email,
+                    'reason': 'Email ya registrado'
+                })
+                continue
+            
+            # Verificar CURP si se proporciona
+            if curp:
+                curp = curp.upper().strip()
+                if len(curp) != 18:
+                    results['errors'].append({
+                        'row': row_idx,
+                        'email': email,
+                        'error': f'CURP inválido: debe tener 18 caracteres'
+                    })
+                    continue
+                if User.query.filter_by(curp=curp).first():
+                    results['skipped'].append({
+                        'row': row_idx,
+                        'email': email,
+                        'reason': f'CURP {curp} ya registrado'
+                    })
+                    continue
+            
+            # Normalizar género
+            if genero:
+                genero = genero.upper()[0] if genero else None
+                if genero not in ['M', 'F', 'O']:
+                    genero = None
+            
+            # Generar contraseña si no se proporciona
+            generated_password = None
+            if not password:
+                generated_password = generate_password()
+                password = generated_password
+            else:
+                # Validar contraseña proporcionada
+                is_valid, error_msg = validate_password(password)
+                if not is_valid:
+                    results['errors'].append({
+                        'row': row_idx,
+                        'email': email,
+                        'error': f'Contraseña inválida: {error_msg}'
+                    })
+                    continue
+            
+            # Generar username único
+            base_username = email.split('@')[0]
+            username = base_username
+            counter = 1
+            while User.query.filter_by(username=username).first():
+                username = f"{base_username}{counter}"
+                counter += 1
+            
+            # Crear usuario
+            try:
+                new_user = User(
+                    id=str(uuid.uuid4()),
+                    email=email,
+                    username=username,
+                    name=nombre,
+                    first_surname=primer_apellido,
+                    second_surname=segundo_apellido or None,
+                    gender=genero,
+                    curp=curp or None,
+                    phone=telefono or None,
+                    role='candidato',
+                    is_active=True,
+                    is_verified=False
+                )
+                new_user.set_password(password)
+                db.session.add(new_user)
+                
+                results['created'].append({
+                    'row': row_idx,
+                    'email': email,
+                    'name': f"{nombre} {primer_apellido}",
+                    'username': username,
+                    'password': generated_password  # Solo si fue generada automáticamente
+                })
+            except Exception as e:
+                results['errors'].append({
+                    'row': row_idx,
+                    'email': email,
+                    'error': str(e)
+                })
+                continue
+        
+        # Commit de todos los usuarios creados
+        if results['created']:
+            db.session.commit()
+        
+        return jsonify({
+            'message': f'Proceso completado: {len(results["created"])} usuarios creados',
+            'summary': {
+                'total_processed': results['total_processed'],
+                'created': len(results['created']),
+                'errors': len(results['errors']),
+                'skipped': len(results['skipped'])
+            },
+            'details': results
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/candidates/bulk-upload/template', methods=['GET'])
+@jwt_required()
+@management_required
+def download_bulk_upload_template():
+    """
+    Descargar plantilla Excel para carga masiva de candidatos
+    """
+    try:
+        import io
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from flask import send_file
+        
+        # Crear workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Candidatos"
+        
+        # Estilos
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        required_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
+        optional_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Encabezados
+        headers = [
+            ('email', 'Requerido'),
+            ('nombre', 'Requerido'),
+            ('primer_apellido', 'Requerido'),
+            ('segundo_apellido', 'Opcional'),
+            ('genero', 'Opcional (M, F, O)'),
+            ('curp', 'Opcional (18 caracteres)'),
+            ('telefono', 'Opcional'),
+            ('password', 'Opcional (se genera automáticamente si está vacío)')
+        ]
+        
+        for col, (header, _) in enumerate(headers, start=1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center')
+            cell.border = thin_border
+        
+        # Segunda fila con descripción
+        for col, (_, description) in enumerate(headers, start=1):
+            cell = ws.cell(row=2, column=col, value=description)
+            if 'Requerido' in description:
+                cell.fill = required_fill
+            else:
+                cell.fill = optional_fill
+            cell.alignment = Alignment(horizontal='center', wrap_text=True)
+            cell.border = thin_border
+        
+        # Ejemplo de datos
+        example_data = [
+            ('candidato1@email.com', 'Juan', 'García', 'López', 'M', 'GALJ900101HDFRPR01', '5512345678', ''),
+            ('candidato2@email.com', 'María', 'Pérez', 'Sánchez', 'F', '', '5598765432', 'MiPassword123'),
+        ]
+        
+        for row_idx, data in enumerate(example_data, start=3):
+            for col_idx, value in enumerate(data, start=1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                cell.border = thin_border
+        
+        # Ajustar ancho de columnas
+        column_widths = [30, 15, 18, 18, 15, 25, 15, 35]
+        for col, width in enumerate(column_widths, start=1):
+            ws.column_dimensions[ws.cell(row=1, column=col).column_letter].width = width
+        
+        # Hoja de instrucciones
+        ws_instructions = wb.create_sheet("Instrucciones")
+        instructions = [
+            "INSTRUCCIONES PARA CARGA MASIVA DE CANDIDATOS",
+            "",
+            "1. Use la hoja 'Candidatos' para ingresar los datos",
+            "2. No modifique los encabezados de las columnas",
+            "3. Elimine las filas de ejemplo antes de agregar sus datos",
+            "",
+            "CAMPOS REQUERIDOS:",
+            "- email: Correo electrónico único del candidato",
+            "- nombre: Nombre(s) del candidato",
+            "- primer_apellido: Apellido paterno",
+            "",
+            "CAMPOS OPCIONALES:",
+            "- segundo_apellido: Apellido materno",
+            "- genero: M (Masculino), F (Femenino), O (Otro)",
+            "- curp: CURP del candidato (18 caracteres)",
+            "- telefono: Número de teléfono",
+            "- password: Contraseña (si está vacío, se genera automáticamente)",
+            "",
+            "REQUISITOS DE CONTRASEÑA:",
+            "- Mínimo 8 caracteres",
+            "- Al menos una mayúscula",
+            "- Al menos una minúscula",
+            "- Al menos un número",
+            "",
+            "NOTAS:",
+            "- Los emails duplicados serán omitidos",
+            "- Los CURP duplicados serán omitidos",
+            "- Se genera un reporte con los resultados de la carga"
+        ]
+        
+        for row_idx, text in enumerate(instructions, start=1):
+            cell = ws_instructions.cell(row=row_idx, column=1, value=text)
+            if row_idx == 1:
+                cell.font = Font(bold=True, size=14)
+            elif text.endswith(':'):
+                cell.font = Font(bold=True)
+        
+        ws_instructions.column_dimensions['A'].width = 60
+        
+        # Guardar en memoria
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name='plantilla_candidatos.xlsx'
+        )
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

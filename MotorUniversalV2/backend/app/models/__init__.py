@@ -33,6 +33,8 @@ from app.models.partner import (
     Campus,
     CandidateGroup,
     GroupMember,
+    GroupExam,
+    GroupExamMaterial,
     MEXICAN_STATES,
     user_partners
 )
@@ -68,6 +70,7 @@ __all__ = [
     'Campus',
     'CandidateGroup',
     'GroupMember',
+    'GroupExam',
     'MEXICAN_STATES',
     'user_partners'
 ]

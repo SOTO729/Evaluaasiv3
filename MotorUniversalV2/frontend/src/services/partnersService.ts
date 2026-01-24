@@ -474,3 +474,150 @@ export async function unlinkFromPartner(partnerId: number): Promise<{
   const response = await api.delete(`/partners/my-partners/${partnerId}`);
   return response.data;
 }
+
+
+// ============== EXÁMENES ASIGNADOS A GRUPOS ==============
+
+export interface GroupExamAssignment {
+  id: number;
+  group_id: number;
+  exam_id: number;
+  assigned_at: string;
+  assigned_by_id?: string;
+  available_from?: string;
+  available_until?: string;
+  is_active: boolean;
+  exam?: {
+    id: number;
+    name: string;
+    version?: string;
+    standard?: string;
+    description?: string;
+    duration_minutes: number;
+    passing_score: number;
+    is_published: boolean;
+  };
+  study_materials?: Array<{
+    id: number;
+    title: string;
+    description?: string;
+    cover_image_url?: string;
+  }>;
+}
+
+export interface AvailableExam {
+  id: number;
+  name: string;
+  version?: string;
+  standard?: string;
+  description?: string;
+  duration_minutes: number;
+  passing_score: number;
+  is_published: boolean;
+  study_materials_count: number;
+}
+
+/**
+ * Obtener exámenes asignados a un grupo
+ */
+export async function getGroupExams(groupId: number): Promise<{
+  group_id: number;
+  group_name: string;
+  assigned_exams: GroupExamAssignment[];
+  total: number;
+}> {
+  const response = await api.get(`/partners/groups/${groupId}/exams`);
+  return response.data;
+}
+
+/**
+ * Asignar un examen a un grupo
+ */
+export async function assignExamToGroup(groupId: number, examId: number, options?: {
+  available_from?: string;
+  available_until?: string;
+}): Promise<{
+  message: string;
+  assignment: GroupExamAssignment;
+  study_materials_count: number;
+}> {
+  const response = await api.post(`/partners/groups/${groupId}/exams`, {
+    exam_id: examId,
+    ...options
+  });
+  return response.data;
+}
+
+/**
+ * Desasignar un examen de un grupo
+ */
+export async function unassignExamFromGroup(groupId: number, examId: number): Promise<{
+  message: string;
+}> {
+  const response = await api.delete(`/partners/groups/${groupId}/exams/${examId}`);
+  return response.data;
+}
+
+/**
+ * Obtener exámenes disponibles para asignar
+ */
+export async function getAvailableExams(params?: {
+  search?: string;
+  page?: number;
+  per_page?: number;
+}): Promise<{
+  exams: AvailableExam[];
+  total: number;
+  pages: number;
+  current_page: number;
+}> {
+  const response = await api.get('/partners/exams/available', { params });
+  return response.data;
+}
+
+// ============== MATERIALES PERSONALIZADOS POR GRUPO-EXAMEN ==============
+
+export interface GroupExamMaterialItem {
+  id: number;
+  title: string;
+  description?: string;
+  cover_image_url?: string;
+  is_published: boolean;
+  is_linked: boolean;  // Vinculado directamente al examen
+  is_included: boolean; // Incluido para este grupo
+}
+
+export interface GroupExamMaterialsResponse {
+  group_exam_id: number;
+  exam_id: number;
+  exam_name: string;
+  materials: GroupExamMaterialItem[];
+  has_customizations: boolean;
+}
+
+/**
+ * Obtener materiales disponibles y seleccionados para un grupo-examen
+ */
+export async function getGroupExamMaterials(groupExamId: number): Promise<GroupExamMaterialsResponse> {
+  const response = await api.get(`/partners/group-exams/${groupExamId}/materials`);
+  return response.data;
+}
+
+/**
+ * Actualizar materiales seleccionados para un grupo-examen
+ */
+export async function updateGroupExamMaterials(
+  groupExamId: number, 
+  materials: Array<{ id: number; is_included: boolean }>
+): Promise<{ message: string; group_exam_id: number }> {
+  const response = await api.put(`/partners/group-exams/${groupExamId}/materials`, { materials });
+  return response.data;
+}
+
+/**
+ * Resetear materiales a los valores por defecto del examen
+ */
+export async function resetGroupExamMaterials(groupExamId: number): Promise<{ message: string; group_exam_id: number }> {
+  const response = await api.post(`/partners/group-exams/${groupExamId}/materials/reset`);
+  return response.data;
+}

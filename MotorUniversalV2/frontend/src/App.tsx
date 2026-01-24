@@ -60,6 +60,15 @@ const ExamTestResultsRouter = () => {
   return <ExamTestResultsPage />
 }
 
+// Componente que redirige al coordinador si intenta acceder a rutas restringidas
+const RestrictedForCoordinator = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuthStore()
+  if (user?.role === 'coordinator') {
+    return <Navigate to="/dashboard" replace />
+  }
+  return <>{children}</>
+}
+
 // Certificates
 const CertificatesPage = lazy(() => import('./pages/certificates/CertificatesPage'))
 const EvaluationReportDetailPage = lazy(() => import('./pages/certificates/EvaluationReportDetailPage'))
@@ -124,47 +133,47 @@ function App() {
               <Route path="/profile" element={<ProfilePage />} />
               
               {/* Study Contents Preview - con navbar */}
-              <Route path="/study-contents/:id/preview" element={<StudyContentPreviewPage />} />
+              <Route path="/study-contents/:id/preview" element={<RestrictedForCoordinator><StudyContentPreviewPage /></RestrictedForCoordinator>} />
               
-              {/* Exams */}
-              <Route path="/exams" element={<ExamsListPage />} />
-              <Route path="/exams/create" element={<ExamCreatePage />} />
-              <Route path="/exams/:id/edit" element={<ExamEditPage />} />
-              <Route path="/exams/:id/select-mode" element={<ExamModeSelectorPage />} />
-              <Route path="/exams/:id/preview/:mode" element={<ExamPreviewPage />} />
-              <Route path="/exams/:id/preview" element={<ExamPreviewPage />} />
-              <Route path="/exams/:id/onboarding/:mode" element={<ExamOnboardingPage />} />
+              {/* Exams - Restringido para coordinador */}
+              <Route path="/exams" element={<RestrictedForCoordinator><ExamsListPage /></RestrictedForCoordinator>} />
+              <Route path="/exams/create" element={<RestrictedForCoordinator><ExamCreatePage /></RestrictedForCoordinator>} />
+              <Route path="/exams/:id/edit" element={<RestrictedForCoordinator><ExamEditPage /></RestrictedForCoordinator>} />
+              <Route path="/exams/:id/select-mode" element={<RestrictedForCoordinator><ExamModeSelectorPage /></RestrictedForCoordinator>} />
+              <Route path="/exams/:id/preview/:mode" element={<RestrictedForCoordinator><ExamPreviewPage /></RestrictedForCoordinator>} />
+              <Route path="/exams/:id/preview" element={<RestrictedForCoordinator><ExamPreviewPage /></RestrictedForCoordinator>} />
+              <Route path="/exams/:id/onboarding/:mode" element={<RestrictedForCoordinator><ExamOnboardingPage /></RestrictedForCoordinator>} />
               
-              {/* Categories */}
-              <Route path="/exams/:examId/categories/:categoryId" element={<CategoryDetailPage />} />
+              {/* Categories - Restringido para coordinador */}
+              <Route path="/exams/:examId/categories/:categoryId" element={<RestrictedForCoordinator><CategoryDetailPage /></RestrictedForCoordinator>} />
               
-              {/* Topics */}
-              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId" element={<TopicDetailPage />} />
+              {/* Topics - Restringido para coordinador */}
+              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId" element={<RestrictedForCoordinator><TopicDetailPage /></RestrictedForCoordinator>} />
               
-              {/* Answers */}
-              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/answer" element={<TrueFalseAnswerPage />} />
-              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/multiple-choice" element={<MultipleChoiceAnswerPage />} />
-              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/multiple-select" element={<MultipleSelectAnswerPage />} />
-              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/ordering" element={<OrderingAnswerPage />} />
+              {/* Answers - Restringido para coordinador */}
+              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/answer" element={<RestrictedForCoordinator><TrueFalseAnswerPage /></RestrictedForCoordinator>} />
+              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/multiple-choice" element={<RestrictedForCoordinator><MultipleChoiceAnswerPage /></RestrictedForCoordinator>} />
+              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/multiple-select" element={<RestrictedForCoordinator><MultipleSelectAnswerPage /></RestrictedForCoordinator>} />
+              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/ordering" element={<RestrictedForCoordinator><OrderingAnswerPage /></RestrictedForCoordinator>} />
               
-              {/* Study Contents */}
-              <Route path="/study-contents" element={<StudyContentsListPage />} />
-              <Route path="/study-contents/create" element={<StudyContentCreatePage />} />
-              <Route path="/study-contents/:id" element={<StudyContentDetailRouter />} />
-              <Route path="/study-contents/:id/edit" element={<StudyContentCreatePage />} />
+              {/* Study Contents - Restringido para coordinador */}
+              <Route path="/study-contents" element={<RestrictedForCoordinator><StudyContentsListPage /></RestrictedForCoordinator>} />
+              <Route path="/study-contents/create" element={<RestrictedForCoordinator><StudyContentCreatePage /></RestrictedForCoordinator>} />
+              <Route path="/study-contents/:id" element={<RestrictedForCoordinator><StudyContentDetailRouter /></RestrictedForCoordinator>} />
+              <Route path="/study-contents/:id/edit" element={<RestrictedForCoordinator><StudyContentCreatePage /></RestrictedForCoordinator>} />
               
-              {/* Standards (ECM) */}
-              <Route path="/standards" element={<StandardsListPage />} />
-              <Route path="/standards/new" element={<StandardFormPage />} />
-              <Route path="/standards/deletion-requests" element={<DeletionRequestsPage />} />
-              <Route path="/standards/:id" element={<StandardDetailPage />} />
-              <Route path="/standards/:id/edit" element={<StandardFormPage />} />
-              <Route path="/study-contents/:id/sessions/:sessionId/topics/:topicId/interactive" element={<StudyInteractiveExercisePage />} />
+              {/* Standards (ECM) - Restringido para coordinador */}
+              <Route path="/standards" element={<RestrictedForCoordinator><StandardsListPage /></RestrictedForCoordinator>} />
+              <Route path="/standards/new" element={<RestrictedForCoordinator><StandardFormPage /></RestrictedForCoordinator>} />
+              <Route path="/standards/deletion-requests" element={<RestrictedForCoordinator><DeletionRequestsPage /></RestrictedForCoordinator>} />
+              <Route path="/standards/:id" element={<RestrictedForCoordinator><StandardDetailPage /></RestrictedForCoordinator>} />
+              <Route path="/standards/:id/edit" element={<RestrictedForCoordinator><StandardFormPage /></RestrictedForCoordinator>} />
+              <Route path="/study-contents/:id/sessions/:sessionId/topics/:topicId/interactive" element={<RestrictedForCoordinator><StudyInteractiveExercisePage /></RestrictedForCoordinator>} />
               
-              {/* Certificates */}
-              <Route path="/certificates" element={<CertificatesPage />} />
-              <Route path="/certificates/evaluation-report/:examId" element={<EvaluationReportDetailPage />} />
-              <Route path="/certificates/evaluation-report/:examId/result/:resultId" element={<ResultDetailPage />} />
+              {/* Certificates - Restringido para coordinador */}
+              <Route path="/certificates" element={<RestrictedForCoordinator><CertificatesPage /></RestrictedForCoordinator>} />
+              <Route path="/certificates/evaluation-report/:examId" element={<RestrictedForCoordinator><EvaluationReportDetailPage /></RestrictedForCoordinator>} />
+              <Route path="/certificates/evaluation-report/:examId/result/:resultId" element={<RestrictedForCoordinator><ResultDetailPage /></RestrictedForCoordinator>} />
               
               {/* Partners (Coordinador) */}
               <Route path="/partners/dashboard" element={<PartnersDashboardPage />} />
