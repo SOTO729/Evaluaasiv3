@@ -724,9 +724,10 @@ const StudyContentPreviewPage: React.FC = () => {
     // Registrar el progreso siempre (el backend guardará la mejor calificación)
     if (currentTopic?.interactive_exercise?.id) {
       const exerciseId = currentTopic.interactive_exercise.id;
-      // Solo marcar como "completado" si >= 80%, pero siempre enviar el score
+      // Solo marcar como "completado" si es 100%
+      const isCompleted = result.percentage >= 100;
       await registerContentProgress('interactive', exerciseId, { 
-        is_completed: result.percentage >= 80,
+        is_completed: isCompleted,
         score: result.percentage 
       });
       
@@ -740,7 +741,7 @@ const StudyContentPreviewPage: React.FC = () => {
       });
       
       // Si 100%, agregar a completados (todas las respuestas deben ser correctas)
-      if (result.percentage >= 100 && !completedContents.interactive.has(exerciseId)) {
+      if (isCompleted && !completedContents.interactive.has(exerciseId)) {
         setCompletedContents(prev => ({
           ...prev,
           interactive: new Set([...prev.interactive, exerciseId])
