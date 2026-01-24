@@ -63,6 +63,7 @@ export const ColumnGroupingAnswerPage = () => {
   const queryClient = useQueryClient();
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
+  const [questionText, setQuestionText] = useState('');
   
   // Columnas (categorías)
   const [columns, setColumns] = useState<Column[]>([
@@ -78,6 +79,12 @@ export const ColumnGroupingAnswerPage = () => {
     { answer_text: '', correct_answer: 'columna_2', answer_number: 4 }
   ]);
 
+  // Obtener datos de la pregunta
+  const { data: questionData } = useQuery({
+    queryKey: ['question', questionId],
+    queryFn: () => examService.getQuestion(questionId!)
+  });
+
   // Obtener respuestas existentes
   const { data: answersResponse } = useQuery({
     queryKey: ['answers', questionId],
@@ -85,6 +92,13 @@ export const ColumnGroupingAnswerPage = () => {
   });
 
   const answersData = answersResponse?.answers || [];
+
+  // Cargar texto de la pregunta
+  useEffect(() => {
+    if (questionData?.question) {
+      setQuestionText(questionData.question.question_text || '');
+    }
+  }, [questionData]);
 
   // Cargar datos existentes
   useEffect(() => {
@@ -140,6 +154,15 @@ export const ColumnGroupingAnswerPage = () => {
     mutationFn: (answerId: string) => examService.deleteAnswer(answerId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['answers', questionId] });
+    }
+  });
+
+  // Mutación para actualizar la pregunta
+  const updateQuestionMutation = useMutation({
+    mutationFn: (data: { question_text: string }) =>
+      examService.updateQuestion(questionId!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['question', questionId] });
     }
   });
 
@@ -214,6 +237,11 @@ export const ColumnGroupingAnswerPage = () => {
     }
 
     try {
+      // Guardar el texto de la pregunta
+      if (questionText.trim()) {
+        await updateQuestionMutation.mutateAsync({ question_text: questionText });
+      }
+
       const existingIds = items.filter(i => i.id).map(i => i.id!);
       const currentIds = answersData?.map((a: any) => a.id) || [];
 
@@ -307,6 +335,21 @@ export const ColumnGroupingAnswerPage = () => {
       </div>
 
       <form onSubmit={handleSubmit}>
+        {/* Texto de la pregunta */}
+        <div className="card mb-6">
+          <h3 className="text-xl font-semibold text-gray-900 mb-3">Texto de la Pregunta</h3>
+          <p className="text-sm text-gray-600 mb-3">
+            Escribe las instrucciones que verá el estudiante
+          </p>
+          <textarea
+            value={questionText}
+            onChange={(e) => setQuestionText(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+            rows={3}
+            placeholder="Ej: Clasifica los siguientes elementos arrastrándolos a la columna correspondiente..."
+          />
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Columna izquierda: Definir columnas */}
           <div className="card">
