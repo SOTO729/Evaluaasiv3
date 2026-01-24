@@ -496,7 +496,6 @@ export const DragDropAnswerPage = () => {
             <div className="text-sm lg:text-base xl:text-lg text-blue-800">
               <p className="font-semibold mb-1 lg:mb-2">Cómo funciona:</p>
               <ol className="list-decimal ml-4 space-y-1 lg:space-y-2">
-                <li>Escribe las instrucciones que verá el estudiante (opcional)</li>
                 <li>Escribe o pega el texto de la pregunta en el editor</li>
                 <li>Posiciona el cursor donde quieras un espacio en blanco y haz clic en <strong>"+ Insertar Espacio"</strong></li>
                 <li>Define la respuesta correcta para cada espacio en la sección de abajo</li>
@@ -505,24 +504,6 @@ export const DragDropAnswerPage = () => {
             </div>
           </div>
         </div>
-
-        {/* Campo de instrucciones para el estudiante */}
-        <div className="bg-white rounded-xl lg:rounded-2xl 3xl:rounded-3xl shadow-md p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 mb-6 lg:mb-8 xl:mb-10 2xl:mb-12 3xl:mb-14">
-          <h2 className="text-lg lg:text-xl xl:text-2xl 2xl:text-3xl 3xl:text-4xl 4xl:text-5xl font-semibold text-gray-800 mb-3 lg:mb-4 xl:mb-5 2xl:mb-6 3xl:mb-8 flex items-center gap-2 lg:gap-3 xl:gap-4 2xl:gap-5 3xl:gap-6">
-            <AlertCircle className="w-5 h-5 lg:w-6 lg:h-6 xl:w-7 xl:h-7 2xl:w-8 2xl:h-8 3xl:w-10 3xl:h-10 4xl:w-12 4xl:h-12 text-amber-500" />
-            Instrucciones para el estudiante
-          </h2>
-          <p className="text-xs lg:text-sm xl:text-base text-gray-500 mb-3 lg:mb-4">
-            Escribe las instrucciones que verá el estudiante antes de la pregunta (opcional)
-          </p>
-          <textarea
-            value={instructions}
-            onChange={(e) => setInstructions(e.target.value)}
-            placeholder="Ej: Arrastra las palabras correctas a los espacios en blanco para completar el texto..."
-            className="w-full h-24 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none text-sm"
-          />
-        </div>
-
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Editor de texto visual */}
