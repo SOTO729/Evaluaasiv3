@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { examService } from '../../services/examService';
-import { Plus, Trash2, ArrowLeft, Eye, AlertCircle, Type } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Save, Eye, AlertCircle, Type } from 'lucide-react';
 
 interface BlankItem {
   id?: string;
