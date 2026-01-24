@@ -1314,93 +1314,155 @@ const ExamTestRunPage: React.FC = () => {
           handleAnswerChange(currentItem.question_id!, newAnswer);
         };
 
+        // Handlers para drag and drop HTML5
+        const handleDragStart = (e: React.DragEvent, itemId: string) => {
+          e.dataTransfer.setData('text/plain', itemId);
+          e.dataTransfer.effectAllowed = 'move';
+          (e.target as HTMLElement).classList.add('opacity-50', 'scale-95');
+        };
+        
+        const handleDragEnd = (e: React.DragEvent) => {
+          (e.target as HTMLElement).classList.remove('opacity-50', 'scale-95');
+        };
+        
+        const handleDragOver = (e: React.DragEvent) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          (e.currentTarget as HTMLElement).classList.add('ring-2', 'ring-purple-500', 'bg-purple-100');
+        };
+        
+        const handleDragLeave = (e: React.DragEvent) => {
+          (e.currentTarget as HTMLElement).classList.remove('ring-2', 'ring-purple-500', 'bg-purple-100');
+        };
+        
+        const handleDropOnZone = (e: React.DragEvent, zoneId: string) => {
+          e.preventDefault();
+          (e.currentTarget as HTMLElement).classList.remove('ring-2', 'ring-purple-500', 'bg-purple-100');
+          const itemId = e.dataTransfer.getData('text/plain');
+          if (itemId) {
+            handleDragDropAssign(itemId, zoneId);
+          }
+        };
+        
+        const handleDropOnUnassigned = (e: React.DragEvent) => {
+          e.preventDefault();
+          (e.currentTarget as HTMLElement).classList.remove('ring-2', 'ring-gray-400', 'bg-gray-100');
+          const itemId = e.dataTransfer.getData('text/plain');
+          if (itemId) {
+            handleDragDropUnassign(itemId);
+          }
+        };
+
         return (
           <div className="space-y-4">
-            <p className="text-xs text-gray-500 mb-3 flex items-center gap-1.5">
-              <GripVertical className="w-4 h-4 text-gray-400" />
-              Haz clic en un elemento y luego en la zona donde debe ir
+            <p className="text-sm text-gray-600 mb-3 flex items-center gap-2 bg-blue-50 p-3 rounded-lg">
+              <GripVertical className="w-5 h-5 text-blue-500" />
+              <span><strong>Arrastra</strong> cada elemento y <strong>suéltalo</strong> en la zona correcta</span>
             </p>
             
-            {/* Elementos sin asignar */}
-            <div className="mb-4">
-              <p className="text-sm font-medium text-gray-700 mb-2">Elementos disponibles:</p>
+            {/* Elementos sin asignar - Área de origen */}
+            <div 
+              className="p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 min-h-[80px] transition-all"
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.add('ring-2', 'ring-gray-400', 'bg-gray-100');
+              }}
+              onDragLeave={(e) => {
+                e.currentTarget.classList.remove('ring-2', 'ring-gray-400', 'bg-gray-100');
+              }}
+              onDrop={handleDropOnUnassigned}
+            >
+              <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <span className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs">📦</span>
+                Elementos disponibles
+              </p>
               <div className="flex flex-wrap gap-2">
                 {unassignedItems.map((option: any) => (
                   <div
                     key={option.id}
-                    className="px-3 py-2 bg-blue-100 text-blue-800 rounded-lg cursor-pointer hover:bg-blue-200 transition-colors text-sm"
-                    onClick={() => {
-                      // Asignar a la primera zona por defecto (el usuario puede reasignar)
-                      if (zones.length > 0) {
-                        handleDragDropAssign(option.id, zones[0]);
-                      }
-                    }}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, option.id)}
+                    onDragEnd={handleDragEnd}
+                    className="px-4 py-2 bg-white border-2 border-blue-300 text-blue-800 rounded-lg cursor-grab active:cursor-grabbing hover:bg-blue-50 hover:border-blue-400 transition-all text-sm font-medium shadow-sm select-none"
                   >
-                    {option.answer_text}
+                    <span className="flex items-center gap-2">
+                      <GripVertical className="w-4 h-4 text-blue-400" />
+                      {option.answer_text}
+                    </span>
                   </div>
                 ))}
                 {unassignedItems.length === 0 && (
-                  <p className="text-gray-400 text-sm italic">Todos los elementos han sido asignados</p>
+                  <p className="text-green-600 text-sm italic flex items-center gap-1">
+                    ✓ Todos los elementos han sido asignados
+                  </p>
                 )}
               </div>
             </div>
             
-            {/* Zonas */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {zones.map((zoneId) => {
+            {/* Zonas de destino */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {zones.map((zoneId, idx) => {
                 const zoneItems = (dragDropAnswer[zoneId] || []).map((id: string) => 
                   dragDropOptions.find((o: any) => o.id === id)
                 ).filter(Boolean);
                 
+                const zoneColors = [
+                  { border: 'border-purple-400', bg: 'bg-purple-50', header: 'bg-purple-500', headerText: 'text-white' },
+                  { border: 'border-teal-400', bg: 'bg-teal-50', header: 'bg-teal-500', headerText: 'text-white' },
+                  { border: 'border-orange-400', bg: 'bg-orange-50', header: 'bg-orange-500', headerText: 'text-white' },
+                  { border: 'border-pink-400', bg: 'bg-pink-50', header: 'bg-pink-500', headerText: 'text-white' },
+                  { border: 'border-indigo-400', bg: 'bg-indigo-50', header: 'bg-indigo-500', headerText: 'text-white' },
+                  { border: 'border-emerald-400', bg: 'bg-emerald-50', header: 'bg-emerald-500', headerText: 'text-white' },
+                ];
+                const zoneColor = zoneColors[idx % zoneColors.length];
+                
                 return (
                   <div
                     key={zoneId}
-                    className="border-2 border-dashed border-purple-300 rounded-lg p-3 min-h-[120px] bg-purple-50"
-                    onClick={(e) => {
-                      // Si hay un elemento seleccionado en el clipboard, asignarlo aquí
-                      const target = e.target as HTMLElement;
-                      if (target.classList.contains('draggable-item')) return;
-                    }}
+                    className={`rounded-xl overflow-hidden border-2 ${zoneColor.border} shadow-md transition-all`}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDropOnZone(e, zoneId)}
                   >
-                    <div className="text-sm font-semibold text-purple-700 mb-2 text-center">
+                    {/* Header de la zona */}
+                    <div className={`${zoneColor.header} ${zoneColor.headerText} px-4 py-3 font-bold text-center`}>
                       {zoneId.replace('zona_', 'Zona ').replace(/_/g, ' ')}
                     </div>
-                    <div className="space-y-2">
-                      {zoneItems.map((item: any) => (
-                        <div
-                          key={item.id}
-                          className="draggable-item bg-white border border-purple-200 text-purple-800 px-3 py-2 rounded text-sm text-center cursor-pointer hover:bg-red-50 hover:border-red-200 transition-colors flex items-center justify-between"
-                          onClick={() => handleDragDropUnassign(item.id)}
-                        >
-                          <span className="flex-1">{item.answer_text}</span>
-                          <span className="text-red-400 text-xs ml-2">✕</span>
+                    
+                    {/* Área de soltar */}
+                    <div className={`${zoneColor.bg} p-3 min-h-[140px]`}>
+                      {zoneItems.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full min-h-[100px] text-gray-400">
+                          <div className="w-12 h-12 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center mb-2">
+                            <span className="text-2xl">↓</span>
+                          </div>
+                          <p className="text-xs text-center">Suelta elementos aquí</p>
                         </div>
-                      ))}
-                      {zoneItems.length === 0 && (
-                        <div className="text-center text-gray-400 text-xs py-4">
-                          Arrastra elementos aquí
+                      ) : (
+                        <div className="space-y-2">
+                          {zoneItems.map((item: any) => (
+                            <div
+                              key={item.id}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, item.id)}
+                              onDragEnd={handleDragEnd}
+                              className="bg-white border border-gray-200 px-3 py-2 rounded-lg text-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-all flex items-center justify-between group"
+                            >
+                              <span className="flex items-center gap-2">
+                                <GripVertical className="w-4 h-4 text-gray-400" />
+                                <span>{item.answer_text}</span>
+                              </span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDragDropUnassign(item.id); }}
+                                className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
-                    {/* Botón para asignar elemento disponible */}
-                    {unassignedItems.length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-purple-200">
-                        <select
-                          className="w-full text-xs p-1 rounded border border-purple-300"
-                          value=""
-                          onChange={(e) => {
-                            if (e.target.value) {
-                              handleDragDropAssign(e.target.value, zoneId);
-                            }
-                          }}
-                        >
-                          <option value="">+ Agregar elemento...</option>
-                          {unassignedItems.map((item: any) => (
-                            <option key={item.id} value={item.id}>{item.answer_text}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -1443,32 +1505,90 @@ const ExamTestRunPage: React.FC = () => {
           handleAnswerChange(currentItem.question_id!, newAnswer);
         };
         
+        // Handlers para drag and drop HTML5 - Column Grouping
+        const handleColDragStart = (e: React.DragEvent, itemId: string) => {
+          e.dataTransfer.setData('text/plain', itemId);
+          e.dataTransfer.effectAllowed = 'move';
+          (e.target as HTMLElement).classList.add('opacity-50', 'scale-95');
+        };
+        
+        const handleColDragEnd = (e: React.DragEvent) => {
+          (e.target as HTMLElement).classList.remove('opacity-50', 'scale-95');
+        };
+        
+        const handleColDragOver = (e: React.DragEvent, colorClass: string) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          (e.currentTarget as HTMLElement).classList.add('ring-2', colorClass, 'scale-[1.02]');
+        };
+        
+        const handleColDragLeave = (e: React.DragEvent, colorClass: string) => {
+          (e.currentTarget as HTMLElement).classList.remove('ring-2', colorClass, 'scale-[1.02]');
+        };
+        
+        const handleDropOnColumn = (e: React.DragEvent, columnId: string, colorClass: string) => {
+          e.preventDefault();
+          (e.currentTarget as HTMLElement).classList.remove('ring-2', colorClass, 'scale-[1.02]');
+          const itemId = e.dataTransfer.getData('text/plain');
+          if (itemId) {
+            handleClassify(itemId, columnId);
+          }
+        };
+        
+        const handleDropOnUnclassified = (e: React.DragEvent) => {
+          e.preventDefault();
+          (e.currentTarget as HTMLElement).classList.remove('ring-2', 'ring-gray-400', 'bg-gray-100');
+          const itemId = e.dataTransfer.getData('text/plain');
+          if (itemId) {
+            handleUnclassify(itemId);
+          }
+        };
+        
         const COLUMN_COLORS = [
-          { bg: 'bg-blue-50', border: 'border-blue-300', header: 'bg-blue-500', item: 'bg-blue-100 text-blue-800 border-blue-200' },
-          { bg: 'bg-green-50', border: 'border-green-300', header: 'bg-green-500', item: 'bg-green-100 text-green-800 border-green-200' },
-          { bg: 'bg-purple-50', border: 'border-purple-300', header: 'bg-purple-500', item: 'bg-purple-100 text-purple-800 border-purple-200' },
-          { bg: 'bg-orange-50', border: 'border-orange-300', header: 'bg-orange-500', item: 'bg-orange-100 text-orange-800 border-orange-200' },
-          { bg: 'bg-pink-50', border: 'border-pink-300', header: 'bg-pink-500', item: 'bg-pink-100 text-pink-800 border-pink-200' },
-          { bg: 'bg-teal-50', border: 'border-teal-300', header: 'bg-teal-500', item: 'bg-teal-100 text-teal-800 border-teal-200' },
+          { bg: 'bg-blue-50', border: 'border-blue-400', header: 'bg-blue-500', ring: 'ring-blue-500', item: 'bg-blue-100 text-blue-800 border-blue-300' },
+          { bg: 'bg-green-50', border: 'border-green-400', header: 'bg-green-500', ring: 'ring-green-500', item: 'bg-green-100 text-green-800 border-green-300' },
+          { bg: 'bg-purple-50', border: 'border-purple-400', header: 'bg-purple-500', ring: 'ring-purple-500', item: 'bg-purple-100 text-purple-800 border-purple-300' },
+          { bg: 'bg-orange-50', border: 'border-orange-400', header: 'bg-orange-500', ring: 'ring-orange-500', item: 'bg-orange-100 text-orange-800 border-orange-300' },
+          { bg: 'bg-pink-50', border: 'border-pink-400', header: 'bg-pink-500', ring: 'ring-pink-500', item: 'bg-pink-100 text-pink-800 border-pink-300' },
+          { bg: 'bg-teal-50', border: 'border-teal-400', header: 'bg-teal-500', ring: 'ring-teal-500', item: 'bg-teal-100 text-teal-800 border-teal-300' },
         ];
 
         return (
           <div className="space-y-4">
-            <p className="text-xs text-gray-500 mb-3 flex items-center gap-1.5">
-              <GripVertical className="w-4 h-4 text-gray-400" />
-              Clasifica cada elemento en la columna correcta
+            <p className="text-sm text-gray-600 mb-3 flex items-center gap-2 bg-indigo-50 p-3 rounded-lg">
+              <GripVertical className="w-5 h-5 text-indigo-500" />
+              <span><strong>Arrastra</strong> cada elemento a la columna donde corresponde</span>
             </p>
             
-            {/* Elementos sin clasificar */}
-            <div className="mb-4">
-              <p className="text-sm font-medium text-gray-700 mb-2">Elementos por clasificar:</p>
+            {/* Elementos sin clasificar - Área de origen */}
+            <div 
+              className="p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 min-h-[80px] transition-all"
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.add('ring-2', 'ring-gray-400', 'bg-gray-100');
+              }}
+              onDragLeave={(e) => {
+                e.currentTarget.classList.remove('ring-2', 'ring-gray-400', 'bg-gray-100');
+              }}
+              onDrop={handleDropOnUnclassified}
+            >
+              <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <span className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs">📋</span>
+                Elementos por clasificar
+              </p>
               <div className="flex flex-wrap gap-2">
                 {unclassifiedItems.map((option: any) => (
                   <div
                     key={option.id}
-                    className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg cursor-pointer hover:bg-gray-200 transition-colors text-sm border border-gray-300"
+                    draggable
+                    onDragStart={(e) => handleColDragStart(e, option.id)}
+                    onDragEnd={handleColDragEnd}
+                    className="px-4 py-2 bg-white border-2 border-gray-300 text-gray-800 rounded-lg cursor-grab active:cursor-grabbing hover:bg-gray-50 hover:border-gray-400 transition-all text-sm font-medium shadow-sm select-none"
                   >
-                    {option.answer_text}
+                    <span className="flex items-center gap-2">
+                      <GripVertical className="w-4 h-4 text-gray-400" />
+                      {option.answer_text}
+                    </span>
                   </div>
                 ))}
                 {unclassifiedItems.length === 0 && (
@@ -1479,8 +1599,11 @@ const ExamTestRunPage: React.FC = () => {
               </div>
             </div>
             
-            {/* Columnas */}
-            <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(columns.length, 3)}, minmax(0, 1fr))` }}>
+            {/* Columnas de destino */}
+            <div 
+              className="grid gap-4" 
+              style={{ gridTemplateColumns: `repeat(${Math.min(columns.length, 3)}, minmax(0, 1fr))` }}
+            >
               {columns.map((columnId, idx) => {
                 const color = COLUMN_COLORS[idx % COLUMN_COLORS.length];
                 const colItems = (columnAnswer[columnId] || []).map((id: string) => 
@@ -1490,41 +1613,47 @@ const ExamTestRunPage: React.FC = () => {
                 return (
                   <div
                     key={columnId}
-                    className={`rounded-lg overflow-hidden border-2 ${color.border}`}
+                    className={`rounded-xl overflow-hidden border-2 ${color.border} shadow-md transition-all`}
+                    onDragOver={(e) => handleColDragOver(e, color.ring)}
+                    onDragLeave={(e) => handleColDragLeave(e, color.ring)}
+                    onDrop={(e) => handleDropOnColumn(e, columnId, color.ring)}
                   >
-                    <div className={`${color.header} text-white px-4 py-2 text-center font-semibold text-sm`}>
-                      {columnId.replace('columna_', 'Columna ').replace(/_/g, ' ')}
+                    {/* Header de la columna */}
+                    <div className={`${color.header} text-white px-4 py-3 font-bold text-center`}>
+                      {columnId.replace('columna_', '').replace(/_/g, ' ')}
                     </div>
-                    <div className={`${color.bg} p-3 min-h-[120px]`}>
-                      <div className="space-y-2">
-                        {colItems.map((item: any) => (
-                          <div
-                            key={item.id}
-                            className={`${color.item} border px-3 py-2 rounded text-sm text-center cursor-pointer hover:opacity-70 transition-opacity flex items-center justify-between`}
-                            onClick={() => handleUnclassify(item.id)}
-                          >
-                            <span className="flex-1">{item.answer_text}</span>
-                            <span className="text-red-400 text-xs ml-2">✕</span>
+                    
+                    {/* Área de soltar */}
+                    <div className={`${color.bg} p-3 min-h-[160px]`}>
+                      {colItems.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full min-h-[120px] text-gray-400">
+                          <div className="w-12 h-12 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center mb-2">
+                            <span className="text-2xl">↓</span>
                           </div>
-                        ))}
-                      </div>
-                      {/* Selector para agregar elementos */}
-                      {unclassifiedItems.length > 0 && (
-                        <div className="mt-2 pt-2 border-t border-gray-200">
-                          <select
-                            className="w-full text-xs p-1 rounded border border-gray-300"
-                            value=""
-                            onChange={(e) => {
-                              if (e.target.value) {
-                                handleClassify(e.target.value, columnId);
-                              }
-                            }}
-                          >
-                            <option value="">+ Agregar elemento...</option>
-                            {unclassifiedItems.map((item: any) => (
-                              <option key={item.id} value={item.id}>{item.answer_text}</option>
-                            ))}
-                          </select>
+                          <p className="text-xs text-center">Suelta elementos aquí</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {colItems.map((item: any) => (
+                            <div
+                              key={item.id}
+                              draggable
+                              onDragStart={(e) => handleColDragStart(e, item.id)}
+                              onDragEnd={handleColDragEnd}
+                              className={`${color.item} border px-3 py-2 rounded-lg text-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-all flex items-center justify-between group`}
+                            >
+                              <span className="flex items-center gap-2">
+                                <GripVertical className="w-4 h-4 opacity-50" />
+                                <span>{item.answer_text}</span>
+                              </span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleUnclassify(item.id); }}
+                                className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
