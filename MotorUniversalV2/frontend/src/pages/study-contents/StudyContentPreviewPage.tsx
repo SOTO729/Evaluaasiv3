@@ -1985,6 +1985,11 @@ const StudyContentPreviewPage: React.FC = () => {
                                           {/* Acciones superpuestas sobre la imagen - ordenadas para que las correctas estén encima */}
                                           {[...(currentStep.actions || [])]
                                             .sort((a, b) => {
+                                              // Los comentarios siempre van primero (z-index más bajo)
+                                              if (a.action_type === 'comment' && b.action_type !== 'comment') return -1;
+                                              if (b.action_type === 'comment' && a.action_type !== 'comment') return 1;
+                                              if (a.action_type === 'comment' && b.action_type === 'comment') return 0;
+                                              
                                               // Las acciones incorrectas primero (z-index menor), correctas después (z-index mayor)
                                               const isACorrect = a.action_type === 'text_input' 
                                                 ? a.correct_answer !== 'wrong'
