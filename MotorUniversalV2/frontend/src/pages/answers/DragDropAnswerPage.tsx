@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { examService } from '../../services/examService';
-import { Plus, Trash2, ArrowLeft, Save, Eye, AlertCircle, Type } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Eye, AlertCircle, Type } from 'lucide-react';
 
 interface BlankItem {
   id?: string;
@@ -58,6 +58,7 @@ export const DragDropAnswerPage = () => {
   const [blankCount, setBlankCount] = useState(0);
   const [editorReady, setEditorReady] = useState(false);
   const [instructions, setInstructions] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Obtener datos de la pregunta
   const { data: questionResponse } = useQuery({
@@ -354,6 +355,8 @@ export const DragDropAnswerPage = () => {
       return;
     }
 
+    setIsSaving(true);
+
     try {
       await updateQuestionMutation.mutateAsync({ question_text: fullQuestionText });
 
@@ -405,9 +408,15 @@ export const DragDropAnswerPage = () => {
       }
 
       setToast({ message: 'Configuración guardada exitosamente', type: 'success' });
+      
+      // Esperar un momento para que el usuario vea el mensaje y regresar
+      setTimeout(() => {
+        navigate(-1);
+      }, 800);
     } catch (error) {
       console.error('Error al guardar:', error);
       setToast({ message: 'Error al guardar la configuración', type: 'error' });
+      setIsSaving(false);
     }
   };
 
@@ -454,19 +463,30 @@ export const DragDropAnswerPage = () => {
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                 showPreview ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
+              disabled={isSaving}
             >
               <Eye className="w-4 h-4" />
               Vista previa
             </button>
             <button
               onClick={handleSave}
-              className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all shadow-md"
+              disabled={isSaving}
+              className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Save className="w-4 h-4" />
-              Guardar
+              {isSaving ? 'Guardando...' : 'Guardar'}
             </button>
           </div>
         </div>
+
+        {/* Pantalla de carga mientras se guarda */}
+        {isSaving && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4">
+              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-lg font-medium text-gray-700">Guardando cambios...</p>
+            </div>
+          </div>
+        )}
 
         {/* Instrucciones de ayuda */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
