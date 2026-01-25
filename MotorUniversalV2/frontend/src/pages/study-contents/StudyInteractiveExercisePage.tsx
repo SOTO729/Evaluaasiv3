@@ -966,7 +966,13 @@ const StudyInteractiveExercisePage = () => {
 
   // Handler para iniciar dibujo de área (rubber band) - mousedown
   const handleImageMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (selectedTool === 'select' || !currentStep || !imageContainerRef.current) return
+    // Si estamos en modo select y hacemos clic en el canvas (no en una acción), deseleccionar
+    if (selectedTool === 'select') {
+      setSelectedAction(null)
+      return
+    }
+    
+    if (!currentStep || !imageContainerRef.current) return
     
     e.preventDefault()
     const rect = imageContainerRef.current.getBoundingClientRect()
