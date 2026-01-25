@@ -62,16 +62,13 @@ const ExamCard = ({
 
   return (
     <div 
-      className="bg-white rounded-fluid-lg shadow-sm overflow-hidden border border-gray-100 group animate-stagger-in relative hover:shadow-lg cursor-pointer transition-all duration-300 flex flex-row"
-      style={{ 
-        animationDelay: `${index * 50}ms`,
-        minHeight: 'clamp(140px, 12vw, 180px)'
-      }}
+      className="bg-white rounded-fluid-lg shadow-sm overflow-hidden border border-gray-100 group animate-stagger-in relative hover:shadow-lg cursor-pointer transition-all duration-300 flex flex-col"
+      style={{ animationDelay: `${index * 50}ms` }}
     >
-      {/* Card Image - ancho fijo proporcional, altura 100% */}
+      {/* Card Image - altura fija con overflow hidden para contener la imagen */}
       <div 
         className="relative flex-shrink-0 overflow-hidden cursor-pointer"
-        style={{ width: 'clamp(120px, 15vw, 200px)' }}
+        style={{ height: 'clamp(120px, 15vw, 180px)' }}
         onClick={handleCardClick}
       >
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-800">
@@ -91,7 +88,7 @@ const ExamCard = ({
         
         {/* Status Badge - Solo mostrar si showStatus es true */}
         {showStatus && !isCandidate && (
-          <div className="absolute top-2 left-2">
+          <div className="absolute top-3 left-3">
             <span
               className={`inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium ${
                 exam.is_published
@@ -115,102 +112,98 @@ const ExamCard = ({
         )}
 
         {/* Version Badge */}
-        <div className="absolute top-2 right-2">
+        <div className="absolute top-3 right-3">
           <span className="fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-mono bg-black/30 text-white">
             {exam.version}
           </span>
         </div>
       </div>
 
-      {/* Card Content - flex-1 para ocupar el resto del espacio */}
-      <div className="fluid-p-3 flex-1 flex flex-col justify-between min-w-0">
-        <div>
-          <h3 
-            className="font-semibold fluid-text-base text-gray-900 line-clamp-1 transition-colors cursor-pointer hover:text-blue-600"
-            onClick={handleCardClick}
-          >
-            {exam.name}
-          </h3>
+      {/* Card Content */}
+      <div className="fluid-p-4">
+        <h3 
+          className="font-semibold fluid-text-base text-gray-900 fluid-mb-2 line-clamp-1 transition-colors cursor-pointer hover:text-blue-600"
+          onClick={handleCardClick}
+        >
+          {exam.name}
+        </h3>
         
-          {/* Stats - Diseño diferente para candidatos */}
-          {isCandidate ? (
-            <>
-              {/* Info principal para candidato: puntaje y simulador */}
-              <div className="flex items-center flex-wrap fluid-gap-2 fluid-mt-2">
-                <div className="flex items-center fluid-gap-1 fluid-text-xs">
-                  <Award className="fluid-icon-xs text-emerald-500" />
-                  <span className="text-gray-700 font-medium">Mínimo {exam.passing_score}%</span>
-                </div>
-                {exam.has_simulator_content && (
-                  <span className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-0.5 rounded-full fluid-text-xs font-medium bg-purple-100 text-purple-700">
-                    <Gamepad2 className="fluid-icon-xs" />
-                    Simulador
-                  </span>
-                )}
+        {/* Stats - Diseño diferente para candidatos */}
+        {isCandidate ? (
+          <>
+            {/* Info principal para candidato: puntaje y simulador */}
+            <div className="flex items-center justify-between fluid-mb-3">
+              <div className="flex items-center fluid-gap-2 fluid-text-sm">
+                <Award className="fluid-icon-sm text-emerald-500" />
+                <span className="text-gray-700 font-medium">Mínimo {exam.passing_score}%</span>
               </div>
-            </>
-          ) : (
-            <>
-              {/* Stats Grid para admin/editor - más compacto */}
-              <div className="flex flex-wrap fluid-gap-x-3 fluid-gap-y-1 fluid-mt-2 fluid-text-xs text-gray-500">
-                <div className="flex items-center fluid-gap-1">
-                  <BookOpen className="fluid-icon-xs text-blue-500" />
-                  <span>{exam.total_topics || 0} temas</span>
-                </div>
-                <div className="flex items-center fluid-gap-1">
-                  <Timer className="fluid-icon-xs text-slate-500" />
-                  <span>{exam.duration_minutes || 0} min</span>
-                </div>
-                <div className="flex items-center fluid-gap-1">
-                  <Award className="fluid-icon-xs text-emerald-500" />
-                  <span>{exam.passing_score}%</span>
-                </div>
-                {exam.has_simulator_content && (
-                  <div className="flex items-center fluid-gap-1">
-                    <Gamepad2 className="fluid-icon-xs text-purple-500" />
-                    <span className="text-purple-600 font-medium">Simulador</span>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+              {exam.has_simulator_content && (
+                <span className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium bg-purple-100 text-purple-700">
+                  <Gamepad2 className="fluid-icon-xs" />
+                  Simulador
+                </span>
+              )}
+            </div>
             
-        {/* Card Footer */}
-        <div className="flex items-center justify-between fluid-text-xs text-gray-400 fluid-pt-2 fluid-mt-2 border-t">
-          {isCandidate ? (
-            <>
+            {/* Footer para candidato: info secundaria en gris */}
+            <div className="flex items-center fluid-gap-4 fluid-text-xs text-gray-400 fluid-pt-3 border-t">
               <div className="flex items-center fluid-gap-1" title="Duración">
-                <Timer className="fluid-icon-xs" />
+                <Timer className="fluid-icon-sm" />
                 <span>{exam.duration_minutes || 0} min</span>
               </div>
               <div className="flex items-center fluid-gap-1" title="Categorías">
-                <Layers className="fluid-icon-xs" />
-                <span>{exam.total_categories || 0} cat.</span>
+                <Layers className="fluid-icon-sm" />
+                <span>{exam.total_categories || 0} {exam.total_categories === 1 ? 'categoría' : 'categorías'}</span>
               </div>
               <div className="flex items-center fluid-gap-1" title="Temas">
-                <BookOpen className="fluid-icon-xs" />
+                <BookOpen className="fluid-icon-sm" />
                 <span>{exam.total_topics || 0} temas</span>
               </div>
-            </>
-          ) : (
-            <>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Stats Grid para admin/editor */}
+            <div className="grid grid-cols-2 fluid-gap-2 fluid-mb-3 fluid-text-xs text-gray-500">
               <div className="flex items-center fluid-gap-1">
-                <Layers className="fluid-icon-xs" />
-                <span>{exam.total_categories || 0} cat.</span>
+                <BookOpen className="fluid-icon-sm text-blue-500" />
+                <span>{exam.total_topics || 0} temas</span>
               </div>
               <div className="flex items-center fluid-gap-1">
-                <Calendar className="fluid-icon-xs" />
+                <Timer className="fluid-icon-sm text-slate-500" />
+                <span>{exam.duration_minutes || 0} min</span>
+              </div>
+              <div className="flex items-center fluid-gap-1">
+                <Award className="fluid-icon-sm text-emerald-500" />
+                <span>Mínimo {exam.passing_score}%</span>
+              </div>
+              <div className="flex items-center fluid-gap-1">
+                <Gamepad2 className={`fluid-icon-sm ${exam.has_simulator_content ? 'text-purple-500' : 'text-gray-300'}`} />
+                <span className={exam.has_simulator_content ? 'text-purple-600 font-medium' : 'text-gray-400'}>
+                  {exam.has_simulator_content ? 'Simulador' : 'Sin simulador'}
+                </span>
+              </div>
+            </div>
+            
+            {/* Card Footer para admin/editor */}
+            <div className="flex items-center justify-between fluid-text-xs text-gray-400 fluid-pt-3 border-t">
+              <div className="flex items-center fluid-gap-1">
+                <Layers className="fluid-icon-sm" />
+                <span>{exam.total_categories || 0} categorías</span>
+              </div>
+              <div className="flex items-center fluid-gap-1">
+                <Calendar className="fluid-icon-sm" />
                 <span>
                   {new Date(exam.created_at).toLocaleDateString('es-ES', {
                     day: 'numeric',
-                    month: 'short'
+                    month: 'long',
+                    year: 'numeric'
                   })}
                 </span>
               </div>
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -369,7 +362,7 @@ const ExamsListPage = () => {
         <>
           {/* Para candidatos: mostrar solo grid sin secciones */}
           {isCandidate ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 4xl:grid-cols-4 fluid-gap-4 fluid-mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4 5xl:grid-cols-5 fluid-gap-6 fluid-mb-8">
               {allExams.map((exam: any, index: number) => (
                 <ExamCard 
                   key={exam.id} 
@@ -391,7 +384,7 @@ const ExamsListPage = () => {
                       {allExams.filter((e: any) => e.is_published).length}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 4xl:grid-cols-4 fluid-gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4 5xl:grid-cols-5 fluid-gap-6">
                     {allExams.filter((e: any) => e.is_published).map((exam: any, index: number) => (
                       <ExamCard 
                         key={exam.id} 
@@ -413,7 +406,7 @@ const ExamsListPage = () => {
                       {allExams.filter((e: any) => !e.is_published).length}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 4xl:grid-cols-4 fluid-gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4 5xl:grid-cols-5 fluid-gap-6">
                     {allExams.filter((e: any) => !e.is_published).map((exam: any, index: number) => (
                       <ExamCard 
                         key={exam.id} 
