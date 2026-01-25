@@ -221,7 +221,7 @@ const ExamTestResultsPage: React.FC = () => {
     setDownloadingPdf(true);
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-api.whiteforest-44e7c57b.eastus.azurecontainerapps.io/api';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api';
       
       // Obtener zona horaria del equipo del usuario
       const clientTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;

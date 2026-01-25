@@ -405,7 +405,7 @@ const ApprovalCertificateSection = ({ exams, formatDate }: { exams: any[], forma
     
     try {
       // Usar la URL correcta del API (ya incluye /api)
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-api.whiteforest-44e7c57b.eastus.azurecontainerapps.io/api'
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api'
       
       console.log('🎓 [CERTIFICADO] Llamando a:', `${apiUrl}/exams/results/${resultId}/generate-certificate`)
       
@@ -771,7 +771,7 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
       }
       
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-api.whiteforest-44e7c57b.eastus.azurecontainerapps.io/api'
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api'
         const response = await fetch(`${apiUrl}/conocer/certificates`, {
           headers: {
             'Authorization': `Bearer ${accessToken}`
@@ -798,7 +798,7 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
     setDownloadingId(certificate.id)
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-api.whiteforest-44e7c57b.eastus.azurecontainerapps.io/api'
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api'
       const response = await fetch(`${apiUrl}/conocer/certificates/${certificate.id}/download`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`

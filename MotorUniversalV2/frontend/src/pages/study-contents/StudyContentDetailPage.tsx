@@ -414,11 +414,24 @@ const StudyContentDetailPage = () => {
   const loadMaterial = async () => {
     setLoading(true);
     try {
+      console.log('📚 Loading material with ID:', materialId);
       const data = await getMaterial(materialId);
+      console.log('📚 Material loaded successfully:', data?.title);
       setMaterial(data);
-    } catch (error) {
-      console.error('Error loading material:', error);
-      navigate('/study-contents');
+    } catch (error: any) {
+      console.error('❌ Error loading material:', error);
+      console.error('❌ Error response:', error?.response?.data);
+      console.error('❌ Error status:', error?.response?.status);
+      // Only redirect if it's a 404 (material not found)
+      if (error?.response?.status === 404) {
+        navigate('/study-contents');
+      } else {
+        // For other errors, show toast and stay on page
+        setToast({ 
+          message: error?.response?.data?.message || 'Error al cargar el material. Intenta de nuevo.', 
+          type: 'error' 
+        });
+      }
     } finally {
       setLoading(false);
     }
