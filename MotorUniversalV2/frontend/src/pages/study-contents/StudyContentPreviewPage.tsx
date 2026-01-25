@@ -2164,7 +2164,7 @@ const StudyContentPreviewPage: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] fluid-p-4" onClick={() => setShowErrorModal(null)}>
           <div className="bg-white rounded-fluid-lg shadow-2xl max-w-lg w-full fluid-mx-4 max-h-[85vh] flex flex-col animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
             {/* Header fijo */}
-            <div className="flex items-center fluid-gap-3 fluid-p-4 pb-3 border-b border-gray-100">
+            <div className="flex items-center fluid-gap-3 fluid-p-4 fluid-pb-3 border-b border-gray-100">
               <div className="flex-shrink-0 fluid-icon-lg bg-red-100 rounded-full flex items-center justify-center">
                 <X className="fluid-icon-md text-red-600" />
               </div>
@@ -2172,7 +2172,7 @@ const StudyContentPreviewPage: React.FC = () => {
             </div>
             
             {/* Contenido con scroll */}
-            <div className="flex-1 overflow-y-auto fluid-p-4 pt-3">
+            <div className="flex-1 overflow-y-auto fluid-p-4 fluid-pt-3">
               <div 
                 className="text-gray-600 prose prose-sm max-w-none fluid-text-sm [&>p]:my-1.5 [&>ul]:my-1.5 [&>ol]:my-1.5"
                 dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(showErrorModal.message) }}
@@ -2180,7 +2180,7 @@ const StudyContentPreviewPage: React.FC = () => {
             </div>
             
             {/* Footer fijo */}
-            <div className="fluid-p-4 pt-3 border-t border-gray-100">
+            <div className="fluid-p-4 fluid-pt-3 border-t border-gray-100">
               {(() => {
                 // max_attempts son oportunidades ADICIONALES después del primer error
                 const action = currentTopic?.interactive_exercise?.steps
@@ -2333,7 +2333,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
         {hasPlaceholder && showText && (
           <span className="truncate fluid-px-2 fluid-text-sm">{action.placeholder}</span>
         )}
-        {currentValue && <span className="ml-1">✓</span>}
+        {currentValue && <span className="fluid-ml-1">✓</span>}
       </button>
     );
   }

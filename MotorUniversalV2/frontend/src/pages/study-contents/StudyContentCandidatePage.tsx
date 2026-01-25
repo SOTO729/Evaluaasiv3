@@ -142,12 +142,11 @@ const StudyContentCandidatePage = () => {
   if (!material) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
-        <BookOpen className="h-16 w-16 text-gray-300 mb-4" />
-        <p className="text-gray-500 text-lg">Material no encontrado</p>
+        <BookOpen className="fluid-icon-2xl text-gray-300 fluid-mb-4" />
+        <p className="text-gray-500 fluid-text-lg">Material no encontrado</p>
         <button
           onClick={() => navigate('/study-contents')}
-          className="mt-4 text-blue-600 hover:underline"
-        >
+          className="fluid-mt-4 text-blue-600 hover:underline">
           Volver a materiales
         </button>
       </div>
@@ -158,14 +157,14 @@ const StudyContentCandidatePage = () => {
     <div className="min-h-screen bg-gray-50 overflow-x-hidden overscroll-contain">
       {/* Barra de navegación superior */}
       <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 border-b border-gray-200/80 shadow-sm sticky top-0 z-40 backdrop-blur-sm bg-opacity-95">
-        <div className="max-w-7xl mx-auto fluid-px-6 fluid-py-4">
+        <div className="fluid-container-2xl mx-auto fluid-px-6 fluid-py-4">
           <div className="flex items-center justify-between">
             {/* Botón volver */}
             <button
               onClick={() => navigate('/study-contents')}
               className="group inline-flex items-center fluid-gap-3 fluid-px-4 fluid-py-2 rounded-fluid-xl bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300 shadow-sm hover:shadow-md transition-all duration-200"
             >
-              <div className="fluid-p-2 rounded-lg bg-gray-100 group-hover:bg-blue-100 transition-colors">
+              <div className="fluid-p-2 rounded-fluid-lg bg-gray-100 group-hover:bg-blue-100 transition-colors">
                 <ArrowLeft className="fluid-icon-base text-gray-600 group-hover:text-blue-600 transition-colors" />
               </div>
               <span className="fluid-text-sm font-medium text-gray-700 group-hover:text-blue-700 transition-colors">
@@ -186,7 +185,7 @@ const StudyContentCandidatePage = () => {
       </div>
 
       {/* Contenido principal con layout de dos columnas */}
-      <div className="max-w-7xl mx-auto fluid-px-6 fluid-py-10">
+      <div className="fluid-container-2xl mx-auto fluid-px-6 fluid-py-10">
         
         {/* Hero con imagen de fondo */}
         <div 
@@ -286,7 +285,7 @@ const StudyContentCandidatePage = () => {
                       className="w-full flex items-center justify-between fluid-p-6 hover:bg-gray-50 transition-colors text-left"
                     >
                       <div className="flex items-center fluid-gap-5">
-                        <div className="flex-shrink-0 w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold fluid-text-base">
+                        <div className="flex-shrink-0 w-[clamp(2rem,3vw,2.5rem)] h-[clamp(2rem,3vw,2.5rem)] bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold fluid-text-base">
                           {sessionIndex + 1}
                         </div>
                         <div>
@@ -320,7 +319,7 @@ const StudyContentCandidatePage = () => {
                                 className="flex items-start fluid-gap-5 fluid-px-8 fluid-py-5 border-b border-gray-100 last:border-b-0 hover:bg-gray-100/50 transition-colors"
                               >
                                 {/* Número del tema */}
-                                <div className="flex-shrink-0 w-8 h-8 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center fluid-text-sm font-medium mt-0.5">
+                                <div className="flex-shrink-0 w-[clamp(1.5rem,2.5vw,2rem)] h-[clamp(1.5rem,2.5vw,2rem)] bg-gray-200 text-gray-600 rounded-full flex items-center justify-center fluid-text-sm font-medium mt-0.5">
                                   {topicIndex + 1}
                                 </div>
                                 
