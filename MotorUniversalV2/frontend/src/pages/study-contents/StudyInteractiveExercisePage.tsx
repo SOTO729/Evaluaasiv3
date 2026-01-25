@@ -2,7 +2,7 @@
  * Página de edición de ejercicio interactivo para contenidos de estudio
  * Basado en el diseño de ExerciseEditor
  */
-import { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback, Fragment } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { 
@@ -250,6 +250,16 @@ interface DrawingState {
   currentY: number
 }
 
+// Estado para arrastrar el puntero del comentario (la flecha)
+interface PointerDragState {
+  isDragging: boolean
+  actionId: string | null
+  startX: number
+  startY: number
+  offsetX: number
+  offsetY: number
+}
+
 // Constantes de configuración del editor
 const EDITOR_CONFIG = {
   MIN_AREA_WIDTH: 0.5,    // Porcentaje mínimo de ancho para crear área (muy pequeño para permitir botones pequeños)
@@ -316,6 +326,16 @@ const StudyInteractiveExercisePage = () => {
     startY: 0,
     currentX: 0,
     currentY: 0
+  })
+
+  // Estado para arrastrar el puntero del comentario
+  const [pointerDragState, setPointerDragState] = useState<PointerDragState>({
+    isDragging: false,
+    actionId: null,
+    startX: 0,
+    startY: 0,
+    offsetX: 0,
+    offsetY: 0
   })
 
   // Zoom para la vista del canvas
@@ -1235,7 +1255,29 @@ const StudyInteractiveExercisePage = () => {
         }
       })
     }
-  }, [dragState, resizeState])
+
+    // Manejo del arrastre del puntero del comentario
+    if (pointerDragState.isDragging && pointerDragState.actionId) {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+      
+      animationFrameRef.current = requestAnimationFrame(() => {
+        const deltaX = ((e.clientX - pointerDragState.startX) / rect.width) * 100
+        const deltaY = ((e.clientY - pointerDragState.startY) / rect.height) * 100
+
+        const newPointerX = Math.max(0, Math.min(100, pointerDragState.offsetX + deltaX))
+        const newPointerY = Math.max(0, Math.min(100, pointerDragState.offsetY + deltaY))
+
+        // Actualizar visualmente el pointer handle
+        const pointerEl = document.querySelector(`[data-pointer-id="${pointerDragState.actionId}"]`) as HTMLElement
+        if (pointerEl) {
+          pointerEl.style.left = `${newPointerX}%`
+          pointerEl.style.top = `${newPointerY}%`
+        }
+      })
+    }
+  }, [dragState, resizeState, pointerDragState])
 
   const handleMouseUp = useCallback(() => {
     if (dragState.isDragging && dragState.actionId && currentStep) {
@@ -1268,12 +1310,28 @@ const StudyInteractiveExercisePage = () => {
       }
     }
 
+    // Guardar la nueva posición del pointer del comentario
+    if (pointerDragState.isDragging && pointerDragState.actionId && currentStep) {
+      const pointerEl = document.querySelector(`[data-pointer-id="${pointerDragState.actionId}"]`) as HTMLElement
+      if (pointerEl) {
+        const pointerX = parseFloat(pointerEl.style.left)
+        const pointerY = parseFloat(pointerEl.style.top)
+        
+        updateActionMutation.mutate({
+          stepId: currentStep.id,
+          actionId: pointerDragState.actionId,
+          data: { pointer_x: pointerX, pointer_y: pointerY }
+        })
+      }
+    }
+
     setDragState({ isDragging: false, actionId: null, startX: 0, startY: 0, offsetX: 0, offsetY: 0 })
     setResizeState({ isResizing: false, actionId: null, corner: null, startX: 0, startY: 0, startWidth: 0, startHeight: 0, startPositionX: 0, startPositionY: 0 })
-  }, [dragState, resizeState, currentStep, updateActionMutation])
+    setPointerDragState({ isDragging: false, actionId: null, startX: 0, startY: 0, offsetX: 0, offsetY: 0 })
+  }, [dragState, resizeState, pointerDragState, currentStep, updateActionMutation])
 
   useEffect(() => {
-    if (dragState.isDragging || resizeState.isResizing) {
+    if (dragState.isDragging || resizeState.isResizing || pointerDragState.isDragging) {
       window.addEventListener('mousemove', handleMouseMove)
       window.addEventListener('mouseup', handleMouseUp)
       return () => {
@@ -1281,7 +1339,27 @@ const StudyInteractiveExercisePage = () => {
         window.removeEventListener('mouseup', handleMouseUp)
       }
     }
-  }, [dragState.isDragging, resizeState.isResizing, handleMouseMove, handleMouseUp])
+  }, [dragState.isDragging, resizeState.isResizing, pointerDragState.isDragging, handleMouseMove, handleMouseUp])
+
+  // Handler para iniciar el arrastre del puntero del comentario
+  const handlePointerMouseDown = (e: React.MouseEvent, action: StudyInteractiveExerciseAction) => {
+    e.stopPropagation()
+    
+    const rect = imageContainerRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    const pointerX = action.pointer_x ?? action.position_x
+    const pointerY = action.pointer_y ?? action.position_y
+
+    setPointerDragState({
+      isDragging: true,
+      actionId: action.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      offsetX: pointerX,
+      offsetY: pointerY
+    })
+  }
 
   // Handler para resize
   const handleResizeMouseDown = (e: React.MouseEvent, action: StudyInteractiveExerciseAction, corner: 'se' | 'sw' | 'ne' | 'nw') => {
@@ -2029,12 +2107,13 @@ const StudyInteractiveExercisePage = () => {
                         }
                         
                         return (
+                          <Fragment key={action.id}>
                           <div
-                            key={action.id}
                             data-action-id={action.id}
                             className={`absolute cursor-move ${
                               (dragState.isDragging && dragState.actionId === action.id) ||
-                              (resizeState.isResizing && resizeState.actionId === action.id)
+                              (resizeState.isResizing && resizeState.actionId === action.id) ||
+                              (pointerDragState.isDragging && pointerDragState.actionId === action.id)
                                 ? 'border-2 border-dashed border-blue-500'
                                 : selectedAction?.id === action.id
                                 ? 'ring-2 ring-blue-500 shadow-lg'
@@ -2078,16 +2157,55 @@ const StudyInteractiveExercisePage = () => {
                               </svg>
                             </div>
                             
-                            {/* Resize handles */}
-                            {selectedAction?.id === action.id && (
+                            {/* Resize handles - 4 esquinas */}
+                            {selectedAction?.id === action.id && 
+                             !((dragState.isDragging && dragState.actionId === action.id) || 
+                               (resizeState.isResizing && resizeState.actionId === action.id) ||
+                               (pointerDragState.isDragging && pointerDragState.actionId === action.id)) && (
                               <>
+                                {/* Esquina superior izquierda */}
                                 <div
-                                  className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-blue-500 rounded-full cursor-se-resize border-2 border-white"
+                                  className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-blue-500 cursor-nw-resize rounded-br border-2 border-white shadow"
+                                  onMouseDown={(e) => handleResizeMouseDown(e, action, 'nw')}
+                                />
+                                {/* Esquina superior derecha */}
+                                <div
+                                  className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-blue-500 cursor-ne-resize rounded-bl border-2 border-white shadow"
+                                  onMouseDown={(e) => handleResizeMouseDown(e, action, 'ne')}
+                                />
+                                {/* Esquina inferior izquierda */}
+                                <div
+                                  className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-blue-500 cursor-sw-resize rounded-tr border-2 border-white shadow"
+                                  onMouseDown={(e) => handleResizeMouseDown(e, action, 'sw')}
+                                />
+                                {/* Esquina inferior derecha */}
+                                <div
+                                  className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-blue-500 cursor-se-resize rounded-tl border-2 border-white shadow"
                                   onMouseDown={(e) => handleResizeMouseDown(e, action, 'se')}
                                 />
                               </>
                             )}
                           </div>
+                          
+                          {/* Handle para mover el puntero/flecha del bocadillo - fuera del div del comentario */}
+                          {selectedAction?.id === action.id && (
+                            <div
+                              data-pointer-id={action.id}
+                              className="absolute w-5 h-5 bg-amber-500 rounded-full cursor-move border-2 border-white shadow-lg flex items-center justify-center z-30 hover:bg-amber-600 transition-colors"
+                              style={{
+                                left: `${action.pointer_x ?? action.position_x}%`,
+                                top: `${action.pointer_y ?? action.position_y}%`,
+                                transform: 'translate(-50%, -50%)',
+                              }}
+                              onMouseDown={(e) => handlePointerMouseDown(e, action)}
+                              title="Arrastra para mover la flecha del bocadillo"
+                            >
+                              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                              </svg>
+                            </div>
+                          )}
+                        </Fragment>
                         )
                       }
                       
