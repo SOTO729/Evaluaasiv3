@@ -419,7 +419,6 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       // Determinar el tipo de acción y configuración
       const isButton = selectedTool === 'button' || selectedTool === 'button-wrong'
       const isCorrectButton = selectedTool === 'button'
-      const isTextbox = selectedTool === 'textbox'
       
       // Se permiten múltiples respuestas correctas por paso
       // Cada respuesta correcta (botón o textbox) tendrá su propio número de acción
