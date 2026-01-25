@@ -65,18 +65,18 @@ export const ColumnGroupingAnswerPage = () => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
   const [questionText, setQuestionText] = useState('');
   
-  // Columnas (categorías)
+  // Columnas (categorías) - usar nombre como id
   const [columns, setColumns] = useState<Column[]>([
-    { id: 'columna_1', name: 'Columna 1' },
-    { id: 'columna_2', name: 'Columna 2' }
+    { id: 'Columna 1', name: 'Columna 1' },
+    { id: 'Columna 2', name: 'Columna 2' }
   ]);
   
   // Elementos a clasificar
   const [items, setItems] = useState<GroupingItem[]>([
-    { answer_text: '', correct_answer: 'columna_1', answer_number: 1 },
-    { answer_text: '', correct_answer: 'columna_1', answer_number: 2 },
-    { answer_text: '', correct_answer: 'columna_2', answer_number: 3 },
-    { answer_text: '', correct_answer: 'columna_2', answer_number: 4 }
+    { answer_text: '', correct_answer: 'Columna 1', answer_number: 1 },
+    { answer_text: '', correct_answer: 'Columna 1', answer_number: 2 },
+    { answer_text: '', correct_answer: 'Columna 2', answer_number: 3 },
+    { answer_text: '', correct_answer: 'Columna 2', answer_number: 4 }
   ]);
 
   // Obtener datos de la pregunta
@@ -107,7 +107,7 @@ export const ColumnGroupingAnswerPage = () => {
       const loadedItems: GroupingItem[] = [];
       
       answersData.forEach((a: any, idx: number) => {
-        const correctCol = a.correct_answer || `columna_${(idx % 2) + 1}`;
+        const correctCol = a.correct_answer || `Columna ${(idx % 2) + 1}`;
         columnsSet.add(correctCol);
         
         loadedItems.push({
@@ -118,10 +118,10 @@ export const ColumnGroupingAnswerPage = () => {
         });
       });
       
-      // Reconstruir columnas
-      const columnsArray = Array.from(columnsSet).map((c) => ({
-        id: c,
-        name: c.replace('columna_', 'Columna ').replace(/_/g, ' ')
+      // Reconstruir columnas - el correct_answer ES el nombre de la columna
+      const columnsArray = Array.from(columnsSet).map((columnName) => ({
+        id: columnName,  // Usar el nombre como id
+        name: columnName  // El nombre es el mismo
       }));
       
       if (columnsArray.length > 0) {
@@ -169,8 +169,8 @@ export const ColumnGroupingAnswerPage = () => {
   // Handlers para columnas
   const handleAddColumn = () => {
     if (columns.length < 6) {
-      const newId = `columna_${columns.length + 1}`;
-      setColumns([...columns, { id: newId, name: `Columna ${columns.length + 1}` }]);
+      const newName = `Columna ${columns.length + 1}`;
+      setColumns([...columns, { id: newName, name: newName }]);
     }
   };
 
@@ -186,8 +186,15 @@ export const ColumnGroupingAnswerPage = () => {
     }
   };
 
-  const handleColumnNameChange = (columnId: string, name: string) => {
-    setColumns(columns.map(c => c.id === columnId ? { ...c, name } : c));
+  const handleColumnNameChange = (columnId: string, newName: string) => {
+    // Actualizar items que pertenecían a esta columna
+    setItems(items.map(item => 
+      item.correct_answer === columnId 
+        ? { ...item, correct_answer: newName }
+        : item
+    ));
+    // Actualizar la columna (id = nombre)
+    setColumns(columns.map(c => c.id === columnId ? { id: newName, name: newName } : c));
   };
 
   // Handlers para items
@@ -195,7 +202,7 @@ export const ColumnGroupingAnswerPage = () => {
     if (items.length < 20) {
       setItems([...items, { 
         answer_text: '', 
-        correct_answer: columns[0]?.id || 'columna_1',
+        correct_answer: columns[0]?.id || 'Columna 1',
         answer_number: items.length + 1 
       }]);
     }
