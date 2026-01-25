@@ -352,7 +352,7 @@ export default function GroupDetailPage() {
           <button
             onClick={() => activeTab === 'members' ? setShowAddModal(true) : setShowExamModal(true)}
             disabled={!group.is_active}
-            className="inline-flex items-center fluid-gap-2 fluid-px-4 py-2 fluid-py-2.5 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium fluid-text-base transition-colors"
+            className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium fluid-text-base transition-colors"
           >
             {activeTab === 'members' ? (
               <>
@@ -368,7 +368,7 @@ export default function GroupDetailPage() {
           </button>
           <Link
             to={`/partners/groups/${groupId}/edit`}
-            className="inline-flex items-center fluid-gap-2 fluid-px-4 py-2 fluid-py-2.5 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 rounded-fluid-xl font-medium fluid-text-base transition-colors"
+            className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 rounded-fluid-xl font-medium fluid-text-base transition-colors"
           >
             <Edit className="fluid-icon-sm" />
             Editar
@@ -467,9 +467,9 @@ export default function GroupDetailPage() {
                 </span>
               </div>
               
-              <div className="w-full bg-gray-200 rounded-full h-2.5 h-3">
+              <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
-                  className={`h-2.5 h-3 rounded-full transition-all ${
+                  className={`h-3 rounded-full transition-all ${
                     members.length >= (group.max_members || 30) 
                       ? 'bg-red-500' 
                       : members.length >= (group.max_members || 30) * 0.8 
@@ -571,7 +571,7 @@ export default function GroupDetailPage() {
                         <select
                           value={member.status}
                           onChange={(e) => handleUpdateStatus(member.id, e.target.value as GroupMember['status'])}
-                          className={`fluid-px-2 py-1 fluid-py-1.5 border rounded-lg fluid-text-xs font-medium ${
+                          className={`fluid-px-2 fluid-py-1 border rounded-lg fluid-text-xs font-medium ${
                             member.status === 'active' 
                               ? 'border-green-300 bg-green-50 text-green-700' 
                               : member.status === 'completed'
@@ -649,13 +649,13 @@ export default function GroupDetailPage() {
                           <div className="flex flex-wrap fluid-gap-2 fluid-text-xs text-gray-500">
                             {assignment.exam?.duration_minutes && (
                               <span className="flex items-center gap-1">
-                                <Clock className="h-3.5 w-3.5 h-4 w-4" />
+                                <Clock className="fluid-icon-xs" />
                                 {assignment.exam.duration_minutes} min
                               </span>
                             )}
                             {assignment.exam?.passing_score && (
                               <span className="flex items-center gap-1">
-                                <Target className="h-3.5 w-3.5 h-4 w-4" />
+                                <Target className="fluid-icon-xs" />
                                 Aprobación: {assignment.exam.passing_score}%
                               </span>
                             )}
@@ -681,7 +681,7 @@ export default function GroupDetailPage() {
                         assignment.study_materials && assignment.study_materials.length > 0 
                           ? 'border-green-200 bg-green-50/50' 
                           : 'border-amber-200 bg-amber-50/50'
-                      } -mx-4 -mx-5 fluid-px-4 pb-4 fluid-pb-5 -mb-4 -mb-5 rounded-b-xl`}>
+                      } -mx-5 fluid-px-5 fluid-pb-5 -mb-5 rounded-b-xl`}>
                         {assignment.study_materials && assignment.study_materials.length > 0 ? (
                           <>
                             <div className="flex items-center justify-between mb-3">

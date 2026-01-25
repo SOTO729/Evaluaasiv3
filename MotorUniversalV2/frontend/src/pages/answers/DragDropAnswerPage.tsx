@@ -443,36 +443,36 @@ export const DragDropAnswerPage = () => {
     <div className="min-h-screen bg-gray-50">
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
       
-      <div className="max-w-5xl 2xl:max-w-6xl 3xl:max-w-7xl 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 3xl:px-14 4xl:px-16 py-6 lg:py-8 xl:py-10 2xl:py-12 3xl:py-14 4xl:py-16">
+      <div className="max-w-5xl mx-auto fluid-px-6 fluid-py-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 lg:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-4 fluid-mb-6">
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate(-1)}
-              className="p-2 lg:p-3 hover:bg-gray-100 rounded-lg xl:rounded-xl transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <ArrowLeft className="w-5 h-5 lg:w-6 lg:h-6 xl:w-7 xl:h-7 text-gray-600" />
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
             </button>
             <div>
-              <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl 3xl:text-6xl 4xl:text-7xl font-bold text-gray-800">Completar Espacios en Blanco</h1>
-              <p className="text-gray-500 text-sm lg:text-base xl:text-lg 2xl:text-xl 3xl:text-2xl 4xl:text-3xl">Configura el texto con espacios para arrastrar y soltar</p>
+              <h1 className="fluid-text-2xl font-bold text-gray-800">Completar Espacios en Blanco</h1>
+              <p className="text-gray-500 fluid-text-sm">Configura el texto con espacios para arrastrar y soltar</p>
             </div>
           </div>
-          <div className="flex gap-2 lg:gap-3">
+          <div className="flex fluid-gap-2">
             <button
               onClick={() => setShowPreview(!showPreview)}
-              className={`flex items-center gap-2 px-4 py-2 lg:px-5 lg:py-2.5 xl:px-6 xl:py-3 rounded-lg xl:rounded-xl text-sm lg:text-base xl:text-lg transition-colors ${
+              className={`flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 rounded-lg fluid-text-sm transition-colors ${
                 showPreview ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
               disabled={isSaving}
             >
-              <Eye className="w-4 h-4 lg:w-5 lg:h-5" />
+              <Eye className="w-4 h-4" />
               Vista previa
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="flex items-center gap-2 px-6 py-2 lg:px-7 lg:py-2.5 xl:px-8 xl:py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm lg:text-base xl:text-lg rounded-lg xl:rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center fluid-gap-2 fluid-px-6 fluid-py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white fluid-text-sm rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? 'Guardando...' : 'Guardar'}
             </button>
@@ -487,12 +487,12 @@ export const DragDropAnswerPage = () => {
         )}
 
         {/* Instrucciones de ayuda */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl lg:rounded-2xl 3xl:rounded-3xl p-4 lg:p-6 xl:p-8 2xl:p-10 3xl:p-12 4xl:p-14 mb-6 lg:mb-8 xl:mb-10 2xl:mb-12 3xl:mb-14">
-          <div className="flex items-start gap-3 lg:gap-4 xl:gap-5 2xl:gap-6 3xl:gap-8">
-            <AlertCircle className="w-5 h-5 lg:w-6 lg:h-6 xl:w-7 xl:h-7 2xl:w-8 2xl:h-8 3xl:w-10 3xl:h-10 4xl:w-12 4xl:h-12 text-blue-500 mt-0.5" />
-            <div className="text-sm lg:text-base xl:text-lg text-blue-800">
-              <p className="font-semibold mb-1 lg:mb-2">Cómo funciona:</p>
-              <ol className="list-decimal ml-4 space-y-1 lg:space-y-2">
+        <div className="bg-blue-50 border border-blue-200 rounded-xl fluid-p-4 fluid-mb-6">
+          <div className="flex items-start fluid-gap-3">
+            <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5" />
+            <div className="fluid-text-sm text-blue-800">
+              <p className="font-semibold fluid-mb-1">Cómo funciona:</p>
+              <ol className="list-decimal ml-4 flex flex-col fluid-gap-1">
                 <li>Escribe o pega el texto de la pregunta en el editor</li>
                 <li>Posiciona el cursor donde quieras un espacio en blanco y haz clic en <strong>"+ Insertar Espacio"</strong></li>
                 <li>Define la respuesta correcta para cada espacio en la sección de abajo</li>
@@ -504,9 +504,9 @@ export const DragDropAnswerPage = () => {
 
         {/* Mostrar instrucciones si existen (solo lectura) */}
         {instructions && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl lg:rounded-2xl p-4 lg:p-6 mb-6 lg:mb-8">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl fluid-p-4 fluid-mb-6">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 lg:w-6 lg:h-6 text-amber-500 mt-0.5 flex-shrink-0" />
+              <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
               <div>
                 <h3 className="font-semibold text-amber-800 mb-2">Instrucciones para el estudiante:</h3>
                 <div 
@@ -518,7 +518,7 @@ export const DragDropAnswerPage = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
           {/* Editor de texto visual */}
           <div className="bg-white rounded-xl shadow-md p-6">
             <div className="flex items-center justify-between mb-4">
@@ -588,7 +588,7 @@ export const DragDropAnswerPage = () => {
         </div>
 
         {/* Respuestas y Distractores */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4 fluid-mt-4">
           {/* Respuestas correctas */}
           <div className="bg-white rounded-xl shadow-md p-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">

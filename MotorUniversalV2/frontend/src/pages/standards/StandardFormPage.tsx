@@ -77,7 +77,7 @@ const Toast = ({ message, type, onClose }: ToastProps) => {
 
   return (
     <div className="fixed top-4 right-4 z-50 animate-slide-in">
-      <div className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${
+      <div className={`flex items-center fluid-gap-3 fluid-px-6 fluid-py-4 rounded-fluid-lg shadow-lg ${
         type === 'success' 
           ? 'bg-green-600 text-white' 
           : 'bg-red-600 text-white'
@@ -94,7 +94,7 @@ const Toast = ({ message, type, onClose }: ToastProps) => {
         <span className="font-medium">{message}</span>
         <button
           onClick={onClose}
-          className="ml-2 hover:opacity-80 transition-opacity"
+          className="fluid-ml-2 hover:opacity-80 transition-opacity"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -355,15 +355,15 @@ export default function StandardFormPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="flex flex-col fluid-gap-6">
           {/* Información General */}
           <div className="card">
-            <h2 className="text-xl font-semibold mb-4">Información General</h2>
+            <h2 className="fluid-text-xl font-semibold fluid-mb-4">Información General</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
               {/* Código */}
               <div>
-                <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="code" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                   Código del Estándar <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -378,19 +378,19 @@ export default function StandardFormPage() {
                   className={`input ${codeError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''} ${isEditing ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 />
                 {codeError && (
-                  <p className="text-red-600 text-xs mt-1 font-medium">{codeError}</p>
+                  <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{codeError}</p>
                 )}
                 {!codeError && formData.code.trim() && formData.code.length >= 3 && (
-                  <p className="text-green-600 text-xs mt-1 font-medium">✓ Código válido</p>
+                  <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Código válido</p>
                 )}
                 {!codeError && !formData.code.trim() && (
-                  <p className="text-gray-500 text-xs mt-1">Código único del estándar (no se puede modificar después)</p>
+                  <p className="text-gray-500 fluid-text-xs fluid-mt-1">Código único del estándar (no se puede modificar después)</p>
                 )}
               </div>
 
               {/* Nombre */}
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="name" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                   Nombre del Estándar <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -404,16 +404,16 @@ export default function StandardFormPage() {
                   className={`input ${nameError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                 />
                 {nameError && (
-                  <p className="text-red-600 text-xs mt-1 font-medium">{nameError}</p>
+                  <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{nameError}</p>
                 )}
                 {!nameError && formData.name.trim() && formData.name.length >= 5 && (
-                  <p className="text-green-600 text-xs mt-1 font-medium">✓ Nombre válido</p>
+                  <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Nombre válido</p>
                 )}
               </div>
 
               {/* Descripción - Ancho completo */}
               <div className="md:col-span-2">
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="description" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                   Descripción
                 </label>
                 <textarea
@@ -425,19 +425,19 @@ export default function StandardFormPage() {
                   placeholder="Describe el propósito y alcance del estándar..."
                   className="input"
                 />
-                <p className="text-gray-500 text-xs mt-1">Opcional. Describe brevemente qué competencias evalúa este estándar.</p>
+                <p className="text-gray-500 fluid-text-xs fluid-mt-1">Opcional. Describe brevemente qué competencias evalúa este estándar.</p>
               </div>
             </div>
           </div>
 
           {/* Clasificación */}
           <div className="card">
-            <h2 className="text-xl font-semibold mb-4">Clasificación</h2>
+            <h2 className="fluid-text-xl font-semibold fluid-mb-4">Clasificación</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
               {/* Sector */}
               <div>
-                <label htmlFor="sector" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="sector" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                   Sector Productivo <span className="text-red-600">*</span>
                 </label>
                 <select
@@ -456,16 +456,16 @@ export default function StandardFormPage() {
                   ))}
                 </select>
                 {sectorError && (
-                  <p className="text-red-600 text-xs mt-1 font-medium">{sectorError}</p>
+                  <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{sectorError}</p>
                 )}
                 {!sectorError && formData.sector && (
-                  <p className="text-green-600 text-xs mt-1 font-medium">✓ Sector seleccionado</p>
+                  <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Sector seleccionado</p>
                 )}
               </div>
 
               {/* Nivel */}
               <div>
-                <label htmlFor="level" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="level" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                   Nivel de Competencia <span className="text-red-600">*</span>
                 </label>
                 <select
@@ -484,10 +484,10 @@ export default function StandardFormPage() {
                   <option value="5">Nivel 5 - Competencias expertas</option>
                 </select>
                 {levelError && (
-                  <p className="text-red-600 text-xs mt-1 font-medium">{levelError}</p>
+                  <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{levelError}</p>
                 )}
                 {!levelError && formData.level && (
-                  <p className="text-green-600 text-xs mt-1 font-medium">✓ Nivel seleccionado</p>
+                  <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Nivel seleccionado</p>
                 )}
               </div>
             </div>
@@ -495,12 +495,12 @@ export default function StandardFormPage() {
 
           {/* Vigencia y Certificación */}
           <div className="card">
-            <h2 className="text-xl font-semibold mb-4">Vigencia y Certificación</h2>
+            <h2 className="fluid-text-xl font-semibold fluid-mb-4">Vigencia y Certificación</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
               {/* Años de vigencia */}
               <div>
-                <label htmlFor="validity_years" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="validity_years" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                   Vigencia del Certificado
                 </label>
                 <select
@@ -516,12 +516,12 @@ export default function StandardFormPage() {
                     </option>
                   ))}
                 </select>
-                <p className="text-gray-500 text-xs mt-1">Tiempo de validez del certificado una vez obtenido</p>
+                <p className="text-gray-500 fluid-text-xs fluid-mt-1">Tiempo de validez del certificado una vez obtenido</p>
               </div>
 
               {/* Centro Evaluador */}
               <div>
-                <label htmlFor="certifying_body" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="certifying_body" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                   Centro Evaluador <span className="text-red-600">*</span>
                 </label>
                 <select
@@ -540,17 +540,17 @@ export default function StandardFormPage() {
                   ))}
                 </select>
                 {certifyingBodyError && (
-                  <p className="text-red-600 text-xs mt-1 font-medium">{certifyingBodyError}</p>
+                  <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{certifyingBodyError}</p>
                 )}
                 {!certifyingBodyError && formData.certifying_body && (
-                  <p className="text-green-600 text-xs mt-1 font-medium">✓ Centro seleccionado</p>
+                  <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Centro seleccionado</p>
                 )}
               </div>
             </div>
           </div>
 
           {/* Botones */}
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex justify-end fluid-gap-3 fluid-pt-4">
             <button
               type="button"
               onClick={() => navigate('/standards')}
@@ -573,7 +573,7 @@ export default function StandardFormPage() {
       {/* Modal de Validación */}
       {showValidationModal && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4" 
           onClick={() => setShowValidationModal(false)}
         >
           <div 
@@ -581,28 +581,28 @@ export default function StandardFormPage() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header del modal */}
-            <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 fluid-px-6 fluid-py-4">
               <div className="flex items-center">
-                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mr-3">
+                <div className="flex-shrink-0 w-10 h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-white">Campos Requeridos</h3>
+                <h3 className="fluid-text-xl font-bold text-white">Campos Requeridos</h3>
               </div>
             </div>
             
             {/* Contenido del modal */}
-            <div className="p-6">
-              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 mb-4">
+            <div className="fluid-p-6">
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-fluid-xl fluid-p-4 fluid-mb-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
                     <svg className="h-5 w-5 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-amber-800 font-semibold">
+                  <div className="fluid-ml-3">
+                    <p className="fluid-text-sm text-amber-800 font-semibold">
                       Por favor completa los siguientes campos obligatorios:
                     </p>
                   </div>
@@ -610,13 +610,13 @@ export default function StandardFormPage() {
               </div>
 
               {/* Lista de campos faltantes */}
-              <ul className="space-y-2 mb-6">
+              <ul className="flex flex-col fluid-gap-2 fluid-mb-6">
                 {validationErrors.map((error, index) => (
                   <li key={index} className="flex items-center text-gray-700">
-                    <svg className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-red-500 fluid-mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                    <span className="text-sm">{error}</span>
+                    <span className="fluid-text-sm">{error}</span>
                   </li>
                 ))}
               </ul>
@@ -626,7 +626,7 @@ export default function StandardFormPage() {
                 <button
                   type="button"
                   onClick={() => setShowValidationModal(false)}
-                  className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all duration-200 shadow-md hover:shadow-lg"
+                  className="fluid-px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold rounded-fluid-xl hover:from-amber-600 hover:to-orange-600 transition-all duration-200 shadow-md hover:shadow-lg"
                 >
                   Entendido
                 </button>

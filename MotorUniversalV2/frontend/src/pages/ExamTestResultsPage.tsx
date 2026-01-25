@@ -167,19 +167,19 @@ const ExamTestResultsPage: React.FC = () => {
     console.error('❌ No se encontraron resultados de evaluación en el estado:', state);
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center overflow-x-hidden overscroll-contain">
-        <div className="text-center p-8 max-w-md">
-          <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Error al cargar resultados</h2>
-          <p className="text-gray-600 mb-4">No se pudieron obtener los resultados de la evaluación.</p>
+        <div className="text-center fluid-p-8 max-w-md">
+          <AlertCircle className="fluid-icon-xl text-yellow-500 mx-auto fluid-mb-4" />
+          <h2 className="fluid-text-xl font-bold text-gray-900 fluid-mb-2">Error al cargar resultados</h2>
+          <p className="text-gray-600 fluid-mb-4">No se pudieron obtener los resultados de la evaluación.</p>
           {state?.answers && (
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="fluid-text-sm text-gray-500 fluid-mb-4">
               Se recibieron respuestas pero no los resultados evaluados.
               Por favor, intenta nuevamente.
             </p>
           )}
           <button
             onClick={() => navigate('/test-exams')}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+            className="fluid-px-4 fluid-py-2 bg-primary-600 text-white rounded-fluid-lg hover:bg-primary-700"
           >
             Volver a exámenes
           </button>
@@ -292,7 +292,7 @@ const ExamTestResultsPage: React.FC = () => {
           (result.user_answer || []).map(String).includes(String(a.id))
         );
         return (
-          <div className="space-y-1">
+          <div className="flex flex-col fluid-gap-1">
             {selectedAnswers?.map((a: any) => (
               <div
                 key={a.id}
@@ -309,8 +309,8 @@ const ExamTestResultsPage: React.FC = () => {
         const orderedAnswers = (result.user_answer || []).map((id: string, index: number) => {
           const answer = result.answers?.find((a: any) => String(a.id) === String(id));
           return (
-            <div key={id} className="flex items-center text-sm mb-1">
-              <span className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs font-medium mr-2">
+            <div key={id} className="flex items-center fluid-text-sm fluid-mb-1">
+              <span className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs font-medium fluid-mr-2">
                 {index + 1}
               </span>
               <span dangerouslySetInnerHTML={{ __html: answer?.answer_text || id }} />
@@ -325,14 +325,14 @@ const ExamTestResultsPage: React.FC = () => {
         const allAnswers = result.answers || [];
         
         return (
-          <div className="space-y-1">
+          <div className="flex flex-col fluid-gap-1">
             {Object.entries(userAnswer).map(([blankId, answerId]) => {
               const answer = allAnswers.find((a: any) => String(a.id) === String(answerId));
               const correctAnswer = allAnswers.find((a: any) => a.correct_answer === blankId);
               const isCorrect = String(answerId) === String(correctAnswer?.id);
               
               return (
-                <div key={blankId} className="flex items-center gap-2 text-sm">
+                <div key={blankId} className="flex items-center fluid-gap-2 fluid-text-sm">
                   <span className="px-2 py-0.5 bg-gray-200 rounded text-xs font-mono">
                     {blankId.replace('blank_', 'Espacio ')}
                   </span>
@@ -362,7 +362,7 @@ const ExamTestResultsPage: React.FC = () => {
         }
         
         return (
-          <div className="space-y-3">
+          <div className="flex flex-col fluid-gap-3">
             {userColumns.map((columnId) => {
               const itemIds = userColAnswer[columnId] || [];
               const items = itemIds.map((id: string) => 
@@ -370,13 +370,13 @@ const ExamTestResultsPage: React.FC = () => {
               ).filter(Boolean);
               
               return (
-                <div key={columnId} className="border rounded-lg overflow-hidden">
-                  <div className="bg-gray-100 px-3 py-1.5 font-medium text-sm text-gray-700">
+                <div key={columnId} className="border rounded-fluid-lg overflow-hidden">
+                  <div className="bg-gray-100 fluid-px-3 py-1.5 font-medium fluid-text-sm text-gray-700">
                     {columnId.replace('columna_', 'Columna ').replace(/_/g, ' ')}
                   </div>
-                  <div className="px-3 py-2">
+                  <div className="fluid-px-3 fluid-py-2">
                     {items.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap fluid-gap-1">
                         {items.map((item: any) => {
                           const isCorrect = item.correct_answer === columnId;
                           return (
@@ -431,7 +431,7 @@ const ExamTestResultsPage: React.FC = () => {
           ? result.correct_answers_text
           : result.answers?.filter((a: any) => a.is_correct).map((a: any) => a.answer_text) || [];
         return (
-          <ul className="list-disc list-inside space-y-1">
+          <ul className="list-disc list-inside flex flex-col fluid-gap-1">
             {correctTexts.map((text: string, index: number) => (
               <li key={index} className="text-sm font-bold">
                 <span dangerouslySetInnerHTML={{ __html: text }} />
@@ -450,9 +450,9 @@ const ExamTestResultsPage: React.FC = () => {
               .sort((a: any, b: any) => (a.answer_number || 0) - (b.answer_number || 0))
               .map((a: any) => a.answer_text) || [];
         return (
-          <div className="space-y-1">
+          <div className="flex flex-col fluid-gap-1">
             {orderedTexts.map((text: string, index: number) => (
-              <div key={index} className="flex items-center text-sm">
+              <div key={index} className="flex items-center fluid-text-sm">
                 <span className="w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xs font-bold mr-2">
                   {index + 1}
                 </span>
@@ -474,9 +474,9 @@ const ExamTestResultsPage: React.FC = () => {
         });
         
         return (
-          <div className="space-y-1">
+          <div className="flex flex-col fluid-gap-1">
             {Array.from(blanksMap.entries()).map(([blankId, answer]) => (
-              <div key={blankId} className="flex items-center gap-2 text-sm">
+              <div key={blankId} className="flex items-center fluid-gap-2 fluid-text-sm">
                 <span className="px-2 py-0.5 bg-gray-200 rounded text-xs font-mono">
                   {blankId.replace('blank_', 'Espacio ')}
                 </span>
@@ -512,17 +512,17 @@ const ExamTestResultsPage: React.FC = () => {
         }
         
         return (
-          <div className="space-y-3">
+          <div className="flex flex-col fluid-gap-3">
             {columns.map((columnId) => {
               const items = columnGroups[columnId] || [];
               
               return (
-                <div key={columnId} className="border border-green-200 rounded-lg overflow-hidden">
-                  <div className="bg-green-100 px-3 py-1.5 font-bold text-sm text-green-800">
+                <div key={columnId} className="border border-green-200 rounded-fluid-lg overflow-hidden">
+                  <div className="bg-green-100 fluid-px-3 py-1.5 font-bold fluid-text-sm text-green-800">
                     {columnId.replace('columna_', 'Columna ').replace(/_/g, ' ')}
                   </div>
-                  <div className="px-3 py-2 bg-green-50">
-                    <div className="flex flex-wrap gap-1">
+                  <div className="fluid-px-3 fluid-py-2 bg-green-50">
+                    <div className="flex flex-wrap fluid-gap-1">
                       {items.map((item: any) => (
                         <span 
                           key={item.id}
@@ -723,13 +723,13 @@ const ExamTestResultsPage: React.FC = () => {
               <p className="fluid-text-sm text-gray-500 mt-1">Puntaje obtenido por categoría y tema</p>
             </div>
             <div className="fluid-p-5">
-              <div className="space-y-6">
+              <div className="flex flex-col fluid-gap-6">
                 {Object.entries(summary.evaluation_breakdown).map(([categoryName, categoryData], catIndex) => (
-                  <div key={categoryName} className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div key={categoryName} className="border border-gray-200 rounded-fluid-lg overflow-hidden">
                     {/* Categoría */}
-                    <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="w-8 h-8 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-sm font-bold">
+                    <div className="bg-gray-50 fluid-px-4 fluid-py-3 flex items-center justify-between">
+                      <div className="flex items-center fluid-gap-3">
+                        <span className="w-8 h-8 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center fluid-text-sm font-bold">
                           {catIndex + 1}
                         </span>
                         <span className="font-semibold text-gray-800">{categoryName}</span>
@@ -778,12 +778,12 @@ const ExamTestResultsPage: React.FC = () => {
               </div>
               
               {/* Nota sobre puntuación parcial */}
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="fluid-mt-4 fluid-p-4 bg-blue-50 border border-blue-200 rounded-fluid-lg">
                 <div className="flex items-start">
-                  <AlertCircle className="w-5 h-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-blue-800">
-                    <p className="font-semibold mb-1">Acerca de los puntajes:</p>
-                    <ul className="list-disc list-inside space-y-1 text-blue-700">
+                  <AlertCircle className="fluid-icon text-blue-600 fluid-mr-2 flex-shrink-0 mt-0.5" />
+                  <div className="fluid-text-sm text-blue-800">
+                    <p className="font-semibold fluid-mb-1">Acerca de los puntajes:</p>
+                    <ul className="list-disc list-inside flex flex-col fluid-gap-1 text-blue-700">
                       <li>Las preguntas de <strong>ordenamiento</strong> otorgan puntos parciales por cada posición correcta.</li>
                       <li>Las preguntas de <strong>selección múltiple</strong> otorgan puntos parciales según las respuestas correctas seleccionadas.</li>
                       <li>Los <strong>ejercicios</strong> otorgan puntos por cada acción completada correctamente.</li>
@@ -837,13 +837,13 @@ const ExamTestResultsPage: React.FC = () => {
                       </div>
                       
                       <div
-                        className="prose prose-sm max-w-none mb-4 text-gray-800"
+                        className="prose prose-sm max-w-none fluid-mb-4 text-gray-800"
                         dangerouslySetInnerHTML={{ __html: result.question_text }}
                       />
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                        <div className={`p-4 rounded-xl ${result.is_correct ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-                          <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                      <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4 fluid-mt-4">
+                        <div className={`fluid-p-4 rounded-fluid-xl ${result.is_correct ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                          <p className="fluid-text-sm font-semibold text-gray-700 fluid-mb-2 flex items-center">
                             <span className={`w-2 h-2 rounded-full mr-2 ${result.is_correct ? 'bg-green-500' : 'bg-red-500'}`} />
                             Tu respuesta:
                           </p>
@@ -853,9 +853,9 @@ const ExamTestResultsPage: React.FC = () => {
                         </div>
 
                         {!result.is_correct && (
-                          <div className="p-4 rounded-xl bg-green-50 border border-green-200">
-                            <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                              <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                          <div className="fluid-p-4 rounded-fluid-xl bg-green-50 border border-green-200">
+                            <p className="fluid-text-sm font-semibold text-gray-700 fluid-mb-2 flex items-center">
+                              <CheckCircle className="fluid-icon-sm text-green-500 fluid-mr-2" />
                               Respuesta correcta:
                             </p>
                             <div className="text-green-900">
@@ -866,12 +866,12 @@ const ExamTestResultsPage: React.FC = () => {
                       </div>
 
                       {result.explanation && (
-                        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                        <div className="fluid-mt-4 fluid-p-4 bg-blue-50 border border-blue-200 rounded-fluid-xl">
                           <div className="flex items-start">
-                            <AlertCircle className="w-5 h-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+                            <AlertCircle className="fluid-icon text-blue-600 fluid-mr-2 flex-shrink-0 mt-0.5" />
                             <div>
-                              <p className="text-sm font-semibold text-blue-900 mb-1">Explicación:</p>
-                              <p className="text-sm text-blue-800">{result.explanation}</p>
+                              <p className="fluid-text-sm font-semibold text-blue-900 fluid-mb-1">Explicación:</p>
+                              <p className="fluid-text-sm text-blue-800">{result.explanation}</p>
                             </div>
                           </div>
                         </div>
@@ -905,29 +905,29 @@ const ExamTestResultsPage: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between fluid-mb-3">
                         <div className="flex items-center fluid-gap-3">
-                          <span className="text-sm font-bold text-gray-900 bg-gray-100 px-3 py-1 rounded-full">
+                          <span className="fluid-text-sm font-bold text-gray-900 bg-gray-100 fluid-px-3 fluid-py-1 rounded-full">
                             Ejercicio {index + 1}
                           </span>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          <span className="inline-flex items-center fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium bg-purple-100 text-purple-800">
                             {exercise.total_score}/{exercise.max_score} acciones correctas
                           </span>
                         </div>
                         <button
                           onClick={() => toggleExercise(exercise.exercise_id)}
-                          className="text-gray-500 hover:text-gray-700 p-1"
+                          className="text-gray-500 hover:text-gray-700 fluid-p-1"
                         >
                           {expandedExercises[exercise.exercise_id] ? (
-                            <ChevronUp className="w-5 h-5" />
+                            <ChevronUp className="fluid-icon" />
                           ) : (
-                            <ChevronDown className="w-5 h-5" />
+                            <ChevronDown className="fluid-icon" />
                           )}
                         </button>
                       </div>
                       
-                      <h3 className="text-lg font-medium text-gray-800 mb-2">{exercise.title}</h3>
+                      <h3 className="fluid-text-lg font-medium text-gray-800 fluid-mb-2">{exercise.title}</h3>
                       
                       {/* Barra de progreso */}
-                      <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+                      <div className="w-full bg-gray-200 rounded-full h-2 fluid-mb-4">
                         <div
                           className={`h-2 rounded-full transition-all ${
                             exercise.is_correct ? 'bg-purple-500' : 'bg-amber-500'
@@ -938,10 +938,10 @@ const ExamTestResultsPage: React.FC = () => {
 
                       {/* Detalle de pasos y acciones */}
                       {expandedExercises[exercise.exercise_id] && (
-                        <div className="mt-4 space-y-4">
+                        <div className="fluid-mt-4 flex flex-col fluid-gap-4">
                           {exercise.steps.map((step) => (
-                            <div key={step.step_id} className="bg-gray-50 rounded-lg p-4">
-                              <div className="flex items-center gap-2 mb-3">
+                            <div key={step.step_id} className="bg-gray-50 rounded-fluid-lg fluid-p-4">
+                              <div className="flex items-center fluid-gap-2 fluid-mb-3">
                                 <span className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-xs font-bold">
                                   {step.step_number}
                                 </span>
@@ -949,32 +949,32 @@ const ExamTestResultsPage: React.FC = () => {
                                   {step.title || `Paso ${step.step_number}`}
                                 </span>
                                 {step.is_correct ? (
-                                  <CheckCircle className="w-4 h-4 text-green-500 ml-auto" />
+                                  <CheckCircle className="fluid-icon-sm text-green-500 ml-auto" />
                                 ) : (
-                                  <XCircle className="w-4 h-4 text-red-500 ml-auto" />
+                                  <XCircle className="fluid-icon-sm text-red-500 ml-auto" />
                                 )}
                               </div>
                               
-                              <div className="space-y-2 ml-8">
+                              <div className="flex flex-col fluid-gap-2 ml-8">
                                 {step.actions.map((action) => (
                                   <div
                                     key={action.action_id}
-                                    className={`flex items-center justify-between p-3 rounded-lg ${
+                                    className={`flex items-center justify-between fluid-p-3 rounded-fluid-lg ${
                                       action.is_correct ? 'bg-green-50' : 'bg-red-50'
                                     }`}
                                   >
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center fluid-gap-3">
                                       {action.action_type === 'button' ? (
-                                        <MousePointer className="w-4 h-4 text-gray-500" />
+                                        <MousePointer className="fluid-icon-sm text-gray-500" />
                                       ) : (
-                                        <Type className="w-4 h-4 text-gray-500" />
+                                        <Type className="fluid-icon-sm text-gray-500" />
                                       )}
                                       <div>
-                                        <span className="text-sm font-medium text-gray-700">
+                                        <span className="fluid-text-sm font-medium text-gray-700">
                                           {action.action_type === 'button' ? 'Clic' : 'Texto'} #{action.action_number}
                                         </span>
                                         {action.action_type === 'textbox' && (
-                                          <div className="text-xs text-gray-600 mt-1">
+                                          <div className="fluid-text-xs text-gray-600 mt-1">
                                             <span className="font-medium">Tu respuesta:</span> "{action.user_response || '(vacío)'}"
                                             {!action.is_correct && (
                                               <>
@@ -990,16 +990,16 @@ const ExamTestResultsPage: React.FC = () => {
                                           </div>
                                         )}
                                         {action.action_type === 'button' && (
-                                          <div className="text-xs text-gray-600 mt-1">
+                                          <div className="fluid-text-xs text-gray-600 mt-1">
                                             {action.user_response ? 'Clickeado' : 'No clickeado'}
                                           </div>
                                         )}
                                       </div>
                                     </div>
                                     {action.is_correct ? (
-                                      <CheckCircle className="w-5 h-5 text-green-600" />
+                                      <CheckCircle className="fluid-icon text-green-600" />
                                     ) : (
-                                      <XCircle className="w-5 h-5 text-red-600" />
+                                      <XCircle className="fluid-icon text-red-600" />
                                     )}
                                   </div>
                                 ))}

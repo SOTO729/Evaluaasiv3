@@ -1252,41 +1252,41 @@ const StudyContentPreviewPage: React.FC = () => {
     <div className="bg-white flex flex-col h-screen overflow-hidden">
       {/* Header minimalista - responsivo */}
       <header className="bg-white border-b border-gray-200 flex-shrink-0 z-40">
-        <div className="max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto flex items-center justify-between px-2 sm:px-3 md:px-4 lg:px-6 xl:px-8 2xl:px-10 3xl:px-12 4xl:px-14 h-10 sm:h-11 md:h-12 lg:h-14 xl:h-16 2xl:h-18 3xl:h-20 4xl:h-22">
-          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 lg:gap-4 flex-1 min-w-0">
+        <div className="fluid-container-full mx-auto flex items-center justify-between fluid-px-4 fluid-header-height">
+          <div className="flex items-center fluid-gap-3 flex-1 min-w-0">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors lg:hidden flex-shrink-0"
+              className="fluid-p-2 hover:bg-gray-100 rounded-lg transition-colors lg:hidden flex-shrink-0"
             >
-              {sidebarOpen ? <X className="w-4 h-4 sm:w-5 sm:h-5" /> : <Menu className="w-4 h-4 sm:w-5 sm:h-5" />}
+              {sidebarOpen ? <X className="fluid-icon-sm" /> : <Menu className="fluid-icon-sm" />}
             </button>
             <button
               onClick={() => navigate(`/study-contents/${materialId}`)}
-              className="flex items-center gap-1 sm:gap-1.5 md:gap-2 lg:gap-2.5 text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0"
+              className="flex items-center fluid-gap-2 text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0"
             >
-              <ArrowLeft className="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5 xl:w-6 xl:h-6" />
-              <span className="hidden sm:inline font-medium text-xs sm:text-sm md:text-base xl:text-lg">Volver</span>
+              <ArrowLeft className="fluid-icon-sm" />
+              <span className="hidden sm:inline font-medium fluid-text-sm">Volver</span>
             </button>
-            <div className="h-4 sm:h-5 md:h-6 xl:h-7 w-px bg-gray-200 hidden sm:block flex-shrink-0" />
-            <h1 className="font-semibold text-gray-900 truncate text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl 2xl:text-2xl 3xl:text-3xl 4xl:text-4xl max-w-[100px] xs:max-w-[140px] sm:max-w-[180px] md:max-w-[280px] lg:max-w-md xl:max-w-xl 2xl:max-w-2xl 3xl:max-w-3xl 4xl:max-w-4xl">
+            <div className="h-5 w-px bg-gray-200 hidden sm:block flex-shrink-0" />
+            <h1 className="font-semibold text-gray-900 truncate fluid-text-base max-w-[100px] xs:max-w-[140px] sm:max-w-[180px] md:max-w-[280px] lg:max-w-md xl:max-w-xl 2xl:max-w-2xl">
               {material.title}
             </h1>
           </div>
           
-          <div className="flex items-center gap-2 sm:gap-3 md:gap-4 flex-shrink-0">
+          <div className="flex items-center fluid-gap-3 flex-shrink-0">
             {/* Progreso del material - visible en tablet y desktop */}
-            <div className="hidden md:flex items-center gap-2 md:gap-3 xl:gap-4">
-              <div className="w-20 md:w-28 lg:w-36 xl:w-48 2xl:w-56 h-1.5 md:h-2 xl:h-2.5 bg-gray-100 rounded-full overflow-hidden">
+            <div className="hidden md:flex items-center fluid-gap-3">
+              <div className="w-28 lg:w-36 xl:w-48 h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-blue-600 rounded-full transition-all duration-500"
                   style={{ width: `${progressStats.percentage}%` }}
                 />
               </div>
-              <span className="text-xs md:text-sm xl:text-base 2xl:text-lg font-medium text-blue-600">{progressStats.percentage}%</span>
+              <span className="fluid-text-sm font-medium text-blue-600">{progressStats.percentage}%</span>
             </div>
             {/* Progreso compacto en móvil */}
             <div className="flex md:hidden items-center">
-              <span className="text-[10px] sm:text-xs font-medium text-blue-600 bg-blue-50 px-1.5 sm:px-2 py-0.5 rounded-full">{progressStats.percentage}%</span>
+              <span className="fluid-text-xs font-medium text-blue-600 bg-blue-50 fluid-px-2 py-0.5 rounded-full">{progressStats.percentage}%</span>
             </div>
           </div>
         </div>
@@ -1307,11 +1307,11 @@ const StudyContentPreviewPage: React.FC = () => {
           `}
         >
           {/* Header del sidebar - fijo */}
-          <div className="p-3 sm:p-4 border-b border-gray-200 bg-white flex-shrink-0">
-            <div className="text-blue-600 mb-0.5 sm:mb-1">
-              <span className="text-[10px] sm:text-xs font-medium uppercase tracking-wide">Contenido de estudio</span>
+          <div className="fluid-p-4 border-b border-gray-200 bg-white flex-shrink-0">
+            <div className="text-blue-600 fluid-mb-1">
+              <span className="fluid-text-xs font-medium uppercase tracking-wide">Contenido de estudio</span>
             </div>
-            <p className="text-xs sm:text-sm text-gray-500">
+            <p className="fluid-text-xs text-gray-500">
               {material.sessions?.length || 0} sesiones · {getTotalTopics()} temas
             </p>
           </div>
@@ -1410,39 +1410,39 @@ const StudyContentPreviewPage: React.FC = () => {
         <main ref={mainContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden bg-white overscroll-contain" onScroll={handleMainScroll}>
           {/* Header sticky con título y pestañas - más compacto */}
           <div className={`sticky top-0 z-20 bg-white border-b border-gray-100 transition-all duration-300 ease-out ${isScrolled ? 'py-0.5' : ''}`}>
-            <div className={`max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto px-3 sm:px-4 md:px-5 lg:px-6 xl:px-8 2xl:px-10 3xl:px-12 4xl:px-14 transition-all duration-300 ease-out ${isScrolled ? 'pt-0.5 pb-0' : 'pt-2 sm:pt-3 xl:pt-4 3xl:pt-5 4xl:pt-6 pb-0'}`}>
+            <div className={`fluid-container-xl mx-auto fluid-px-4 transition-all duration-300 ease-out ${isScrolled ? 'pt-0.5 pb-0' : 'fluid-py-3 pb-0'}`}>
               {/* Breadcrumb - se oculta al hacer scroll */}
-              <div className={`flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-gray-500 transition-all duration-300 ease-out overflow-hidden ${isScrolled ? 'h-0 opacity-0 mb-0' : 'h-auto opacity-100 mb-1'}`}>
+              <div className={`flex items-center fluid-gap-1 fluid-text-xs text-gray-500 transition-all duration-300 ease-out overflow-hidden ${isScrolled ? 'h-0 opacity-0 mb-0' : 'h-auto opacity-100 fluid-mb-1'}`}>
                 <span className="truncate max-w-[80px] sm:max-w-[120px] md:max-w-none">{currentSession?.title}</span>
                 <ChevronRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" />
                 <span className="text-gray-900 font-medium truncate">{currentTopic?.title}</span>
               </div>
 
               {/* Título del tema - más compacto */}
-              <h1 className={`font-bold text-gray-900 transition-all duration-300 ease-out ${isScrolled ? 'text-[11px] sm:text-xs md:text-sm xl:text-base 3xl:text-lg 4xl:text-xl mb-0' : 'text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl 2xl:text-3xl 3xl:text-4xl 4xl:text-5xl mb-0.5 xl:mb-1 3xl:mb-2'}`}>{currentTopic?.title}</h1>
+              <h1 className={`font-bold text-gray-900 transition-all duration-300 ease-out ${isScrolled ? 'fluid-text-sm mb-0' : 'fluid-text-xl fluid-mb-1'}`}>{currentTopic?.title}</h1>
               {/* Descripción - se oculta al hacer scroll */}
               {currentTopic?.description && (
-                <p className={`text-gray-600 transition-all duration-300 ease-out overflow-hidden ${isScrolled ? 'h-0 opacity-0 mb-0' : 'text-[11px] sm:text-xs md:text-sm xl:text-base 2xl:text-lg h-auto opacity-100 mb-1.5 sm:mb-2 xl:mb-3'}`}>{currentTopic.description}</p>
+                <p className={`text-gray-600 transition-all duration-300 ease-out overflow-hidden ${isScrolled ? 'h-0 opacity-0 mb-0' : 'fluid-text-sm h-auto opacity-100 fluid-mb-2'}`}>{currentTopic.description}</p>
               )}
 
               {/* Tabs de contenido - más compactas */}
-              <div className={`border-b border-gray-200 transition-all duration-300 ease-out ${isScrolled ? 'mb-0 mt-0' : 'mb-1.5 sm:mb-2 md:mb-3 xl:mb-4 mt-1 sm:mt-1.5 md:mt-2 xl:mt-3'}`}>
-                <nav className={`flex overflow-x-auto scrollbar-hide transition-all duration-300 ease-out ${isScrolled ? 'gap-1.5 sm:gap-2 xl:gap-3 3xl:gap-4' : 'gap-2 sm:gap-3 md:gap-5 lg:gap-6 xl:gap-8 2xl:gap-10 3xl:gap-12 4xl:gap-14'}`}>
+              <div className={`border-b border-gray-200 transition-all duration-300 ease-out ${isScrolled ? 'mb-0 mt-0' : 'fluid-mb-3 fluid-mt-2'}`}>
+                <nav className={`flex overflow-x-auto scrollbar-hide transition-all duration-300 ease-out ${isScrolled ? 'fluid-gap-2' : 'fluid-gap-4'}`}>
                   {currentTopic?.allow_reading !== false && (
                     <button
                       onClick={() => handleTabChange('reading')}
-                      className={`text-xs sm:text-sm xl:text-base 2xl:text-lg font-medium border-b-2 transition-colors whitespace-nowrap ${isScrolled ? 'pb-1 sm:pb-1.5 xl:pb-2' : 'pb-1.5 sm:pb-2 xl:pb-3'} ${
+                      className={`fluid-text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${isScrolled ? 'pb-1' : 'fluid-py-2'} ${
                         activeTab === 'reading'
                           ? 'border-blue-600 text-blue-600'
                           : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}
                     >
-                      <div className="flex items-center gap-1 sm:gap-1.5 xl:gap-2">
-                        <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5 xl:w-4 xl:h-4 2xl:w-5 2xl:h-5" />
+                      <div className="flex items-center fluid-gap-1">
+                        <FileText className="fluid-icon-xs" />
                         <span className={isScrolled ? 'hidden sm:inline' : ''}>Lectura</span>
                         {currentTopic?.reading && completedContents.reading.has(currentTopic.reading.id) && (
-                          <span className="flex items-center justify-center w-2 h-2 sm:w-2.5 sm:h-2.5 xl:w-3 xl:h-3 bg-green-500 rounded-full">
-                            <Check className="w-1 h-1 sm:w-1.5 sm:h-1.5 xl:w-2 xl:h-2 text-white" strokeWidth={3} />
+                          <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
+                            <Check className="w-2 h-2 text-white" strokeWidth={3} />
                           </span>
                         )}
                       </div>
@@ -1451,18 +1451,18 @@ const StudyContentPreviewPage: React.FC = () => {
                   {currentTopic?.allow_video !== false && (
                     <button
                       onClick={() => handleTabChange('video')}
-                      className={`text-xs sm:text-sm xl:text-base 2xl:text-lg font-medium border-b-2 transition-colors whitespace-nowrap ${isScrolled ? 'pb-1 sm:pb-1.5 xl:pb-2' : 'pb-1.5 sm:pb-2 xl:pb-3'} ${
+                      className={`fluid-text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${isScrolled ? 'pb-1' : 'fluid-py-2'} ${
                         activeTab === 'video'
                           ? 'border-blue-600 text-blue-600'
                           : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}
                     >
-                      <div className="flex items-center gap-1 sm:gap-1.5 xl:gap-2">
-                        <Video className="w-3 h-3 sm:w-3.5 sm:h-3.5 xl:w-4 xl:h-4 2xl:w-5 2xl:h-5" />
+                      <div className="flex items-center fluid-gap-1">
+                        <Video className="fluid-icon-xs" />
                         <span className={isScrolled ? 'hidden sm:inline' : ''}>Video</span>
                         {currentTopic?.video && completedContents.video.has(currentTopic.video.id) && (
-                          <span className="flex items-center justify-center w-2 h-2 sm:w-2.5 sm:h-2.5 xl:w-3 xl:h-3 bg-green-500 rounded-full">
-                            <Check className="w-1 h-1 sm:w-1.5 sm:h-1.5 xl:w-2 xl:h-2 text-white" strokeWidth={3} />
+                          <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
+                            <Check className="w-2 h-2 text-white" strokeWidth={3} />
                           </span>
                         )}
                       </div>
@@ -1471,18 +1471,18 @@ const StudyContentPreviewPage: React.FC = () => {
                   {currentTopic?.allow_interactive !== false && (
                     <button
                       onClick={() => handleTabChange('interactive')}
-                      className={`text-xs sm:text-sm xl:text-base 2xl:text-lg font-medium border-b-2 transition-colors whitespace-nowrap ${isScrolled ? 'pb-1 sm:pb-1.5 xl:pb-2' : 'pb-1.5 sm:pb-2 xl:pb-3'} ${
+                      className={`fluid-text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${isScrolled ? 'pb-1' : 'fluid-py-2'} ${
                         activeTab === 'interactive'
                           ? 'border-blue-600 text-blue-600'
                           : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}
                     >
-                      <div className="flex items-center gap-1 sm:gap-1.5 xl:gap-2">
-                        <Gamepad2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 xl:w-4 xl:h-4 2xl:w-5 2xl:h-5" />
+                      <div className="flex items-center fluid-gap-1">
+                        <Gamepad2 className="fluid-icon-xs" />
                         <span className={isScrolled ? 'hidden sm:inline' : ''}>Ejercicio</span>
                         {currentTopic?.interactive_exercise && completedContents.interactive.has(currentTopic.interactive_exercise.id) && (
-                          <span className="flex items-center justify-center w-2 h-2 sm:w-2.5 sm:h-2.5 xl:w-3 xl:h-3 bg-green-500 rounded-full">
-                            <Check className="w-1 h-1 sm:w-1.5 sm:h-1.5 xl:w-2 xl:h-2 text-white" strokeWidth={3} />
+                          <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
+                            <Check className="w-2 h-2 text-white" strokeWidth={3} />
                           </span>
                         )}
                       </div>
@@ -1491,18 +1491,18 @@ const StudyContentPreviewPage: React.FC = () => {
                   {currentTopic?.allow_downloadable !== false && (
                     <button
                       onClick={() => handleTabChange('downloadable')}
-                      className={`text-xs sm:text-sm xl:text-base 2xl:text-lg font-medium border-b-2 transition-colors whitespace-nowrap ${isScrolled ? 'pb-1 sm:pb-1.5 xl:pb-2' : 'pb-1.5 sm:pb-2 xl:pb-3'} ${
+                      className={`fluid-text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${isScrolled ? 'pb-1' : 'fluid-py-2'} ${
                         activeTab === 'downloadable'
                           ? 'border-blue-600 text-blue-600'
                           : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}
                     >
-                      <div className="flex items-center gap-1 sm:gap-1.5 xl:gap-2">
-                        <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 xl:w-4 xl:h-4 2xl:w-5 2xl:h-5" />
+                      <div className="flex items-center fluid-gap-1">
+                        <Download className="fluid-icon-xs" />
                         <span className={isScrolled ? 'hidden sm:inline' : ''}>Recursos</span>
                         {currentTopic?.downloadable_exercise && completedContents.downloadable.has(currentTopic.downloadable_exercise.id) && (
-                          <span className="flex items-center justify-center w-2 h-2 sm:w-2.5 sm:h-2.5 xl:w-3 xl:h-3 bg-green-500 rounded-full">
-                            <Check className="w-1 h-1 sm:w-1.5 sm:h-1.5 xl:w-2 xl:h-2 text-white" strokeWidth={3} />
+                          <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
+                            <Check className="w-2 h-2 text-white" strokeWidth={3} />
                           </span>
                         )}
                       </div>
@@ -1514,27 +1514,27 @@ const StudyContentPreviewPage: React.FC = () => {
           </div>
 
           {/* Contenido según tab activa */}
-          <div className="max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl mx-auto px-3 sm:px-4 md:px-5 lg:px-6 xl:px-8 2xl:px-10 pb-16 sm:pb-14 xl:pb-18">
-            <div className="min-h-[200px] sm:min-h-[250px] md:min-h-[300px] lg:min-h-[350px] xl:min-h-[400px] 2xl:min-h-[450px]">
+          <div className="fluid-container-xl mx-auto fluid-px-4 pb-16">
+            <div className="min-h-[300px]">
               {/* Video */}
               {activeTab === 'video' && (
-                <div ref={videoContainerRef} className="max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl 2xl:max-w-4xl">
+                <div ref={videoContainerRef} className="max-w-3xl">
                   {currentTopic?.video ? (
-                    <div className="space-y-2 sm:space-y-2.5">
+                    <div className="flex flex-col fluid-gap-2">
                       {/* Título del video */}
-                      <h2 className="text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl 2xl:text-2xl font-semibold text-gray-900 pb-1 sm:pb-1.5 xl:pb-2 border-b border-gray-300">{currentTopic.video.title}</h2>
+                      <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-py-1 border-b border-gray-300">{currentTopic.video.title}</h2>
                       
                       {/* Video container - responsivo según tipo de video */}
                       {isAzureUrl(currentTopic.video.video_url) ? (
                         // Contenedor para videos de Azure Blob/CDN
-                        <div className="relative w-full bg-black rounded-md sm:rounded-lg lg:rounded-xl overflow-hidden shadow-md">
+                        <div className="relative w-full bg-black rounded-fluid-lg overflow-hidden shadow-md">
                           {/* Wrapper con aspect ratio 16:9, el video usa contain para ajustarse */}
                           <div className="relative w-full aspect-video">
                             {videoUrlLoading ? (
                               <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
                                 <div className="text-center">
                                   <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                                  <p className="text-gray-400 text-[10px] sm:text-xs">Cargando video...</p>
+                                  <p className="text-gray-400 fluid-text-xs">Cargando video...</p>
                                 </div>
                               </div>
                             ) : signedVideoUrl ? (
@@ -1557,7 +1557,7 @@ const StudyContentPreviewPage: React.FC = () => {
                         </div>
                       ) : (
                         // Contenedor para YouTube/Vimeo - aspect ratio 16:9 responsivo
-                        <div className="relative w-full bg-black rounded-md sm:rounded-lg lg:rounded-xl overflow-hidden shadow-md">
+                        <div className="relative w-full bg-black rounded-fluid-lg overflow-hidden shadow-md">
                           {/* Wrapper con aspect ratio 16:9 */}
                           <div className="relative w-full aspect-video">
                             <iframe
@@ -1575,15 +1575,15 @@ const StudyContentPreviewPage: React.FC = () => {
                       {/* Descripción del video - abajo */}
                       {currentTopic.video.description && (
                         <div 
-                          className="pt-2 sm:pt-3 text-gray-600 prose prose-sm max-w-none text-xs sm:text-sm"
+                          className="fluid-pt-2 text-gray-600 prose prose-sm max-w-none fluid-text-sm"
                           dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.video.description) }}
                         />
                       )}
                       
                       {/* Estado de completado del video */}
-                      <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="fluid-mt-3 fluid-pt-3 border-t border-gray-200">
                         {completedContents.video.has(currentTopic.video.id) ? (
-                          <div className="flex items-center justify-center gap-1.5 py-2 px-3 bg-green-50 text-green-700 rounded-md sm:rounded-lg text-xs sm:text-sm">
+                          <div className="flex items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-3 bg-green-50 text-green-700 rounded-fluid-lg fluid-text-sm">
                             <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
                               <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
                             </span>
@@ -1591,23 +1591,23 @@ const StudyContentPreviewPage: React.FC = () => {
                           </div>
                         ) : isAzureUrl(currentTopic.video.video_url) ? (
                           // Para videos blob/CDN - instrucción de ver completo
-                          <div className="flex items-center justify-center gap-1.5 py-2 px-3 bg-gray-50 text-gray-500 rounded-md sm:rounded-lg text-xs sm:text-sm">
-                            <PlayCircle className="w-4 h-4" />
+                          <div className="flex items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-3 bg-gray-50 text-gray-500 rounded-fluid-lg fluid-text-sm">
+                            <PlayCircle className="fluid-icon-sm" />
                             <span>Mira el video completo para marcarlo como completado</span>
                           </div>
                         ) : (
                           // Para YouTube/Vimeo - se marca automáticamente al entrar
-                          <div className="flex items-center justify-center gap-1.5 py-2 px-3 bg-blue-50 text-blue-600 rounded-md sm:rounded-lg text-xs sm:text-sm">
-                            <Video className="w-4 h-4" />
+                          <div className="flex items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-3 bg-blue-50 text-blue-600 rounded-fluid-lg fluid-text-sm">
+                            <Video className="fluid-icon-sm" />
                             <span>Marcando video como completado...</span>
                           </div>
                         )}
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-10 sm:py-14 lg:py-20 text-gray-400">
-                      <Video className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 mb-2 sm:mb-3 text-gray-300" />
-                      <p className="text-sm sm:text-base lg:text-lg">No hay video disponible para este tema</p>
+                    <div className="flex flex-col items-center justify-center fluid-py-8 text-gray-400">
+                      <Video className="fluid-icon-xl fluid-mb-3 text-gray-300" />
+                      <p className="fluid-text-base">No hay video disponible para este tema</p>
                     </div>
                   )}
                 </div>
@@ -1618,9 +1618,9 @@ const StudyContentPreviewPage: React.FC = () => {
                 <div ref={readingContentRef}>
                   {currentTopic?.reading ? (
                     <article className="w-full">
-                      <h2 className="text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl 2xl:text-2xl font-semibold text-gray-900 pb-1 sm:pb-1.5 xl:pb-2 mb-1.5 sm:mb-2 xl:mb-3 border-b border-gray-300">{currentTopic.reading.title}</h2>
+                      <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-py-1 fluid-mb-2 border-b border-gray-300">{currentTopic.reading.title}</h2>
                       <div 
-                        className="reading-content prose prose-sm xl:prose-base 2xl:prose-lg max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 prose-img:max-w-full prose-pre:max-w-full prose-pre:overflow-x-auto [&_img]:rounded-lg [&_img]:my-2 text-xs sm:text-sm xl:text-base 2xl:text-lg"
+                        className="reading-content prose prose-sm max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 prose-img:max-w-full prose-pre:max-w-full prose-pre:overflow-x-auto [&_img]:rounded-lg [&_img]:my-2 fluid-text-sm"
                         dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.reading.content || '') }}
                       />
                       
@@ -1628,26 +1628,26 @@ const StudyContentPreviewPage: React.FC = () => {
                       <div ref={readingEndRef} className="h-1" />
                       
                       {/* Estado de completado de la lectura */}
-                      <div className="mt-4 sm:mt-5 lg:mt-6 xl:mt-8 pt-3 sm:pt-4 xl:pt-5 border-t border-gray-200">
+                      <div className="fluid-mt-4 fluid-pt-4 border-t border-gray-200">
                         {completedContents.reading.has(currentTopic.reading.id) ? (
-                          <div className="flex items-center justify-center gap-1.5 sm:gap-2 xl:gap-3 py-2 sm:py-2.5 xl:py-3 px-3 sm:px-4 xl:px-6 bg-green-50 text-green-700 rounded-md sm:rounded-lg xl:rounded-xl text-xs sm:text-sm xl:text-base 2xl:text-lg">
-                            <span className="flex items-center justify-center w-2.5 h-2.5 sm:w-3 sm:h-3 xl:w-4 xl:h-4 bg-green-500 rounded-full">
-                              <Check className="w-1.5 h-1.5 sm:w-2 sm:h-2 xl:w-2.5 xl:h-2.5 text-white" strokeWidth={3} />
+                          <div className="flex items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-4 bg-green-50 text-green-700 rounded-fluid-lg fluid-text-sm">
+                            <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
+                              <Check className="w-2 h-2 text-white" strokeWidth={3} />
                             </span>
                             <span className="font-medium">Lectura completada</span>
                           </div>
                         ) : (
-                          <div className="flex items-center justify-center gap-1.5 sm:gap-2 xl:gap-3 py-2 sm:py-2.5 xl:py-3 px-3 sm:px-4 xl:px-6 bg-gray-50 text-gray-500 rounded-md sm:rounded-lg xl:rounded-xl text-xs sm:text-sm xl:text-base 2xl:text-lg">
-                            <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 xl:w-5 xl:h-5" />
+                          <div className="flex items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-4 bg-gray-50 text-gray-500 rounded-fluid-lg fluid-text-sm">
+                            <FileText className="fluid-icon-sm" />
                             <span className="text-center">Lee hasta el final para marcar como completada</span>
                           </div>
                         )}
                       </div>
                     </article>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-10 sm:py-14 lg:py-20 xl:py-28 2xl:py-32 text-gray-400">
-                      <FileText className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 xl:w-16 xl:h-16 2xl:w-20 2xl:h-20 mb-2 sm:mb-3 xl:mb-4 text-gray-300" />
-                      <p className="text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl text-center">No hay contenido de lectura para este tema</p>
+                    <div className="flex flex-col items-center justify-center fluid-py-8 text-gray-400">
+                      <FileText className="fluid-icon-xl fluid-mb-3 text-gray-300" />
+                      <p className="fluid-text-base text-center">No hay contenido de lectura para este tema</p>
                     </div>
                   )}
                 </div>
@@ -1658,17 +1658,17 @@ const StudyContentPreviewPage: React.FC = () => {
                 <div>
                   {currentTopic?.downloadable_exercise ? (
                     <article className="w-full">
-                      <h2 className="text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl 2xl:text-2xl font-semibold text-gray-900 pb-1 sm:pb-1.5 xl:pb-2 mb-1.5 sm:mb-2 xl:mb-3 border-b border-gray-300">{currentTopic.downloadable_exercise.title}</h2>
+                      <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-py-1 fluid-mb-2 border-b border-gray-300">{currentTopic.downloadable_exercise.title}</h2>
                       
                       {/* Instrucciones */}
                       {currentTopic.downloadable_exercise.description && (
-                        <div className="bg-gray-50 rounded-md sm:rounded-lg p-2 sm:p-2.5 lg:p-3 border border-gray-200 mb-2 sm:mb-3">
-                          <h3 className="text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1 sm:mb-1.5 flex items-center gap-1">
-                            <FileText className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                        <div className="bg-gray-50 rounded-fluid-lg fluid-p-3 border border-gray-200 fluid-mb-3">
+                          <h3 className="fluid-text-xs font-semibold text-gray-700 uppercase tracking-wide fluid-mb-1 flex items-center fluid-gap-1">
+                            <FileText className="fluid-icon-xs" />
                             Instrucciones
                           </h3>
                           <div 
-                            className="reading-content prose prose-sm max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 text-xs sm:text-sm"
+                            className="reading-content prose prose-sm max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 fluid-text-sm"
                             style={{ wordBreak: 'normal', overflowWrap: 'anywhere' }}
                             dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.downloadable_exercise.description.replace(/\u00a0/g, ' ')) }}
                           />
@@ -1677,29 +1677,29 @@ const StudyContentPreviewPage: React.FC = () => {
                       
                       {/* Botón circular para scroll hacia abajo */}
                       {showDownloadScrollHint && (
-                        <div className="fixed bottom-16 sm:bottom-18 right-3 sm:right-4 z-50">
+                        <div className="fixed bottom-16 right-4 z-50">
                           <button
                             onClick={() => {
                               downloadButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                             }}
-                            className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
+                            className="w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
                             title="Ver sección de descarga"
                           >
-                            <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                            <ChevronDown className="fluid-icon-sm" />
                           </button>
                         </div>
                       )}
                       
                       {/* Botón de descarga */}
-                      <div ref={downloadButtonRef} className="bg-blue-50 rounded-md sm:rounded-lg p-2 sm:p-2.5 lg:p-3 border border-blue-200">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2">
-                          <div className="flex items-center gap-1.5 sm:gap-2">
-                            <div className="p-1 sm:p-1.5 bg-blue-100 rounded-md flex-shrink-0">
-                              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600" />
+                      <div ref={downloadButtonRef} className="bg-blue-50 rounded-fluid-lg fluid-p-3 border border-blue-200">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-2">
+                          <div className="flex items-center fluid-gap-2">
+                            <div className="fluid-p-1 bg-blue-100 rounded-md flex-shrink-0">
+                              <Download className="fluid-icon-sm text-blue-600" />
                             </div>
                             <div className="min-w-0">
-                              <p className="font-medium text-blue-900 text-[11px] sm:text-xs">Archivo listo para descargar</p>
-                              <p className="text-[10px] sm:text-xs text-blue-600 truncate">{currentTopic.downloadable_exercise.file_name}</p>
+                              <p className="font-medium text-blue-900 fluid-text-xs">Archivo listo para descargar</p>
+                              <p className="fluid-text-xs text-blue-600 truncate">{currentTopic.downloadable_exercise.file_name}</p>
                             </div>
                           </div>
                           <a
@@ -1712,9 +1712,9 @@ const StudyContentPreviewPage: React.FC = () => {
                                 markContentCompleted('downloadable', currentTopic.downloadable_exercise.id);
                               }
                             }}
-                            className="px-2 sm:px-2.5 py-1 sm:py-1.5 bg-blue-600 text-white text-[11px] sm:text-xs rounded-md font-medium hover:bg-blue-700 transition-colors flex items-center gap-1 shadow-sm"
+                            className="fluid-px-3 fluid-py-1 bg-blue-600 text-white fluid-text-xs rounded-md font-medium hover:bg-blue-700 transition-colors flex items-center fluid-gap-1 shadow-sm"
                           >
-                            <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                            <Download className="fluid-icon-xs" />
                             Descargar
                           </a>
                         </div>
@@ -1722,18 +1722,18 @@ const StudyContentPreviewPage: React.FC = () => {
                       
                       {/* Estado de completado del descargable */}
                       {completedContents.downloadable.has(currentTopic.downloadable_exercise.id) && (
-                        <div className="mt-2 sm:mt-3 flex items-center justify-center gap-1.5 py-1.5 sm:py-2 px-2 sm:px-3 bg-green-50 text-green-700 rounded-md sm:rounded-lg text-xs">
-                          <span className="flex items-center justify-center w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full">
-                            <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
+                        <div className="fluid-mt-2 flex items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-3 bg-green-50 text-green-700 rounded-fluid-lg fluid-text-xs">
+                          <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
+                            <Check className="w-2 h-2 text-white" strokeWidth={3} />
                           </span>
-                          <span className="font-medium text-[11px] sm:text-xs">Archivo descargado</span>
+                          <span className="font-medium">Archivo descargado</span>
                         </div>
                       )}
                     </article>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-10 sm:py-14 text-gray-400">
-                      <Download className="w-10 h-10 sm:w-12 sm:h-12 mb-2 sm:mb-3 text-gray-300" />
-                      <p className="text-xs sm:text-sm">No hay ejercicio descargable para este tema</p>
+                    <div className="flex flex-col items-center justify-center fluid-py-10 text-gray-400">
+                      <Download className="w-12 h-12 fluid-mb-3 text-gray-300" />
+                      <p className="fluid-text-sm">No hay ejercicio descargable para este tema</p>
                     </div>
                   )}
                 </div>
@@ -1746,17 +1746,17 @@ const StudyContentPreviewPage: React.FC = () => {
                     !exerciseStarted ? (
                       // Vista inicial - Comenzar ejercicio (estilo minimalista)
                       <article className="w-full">
-                        <h2 className="text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl 2xl:text-2xl font-semibold text-gray-900 pb-1 sm:pb-1.5 lg:pb-2 xl:pb-3 mb-1.5 sm:mb-2 lg:mb-3 xl:mb-4 border-b border-gray-300">{currentTopic.interactive_exercise.title}</h2>
+                        <h2 className="fluid-text-base font-semibold text-gray-900 fluid-pb-2 fluid-mb-3 border-b border-gray-300">{currentTopic.interactive_exercise.title}</h2>
                         
                         {/* Instrucciones */}
                         {currentTopic.interactive_exercise.description && (
-                          <div ref={instructionsRef} className="bg-gray-50 rounded-md sm:rounded-lg xl:rounded-xl p-2 sm:p-2.5 lg:p-3 xl:p-4 2xl:p-5 border border-gray-200 mb-2 sm:mb-3 lg:mb-4 xl:mb-5 relative">
-                            <h3 className="text-[10px] sm:text-xs lg:text-sm xl:text-base font-semibold text-gray-700 uppercase tracking-wide mb-1 sm:mb-1.5 lg:mb-2 xl:mb-3 flex items-center gap-1 lg:gap-1.5 xl:gap-2">
-                              <FileText className="w-2.5 h-2.5 sm:w-3 sm:h-3 lg:w-4 lg:h-4 xl:w-5 xl:h-5" />
+                          <div ref={instructionsRef} className="bg-gray-50 rounded-fluid-lg fluid-p-3 border border-gray-200 fluid-mb-4 relative">
+                            <h3 className="fluid-text-xs font-semibold text-gray-700 uppercase tracking-wide fluid-mb-2 flex items-center fluid-gap-2">
+                              <FileText className="fluid-icon-sm" />
                               Instrucciones
                             </h3>
                             <div 
-                              className="reading-content prose prose-sm xl:prose-base 2xl:prose-lg max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 text-xs sm:text-sm lg:text-base xl:text-lg"
+                              className="reading-content prose prose-sm max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 fluid-text-sm"
                               style={{ wordBreak: 'normal', overflowWrap: 'anywhere' }}
                               dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.interactive_exercise.description.replace(/\u00a0/g, ' ')) }}
                             />
@@ -1765,81 +1765,81 @@ const StudyContentPreviewPage: React.FC = () => {
                         
                         {/* Botón circular para scroll hacia abajo - posición fija a la derecha */}
                         {showScrollHint && (
-                          <div className="fixed bottom-16 sm:bottom-18 lg:bottom-20 xl:bottom-24 2xl:bottom-28 right-3 sm:right-4 lg:right-6 xl:right-8 2xl:right-10 z-50">
+                          <div className="fixed bottom-20 right-4 z-50">
                             <button
                               onClick={() => {
                                 startExerciseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                               }}
-                              className="w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 xl:w-10 xl:h-10 2xl:w-12 2xl:h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
+                              className="w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
                               title="Ver sección para iniciar ejercicio"
                             >
-                              <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 xl:w-6 xl:h-6" />
+                              <ChevronDown className="fluid-icon-sm" />
                             </button>
                           </div>
                         )}
                         
                         {/* Botón para comenzar - Diseño llamativo */}
-                        <div ref={startExerciseRef} className="bg-blue-50 rounded-md sm:rounded-lg xl:rounded-xl p-2 sm:p-2.5 lg:p-3 xl:p-4 2xl:p-5 border border-blue-200">
+                        <div ref={startExerciseRef} className="bg-blue-50 rounded-fluid-lg fluid-p-3 border border-blue-200">
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 xl:gap-4">
-                              <div className="p-1 sm:p-1.5 lg:p-2 xl:p-2.5 bg-blue-100 rounded-md lg:rounded-lg">
-                                <Gamepad2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 xl:w-6 xl:h-6 2xl:w-7 2xl:h-7 text-blue-600" />
+                            <div className="flex items-center fluid-gap-3">
+                              <div className="fluid-p-2 bg-blue-100 rounded-fluid-md">
+                                <Gamepad2 className="fluid-icon-md text-blue-600" />
                               </div>
-                              <p className="font-medium text-blue-900 text-[11px] sm:text-xs lg:text-sm xl:text-base 2xl:text-lg">Listo para comenzar</p>
+                              <p className="font-medium text-blue-900 fluid-text-sm">Listo para comenzar</p>
                             </div>
                             <button
                               onClick={startExercise}
                               disabled={!currentTopic.interactive_exercise.steps?.length}
-                              className="px-2 sm:px-3 lg:px-4 xl:px-5 2xl:px-6 py-1 sm:py-1.5 lg:py-2 xl:py-2.5 2xl:py-3 bg-blue-600 text-white text-[11px] sm:text-xs lg:text-sm xl:text-base 2xl:text-lg rounded-md lg:rounded-lg xl:rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center gap-1 lg:gap-1.5 xl:gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="fluid-px-4 fluid-py-2 bg-blue-600 text-white fluid-text-sm rounded-fluid-md font-medium hover:bg-blue-700 transition-colors flex items-center fluid-gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              <PlayCircle className="w-3.5 h-3.5 lg:w-4 lg:h-4 xl:w-5 xl:h-5 2xl:w-6 2xl:h-6" />
+                              <PlayCircle className="fluid-icon-sm" />
                               Comenzar
                             </button>
                           </div>
                         </div>
                         
                         {/* Estado de completado / mejor calificación del ejercicio interactivo */}
-                        <div className="mt-2 sm:mt-3 lg:mt-4 xl:mt-5 pt-2 sm:pt-3 lg:pt-4 xl:pt-5 border-t border-gray-200">
+                        <div className="fluid-mt-4 fluid-pt-4 border-t border-gray-200">
                           {currentTopic.interactive_exercise.id && savedInteractiveScores[currentTopic.interactive_exercise.id] !== undefined ? (
                             savedInteractiveScores[currentTopic.interactive_exercise.id] >= 100 ? (
-                              <div className="flex items-center justify-center gap-1.5 lg:gap-2 xl:gap-3 py-1.5 sm:py-2 lg:py-2.5 xl:py-3 px-2 sm:px-3 lg:px-4 xl:px-5 bg-green-50 text-green-700 rounded-md sm:rounded-lg xl:rounded-xl text-xs lg:text-sm xl:text-base">
-                                <span className="flex items-center justify-center w-2.5 h-2.5 sm:w-3 sm:h-3 lg:w-4 lg:h-4 xl:w-5 xl:h-5 bg-green-500 rounded-full">
-                                  <Check className="w-1.5 h-1.5 sm:w-2 sm:h-2 lg:w-2.5 lg:h-2.5 xl:w-3 xl:h-3 text-white" strokeWidth={3} />
+                              <div className="flex items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-4 bg-green-50 text-green-700 rounded-fluid-lg fluid-text-sm">
+                                <span className="flex items-center justify-center w-4 h-4 bg-green-500 rounded-full">
+                                  <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
                                 </span>
-                                <span className="font-medium text-[11px] sm:text-xs lg:text-sm xl:text-base 2xl:text-lg">Ejercicio completado</span>
-                                <span className="text-green-600 font-bold ml-1 text-[11px] sm:text-xs lg:text-sm xl:text-base 2xl:text-lg">({Math.round(savedInteractiveScores[currentTopic.interactive_exercise.id])}%)</span>
+                                <span className="font-medium fluid-text-sm">Ejercicio completado</span>
+                                <span className="text-green-600 font-bold ml-1 fluid-text-sm">({Math.round(savedInteractiveScores[currentTopic.interactive_exercise.id])}%)</span>
                               </div>
                             ) : (
-                              <div className="flex flex-col sm:flex-row items-center justify-center gap-1 lg:gap-2 py-1.5 sm:py-2 lg:py-2.5 xl:py-3 px-2 sm:px-3 lg:px-4 xl:px-5 bg-amber-50 text-amber-700 rounded-md sm:rounded-lg xl:rounded-xl">
-                                <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 xl:w-6 xl:h-6" />
-                                <span className="text-[10px] sm:text-xs lg:text-sm xl:text-base text-center">Tu mejor calificación: <strong>{Math.round(savedInteractiveScores[currentTopic.interactive_exercise.id])}%</strong> - Obtén 80% o más para completar</span>
+                              <div className="flex flex-col sm:flex-row items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-4 bg-amber-50 text-amber-700 rounded-fluid-lg">
+                                <Target className="fluid-icon-sm" />
+                                <span className="fluid-text-xs text-center">Tu mejor calificación: <strong>{Math.round(savedInteractiveScores[currentTopic.interactive_exercise.id])}%</strong> - Obtén 80% o más para completar</span>
                               </div>
                             )
                           ) : (
-                            <div className="flex flex-col sm:flex-row items-center justify-center gap-1 lg:gap-2 py-1.5 sm:py-2 lg:py-2.5 xl:py-3 px-2 sm:px-3 lg:px-4 xl:px-5 bg-gray-50 text-gray-500 rounded-md sm:rounded-lg xl:rounded-xl">
-                              <Gamepad2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 xl:w-6 xl:h-6" />
-                              <span className="text-[10px] sm:text-xs lg:text-sm xl:text-base text-center">Completa el ejercicio con 80% o más para marcarlo como completado</span>
+                            <div className="flex flex-col sm:flex-row items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-4 bg-gray-50 text-gray-500 rounded-fluid-lg">
+                              <Gamepad2 className="fluid-icon-sm" />
+                              <span className="fluid-text-xs text-center">Completa el ejercicio con 80% o más para marcarlo como completado</span>
                             </div>
                           )}
                         </div>
                         
                         {!currentTopic.interactive_exercise.steps?.length && (
-                          <p className="text-amber-600 text-[10px] sm:text-xs lg:text-sm xl:text-base mt-2 sm:mt-3 lg:mt-4 flex items-center gap-1.5 lg:gap-2">
-                            <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 lg:w-2 lg:h-2 bg-amber-500 rounded-full"></span>
+                          <p className="text-amber-600 fluid-text-xs fluid-mt-3 flex items-center fluid-gap-2">
+                            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
                             Este ejercicio aún no tiene pasos configurados
                           </p>
                         )}
                       </article>
                     ) : exerciseCompleted ? (
                       // Vista de ejercicio completado con calificación
-                      <div className={`rounded-md sm:rounded-lg xl:rounded-xl 2xl:rounded-2xl p-3 sm:p-4 lg:p-6 xl:p-8 2xl:p-10 text-center ${
+                      <div className={`rounded-fluid-lg fluid-p-6 text-center ${
                         exerciseScore && exerciseScore.percentage >= 100 
                           ? 'bg-gradient-to-br from-green-50 to-emerald-50' 
                           : 'bg-gradient-to-br from-amber-50 to-orange-50'
                       }`}>
                         {/* Círculo con calificación */}
-                        <div className="relative inline-flex items-center justify-center mb-2 sm:mb-3 lg:mb-4 xl:mb-6">
-                          <svg className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 xl:w-32 xl:h-32 2xl:w-40 2xl:h-40 transform -rotate-90">
+                        <div className="relative inline-flex items-center justify-center fluid-mb-4">
+                          <svg className="w-24 h-24 transform -rotate-90">
                             <circle
                               cx="50%"
                               cy="50%"
@@ -1862,26 +1862,26 @@ const StudyContentPreviewPage: React.FC = () => {
                             />
                           </svg>
                           <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className={`text-base sm:text-lg lg:text-xl xl:text-2xl 2xl:text-3xl font-bold ${
+                            <span className={`fluid-text-xl font-bold ${
                               exerciseScore && exerciseScore.percentage >= 100 ? 'text-green-600' : 'text-amber-600'
                             }`}>
                               {exerciseScore?.percentage || 0}%
                             </span>
-                            <span className="text-[10px] sm:text-xs lg:text-sm xl:text-base text-gray-500">
+                            <span className="fluid-text-xs text-gray-500">
                               {exerciseScore?.score || 0}/{exerciseScore?.maxScore || 0}
                             </span>
                           </div>
                         </div>
 
-                        <h2 className="text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl font-bold text-gray-900 mb-0.5 sm:mb-1 lg:mb-2">
+                        <h2 className="fluid-text-lg font-bold text-gray-900 fluid-mb-1">
                           {exerciseScore && exerciseScore.percentage >= 100 
                             ? '¡Excelente trabajo!' 
                             : 'Sigue practicando'}
                         </h2>
-                        <p className="text-gray-600 text-[11px] sm:text-xs lg:text-sm xl:text-base 2xl:text-lg mb-0.5 lg:mb-1">
+                        <p className="text-gray-600 fluid-text-sm fluid-mb-1">
                           Has completado el ejercicio "{currentTopic.interactive_exercise.title}"
                         </p>
-                        <p className={`text-[10px] sm:text-xs lg:text-sm xl:text-base mb-2 sm:mb-3 lg:mb-4 xl:mb-5 ${
+                        <p className={`fluid-text-xs fluid-mb-4 ${
                           exerciseScore && exerciseScore.percentage >= 100 ? 'text-green-600' : 'text-amber-600'
                         }`}>
                           {exerciseScore && exerciseScore.percentage >= 100 
@@ -1889,25 +1889,25 @@ const StudyContentPreviewPage: React.FC = () => {
                             : 'Necesitas 100% para completar este ejercicio'}
                         </p>
 
-                        <div className="flex flex-col sm:flex-row justify-center gap-1.5 sm:gap-2 lg:gap-3 xl:gap-4">
+                        <div className="flex flex-col sm:flex-row justify-center fluid-gap-3">
                           <button
                             onClick={resetExerciseState}
-                            className="px-2.5 sm:px-3 lg:px-4 xl:px-6 2xl:px-8 py-1 sm:py-1.5 lg:py-2 xl:py-3 2xl:py-4 bg-white text-gray-700 text-[11px] sm:text-xs lg:text-sm xl:text-base 2xl:text-lg rounded-md sm:rounded-lg xl:rounded-xl font-medium hover:bg-gray-100 transition-colors inline-flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 border border-gray-300"
+                            className="fluid-px-4 fluid-py-2 bg-white text-gray-700 fluid-text-sm rounded-fluid-lg font-medium hover:bg-gray-100 transition-colors inline-flex items-center justify-center fluid-gap-2 border border-gray-300"
                           >
-                            <RotateCcw className="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 xl:w-5 xl:h-5" />
+                            <RotateCcw className="fluid-icon-sm" />
                             Practicar de nuevo
                           </button>
                           {hasNextContent() && (
                             <button
                               onClick={goToNextContent}
-                              className={`px-2.5 sm:px-3 lg:px-4 xl:px-6 2xl:px-8 py-1 sm:py-1.5 lg:py-2 xl:py-3 2xl:py-4 text-white text-[11px] sm:text-xs lg:text-sm xl:text-base 2xl:text-lg rounded-md sm:rounded-lg xl:rounded-xl font-medium transition-colors inline-flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 ${
+                              className={`fluid-px-4 fluid-py-2 text-white fluid-text-sm rounded-fluid-lg font-medium transition-colors inline-flex items-center justify-center fluid-gap-2 ${
                                 exerciseScore && exerciseScore.percentage >= 100 
                                   ? 'bg-green-600 hover:bg-green-700' 
                                   : 'bg-amber-500 hover:bg-amber-600'
                               }`}
                             >
                               Continuar
-                              <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 xl:w-5 xl:h-5" />
+                              <ChevronRight className="fluid-icon-sm" />
                             </button>
                           )}
                         </div>
@@ -1915,7 +1915,7 @@ const StudyContentPreviewPage: React.FC = () => {
                     ) : (
                       // Vista de ejecución del ejercicio - Pasos (diseño profesional)
                       <div 
-                        className="flex flex-col gap-1.5 sm:gap-2 lg:gap-3" 
+                        className="flex flex-col fluid-gap-2" 
                       >
                         {(() => {
                           const steps = currentTopic.interactive_exercise.steps || [];
@@ -1925,9 +1925,9 @@ const StudyContentPreviewPage: React.FC = () => {
 
                           if (!currentStep) {
                             return (
-                              <div className="text-center py-4 sm:py-6 lg:py-8">
-                                <Image className="w-8 h-8 sm:w-10 sm:w-10 lg:w-12 lg:h-12 mx-auto text-gray-300 mb-1.5 sm:mb-2 lg:mb-3" />
-                                <p className="text-gray-500 text-[11px] sm:text-xs lg:text-sm">Este ejercicio no tiene pasos configurados</p>
+                              <div className="text-center fluid-py-6">
+                                <Image className="w-10 h-10 mx-auto text-gray-300 fluid-mb-2" />
+                                <p className="text-gray-500 fluid-text-xs">Este ejercicio no tiene pasos configurados</p>
                               </div>
                             );
                           }
@@ -1935,41 +1935,41 @@ const StudyContentPreviewPage: React.FC = () => {
                           return (
                             <>
                               {/* Header del ejercicio con progreso */}
-                              <div className="bg-white border border-gray-200 rounded-md sm:rounded-lg lg:rounded-xl xl:rounded-2xl shadow-sm overflow-hidden flex-shrink-0">
-                                <div className="flex items-center justify-between px-2 sm:px-3 lg:px-4 xl:px-5 2xl:px-6 py-1.5 sm:py-2 lg:py-3 xl:py-4 2xl:py-5">
-                                  <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 xl:gap-4 min-w-0 flex-1">
-                                    <div className="p-1 sm:p-1.5 lg:p-2 xl:p-2.5 2xl:p-3 bg-blue-100 rounded-md lg:rounded-lg xl:rounded-xl flex-shrink-0">
-                                      <Gamepad2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 xl:w-6 xl:h-6 2xl:w-7 2xl:h-7 text-blue-600" />
+                              <div className="bg-white border border-gray-200 rounded-fluid-lg shadow-sm overflow-hidden flex-shrink-0">
+                                <div className="flex items-center justify-between fluid-px-4 fluid-py-2">
+                                  <div className="flex items-center fluid-gap-3 min-w-0 flex-1">
+                                    <div className="fluid-p-2 bg-blue-100 rounded-fluid-md flex-shrink-0">
+                                      <Gamepad2 className="fluid-icon-md text-blue-600" />
                                     </div>
-                                    <h3 className="font-semibold text-gray-900 text-xs sm:text-sm lg:text-base xl:text-lg 2xl:text-xl truncate">{currentTopic.interactive_exercise.title}</h3>
+                                    <h3 className="font-semibold text-gray-900 fluid-text-base truncate">{currentTopic.interactive_exercise.title}</h3>
                                   </div>
                                   <button
                                     onClick={resetExerciseState}
-                                    className="p-1 sm:p-1.5 lg:p-2 xl:p-2.5 2xl:p-3 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md lg:rounded-lg xl:rounded-xl transition-colors flex-shrink-0"
+                                    className="fluid-p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-fluid-md transition-colors flex-shrink-0"
                                     title="Salir del ejercicio"
                                   >
-                                    <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 xl:w-6 xl:h-6 2xl:w-7 2xl:h-7" />
+                                    <X className="fluid-icon-md" />
                                   </button>
                                 </div>
                               </div>
 
                               {/* Instrucciones del ejercicio - colapsables */}
                               {currentTopic.interactive_exercise.description && (
-                                <div className="bg-blue-50 border border-blue-200 rounded-md sm:rounded-lg lg:rounded-xl xl:rounded-2xl overflow-hidden flex-shrink-0">
+                                <div className="bg-blue-50 border border-blue-200 rounded-fluid-lg overflow-hidden flex-shrink-0">
                                   <button
                                     onClick={() => setInstructionsExpanded(!instructionsExpanded)}
-                                    className="w-full flex items-center justify-between px-2 sm:px-3 lg:px-4 xl:px-5 2xl:px-6 py-1.5 sm:py-2 lg:py-3 xl:py-4 2xl:py-5 hover:bg-blue-100/50 transition-colors"
+                                    className="w-full flex items-center justify-between fluid-px-4 fluid-py-2 hover:bg-blue-100/50 transition-colors"
                                   >
-                                    <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2 xl:gap-3">
-                                      <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 xl:w-5 xl:h-5 2xl:w-6 2xl:h-6 text-blue-600" />
-                                      <span className="text-[11px] sm:text-xs lg:text-sm xl:text-base 2xl:text-lg font-medium text-blue-800">Instrucciones</span>
+                                    <div className="flex items-center fluid-gap-2">
+                                      <FileText className="fluid-icon-sm text-blue-600" />
+                                      <span className="fluid-text-sm font-medium text-blue-800">Instrucciones</span>
                                     </div>
-                                    <ChevronDown className={`w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 xl:w-5 xl:h-5 2xl:w-6 2xl:h-6 text-blue-600 transition-transform ${instructionsExpanded ? 'rotate-180' : ''}`} />
+                                    <ChevronDown className={`fluid-icon-sm text-blue-600 transition-transform ${instructionsExpanded ? 'rotate-180' : ''}`} />
                                   </button>
                                   {instructionsExpanded && (
-                                    <div className="px-2 sm:px-3 lg:px-4 xl:px-5 2xl:px-6 pb-2 sm:pb-3 lg:pb-4 xl:pb-5 2xl:pb-6 border-t border-blue-200">
+                                    <div className="fluid-px-4 fluid-pb-4 border-t border-blue-200">
                                       <div 
-                                        className="prose prose-sm max-w-none text-blue-900 reading-content pt-1.5 sm:pt-2 lg:pt-3 xl:pt-4 text-xs sm:text-sm lg:text-base xl:text-lg"
+                                        className="prose prose-sm max-w-none text-blue-900 reading-content fluid-pt-2 fluid-text-sm"
                                         dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.interactive_exercise.description.replace(/\u00a0/g, ' ')) }}
                                       />
                                     </div>
@@ -1981,7 +1981,7 @@ const StudyContentPreviewPage: React.FC = () => {
                               <div className="flex items-center justify-center">
                                 <div 
                                   ref={imageContainerRef}
-                                  className="relative bg-white rounded-md sm:rounded-lg lg:rounded-xl xl:rounded-2xl border border-gray-200"
+                                  className="relative bg-white rounded-fluid-lg border border-gray-200"
                                 >
                                   {currentStep.image_url ? (
                                     <>
@@ -1989,7 +1989,7 @@ const StudyContentPreviewPage: React.FC = () => {
                                         ref={imageRef}
                                         src={currentStep.image_url}
                                         alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
-                                        className="block rounded-md sm:rounded-lg lg:rounded-xl xl:rounded-2xl"
+                                        className="block rounded-fluid-lg"
                                         style={{
                                           maxHeight: `${getImageMaxHeight()}px`,
                                           maxWidth: 'calc(100vw - 80px)',
@@ -2044,25 +2044,25 @@ const StudyContentPreviewPage: React.FC = () => {
                                       )}
                                     </>
                                   ) : (
-                                    <div className="flex items-center justify-center h-36 sm:h-44 lg:h-52 xl:h-64 2xl:h-80 w-52 sm:w-60 lg:w-72 xl:w-80 2xl:w-96 bg-gray-100">
-                                      <Image className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 xl:w-16 xl:h-16 2xl:w-20 2xl:h-20 text-gray-300" />
+                                    <div className="flex items-center justify-center h-52 w-72 bg-gray-100">
+                                      <Image className="w-14 h-14 text-gray-300" />
                                     </div>
                                   )}
                                 </div>
                               </div>
 
                               {/* Navegación de pasos - estilo profesional */}
-                              <div className="bg-white border border-gray-200 rounded-md sm:rounded-lg lg:rounded-xl xl:rounded-2xl px-2 sm:px-3 lg:px-4 xl:px-5 2xl:px-6 py-1.5 sm:py-2 lg:py-3 xl:py-4 2xl:py-5 flex justify-between items-center shadow-sm flex-shrink-0">
+                              <div className="bg-white border border-gray-200 rounded-fluid-lg fluid-px-4 fluid-py-2 flex justify-between items-center shadow-sm flex-shrink-0">
                                 <button
                                   onClick={() => setCurrentStepIndex(Math.max(0, currentStepIndex - 1))}
                                   disabled={currentStepIndex === 0}
-                                  className={`px-1.5 sm:px-2.5 lg:px-3 xl:px-4 2xl:px-5 py-1 sm:py-1.5 lg:py-2 xl:py-2.5 2xl:py-3 text-[11px] sm:text-xs lg:text-sm xl:text-base 2xl:text-lg font-medium rounded-md lg:rounded-lg xl:rounded-xl flex items-center gap-0.5 sm:gap-1 xl:gap-2 transition-colors ${
+                                  className={`fluid-px-3 fluid-py-1 fluid-text-xs font-medium rounded-fluid-md flex items-center fluid-gap-1 transition-colors ${
                                     currentStepIndex === 0 
                                       ? 'text-gray-300 cursor-not-allowed' 
                                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                                   }`}
                                 >
-                                  <ChevronLeft className="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 xl:w-5 xl:h-5 2xl:w-6 2xl:h-6" />
+                                  <ChevronLeft className="fluid-icon-sm" />
                                   <span className="hidden xs:inline">Paso anterior</span>
                                   <span className="xs:hidden">Atrás</span>
                                 </button>
@@ -2079,11 +2079,11 @@ const StudyContentPreviewPage: React.FC = () => {
                                         setCurrentStepIndex(currentStepIndex + 1);
                                       }, 50);
                                     }}
-                                    className="px-2 sm:px-3 lg:px-4 xl:px-5 2xl:px-6 py-1 sm:py-1.5 lg:py-2 xl:py-2.5 2xl:py-3 text-[11px] sm:text-xs lg:text-sm xl:text-base 2xl:text-lg font-semibold text-white bg-blue-600 rounded-md lg:rounded-lg xl:rounded-xl hover:bg-blue-700 flex items-center gap-0.5 sm:gap-1 xl:gap-2 transition-colors shadow-sm"
+                                    className="fluid-px-4 fluid-py-1 fluid-text-xs font-semibold text-white bg-blue-600 rounded-fluid-md hover:bg-blue-700 flex items-center fluid-gap-1 transition-colors shadow-sm"
                                   >
                                     <span className="hidden xs:inline">Siguiente paso</span>
                                     <span className="xs:hidden">Siguiente</span>
-                                    <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 xl:w-5 xl:h-5 2xl:w-6 2xl:h-6" />
+                                    <ChevronRight className="fluid-icon-sm" />
                                   </button>
                                 ) : (
                                   <button
@@ -2098,9 +2098,9 @@ const StudyContentPreviewPage: React.FC = () => {
                                         completeExercise();
                                       }, 100);
                                     }}
-                                    className="px-2 sm:px-3 lg:px-4 xl:px-5 2xl:px-6 py-1 sm:py-1.5 lg:py-2 xl:py-2.5 2xl:py-3 text-[11px] sm:text-xs lg:text-sm xl:text-base 2xl:text-lg font-semibold text-white bg-green-600 rounded-md lg:rounded-lg xl:rounded-xl hover:bg-green-700 flex items-center gap-0.5 sm:gap-1 xl:gap-2 transition-colors shadow-sm"
+                                    className="fluid-px-4 fluid-py-1 fluid-text-xs font-semibold text-white bg-green-600 rounded-fluid-md hover:bg-green-700 flex items-center fluid-gap-1 transition-colors shadow-sm"
                                   >
-                                    <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 xl:w-5 xl:h-5 2xl:w-6 2xl:h-6" />
+                                    <Check className="fluid-icon-sm" />
                                     <span className="hidden xs:inline">Finalizar ejercicio</span>
                                     <span className="xs:hidden">Finalizar</span>
                                   </button>
@@ -2112,9 +2112,9 @@ const StudyContentPreviewPage: React.FC = () => {
                       </div>
                     )
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-10 sm:py-14 lg:py-20 text-gray-400">
-                      <Gamepad2 className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 mb-2 sm:mb-3 text-gray-300" />
-                      <p className="text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl">No hay ejercicio interactivo para este tema</p>
+                    <div className="flex flex-col items-center justify-center fluid-py-10 text-gray-400">
+                      <Gamepad2 className="w-12 h-12 fluid-mb-3 text-gray-300" />
+                      <p className="fluid-text-base">No hay ejercicio interactivo para este tema</p>
                     </div>
                   )}
                 </div>
@@ -2122,39 +2122,39 @@ const StudyContentPreviewPage: React.FC = () => {
             </div>
 
             {/* Espaciado para la barra fija inferior */}
-            <div className="h-14 sm:h-14 md:h-16 lg:h-18 xl:h-20 2xl:h-24" />
+            <div className="h-16" />
           </div>
         </main>
       </div>
 
       {/* Barra de navegación fija inferior */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
-        <div className="max-w-7xl xl:max-w-[1400px] 2xl:max-w-[1800px] mx-auto px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 2xl:px-12 py-2 sm:py-2.5 md:py-3 xl:py-4 2xl:py-5">
-          <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 md:gap-4 xl:gap-6">
+        <div className="max-w-7xl mx-auto fluid-px-6 fluid-py-3">
+          <div className="flex items-center justify-between sm:justify-end fluid-gap-4">
             <button
               onClick={goToPreviousContent}
               disabled={!hasPreviousContent()}
-              className={`flex items-center gap-1 sm:gap-1.5 xl:gap-2 px-3 sm:px-4 md:px-5 xl:px-6 2xl:px-8 py-1.5 sm:py-2 md:py-2.5 xl:py-3 2xl:py-4 text-xs sm:text-sm md:text-base xl:text-lg 2xl:text-xl rounded-md md:rounded-lg xl:rounded-xl font-medium transition-colors ${
+              className={`flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 fluid-text-sm rounded-fluid-md font-medium transition-colors ${
                 hasPreviousContent()
                   ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
                   : 'bg-gray-50 text-gray-300 border border-gray-200 cursor-not-allowed'
               }`}
             >
-              <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 xl:w-6 xl:h-6" />
+              <ArrowLeft className="fluid-icon-sm" />
               <span className="hidden xs:inline">Atrás</span>
             </button>
 
             <button
               onClick={goToNextContent}
               disabled={!hasNextContent()}
-              className={`flex items-center gap-1 sm:gap-1.5 xl:gap-2 px-3 sm:px-4 md:px-5 xl:px-6 2xl:px-8 py-1.5 sm:py-2 md:py-2.5 xl:py-3 2xl:py-4 text-xs sm:text-sm md:text-base xl:text-lg 2xl:text-xl rounded-md md:rounded-lg xl:rounded-xl font-medium transition-colors ${
+              className={`flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 fluid-text-sm rounded-fluid-md font-medium transition-colors ${
                 hasNextContent()
                   ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
                   : 'bg-gray-100 text-gray-300 cursor-not-allowed'
               }`}
             >
               <span className="hidden xs:inline">Siguiente</span>
-              <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 xl:w-6 xl:h-6" />
+              <ChevronRight className="fluid-icon-sm" />
             </button>
           </div>
         </div>
@@ -2162,26 +2162,26 @@ const StudyContentPreviewPage: React.FC = () => {
 
       {/* Modal de error para ejercicio interactivo */}
       {showErrorModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-3 sm:p-4" onClick={() => setShowErrorModal(null)}>
-          <div className="bg-white rounded-lg sm:rounded-xl shadow-2xl max-w-md sm:max-w-lg w-full mx-3 sm:mx-4 max-h-[85vh] flex flex-col animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] fluid-p-4" onClick={() => setShowErrorModal(null)}>
+          <div className="bg-white rounded-fluid-lg shadow-2xl max-w-lg w-full mx-4 max-h-[85vh] flex flex-col animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
             {/* Header fijo */}
-            <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 pb-2 sm:pb-3 border-b border-gray-100">
-              <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <X className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
+            <div className="flex items-center fluid-gap-3 fluid-p-4 pb-3 border-b border-gray-100">
+              <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <X className="fluid-icon-md text-red-600" />
               </div>
-              <h3 className="text-sm sm:text-base font-semibold text-gray-900">Respuesta incorrecta</h3>
+              <h3 className="fluid-text-base font-semibold text-gray-900">Respuesta incorrecta</h3>
             </div>
             
             {/* Contenido con scroll */}
-            <div className="flex-1 overflow-y-auto p-3 sm:p-4 pt-2 sm:pt-3">
+            <div className="flex-1 overflow-y-auto fluid-p-4 pt-3">
               <div 
-                className="text-gray-600 prose prose-sm max-w-none text-xs sm:text-sm [&>p]:my-1.5 [&>ul]:my-1.5 [&>ol]:my-1.5 [&>h1]:text-sm sm:[&>h1]:text-base [&>h2]:text-xs sm:[&>h2]:text-sm [&>h3]:text-[11px] sm:[&>h3]:text-xs"
+                className="text-gray-600 prose prose-sm max-w-none fluid-text-sm [&>p]:my-1.5 [&>ul]:my-1.5 [&>ol]:my-1.5"
                 dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(showErrorModal.message) }}
               />
             </div>
             
             {/* Footer fijo */}
-            <div className="p-3 sm:p-4 pt-2 sm:pt-3 border-t border-gray-100">
+            <div className="fluid-p-4 pt-3 border-t border-gray-100">
               {(() => {
                 // max_attempts son oportunidades ADICIONALES después del primer error
                 const action = currentTopic?.interactive_exercise?.steps
@@ -2193,7 +2193,7 @@ const StudyContentPreviewPage: React.FC = () => {
                 const remaining = additionalAttempts - usedAttempts + 1;
                 
                 return (
-                  <p className="text-[10px] sm:text-xs text-amber-600 mb-1.5 sm:mb-2 text-center">
+                  <p className="fluid-text-xs text-amber-600 fluid-mb-2 text-center">
                     {remaining > 0 
                       ? `Te ${remaining === 1 ? 'queda' : 'quedan'} ${remaining} ${remaining === 1 ? 'oportunidad' : 'oportunidades'}`
                       : 'No te quedan más oportunidades'
@@ -2203,7 +2203,7 @@ const StudyContentPreviewPage: React.FC = () => {
               })()}
               <button
                 onClick={() => setShowErrorModal(null)}
-                className="w-full px-3 py-1.5 sm:py-2 bg-blue-600 text-white rounded-md sm:rounded-lg font-medium hover:bg-blue-700 transition-colors text-xs sm:text-sm"
+                className="w-full fluid-px-3 fluid-py-2 bg-blue-600 text-white rounded-fluid-md font-medium hover:bg-blue-700 transition-colors fluid-text-sm"
               >
                 Intentar de nuevo
               </button>

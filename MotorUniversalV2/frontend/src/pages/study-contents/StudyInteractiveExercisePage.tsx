@@ -43,9 +43,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 
     xl: 'max-w-6xl'
   };
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4" onClick={onClose}>
-      <div className={`bg-white rounded-lg ${sizeClasses[size]} w-full max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-center p-4 border-b">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] fluid-p-4" onClick={onClose}>
+      <div className={`bg-white rounded-fluid-lg ${sizeClasses[size]} w-full max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center fluid-p-4 border-b">
           <h3 className="text-lg font-bold text-gray-900">{title}</h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -53,7 +53,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 
             </svg>
           </button>
         </div>
-        <div className="p-4">{children}</div>
+        <div className="fluid-p-4">{children}</div>
       </div>
     </div>
   );
@@ -1830,20 +1830,20 @@ const StudyInteractiveExercisePage = () => {
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 lg:px-8 lg:py-5 xl:px-10 xl:py-6 2xl:px-12 2xl:py-7 3xl:px-14 3xl:py-8 4xl:px-16 4xl:py-9 border-b bg-white shadow-sm">
+      <div className="flex items-center justify-between fluid-px-6 fluid-py-4 border-b bg-white shadow-sm">
         <div className="flex items-center gap-4">
           <button
             onClick={handleExitAttempt}
             className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
             title="Volver"
           >
-            <svg className="w-6 h-6 lg:h-8 lg:w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="fluid-icon-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl lg:text-2xl xl:text-3xl 2xl:text-4xl font-semibold text-gray-900">
+              <h1 className="fluid-text-xl font-semibold text-gray-900">
                 {exercise?.title || 'Ejercicio Interactivo'}
               </h1>
               <button

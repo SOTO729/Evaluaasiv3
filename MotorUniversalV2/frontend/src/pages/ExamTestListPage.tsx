@@ -349,35 +349,35 @@ const ExamTestListPage: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16">
+    <div className="fluid-p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6 lg:mb-8 xl:mb-10">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center fluid-gap-4 fluid-mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-gray-800 flex items-center gap-2 lg:gap-3 xl:gap-4">
-            <Play className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12 text-emerald-600" />
+          <h1 className="fluid-text-3xl font-bold text-gray-800 flex items-center fluid-gap-3">
+            <Play className="fluid-icon-lg text-emerald-600" />
             Probar Exámenes
           </h1>
-          <p className="text-gray-600 mt-1 lg:mt-2 text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl">
+          <p className="text-gray-600 fluid-mt-2 fluid-text-base">
             Selecciona un examen para probarlo
           </p>
         </div>
       </div>
 
       {/* Search */}
-      <div className="bg-white rounded-lg xl:rounded-xl shadow p-3 sm:p-4 lg:p-5 xl:p-6 2xl:p-8 mb-4 sm:mb-6 lg:mb-8">
-        <div className="flex gap-2 sm:gap-4 lg:gap-6">
+      <div className="bg-white rounded-fluid-lg shadow fluid-p-4 fluid-mb-6">
+        <div className="flex fluid-gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 lg:left-4 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon text-gray-400" />
             <input
               type="text"
               placeholder="Buscar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 sm:pl-10 lg:pl-12 xl:pl-14 pr-4 py-2 lg:py-3 xl:py-4 2xl:py-5 border border-gray-300 rounded-lg xl:rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl"
+              className="w-full pl-10 pr-4 fluid-py-3 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent fluid-text-base"
             />
           </div>
           <button
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 sm:px-4 lg:px-6 xl:px-8 py-2 lg:py-3 xl:py-4 2xl:py-5 rounded-lg xl:rounded-xl transition-colors text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl"
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 fluid-px-6 fluid-py-3 rounded-fluid-lg transition-colors fluid-text-base"
           >
             Buscar
           </button>
@@ -399,7 +399,7 @@ const ExamTestListPage: React.FC = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 gap-4 sm:gap-6 lg:gap-8 xl:gap-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 fluid-gap-6">
             {exams.map((exam: any) => {
               const totalQuestions = exam.total_questions || 0;
               const totalExercises = exam.total_exercises || 0;
@@ -411,7 +411,7 @@ const ExamTestListPage: React.FC = () => {
                 >
                   {/* Card Image */}
                   <div 
-                    className="relative h-32 sm:h-40 lg:h-44 xl:h-48 2xl:h-56 bg-gradient-to-br from-emerald-500 to-teal-600 cursor-pointer"
+                    className="relative h-40 bg-gradient-to-br from-emerald-500 to-teal-600 cursor-pointer"
                     onClick={() => handleTestExam(exam.id, exam.name, totalQuestions, totalExercises)}
                   >
                     {exam.image_url ? (
@@ -419,16 +419,16 @@ const ExamTestListPage: React.FC = () => {
                         src={exam.image_url}
                         alt={exam.name}
                         className="w-full h-full object-cover"
-                        fallbackIcon={<FileText className="h-12 w-12 sm:h-16 sm:w-16 text-white/50" />}
+                        fallbackIcon={<FileText className="fluid-icon-xl text-white/50" />}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <FileText className="h-12 w-12 sm:h-16 sm:w-16 text-white/50" />
+                        <FileText className="fluid-icon-xl text-white/50" />
                       </div>
                     )}
                     
                     {/* Version Badge */}
-                    <div className="absolute top-2 left-2 sm:top-3 sm:left-3">
+                    <div className="absolute top-3 left-3">
                       <span className="px-2 py-1 rounded-full text-[10px] sm:text-xs font-mono bg-black/30 text-white">
                         {exam.version}
                       </span>
@@ -438,9 +438,9 @@ const ExamTestListPage: React.FC = () => {
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                       <button
                         onClick={() => handleTestExam(exam.id, exam.name, totalQuestions, totalExercises)}
-                        className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-90 group-hover:scale-100 bg-white rounded-full p-3 sm:p-4 shadow-lg hover:shadow-xl"
+                        className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-90 group-hover:scale-100 bg-white rounded-full fluid-p-4 shadow-lg hover:shadow-xl"
                       >
-                        <Play className="h-6 w-6 sm:h-8 sm:w-8 text-emerald-600 ml-0.5 sm:ml-1" />
+                        <Play className="fluid-icon text-emerald-600 ml-0.5" />
                       </button>
                     </div>
                   </div>
@@ -498,27 +498,27 @@ const ExamTestListPage: React.FC = () => {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="mt-4 sm:mt-6 lg:mt-8 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white rounded-lg xl:rounded-xl shadow px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5">
-              <p className="text-xs sm:text-sm lg:text-base xl:text-lg text-gray-600">
+            <div className="fluid-mt-6 flex flex-col sm:flex-row items-center justify-between fluid-gap-3 bg-white rounded-fluid-lg shadow fluid-px-6 fluid-py-4">
+              <p className="fluid-text-sm text-gray-600">
                 {exams.length} de {total}
               </p>
-              <div className="flex items-center gap-2 lg:gap-3">
+              <div className="flex items-center fluid-gap-2">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="p-1.5 sm:p-2 lg:p-3 rounded-lg xl:rounded-xl border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  className="fluid-p-2 rounded-fluid-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
-                  <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6" />
+                  <ChevronLeft className="fluid-icon-sm" />
                 </button>
-                <span className="px-2 sm:px-3 lg:px-4 py-1 lg:py-2 text-xs sm:text-sm lg:text-base xl:text-lg">
+                <span className="fluid-px-3 fluid-py-1 fluid-text-sm">
                   {currentPage} / {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="p-1.5 sm:p-2 lg:p-3 rounded-lg xl:rounded-xl border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  className="fluid-p-2 rounded-fluid-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
-                  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6" />
+                  <ChevronRight className="fluid-icon-sm" />
                 </button>
               </div>
             </div>

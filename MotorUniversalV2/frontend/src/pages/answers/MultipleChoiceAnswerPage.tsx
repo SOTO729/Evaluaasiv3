@@ -226,7 +226,7 @@ const MultipleChoiceAnswerPage = () => {
   if (!question) return <div className="text-center py-12 text-gray-600">Pregunta no encontrada</div>
 
   return (
-    <div className="max-w-4xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16">
+    <div className="max-w-4xl mx-auto fluid-p-6">
       {/* Header */}
       <div className="mb-6">
         <button
@@ -238,8 +238,8 @@ const MultipleChoiceAnswerPage = () => {
           </svg>
           Volver a Preguntas
         </button>
-        <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl 3xl:text-6xl 4xl:text-7xl font-bold text-gray-900 mb-2">Configurar Respuestas - Opción Múltiple</h1>
-        <p className="text-gray-600 lg:text-lg xl:text-xl 2xl:text-2xl 3xl:text-3xl 4xl:text-4xl">Agrega las opciones de respuesta y selecciona la correcta</p>
+        <h1 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-2">Configurar Respuestas - Opción Múltiple</h1>
+        <p className="text-gray-600 fluid-text-base">Agrega las opciones de respuesta y selecciona la correcta</p>
       </div>
 
       {/* Pregunta */}

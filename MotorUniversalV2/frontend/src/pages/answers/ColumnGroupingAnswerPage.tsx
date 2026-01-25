@@ -339,7 +339,7 @@ export const ColumnGroupingAnswerPage = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
           {/* Columna izquierda: Definir columnas */}
           <div className="card">
             <div className="flex justify-between items-start mb-4">

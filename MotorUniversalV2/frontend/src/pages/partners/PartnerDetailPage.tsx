@@ -142,7 +142,7 @@ export default function PartnerDetailPage() {
               />
             ) : (
               <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center">
-                <Building2 className="h-7 w-7 h-8 w-8 h-10 w-10 text-blue-600" />
+                <Building2 className="fluid-icon-xl text-blue-600" />
               </div>
             )}
             <div>

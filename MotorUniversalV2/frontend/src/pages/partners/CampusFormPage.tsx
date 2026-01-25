@@ -166,7 +166,7 @@ export default function CampusFormPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="flex flex-col fluid-gap-6 flex flex-col fluid-gap-6">
+      <form onSubmit={handleSubmit} className="flex flex-col fluid-gap-6">
         {/* Información básica */}
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-6">
           <h2 className="fluid-text-xl font-semibold text-gray-800 fluid-mb-5">
