@@ -524,16 +524,17 @@ const TopicDetailPage = () => {
       <div className="sticky top-0 z-30 bg-gradient-to-b from-gray-50 via-gray-50 to-transparent fluid-pt-4 fluid-pb-2 -mx-4 fluid-px-4 md:-mx-6 md:fluid-px-6">
         {/* Título con fondo destacado */}
         <div className="fluid-mb-4 bg-gradient-to-r from-blue-600 via-cyan-600 to-emerald-600 rounded-fluid-xl fluid-p-5 shadow-lg shadow-blue-500/20">
-          <div className="flex items-center fluid-gap-3">
-            <div className="flex-shrink-0 w-10 h-10 rounded-fluid-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-blue-100 fluid-text-sm font-medium">Tema</p>
-              <h1 className="fluid-text-xl md:fluid-text-2xl font-bold text-white tracking-tight">{topic.name}</h1>
-            </div>
+          <div className="flex items-center justify-between fluid-gap-3">
+            <div className="flex items-center fluid-gap-3">
+              <div className="flex-shrink-0 w-10 h-10 rounded-fluid-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-blue-100 fluid-text-sm font-medium">Tema</p>
+                <h1 className="fluid-text-xl md:fluid-text-2xl font-bold text-white tracking-tight">{topic.name}</h1>
+              </div>
             </div>
             {/* Botón de Porcentajes */}
             {(questions.length > 0 || exercises.length > 0) && (
