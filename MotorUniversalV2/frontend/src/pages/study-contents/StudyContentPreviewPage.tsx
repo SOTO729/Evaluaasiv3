@@ -1676,15 +1676,15 @@ const StudyContentPreviewPage: React.FC = () => {
                       
                       {/* Botón circular para scroll hacia abajo */}
                       {showDownloadScrollHint && (
-                        <div className="fixed bottom-16 right-4 z-50">
+                        <div className="fixed bottom-24 right-4 z-50">
                           <button
                             onClick={() => {
                               downloadButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                             }}
-                            className="fluid-icon-md bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
+                            className="w-[clamp(2.5rem,4vw,3.5rem)] h-[clamp(2.5rem,4vw,3.5rem)] bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
                             title="Ver sección de descarga"
                           >
-                            <ChevronDown className="fluid-icon-sm" />
+                            <ChevronDown className="fluid-icon-lg" />
                           </button>
                         </div>
                       )}
@@ -1764,15 +1764,15 @@ const StudyContentPreviewPage: React.FC = () => {
                         
                         {/* Botón circular para scroll hacia abajo - posición fija a la derecha */}
                         {showScrollHint && (
-                          <div className="fixed bottom-20 right-4 z-50">
+                          <div className="fixed bottom-24 right-4 z-50">
                             <button
                               onClick={() => {
                                 startExerciseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                               }}
-                              className="fluid-icon-md bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
+                              className="w-[clamp(2.5rem,4vw,3.5rem)] h-[clamp(2.5rem,4vw,3.5rem)] bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
                               title="Ver sección para iniciar ejercicio"
                             >
-                              <ChevronDown className="fluid-icon-sm" />
+                              <ChevronDown className="fluid-icon-lg" />
                             </button>
                           </div>
                         )}
