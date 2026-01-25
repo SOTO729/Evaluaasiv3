@@ -2440,6 +2440,37 @@ def evaluate_question(question_data: dict, user_answer: any) -> dict:
         result['correct_count'] = correct_count
         result['total_blanks'] = total_blanks
     
+    elif q_type == 'column_grouping':
+        # Para agrupamiento en columnas
+        # user_answer es un dict {column_id: [answer_id1, answer_id2, ...]}
+        user_columns = user_answer if isinstance(user_answer, dict) else {}
+        
+        # Crear mapa de respuesta correcta: answer_id -> columna correcta
+        correct_column_map = {}
+        for a in answers:
+            column = a.get('correct_answer', '')
+            if column:
+                correct_column_map[str(a.get('id'))] = column
+        
+        # Total de elementos a clasificar
+        total_items = len(correct_column_map)
+        correct_count = 0
+        
+        # Verificar cada elemento clasificado por el usuario
+        for column_id, answer_ids in user_columns.items():
+            if isinstance(answer_ids, list):
+                for answer_id in answer_ids:
+                    answer_id_str = str(answer_id)
+                    # Verificar si este elemento está en la columna correcta
+                    if correct_column_map.get(answer_id_str) == column_id:
+                        correct_count += 1
+        
+        result['is_correct'] = correct_count == total_items and total_items > 0
+        result['correct_answer'] = correct_column_map
+        result['score'] = correct_count / total_items if total_items > 0 else 0
+        result['correct_count'] = correct_count
+        result['total_items'] = total_items
+    
     return result
 
 
