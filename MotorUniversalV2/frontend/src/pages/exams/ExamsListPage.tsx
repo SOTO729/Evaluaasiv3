@@ -65,9 +65,9 @@ const ExamCard = ({
       className="bg-white rounded-fluid-lg shadow-sm overflow-hidden border border-gray-100 group animate-stagger-in relative hover:shadow-lg cursor-pointer transition-all duration-300 flex flex-col"
       style={{ animationDelay: `${index * 50}ms` }}
     >
-      {/* Card Image - rectángulo horizontal (base más larga) */}
+      {/* Card Image - altura fija como en materiales de estudio */}
       <div 
-        className="relative flex-shrink-0 overflow-hidden cursor-pointer aspect-[16/9]"
+        className="relative flex-shrink-0 overflow-hidden cursor-pointer fluid-h-40"
         onClick={handleCardClick}
       >
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-800">
@@ -361,7 +361,7 @@ const ExamsListPage = () => {
         <>
           {/* Para candidatos: mostrar solo grid sin secciones */}
           {isCandidate ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-7 4xl:grid-cols-8 fluid-gap-4 fluid-mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 fluid-gap-6 fluid-mb-8">
               {allExams.map((exam: any, index: number) => (
                 <ExamCard 
                   key={exam.id} 
@@ -383,7 +383,7 @@ const ExamsListPage = () => {
                       {allExams.filter((e: any) => e.is_published).length}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-7 4xl:grid-cols-8 fluid-gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 fluid-gap-6">
                     {allExams.filter((e: any) => e.is_published).map((exam: any, index: number) => (
                       <ExamCard 
                         key={exam.id} 
@@ -405,7 +405,7 @@ const ExamsListPage = () => {
                       {allExams.filter((e: any) => !e.is_published).length}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-7 4xl:grid-cols-8 fluid-gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 fluid-gap-6">
                     {allExams.filter((e: any) => !e.is_published).map((exam: any, index: number) => (
                       <ExamCard 
                         key={exam.id} 
