@@ -64,7 +64,7 @@ const LoginPage = () => {
 
           {/* Error Alert */}
           {error && (
-            <div className="fluid-mb-6 fluid-p-4 bg-red-50 border border-red-200 rounded-fluid-xl flex items-start fluid-gap-3">
+            <div className="fluid-mb-6 fluid-p-4 bg-red-50 border border-red-200 fluid-rounded-xl flex items-start fluid-gap-3">
               <AlertCircle className="fluid-icon-sm text-red-500 flex-shrink-0 mt-0.5" />
               <p className="fluid-text-sm text-red-600">{error}</p>
             </div>
@@ -87,7 +87,7 @@ const LoginPage = () => {
                   type="text"
                   autoComplete="username"
                   required
-                  className="block w-full fluid-pl-12 fluid-pr-4 fluid-py-3 border border-gray-300 rounded-fluid-xl fluid-text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                  className="block w-full fluid-pl-12 fluid-pr-4 fluid-py-3 border border-gray-300 fluid-rounded-xl fluid-text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                   placeholder="tu@email.com"
                   value={formData.username}
                   onChange={(e) => setFormData({ ...formData, username: e.target.value })}
@@ -110,7 +110,7 @@ const LoginPage = () => {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   required
-                  className="block w-full fluid-pl-12 fluid-pr-12 fluid-py-3 border border-gray-300 rounded-fluid-xl fluid-text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                  className="block w-full fluid-pl-12 fluid-pr-12 fluid-py-3 border border-gray-300 fluid-rounded-xl fluid-text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -140,7 +140,7 @@ const LoginPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-primary-600 text-white rounded-fluid-xl hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 fluid-text-base font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-primary-600 text-white fluid-rounded-xl hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 fluid-text-base font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
@@ -170,7 +170,7 @@ const LoginPage = () => {
           <div className="grid grid-cols-3 fluid-gap-3">
             <button
               type="button"
-              className="flex items-center justify-center fluid-gap-2 fluid-py-3 fluid-px-4 border border-gray-300 rounded-fluid-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center justify-center fluid-gap-2 fluid-py-3 fluid-px-4 border border-gray-300 fluid-rounded-lg hover:bg-gray-50 transition-colors"
             >
               <svg className="fluid-icon-sm" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -182,7 +182,7 @@ const LoginPage = () => {
             </button>
             <button
               type="button"
-              className="flex items-center justify-center fluid-gap-2 fluid-py-3 fluid-px-4 border border-gray-300 rounded-fluid-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center justify-center fluid-gap-2 fluid-py-3 fluid-px-4 border border-gray-300 fluid-rounded-lg hover:bg-gray-50 transition-colors"
             >
               <svg className="fluid-icon-sm" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/>
@@ -191,7 +191,7 @@ const LoginPage = () => {
             </button>
             <button
               type="button"
-              className="flex items-center justify-center fluid-gap-2 fluid-py-3 fluid-px-4 border border-gray-300 rounded-fluid-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center justify-center fluid-gap-2 fluid-py-3 fluid-px-4 border border-gray-300 fluid-rounded-lg hover:bg-gray-50 transition-colors"
             >
               <svg className="fluid-icon-sm" viewBox="0 0 23 23">
                 <path fill="#f35325" d="M1 1h10v10H1z"/>
@@ -223,7 +223,7 @@ const LoginPage = () => {
 
         {/* Content */}
         <div className="relative z-10 text-center text-white fluid-px-12">
-          <div className="fluid-w-20 fluid-h-20 bg-white/20 rounded-fluid-2xl flex items-center justify-center mx-auto fluid-mb-8">
+          <div className="fluid-w-20 fluid-h-20 bg-white/20 fluid-rounded-2xl flex items-center justify-center mx-auto fluid-mb-8">
             <GraduationCap className="fluid-icon-xl" />
           </div>
           <h2 className="fluid-text-3xl font-bold fluid-mb-4">
