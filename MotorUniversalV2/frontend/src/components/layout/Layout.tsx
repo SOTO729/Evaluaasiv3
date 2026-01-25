@@ -97,8 +97,8 @@ const Layout = ({ children }: LayoutProps) => {
     <div className={isFullContentPage ? 'h-screen flex flex-col overflow-hidden' : 'min-h-screen bg-gray-50'}>
       {/* Header */}
       <header className="bg-white shadow-sm border-b sticky top-0 z-40 flex-shrink-0">
-        <div className="max-w-fluid-full mx-auto fluid-px-4">
-          <div className="flex justify-between items-center h-fluid-header">
+        <div className="w-full fluid-px-4">
+          <div className="flex justify-between items-center fluid-header-height">
             <div className="flex items-center">
               {/* Botón hamburguesa para móvil */}
               <button
