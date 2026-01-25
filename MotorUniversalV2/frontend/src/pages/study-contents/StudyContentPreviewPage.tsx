@@ -1676,7 +1676,7 @@ const StudyContentPreviewPage: React.FC = () => {
                       
                       {/* Botón circular para scroll hacia abajo */}
                       {showDownloadScrollHint && (
-                        <div className="fixed bottom-24 right-4 z-50">
+                        <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-[clamp(1rem,3vw,2rem)] z-[60]">
                           <button
                             onClick={() => {
                               downloadButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1764,7 +1764,7 @@ const StudyContentPreviewPage: React.FC = () => {
                         
                         {/* Botón circular para scroll hacia abajo - posición fija a la derecha */}
                         {showScrollHint && (
-                          <div className="fixed bottom-24 right-4 z-50">
+                          <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-[clamp(1rem,3vw,2rem)] z-[60]">
                             <button
                               onClick={() => {
                                 startExerciseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
