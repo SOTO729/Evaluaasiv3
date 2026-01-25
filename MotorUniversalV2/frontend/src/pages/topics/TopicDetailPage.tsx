@@ -37,6 +37,11 @@ const TopicDetailPage = () => {
     is_complete: false,
   })
 
+  // Estados para gestión de porcentajes
+  const [isPercentageModalOpen, setIsPercentageModalOpen] = useState(false)
+  const [percentages, setPercentages] = useState<{ questions: Record<string, number>; exercises: Record<string, number> }>({ questions: {}, exercises: {} })
+  const [percentageError, setPercentageError] = useState<string | null>(null)
+
   // Query para obtener el examen (para el breadcrumb)
   const { data: exam } = useQuery({
     queryKey: ['exam', examId],
@@ -161,6 +166,42 @@ const TopicDetailPage = () => {
     },
   })
 
+  // Mutations para porcentajes
+  const balancePercentagesMutation = useMutation({
+    mutationFn: () => examService.balanceTopicPercentages(Number(topicId)),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['questions', topicId] })
+      queryClient.invalidateQueries({ queryKey: ['exercises', topicId] })
+      // Actualizar el estado local con los nuevos porcentajes
+      const newQuestionPercentages: Record<string, number> = {}
+      const newExercisePercentages: Record<string, number> = {}
+      data.questions.forEach((q: any) => { newQuestionPercentages[q.id] = q.percentage || 0 })
+      data.exercises.forEach((e: any) => { newExercisePercentages[e.id] = e.percentage || 0 })
+      setPercentages({ questions: newQuestionPercentages, exercises: newExercisePercentages })
+      setPercentageError(null)
+    },
+    onError: (error: any) => {
+      console.error('Error al balancear porcentajes:', error)
+      alert('Error al balancear porcentajes: ' + (error.response?.data?.error || error.message))
+    },
+  })
+
+  const updatePercentagesMutation = useMutation({
+    mutationFn: (data: { questions: Record<string, number>; exercises: Record<string, number> }) => 
+      examService.updateTopicPercentages(Number(topicId), data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['questions', topicId] })
+      queryClient.invalidateQueries({ queryKey: ['exercises', topicId] })
+      setIsPercentageModalOpen(false)
+      setPercentageError(null)
+      alert('Porcentajes actualizados exitosamente')
+    },
+    onError: (error: any) => {
+      console.error('Error al actualizar porcentajes:', error)
+      setPercentageError(error.response?.data?.error || 'Error al actualizar porcentajes')
+    },
+  })
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (formData.question_text && formData.question_type_id) {
@@ -263,6 +304,43 @@ const TopicDetailPage = () => {
     }
   }
 
+  // Handlers para porcentajes
+  const openPercentageModal = () => {
+    // Inicializar con los porcentajes actuales
+    const questionPercentages: Record<string, number> = {}
+    const exercisePercentages: Record<string, number> = {}
+    
+    questions.forEach((q: any) => { questionPercentages[q.id] = q.percentage || 0 })
+    exercises.forEach((e: any) => { exercisePercentages[e.id] = e.percentage || 0 })
+    
+    setPercentages({ questions: questionPercentages, exercises: exercisePercentages })
+    setPercentageError(null)
+    setIsPercentageModalOpen(true)
+  }
+
+  const updatePercentage = (type: 'questions' | 'exercises', id: string, value: number) => {
+    setPercentages(prev => ({
+      ...prev,
+      [type]: { ...prev[type], [id]: value }
+    }))
+    setPercentageError(null)
+  }
+
+  const calculateTotalPercentage = () => {
+    const questionTotal = Object.values(percentages.questions).reduce((sum, val) => sum + (val || 0), 0)
+    const exerciseTotal = Object.values(percentages.exercises).reduce((sum, val) => sum + (val || 0), 0)
+    return Math.round((questionTotal + exerciseTotal) * 100) / 100
+  }
+
+  const handleSavePercentages = () => {
+    const total = calculateTotalPercentage()
+    if (Math.abs(total - 100) > 0.01) {
+      setPercentageError(`Los porcentajes deben sumar 100%. Suma actual: ${total}%`)
+      return
+    }
+    updatePercentagesMutation.mutate(percentages)
+  }
+
   const getQuestionTypeName = (name: string) => {
     const types: Record<string, string> = {
       'multiple_choice': 'Opción Múltiple',
@@ -333,16 +411,31 @@ const TopicDetailPage = () => {
       <div className="sticky top-0 z-30 bg-gradient-to-b from-gray-50 via-gray-50 to-transparent pt-4 pb-2 -mx-4 px-4 md:-mx-6 md:px-6">
         {/* Título con fondo destacado */}
         <div className="mb-4 bg-gradient-to-r from-blue-600 via-cyan-600 to-emerald-600 rounded-xl p-5 shadow-lg shadow-blue-500/20">
-          <div className="flex items-center gap-3">
-            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-blue-100 text-sm font-medium">Tema</p>
+                <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight">{topic.name}</h1>
+              </div>
             </div>
-            <div>
-              <p className="text-blue-100 text-sm font-medium">Tema</p>
-              <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight">{topic.name}</h1>
-            </div>
+            {/* Botón de Porcentajes */}
+            {(questions.length > 0 || exercises.length > 0) && (
+              <button
+                onClick={openPercentageModal}
+                className="inline-flex items-center px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-xl font-medium transition-all duration-200"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                </svg>
+                Porcentajes
+              </button>
+            )}
           </div>
         </div>
 
@@ -1189,6 +1282,186 @@ const TopicDetailPage = () => {
             queryClient.invalidateQueries({ queryKey: ['exercises', topicId] })
           }}
         />
+      )}
+
+      {/* Modal de Gestión de Porcentajes */}
+      {isPercentageModalOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setIsPercentageModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeSlideIn" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-white">Gestión de Porcentajes</h3>
+                  <p className="text-emerald-100 text-sm mt-1">Asigna el porcentaje del tema a cada pregunta y ejercicio</p>
+                </div>
+                <button
+                  onClick={() => balancePercentagesMutation.mutate()}
+                  disabled={balancePercentagesMutation.isPending}
+                  className="inline-flex items-center px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-xl font-medium transition-all duration-200 disabled:opacity-50"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  {balancePercentagesMutation.isPending ? 'Balanceando...' : 'Balancear Automáticamente'}
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+              {/* Indicador de suma total */}
+              <div className={`mb-6 p-4 rounded-xl border-2 ${
+                Math.abs(calculateTotalPercentage() - 100) <= 0.01 
+                  ? 'bg-green-50 border-green-300' 
+                  : 'bg-red-50 border-red-300'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    {Math.abs(calculateTotalPercentage() - 100) <= 0.01 ? (
+                      <svg className="w-6 h-6 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      <svg className="w-6 h-6 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                    <span className={`text-lg font-bold ${
+                      Math.abs(calculateTotalPercentage() - 100) <= 0.01 ? 'text-green-700' : 'text-red-700'
+                    }`}>
+                      Suma Total: {calculateTotalPercentage()}%
+                    </span>
+                  </div>
+                  <span className={`text-sm font-medium ${
+                    Math.abs(calculateTotalPercentage() - 100) <= 0.01 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {Math.abs(calculateTotalPercentage() - 100) <= 0.01 ? '✓ Correcto' : `Falta: ${(100 - calculateTotalPercentage()).toFixed(2)}%`}
+                  </span>
+                </div>
+              </div>
+
+              {percentageError && (
+                <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+                  {percentageError}
+                </div>
+              )}
+
+              {/* Sección de Preguntas */}
+              {questions.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Preguntas ({questions.length})
+                  </h4>
+                  <div className="space-y-3">
+                    {questions.map((question: any, index: number) => (
+                      <div key={question.id} className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                        <span className="w-8 h-8 flex items-center justify-center bg-blue-500 text-white rounded-lg font-bold text-sm">
+                          {index + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div 
+                            className="text-sm text-gray-700 line-clamp-1"
+                            dangerouslySetInnerHTML={{ __html: question.question_text }}
+                          />
+                          <span className="text-xs text-blue-600 font-medium">
+                            {getQuestionTypeName(question.question_type?.name || '')}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={percentages.questions[question.id] ?? question.percentage ?? 0}
+                            onChange={(e) => updatePercentage('questions', question.id, parseFloat(e.target.value) || 0)}
+                            className="w-20 px-3 py-2 border border-blue-200 rounded-lg text-center font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <span className="text-gray-500 font-medium">%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sección de Ejercicios */}
+              {exercises.length > 0 && (
+                <div>
+                  <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Ejercicios ({exercises.length})
+                  </h4>
+                  <div className="space-y-3">
+                    {exercises.map((exercise: any, index: number) => (
+                      <div key={exercise.id} className="flex items-center gap-4 p-4 bg-violet-50 rounded-xl border border-violet-100">
+                        <span className="w-8 h-8 flex items-center justify-center bg-violet-500 text-white rounded-lg font-bold text-sm">
+                          {index + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div 
+                            className="text-sm text-gray-700 line-clamp-1"
+                            dangerouslySetInnerHTML={{ __html: exercise.exercise_text || exercise.title || 'Ejercicio sin título' }}
+                          />
+                          <span className="text-xs text-violet-600 font-medium">
+                            {exercise.total_steps || 0} pasos
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={percentages.exercises[exercise.id] ?? exercise.percentage ?? 0}
+                            onChange={(e) => updatePercentage('exercises', exercise.id, parseFloat(e.target.value) || 0)}
+                            className="w-20 px-3 py-2 border border-violet-200 rounded-lg text-center font-semibold focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                          />
+                          <span className="text-gray-500 font-medium">%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {questions.length === 0 && exercises.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <p>No hay preguntas ni ejercicios en este tema</p>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50 border-t flex gap-3 justify-end">
+              <button
+                onClick={() => setIsPercentageModalOpen(false)}
+                className="px-5 py-2.5 text-gray-700 bg-white border border-gray-300 hover:bg-gray-100 rounded-xl font-medium transition-all duration-200"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSavePercentages}
+                disabled={updatePercentagesMutation.isPending || Math.abs(calculateTotalPercentage() - 100) > 0.01}
+                className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 hover:from-emerald-600 hover:to-teal-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {updatePercentagesMutation.isPending ? 'Guardando...' : 'Guardar Porcentajes'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

@@ -25,6 +25,7 @@ class Exercise(db.Model):
     description = db.Column(db.Text)
     type = db.Column(db.String(20), default='exam', nullable=False, index=True)  # exam, simulator
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    percentage = db.Column(db.Float, default=0)  # Porcentaje del tema que representa este ejercicio
     
     # Auditoría
     created_by = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
@@ -47,6 +48,7 @@ class Exercise(db.Model):
             'title': self.title or '',
             'exercise_text': self.description or '',  # Mapear description a exercise_text para compatibilidad
             'type': self.type or 'exam',  # exam o simulator
+            'percentage': self.percentage or 0,  # Porcentaje del tema
             'is_complete': not self.is_active if self.is_active is not None else False,  # Invertir is_active a is_complete
             'total_steps': self.steps.count() if self.steps else 0,
             'created_by': self.created_by,

@@ -37,6 +37,7 @@ class Question(db.Model):
     points = db.Column(db.Integer, default=1)  # Puntos que vale la pregunta
     difficulty = db.Column(db.String(20), default='medium')  # easy, medium, hard
     type = db.Column(db.String(20), default='exam', nullable=False, index=True)  # exam, simulator
+    percentage = db.Column(db.Float, default=0)  # Porcentaje del tema que representa esta pregunta
     
     # Auditoría
     created_by = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
@@ -70,6 +71,7 @@ class Question(db.Model):
             'points': self.points,
             'difficulty': self.difficulty,
             'type': self.type or 'exam',  # exam o simulator
+            'percentage': self.percentage or 0,  # Porcentaje del tema
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
         

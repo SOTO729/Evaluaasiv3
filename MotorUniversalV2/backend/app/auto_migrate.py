@@ -218,3 +218,40 @@ def check_and_add_question_types():
     except Exception as e:
         print(f"❌ Error en auto-migración question_types: {e}")
         db.session.rollback()
+
+
+def check_and_add_percentage_columns():
+    """Verificar y agregar columnas de porcentaje a questions y exercises"""
+    print("🔍 Verificando columnas de porcentaje...")
+    
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        # Agregar percentage a questions
+        if 'questions' in tables:
+            existing_columns = [col['name'] for col in inspector.get_columns('questions')]
+            if 'percentage' not in existing_columns:
+                print("  📝 Agregando columna 'percentage' a 'questions'...")
+                db.session.execute(text("ALTER TABLE questions ADD percentage FLOAT DEFAULT 0"))
+                db.session.commit()
+                print("     ✓ Columna 'percentage' agregada a 'questions'")
+            else:
+                print("  ✓ Columna 'percentage' ya existe en 'questions'")
+        
+        # Agregar percentage a exercises
+        if 'exercises' in tables:
+            existing_columns = [col['name'] for col in inspector.get_columns('exercises')]
+            if 'percentage' not in existing_columns:
+                print("  📝 Agregando columna 'percentage' a 'exercises'...")
+                db.session.execute(text("ALTER TABLE exercises ADD percentage FLOAT DEFAULT 0"))
+                db.session.commit()
+                print("     ✓ Columna 'percentage' agregada a 'exercises'")
+            else:
+                print("  ✓ Columna 'percentage' ya existe en 'exercises'")
+        
+        print("✅ Verificación de columnas de porcentaje completada")
+                
+    except Exception as e:
+        print(f"❌ Error en auto-migración de porcentajes: {e}")
+        db.session.rollback()

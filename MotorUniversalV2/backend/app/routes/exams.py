@@ -858,6 +858,132 @@ def delete_topic(topic_id):
         return jsonify({'error': f'Error al eliminar el tema: {str(e)}'}), 500
 
 
+# ============= PORCENTAJES DE TEMA =============
+
+@bp.route('/topics/<int:topic_id>/balance-percentages', methods=['POST'])
+@jwt_required()
+@require_permission('exams:update')
+def balance_topic_percentages(topic_id):
+    """
+    Balancear equitativamente los porcentajes de preguntas y ejercicios de un tema
+    El total siempre debe sumar 100%
+    """
+    from datetime import datetime
+    
+    topic = Topic.query.get(topic_id)
+    if not topic:
+        return jsonify({'error': 'Tema no encontrado'}), 404
+    
+    # Obtener todas las preguntas y ejercicios del tema
+    questions = Question.query.filter_by(topic_id=topic_id).all()
+    exercises = Exercise.query.filter_by(topic_id=topic_id).all()
+    
+    total_items = len(questions) + len(exercises)
+    
+    if total_items == 0:
+        return jsonify({
+            'message': 'No hay preguntas ni ejercicios para balancear',
+            'questions': [],
+            'exercises': []
+        }), 200
+    
+    # Calcular porcentaje equitativo (2 decimales)
+    percentage_per_item = round(100.0 / total_items, 2)
+    
+    # Calcular el residuo para ajustar al primer elemento
+    total_distributed = percentage_per_item * total_items
+    residue = round(100.0 - total_distributed, 2)
+    
+    user_id = get_jwt_identity()
+    first_item = True
+    
+    # Asignar porcentajes a preguntas
+    for question in questions:
+        if first_item:
+            question.percentage = percentage_per_item + residue
+            first_item = False
+        else:
+            question.percentage = percentage_per_item
+        question.updated_by = user_id
+    
+    # Asignar porcentajes a ejercicios
+    for exercise in exercises:
+        if first_item:
+            exercise.percentage = percentage_per_item + residue
+            first_item = False
+        else:
+            exercise.percentage = percentage_per_item
+        exercise.updated_by = user_id
+        exercise.updated_at = datetime.utcnow()
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Porcentajes balanceados exitosamente',
+        'total_items': total_items,
+        'percentage_per_item': percentage_per_item,
+        'questions': [q.to_dict(include_correct=True) for q in questions],
+        'exercises': [e.to_dict() for e in exercises]
+    }), 200
+
+
+@bp.route('/topics/<int:topic_id>/update-percentages', methods=['PUT'])
+@jwt_required()
+@require_permission('exams:update')
+def update_topic_percentages(topic_id):
+    """
+    Actualizar porcentajes de preguntas y ejercicios de un tema
+    Valida que la suma sea exactamente 100%
+    """
+    from datetime import datetime
+    
+    topic = Topic.query.get(topic_id)
+    if not topic:
+        return jsonify({'error': 'Tema no encontrado'}), 404
+    
+    data = request.get_json()
+    question_percentages = data.get('questions', {})  # {question_id: percentage}
+    exercise_percentages = data.get('exercises', {})  # {exercise_id: percentage}
+    
+    # Calcular suma total
+    total = sum(question_percentages.values()) + sum(exercise_percentages.values())
+    
+    # Validar que sume 100 (con tolerancia de 0.01 por redondeo)
+    if abs(total - 100.0) > 0.01:
+        return jsonify({
+            'error': f'Los porcentajes deben sumar 100%. Suma actual: {total}%'
+        }), 400
+    
+    user_id = get_jwt_identity()
+    
+    # Actualizar preguntas
+    for question_id, percentage in question_percentages.items():
+        question = Question.query.get(question_id)
+        if question and question.topic_id == topic_id:
+            question.percentage = percentage
+            question.updated_by = user_id
+    
+    # Actualizar ejercicios
+    for exercise_id, percentage in exercise_percentages.items():
+        exercise = Exercise.query.get(exercise_id)
+        if exercise and exercise.topic_id == topic_id:
+            exercise.percentage = percentage
+            exercise.updated_by = user_id
+            exercise.updated_at = datetime.utcnow()
+    
+    db.session.commit()
+    
+    # Devolver los datos actualizados
+    questions = Question.query.filter_by(topic_id=topic_id).all()
+    exercises = Exercise.query.filter_by(topic_id=topic_id).all()
+    
+    return jsonify({
+        'message': 'Porcentajes actualizados exitosamente',
+        'questions': [q.to_dict(include_correct=True) for q in questions],
+        'exercises': [e.to_dict() for e in exercises]
+    }), 200
+
+
 # ============= PREGUNTAS =============
 
 @bp.route('/question-types', methods=['GET'])
@@ -965,6 +1091,8 @@ def update_question(question_id):
         question.difficulty = data['difficulty']
     if 'type' in data:
         question.type = data['type']  # exam o simulator
+    if 'percentage' in data:
+        question.percentage = data['percentage']  # Porcentaje del tema
     
     question.updated_by = user_id
     
@@ -1208,6 +1336,8 @@ def update_exercise(exercise_id):
         exercise.is_active = not data['is_complete']  # Invertir: is_complete=True -> is_active=False
     if 'type' in data:
         exercise.type = data['type']  # exam o simulator
+    if 'percentage' in data:
+        exercise.percentage = data['percentage']  # Porcentaje del tema
     
     exercise.updated_by = get_jwt_identity()
     exercise.updated_at = datetime.utcnow()

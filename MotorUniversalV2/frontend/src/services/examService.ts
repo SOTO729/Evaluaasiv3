@@ -152,13 +152,24 @@ export const examService = {
     return response.data
   },
 
-  updateExercise: async (id: string, data: { exercise_text?: string; is_complete?: boolean; type?: 'exam' | 'simulator' }): Promise<{ message: string; exercise: any }> => {
+  updateExercise: async (id: string, data: { exercise_text?: string; is_complete?: boolean; type?: 'exam' | 'simulator'; percentage?: number }): Promise<{ message: string; exercise: any }> => {
     const response = await api.put<{ message: string; exercise: any }>(`/exams/exercises/${id}`, data)
     return response.data
   },
 
   deleteExercise: async (id: string): Promise<{ message: string }> => {
     const response = await api.delete<{ message: string }>(`/exams/exercises/${id}`)
+    return response.data
+  },
+
+  // Porcentajes de tema
+  balanceTopicPercentages: async (topicId: number): Promise<{ message: string; questions: any[]; exercises: any[]; total_items: number; percentage_per_item: number }> => {
+    const response = await api.post<{ message: string; questions: any[]; exercises: any[]; total_items: number; percentage_per_item: number }>(`/exams/topics/${topicId}/balance-percentages`)
+    return response.data
+  },
+
+  updateTopicPercentages: async (topicId: number, data: { questions: Record<string, number>; exercises: Record<string, number> }): Promise<{ message: string; questions: any[]; exercises: any[] }> => {
+    const response = await api.put<{ message: string; questions: any[]; exercises: any[] }>(`/exams/topics/${topicId}/update-percentages`, data)
     return response.data
   },
 

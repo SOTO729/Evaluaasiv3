@@ -97,6 +97,7 @@ export interface Question {
   points: number
   difficulty: 'easy' | 'medium' | 'hard'
   type?: 'exam' | 'simulator'
+  percentage?: number
   created_at: string
   answers?: Answer[]
 }
@@ -112,6 +113,7 @@ export interface Answer {
 
 export interface Exercise {
     type?: 'exam' | 'simulator'
+    percentage?: number
   id: string
   topic_id: number
   exercise_number: number
