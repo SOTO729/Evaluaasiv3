@@ -5,7 +5,6 @@
 import React, { useState, useRef, useEffect, useCallback, Fragment } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import html2canvas from 'html2canvas'
 import { 
   getTopic,
   createInteractive,
@@ -926,184 +925,155 @@ const StudyInteractiveExercisePage = () => {
     return response.data.url
   }
 
-  // Función auxiliar para convertir imagen URL a base64
-  const imageUrlToBase64 = async (url: string): Promise<string> => {
-    try {
-      const response = await fetch(url)
-      const blob = await response.blob()
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onloadend = () => resolve(reader.result as string)
-        reader.onerror = reject
-        reader.readAsDataURL(blob)
-      })
-    } catch (error) {
-      console.error('Error converting image to base64:', error)
-      throw error
-    }
-  }
-
-  // Función auxiliar para generar imagen de un paso con overlays
+  // Función auxiliar para generar imagen de un paso con overlays usando Canvas nativo
   const generateStepImageWithOverlays = async (step: StudyInteractiveExerciseStep): Promise<HTMLCanvasElement | null> => {
     if (!step?.image_url) return null
     
     // Filtrar acciones que deben mostrarse (comentarios + no-invisibles)
     const visibleActions = (step.actions || []).filter(action => {
-      // Siempre incluir comentarios
       if (action.action_type === 'comment') return true
-      // Incluir acciones con estilo diferente a invisible
       return action.label_style && action.label_style !== 'invisible'
     })
     
-    // Convertir imagen a base64 para evitar problemas de CORS
-    let imageBase64: string
-    try {
-      imageBase64 = await imageUrlToBase64(step.image_url)
-    } catch (error) {
-      console.error('Error loading image:', error)
-      return null
-    }
-    
-    // Crear un contenedor temporal para la captura
-    const tempContainer = document.createElement('div')
-    tempContainer.style.position = 'absolute'
-    tempContainer.style.left = '-9999px'
-    tempContainer.style.top = '0'
-    document.body.appendChild(tempContainer)
-    
-    // Crear imagen para obtener dimensiones reales
+    // Cargar la imagen
     const img = new Image()
+    img.crossOrigin = 'anonymous'
     
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve()
       img.onerror = () => reject(new Error('Error cargando la imagen'))
-      img.src = imageBase64
+      img.src = step.image_url!
     })
     
     const imgWidth = img.naturalWidth
     const imgHeight = img.naturalHeight
     
-    // Construir el HTML con la imagen y las acciones superpuestas
-    tempContainer.innerHTML = `
-      <div style="position: relative; width: ${imgWidth}px; height: ${imgHeight}px; background: white;">
-        <img src="${imageBase64}" style="width: 100%; height: 100%; display: block;" />
-        ${visibleActions.map(action => {
-          const left = (action.position_x / 100) * imgWidth
-          const top = (action.position_y / 100) * imgHeight
-          const width = (action.width / 100) * imgWidth
-          const height = (action.height / 100) * imgHeight
+    // Crear canvas
+    const canvas = document.createElement('canvas')
+    canvas.width = imgWidth
+    canvas.height = imgHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    
+    // Dibujar imagen de fondo
+    ctx.drawImage(img, 0, 0, imgWidth, imgHeight)
+    
+    // Dibujar cada acción visible
+    for (const action of visibleActions) {
+      const left = (action.position_x / 100) * imgWidth
+      const top = (action.position_y / 100) * imgHeight
+      const width = (action.width / 100) * imgWidth
+      const height = (action.height / 100) * imgHeight
+      
+      if (action.action_type === 'comment') {
+        const bgColor = action.comment_bg_color || '#3b82f6'
+        const textColor = action.comment_text_color || '#ffffff'
+        const fontSize = action.comment_font_size || 14
+        
+        // Dibujar fondo del comentario con bordes redondeados
+        ctx.fillStyle = bgColor
+        ctx.beginPath()
+        const radius = 12
+        ctx.moveTo(left + radius, top)
+        ctx.lineTo(left + width - radius, top)
+        ctx.quadraticCurveTo(left + width, top, left + width, top + radius)
+        ctx.lineTo(left + width, top + height - radius)
+        ctx.quadraticCurveTo(left + width, top + height, left + width - radius, top + height)
+        ctx.lineTo(left + radius, top + height)
+        ctx.quadraticCurveTo(left, top + height, left, top + height - radius)
+        ctx.lineTo(left, top + radius)
+        ctx.quadraticCurveTo(left, top, left + radius, top)
+        ctx.closePath()
+        ctx.fill()
+        
+        // Borde
+        ctx.strokeStyle = textColor
+        ctx.lineWidth = 2
+        ctx.stroke()
+        
+        // Texto del comentario
+        ctx.fillStyle = textColor
+        ctx.font = `500 ${fontSize}px Arial, sans-serif`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        const text = action.comment_text || action.label || 'Comentario'
+        const maxWidth = width - 16
+        ctx.fillText(text, left + width / 2, top + height / 2, maxWidth)
+        
+      } else {
+        const labelStyle = action.label_style
+        const isTextInput = action.action_type === 'text_input'
+        const label = action.label || action.placeholder || ''
+        
+        let showText = false
+        let showShadow = false
+        
+        if (labelStyle === 'text_only') {
+          showText = true
+        } else if (labelStyle === 'text_with_shadow') {
+          showText = true
+          showShadow = true
+        } else if (labelStyle === 'shadow_only') {
+          showShadow = true
+        }
+        
+        if (!showText && !showShadow) continue
+        
+        if (showShadow) {
+          // Fondo semi-transparente
+          ctx.fillStyle = isTextInput ? 'rgba(101, 163, 13, 0.3)' : 'rgba(20, 184, 166, 0.3)'
+          ctx.beginPath()
+          const radius = 6
+          ctx.moveTo(left + radius, top)
+          ctx.lineTo(left + width - radius, top)
+          ctx.quadraticCurveTo(left + width, top, left + width, top + radius)
+          ctx.lineTo(left + width, top + height - radius)
+          ctx.quadraticCurveTo(left + width, top + height, left + width - radius, top + height)
+          ctx.lineTo(left + radius, top + height)
+          ctx.quadraticCurveTo(left, top + height, left, top + height - radius)
+          ctx.lineTo(left, top + radius)
+          ctx.quadraticCurveTo(left, top, left + radius, top)
+          ctx.closePath()
+          ctx.fill()
           
-          if (action.action_type === 'comment') {
-            const bgColor = action.comment_bg_color || '#3b82f6'
-            const textColor = action.comment_text_color || '#ffffff'
-            const fontSize = action.comment_font_size || 14
-            
-            return `
-              <div style="
-                position: absolute;
-                left: ${left}px;
-                top: ${top}px;
-                width: ${width}px;
-                height: ${height}px;
-                background-color: ${bgColor};
-                border: 2px solid ${textColor};
-                border-radius: 12px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: 8px;
-                box-sizing: border-box;
-                color: ${textColor};
-                font-size: ${fontSize}px;
-                font-weight: 500;
-                text-align: center;
-                overflow: hidden;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-              ">
-                ${action.comment_text || action.label || 'Comentario'}
-              </div>
-            `
-          } else {
-            // Acción con estilo visible (no invisible)
-            const labelStyle = action.label_style
-            const isTextInput = action.action_type === 'text_input'
-            const label = action.label || action.placeholder || ''
-            
-            let bgColor = 'transparent'
-            let textBg = 'transparent'
-            let textColor = '#1f2937'
-            let showText = false
-            let showShadow = false
-            
-            if (labelStyle === 'text_only') {
-              showText = true
-              textBg = 'rgba(255, 255, 255, 0.9)'
-            } else if (labelStyle === 'text_with_shadow') {
-              showText = true
-              showShadow = true
-              bgColor = isTextInput ? 'rgba(101, 163, 13, 0.3)' : 'rgba(20, 184, 166, 0.3)'
-              textBg = 'rgba(255, 255, 255, 0.95)'
-            } else if (labelStyle === 'shadow_only') {
-              showShadow = true
-              bgColor = isTextInput ? 'rgba(101, 163, 13, 0.3)' : 'rgba(20, 184, 166, 0.3)'
-            }
-            
-            if (!showText && !showShadow) return '' // invisible, no mostrar
-            
-            return `
-              <div style="
-                position: absolute;
-                left: ${left}px;
-                top: ${top}px;
-                width: ${width}px;
-                height: ${height}px;
-                ${showShadow ? `
-                  background-color: ${bgColor};
-                  border: 2px solid ${isTextInput ? '#65a30d' : '#14b8a6'};
-                  border-radius: 6px;
-                ` : ''}
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                box-sizing: border-box;
-              ">
-                ${showText && label ? `
-                  <span style="
-                    background: ${textBg};
-                    color: ${textColor};
-                    padding: 4px 8px;
-                    border-radius: 4px;
-                    font-size: 12px;
-                    font-weight: 500;
-                    max-width: 90%;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
-                  ">
-                    ${label}
-                  </span>
-                ` : ''}
-              </div>
-            `
-          }
-        }).join('')}
-      </div>
-    `
-    
-    // Esperar a que las imágenes se carguen
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
-    // Capturar con html2canvas
-    const targetElement = tempContainer.firstChild as HTMLElement
-    const canvas = await html2canvas(targetElement, {
-      useCORS: true,
-      allowTaint: true,
-      scale: 2, // Mayor resolución
-      backgroundColor: '#ffffff',
-    })
-    
-    // Limpiar el contenedor temporal
-    document.body.removeChild(tempContainer)
+          // Borde
+          ctx.strokeStyle = isTextInput ? '#65a30d' : '#14b8a6'
+          ctx.lineWidth = 2
+          ctx.stroke()
+        }
+        
+        if (showText && label) {
+          // Fondo del texto
+          ctx.font = '500 12px Arial, sans-serif'
+          const textMetrics = ctx.measureText(label)
+          const textWidth = Math.min(textMetrics.width + 16, width * 0.9)
+          const textHeight = 24
+          const textX = left + (width - textWidth) / 2
+          const textY = top + (height - textHeight) / 2
+          
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
+          ctx.beginPath()
+          const radius = 4
+          ctx.moveTo(textX + radius, textY)
+          ctx.lineTo(textX + textWidth - radius, textY)
+          ctx.quadraticCurveTo(textX + textWidth, textY, textX + textWidth, textY + radius)
+          ctx.lineTo(textX + textWidth, textY + textHeight - radius)
+          ctx.quadraticCurveTo(textX + textWidth, textY + textHeight, textX + textWidth - radius, textY + textHeight)
+          ctx.lineTo(textX + radius, textY + textHeight)
+          ctx.quadraticCurveTo(textX, textY + textHeight, textX, textY + textHeight - radius)
+          ctx.lineTo(textX, textY + radius)
+          ctx.quadraticCurveTo(textX, textY, textX + radius, textY)
+          ctx.closePath()
+          ctx.fill()
+          
+          // Texto
+          ctx.fillStyle = '#1f2937'
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(label, left + width / 2, top + height / 2, width * 0.85)
+        }
+      }
+    }
     
     return canvas
   }
