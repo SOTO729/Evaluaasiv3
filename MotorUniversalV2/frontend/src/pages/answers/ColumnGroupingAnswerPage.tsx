@@ -157,15 +157,6 @@ export const ColumnGroupingAnswerPage = () => {
     }
   });
 
-  // Mutación para actualizar la pregunta
-  const updateQuestionMutation = useMutation({
-    mutationFn: (data: { question_text: string }) =>
-      examService.updateQuestion(questionId!, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['question', questionId] });
-    }
-  });
-
   // Handlers para columnas
   const handleAddColumn = () => {
     if (columns.length < 6) {
@@ -244,11 +235,6 @@ export const ColumnGroupingAnswerPage = () => {
     }
 
     try {
-      // Guardar el texto de la pregunta
-      if (questionText.trim()) {
-        await updateQuestionMutation.mutateAsync({ question_text: questionText });
-      }
-
       const existingIds = items.filter(i => i.id).map(i => i.id!);
       const currentIds = answersData?.map((a: any) => a.id) || [];
 
@@ -342,20 +328,16 @@ export const ColumnGroupingAnswerPage = () => {
       </div>
 
       <form onSubmit={handleSubmit}>
-        {/* Texto de la pregunta */}
-        <div className="card mb-6">
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">Texto de la Pregunta</h3>
-          <p className="text-sm text-gray-600 mb-3">
-            Escribe las instrucciones que verá el estudiante
-          </p>
-          <textarea
-            value={questionText}
-            onChange={(e) => setQuestionText(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
-            rows={3}
-            placeholder="Ej: Clasifica los siguientes elementos arrastrándolos a la columna correspondiente..."
-          />
-        </div>
+        {/* Texto de la pregunta - Solo lectura */}
+        {questionText && (
+          <div className="card mb-6 bg-gray-50">
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">Texto de la Pregunta</h3>
+            <div 
+              className="prose prose-sm max-w-none text-gray-700"
+              dangerouslySetInnerHTML={{ __html: questionText }}
+            />
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Columna izquierda: Definir columnas */}
