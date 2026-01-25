@@ -2047,7 +2047,7 @@ const StudyInteractiveExercisePage = () => {
                         
                         if (showPointer) {
                           // Tamaño base del triángulo
-                          const triangleSize = 15
+                          const triangleSize = 12
                           
                           // Detectar esquinas (combinaciones de direcciones)
                           const isCornerTopLeft = isPointerTop && isPointerLeft
@@ -2056,108 +2056,116 @@ const StudyInteractiveExercisePage = () => {
                           const isCornerBottomRight = isPointerBottom && isPointerRight
                           
                           if (isCornerBottomRight) {
-                            // Esquina inferior derecha - usar SVG para flecha diagonal
+                            // Esquina inferior derecha - triángulo pegado a la esquina
                             pointerStyle = {
                               position: 'absolute' as const,
-                              bottom: '-10px',
-                              right: '-10px',
-                              width: `${triangleSize + 5}px`,
-                              height: `${triangleSize + 5}px`,
-                              background: `linear-gradient(135deg, ${bgColor} 50%, transparent 50%)`,
-                              filter: `drop-shadow(1px 1px 0 ${borderColor})`,
+                              bottom: '0px',
+                              right: '0px',
+                              width: 0,
+                              height: 0,
+                              borderLeft: `${triangleSize}px solid transparent`,
+                              borderTop: `${triangleSize}px solid transparent`,
+                              borderRight: `${triangleSize}px solid ${bgColor}`,
+                              borderBottom: `${triangleSize}px solid ${bgColor}`,
+                              transform: 'translate(100%, 100%)',
                             }
                           } else if (isCornerBottomLeft) {
-                            // Esquina inferior izquierda
+                            // Esquina inferior izquierda - triángulo pegado a la esquina
                             pointerStyle = {
                               position: 'absolute' as const,
-                              bottom: '-10px',
-                              left: '-10px',
-                              width: `${triangleSize + 5}px`,
-                              height: `${triangleSize + 5}px`,
-                              background: `linear-gradient(-135deg, ${bgColor} 50%, transparent 50%)`,
-                              filter: `drop-shadow(-1px 1px 0 ${borderColor})`,
+                              bottom: '0px',
+                              left: '0px',
+                              width: 0,
+                              height: 0,
+                              borderRight: `${triangleSize}px solid transparent`,
+                              borderTop: `${triangleSize}px solid transparent`,
+                              borderLeft: `${triangleSize}px solid ${bgColor}`,
+                              borderBottom: `${triangleSize}px solid ${bgColor}`,
+                              transform: 'translate(-100%, 100%)',
                             }
                           } else if (isCornerTopRight) {
-                            // Esquina superior derecha
+                            // Esquina superior derecha - triángulo pegado a la esquina
                             pointerStyle = {
                               position: 'absolute' as const,
-                              top: '-10px',
-                              right: '-10px',
-                              width: `${triangleSize + 5}px`,
-                              height: `${triangleSize + 5}px`,
-                              background: `linear-gradient(45deg, transparent 50%, ${bgColor} 50%)`,
-                              filter: `drop-shadow(1px -1px 0 ${borderColor})`,
+                              top: '0px',
+                              right: '0px',
+                              width: 0,
+                              height: 0,
+                              borderLeft: `${triangleSize}px solid transparent`,
+                              borderBottom: `${triangleSize}px solid transparent`,
+                              borderRight: `${triangleSize}px solid ${bgColor}`,
+                              borderTop: `${triangleSize}px solid ${bgColor}`,
+                              transform: 'translate(100%, -100%)',
                             }
                           } else if (isCornerTopLeft) {
-                            // Esquina superior izquierda
+                            // Esquina superior izquierda - triángulo pegado a la esquina
                             pointerStyle = {
                               position: 'absolute' as const,
-                              top: '-10px',
-                              left: '-10px',
-                              width: `${triangleSize + 5}px`,
-                              height: `${triangleSize + 5}px`,
-                              background: `linear-gradient(-45deg, transparent 50%, ${bgColor} 50%)`,
-                              filter: `drop-shadow(-1px -1px 0 ${borderColor})`,
+                              top: '0px',
+                              left: '0px',
+                              width: 0,
+                              height: 0,
+                              borderRight: `${triangleSize}px solid transparent`,
+                              borderBottom: `${triangleSize}px solid transparent`,
+                              borderLeft: `${triangleSize}px solid ${bgColor}`,
+                              borderTop: `${triangleSize}px solid ${bgColor}`,
+                              transform: 'translate(-100%, -100%)',
                             }
                           } else if (isPointerBottom) {
-                            // Punta hacia abajo
-                            const xPos = Math.max(15, Math.min(85, ((pointerX - bubbleLeft) / action.width) * 100))
+                            // Punta hacia abajo - pegada al borde inferior
+                            const xPos = Math.max(10, Math.min(90, ((pointerX - bubbleLeft) / action.width) * 100))
                             pointerStyle = {
                               position: 'absolute' as const,
-                              bottom: '-12px',
+                              bottom: '0px',
                               left: `${xPos}%`,
-                              transform: 'translateX(-50%)',
+                              transform: 'translateX(-50%) translateY(100%)',
                               width: 0,
                               height: 0,
                               borderLeft: `${triangleSize}px solid transparent`,
                               borderRight: `${triangleSize}px solid transparent`,
                               borderTop: `${triangleSize}px solid ${bgColor}`,
-                              filter: `drop-shadow(0 2px 0 ${borderColor})`,
                             }
                           } else if (isPointerTop) {
-                            // Punta hacia arriba
-                            const xPos = Math.max(15, Math.min(85, ((pointerX - bubbleLeft) / action.width) * 100))
+                            // Punta hacia arriba - pegada al borde superior
+                            const xPos = Math.max(10, Math.min(90, ((pointerX - bubbleLeft) / action.width) * 100))
                             pointerStyle = {
                               position: 'absolute' as const,
-                              top: '-12px',
+                              top: '0px',
                               left: `${xPos}%`,
-                              transform: 'translateX(-50%)',
+                              transform: 'translateX(-50%) translateY(-100%)',
                               width: 0,
                               height: 0,
                               borderLeft: `${triangleSize}px solid transparent`,
                               borderRight: `${triangleSize}px solid transparent`,
                               borderBottom: `${triangleSize}px solid ${bgColor}`,
-                              filter: `drop-shadow(0 -2px 0 ${borderColor})`,
                             }
                           } else if (isPointerLeft) {
-                            // Punta hacia la izquierda
-                            const yPos = Math.max(15, Math.min(85, ((pointerY - bubbleTop) / action.height) * 100))
+                            // Punta hacia la izquierda - pegada al borde izquierdo
+                            const yPos = Math.max(10, Math.min(90, ((pointerY - bubbleTop) / action.height) * 100))
                             pointerStyle = {
                               position: 'absolute' as const,
-                              left: '-12px',
+                              left: '0px',
                               top: `${yPos}%`,
-                              transform: 'translateY(-50%)',
+                              transform: 'translateY(-50%) translateX(-100%)',
                               width: 0,
                               height: 0,
                               borderTop: `${triangleSize}px solid transparent`,
                               borderBottom: `${triangleSize}px solid transparent`,
                               borderRight: `${triangleSize}px solid ${bgColor}`,
-                              filter: `drop-shadow(-2px 0 0 ${borderColor})`,
                             }
                           } else if (isPointerRight) {
-                            // Punta hacia la derecha
-                            const yPos = Math.max(15, Math.min(85, ((pointerY - bubbleTop) / action.height) * 100))
+                            // Punta hacia la derecha - pegada al borde derecho
+                            const yPos = Math.max(10, Math.min(90, ((pointerY - bubbleTop) / action.height) * 100))
                             pointerStyle = {
                               position: 'absolute' as const,
-                              right: '-12px',
+                              right: '0px',
                               top: `${yPos}%`,
-                              transform: 'translateY(-50%)',
+                              transform: 'translateY(-50%) translateX(100%)',
                               width: 0,
                               height: 0,
                               borderTop: `${triangleSize}px solid transparent`,
                               borderBottom: `${triangleSize}px solid transparent`,
                               borderLeft: `${triangleSize}px solid ${bgColor}`,
-                              filter: `drop-shadow(2px 0 0 ${borderColor})`,
                             }
                           }
                         }
