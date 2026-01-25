@@ -421,34 +421,20 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       const isCorrectButton = selectedTool === 'button'
       const isTextbox = selectedTool === 'textbox'
       
-      // Validar que solo haya una respuesta correcta por paso
-      // Ahora cualquier textbox (aunque esté en rojo/sin respuesta) cuenta como respuesta correcta
-      const hasCorrectAnswer = currentActions.some(a => 
-        (a.action_type === 'button' && a.correct_answer === 'correct') ||
-        (a.action_type === 'textbox')
-      )
-
-      if ((isCorrectButton || isTextbox) && hasCorrectAnswer) {
-        setWarningModal({
-          isOpen: true,
-          title: 'Respuesta correcta ya existe',
-          message: 'Este paso ya tiene una respuesta correcta configurada. Solo puede haber un botón correcto o un campo de texto por cada paso del ejercicio.'
-        })
-        setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
-        return
-      }
+      // Se permiten múltiples respuestas correctas por paso
+      // Cada respuesta correcta (botón o textbox) tendrá su propio número de acción
       
       // Validar que campos incorrectos no se superpongan con respuestas correctas
       const isWrongButton = selectedTool === 'button-wrong'
       if (isWrongButton) {
-        // Considerar como respuesta correcta: botones correctos Y todos los textbox (incluso sin respuesta definida)
-        const correctAction = currentActions.find(a => 
+        // Considerar como respuestas correctas: botones correctos Y todos los textbox (incluso sin respuesta definida)
+        const correctActions = currentActions.filter(a => 
           (a.action_type === 'button' && a.correct_answer === 'correct') ||
           (a.action_type === 'textbox')
         )
         
-        if (correctAction) {
-          // Verificar superposición de rectángulos
+        // Verificar superposición con TODAS las respuestas correctas
+        for (const correctAction of correctActions) {
           const newRight = left + width
           const newBottom = top + height
           const correctRight = correctAction.position_x + correctAction.width
@@ -465,7 +451,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
             setWarningModal({
               isOpen: true,
               title: 'Superposición no permitida',
-              message: 'El campo incorrecto no puede quedar por encima de la respuesta correcta. Por favor, coloca el área en otra posición.'
+              message: 'El campo incorrecto no puede quedar por encima de una respuesta correcta. Por favor, coloca el área en otra posición.'
             })
             setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
             return
@@ -1331,7 +1317,15 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                         const isCorrectButton = action.action_type === 'button' && action.correct_answer === 'correct'
                         const isCorrectAction = isCorrectButton || isTextbox
                         
-                        // Calcular el número de acción solo para las incorrectas usando el array ordenado
+                        // Calcular número de acción para TODAS las acciones (correctas e incorrectas)
+                        const correctIndex = sortedActions
+                          .slice(0, index)
+                          .filter((a: ExerciseAction) => {
+                            const aIsCorrectButton = a.action_type === 'button' && a.correct_answer === 'correct'
+                            const aIsTextbox = a.action_type === 'textbox'
+                            return aIsCorrectButton || aIsTextbox
+                          })
+                          .length
                         const incorrectIndex = sortedActions
                           .slice(0, index)
                           .filter((a: ExerciseAction) => {
@@ -1340,7 +1334,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                             return !(aIsCorrectButton || aIsTextbox)
                           })
                           .length
-                        const displayNumber = isCorrectAction ? null : incorrectIndex + 1
+                        const displayNumber = isCorrectAction ? correctIndex + 1 : incorrectIndex + 1
                         
                         // Determinar si esta acción está siendo arrastrada o redimensionada
                         const isBeingDraggedOrResized = 
@@ -1429,11 +1423,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                               ? 'bg-orange-600' 
                               : 'bg-lime-600'
                           }`}>
-                            {isCorrectAction ? (
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                              </svg>
-                            ) : displayNumber}
+                            {displayNumber}
                           </div>
                           )}
                         </div>
@@ -1553,7 +1543,16 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                         const isCorrectButton = action.action_type === 'button' && action.correct_answer === 'correct'
                         const isCorrectAction = isCorrectButton || isTextbox
                         
-                        // Calcular número de display contando solo acciones incorrectas (wrong buttons)
+                        // Calcular número de acción para TODAS las acciones (correctas e incorrectas)
+                        // Las correctas cuentan por separado de las incorrectas
+                        const correctIndex = sortedActions
+                          .slice(0, index)
+                          .filter((a: ExerciseAction) => {
+                            const aIsCorrectButton = a.action_type === 'button' && a.correct_answer === 'correct'
+                            const aIsTextbox = a.action_type === 'textbox'
+                            return aIsCorrectButton || aIsTextbox
+                          })
+                          .length
                         const incorrectIndex = sortedActions
                           .slice(0, index)
                           .filter((a: ExerciseAction) => {
@@ -1562,7 +1561,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                             return !(aIsCorrectButton || aIsTextbox)
                           })
                           .length
-                        const displayNumber = isCorrectAction ? null : incorrectIndex + 1
+                        const displayNumber = isCorrectAction ? correctIndex + 1 : incorrectIndex + 1
                         
                         return (
                           <div
@@ -1609,11 +1608,7 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
                                         ? 'bg-orange-600' 
                                         : 'bg-lime-600'
                               }`}>
-                                {isCorrectAction ? (
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                ) : displayNumber}
+                                {displayNumber}
                               </span>
                               <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                                 isCorrectButton
