@@ -926,6 +926,23 @@ const StudyInteractiveExercisePage = () => {
     return response.data.url
   }
 
+  // Función auxiliar para convertir imagen URL a base64
+  const imageUrlToBase64 = async (url: string): Promise<string> => {
+    try {
+      const response = await fetch(url)
+      const blob = await response.blob()
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(blob)
+      })
+    } catch (error) {
+      console.error('Error converting image to base64:', error)
+      throw error
+    }
+  }
+
   // Función auxiliar para generar imagen de un paso con overlays
   const generateStepImageWithOverlays = async (step: StudyInteractiveExerciseStep): Promise<HTMLCanvasElement | null> => {
     if (!step?.image_url) return null
@@ -938,6 +955,15 @@ const StudyInteractiveExercisePage = () => {
       return action.label_style && action.label_style !== 'invisible'
     })
     
+    // Convertir imagen a base64 para evitar problemas de CORS
+    let imageBase64: string
+    try {
+      imageBase64 = await imageUrlToBase64(step.image_url)
+    } catch (error) {
+      console.error('Error loading image:', error)
+      return null
+    }
+    
     // Crear un contenedor temporal para la captura
     const tempContainer = document.createElement('div')
     tempContainer.style.position = 'absolute'
@@ -947,12 +973,11 @@ const StudyInteractiveExercisePage = () => {
     
     // Crear imagen para obtener dimensiones reales
     const img = new Image()
-    img.crossOrigin = 'anonymous'
     
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve()
       img.onerror = () => reject(new Error('Error cargando la imagen'))
-      img.src = step.image_url!
+      img.src = imageBase64
     })
     
     const imgWidth = img.naturalWidth
@@ -961,7 +986,7 @@ const StudyInteractiveExercisePage = () => {
     // Construir el HTML con la imagen y las acciones superpuestas
     tempContainer.innerHTML = `
       <div style="position: relative; width: ${imgWidth}px; height: ${imgHeight}px; background: white;">
-        <img src="${step.image_url}" style="width: 100%; height: 100%; display: block;" crossorigin="anonymous" />
+        <img src="${imageBase64}" style="width: 100%; height: 100%; display: block;" />
         ${visibleActions.map(action => {
           const left = (action.position_x / 100) * imgWidth
           const top = (action.position_y / 100) * imgHeight
