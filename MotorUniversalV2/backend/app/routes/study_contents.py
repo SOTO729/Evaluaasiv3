@@ -1808,8 +1808,8 @@ def create_action(material_id, session_id, topic_id, step_id):
             label_style=data.get('label_style', 'invisible') if data.get('label_style') in ['invisible', 'text_only', 'text_with_shadow', 'shadow_only'] else 'invisible',
             # Propiedades de comentario
             comment_text=data.get('comment_text'),
-            comment_bg_color=data.get('comment_bg_color', '#fef3c7'),
-            comment_text_color=data.get('comment_text_color', '#92400e'),
+            comment_bg_color=data.get('comment_bg_color', '#3b82f6'),
+            comment_text_color=data.get('comment_text_color', '#ffffff'),
             comment_font_size=data.get('comment_font_size', 14),
             pointer_x=data.get('pointer_x'),
             pointer_y=data.get('pointer_y')

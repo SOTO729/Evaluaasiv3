@@ -445,8 +445,8 @@ class StudyInteractiveExerciseAction(db.Model):
     
     # Propiedades de comentario (tipo bocadillo de cómic)
     comment_text = db.Column(db.Text)
-    comment_bg_color = db.Column(db.String(20), default='#fef3c7')
-    comment_text_color = db.Column(db.String(20), default='#92400e')
+    comment_bg_color = db.Column(db.String(20), default='#3b82f6')
+    comment_text_color = db.Column(db.String(20), default='#ffffff')
     comment_font_size = db.Column(db.Integer, default=14)
     pointer_x = db.Column(db.Float)  # Posición X de la punta del bocadillo
     pointer_y = db.Column(db.Float)  # Posición Y de la punta del bocadillo

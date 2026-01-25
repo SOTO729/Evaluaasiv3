@@ -2422,8 +2422,8 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
   // Renderizar comentario/letrero
   if (action.action_type === 'comment') {
     const commentText = action.comment_text || action.label || 'Comentario';
-    const bgColor = action.comment_bg_color || '#fef3c7';
-    const textColor = action.comment_text_color || '#92400e';
+    const bgColor = action.comment_bg_color || '#3b82f6';
+    const textColor = action.comment_text_color || '#ffffff';
     const fontSize = action.comment_font_size || 14;
     
     return (
