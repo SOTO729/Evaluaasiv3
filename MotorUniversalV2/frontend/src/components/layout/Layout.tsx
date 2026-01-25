@@ -123,10 +123,10 @@ const Layout = ({ children }: LayoutProps) => {
               </Link>
               
               {/* Navegación desktop */}
-              <nav className="hidden lg:flex fluid-ml-6 fluid-gap-3">
+              <nav className="hidden lg:flex fluid-ml-8 fluid-gap-5">
                 <Link 
                   to="/dashboard" 
-                  className={`fluid-px-3 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                  className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                     location.pathname === '/dashboard' 
                       ? 'text-primary-600 font-semibold bg-primary-50' 
                       : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -137,7 +137,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role !== 'editor' && user?.role !== 'coordinator' && (
                   <Link 
                     to="/certificates" 
-                    className={`fluid-px-3 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/certificates') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -149,7 +149,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role !== 'coordinator' && (
                   <Link 
                     to="/exams" 
-                    className={`fluid-px-3 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/exams') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -161,7 +161,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role !== 'coordinator' && (
                   <Link 
                     to="/study-contents" 
-                  className={`fluid-px-3 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                  className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                     location.pathname.startsWith('/study-contents') 
                       ? 'text-primary-600 font-semibold bg-primary-50' 
                       : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -173,7 +173,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role !== 'candidato' && user?.role !== 'coordinator' && (
                   <Link 
                     to="/standards" 
-                    className={`fluid-px-3 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/standards') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -185,7 +185,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {(user?.role === 'admin' || user?.role === 'coordinator') && (
                   <Link 
                     to="/partners/dashboard" 
-                    className={`fluid-px-3 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/partners') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -197,7 +197,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {(user?.role === 'admin' || user?.role === 'coordinator') && (
                   <Link 
                     to="/user-management" 
-                    className={`fluid-px-3 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/user-management') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
