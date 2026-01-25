@@ -65,9 +65,9 @@ const ExamCard = ({
       className="bg-white rounded-fluid-lg shadow-sm overflow-hidden border border-gray-100 group animate-stagger-in relative hover:shadow-lg cursor-pointer transition-all duration-300 flex flex-col"
       style={{ animationDelay: `${index * 50}ms` }}
     >
-      {/* Card Image - altura proporcional al ancho para forma casi cuadrada */}
+      {/* Card Image - rectángulo horizontal (base más larga) */}
       <div 
-        className="relative flex-shrink-0 overflow-hidden cursor-pointer aspect-[4/3]"
+        className="relative flex-shrink-0 overflow-hidden cursor-pointer aspect-[16/9]"
         onClick={handleCardClick}
       >
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-800">
