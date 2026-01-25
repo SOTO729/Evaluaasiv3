@@ -374,9 +374,9 @@ const ExamsListPage = () => {
               {/* Sección de Publicados */}
               {allExams.filter((e: any) => e.is_published).length > 0 && (
                 <div className="fluid-mb-12 fluid-pb-8 border-b-2 border-gray-200">
-                  <div className="flex items-center fluid-gap-2 fluid-mb-4">
-                    <Eye className="fluid-icon-lg text-green-600" />
-                    <h2 className="fluid-text-xl font-semibold text-gray-800">Publicados</h2>
+                  <div className="flex items-center fluid-gap-2 fluid-mb-6">
+                    <Eye className="fluid-icon text-green-600" />
+                    <h2 className="fluid-text-lg font-semibold text-gray-800">Publicados</h2>
                     <span className="bg-green-100 text-green-700 fluid-text-sm font-medium fluid-px-2 fluid-py-1 rounded-full">
                       {allExams.filter((e: any) => e.is_published).length}
                     </span>
@@ -395,10 +395,10 @@ const ExamsListPage = () => {
 
               {/* Sección de Borradores */}
               {allExams.filter((e: any) => !e.is_published).length > 0 && (
-                <div ref={draftsRef} className="fluid-mb-10 scroll-mt-4 fluid-pt-4">
-                  <div className="flex items-center fluid-gap-2 fluid-mb-4">
-                    <EyeOff className="fluid-icon-lg text-gray-500" />
-                    <h2 className="fluid-text-xl font-semibold text-gray-800">Borradores</h2>
+                <div ref={draftsRef} className="fluid-mb-10 scroll-mt-4 fluid-pt-6">
+                  <div className="flex items-center fluid-gap-2 fluid-mb-6">
+                    <EyeOff className="fluid-icon text-gray-500" />
+                    <h2 className="fluid-text-lg font-semibold text-gray-800">Borradores</h2>
                     <span className="bg-gray-100 text-gray-600 fluid-text-sm font-medium fluid-px-2 fluid-py-1 rounded-full">
                       {allExams.filter((e: any) => !e.is_published).length}
                     </span>
