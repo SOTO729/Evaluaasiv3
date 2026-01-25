@@ -1542,59 +1542,61 @@ const StudyContentPreviewPage: React.FC = () => {
             <div className="min-h-[300px]">
               {/* Video */}
               {activeTab === 'video' && (
-                <div ref={videoContainerRef} className="fluid-container-lg mx-auto">
+                <div ref={videoContainerRef} className="w-full">
                   {currentTopic?.video ? (
                     <div className="flex flex-col fluid-gap-2">
                       {/* Título del video */}
                       <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-py-1 border-b border-gray-300">{currentTopic.video.title}</h2>
                       
-                      {/* Video container - responsivo según tipo de video */}
-                      {isAzureUrl(currentTopic.video.video_url) ? (
-                        // Contenedor para videos de Azure Blob/CDN
-                        <div className="relative w-full bg-black rounded-fluid-lg overflow-hidden shadow-md">
-                          {/* Wrapper con aspect ratio 16:9, el video usa contain para ajustarse */}
-                          <div className="relative w-full aspect-video">
-                            {videoUrlLoading ? (
-                              <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
-                                <div className="text-center">
-                                  <div className="animate-spin rounded-full fluid-icon-lg border-b-2 border-blue-600 mx-auto fluid-mb-2"></div>
-                                  <p className="text-gray-400 fluid-text-xs">Cargando video...</p>
+                      {/* Video container - centrado con tamaño máximo controlado */}
+                      <div className="fluid-container-lg mx-auto">
+                        {isAzureUrl(currentTopic.video.video_url) ? (
+                          // Contenedor para videos de Azure Blob/CDN
+                          <div className="relative w-full bg-black rounded-fluid-lg overflow-hidden shadow-md">
+                            {/* Wrapper con aspect ratio 16:9, el video usa contain para ajustarse */}
+                            <div className="relative w-full aspect-video">
+                              {videoUrlLoading ? (
+                                <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+                                  <div className="text-center">
+                                    <div className="animate-spin rounded-full fluid-icon-lg border-b-2 border-blue-600 mx-auto fluid-mb-2"></div>
+                                    <p className="text-gray-400 fluid-text-xs">Cargando video...</p>
+                                  </div>
                                 </div>
-                              </div>
-                            ) : signedVideoUrl ? (
-                              <CustomVideoPlayer
-                                src={signedVideoUrl}
-                                className="absolute top-0 left-0 w-full h-full"
-                                objectFit="contain"
-                                onEnded={() => {
-                                  if (currentTopic.video && !completedContents.video.has(currentTopic.video.id)) {
-                                    markContentCompleted('video', currentTopic.video.id);
-                                  }
-                                }}
+                              ) : signedVideoUrl ? (
+                                <CustomVideoPlayer
+                                  src={signedVideoUrl}
+                                  className="absolute top-0 left-0 w-full h-full"
+                                  objectFit="contain"
+                                  onEnded={() => {
+                                    if (currentTopic.video && !completedContents.video.has(currentTopic.video.id)) {
+                                      markContentCompleted('video', currentTopic.video.id);
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+                                  <p className="text-gray-400 fluid-text-xs">Error al cargar el video</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          // Contenedor para YouTube/Vimeo - aspect ratio 16:9 responsivo
+                          <div className="relative w-full bg-black rounded-fluid-lg overflow-hidden shadow-md">
+                            {/* Wrapper con aspect ratio 16:9 */}
+                            <div className="relative w-full aspect-video">
+                              <iframe
+                                src={getVideoEmbedUrl(currentTopic.video.video_url)}
+                                className="absolute inset-0 w-full h-full"
+                                style={{ border: 'none' }}
+                                allowFullScreen
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                referrerPolicy="strict-origin-when-cross-origin"
                               />
-                            ) : (
-                              <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
-                                <p className="text-gray-400 fluid-text-xs">Error al cargar el video</p>
-                              </div>
-                            )}
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        // Contenedor para YouTube/Vimeo - aspect ratio 16:9 responsivo
-                        <div className="relative w-full bg-black rounded-fluid-lg overflow-hidden shadow-md">
-                          {/* Wrapper con aspect ratio 16:9 */}
-                          <div className="relative w-full aspect-video">
-                            <iframe
-                              src={getVideoEmbedUrl(currentTopic.video.video_url)}
-                              className="absolute inset-0 w-full h-full"
-                              style={{ border: 'none' }}
-                              allowFullScreen
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                              referrerPolicy="strict-origin-when-cross-origin"
-                            />
-                          </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                       
                       {/* Descripción del video - abajo */}
                       {currentTopic.video.description && (
