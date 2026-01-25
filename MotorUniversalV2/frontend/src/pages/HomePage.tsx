@@ -25,7 +25,8 @@ const HomePage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
-  const isEditor = user?.role === 'editor'
+  // Admin y Editor ven el mismo dashboard de gestión
+  const isAdminOrEditor = user?.role === 'editor' || user?.role === 'admin'
 
   const loadDashboard = async () => {
     try {
@@ -42,14 +43,14 @@ const HomePage = () => {
   }
 
   useEffect(() => {
-    // Solo cargar el dashboard del candidato si no es editor
-    if (!isEditor) {
+    // Solo cargar el dashboard del candidato si no es admin ni editor
+    if (!isAdminOrEditor) {
       loadDashboard()
     }
-  }, [isEditor])
+  }, [isAdminOrEditor])
 
-  // Si es editor, mostrar el dashboard del editor
-  if (isEditor) {
+  // Si es admin o editor, mostrar el dashboard de gestión
+  if (isAdminOrEditor) {
     return <EditorDashboard />
   }
 
