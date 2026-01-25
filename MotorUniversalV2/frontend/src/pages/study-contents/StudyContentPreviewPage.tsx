@@ -1680,12 +1680,17 @@ const StudyContentPreviewPage: React.FC = () => {
                         <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-[clamp(1rem,3vw,2rem)] z-[60]">
                           <button
                             onClick={() => {
+                              // Cancelar cualquier timeout pendiente de compresión
+                              if (scrollTimeoutRef.current) {
+                                clearTimeout(scrollTimeoutRef.current);
+                                scrollTimeoutRef.current = null;
+                              }
                               isProgrammaticScrollRef.current = true;
                               downloadButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                              // Restaurar después de que termine el scroll suave
+                              // Restaurar después de que termine el scroll suave + debounce
                               setTimeout(() => {
                                 isProgrammaticScrollRef.current = false;
-                              }, 800);
+                              }, 1000);
                             }}
                             className="w-[clamp(2.5rem,4vw,3.5rem)] h-[clamp(2.5rem,4vw,3.5rem)] bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
                             title="Ver sección de descarga"
@@ -1773,12 +1778,17 @@ const StudyContentPreviewPage: React.FC = () => {
                           <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-[clamp(1rem,3vw,2rem)] z-[60]">
                             <button
                               onClick={() => {
+                                // Cancelar cualquier timeout pendiente de compresión
+                                if (scrollTimeoutRef.current) {
+                                  clearTimeout(scrollTimeoutRef.current);
+                                  scrollTimeoutRef.current = null;
+                                }
                                 isProgrammaticScrollRef.current = true;
                                 startExerciseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                // Restaurar después de que termine el scroll suave
+                                // Restaurar después de que termine el scroll suave + debounce
                                 setTimeout(() => {
                                   isProgrammaticScrollRef.current = false;
-                                }, 800);
+                                }, 1000);
                               }}
                               className="w-[clamp(2.5rem,4vw,3.5rem)] h-[clamp(2.5rem,4vw,3.5rem)] bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
                               title="Ver sección para iniciar ejercicio"
