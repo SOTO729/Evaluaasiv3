@@ -2,7 +2,7 @@
  * Página de vista de Material de Estudio para Candidatos
  * Vista presentacional con desglose de sesiones y temas
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   getMaterial,
@@ -32,6 +32,10 @@ const StudyContentCandidatePage = () => {
   const [loading, setLoading] = useState(true);
   const [expandedSessions, setExpandedSessions] = useState<Set<number>>(new Set());
   const [dominantColor, setDominantColor] = useState<string>('#1e3a5f');
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  
+  const startButtonRef = useRef<HTMLButtonElement>(null);
+  const mainContainerRef = useRef<HTMLDivElement>(null);
 
   // Extraer color dominante de la imagen
   const extractDominantColor = (imageUrl: string) => {
@@ -114,6 +118,37 @@ const StudyContentCandidatePage = () => {
     });
   };
 
+  // Detectar si el botón de iniciar material no está visible
+  useEffect(() => {
+    const checkStartButtonVisibility = () => {
+      if (startButtonRef.current) {
+        const startRect = startButtonRef.current.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        
+        // El botón está visible si está dentro del viewport
+        const isButtonVisible = startRect.top < viewportHeight && startRect.bottom > 0;
+        
+        setShowScrollHint(!isButtonVisible);
+      }
+    };
+
+    const timeoutId1 = setTimeout(checkStartButtonVisibility, 100);
+    const timeoutId2 = setTimeout(checkStartButtonVisibility, 300);
+    const timeoutId3 = setTimeout(checkStartButtonVisibility, 600);
+    checkStartButtonVisibility();
+    
+    window.addEventListener('scroll', checkStartButtonVisibility);
+    window.addEventListener('resize', checkStartButtonVisibility);
+
+    return () => {
+      clearTimeout(timeoutId1);
+      clearTimeout(timeoutId2);
+      clearTimeout(timeoutId3);
+      window.removeEventListener('scroll', checkStartButtonVisibility);
+      window.removeEventListener('resize', checkStartButtonVisibility);
+    };
+  }, [material]);
+
   // Calcular totales
   const totalSessions = material?.sessions?.length || 0;
   const totalTopics = material?.sessions?.reduce((acc, session) => acc + (session.topics?.length || 0), 0) || 0;
@@ -154,7 +189,7 @@ const StudyContentCandidatePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-x-hidden overscroll-contain">
+    <div ref={mainContainerRef} className="min-h-screen bg-gray-50 overflow-x-hidden overscroll-contain">
       {/* Barra de navegación superior */}
       <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 border-b border-gray-200/80 shadow-sm sticky top-0 z-40 backdrop-blur-sm bg-opacity-95">
         <div className="fluid-container-2xl mx-auto fluid-px-6 fluid-py-4">
@@ -369,6 +404,7 @@ const StudyContentCandidatePage = () => {
         {/* Botón de acción al final */}
         <div className="fluid-mt-12 text-center">
           <button
+            ref={startButtonRef}
             onClick={() => navigate(`/study-contents/${materialId}/preview`)}
             className="inline-flex items-center justify-center fluid-gap-4 bg-blue-600 hover:bg-blue-700 text-white fluid-px-10 fluid-py-5 rounded-fluid-2xl font-semibold fluid-text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
           >
@@ -377,6 +413,21 @@ const StudyContentCandidatePage = () => {
           </button>
         </div>
       </div>
+      
+      {/* Botón circular para scroll hacia abajo */}
+      {showScrollHint && (
+        <div className="fixed bottom-[clamp(1.5rem,3vw,2rem)] right-[clamp(1rem,3vw,2rem)] z-[60]">
+          <button
+            onClick={() => {
+              startButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }}
+            className="w-[clamp(2.5rem,4vw,3.5rem)] h-[clamp(2.5rem,4vw,3.5rem)] bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce"
+            title="Ver botón de inicio"
+          >
+            <ChevronDown className="fluid-icon-lg" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
