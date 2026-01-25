@@ -685,6 +685,98 @@ def upload_cover_image():
         return jsonify({'error': str(e)}), 500
 
 
+# ==================== Upload de Imagen de Contenido de Lectura ====================
+
+@study_contents_bp.route('/upload-reading-image', methods=['POST'])
+@jwt_required()
+@admin_or_editor_required
+def upload_reading_image():
+    """
+    Subir imagen para contenido de lectura a Azure Blob Storage (Hot tier)
+    Acepta FormData con campo 'image' o JSON con campo 'image_data' (base64)
+    """
+    try:
+        # Verificar si viene como FormData o como JSON (base64)
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            # FormData - archivo directo
+            if 'image' not in request.files:
+                return jsonify({'error': 'No se proporcionó imagen'}), 400
+            
+            file = request.files['image']
+            
+            if file.filename == '':
+                return jsonify({'error': 'Nombre de archivo vacío'}), 400
+            
+            # Validar que es una imagen
+            allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+            ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+            if ext not in allowed_extensions:
+                return jsonify({'error': 'Tipo de archivo no permitido. Use: png, jpg, jpeg, gif, webp'}), 400
+            
+            # Subir a Azure Blob Storage (Hot tier - carpeta study-materials/reading-images)
+            file_url = azure_storage.upload_file(file, folder='study-materials/reading-images')
+        else:
+            # JSON - imagen en base64
+            data = request.get_json()
+            if not data or 'image_data' not in data:
+                return jsonify({'error': 'No se proporcionó imagen en formato base64'}), 400
+            
+            image_data = data['image_data']
+            
+            # Extraer tipo MIME y datos del base64
+            # Formato esperado: data:image/png;base64,iVBORw0KGgo...
+            import base64
+            import io
+            from werkzeug.datastructures import FileStorage
+            
+            if ';base64,' in image_data:
+                header, base64_data = image_data.split(';base64,')
+                mime_type = header.replace('data:', '')
+            else:
+                # Si no tiene header, asumir que es solo base64
+                base64_data = image_data
+                mime_type = 'image/png'
+            
+            # Determinar extensión
+            ext_map = {
+                'image/png': 'png',
+                'image/jpeg': 'jpg',
+                'image/jpg': 'jpg',
+                'image/gif': 'gif',
+                'image/webp': 'webp'
+            }
+            ext = ext_map.get(mime_type, 'png')
+            
+            # Decodificar base64
+            try:
+                image_bytes = base64.b64decode(base64_data)
+            except Exception as e:
+                return jsonify({'error': f'Error decodificando imagen base64: {str(e)}'}), 400
+            
+            # Crear un FileStorage para pasar a azure_storage
+            import uuid
+            filename = f"pasted-image-{uuid.uuid4().hex[:8]}.{ext}"
+            file = FileStorage(
+                stream=io.BytesIO(image_bytes),
+                filename=filename,
+                content_type=mime_type
+            )
+            
+            # Subir a Azure Blob Storage
+            file_url = azure_storage.upload_file(file, folder='study-materials/reading-images')
+        
+        if not file_url:
+            return jsonify({'error': 'Error al subir la imagen. Verifique la configuración de Azure Storage.'}), 500
+        
+        return jsonify({
+            'message': 'Imagen subida exitosamente',
+            'url': file_url
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # ==================== CRUD de Sesiones ====================
 
 @study_contents_bp.route('/<int:material_id>/sessions', methods=['GET'])

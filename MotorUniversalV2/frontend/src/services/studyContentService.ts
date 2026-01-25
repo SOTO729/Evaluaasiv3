@@ -305,6 +305,15 @@ export const uploadMaterialCoverImage = async (file: File): Promise<string> => {
   return response.data.url;
 };
 
+// Subir imagen para contenido de lectura (soporta base64 para pegado)
+export const uploadReadingImage = async (imageData: string): Promise<string> => {
+  const response = await api.post('/study-contents/upload-reading-image', {
+    image_data: imageData
+  });
+  
+  return response.data.url;
+};
+
 // ==================== Servicios de Sesiones ====================
 
 export const getSessions = async (materialId: number): Promise<StudySession[]> => {

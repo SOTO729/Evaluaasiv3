@@ -3,7 +3,7 @@
  * Muestra la jerarquía completa: Material → Sesiones → Temas → Elementos
  * v2.1 - Soporte para subida de archivos descargables con compresión ZIP
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import ReactQuill from 'react-quill-new';
@@ -30,6 +30,7 @@ import {
   createInteractive,
   updateInteractive,
   getInteractive,
+  uploadReadingImage,
   StudyMaterial,
   StudySession,
   StudyTopic,
@@ -235,6 +236,10 @@ const StudyContentDetailPage = () => {
   const [videoForm, setVideoForm] = useState<CreateVideoData>({ title: '', video_url: '' });
   const [downloadableForm, setDownloadableForm] = useState<CreateDownloadableData>({ title: '', file_url: '', file_name: '' });
   const [saving, setSaving] = useState(false);
+  
+  // Reading editor refs and states
+  const readingQuillRef = useRef<ReactQuill>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   
   // Video upload states
   const [videoMode, setVideoMode] = useState<'url' | 'upload'>('url');
@@ -822,6 +827,67 @@ const StudyContentDetailPage = () => {
     }
     setReadingModalOpen(true);
   };
+
+  // Manejar pegado de imágenes en el editor de lectura
+  const handleReadingImagePaste = useCallback(async (e: ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf('image') !== -1) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const file = item.getAsFile();
+        if (!file) continue;
+
+        // Convertir a base64
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const base64Data = event.target?.result as string;
+          if (!base64Data) return;
+
+          setIsUploadingImage(true);
+          try {
+            // Subir la imagen al CDN
+            const imageUrl = await uploadReadingImage(base64Data);
+            
+            // Insertar la imagen en el editor Quill
+            const quill = readingQuillRef.current?.getEditor();
+            if (quill) {
+              const range = quill.getSelection(true);
+              quill.insertEmbed(range.index, 'image', imageUrl);
+              quill.setSelection(range.index + 1, 0);
+            }
+            
+            setToast({ message: 'Imagen pegada exitosamente', type: 'success' });
+          } catch (error) {
+            console.error('Error uploading pasted image:', error);
+            setToast({ message: 'Error al subir la imagen', type: 'error' });
+          } finally {
+            setIsUploadingImage(false);
+          }
+        };
+        reader.readAsDataURL(file);
+        break; // Solo procesar la primera imagen
+      }
+    }
+  }, []);
+
+  // Efecto para registrar el listener de pegado cuando el modal está abierto
+  useEffect(() => {
+    if (readingModalOpen) {
+      const quillEditor = readingQuillRef.current?.getEditor()?.root;
+      if (quillEditor) {
+        const pasteHandler = handleReadingImagePaste as unknown as EventListener;
+        quillEditor.addEventListener('paste', pasteHandler);
+        return () => {
+          quillEditor.removeEventListener('paste', pasteHandler);
+        };
+      }
+    }
+  }, [readingModalOpen, handleReadingImagePaste]);
 
   const handleSaveReading = async () => {
     if (!readingForm.title.trim() || !selectedSessionId || !selectedTopicId) return;
@@ -1979,14 +2045,21 @@ const StudyContentDetailPage = () => {
                 Contenido <span className="text-red-500">*</span>
               </label>
               <p className="fluid-text-xs text-gray-500 fluid-mb-3 fluid-ml-7">
-                Utiliza el editor para dar formato al texto, agregar imágenes, enlaces y más.
+                Utiliza el editor para dar formato al texto. <strong>Pega imágenes directamente</strong> con Ctrl+V.
               </p>
+              {isUploadingImage && (
+                <div className="fluid-mb-2 fluid-ml-7 flex items-center fluid-gap-2 fluid-text-sm text-blue-600">
+                  <Loader2 className="fluid-icon-sm animate-spin" />
+                  <span>Subiendo imagen...</span>
+                </div>
+              )}
               <div className={`border-2 rounded-fluid-xl overflow-hidden transition-all duration-200 ${
                 readingForm.content.trim() && readingForm.content !== '<p><br></p>'
                   ? 'border-green-300 ring-2 ring-green-100' 
                   : 'border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100'
               }`}>
                 <ReactQuill
+                  ref={readingQuillRef}
                   theme="snow"
                   value={readingForm.content}
                   onChange={(content) => setReadingForm({ ...readingForm, content })}
