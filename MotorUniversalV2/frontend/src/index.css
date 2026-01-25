@@ -250,16 +250,30 @@
   .fluid-pb-16 { padding-bottom: var(--space-8); }
   .fluid-pb-20 { padding-bottom: calc(var(--space-8) * 2.5); }
   
-  /* Widths y Heights fluidos */
-  .fluid-w-14 { width: var(--space-12); }
+  /* Widths fluidos */
+  .fluid-w-12 { width: var(--space-12); }
+  .fluid-w-14 { width: clamp(3.5rem, 2.8rem + 1.4vw, 7rem); }
   .fluid-w-16 { width: calc(var(--space-8) * 2); }
   .fluid-w-20 { width: var(--space-20); }
   .fluid-w-24 { width: var(--space-24); }
+  .fluid-w-36 { width: clamp(9rem, 7.2rem + 3.6vw, 18rem); }
+  .fluid-w-48 { width: clamp(12rem, 9.6rem + 4.8vw, 24rem); }
   
-  .fluid-h-14 { height: var(--space-12); }
+  /* Heights fluidos */
+  .fluid-h-12 { height: var(--space-12); }
+  .fluid-h-14 { height: clamp(3.5rem, 2.8rem + 1.4vw, 7rem); }
   .fluid-h-16 { height: calc(var(--space-8) * 2); }
   .fluid-h-20 { height: var(--space-20); }
   .fluid-h-24 { height: var(--space-24); }
+  .fluid-h-36 { height: clamp(9rem, 7.2rem + 3.6vw, 18rem); }
+  .fluid-h-48 { height: clamp(12rem, 9.6rem + 4.8vw, 24rem); }
+  
+  /* Paddings adicionales */
+  .fluid-py-0-5 { padding-top: var(--space-0-5); padding-bottom: var(--space-0-5); }
+  .fluid-px-0-5 { padding-left: var(--space-0-5); padding-right: var(--space-0-5); }
+  
+  /* Margin top adicionales */
+  .fluid-mt-1 { margin-top: var(--space-1); }
   
   /* Margin bottom adicionales */
   .fluid-mb-10 { margin-bottom: var(--space-10); }
