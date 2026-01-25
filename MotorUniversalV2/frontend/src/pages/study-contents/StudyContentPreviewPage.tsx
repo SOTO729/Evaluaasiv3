@@ -1252,7 +1252,7 @@ const StudyContentPreviewPage: React.FC = () => {
     <div className="bg-white flex flex-col h-screen overflow-hidden">
       {/* Header minimalista - responsivo */}
       <header className="bg-white border-b border-gray-200 flex-shrink-0 z-40">
-        <div className="fluid-container-full mx-auto flex items-center justify-between fluid-px-4 fluid-header-height">
+        <div className="w-full flex items-center justify-between fluid-px-4 fluid-header-height">
           <div className="flex items-center fluid-gap-3 flex-1 min-w-0">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -2121,14 +2121,14 @@ const StudyContentPreviewPage: React.FC = () => {
             </div>
 
             {/* Espaciado para la barra fija inferior */}
-            <div className="fluid-h-16" />
+            <div className="h-20" />
           </div>
         </main>
       </div>
 
       {/* Barra de navegación fija inferior */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
-        <div className="fluid-container-full mx-auto fluid-px-6 fluid-py-3">
+        <div className="w-full fluid-px-6 fluid-py-3">
           <div className="flex items-center justify-between sm:justify-end fluid-gap-4">
             <button
               onClick={goToPreviousContent}
