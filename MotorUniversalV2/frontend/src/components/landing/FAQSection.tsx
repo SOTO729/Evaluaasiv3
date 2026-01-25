@@ -48,39 +48,39 @@ export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0)
 
   return (
-    <section id="faq" className="py-20 bg-white">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="faq" className="fluid-py-20 bg-white">
+      <div className="max-w-3xl mx-auto fluid-px-6">
         {/* Header */}
-        <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+        <div className="text-center fluid-mb-16">
+          <h2 className="fluid-text-3xl font-bold text-gray-900 fluid-mb-4">
             Preguntas Frecuentes
           </h2>
-          <p className="text-xl text-gray-600">
+          <p className="fluid-text-xl text-gray-600">
             ¿Tienes dudas? Aquí respondemos las más comunes.
           </p>
         </div>
 
         {/* FAQ List */}
-        <div className="space-y-4">
+        <div className="flex flex-col fluid-gap-4">
           {faqs.map((faq, index) => (
             <div 
               key={index}
-              className="border border-gray-200 rounded-xl overflow-hidden"
+              className="border border-gray-200 rounded-fluid-xl overflow-hidden"
             >
               <button
                 onClick={() => setOpenIndex(openIndex === index ? null : index)}
-                className="w-full flex items-center justify-between p-5 text-left bg-white hover:bg-gray-50 transition-colors"
+                className="w-full flex items-center justify-between fluid-p-5 text-left bg-white hover:bg-gray-50 transition-colors"
               >
-                <span className="font-semibold text-gray-900 pr-4">{faq.question}</span>
+                <span className="font-semibold text-gray-900 fluid-pr-4">{faq.question}</span>
                 <ChevronDown 
-                  className={`w-5 h-5 text-gray-500 flex-shrink-0 transition-transform ${
+                  className={`fluid-icon-sm text-gray-500 flex-shrink-0 transition-transform ${
                     openIndex === index ? 'rotate-180' : ''
                   }`}
                 />
               </button>
               
               {openIndex === index && (
-                <div className="px-5 pb-5 text-gray-600 leading-relaxed">
+                <div className="fluid-px-5 fluid-pb-5 text-gray-600 leading-relaxed">
                   {faq.answer}
                 </div>
               )}
@@ -89,8 +89,8 @@ export default function FAQSection() {
         </div>
 
         {/* CTA */}
-        <div className="text-center mt-12">
-          <p className="text-gray-600 mb-4">¿No encontraste lo que buscabas?</p>
+        <div className="text-center fluid-mt-12">
+          <p className="text-gray-600 fluid-mb-4">¿No encontraste lo que buscabas?</p>
           <a 
             href="#contact"
             className="text-primary-600 font-semibold hover:text-primary-700"

@@ -6,38 +6,38 @@ export default function PrivacyPolicyFullPage() {
     <div className="min-h-screen bg-gray-50 overflow-x-hidden overscroll-contain">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-4xl mx-auto fluid-px-6 fluid-py-4">
           <Link 
             to="/" 
-            className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium"
+            className="inline-flex items-center fluid-gap-2 text-primary-600 hover:text-primary-700 font-medium"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="fluid-icon-sm" />
             Volver al inicio
           </Link>
         </div>
       </header>
 
       {/* Hero */}
-      <div className="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Shield className="w-8 h-8 text-white" />
+      <div className="bg-gradient-to-br from-primary-600 to-primary-800 text-white fluid-py-16">
+        <div className="max-w-4xl mx-auto fluid-px-6 text-center">
+          <div className="w-16 h-16 bg-white/20 rounded-fluid-2xl flex items-center justify-center mx-auto fluid-mb-6">
+            <Shield className="fluid-icon-lg text-white" />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold mb-4">Política de Privacidad</h1>
-          <p className="text-primary-100 text-lg">
+          <h1 className="fluid-text-3xl font-bold fluid-mb-4">Política de Privacidad</h1>
+          <p className="text-primary-100 fluid-text-lg">
             Grupo EduIT - ENTRENAMIENTO INFORMATICO AVANZADO SA DE CV
           </p>
-          <p className="text-primary-200 text-sm mt-2">
+          <p className="text-primary-200 fluid-text-sm fluid-mt-2">
             Actualizado el 06/06/2024
           </p>
         </div>
       </div>
 
       {/* Table of Contents */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <h2 className="font-semibold text-gray-900 mb-4">Contenido</h2>
-          <nav className="grid sm:grid-cols-2 gap-2 text-sm">
+      <div className="max-w-4xl mx-auto fluid-px-6 fluid-py-8">
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-100 fluid-p-6">
+          <h2 className="font-semibold text-gray-900 fluid-mb-4">Contenido</h2>
+          <nav className="grid sm:grid-cols-2 fluid-gap-2 fluid-text-sm">
             {[
               { id: 'introduccion', label: 'Introducción' },
               { id: 'definiciones', label: 'Definiciones y Términos Clave' },
@@ -69,16 +69,16 @@ export default function PrivacyPolicyFullPage() {
       </div>
 
       {/* Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 md:p-12">
+      <main className="max-w-4xl mx-auto fluid-px-6 fluid-pb-16">
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-100 fluid-p-10">
           
           {/* Introducción */}
-          <section id="introduccion" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
-              <Shield className="w-6 h-6 text-primary-600" />
+          <section id="introduccion" className="fluid-mb-12 scroll-mt-24">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4 flex items-center fluid-gap-3">
+              <Shield className="fluid-icon-md text-primary-600" />
               Introducción
             </h2>
-            <p className="text-gray-700 leading-relaxed mb-4">
+            <p className="text-gray-700 leading-relaxed fluid-mb-4">
               <strong>Grupo EduIT</strong> con razón social <strong>ENTRENAMIENTO INFORMATICO AVANZADO SA DE CV</strong> se 
               compromete a proteger su privacidad. Esta Política de privacidad explica cómo Grupo EduIT recopila, 
               usa y divulga su información personal.
@@ -93,17 +93,17 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Definiciones */}
-          <section id="definiciones" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
-              <Database className="w-6 h-6 text-primary-600" />
+          <section id="definiciones" className="fluid-mb-12 scroll-mt-24">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4 flex items-center fluid-gap-3">
+              <Database className="fluid-icon-md text-primary-600" />
               Definiciones y Términos Clave
             </h2>
-            <p className="text-gray-700 leading-relaxed mb-6">
+            <p className="text-gray-700 leading-relaxed fluid-mb-6">
               Para ayudar a explicar las cosas de la manera más clara posible en esta Política de privacidad, 
               cada vez que se hace referencia a cualquiera de estos términos, se definen estrictamente como:
             </p>
             
-            <div className="space-y-4">
+            <div className="flex flex-col fluid-gap-4">
               {[
                 {
                   term: 'Cookie',
@@ -158,22 +158,22 @@ export default function PrivacyPolicyFullPage() {
                   definition: 'Una persona o entidad que está registrada con Grupo EduIT para utilizar los Servicios.'
                 },
               ].map((item, index) => (
-                <div key={index} className="bg-gray-50 rounded-lg p-4">
+                <div key={index} className="bg-gray-50 rounded-fluid-lg fluid-p-4">
                   <dt className="font-semibold text-gray-900">{item.term}</dt>
-                  <dd className="text-gray-600 text-sm mt-1">{item.definition}</dd>
+                  <dd className="text-gray-600 fluid-text-sm fluid-mt-1">{item.definition}</dd>
                 </div>
               ))}
             </div>
           </section>
 
           {/* Información recopilada */}
-          <section id="informacion-recopilada" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">¿Qué información recopilamos?</h2>
-            <p className="text-gray-700 leading-relaxed mb-4">
+          <section id="informacion-recopilada" className="fluid-mb-12 scroll-mt-24">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4">¿Qué información recopilamos?</h2>
+            <p className="text-gray-700 leading-relaxed fluid-mb-4">
               Recopilamos información suya cuando visita nuestra plataforma, se registra en nuestro sitio, 
               realiza un pedido, se suscribe a nuestro boletín, responde a una encuesta o completa un formulario.
             </p>
-            <ul className="grid sm:grid-cols-2 gap-2">
+            <ul className="grid sm:grid-cols-2 fluid-gap-2">
               {[
                 'Nombre / nombre de usuario',
                 'Números de teléfono',
@@ -181,7 +181,7 @@ export default function PrivacyPolicyFullPage() {
                 'Direcciones de correo',
                 'Direcciones de facturación',
               ].map((item, index) => (
-                <li key={index} className="flex items-center gap-2 text-gray-700">
+                <li key={index} className="flex items-center fluid-gap-2 text-gray-700">
                   <span className="w-2 h-2 bg-primary-500 rounded-full"></span>
                   {item}
                 </li>
@@ -190,12 +190,12 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Uso de información */}
-          <section id="uso-informacion" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">¿Cómo usamos la información que recopilamos?</h2>
-            <p className="text-gray-700 leading-relaxed mb-4">
+          <section id="uso-informacion" className="fluid-mb-12 scroll-mt-24">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4">¿Cómo usamos la información que recopilamos?</h2>
+            <p className="text-gray-700 leading-relaxed fluid-mb-4">
               Cualquier información que recopilamos de usted puede usarse de una de las siguientes maneras:
             </p>
-            <ul className="space-y-3">
+            <ul className="flex flex-col fluid-gap-3">
               {[
                 'Para personalizar su experiencia (su información nos ayuda a responder mejor a sus necesidades individuales)',
                 'Para mejorar nuestra plataforma (nos esforzamos continuamente por mejorar lo que ofrece nuestra plataforma en función de la información y los comentarios que recibimos de usted)',
@@ -204,9 +204,9 @@ export default function PrivacyPolicyFullPage() {
                 'Para administrar un concurso, promoción, encuesta u otra característica del sitio',
                 'Para enviar correos electrónicos periódicos',
               ].map((item, index) => (
-                <li key={index} className="flex items-start gap-3 text-gray-700">
+                <li key={index} className="flex items-start fluid-gap-3 text-gray-700">
                   <span className="w-6 h-6 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-primary-600 text-sm font-semibold">{index + 1}</span>
+                    <span className="text-primary-600 fluid-text-sm font-semibold">{index + 1}</span>
                   </span>
                   {item}
                 </li>
@@ -215,16 +215,16 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Información de terceros */}
-          <section id="terceros" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
-              <Users className="w-6 h-6 text-primary-600" />
+          <section id="terceros" className="fluid-mb-12 scroll-mt-24">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4 flex items-center fluid-gap-3">
+              <Users className="fluid-icon-md text-primary-600" />
               Información de Terceros
             </h2>
             
-            <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-3">
+            <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mt-6 fluid-mb-3">
               ¿Cuándo usa Grupo EduIT la información del usuario final de terceros?
             </h3>
-            <p className="text-gray-700 leading-relaxed mb-4">
+            <p className="text-gray-700 leading-relaxed fluid-mb-4">
               Grupo EduIT recopilará los datos del usuario final necesarios para proporcionar los servicios de 
               Grupo EduIT a nuestros clientes.
             </p>
@@ -236,7 +236,7 @@ export default function PrivacyPolicyFullPage() {
               configuración de privacidad.
             </p>
 
-            <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-3">
+            <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mt-6 fluid-mb-3">
               ¿Cuándo usa Grupo EduIT la información del cliente de terceros?
             </h3>
             <p className="text-gray-700 leading-relaxed">
@@ -251,10 +251,10 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Compartir información */}
-          <section id="compartir" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">¿Compartimos la información que recopilamos con terceros?</h2>
+          <section id="compartir" className="fluid-mb-12 scroll-mt-24">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4">¿Compartimos la información que recopilamos con terceros?</h2>
             
-            <div className="space-y-4 text-gray-700 leading-relaxed">
+            <div className="flex flex-col fluid-gap-4 text-gray-700 leading-relaxed">
               <p>
                 Podemos compartir la información que recopilamos, tanto personal como no personal, con nuestras compañías 
                 afiliadas y socios comerciales actuales y futuros, y si estamos involucrados en una fusión, venta de activos 
@@ -289,12 +289,12 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Correo electrónico */}
-          <section id="correo" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
-              <Mail className="w-6 h-6 text-primary-600" />
+          <section id="correo" className="fluid-mb-12 scroll-mt-24">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4 flex items-center fluid-gap-3">
+              <Mail className="fluid-icon-md text-primary-600" />
               ¿Cómo utilizamos su dirección de correo electrónico?
             </h2>
-            <div className="space-y-4 text-gray-700 leading-relaxed">
+            <div className="flex flex-col fluid-gap-4 text-gray-700 leading-relaxed">
               <p>
                 Al enviar su dirección de correo electrónico en esta plataforma, acepta recibir nuestros correos electrónicos. 
                 Puede cancelar su participación en cualquiera de estas listas de correo electrónico enviando la solicitud al 
@@ -317,8 +317,8 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Retención */}
-          <section id="retencion" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">¿Cuánto tiempo conservamos su información?</h2>
+          <section id="retencion" className="fluid-mb-12 scroll-mt-24">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4">¿Cuánto tiempo conservamos su información?</h2>
             <p className="text-gray-700 leading-relaxed">
               Conservamos su información solo mientras la necesitemos para proporcionarle Grupo EduIT y cumplir con los 
               propósitos descritos en esta política. Este también es el caso de cualquier persona con la que compartamos 
@@ -329,12 +329,12 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Seguridad */}
-          <section id="seguridad" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
-              <Lock className="w-6 h-6 text-primary-600" />
+          <section id="seguridad" className="fluid-mb-12 scroll-mt-24">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4 flex items-center fluid-gap-3">
+              <Lock className="fluid-icon-md text-primary-600" />
               ¿Cómo protegemos su información?
             </h2>
-            <div className="bg-green-50 border border-green-200 rounded-xl p-6 mb-4">
+            <div className="bg-green-50 border border-green-200 rounded-fluid-xl fluid-p-6 fluid-mb-4">
               <p className="text-gray-700 leading-relaxed">
                 Implementamos una variedad de medidas de seguridad para mantener la seguridad de su información personal 
                 cuando realiza un pedido, ingresa, envía o accede a su información personal. Ofrecemos el uso de un 
@@ -350,12 +350,12 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Transferencia */}
-          <section id="transferencia" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
-              <Globe className="w-6 h-6 text-primary-600" />
+          <section id="transferencia" className="fluid-mb-12 scroll-mt-24">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4 flex items-center fluid-gap-3">
+              <Globe className="fluid-icon-md text-primary-600" />
               ¿Podría transferirse mi información a otros países?
             </h2>
-            <p className="text-gray-700 leading-relaxed mb-4">
+            <p className="text-gray-700 leading-relaxed fluid-mb-4">
               Grupo EduIT está incorporada en México. La información recopilada a través de nuestro sitio web, a través 
               de interacciones directas con usted o del uso de nuestros servicios de ayuda puede transferirse de vez en 
               cuando a nuestras oficinas o personal, o a terceros, ubicados en todo el mundo, y puede verse y alojarse 
@@ -369,9 +369,9 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Actualizar información */}
-          <section id="actualizacion" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">¿Puedo actualizar o corregir mi información?</h2>
-            <div className="space-y-4 text-gray-700 leading-relaxed">
+          <section id="actualizacion" className="fluid-mb-12 scroll-mt-24">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4">¿Puedo actualizar o corregir mi información?</h2>
+            <div className="flex flex-col fluid-gap-4 text-gray-700 leading-relaxed">
               <p>
                 Los derechos que tienes para solicitar actualizaciones o correcciones de la información que recopila 
                 Grupo EduIT dependen de tu relación con Grupo EduIT. El personal puede actualizar o corregir su 
@@ -381,7 +381,7 @@ export default function PrivacyPolicyFullPage() {
                 Los clientes tienen derecho a solicitar la restricción de ciertos usos y divulgaciones de información 
                 de identificación personal de la siguiente manera. Puede comunicarse con nosotros para:
               </p>
-              <ol className="list-decimal list-inside space-y-2 ml-4">
+              <ol className="list-decimal list-inside flex flex-col fluid-gap-2 fluid-ml-4">
                 <li>Actualizar o corregir su información de identificación personal</li>
                 <li>Cambiar sus preferencias con respecto a las comunicaciones y otra información que recibe de nosotros</li>
                 <li>Eliminar la información de identificación personal que se mantiene sobre usted en nuestro sistema</li>
@@ -391,8 +391,8 @@ export default function PrivacyPolicyFullPage() {
                 que mantenemos o información que hayamos proporcionado a terceros de acuerdo con esta Política de privacidad 
                 antes de dicha actualización, corrección, cambio o eliminación.
               </p>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mt-4">
-                <p className="text-yellow-800 text-sm">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-fluid-xl fluid-p-4 fluid-mt-4">
+                <p className="text-yellow-800 fluid-text-sm">
                   <strong>Nota:</strong> Tecnológicamente no es posible eliminar todos y cada uno de los registros de la 
                   información que nos ha proporcionado de nuestro sistema. La necesidad de realizar copias de seguridad 
                   de nuestros sistemas para proteger la información de pérdidas involuntarias significa que puede existir 
@@ -403,9 +403,9 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Personal */}
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Personal</h2>
-            <p className="text-gray-700 leading-relaxed mb-4">
+          <section className="fluid-mb-12">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4">Personal</h2>
+            <p className="text-gray-700 leading-relaxed fluid-mb-4">
               Si es un trabajador o solicitante de Grupo EduIT, recopilamos la información que nos proporciona 
               voluntariamente. Usamos la información recopilada con fines de recursos humanos para administrar 
               los beneficios a los trabajadores y seleccionar a los solicitantes.
@@ -418,8 +418,8 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Venta de Negocio */}
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Venta de Negocio</h2>
+          <section className="fluid-mb-12">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4">Venta de Negocio</h2>
             <p className="text-gray-700 leading-relaxed">
               Nos reservamos el derecho de transferir información a un tercero en el caso de una venta, fusión u otra 
               transferencia de todos o sustancialmente todos los activos de Grupo EduIT o cualquiera de sus afiliadas 
@@ -431,8 +431,8 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Afiliados */}
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Afiliados</h2>
+          <section className="fluid-mb-12">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4">Afiliados</h2>
             <p className="text-gray-700 leading-relaxed">
               Podemos divulgar información (incluida la información personal) sobre usted a nuestros afiliados corporativos. 
               Para los propósitos de esta Política de Privacidad, «Afiliado Corporativo» significa cualquier persona o 
@@ -444,12 +444,12 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Ley que Rige */}
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
-              <Scale className="w-6 h-6 text-primary-600" />
+          <section className="fluid-mb-12">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4 flex items-center fluid-gap-3">
+              <Scale className="fluid-icon-md text-primary-600" />
               Ley que Rige
             </h2>
-            <div className="space-y-4 text-gray-700 leading-relaxed">
+            <div className="flex flex-col fluid-gap-4 text-gray-700 leading-relaxed">
               <p>
                 Esta Política de privacidad se rige por las leyes de <strong>México</strong> sin tener en cuenta su 
                 disposición sobre conflicto de leyes. Usted acepta la jurisdicción exclusiva de los tribunales en 
@@ -470,9 +470,9 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Consentimiento */}
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Tu consentimiento</h2>
-            <div className="bg-primary-50 border border-primary-200 rounded-xl p-6">
+          <section className="fluid-mb-12">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4">Tu consentimiento</h2>
+            <div className="bg-primary-50 border border-primary-200 rounded-fluid-xl fluid-p-6">
               <p className="text-gray-700 leading-relaxed">
                 Hemos actualizado nuestra Política de privacidad para brindarle total transparencia sobre lo que se establece 
                 cuando visita nuestro sitio y cómo se utiliza. Al utilizar nuestra plataforma, registrar una cuenta o realizar 
@@ -482,8 +482,8 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Enlaces */}
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Enlaces a otros Sitios Web</h2>
+          <section className="fluid-mb-12">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4">Enlaces a otros Sitios Web</h2>
             <p className="text-gray-700 leading-relaxed">
               Esta Política de privacidad se aplica solo a los Servicios. Los Servicios pueden contener enlaces a otros 
               sitios web que Grupo EduIT no opera ni controla. No somos responsables por el contenido, la precisión o las 
@@ -496,12 +496,12 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Cookies */}
-          <section id="cookies" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
-              <Cookie className="w-6 h-6 text-primary-600" />
+          <section id="cookies" className="fluid-mb-12 scroll-mt-24">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4 flex items-center fluid-gap-3">
+              <Cookie className="fluid-icon-md text-primary-600" />
               Cookies
             </h2>
-            <div className="space-y-4 text-gray-700 leading-relaxed">
+            <div className="flex flex-col fluid-gap-4 text-gray-700 leading-relaxed">
               <p>
                 Grupo EduIT utiliza «cookies» para identificar las áreas de nuestro sitio web que ha visitado. Una cookie 
                 es una pequeña porción de datos que su navegador web almacena en su computadora o dispositivo móvil. 
@@ -513,7 +513,7 @@ export default function PrivacyPolicyFullPage() {
                 web correctamente o en absoluto. <strong>Nunca colocamos información de identificación personal en cookies.</strong>
               </p>
               
-              <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-3">Bloquear y deshabilitar Cookies</h3>
+              <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mt-6 fluid-mb-3">Bloquear y deshabilitar Cookies</h3>
               <p>
                 Donde sea que se encuentre, también puede configurar su navegador para bloquear cookies y tecnologías 
                 similares, pero esta acción puede bloquear nuestras cookies esenciales e impedir que nuestro sitio web 
@@ -525,9 +525,9 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Niños */}
-          <section id="ninos" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Privacidad de los Niños</h2>
-            <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+          <section id="ninos" className="fluid-mb-12 scroll-mt-24">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4">Privacidad de los Niños</h2>
+            <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-6">
               <p className="text-gray-700 leading-relaxed">
                 No nos dirigimos a ninguna persona menor de 13 años. No recopilamos información de identificación personal 
                 de ninguna persona menor de 13 años. Si usted es padre o tutor y sabe que su hijo nos ha proporcionado 
@@ -539,8 +539,8 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Cambios */}
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Cambios en nuestra Política de Privacidad</h2>
+          <section className="fluid-mb-12">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4">Cambios en nuestra Política de Privacidad</h2>
             <p className="text-gray-700 leading-relaxed">
               Podemos cambiar nuestro Servicio y nuestras políticas, y es posible que debamos realizar cambios en esta 
               Política de privacidad para que reflejen con precisión nuestro Servicio y nuestras políticas. A menos que 
@@ -551,8 +551,8 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Servicios de terceros */}
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Servicios de terceros</h2>
+          <section className="fluid-mb-12">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4">Servicios de terceros</h2>
             <p className="text-gray-700 leading-relaxed">
               Podemos mostrar, incluir o poner a disposición contenido de terceros (incluidos datos, información, 
               aplicaciones y otros servicios de productos) o proporcionar enlaces a sitios web o servicios de terceros 
@@ -566,18 +566,18 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* RGPD */}
-          <section id="rgpd" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          <section id="rgpd" className="fluid-mb-12 scroll-mt-24">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4">
               Información sobre el Reglamento General de Protección de Datos (RGPD)
             </h2>
-            <div className="space-y-4 text-gray-700 leading-relaxed">
+            <div className="flex flex-col fluid-gap-4 text-gray-700 leading-relaxed">
               <p>
                 Es posible que recopilemos y utilicemos información suya si pertenece al Espacio Económico Europeo (EEE), 
                 y en esta sección de nuestra Política de privacidad vamos a explicar exactamente cómo y por qué se 
                 recopilan estos datos, y cómo los mantenemos bajo protección contra la replicación o el uso incorrecto.
               </p>
               
-              <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-3">¿Qué es RGPD?</h3>
+              <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mt-6 fluid-mb-3">¿Qué es RGPD?</h3>
               <p>
                 RGPD es una ley de privacidad y protección de datos en toda la UE que regula cómo las empresas protegen 
                 los datos de los residentes de la UE y mejora el control que los residentes de la UE tienen sobre sus 
@@ -585,7 +585,7 @@ export default function PrivacyPolicyFullPage() {
                 las empresas con sede en la UE y los residentes de la UE.
               </p>
 
-              <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-3">¿Qué son los Datos Personales?</h3>
+              <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mt-6 fluid-mb-3">¿Qué son los Datos Personales?</h3>
               <p>
                 Cualquier dato que se relacione con un individuo identificable o identificable. El RGPD cubre un amplio 
                 espectro de información que podría usarse por sí sola o en combinación con otras piezas de información 
@@ -594,8 +594,8 @@ export default function PrivacyPolicyFullPage() {
                 genéticos, datos biométricos, direcciones IP, dirección física, orientación sexual y origen étnico.
               </p>
 
-              <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-3">Principios de protección de datos</h3>
-              <ul className="list-disc list-inside space-y-2 ml-4">
+              <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mt-6 fluid-mb-3">Principios de protección de datos</h3>
+              <ul className="list-disc list-inside flex flex-col fluid-gap-2 fluid-ml-4">
                 <li>Los datos personales recopilados deben procesarse de manera justa, legal y transparente y solo deben 
                 usarse de la manera que una persona esperaría razonablemente.</li>
                 <li>Los datos personales solo deben recopilarse para cumplir con un propósito específico y solo deben 
@@ -606,7 +606,7 @@ export default function PrivacyPolicyFullPage() {
                 otra organización.</li>
               </ul>
 
-              <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-3">
+              <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mt-6 fluid-mb-3">
                 Derechos individuales del interesado: acceso, portabilidad y eliminación de datos
               </h3>
               <p>
@@ -620,9 +620,9 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* California */}
-          <section id="california" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Residentes de California</h2>
-            <div className="space-y-4 text-gray-700 leading-relaxed">
+          <section id="california" className="fluid-mb-12 scroll-mt-24">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4">Residentes de California</h2>
+            <div className="flex flex-col fluid-gap-4 text-gray-700 leading-relaxed">
               <p>
                 La Ley de Privacidad del Consumidor de California (CCPA) requiere que divulguemos las categorías de 
                 Información personal que recopilamos y cómo la usamos, las categorías de fuentes de las que recopilamos 
@@ -643,7 +643,7 @@ export default function PrivacyPolicyFullPage() {
                 consumidor, no venda los datos personales del consumidor.</li>
               </ul>
 
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mt-4">
+              <div className="bg-green-50 border border-green-200 rounded-fluid-xl fluid-p-4 fluid-mt-4">
                 <p className="text-green-800 font-semibold">
                   ✓ No vendemos la información personal de nuestros usuarios.
                 </p>
@@ -652,25 +652,25 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Contacto */}
-          <section id="contacto" className="mb-8 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Contáctenos</h2>
-            <p className="text-gray-700 leading-relaxed mb-6">
+          <section id="contacto" className="fluid-mb-8 scroll-mt-24">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-4">Contáctenos</h2>
+            <p className="text-gray-700 leading-relaxed fluid-mb-6">
               No dude en contactarnos si tiene alguna pregunta sobre esta política de privacidad.
             </p>
-            <div className="bg-gray-50 rounded-xl p-6 space-y-4">
-              <div className="flex items-center gap-3">
-                <Mail className="w-5 h-5 text-primary-600" />
+            <div className="bg-gray-50 rounded-fluid-xl fluid-p-6 flex flex-col fluid-gap-4">
+              <div className="flex items-center fluid-gap-3">
+                <Mail className="fluid-icon-sm text-primary-600" />
                 <div>
-                  <div className="text-sm text-gray-500">Email</div>
+                  <div className="fluid-text-sm text-gray-500">Email</div>
                   <a href="mailto:informes@grupoeduit.com" className="text-primary-600 hover:underline font-medium">
                     informes@grupoeduit.com
                   </a>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Globe className="w-5 h-5 text-primary-600" />
+              <div className="flex items-center fluid-gap-3">
+                <Globe className="fluid-icon-sm text-primary-600" />
                 <div>
-                  <div className="text-sm text-gray-500">Sitio web</div>
+                  <div className="fluid-text-sm text-gray-500">Sitio web</div>
                   <a href="https://www.grupoeduit.com/contacto" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline font-medium">
                     www.grupoeduit.com/contacto
                   </a>
@@ -680,11 +680,11 @@ export default function PrivacyPolicyFullPage() {
           </section>
 
           {/* Footer */}
-          <div className="border-t border-gray-200 pt-6 mt-8 text-center">
-            <p className="text-gray-500 text-sm">
+          <div className="border-t border-gray-200 fluid-pt-6 fluid-mt-8 text-center">
+            <p className="text-gray-500 fluid-text-sm">
               <strong>Grupo EduIT</strong> - ENTRENAMIENTO INFORMATICO AVANZADO SA DE CV
             </p>
-            <p className="text-gray-400 text-sm mt-1">
+            <p className="text-gray-400 fluid-text-sm fluid-mt-1">
               Última actualización: 06 de Junio de 2024
             </p>
           </div>
@@ -692,17 +692,17 @@ export default function PrivacyPolicyFullPage() {
         </div>
 
         {/* Navigation */}
-        <div className="flex justify-between items-center mt-8">
+        <div className="flex justify-between items-center fluid-mt-8">
           <Link 
             to="/" 
-            className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium"
+            className="inline-flex items-center fluid-gap-2 text-primary-600 hover:text-primary-700 font-medium"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="fluid-icon-sm" />
             Volver al inicio
           </Link>
           <Link 
             to="/privacidad" 
-            className="text-gray-500 hover:text-gray-700 text-sm"
+            className="text-gray-500 hover:text-gray-700 fluid-text-sm"
           >
             Ver Aviso de Privacidad Simplificado →
           </Link>
@@ -710,8 +710,8 @@ export default function PrivacyPolicyFullPage() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-6">
-        <div className="max-w-4xl mx-auto px-4 text-center text-gray-500 text-sm">
+      <footer className="bg-white border-t border-gray-200 fluid-py-6">
+        <div className="max-w-4xl mx-auto fluid-px-4 text-center text-gray-500 fluid-text-sm">
           © {new Date().getFullYear()} Evaluaasi / Grupo EduIT. Todos los derechos reservados.
         </div>
       </footer>

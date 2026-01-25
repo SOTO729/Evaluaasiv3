@@ -63,24 +63,24 @@ const plans = [
 
 export default function PricingSection() {
   return (
-    <section id="pricing" className="py-20 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="pricing" className="fluid-py-20 bg-white">
+      <div className="max-w-7xl mx-auto fluid-px-6">
         {/* Header */}
-        <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+        <div className="text-center fluid-mb-16">
+          <h2 className="fluid-text-3xl font-bold text-gray-900 fluid-mb-4">
             Planes para cada necesidad
           </h2>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="fluid-text-xl text-gray-600 max-w-2xl mx-auto">
             Comienza gratis y escala a medida que creces. Sin costos ocultos, cancela cuando quieras.
           </p>
         </div>
 
         {/* Plans Grid */}
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-3 fluid-gap-8 max-w-5xl mx-auto">
           {plans.map((plan) => (
             <div 
               key={plan.name}
-              className={`relative rounded-2xl p-8 ${
+              className={`relative rounded-fluid-2xl fluid-p-8 ${
                 plan.popular 
                   ? 'bg-primary-600 text-white shadow-xl scale-105 border-2 border-primary-500' 
                   : 'bg-white border border-gray-200 shadow-sm'
@@ -89,23 +89,23 @@ export default function PricingSection() {
               {/* Popular Badge */}
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <div className="flex items-center gap-1 px-4 py-1 bg-yellow-400 text-yellow-900 rounded-full text-sm font-semibold">
-                    <Sparkles className="w-4 h-4" />
+                  <div className="flex items-center fluid-gap-1 fluid-px-4 fluid-py-1 bg-yellow-400 text-yellow-900 rounded-full fluid-text-sm font-semibold">
+                    <Sparkles className="fluid-icon-sm" />
                     Más Popular
                   </div>
                 </div>
               )}
 
               {/* Plan Name */}
-              <h3 className={`text-xl font-semibold mb-2 ${plan.popular ? 'text-white' : 'text-gray-900'}`}>
+              <h3 className={`fluid-text-xl font-semibold fluid-mb-2 ${plan.popular ? 'text-white' : 'text-gray-900'}`}>
                 {plan.name}
               </h3>
-              <p className={`text-sm mb-6 ${plan.popular ? 'text-primary-100' : 'text-gray-600'}`}>
+              <p className={`fluid-text-sm fluid-mb-6 ${plan.popular ? 'text-primary-100' : 'text-gray-600'}`}>
                 {plan.description}
               </p>
 
               {/* Price */}
-              <div className="mb-6">
+              <div className="fluid-mb-6">
                 <span className={`text-4xl font-bold ${plan.popular ? 'text-white' : 'text-gray-900'}`}>
                   {plan.price === 'Personalizado' ? '' : '$'}{plan.price}
                 </span>
@@ -115,15 +115,15 @@ export default function PricingSection() {
               </div>
 
               {/* Features */}
-              <ul className="space-y-3 mb-8">
+              <ul className="flex flex-col fluid-gap-3 fluid-mb-8">
                 {plan.features.map((feature) => (
-                  <li key={feature.text} className="flex items-center gap-3">
+                  <li key={feature.text} className="flex items-center fluid-gap-3">
                     {feature.included ? (
-                      <Check className={`w-5 h-5 flex-shrink-0 ${plan.popular ? 'text-primary-200' : 'text-green-500'}`} />
+                      <Check className={`fluid-icon-sm flex-shrink-0 ${plan.popular ? 'text-primary-200' : 'text-green-500'}`} />
                     ) : (
-                      <X className={`w-5 h-5 flex-shrink-0 ${plan.popular ? 'text-primary-300' : 'text-gray-300'}`} />
+                      <X className={`fluid-icon-sm flex-shrink-0 ${plan.popular ? 'text-primary-300' : 'text-gray-300'}`} />
                     )}
-                    <span className={`text-sm ${
+                    <span className={`fluid-text-sm ${
                       feature.included 
                         ? plan.popular ? 'text-white' : 'text-gray-700'
                         : plan.popular ? 'text-primary-300' : 'text-gray-400'
@@ -137,7 +137,7 @@ export default function PricingSection() {
               {/* CTA */}
               <Link
                 to={plan.ctaLink}
-                className={`block w-full py-3 px-6 rounded-xl font-semibold text-center transition-all ${
+                className={`block w-full fluid-py-3 fluid-px-6 rounded-fluid-xl font-semibold text-center transition-all ${
                   plan.popular
                     ? 'bg-white text-primary-600 hover:bg-gray-100'
                     : 'bg-primary-600 text-white hover:bg-primary-700'
@@ -150,7 +150,7 @@ export default function PricingSection() {
         </div>
 
         {/* Bottom Note */}
-        <p className="text-center text-gray-500 mt-12">
+        <p className="text-center text-gray-500 fluid-mt-12">
           Todos los planes incluyen SSL, backups diarios y actualizaciones gratuitas.
         </p>
       </div>

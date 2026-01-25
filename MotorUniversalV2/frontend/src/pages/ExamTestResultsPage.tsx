@@ -548,134 +548,134 @@ const ExamTestResultsPage: React.FC = () => {
   return (
     <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-x-hidden overscroll-contain ${!canViewAnswers ? '' : ''}`}>
       {/* Header con gradiente y bordes suaves */}
-      <div className="max-w-7xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 xl:px-10 2xl:px-12 3xl:px-14 4xl:px-16 pt-4 sm:pt-6">
-        <div className={`bg-gradient-to-r ${getScoreBgColor(summary.percentage)} text-white rounded-xl sm:rounded-2xl shadow-xl`}>
-          <div className="px-4 sm:px-6 md:px-8 py-5 sm:py-6 md:py-8">
+      <div className="max-w-7xl mx-auto fluid-px-6 fluid-pt-6">
+        <div className={`bg-gradient-to-r ${getScoreBgColor(summary.percentage)} text-white rounded-fluid-xl shadow-xl`}>
+          <div className="fluid-px-6 fluid-py-6">
           {/* Botón volver a exámenes para candidatos */}
           {!canViewAnswers && (
-            <div className="mb-3 sm:mb-4">
+            <div className="fluid-mb-4">
               <button
                 onClick={() => navigate('/exams')}
-                className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white/20 hover:bg-white/30 rounded-lg text-white text-xs sm:text-sm font-medium transition-colors"
+                className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 rounded-fluid-md text-white fluid-text-sm font-medium transition-colors"
               >
-                <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden xs:inline">Volver a</span> Exámenes
+                <ArrowLeft className="fluid-icon-sm" />
+                Volver a Exámenes
               </button>
             </div>
           )}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-4">
             <div>
-              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold mb-1 sm:mb-2">Resultados del Examen</h1>
-              <p className="text-white/80 text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl">Evaluación completada</p>
+              <h1 className="fluid-text-3xl font-bold fluid-mb-2">Resultados del Examen</h1>
+              <p className="text-white/80 fluid-text-lg">Evaluación completada</p>
             </div>
             <div className="text-left sm:text-right">
-              <div className="text-3xl sm:text-4xl md:text-5xl font-bold">{summary.percentage}%</div>
-              <div className="text-white/80 text-xs sm:text-sm">Calificación Final</div>
+              <div className="fluid-text-3xl font-bold">{summary.percentage}%</div>
+              <div className="text-white/80 fluid-text-sm">Calificación Final</div>
             </div>
           </div>
         </div>
         </div>
       </div>
 
-      <div className="max-w-7xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 xl:px-10 2xl:px-12 3xl:px-14 4xl:px-16 pt-4 sm:pt-6 pb-6 sm:pb-8">
+      <div className="max-w-7xl mx-auto fluid-px-6 fluid-pt-6 fluid-pb-8">
         {/* Summary Cards - Diferentes para candidatos */}
         {!canViewAnswers ? (
           /* Tarjetas para candidatos: Tiempo, Puntos, Respuestas enviadas, Estatus */
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4 md:grid-cols-4 mb-6 sm:mb-8">
-            <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-5 border-t-4 border-blue-500">
+          <div className="grid grid-cols-2 fluid-gap-4 md:grid-cols-4 fluid-mb-8">
+            <div className="bg-white rounded-fluid-lg shadow-lg fluid-p-4 border-t-4 border-blue-500">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide">Tiempo</p>
-                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600">{formatTime(elapsedTime)}</p>
+                  <p className="fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Tiempo</p>
+                  <p className="fluid-text-xl font-bold text-blue-600">{formatTime(elapsedTime)}</p>
                 </div>
-                <Clock className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-blue-500" />
+                <Clock className="fluid-icon-lg text-blue-500" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-5 border-t-4 border-yellow-500">
+            <div className="bg-white rounded-fluid-lg shadow-lg fluid-p-4 border-t-4 border-yellow-500">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide">Puntos</p>
-                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-yellow-600">{Math.round(1000 * summary.percentage / 100)}</p>
+                  <p className="fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Puntos</p>
+                  <p className="fluid-text-xl font-bold text-yellow-600">{Math.round(1000 * summary.percentage / 100)}</p>
                 </div>
-                <Trophy className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-yellow-500" />
+                <Trophy className="fluid-icon-lg text-yellow-500" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-5 border-t-4 border-green-500">
+            <div className="bg-white rounded-fluid-lg shadow-lg fluid-p-4 border-t-4 border-green-500">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide">Respuestas</p>
-                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-green-600">{summary.total_questions + summary.total_exercises}</p>
+                  <p className="fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Respuestas</p>
+                  <p className="fluid-text-xl font-bold text-green-600">{summary.total_questions + summary.total_exercises}</p>
                 </div>
-                <Send className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-green-500" />
+                <Send className="fluid-icon-lg text-green-500" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-5 border-t-4 border-amber-500">
+            <div className="bg-white rounded-fluid-lg shadow-lg fluid-p-4 border-t-4 border-amber-500">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide">Estatus</p>
-                  <p className={`text-sm sm:text-base md:text-lg font-bold ${summary.percentage >= 70 ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className="fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Estatus</p>
+                  <p className={`fluid-text-base font-bold ${summary.percentage >= 70 ? 'text-green-600' : 'text-red-600'}`}>
                     {summary.percentage >= 70 ? 'Aprobado' : 'No aprobado'}
                   </p>
                 </div>
-                <Award className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 ${summary.percentage >= 70 ? 'text-green-500' : 'text-red-500'}`} />
+                <Award className={`fluid-icon-lg ${summary.percentage >= 70 ? 'text-green-500' : 'text-red-500'}`} />
               </div>
             </div>
           </div>
         ) : (
           /* Tarjetas para admin/editor: Vista completa */
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4 md:grid-cols-5 mb-6 sm:mb-8 -mt-8 sm:-mt-10 md:-mt-12">
-          <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-5 border-t-4 border-gray-400">
+          <div className="grid grid-cols-2 fluid-gap-4 md:grid-cols-5 fluid-mb-8 -fluid-mt-10">
+          <div className="bg-white rounded-fluid-lg shadow-lg fluid-p-4 border-t-4 border-gray-400">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide">Respuestas</p>
-                <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-700">{summary.earned_points}/{summary.total_points}</p>
+                <p className="fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Respuestas</p>
+                <p className="fluid-text-xl font-bold text-gray-700">{summary.earned_points}/{summary.total_points}</p>
               </div>
-              <CheckCircle className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-gray-400" />
+              <CheckCircle className="fluid-icon-lg text-gray-400" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-5 border-t-4 border-primary-500">
+          <div className="bg-white rounded-fluid-lg shadow-lg fluid-p-4 border-t-4 border-primary-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide">Preguntas</p>
-                <p className="text-lg sm:text-xl md:text-2xl font-bold text-primary-600">{summary.correct_questions}/{summary.total_questions}</p>
+                <p className="fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Preguntas</p>
+                <p className="fluid-text-xl font-bold text-primary-600">{summary.correct_questions}/{summary.total_questions}</p>
               </div>
-              <BookOpen className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-primary-500" />
+              <BookOpen className="fluid-icon-lg text-primary-500" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-5 border-t-4 border-purple-500">
+          <div className="bg-white rounded-fluid-lg shadow-lg fluid-p-4 border-t-4 border-purple-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide">Ejercicios</p>
-                <p className="text-lg sm:text-xl md:text-2xl font-bold text-purple-600">{summary.correct_exercises}/{summary.total_exercises}</p>
+                <p className="fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Ejercicios</p>
+                <p className="fluid-text-xl font-bold text-purple-600">{summary.correct_exercises}/{summary.total_exercises}</p>
               </div>
-              <Target className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-purple-500" />
+              <Target className="fluid-icon-lg text-purple-500" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-5 border-t-4 border-green-500">
+          <div className="bg-white rounded-fluid-lg shadow-lg fluid-p-4 border-t-4 border-green-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide">Tiempo</p>
-                <p className="text-lg sm:text-xl md:text-2xl font-bold text-green-600">{formatTime(elapsedTime)}</p>
+                <p className="fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Tiempo</p>
+                <p className="fluid-text-xl font-bold text-green-600">{formatTime(elapsedTime)}</p>
               </div>
-              <Clock className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-green-500" />
+              <Clock className="fluid-icon-lg text-green-500" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-5 border-t-4 border-red-500 col-span-2 md:col-span-1">
+          <div className="bg-white rounded-fluid-lg shadow-lg fluid-p-4 border-t-4 border-red-500 col-span-2 md:col-span-1">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wide">Errores</p>
-                <p className="text-lg sm:text-xl md:text-2xl font-bold text-red-600">
+                <p className="fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Errores</p>
+                <p className="fluid-text-xl font-bold text-red-600">
                   {(summary.total_questions - summary.correct_questions) + (summary.total_exercises - summary.correct_exercises)}
                 </p>
               </div>
-              <XCircle className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-red-500" />
+              <XCircle className="fluid-icon-lg text-red-500" />
             </div>
           </div>
           </div>
@@ -683,14 +683,14 @@ const ExamTestResultsPage: React.FC = () => {
 
         {/* Mensaje para candidatos */}
         {!canViewAnswers && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg sm:rounded-xl p-4 sm:p-5 md:p-6 mb-6 sm:mb-8">
+          <div className="bg-blue-50 border border-blue-200 rounded-fluid-lg fluid-p-5 fluid-mb-8">
             <div className="flex items-start">
-              <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 mr-2 sm:mr-3 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="fluid-icon text-blue-600 fluid-mr-3 flex-shrink-0 mt-0.5" />
               <div>
-                <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-1">Resultados del Examen</h3>
-                <p className="text-sm sm:text-base text-blue-800">
+                <h3 className="fluid-text-lg font-semibold text-blue-900 fluid-mb-1">Resultados del Examen</h3>
+                <p className="fluid-text-base text-blue-800">
                   Aquí puedes ver tu calificación final y el desglose de tu desempeño por cada área evaluada.
-                  <span className="hidden sm:inline"> Esto te ayudará a identificar tus fortalezas y áreas de oportunidad.</span>
+                  Esto te ayudará a identificar tus fortalezas y áreas de oportunidad.
                 </p>
               </div>
             </div>
@@ -699,7 +699,7 @@ const ExamTestResultsPage: React.FC = () => {
 
         {/* Indicador de scroll para ver más detalles - solo para candidatos */}
         {!canViewAnswers && summary.evaluation_breakdown && Object.keys(summary.evaluation_breakdown).length > 0 && (
-          <div className="flex justify-center mb-6">
+          <div className="flex justify-center fluid-mb-6">
             <button
               onClick={() => {
                 const breakdownSection = document.getElementById('breakdown-section');
@@ -707,22 +707,22 @@ const ExamTestResultsPage: React.FC = () => {
                   breakdownSection.scrollIntoView({ behavior: 'smooth' });
                 }
               }}
-              className="flex flex-col items-center gap-1 text-gray-400 hover:text-primary-600 transition-colors"
+              className="flex flex-col items-center fluid-gap-1 text-gray-400 hover:text-primary-600 transition-colors"
             >
-              <span className="text-sm font-medium">Ver desglose por área</span>
-              <ChevronDown className="w-5 h-5 animate-bounce" />
+              <span className="fluid-text-sm font-medium">Ver desglose por área</span>
+              <ChevronDown className="fluid-icon animate-bounce" />
             </button>
           </div>
         )}
 
         {/* Desglose por Categoría/Tema */}
         {summary.evaluation_breakdown && Object.keys(summary.evaluation_breakdown).length > 0 && (
-          <div id="breakdown-section" className="bg-white rounded-lg sm:rounded-xl shadow-lg mb-6 sm:mb-8">
-            <div className="px-4 sm:px-5 md:px-6 py-3 sm:py-4 border-b border-gray-200">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Desglose por Área</h2>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1">Puntaje obtenido por categoría y tema</p>
+          <div id="breakdown-section" className="bg-white rounded-fluid-lg shadow-lg fluid-mb-8">
+            <div className="fluid-px-5 fluid-py-4 border-b border-gray-200">
+              <h2 className="fluid-text-xl font-bold text-gray-900">Desglose por Área</h2>
+              <p className="fluid-text-sm text-gray-500 mt-1">Puntaje obtenido por categoría y tema</p>
             </div>
-            <div className="p-3 sm:p-4 md:p-6">
+            <div className="fluid-p-5">
               <div className="space-y-6">
                 {Object.entries(summary.evaluation_breakdown).map(([categoryName, categoryData], catIndex) => (
                   <div key={categoryName} className="border border-gray-200 rounded-lg overflow-hidden">
@@ -797,24 +797,24 @@ const ExamTestResultsPage: React.FC = () => {
 
         {/* Preguntas - Solo visible para admin/editor/soporte */}
         {canViewAnswers && questions.length > 0 && (
-          <div className="bg-white rounded-xl shadow-lg mb-8">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">
+          <div className="bg-white rounded-fluid-xl shadow-lg fluid-mb-8">
+            <div className="fluid-px-6 fluid-py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="fluid-text-xl font-bold text-gray-900">
                 Preguntas ({summary.correct_questions}/{summary.total_questions} correctas)
               </h2>
             </div>
 
             <div className="divide-y divide-gray-100">
               {questions.map((result, index) => (
-                <div key={result.question_id} className="p-6">
+                <div key={result.question_id} className="fluid-p-6">
                   <div className="flex items-start">
-                    <div className="flex-shrink-0 mr-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${result.is_correct ? 'bg-green-100' : 'bg-red-100'}`}>
-                        <BookOpen className={`w-5 h-5 ${result.is_correct ? 'text-green-600' : 'text-red-600'}`} />
+                    <div className="flex-shrink-0 fluid-mr-4">
+                      <div className={`w-10 h-10 rounded-fluid-lg flex items-center justify-center ${result.is_correct ? 'bg-green-100' : 'bg-red-100'}`}>
+                        <BookOpen className={`fluid-icon ${result.is_correct ? 'text-green-600' : 'text-red-600'}`} />
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center flex-wrap gap-2 mb-3">
+                      <div className="flex items-center flex-wrap fluid-gap-2 fluid-mb-3">
                         <span className="text-sm font-bold text-gray-900 bg-gray-100 px-3 py-1 rounded-full">
                           Pregunta {index + 1}
                         </span>
@@ -886,25 +886,25 @@ const ExamTestResultsPage: React.FC = () => {
 
         {/* Ejercicios - Solo visible para admin/editor/soporte */}
         {canViewAnswers && exercises.length > 0 && (
-          <div className="bg-white rounded-xl shadow-lg mb-8">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">
+          <div className="bg-white rounded-fluid-xl shadow-lg fluid-mb-8">
+            <div className="fluid-px-6 fluid-py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="fluid-text-xl font-bold text-gray-900">
                 Ejercicios ({summary.correct_exercises}/{summary.total_exercises} correctos)
               </h2>
             </div>
 
             <div className="divide-y divide-gray-100">
               {exercises.map((exercise, index) => (
-                <div key={exercise.exercise_id} className="p-6">
+                <div key={exercise.exercise_id} className="fluid-p-6">
                   <div className="flex items-start">
-                    <div className="flex-shrink-0 mr-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${exercise.is_correct ? 'bg-purple-100' : 'bg-red-100'}`}>
-                        <Target className={`w-5 h-5 ${exercise.is_correct ? 'text-purple-600' : 'text-red-600'}`} />
+                    <div className="flex-shrink-0 fluid-mr-4">
+                      <div className={`w-10 h-10 rounded-fluid-lg flex items-center justify-center ${exercise.is_correct ? 'bg-purple-100' : 'bg-red-100'}`}>
+                        <Target className={`fluid-icon ${exercise.is_correct ? 'text-purple-600' : 'text-red-600'}`} />
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-between fluid-mb-3">
+                        <div className="flex items-center fluid-gap-3">
                           <span className="text-sm font-bold text-gray-900 bg-gray-100 px-3 py-1 rounded-full">
                             Ejercicio {index + 1}
                           </span>
@@ -1017,23 +1017,23 @@ const ExamTestResultsPage: React.FC = () => {
         )}
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-2 sm:gap-3 md:gap-4">
+        <div className="flex flex-col sm:flex-row flex-wrap justify-center fluid-gap-4">
           <button
             onClick={() => navigate(canViewAnswers ? '/test-exams' : '/exams')}
-            className="px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg sm:rounded-xl hover:bg-gray-50 flex items-center justify-center shadow-sm"
+            className="fluid-px-5 fluid-py-3 fluid-text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-fluid-lg hover:bg-gray-50 flex items-center justify-center shadow-sm"
           >
-            <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+            <ArrowLeft className="fluid-icon-sm fluid-mr-2" />
             {canViewAnswers ? 'Volver a la Lista' : 'Volver a Exámenes'}
           </button>
           <button
             onClick={downloadPDFFromBackend}
             disabled={downloadingPdf || !resultId}
-            className="px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg sm:rounded-xl hover:from-blue-600 hover:to-blue-700 flex items-center justify-center shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            className="fluid-px-5 fluid-py-3 fluid-text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 rounded-fluid-lg hover:from-blue-600 hover:to-blue-700 flex items-center justify-center shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {downloadingPdf ? (
-              <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2 animate-spin" />
+              <Loader2 className="fluid-icon-sm fluid-mr-2 animate-spin" />
             ) : (
-              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+              <Download className="fluid-icon-sm fluid-mr-2" />
             )}
             {downloadingPdf ? 'Generando...' : 'Descargar Reporte'}
           </button>
@@ -1041,9 +1041,9 @@ const ExamTestResultsPage: React.FC = () => {
           {!canViewAnswers && resultId && (
             <button
               onClick={() => navigate(`/certificates/evaluation-report/${examId}/result/${resultId}`)}
-              className="px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-lg sm:rounded-xl hover:from-emerald-600 hover:to-emerald-700 flex items-center justify-center shadow-lg"
+              className="fluid-px-5 fluid-py-3 fluid-text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-fluid-lg hover:from-emerald-600 hover:to-emerald-700 flex items-center justify-center shadow-lg"
             >
-              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+              <FileText className="fluid-icon-sm fluid-mr-2" />
               Detalle del Intento
             </button>
           )}
@@ -1056,9 +1056,9 @@ const ExamTestResultsPage: React.FC = () => {
                   exerciseCount: (location.state as any)?.exerciseCount || 0
                 }
               })}
-              className="px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg sm:rounded-xl hover:from-primary-600 hover:to-primary-700 flex items-center justify-center shadow-lg"
+              className="fluid-px-5 fluid-py-3 fluid-text-sm font-semibold text-white bg-gradient-to-r from-primary-500 to-primary-600 rounded-fluid-lg hover:from-primary-600 hover:to-primary-700 flex items-center justify-center shadow-lg"
             >
-              <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+              <RotateCcw className="fluid-icon-sm fluid-mr-2" />
               Reintentar Examen
             </button>
           )}

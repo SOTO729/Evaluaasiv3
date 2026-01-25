@@ -192,22 +192,22 @@ export default function UsersListPage() {
 
   if (loading && users.length === 0) {
     return (
-      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-14 max-w-[1920px] mx-auto">
+      <div className="fluid-p-6 max-w-[1920px] mx-auto">
         <LoadingSpinner message="Cargando usuarios..." />
       </div>
     );
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto animate-fade-in-up">
+    <div className="fluid-p-6 max-w-[1920px] mx-auto animate-fade-in-up">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 lg:gap-6 mb-6 lg:mb-8 xl:mb-10">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4 fluid-mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-gray-800 flex items-center gap-2 lg:gap-3 xl:gap-4">
-            <Users className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12 text-blue-600" />
+          <h1 className="fluid-text-2xl font-bold text-gray-800 flex items-center fluid-gap-3">
+            <Users className="fluid-icon-lg text-blue-600" />
             Gestión de Usuarios
           </h1>
-          <p className="text-sm lg:text-base xl:text-lg 2xl:text-xl text-gray-600 mt-1 lg:mt-2">
+          <p className="fluid-text-sm text-gray-600 fluid-mt-1">
             {currentUser?.role === 'coordinator' 
               ? 'Administra los candidatos del sistema'
               : 'Administra todos los usuarios del sistema'
@@ -215,23 +215,23 @@ export default function UsersListPage() {
           </p>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row fluid-gap-3">
           {/* Botón de carga masiva - solo visible en tab de candidatos o todos */}
           {(activeTab === 'candidates' || activeTab === 'all') && (
             <button
               onClick={() => setShowBulkUploadModal(true)}
-              className="inline-flex items-center justify-center gap-2 lg:gap-3 px-4 lg:px-5 xl:px-6 py-2 lg:py-2.5 xl:py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg lg:rounded-xl font-medium text-sm lg:text-base xl:text-lg transition-colors"
+              className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-green-600 hover:bg-green-700 text-white rounded-fluid-lg font-medium fluid-text-sm transition-colors"
             >
-              <Upload className="h-4 w-4 lg:h-5 lg:w-5" />
+              <Upload className="fluid-icon-sm" />
               Carga Masiva
             </button>
           )}
           
           <Link
             to="/user-management/new"
-            className="inline-flex items-center justify-center gap-2 lg:gap-3 px-4 lg:px-5 xl:px-6 py-2 lg:py-2.5 xl:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg lg:rounded-xl font-medium text-sm lg:text-base xl:text-lg transition-colors"
+            className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-lg font-medium fluid-text-sm transition-colors"
           >
-            <Plus className="h-4 w-4 lg:h-5 lg:w-5" />
+            <Plus className="fluid-icon-sm" />
             Nuevo Usuario
           </Link>
         </div>
@@ -249,48 +249,48 @@ export default function UsersListPage() {
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 xl:gap-8 mb-6 lg:mb-8 xl:mb-10">
-          <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-5 xl:p-6">
-            <div className="flex items-center gap-3 lg:gap-4">
-              <div className="p-2 lg:p-3 xl:p-4 bg-blue-100 rounded-lg lg:rounded-xl">
-                <Users className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-blue-600" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 fluid-gap-4 fluid-mb-6">
+          <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4">
+            <div className="flex items-center fluid-gap-3">
+              <div className="fluid-p-2 bg-blue-100 rounded-fluid-lg">
+                <Users className="fluid-icon-sm text-blue-600" />
               </div>
               <div>
-                <p className="text-xs lg:text-sm xl:text-base text-gray-500">Total</p>
-                <p className="text-xl lg:text-2xl xl:text-3xl font-bold text-gray-900">{stats.total_users}</p>
+                <p className="fluid-text-xs text-gray-500">Total</p>
+                <p className="fluid-text-xl font-bold text-gray-900">{stats.total_users}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-5 xl:p-6">
-            <div className="flex items-center gap-3 lg:gap-4">
-              <div className="p-2 lg:p-3 xl:p-4 bg-green-100 rounded-lg lg:rounded-xl">
-                <UserCheck className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-green-600" />
+          <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4">
+            <div className="flex items-center fluid-gap-3">
+              <div className="fluid-p-2 bg-green-100 rounded-fluid-lg">
+                <UserCheck className="fluid-icon-sm text-green-600" />
               </div>
               <div>
-                <p className="text-xs lg:text-sm xl:text-base text-gray-500">Activos</p>
-                <p className="text-xl lg:text-2xl xl:text-3xl font-bold text-gray-900">{stats.active_users}</p>
+                <p className="fluid-text-xs text-gray-500">Activos</p>
+                <p className="fluid-text-xl font-bold text-gray-900">{stats.active_users}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-5 xl:p-6">
-            <div className="flex items-center gap-3 lg:gap-4">
-              <div className="p-2 lg:p-3 xl:p-4 bg-red-100 rounded-lg lg:rounded-xl">
-                <UserX className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-red-600" />
+          <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4">
+            <div className="flex items-center fluid-gap-3">
+              <div className="fluid-p-2 bg-red-100 rounded-fluid-lg">
+                <UserX className="fluid-icon-sm text-red-600" />
               </div>
               <div>
-                <p className="text-xs lg:text-sm xl:text-base text-gray-500">Inactivos</p>
-                <p className="text-xl lg:text-2xl xl:text-3xl font-bold text-gray-900">{stats.inactive_users}</p>
+                <p className="fluid-text-xs text-gray-500">Inactivos</p>
+                <p className="fluid-text-xl font-bold text-gray-900">{stats.inactive_users}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-5 xl:p-6">
-            <div className="flex items-center gap-3 lg:gap-4">
-              <div className="p-2 lg:p-3 xl:p-4 bg-purple-100 rounded-lg lg:rounded-xl">
-                <BarChart3 className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-purple-600" />
+          <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4">
+            <div className="flex items-center fluid-gap-3">
+              <div className="fluid-p-2 bg-purple-100 rounded-fluid-lg">
+                <BarChart3 className="fluid-icon-sm text-purple-600" />
               </div>
               <div>
-                <p className="text-xs lg:text-sm xl:text-base text-gray-500">Verificados</p>
-                <p className="text-xl lg:text-2xl xl:text-3xl font-bold text-gray-900">{stats.verified_users}</p>
+                <p className="fluid-text-xs text-gray-500">Verificados</p>
+                <p className="fluid-text-xl font-bold text-gray-900">{stats.verified_users}</p>
               </div>
             </div>
           </div>
@@ -298,7 +298,7 @@ export default function UsersListPage() {
       )}
 
       {/* Tabs por tipo de usuario */}
-      <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 mb-6 lg:mb-8">
+      <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-mb-6">
         <div className="flex border-b border-gray-200">
           {(Object.keys(TAB_CONFIG) as TabType[]).map((tab) => {
             const config = TAB_CONFIG[tab];
@@ -318,15 +318,15 @@ export default function UsersListPage() {
               <button
                 key={tab}
                 onClick={() => handleTabChange(tab)}
-                className={`flex-1 flex items-center justify-center gap-2 lg:gap-3 px-4 lg:px-6 py-3 lg:py-4 text-sm lg:text-base font-medium transition-colors relative ${
+                className={`flex-1 flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-3 fluid-text-sm font-medium transition-colors relative ${
                   activeTab === tab
                     ? 'text-blue-600 bg-blue-50/50'
                     : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
                 }`}
               >
-                <Icon className="h-4 w-4 lg:h-5 lg:w-5" />
+                <Icon className="fluid-icon-sm" />
                 <span>{config.label}</span>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                <span className={`fluid-px-2 py-0.5 rounded-full fluid-text-xs font-semibold ${
                   activeTab === tab 
                     ? 'bg-blue-100 text-blue-700' 
                     : 'bg-gray-100 text-gray-600'
@@ -343,48 +343,48 @@ export default function UsersListPage() {
       </div>
 
       {/* Búsqueda y Filtros */}
-      <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6 mb-6 lg:mb-8">
-        <form onSubmit={handleSearch} className="flex flex-col lg:flex-row gap-4">
+      <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4 fluid-mb-6">
+        <form onSubmit={handleSearch} className="flex flex-col lg:flex-row fluid-gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400" />
             <input
               type="text"
               placeholder="Buscar por nombre, email, CURP..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 lg:py-3 border border-gray-300 rounded-lg lg:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm lg:text-base"
+              className="w-full fluid-pl-10 fluid-pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm"
             />
           </div>
           
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center justify-center gap-2 px-4 py-2.5 lg:py-3 border rounded-lg lg:rounded-xl transition-colors ${
+            className={`flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 border rounded-fluid-lg transition-colors ${
               showFilters || roleFilter || activeFilter
                 ? 'border-blue-500 text-blue-600 bg-blue-50'
                 : 'border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
-            <Filter className="h-5 w-5" />
+            <Filter className="fluid-icon-sm" />
             Filtros
           </button>
           
           <button
             type="submit"
-            className="px-6 py-2.5 lg:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg lg:rounded-xl font-medium transition-colors"
+            className="fluid-px-6 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-lg font-medium transition-colors"
           >
             Buscar
           </button>
         </form>
         
         {showFilters && (
-          <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-4">
+          <div className="fluid-mt-4 fluid-pt-4 border-t border-gray-200 flex flex-wrap fluid-gap-4">
             <div className="w-full sm:w-auto">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Rol</label>
               <select
                 value={roleFilter}
                 onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
-                className="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full sm:w-48 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Todos los roles</option>
                 {filteredRoles.map(role => (
@@ -394,11 +394,11 @@ export default function UsersListPage() {
             </div>
             
             <div className="w-full sm:w-auto">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Estado</label>
               <select
                 value={activeFilter}
                 onChange={(e) => { setActiveFilter(e.target.value); setPage(1); }}
-                className="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full sm:w-48 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Todos</option>
                 <option value="true">Activos</option>
@@ -409,7 +409,7 @@ export default function UsersListPage() {
             {(roleFilter || activeFilter || search) && (
               <button
                 onClick={clearFilters}
-                className="self-end px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                className="self-end fluid-px-4 fluid-py-2 fluid-text-sm text-gray-600 hover:text-gray-800"
               >
                 Limpiar filtros
               </button>
@@ -420,90 +420,90 @@ export default function UsersListPage() {
 
       {/* Error */}
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+        <div className="fluid-mb-6 bg-red-50 border border-red-200 rounded-fluid-lg fluid-p-4 text-red-700">
           {error}
           <button onClick={() => setError(null)} className="ml-2 underline">Cerrar</button>
         </div>
       )}
 
       {/* Tabla de usuarios */}
-      <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-gray-600">Usuario</th>
-                <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-gray-600">Email</th>
-                <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-gray-600">Rol</th>
-                <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-gray-600">Estado</th>
-                <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs lg:text-sm font-semibold text-gray-600">Creado</th>
-                <th className="px-4 lg:px-6 py-3 lg:py-4 text-right text-xs lg:text-sm font-semibold text-gray-600">Acciones</th>
+                <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">Usuario</th>
+                <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">Email</th>
+                <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">Rol</th>
+                <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">Estado</th>
+                <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">Creado</th>
+                <th className="fluid-px-4 fluid-py-3 text-right fluid-text-xs font-semibold text-gray-600">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {users.map((user) => (
                 <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 lg:px-6 py-3 lg:py-4">
+                  <td className="fluid-px-4 fluid-py-3">
                     <div>
-                      <p className="font-medium text-gray-900 text-sm lg:text-base">{user.full_name}</p>
-                      <p className="text-xs lg:text-sm text-gray-500">@{user.username}</p>
+                      <p className="font-medium text-gray-900 fluid-text-sm">{user.full_name}</p>
+                      <p className="fluid-text-xs text-gray-500">@{user.username}</p>
                     </div>
                   </td>
-                  <td className="px-4 lg:px-6 py-3 lg:py-4 text-sm lg:text-base text-gray-600">
+                  <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600">
                     {user.email}
                   </td>
-                  <td className="px-4 lg:px-6 py-3 lg:py-4">
-                    <span className={`inline-flex px-2 lg:px-3 py-1 rounded-full text-xs lg:text-sm font-medium ${ROLE_COLORS[user.role] || 'bg-gray-100 text-gray-800'}`}>
+                  <td className="fluid-px-4 fluid-py-3">
+                    <span className={`inline-flex fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium ${ROLE_COLORS[user.role] || 'bg-gray-100 text-gray-800'}`}>
                       {ROLE_LABELS[user.role] || user.role}
                     </span>
                   </td>
-                  <td className="px-4 lg:px-6 py-3 lg:py-4">
+                  <td className="fluid-px-4 fluid-py-3">
                     {user.is_active ? (
-                      <span className="inline-flex items-center gap-1 text-green-700 text-xs lg:text-sm">
-                        <UserCheck className="h-4 w-4" />
+                      <span className="inline-flex items-center fluid-gap-1 text-green-700 fluid-text-xs">
+                        <UserCheck className="fluid-icon-sm" />
                         Activo
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-red-600 text-xs lg:text-sm">
-                        <UserX className="h-4 w-4" />
+                      <span className="inline-flex items-center fluid-gap-1 text-red-600 fluid-text-xs">
+                        <UserX className="fluid-icon-sm" />
                         Inactivo
                       </span>
                     )}
                   </td>
-                  <td className="px-4 lg:px-6 py-3 lg:py-4 text-sm text-gray-600">
+                  <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600">
                     {new Date(user.created_at).toLocaleDateString('es-MX', {
                       day: '2-digit',
                       month: 'short',
                       year: 'numeric'
                     })}
                   </td>
-                  <td className="px-4 lg:px-6 py-3 lg:py-4">
-                    <div className="flex items-center justify-end gap-2">
+                  <td className="fluid-px-4 fluid-py-3">
+                    <div className="flex items-center justify-end fluid-gap-2">
                       <Link
                         to={`/user-management/${user.id}`}
-                        className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="fluid-p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-fluid-lg transition-colors"
                         title="Ver detalles"
                       >
-                        <Eye className="h-4 w-4 lg:h-5 lg:w-5" />
+                        <Eye className="fluid-icon-sm" />
                       </Link>
                       <Link
                         to={`/user-management/${user.id}/edit`}
-                        className="p-2 text-gray-600 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        className="fluid-p-2 text-gray-600 hover:text-amber-600 hover:bg-amber-50 rounded-fluid-lg transition-colors"
                         title="Editar"
                       >
-                        <Edit className="h-4 w-4 lg:h-5 lg:w-5" />
+                        <Edit className="fluid-icon-sm" />
                       </Link>
                       {user.id !== currentUser?.id && (
                         <button
                           onClick={() => handleToggleActive(user.id)}
-                          className={`p-2 rounded-lg transition-colors ${
+                          className={`fluid-p-2 rounded-fluid-lg transition-colors ${
                             user.is_active
                               ? 'text-gray-600 hover:text-red-600 hover:bg-red-50'
                               : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
                           }`}
                           title={user.is_active ? 'Desactivar' : 'Activar'}
                         >
-                          <Power className="h-4 w-4 lg:h-5 lg:w-5" />
+                          <Power className="fluid-icon-sm" />
                         </button>
                       )}
                     </div>
@@ -515,34 +515,34 @@ export default function UsersListPage() {
         </div>
         
         {users.length === 0 && !loading && (
-          <div className="p-8 text-center text-gray-500">
+          <div className="fluid-p-8 text-center text-gray-500">
             No se encontraron usuarios
           </div>
         )}
         
         {/* Paginación */}
         {totalPages > 1 && (
-          <div className="px-4 lg:px-6 py-3 lg:py-4 border-t border-gray-200 flex items-center justify-between">
-            <p className="text-sm text-gray-600">
+          <div className="fluid-px-4 fluid-py-3 border-t border-gray-200 flex items-center justify-between">
+            <p className="fluid-text-sm text-gray-600">
               Mostrando {users.length} de {total} usuarios
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center fluid-gap-2">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                className="fluid-p-2 rounded-fluid-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
               >
-                <ChevronLeft className="h-5 w-5" />
+                <ChevronLeft className="fluid-icon-sm" />
               </button>
-              <span className="px-3 py-1 text-sm text-gray-700">
+              <span className="fluid-px-3 fluid-py-1 fluid-text-sm text-gray-700">
                 {page} / {totalPages}
               </span>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                className="fluid-p-2 rounded-fluid-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
               >
-                <ChevronRight className="h-5 w-5" />
+                <ChevronRight className="fluid-icon-sm" />
               </button>
             </div>
           </div>

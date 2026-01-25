@@ -151,7 +151,7 @@ const ExamInProgressWidget = () => {
         return (
           <div 
             key={key}
-            className={`mb-2 rounded-xl shadow-lg border overflow-hidden transition-all duration-300 ${
+            className={`fluid-mb-2 rounded-fluid-xl shadow-lg border overflow-hidden transition-all duration-300 ${
               session.mode === 'simulator' 
                 ? 'bg-amber-50 border-amber-200' 
                 : 'bg-blue-50 border-blue-200'
@@ -161,18 +161,18 @@ const ExamInProgressWidget = () => {
               // Vista minimizada
               <button
                 onClick={() => setIsMinimized(false)}
-                className={`w-full p-3 flex flex-col items-center justify-center ${
+                className={`w-full fluid-p-3 flex flex-col items-center justify-center ${
                   isCritical ? 'animate-pulse' : ''
                 }`}
               >
-                <Clock className={`w-5 h-5 ${
+                <Clock className={`fluid-icon-sm ${
                   isCritical 
                     ? 'text-red-500' 
                     : isLowTime 
                     ? 'text-amber-500' 
                     : session.mode === 'simulator' ? 'text-amber-600' : 'text-blue-600'
                 }`} />
-                <span className={`text-xs font-mono font-bold mt-1 ${
+                <span className={`fluid-text-xs font-mono font-bold fluid-mt-1 ${
                   isCritical 
                     ? 'text-red-600' 
                     : isLowTime 
@@ -186,59 +186,59 @@ const ExamInProgressWidget = () => {
               // Vista expandida
               <>
                 {/* Header */}
-                <div className={`px-3 py-2 flex items-center justify-between ${
+                <div className={`fluid-px-3 fluid-py-2 flex items-center justify-between ${
                   session.mode === 'simulator' ? 'bg-amber-100' : 'bg-blue-100'
                 }`}>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                  <div className="flex items-center fluid-gap-2">
+                    <span className={`fluid-px-2 py-0.5 rounded fluid-text-xs font-bold uppercase ${
                       session.mode === 'simulator' 
                         ? 'bg-yellow-400 text-yellow-900' 
                         : 'bg-blue-500 text-white'
                     }`}>
                       {session.mode === 'simulator' ? 'Simulador' : 'Examen'}
                     </span>
-                    <span className="text-xs font-medium text-gray-600">En curso</span>
+                    <span className="fluid-text-xs font-medium text-gray-600">En curso</span>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center fluid-gap-1">
                     <button
                       onClick={() => setIsMinimized(true)}
-                      className="p-1 hover:bg-white/50 rounded transition-colors"
+                      className="fluid-p-1 hover:bg-white/50 rounded transition-colors"
                       title="Minimizar"
                     >
-                      <ChevronRight className="w-4 h-4 text-gray-500" />
+                      <ChevronRight className="fluid-icon-sm text-gray-500" />
                     </button>
                     <button
                       onClick={() => handleDismiss(session.examId, session.mode)}
-                      className="p-1 hover:bg-red-100 rounded transition-colors"
+                      className="fluid-p-1 hover:bg-red-100 rounded transition-colors"
                       title="Abandonar examen"
                     >
-                      <X className="w-4 h-4 text-gray-400 hover:text-red-500" />
+                      <X className="fluid-icon-sm text-gray-400 hover:text-red-500" />
                     </button>
                   </div>
                 </div>
                 
                 {/* Content */}
-                <div className="p-3">
-                  <p className="text-sm font-medium text-gray-800 truncate mb-2">
+                <div className="fluid-p-3">
+                  <p className="fluid-text-sm font-medium text-gray-800 truncate fluid-mb-2">
                     {session.examName}
                   </p>
                   
                   {/* Timer */}
-                  <div className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg mb-3 ${
+                  <div className={`flex items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-3 rounded-fluid-lg fluid-mb-3 ${
                     isCritical 
                       ? 'bg-red-100 animate-pulse' 
                       : isLowTime 
                       ? 'bg-amber-100' 
                       : session.mode === 'simulator' ? 'bg-amber-100' : 'bg-blue-100'
                   }`}>
-                    <Clock className={`w-4 h-4 ${
+                    <Clock className={`fluid-icon-sm ${
                       isCritical 
                         ? 'text-red-500' 
                         : isLowTime 
                         ? 'text-amber-500' 
                         : session.mode === 'simulator' ? 'text-amber-600' : 'text-blue-600'
                     }`} />
-                    <span className={`font-mono text-lg font-bold ${
+                    <span className={`font-mono fluid-text-lg font-bold ${
                       isCritical 
                         ? 'text-red-600' 
                         : isLowTime 
@@ -248,7 +248,7 @@ const ExamInProgressWidget = () => {
                       {formatTime(currentTime)}
                     </span>
                     {session.pauseOnDisconnect && (
-                      <span className="text-[10px] text-gray-500 bg-white/50 px-1.5 py-0.5 rounded">
+                      <span className="fluid-text-xs text-gray-500 bg-white/50 fluid-px-2 py-0.5 rounded">
                         Pausado
                       </span>
                     )}
@@ -262,7 +262,7 @@ const ExamInProgressWidget = () => {
                       e.stopPropagation();
                       handleContinueExam(session);
                     }}
-                    className={`w-full py-2 px-3 rounded-lg text-sm font-medium text-white transition-colors ${
+                    className={`w-full fluid-py-2 fluid-px-3 rounded-fluid-lg fluid-text-sm font-medium text-white transition-colors ${
                       session.mode === 'simulator' 
                         ? 'bg-amber-500 hover:bg-amber-600' 
                         : 'bg-blue-600 hover:bg-blue-700'

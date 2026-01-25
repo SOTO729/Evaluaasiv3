@@ -25,26 +25,26 @@ const Toast = ({ message, type, onClose }: ToastProps) => {
 
   return (
     <div className="fixed top-4 right-4 z-50 animate-slide-in">
-      <div className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${
+      <div className={`flex items-center fluid-gap-3 fluid-px-6 fluid-py-4 rounded-fluid-lg shadow-lg ${
         type === 'success' 
           ? 'bg-green-600 text-white' 
           : 'bg-red-600 text-white'
       }`}>
         {type === 'success' ? (
-          <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="fluid-icon-lg flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         ) : (
-          <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="fluid-icon-lg flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         )}
         <span className="font-medium">{message}</span>
         <button
           onClick={onClose}
-          className="ml-2 hover:opacity-80 transition-opacity"
+          className="fluid-ml-2 hover:opacity-80 transition-opacity"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
@@ -823,20 +823,20 @@ const ExamEditPage = () => {
       {/* Botón volver a lista */}
       <button
         onClick={() => navigate('/exams')}
-        className="mb-4 text-primary-600 hover:text-primary-700 flex items-center text-sm font-medium transition-colors"
+        className="fluid-mb-4 text-primary-600 hover:text-primary-700 flex items-center fluid-text-sm font-medium transition-colors"
       >
-        <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="fluid-icon-sm fluid-mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
         Volver a lista
       </button>
 
       {/* Header */}
-      <div className="mb-6">
+      <div className="fluid-mb-6">
         <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-bold text-gray-900">Editar Examen</h1>
-            <span className={`px-3 py-1 text-sm rounded-full ${
+          <div className="flex items-center fluid-gap-4">
+            <h1 className="fluid-text-3xl font-bold text-gray-900">Editar Examen</h1>
+            <span className={`fluid-px-3 fluid-py-1 fluid-text-sm rounded-full ${
               exam.is_published 
                 ? 'bg-green-100 text-green-800' 
                 : 'bg-gray-100 text-gray-800'
@@ -844,14 +844,14 @@ const ExamEditPage = () => {
               {exam.is_published ? 'Publicado' : 'Borrador'}
             </span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center fluid-gap-3">
             {/* Botón Probar Examen - solo visible cuando está publicado */}
             {exam.is_published && (
               <button
                 onClick={handleOpenTestModal}
-                className="px-4 py-2 btn-animated-gradient text-white rounded-lg font-medium flex items-center gap-2 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:scale-105 transition-all duration-300"
+                className="fluid-px-4 fluid-py-2 btn-animated-gradient text-white rounded-fluid-lg font-medium flex items-center fluid-gap-2 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:scale-105 transition-all duration-300"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -864,9 +864,9 @@ const ExamEditPage = () => {
               <button
                 onClick={handleUnpublish}
                 disabled={unpublishExamMutation.isPending}
-                className="px-4 py-2 bg-gray-600 text-white hover:bg-gray-700 rounded-lg transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
+                className="fluid-px-4 fluid-py-2 bg-gray-600 text-white hover:bg-gray-700 rounded-fluid-lg transition-colors font-medium flex items-center fluid-gap-2 disabled:opacity-50"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
                 {unpublishExamMutation.isPending ? 'Cambiando...' : 'Cambiar a Borrador'}
@@ -875,9 +875,9 @@ const ExamEditPage = () => {
               <button
                 onClick={handleValidateAndPublish}
                 disabled={isValidating}
-                className="px-4 py-2 bg-green-600 text-white hover:bg-green-700 rounded-lg transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
+                className="fluid-px-4 fluid-py-2 bg-green-600 text-white hover:bg-green-700 rounded-fluid-lg transition-colors font-medium flex items-center fluid-gap-2 disabled:opacity-50"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 {isValidating ? 'Validando...' : 'Publicar'}
@@ -901,9 +901,9 @@ const ExamEditPage = () => {
             {user?.role === 'admin' && (
               <button
                 onClick={() => setShowDeleteModal(true)}
-                className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors font-medium flex items-center gap-2"
+                className="fluid-px-4 fluid-py-2 bg-red-600 text-white hover:bg-red-700 rounded-fluid-lg transition-colors font-medium flex items-center fluid-gap-2"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
                 Eliminar Examen
@@ -914,7 +914,7 @@ const ExamEditPage = () => {
       </div>
 
       {/* Header con Imagen de Fondo y Estadísticas Superpuestas */}
-      <div className="relative rounded-xl overflow-hidden mb-6 shadow-lg">
+      <div className="relative rounded-fluid-xl overflow-hidden fluid-mb-6 shadow-lg">
         {/* Background Image */}
         {exam.image_url ? (
           <div className="absolute inset-0">
@@ -944,42 +944,42 @@ const ExamEditPage = () => {
         )}
         
         {/* Content */}
-        <div className="relative z-10 p-6">
+        <div className="relative z-10 fluid-p-6">
           {/* Header con título y botón editar */}
-          <div className="flex justify-between items-start mb-6">
+          <div className="flex justify-between items-start fluid-mb-6">
             <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-3xl font-bold text-white drop-shadow-lg">{exam.name}</h2>
-                <span className={`px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-2 shadow-lg ${
+              <div className="flex items-center fluid-gap-3 fluid-mb-2">
+                <h2 className="fluid-text-3xl font-bold text-white drop-shadow-lg">{exam.name}</h2>
+                <span className={`fluid-px-4 py-1.5 rounded-full fluid-text-sm font-bold flex items-center fluid-gap-2 shadow-lg ${
                   exam.is_published 
                     ? 'bg-emerald-500 text-white' 
                     : 'bg-amber-500 text-white'
                 }`}>
                   {exam.is_published ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                   )}
                   {exam.is_published ? 'Publicado' : 'Borrador'}
                 </span>
               </div>
-              <p className="text-xl font-mono font-semibold text-white/80">{exam.version}</p>
+              <p className="fluid-text-xl font-mono font-semibold text-white/80">{exam.version}</p>
             </div>
             <button
               onClick={openEditExamModal}
               disabled={exam.is_published}
-              className={`px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all duration-200 ${
+              className={`fluid-px-4 py-2.5 rounded-fluid-xl font-semibold flex items-center fluid-gap-2 transition-all duration-200 ${
                 exam.is_published
                   ? 'bg-white/20 text-white/50 cursor-not-allowed border border-white/20'
                   : 'bg-white/40 text-white hover:bg-white/50 border border-white/30 hover:border-white/50 hover:-translate-y-0.5 shadow-md hover:shadow-lg backdrop-blur-sm'
               }`}
               title={exam.is_published ? 'Cambie a borrador para editar' : 'Editar información del examen'}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
               Modificar
@@ -987,62 +987,62 @@ const ExamEditPage = () => {
           </div>
           
           {/* Estadísticas superpuestas sobre la imagen */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4 text-center border border-white/10 hover:bg-white/25 transition-all duration-200">
-              <div className="flex items-center justify-center mb-2">
-                <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 fluid-gap-3">
+            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-lg fluid-p-4 text-center border border-white/10 hover:bg-white/25 transition-all duration-200">
+              <div className="flex items-center justify-center fluid-mb-2">
+                <svg className="fluid-icon-sm text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <p className="text-2xl font-bold text-white">{exam.duration_minutes || 0}</p>
-              <p className="text-sm text-white/70">Minutos</p>
+              <p className="fluid-text-2xl font-bold text-white">{exam.duration_minutes || 0}</p>
+              <p className="fluid-text-sm text-white/70">Minutos</p>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4 text-center border border-white/10 hover:bg-white/25 transition-all duration-200">
-              <div className="flex items-center justify-center mb-2">
-                <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-lg fluid-p-4 text-center border border-white/10 hover:bg-white/25 transition-all duration-200">
+              <div className="flex items-center justify-center fluid-mb-2">
+                <svg className="fluid-icon-sm text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <p className="text-2xl font-bold text-white">{exam.passing_score}%</p>
-              <p className="text-sm text-white/70">Puntaje Mínimo</p>
+              <p className="fluid-text-2xl font-bold text-white">{exam.passing_score}%</p>
+              <p className="fluid-text-sm text-white/70">Puntaje Mínimo</p>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4 text-center border border-white/10 hover:bg-white/25 transition-all duration-200">
-              <div className="flex items-center justify-center mb-2">
-                <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-lg fluid-p-4 text-center border border-white/10 hover:bg-white/25 transition-all duration-200">
+              <div className="flex items-center justify-center fluid-mb-2">
+                <svg className="fluid-icon-sm text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
               </div>
-              <p className="text-2xl font-bold text-white">{exam.total_categories || 0}</p>
-              <p className="text-sm text-white/70">Categorías</p>
+              <p className="fluid-text-2xl font-bold text-white">{exam.total_categories || 0}</p>
+              <p className="fluid-text-sm text-white/70">Categorías</p>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4 text-center border border-white/10 hover:bg-white/25 transition-all duration-200">
-              <div className="flex items-center justify-center mb-2">
-                <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-lg fluid-p-4 text-center border border-white/10 hover:bg-white/25 transition-all duration-200">
+              <div className="flex items-center justify-center fluid-mb-2">
+                <svg className="fluid-icon-sm text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                 </svg>
               </div>
-              <p className="text-2xl font-bold text-white">
+              <p className="fluid-text-2xl font-bold text-white">
                 {exam.categories?.reduce((acc, cat) => acc + (cat.total_topics || 0), 0) || 0}
               </p>
-              <p className="text-sm text-white/70">Temas</p>
+              <p className="fluid-text-sm text-white/70">Temas</p>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4 text-center border border-white/10 hover:bg-white/25 transition-all duration-200">
-              <div className="flex items-center justify-center mb-2">
-                <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-lg fluid-p-4 text-center border border-white/10 hover:bg-white/25 transition-all duration-200">
+              <div className="flex items-center justify-center fluid-mb-2">
+                <svg className="fluid-icon-sm text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <p className="text-2xl font-bold text-white">{exam.total_questions}</p>
-              <p className="text-sm text-white/70">Preguntas</p>
+              <p className="fluid-text-2xl font-bold text-white">{exam.total_questions}</p>
+              <p className="fluid-text-sm text-white/70">Preguntas</p>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4 text-center border border-white/10 hover:bg-white/25 transition-all duration-200">
-              <div className="flex items-center justify-center mb-2">
-                <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-lg fluid-p-4 text-center border border-white/10 hover:bg-white/25 transition-all duration-200">
+              <div className="flex items-center justify-center fluid-mb-2">
+                <svg className="fluid-icon-sm text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                 </svg>
               </div>
-              <p className="text-2xl font-bold text-white">{exam.total_exercises}</p>
-              <p className="text-sm text-white/70">Ejercicios</p>
+              <p className="fluid-text-2xl font-bold text-white">{exam.total_exercises}</p>
+              <p className="fluid-text-sm text-white/70">Ejercicios</p>
             </div>
           </div>
         </div>
@@ -1050,23 +1050,23 @@ const ExamEditPage = () => {
 
       {/* Advertencia de contenido publicado */}
       {exam.is_published && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center gap-3">
-          <svg className="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="bg-amber-50 border border-amber-200 rounded-fluid-lg fluid-p-4 flex items-center fluid-gap-3">
+          <svg className="fluid-icon-sm text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <div>
             <p className="text-amber-800 font-medium">Contenido publicado</p>
-            <p className="text-amber-700 text-sm">Para editar el contenido, primero cambia el examen a borrador.</p>
+            <p className="text-amber-700 fluid-text-sm">Para editar el contenido, primero cambia el examen a borrador.</p>
           </div>
         </div>
       )}
 
       {/* Categorías del Examen */}
       <div className="card">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-semibold">Categorías del Examen</h2>
-            <span className="text-sm text-gray-600">
+        <div className="flex justify-between items-center fluid-mb-4">
+          <div className="flex items-center fluid-gap-3">
+            <h2 className="fluid-text-xl font-semibold">Categorías del Examen</h2>
+            <span className="fluid-text-sm text-gray-600">
               {exam.categories?.length || 0} categoría{exam.categories?.length !== 1 ? 's' : ''}
             </span>
           </div>
@@ -1074,14 +1074,14 @@ const ExamEditPage = () => {
           <button
             onClick={() => setShowCreateCategoryModal(true)}
             disabled={exam.is_published}
-            className={`px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all duration-200 ${
+            className={`fluid-px-4 py-2.5 rounded-fluid-xl font-medium flex items-center fluid-gap-2 transition-all duration-200 ${
               exam.is_published
                 ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5'
             }`}
             title={exam.is_published ? 'Cambie a borrador para agregar categorías' : 'Agregar categoría'}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             Agregar Categoría
@@ -1093,25 +1093,25 @@ const ExamEditPage = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-medium text-gray-500 uppercase tracking-wider">
                     #
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Nombre
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Porcentaje
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="fluid-px-4 fluid-py-3 text-center fluid-text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Temas
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="fluid-px-4 fluid-py-3 text-center fluid-text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Preguntas
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="fluid-px-4 fluid-py-3 text-center fluid-text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Ejercicios
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Acciones
                   </th>
                 </tr>
@@ -1129,39 +1129,39 @@ const ExamEditPage = () => {
                       }
                     }}
                   >
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 text-blue-700 font-bold text-sm shadow-sm">
+                    <td className="fluid-px-4 fluid-py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-fluid-lg bg-blue-100 text-blue-700 font-bold fluid-text-sm shadow-sm">
                         {index + 1}
                       </span>
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="text-sm font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">{category.name}</div>
+                    <td className="fluid-px-4 fluid-py-4">
+                      <div className="fluid-text-sm font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">{category.name}</div>
                       {category.description && (
-                        <div className="text-sm text-gray-500 mt-1">{category.description}</div>
+                        <div className="fluid-text-sm text-gray-500 fluid-mt-1">{category.description}</div>
                       )}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-100 text-indigo-700">
+                    <td className="fluid-px-4 fluid-py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center fluid-px-3 py-1.5 rounded-fluid-lg fluid-text-xs font-semibold bg-indigo-100 text-indigo-700">
                         {category.percentage}%
                       </span>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-center">
-                      <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-100 text-green-700">
+                    <td className="fluid-px-4 fluid-py-4 whitespace-nowrap text-center">
+                      <span className="inline-flex items-center fluid-px-3 py-1.5 rounded-fluid-lg fluid-text-xs font-semibold bg-green-100 text-green-700">
                         {category.total_topics || 0}
                       </span>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-center">
-                      <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-100 text-blue-700">
+                    <td className="fluid-px-4 fluid-py-4 whitespace-nowrap text-center">
+                      <span className="inline-flex items-center fluid-px-3 py-1.5 rounded-fluid-lg fluid-text-xs font-semibold bg-blue-100 text-blue-700">
                         {category.total_questions || 0}
                       </span>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-center">
-                      <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-100 text-violet-700">
+                    <td className="fluid-px-4 fluid-py-4 whitespace-nowrap text-center">
+                      <span className="inline-flex items-center fluid-px-3 py-1.5 rounded-fluid-lg fluid-text-xs font-semibold bg-violet-100 text-violet-700">
                         {category.total_exercises || 0}
                       </span>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center gap-1">
+                    <td className="fluid-px-4 fluid-py-4 whitespace-nowrap fluid-text-sm" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center fluid-gap-1">
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
@@ -1170,14 +1170,14 @@ const ExamEditPage = () => {
                             }
                           }}
                           disabled={exam.is_published}
-                          className={`p-2 rounded-lg transition-colors ${
+                          className={`fluid-p-2 rounded-fluid-lg transition-colors ${
                             exam.is_published
                               ? 'text-gray-300 cursor-not-allowed'
                               : 'text-blue-600 hover:bg-blue-50 hover:text-blue-700'
                           }`}
                           title={exam.is_published ? 'Cambie a borrador para editar' : 'Editar categoría'}
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </button>
@@ -1189,14 +1189,14 @@ const ExamEditPage = () => {
                             }
                           }}
                           disabled={exam.is_published}
-                          className={`p-2 rounded-lg transition-colors ${
+                          className={`fluid-p-2 rounded-fluid-lg transition-colors ${
                             exam.is_published
                               ? 'text-gray-300 cursor-not-allowed'
                               : 'text-red-600 hover:bg-red-50 hover:text-red-700'
                           }`}
                           title={exam.is_published ? 'Cambie a borrador para eliminar' : 'Eliminar categoría'}
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         </button>
@@ -1208,14 +1208,14 @@ const ExamEditPage = () => {
             </table>
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
-            <p className="mb-4">No hay categorías registradas para este examen</p>
+          <div className="text-center fluid-py-8 text-gray-500">
+            <p className="fluid-mb-4">No hay categorías registradas para este examen</p>
             {!exam.is_published && (
               <button
                 onClick={() => setShowCreateCategoryModal(true)}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium inline-flex items-center gap-2"
+                className="fluid-px-4 fluid-py-2 bg-primary-600 text-white rounded-fluid-lg hover:bg-primary-700 transition-colors font-medium inline-flex items-center fluid-gap-2"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
                 Agregar Primera Categoría
@@ -1227,38 +1227,38 @@ const ExamEditPage = () => {
 
       {/* Modal de Confirmación de Eliminación */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowDeleteModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-red-500 to-rose-600 px-6 py-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4" onClick={() => setShowDeleteModal(false)}>
+          <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-red-500 to-rose-600 fluid-px-6 fluid-py-4">
               <div className="flex items-center">
-                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mr-3">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex-shrink-0 w-10 h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
+                  <svg className="fluid-icon-sm text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-white">
+                <h3 className="fluid-text-xl font-bold text-white">
                   Eliminar Examen
                 </h3>
               </div>
             </div>
             
-            <div className="p-6">
-              <p className="text-gray-700 mb-4">
+            <div className="fluid-p-6">
+              <p className="text-gray-700 fluid-mb-4">
                 ¿Estás seguro de que deseas eliminar el examen <strong className="text-gray-900">"{exam.name}"</strong>?
               </p>
             
-              <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-xl p-4 mb-4">
+              <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-fluid-xl fluid-p-4 fluid-mb-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="fluid-icon-sm text-red-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-red-800 font-semibold">
+                  <div className="fluid-ml-3">
+                    <p className="fluid-text-sm text-red-800 font-semibold">
                       Esta acción no se puede deshacer. Se eliminarán permanentemente:
                     </p>
-                    <ul className="list-disc list-inside text-sm text-red-700 mt-2 space-y-1">
+                    <ul className="list-disc list-inside fluid-text-sm text-red-700 fluid-mt-2 flex flex-col fluid-gap-1">
                       <li>Todas las categorías del examen ({exam.categories?.length || 0})</li>
                       <li>Todos los temas, preguntas y ejercicios</li>
                       <li>Toda la información asociada al examen</li>
@@ -1268,8 +1268,8 @@ const ExamEditPage = () => {
               </div>
 
               <form onSubmit={handleDeleteExam}>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="fluid-mb-4">
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                     Para confirmar, ingresa tu contraseña:
                   </label>
                   <input
@@ -1279,17 +1279,17 @@ const ExamEditPage = () => {
                       setPassword(e.target.value)
                       setDeleteError('')
                     }}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200"
+                    className="w-full fluid-px-4 fluid-py-3 border border-gray-200 rounded-fluid-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200"
                     placeholder="Tu contraseña"
                     required
                     autoFocus
                   />
                   {deleteError && (
-                    <p className="mt-2 text-sm text-red-600">{deleteError}</p>
+                    <p className="fluid-mt-2 fluid-text-sm text-red-600">{deleteError}</p>
                   )}
                 </div>
 
-                <div className="flex gap-3 justify-end">
+                <div className="flex fluid-gap-3 justify-end">
                   <button
                     type="button"
                     onClick={() => {
@@ -1297,14 +1297,14 @@ const ExamEditPage = () => {
                       setPassword('')
                       setDeleteError('')
                     }}
-                    className="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200"
+                    className="fluid-px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-xl font-medium transition-all duration-200"
                     disabled={deleteExamMutation.isPending}
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-xl font-medium shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/30 hover:from-red-600 hover:to-rose-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="fluid-px-5 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/30 hover:from-red-600 hover:to-rose-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={deleteExamMutation.isPending}
                   >
                     {deleteExamMutation.isPending ? 'Eliminando...' : 'Sí, eliminar examen'}
@@ -1318,26 +1318,26 @@ const ExamEditPage = () => {
 
       {/* Modal de Validación y Publicación */}
       {showPublishModal && validationResult && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowPublishModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
-            <div className={`px-6 py-4 ${validationResult.is_valid ? 'bg-gradient-to-r from-green-500 to-emerald-600' : 'bg-gradient-to-r from-red-500 to-rose-600'}`}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4" onClick={() => setShowPublishModal(false)}>
+          <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
+            <div className={`fluid-px-6 fluid-py-4 ${validationResult.is_valid ? 'bg-gradient-to-r from-green-500 to-emerald-600' : 'bg-gradient-to-r from-red-500 to-rose-600'}`}>
               <div className="flex items-center">
-                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mr-3">
+                <div className="flex-shrink-0 w-10 h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
                   {validationResult.is_valid ? (
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="fluid-icon-sm text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   ) : (
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="fluid-icon-sm text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                   )}
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-white">
+                  <h3 className="fluid-text-xl font-bold text-white">
                     {validationResult.is_valid ? 'Examen listo para publicar' : 'El examen tiene errores'}
                   </h3>
-                  <p className={`text-sm mt-1 ${validationResult.is_valid ? 'text-green-100' : 'text-red-100'}`}>
+                  <p className={`fluid-text-sm fluid-mt-1 ${validationResult.is_valid ? 'text-green-100' : 'text-red-100'}`}>
                     {validationResult.is_valid 
                       ? 'Todas las validaciones han pasado correctamente'
                       : 'Corrige los siguientes errores antes de publicar'
@@ -1346,42 +1346,42 @@ const ExamEditPage = () => {
                 </div>
               </div>
             </div>
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+            <div className="fluid-p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
 
               {/* Resumen */}
-              <div className="grid grid-cols-4 gap-3 mb-6 bg-gray-50 p-4 rounded-lg">
+              <div className="grid grid-cols-4 fluid-gap-3 fluid-mb-6 bg-gray-50 fluid-p-4 rounded-fluid-lg">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-primary-600">{validationResult.summary.total_categories}</p>
-                  <p className="text-xs text-gray-600">Categorías</p>
+                  <p className="fluid-text-2xl font-bold text-primary-600">{validationResult.summary.total_categories}</p>
+                  <p className="fluid-text-xs text-gray-600">Categorías</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-primary-600">{validationResult.summary.total_topics}</p>
-                  <p className="text-xs text-gray-600">Temas</p>
+                  <p className="fluid-text-2xl font-bold text-primary-600">{validationResult.summary.total_topics}</p>
+                  <p className="fluid-text-xs text-gray-600">Temas</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-primary-600">{validationResult.summary.total_questions}</p>
-                  <p className="text-xs text-gray-600">Preguntas</p>
+                  <p className="fluid-text-2xl font-bold text-primary-600">{validationResult.summary.total_questions}</p>
+                  <p className="fluid-text-xs text-gray-600">Preguntas</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-primary-600">{validationResult.summary.total_exercises}</p>
-                  <p className="text-xs text-gray-600">Ejercicios</p>
+                  <p className="fluid-text-2xl font-bold text-primary-600">{validationResult.summary.total_exercises}</p>
+                  <p className="fluid-text-xs text-gray-600">Ejercicios</p>
                 </div>
               </div>
 
               {/* Errores */}
               {validationResult.errors.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-red-800 mb-3 flex items-center">
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="fluid-mb-6">
+                  <h4 className="fluid-text-sm font-semibold text-red-800 fluid-mb-3 flex items-center">
+                    <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     Errores ({validationResult.errors.length})
                   </h4>
-                  <div className="space-y-3">
+                  <div className="flex flex-col fluid-gap-3">
                     {validationResult.errors.map((error, index) => (
-                      <div key={index} className="bg-red-50 border-l-4 border-red-500 p-3 rounded-r">
-                        <p className="text-sm font-medium text-red-800">{error.message}</p>
-                        <p className="text-xs text-red-600 mt-1">{error.details}</p>
+                      <div key={index} className="bg-red-50 border-l-4 border-red-500 fluid-p-3 rounded-r">
+                        <p className="fluid-text-sm font-medium text-red-800">{error.message}</p>
+                        <p className="fluid-text-xs text-red-600 fluid-mt-1">{error.details}</p>
                       </div>
                     ))}
                   </div>
@@ -1390,18 +1390,18 @@ const ExamEditPage = () => {
 
               {/* Advertencias */}
               {validationResult.warnings.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-yellow-800 mb-3 flex items-center">
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="fluid-mb-6">
+                  <h4 className="fluid-text-sm font-semibold text-yellow-800 fluid-mb-3 flex items-center">
+                    <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     Advertencias ({validationResult.warnings.length})
                   </h4>
-                  <div className="space-y-3">
+                  <div className="flex flex-col fluid-gap-3">
                     {validationResult.warnings.map((warning, index) => (
-                      <div key={index} className="bg-yellow-50 border-l-4 border-yellow-500 p-3 rounded-r">
-                        <p className="text-sm font-medium text-yellow-800">{warning.message}</p>
-                        <p className="text-xs text-yellow-600 mt-1">{warning.details}</p>
+                      <div key={index} className="bg-yellow-50 border-l-4 border-yellow-500 fluid-p-3 rounded-r">
+                        <p className="fluid-text-sm font-medium text-yellow-800">{warning.message}</p>
+                        <p className="fluid-text-xs text-yellow-600 fluid-mt-1">{warning.details}</p>
                       </div>
                     ))}
                   </div>
@@ -1410,26 +1410,26 @@ const ExamEditPage = () => {
 
               {/* Mensaje de éxito */}
               {validationResult.is_valid && validationResult.warnings.length === 0 && (
-                <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded-r">
+                <div className="bg-green-50 border-l-4 border-green-500 fluid-p-4 fluid-mb-6 rounded-r">
                   <div className="flex items-center">
-                    <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="fluid-icon-sm text-green-600 fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <p className="text-sm font-medium text-green-800">
+                    <p className="fluid-text-sm font-medium text-green-800">
                       El examen está completo y listo para ser publicado
                     </p>
                   </div>
                 </div>
               )}
 
-              <div className="flex gap-3 justify-end pt-4 border-t">
+              <div className="flex fluid-gap-3 justify-end fluid-pt-4 border-t">
                 <button
                   type="button"
                   onClick={() => {
                     setShowPublishModal(false)
                     setValidationResult(null)
                   }}
-                  className="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200"
+                  className="fluid-px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-xl font-medium transition-all duration-200"
                 >
                   {validationResult.is_valid ? 'Cancelar' : 'Cerrar'}
                 </button>
@@ -1437,9 +1437,9 @@ const ExamEditPage = () => {
                   <button
                     onClick={handlePublish}
                     disabled={publishExamMutation.isPending}
-                    className="px-5 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-medium shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 hover:from-green-600 hover:to-emerald-700 transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="fluid-px-5 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 hover:from-green-600 hover:to-emerald-700 transition-all duration-200 flex items-center fluid-gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                     {publishExamMutation.isPending ? 'Publicando...' : 'Confirmar Publicación'}
@@ -1453,65 +1453,65 @@ const ExamEditPage = () => {
 
       {/* Modal de Conflicto ECM */}
       {showEcmConflictModal && ecmConflictData && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowEcmConflictModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-amber-500 to-orange-600 px-6 py-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4" onClick={() => setShowEcmConflictModal(false)}>
+          <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-amber-500 to-orange-600 fluid-px-6 fluid-py-4">
               <div className="flex items-center">
-                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mr-3">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex-shrink-0 w-10 h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
+                  <svg className="fluid-icon-lg text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-white">Conflicto de Código ECM</h3>
-                  <p className="text-amber-100 text-sm mt-1">
+                  <h3 className="fluid-text-xl font-bold text-white">Conflicto de Código ECM</h3>
+                  <p className="text-amber-100 fluid-text-sm fluid-mt-1">
                     Ya existe un examen publicado con este código
                   </p>
                 </div>
               </div>
             </div>
             
-            <div className="p-6">
-              <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r mb-6">
-                <p className="text-sm text-amber-800">
+            <div className="fluid-p-6">
+              <div className="bg-amber-50 border-l-4 border-amber-500 fluid-p-4 rounded-r fluid-mb-6">
+                <p className="fluid-text-sm text-amber-800">
                   El código ECM <span className="font-bold">{ecmConflictData.current_exam?.ecm_code}</span> ya está 
                   asignado a otro examen publicado. Solo puede haber un examen publicado por código ECM.
                 </p>
               </div>
               
-              <div className="space-y-4">
+              <div className="flex flex-col fluid-gap-4">
                 {/* Examen actual (el que se quiere publicar) */}
-                <div className="border-2 border-primary-200 bg-primary-50 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-primary-600 uppercase tracking-wider">Este examen</span>
-                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">Borrador</span>
+                <div className="border-2 border-primary-200 bg-primary-50 rounded-fluid-xl fluid-p-4">
+                  <div className="flex items-center justify-between fluid-mb-2">
+                    <span className="fluid-text-xs font-medium text-primary-600 uppercase tracking-wider">Este examen</span>
+                    <span className="fluid-text-xs bg-gray-200 text-gray-600 fluid-px-2 py-0.5 rounded-full">Borrador</span>
                   </div>
                   <p className="font-semibold text-gray-900">{ecmConflictData.current_exam?.name}</p>
-                  <p className="text-sm text-gray-600">Versión: {ecmConflictData.current_exam?.version}</p>
+                  <p className="fluid-text-sm text-gray-600">Versión: {ecmConflictData.current_exam?.version}</p>
                 </div>
                 
                 {/* Examen conflictivo (ya publicado) */}
-                <div className="border-2 border-gray-200 bg-white rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Examen existente</span>
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Publicado</span>
+                <div className="border-2 border-gray-200 bg-white rounded-fluid-xl fluid-p-4">
+                  <div className="flex items-center justify-between fluid-mb-2">
+                    <span className="fluid-text-xs font-medium text-gray-500 uppercase tracking-wider">Examen existente</span>
+                    <span className="fluid-text-xs bg-green-100 text-green-700 fluid-px-2 py-0.5 rounded-full">Publicado</span>
                   </div>
                   <p className="font-semibold text-gray-900">{ecmConflictData.conflicting_exam?.name}</p>
-                  <p className="text-sm text-gray-600">Versión: {ecmConflictData.conflicting_exam?.version}</p>
+                  <p className="fluid-text-sm text-gray-600">Versión: {ecmConflictData.conflicting_exam?.version}</p>
                 </div>
               </div>
               
-              <p className="text-sm text-gray-600 mt-6 mb-4">
+              <p className="fluid-text-sm text-gray-600 fluid-mt-6 fluid-mb-4">
                 ¿Cuál examen desea mantener publicado?
               </p>
               
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col fluid-gap-3">
                 <button
                   onClick={handlePublishAndReplaceConflicting}
                   disabled={publishExamMutation.isPending}
-                  className="w-full px-5 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full fluid-px-5 fluid-py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-fluid-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center fluid-gap-2 disabled:opacity-50"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                   {publishExamMutation.isPending ? 'Publicando...' : 'Publicar este y despublicar el existente'}
@@ -1519,9 +1519,9 @@ const ExamEditPage = () => {
                 
                 <button
                   onClick={handleKeepConflictingPublished}
-                  className="w-full px-5 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all duration-200 flex items-center justify-center gap-2"
+                  className="w-full fluid-px-5 fluid-py-3 bg-gray-100 text-gray-700 rounded-fluid-xl font-medium hover:bg-gray-200 transition-all duration-200 flex items-center justify-center fluid-gap-2"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                   Mantener el existente publicado
@@ -1534,17 +1534,17 @@ const ExamEditPage = () => {
 
       {/* Modal Crear Categoría */}
       {showCreateCategoryModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowCreateCategoryModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-4">
-              <h3 className="text-xl font-bold text-white">Nueva Categoría</h3>
-              <p className="text-primary-100 text-sm mt-1">Añade una nueva categoría al examen</p>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4" onClick={() => setShowCreateCategoryModal(false)}>
+          <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-primary-500 to-primary-600 fluid-px-6 fluid-py-4">
+              <h3 className="fluid-text-xl font-bold text-white">Nueva Categoría</h3>
+              <p className="text-primary-100 fluid-text-sm fluid-mt-1">Añade una nueva categoría al examen</p>
             </div>
             
-            <form onSubmit={handleCreateCategory} className="p-6">
-              <div className="space-y-4">
+            <form onSubmit={handleCreateCategory} className="fluid-p-6">
+              <div className="flex flex-col fluid-gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                     Nombre de la categoría *
                   </label>
                   <input
@@ -1558,7 +1558,7 @@ const ExamEditPage = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                     Porcentaje del examen *
                   </label>
                   <input
@@ -1571,13 +1571,13 @@ const ExamEditPage = () => {
                     max="100"
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="fluid-text-xs text-gray-500 fluid-mt-1">
                     Peso de esta categoría en la calificación final (1-100%)
                   </p>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                     Descripción (opcional)
                   </label>
                   <textarea
@@ -1590,7 +1590,7 @@ const ExamEditPage = () => {
                 </div>
               </div>
               
-              <div className="flex justify-end gap-3 mt-6">
+              <div className="flex justify-end fluid-gap-3 fluid-mt-6">
                 <button
                   type="button"
                   onClick={() => {
@@ -1599,14 +1599,14 @@ const ExamEditPage = () => {
                     setNewCategoryPercentage('')
                     setNewCategoryDescription('')
                   }}
-                  className="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200"
+                  className="fluid-px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-xl font-medium transition-all duration-200"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={createCategoryMutation.isPending || !newCategoryName.trim() || !newCategoryPercentage}
-                  className="px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-medium shadow-lg shadow-primary-500/25 hover:shadow-xl hover:shadow-primary-500/30 hover:from-primary-600 hover:to-primary-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="fluid-px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-primary-500/25 hover:shadow-xl hover:shadow-primary-500/30 hover:from-primary-600 hover:to-primary-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {createCategoryMutation.isPending ? 'Creando...' : 'Crear Categoría'}
                 </button>
@@ -1618,17 +1618,17 @@ const ExamEditPage = () => {
 
       {/* Modal Editar Categoría */}
       {showEditCategoryModal !== null && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowEditCategoryModal(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
-              <h3 className="text-xl font-bold text-white">Editar Categoría</h3>
-              <p className="text-blue-100 text-sm mt-1">Modifica la información de la categoría</p>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4" onClick={() => setShowEditCategoryModal(null)}>
+          <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 fluid-px-6 fluid-py-4">
+              <h3 className="fluid-text-xl font-bold text-white">Editar Categoría</h3>
+              <p className="text-blue-100 fluid-text-sm fluid-mt-1">Modifica la información de la categoría</p>
             </div>
             
-            <form onSubmit={handleEditCategory} className="p-6">
-              <div className="space-y-4">
+            <form onSubmit={handleEditCategory} className="fluid-p-6">
+              <div className="flex flex-col fluid-gap-4">
                 <div>
-                  <label htmlFor="editCategoryName" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="editCategoryName" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                     Nombre *
                   </label>
                   <input
@@ -1636,14 +1636,14 @@ const ExamEditPage = () => {
                     id="editCategoryName"
                     value={editCategoryName}
                     onChange={(e) => setEditCategoryName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Ej: Seguridad Vial"
                     required
                   />
                 </div>
                 
                 <div>
-                  <label htmlFor="editCategoryPercentage" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="editCategoryPercentage" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                     Porcentaje *
                   </label>
                   <div className="relative">
@@ -1652,7 +1652,7 @@ const ExamEditPage = () => {
                       id="editCategoryPercentage"
                       value={editCategoryPercentage}
                       onChange={(e) => setEditCategoryPercentage(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Ej: 25"
                       min="0"
                       max="100"
@@ -1663,21 +1663,21 @@ const ExamEditPage = () => {
                 </div>
                 
                 <div>
-                  <label htmlFor="editCategoryDescription" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="editCategoryDescription" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                     Descripción (opcional)
                   </label>
                   <textarea
                     id="editCategoryDescription"
                     value={editCategoryDescription}
                     onChange={(e) => setEditCategoryDescription(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Breve descripción de la categoría..."
                     rows={3}
                   />
                 </div>
               </div>
               
-              <div className="flex justify-end gap-3 mt-6">
+              <div className="flex justify-end fluid-gap-3 fluid-mt-6">
                 <button
                   type="button"
                   onClick={() => {
@@ -1686,14 +1686,14 @@ const ExamEditPage = () => {
                     setEditCategoryPercentage('')
                     setEditCategoryDescription('')
                   }}
-                  className="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200"
+                  className="fluid-px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-xl font-medium transition-all duration-200"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={updateCategoryMutation.isPending || !editCategoryName.trim() || !editCategoryPercentage}
-                  className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="fluid-px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {updateCategoryMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
                 </button>
@@ -1705,36 +1705,36 @@ const ExamEditPage = () => {
 
       {/* Modal Eliminar Categoría */}
       {showDeleteCategoryModal !== null && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowDeleteCategoryModal(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-red-500 to-rose-600 px-6 py-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4" onClick={() => setShowDeleteCategoryModal(null)}>
+          <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-red-500 to-rose-600 fluid-px-6 fluid-py-4">
               <div className="flex items-center">
-                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mr-3">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex-shrink-0 w-10 h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
+                  <svg className="fluid-icon-sm text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-white">Eliminar Categoría</h3>
+                <h3 className="fluid-text-xl font-bold text-white">Eliminar Categoría</h3>
               </div>
             </div>
             
-            <div className="p-6">
-              <p className="text-gray-700 mb-4">
+            <div className="fluid-p-6">
+              <p className="text-gray-700 fluid-mb-4">
                 ¿Estás seguro de que deseas eliminar esta categoría?
               </p>
             
-              <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-xl p-4 mb-6">
+              <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-fluid-xl fluid-p-4 fluid-mb-6">
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="fluid-icon-sm text-red-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-red-800 font-semibold">
+                  <div className="fluid-ml-3">
+                    <p className="fluid-text-sm text-red-800 font-semibold">
                       Esta acción no se puede deshacer. Se eliminarán:
                     </p>
-                    <ul className="list-disc list-inside text-sm text-red-700 mt-2 space-y-1">
+                    <ul className="list-disc list-inside fluid-text-sm text-red-700 fluid-mt-2 flex flex-col fluid-gap-1">
                       <li>Todos los temas de esta categoría</li>
                       <li>Todas las preguntas y ejercicios asociados</li>
                     </ul>
@@ -1742,17 +1742,17 @@ const ExamEditPage = () => {
                 </div>
               </div>
             
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end fluid-gap-3">
                 <button
                   onClick={() => setShowDeleteCategoryModal(null)}
-                  className="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200"
+                  className="fluid-px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-xl font-medium transition-all duration-200"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={() => handleDeleteCategory(showDeleteCategoryModal)}
                   disabled={deleteCategoryMutation.isPending}
-                  className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-xl font-medium shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/30 hover:from-red-600 hover:to-rose-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="fluid-px-5 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/30 hover:from-red-600 hover:to-rose-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {deleteCategoryMutation.isPending ? 'Eliminando...' : 'Eliminar'}
                 </button>
@@ -1764,18 +1764,18 @@ const ExamEditPage = () => {
 
       {/* Modal Editar Examen */}
       {showEditExamModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => { setShowEditExamModal(false); setEditExamImagePreview(exam.image_url || null); }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
-              <h3 className="text-xl font-bold text-white">Modificar Examen</h3>
-              <p className="text-blue-100 text-sm mt-1">Actualiza la información del examen</p>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4" onClick={() => { setShowEditExamModal(false); setEditExamImagePreview(exam.image_url || null); }}>
+          <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 fluid-px-6 fluid-py-4">
+              <h3 className="fluid-text-xl font-bold text-white">Modificar Examen</h3>
+              <p className="text-blue-100 fluid-text-sm fluid-mt-1">Actualiza la información del examen</p>
             </div>
             
-            <form onSubmit={handleEditExam} className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
-              <div className="space-y-4">
+            <form onSubmit={handleEditExam} className="fluid-p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+              <div className="flex flex-col fluid-gap-4">
                 {/* Imagen del Examen - Ancho completo */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                     Imagen de Identidad Gráfica
                   </label>
                   {editExamImagePreview ? (
@@ -1783,29 +1783,29 @@ const ExamEditPage = () => {
                       <img 
                         src={editExamImagePreview} 
                         alt="Preview"
-                        className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                        className="w-full h-40 object-cover rounded-fluid-lg border border-gray-200"
                       />
                       <button
                         type="button"
                         onClick={removeImage}
-                        className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full hover:bg-red-700 shadow-lg"
+                        className="absolute top-2 right-2 bg-red-600 text-white fluid-p-2 rounded-full hover:bg-red-700 shadow-lg"
                         title="Eliminar imagen"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
                     </div>
                   ) : (
-                    <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-gray-300 border-dashed rounded-fluid-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <svg className="w-10 h-10 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="fluid-icon-xl text-gray-400 fluid-mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        <p className="mb-2 text-sm text-gray-500">
+                        <p className="fluid-mb-2 fluid-text-sm text-gray-500">
                           <span className="font-semibold">Clic para subir</span> o arrastra y suelta
                         </p>
-                        <p className="text-xs text-gray-500">PNG, JPG o GIF. Máximo 2MB.</p>
+                        <p className="fluid-text-xs text-gray-500">PNG, JPG o GIF. Máximo 2MB.</p>
                       </div>
                       <input
                         type="file"
@@ -1819,7 +1819,7 @@ const ExamEditPage = () => {
 
                 {/* Nombre del Examen */}
                 <div>
-                  <label htmlFor="editExamName" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="editExamName" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                     Nombre del Examen *
                   </label>
                   <input
@@ -1827,7 +1827,7 @@ const ExamEditPage = () => {
                     id="editExamName"
                     value={editExamName}
                     onChange={(e) => setEditExamName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Ej: Evaluación de Conocimientos de Seguridad"
                     required
                   />
@@ -1835,7 +1835,7 @@ const ExamEditPage = () => {
                 
                 {/* Código ECM */}
                 <div>
-                  <label htmlFor="editExamVersion" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="editExamVersion" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                     Código ECM *
                   </label>
                   <input
@@ -1843,16 +1843,16 @@ const ExamEditPage = () => {
                     id="editExamVersion"
                     value={editExamVersion}
                     onChange={(e) => setEditExamVersion(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                    className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
                     placeholder="Ej: ECM-001"
                     required
                   />
                 </div>
                 
                 {/* Duración y Puntaje Mínimo en grid */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 fluid-gap-4">
                   <div>
-                    <label htmlFor="editExamDuration" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="editExamDuration" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                       Duración (minutos)
                     </label>
                     <input
@@ -1860,14 +1860,14 @@ const ExamEditPage = () => {
                       id="editExamDuration"
                       value={editExamDuration}
                       onChange={(e) => setEditExamDuration(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Ej: 60"
                       min="0"
                     />
                   </div>
                   
                   <div>
-                    <label htmlFor="editExamPassingScore" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="editExamPassingScore" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                       Puntaje Mínimo (%)
                     </label>
                     <div className="relative">
@@ -1876,7 +1876,7 @@ const ExamEditPage = () => {
                         id="editExamPassingScore"
                         value={editExamPassingScore}
                         onChange={(e) => setEditExamPassingScore(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="Ej: 70"
                         min="0"
                         max="100"
@@ -1887,12 +1887,12 @@ const ExamEditPage = () => {
                 </div>
 
                 {/* Configuración de temporizador al desconectarse */}
-                <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="bg-blue-50 rounded-fluid-lg fluid-p-4 border border-blue-100">
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                     Comportamiento del temporizador al perder conexión
                   </label>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-3 cursor-pointer">
+                  <div className="flex flex-col fluid-gap-2">
+                    <label className="flex items-center fluid-gap-3 cursor-pointer">
                       <input
                         type="radio"
                         name="pauseOnDisconnect"
@@ -1901,11 +1901,11 @@ const ExamEditPage = () => {
                         className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                       />
                       <div>
-                        <span className="text-sm font-medium text-gray-800">Pausar tiempo</span>
-                        <p className="text-xs text-gray-500">El tiempo se detiene si el alumno pierde conexión o cierra el navegador</p>
+                        <span className="fluid-text-sm font-medium text-gray-800">Pausar tiempo</span>
+                        <p className="fluid-text-xs text-gray-500">El tiempo se detiene si el alumno pierde conexión o cierra el navegador</p>
                       </div>
                     </label>
-                    <label className="flex items-center gap-3 cursor-pointer">
+                    <label className="flex items-center fluid-gap-3 cursor-pointer">
                       <input
                         type="radio"
                         name="pauseOnDisconnect"
@@ -1914,56 +1914,56 @@ const ExamEditPage = () => {
                         className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                       />
                       <div>
-                        <span className="text-sm font-medium text-gray-800">Tiempo continúa</span>
-                        <p className="text-xs text-gray-500">El tiempo sigue corriendo aunque el alumno se desconecte</p>
+                        <span className="fluid-text-sm font-medium text-gray-800">Tiempo continúa</span>
+                        <p className="fluid-text-xs text-gray-500">El tiempo sigue corriendo aunque el alumno se desconecte</p>
                       </div>
                     </label>
                   </div>
                 </div>
 
                 {/* Estadísticas del examen (solo lectura) */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                <div className="bg-gray-50 rounded-fluid-lg fluid-p-4">
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-3">
                     Contenido del Examen
                   </label>
-                  <div className="grid grid-cols-4 gap-3 text-center">
-                    <div className="bg-white rounded-lg p-2 border border-gray-200">
-                      <div className="text-lg font-bold text-primary-600">{exam?.total_categories || 0}</div>
-                      <div className="text-xs text-gray-500">Categorías</div>
+                  <div className="grid grid-cols-4 fluid-gap-3 text-center">
+                    <div className="bg-white rounded-fluid-lg fluid-p-2 border border-gray-200">
+                      <div className="fluid-text-lg font-bold text-primary-600">{exam?.total_categories || 0}</div>
+                      <div className="fluid-text-xs text-gray-500">Categorías</div>
                     </div>
-                    <div className="bg-white rounded-lg p-2 border border-gray-200">
-                      <div className="text-lg font-bold text-blue-600">
+                    <div className="bg-white rounded-fluid-lg fluid-p-2 border border-gray-200">
+                      <div className="fluid-text-lg font-bold text-blue-600">
                         {exam?.categories?.reduce((acc, cat) => acc + (cat.total_topics || 0), 0) || 0}
                       </div>
-                      <div className="text-xs text-gray-500">Temas</div>
+                      <div className="fluid-text-xs text-gray-500">Temas</div>
                     </div>
-                    <div className="bg-white rounded-lg p-2 border border-gray-200">
-                      <div className="text-lg font-bold text-green-600">{exam?.total_questions || 0}</div>
-                      <div className="text-xs text-gray-500">Preguntas</div>
+                    <div className="bg-white rounded-fluid-lg fluid-p-2 border border-gray-200">
+                      <div className="fluid-text-lg font-bold text-green-600">{exam?.total_questions || 0}</div>
+                      <div className="fluid-text-xs text-gray-500">Preguntas</div>
                     </div>
-                    <div className="bg-white rounded-lg p-2 border border-gray-200">
-                      <div className="text-lg font-bold text-purple-600">{exam?.total_exercises || 0}</div>
-                      <div className="text-xs text-gray-500">Ejercicios</div>
+                    <div className="bg-white rounded-fluid-lg fluid-p-2 border border-gray-200">
+                      <div className="fluid-text-lg font-bold text-purple-600">{exam?.total_exercises || 0}</div>
+                      <div className="fluid-text-xs text-gray-500">Ejercicios</div>
                     </div>
                   </div>
                 </div>
               </div>
               
-              <div className="flex justify-end gap-3 mt-6">
+              <div className="flex justify-end fluid-gap-3 fluid-mt-6">
                 <button
                   type="button"
                   onClick={() => {
                     setShowEditExamModal(false)
                     setEditExamImagePreview(null)
                   }}
-                  className="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200"
+                  className="fluid-px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-xl font-medium transition-all duration-200"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={updateExamMutation.isPending || !editExamName.trim() || !editExamVersion.trim()}
-                  className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="fluid-px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {updateExamMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
                 </button>
@@ -1975,35 +1975,35 @@ const ExamEditPage = () => {
 
       {/* Modal Advertencia de Porcentajes */}
       {showPercentageWarningModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowPercentageWarningModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-amber-500 to-yellow-500 px-6 py-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4" onClick={() => setShowPercentageWarningModal(false)}>
+          <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-amber-500 to-yellow-500 fluid-px-6 fluid-py-4">
               <div className="flex items-center">
-                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mr-3">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex-shrink-0 w-10 h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
+                  <svg className="fluid-icon-sm text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-white">Ajustar Porcentajes</h3>
+                <h3 className="fluid-text-xl font-bold text-white">Ajustar Porcentajes</h3>
               </div>
             </div>
             
-            <div className="p-6">
-              <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-xl p-4 mb-4">
+            <div className="fluid-p-6">
+              <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-fluid-xl fluid-p-4 fluid-mb-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="fluid-icon-sm text-amber-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-amber-800 font-semibold">
+                  <div className="fluid-ml-3">
+                    <p className="fluid-text-sm text-amber-800 font-semibold">
                       La suma de los porcentajes debe ser exactamente 100%
                     </p>
-                    <p className="text-sm text-amber-700 mt-1">
+                    <p className="fluid-text-sm text-amber-700 fluid-mt-1">
                       Suma actual: <span className={`font-bold ${getCurrentAdjustmentSum() === 100 ? 'text-green-600' : 'text-red-600'}`}>{getCurrentAdjustmentSum()}%</span>
                       {getCurrentAdjustmentSum() !== 100 && (
-                        <span className="ml-2">
+                        <span className="fluid-ml-2">
                           ({getCurrentAdjustmentSum() > 100 ? `Excede por ${getCurrentAdjustmentSum() - 100}%` : `Faltan ${100 - getCurrentAdjustmentSum()}%`})
                         </span>
                       )}
@@ -2013,7 +2013,7 @@ const ExamEditPage = () => {
               </div>
 
               {/* Botón para distribuir equitativamente */}
-              <div className="mb-4">
+              <div className="fluid-mb-4">
                 <button
                   type="button"
                   onClick={() => {
@@ -2032,22 +2032,22 @@ const ExamEditPage = () => {
                     
                     setPercentageAdjustments(newAdjustments)
                   }}
-                  className="w-full px-4 py-2.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl hover:bg-blue-100 transition-all duration-200 font-medium flex items-center justify-center gap-2"
+                  className="w-full fluid-px-4 py-2.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-fluid-xl hover:bg-blue-100 transition-all duration-200 font-medium flex items-center justify-center fluid-gap-2"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                   Distribuir Equitativamente
                 </button>
               </div>
 
-              <div className="space-y-3 max-h-60 overflow-y-auto">
+              <div className="flex flex-col fluid-gap-3 max-h-60 overflow-y-auto">
                 {exam?.categories?.map((category: any) => (
-                  <div key={category.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                  <div key={category.id} className="flex items-center fluid-gap-3 fluid-p-3 bg-gray-50 rounded-fluid-xl">
                     <div className="flex-1">
                       <p className="font-medium text-gray-900">{category.name}</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center fluid-gap-2">
                       <input
                         type="number"
                         value={percentageAdjustments[category.id] || '0'}
@@ -2055,7 +2055,7 @@ const ExamEditPage = () => {
                           ...percentageAdjustments,
                           [category.id]: e.target.value
                         })}
-                        className="w-20 px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-center transition-all duration-200"
+                        className="w-20 fluid-px-3 fluid-py-2 border border-gray-200 rounded-fluid-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-center transition-all duration-200"
                         min="0"
                         max="100"
                       />
@@ -2065,20 +2065,20 @@ const ExamEditPage = () => {
                 ))}
               </div>
 
-              <div className="flex justify-end gap-3 mt-6">
+              <div className="flex justify-end fluid-gap-3 fluid-mt-6">
                 <button
                   onClick={() => {
                     setShowPercentageWarningModal(false)
                     setPercentageAdjustments({})
                   }}
-                  className="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200"
+                  className="fluid-px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-xl font-medium transition-all duration-200"
                 >
                   Corregir Después
                 </button>
                 <button
                   onClick={handleSavePercentageAdjustments}
                   disabled={getCurrentAdjustmentSum() !== 100}
-                  className={`px-5 py-2.5 rounded-xl font-medium transition-all duration-200 ${
+                  className={`fluid-px-5 py-2.5 rounded-fluid-xl font-medium transition-all duration-200 ${
                     getCurrentAdjustmentSum() === 100 
                       ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 hover:from-green-600 hover:to-emerald-700' 
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'

@@ -512,29 +512,28 @@ const TopicDetailPage = () => {
       {/* Botón volver a categoría */}
       <button
         onClick={() => navigate(`/exams/${examId}/categories/${categoryId}`)}
-        className="mb-4 text-primary-600 hover:text-primary-700 flex items-center text-sm font-medium transition-colors"
+        className="fluid-mb-4 text-primary-600 hover:text-primary-700 flex items-center fluid-text-sm font-medium transition-colors"
       >
-        <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="fluid-icon-sm fluid-mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
         Volver a categoría
       </button>
 
       {/* Header con gradiente */}
-      <div className="sticky top-0 z-30 bg-gradient-to-b from-gray-50 via-gray-50 to-transparent pt-4 pb-2 -mx-4 px-4 md:-mx-6 md:px-6">
+      <div className="sticky top-0 z-30 bg-gradient-to-b from-gray-50 via-gray-50 to-transparent fluid-pt-4 fluid-pb-2 -mx-4 fluid-px-4 md:-mx-6 md:fluid-px-6">
         {/* Título con fondo destacado */}
-        <div className="mb-4 bg-gradient-to-r from-blue-600 via-cyan-600 to-emerald-600 rounded-xl p-5 shadow-lg shadow-blue-500/20">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-blue-100 text-sm font-medium">Tema</p>
-                <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight">{topic.name}</h1>
-              </div>
+        <div className="fluid-mb-4 bg-gradient-to-r from-blue-600 via-cyan-600 to-emerald-600 rounded-fluid-xl fluid-p-5 shadow-lg shadow-blue-500/20">
+          <div className="flex items-center fluid-gap-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-fluid-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-blue-100 fluid-text-sm font-medium">Tema</p>
+              <h1 className="fluid-text-xl md:fluid-text-2xl font-bold text-white tracking-tight">{topic.name}</h1>
+            </div>
             </div>
             {/* Botón de Porcentajes */}
             {(questions.length > 0 || exercises.length > 0) && (
@@ -553,10 +552,10 @@ const TopicDetailPage = () => {
         </div>
 
         {/* Tarjetas de resumen mejoradas */}
-        <div className="grid grid-cols-2 gap-4 mb-5">
+        <div className="grid grid-cols-2 fluid-gap-4 fluid-mb-5">
           <div 
             onClick={() => setActiveTab('questions')}
-            className={`bg-white rounded-xl px-5 py-4 border shadow-sm hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
+            className={`bg-white rounded-fluid-xl fluid-px-5 fluid-py-4 border shadow-sm hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
               activeTab === 'questions' 
                 ? 'border-blue-300 ring-2 ring-blue-200' 
                 : 'border-gray-100 hover:border-blue-200'
@@ -564,11 +563,11 @@ const TopicDetailPage = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Preguntas</div>
-                <div className="text-2xl font-bold text-gray-900">{topic.total_questions || 0}</div>
+                <div className="fluid-text-xs font-medium text-gray-500 uppercase tracking-wide fluid-mb-1">Preguntas</div>
+                <div className="fluid-text-2xl font-bold text-gray-900">{topic.total_questions || 0}</div>
               </div>
-              <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform duration-300">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-center justify-center w-12 h-12 rounded-fluid-xl bg-blue-600 text-white shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform duration-300">
+                <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
@@ -576,7 +575,7 @@ const TopicDetailPage = () => {
           </div>
           <div 
             onClick={() => setActiveTab('exercises')}
-            className={`bg-white rounded-xl px-5 py-4 border shadow-sm hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
+            className={`bg-white rounded-fluid-xl fluid-px-5 fluid-py-4 border shadow-sm hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 cursor-pointer group ${
               activeTab === 'exercises' 
                 ? 'border-violet-300 ring-2 ring-violet-200' 
                 : 'border-gray-100 hover:border-violet-200'
@@ -584,11 +583,11 @@ const TopicDetailPage = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Ejercicios</div>
-                <div className="text-2xl font-bold text-gray-900">{topic.total_exercises || 0}</div>
+                <div className="fluid-text-xs font-medium text-gray-500 uppercase tracking-wide fluid-mb-1">Ejercicios</div>
+                <div className="fluid-text-2xl font-bold text-gray-900">{topic.total_exercises || 0}</div>
               </div>
-              <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg shadow-violet-200 group-hover:scale-110 transition-transform duration-300">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-center justify-center w-12 h-12 rounded-fluid-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg shadow-violet-200 group-hover:scale-110 transition-transform duration-300">
+                <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
@@ -597,22 +596,22 @@ const TopicDetailPage = () => {
         </div>
 
         {/* Pestañas modernas */}
-        <div className="bg-white rounded-t-xl border border-b-0 border-gray-200 shadow-sm overflow-hidden relative z-30">
+        <div className="bg-white rounded-t-fluid-xl border border-b-0 border-gray-200 shadow-sm overflow-hidden relative z-30">
           <nav className="flex" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('questions')}
-              className={`relative flex-1 py-4 px-6 text-sm font-medium transition-all duration-200 ${
+              className={`relative flex-1 fluid-py-4 fluid-px-6 fluid-text-sm font-medium transition-all duration-200 ${
                 activeTab === 'questions'
                   ? 'text-blue-700 bg-blue-50'
                   : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50/50'
               }`}
             >
               <div className="flex items-center justify-center">
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span>Preguntas</span>
-                <span className={`ml-2 py-0.5 px-2.5 rounded-full text-xs font-semibold transition-colors duration-200 ${
+                <span className={`fluid-ml-2 fluid-py-1 fluid-px-2 rounded-full fluid-text-xs font-semibold transition-colors duration-200 ${
                   activeTab === 'questions' 
                     ? 'bg-blue-100 text-blue-800' 
                     : 'bg-gray-100 text-gray-600'
@@ -626,18 +625,18 @@ const TopicDetailPage = () => {
             </button>
             <button
               onClick={() => setActiveTab('exercises')}
-              className={`relative flex-1 py-4 px-6 text-sm font-medium transition-all duration-200 ${
+              className={`relative flex-1 fluid-py-4 fluid-px-6 fluid-text-sm font-medium transition-all duration-200 ${
                 activeTab === 'exercises'
                   ? 'text-violet-700 bg-violet-50'
                   : 'text-gray-500 hover:text-violet-600 hover:bg-violet-50/50'
               }`}
             >
               <div className="flex items-center justify-center">
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>      
                 <span>Ejercicios</span>  
-                <span className={`ml-2 py-0.5 px-2.5 rounded-full text-xs font-semibold transition-colors duration-200 ${
+                <span className={`fluid-ml-2 fluid-py-1 fluid-px-2 rounded-full fluid-text-xs font-semibold transition-colors duration-200 ${
                   activeTab === 'exercises' 
                     ? 'bg-violet-100 text-violet-800' 
                     : 'bg-gray-100 text-gray-600'
@@ -654,22 +653,22 @@ const TopicDetailPage = () => {
       </div>
 
       {/* Contenido de las pestañas  */}
-      <div className="bg-white rounded-b-xl border border-t-0 border-gray-200 shadow-sm mb-6 relative z-10">
+      <div className="bg-white rounded-b-fluid-xl border border-t-0 border-gray-200 shadow-sm fluid-mb-6 relative z-10">
         {/* Contenido de la pestaña Preguntas */}
         {activeTab === 'questions' && (
           <div className="animate-fadeSlideIn">
             {/* Header FIJO - NO hace scroll */}
-            <div className="p-6 pb-4 border-b border-gray-100 bg-white">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="fluid-p-6 fluid-pb-4 border-b border-gray-100 bg-white">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center fluid-gap-4">
                 <div>  
-                  <h2 className="text-xl font-bold text-gray-900">Preguntas</h2>
-                  <p className="text-sm text-gray-500 mt-1">Gestiona las preguntas de este tema</p>
+                  <h2 className="fluid-text-xl font-bold text-gray-900">Preguntas</h2>
+                  <p className="fluid-text-sm text-gray-500 fluid-mt-1">Gestiona las preguntas de este tema</p>
                 </div>
                 <button 
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="inline-flex items-center px-4 py-2.5 bg-blue-600 text-white font-medium rounded-xl shadow-lg shadow-blue-500/25 hover:bg-blue-700 transition-all duration-200 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5"
+                  className="inline-flex items-center fluid-px-4 fluid-py-2 bg-blue-600 text-white font-medium rounded-fluid-xl shadow-lg shadow-blue-500/25 hover:bg-blue-700 transition-all duration-200 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5"
                 > 
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                   Nueva Pregunta
@@ -679,24 +678,24 @@ const TopicDetailPage = () => {
 
             {/* Contenido - ESTE tiene scroll */}
             {isLoadingQuestions ? (
-              <div className="p-6">
+              <div className="fluid-p-6">
                 <LoadingSpinner message="Cargando preguntas..." />
               </div>
             ) : questions.length === 0 ? (
-              <div className="p-6">
-                <div className="text-center py-16 px-4">
-                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-blue-100 mb-6">
-                    <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="fluid-p-6">
+                <div className="text-center fluid-py-16 fluid-px-4">
+                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-fluid-2xl bg-blue-100 fluid-mb-6">
+                    <svg className="fluid-icon-xl text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay preguntas creadas</h3>
-                  <p className="text-gray-500 mb-6 max-w-sm mx-auto">Comienza agregando tu primera pregunta para este tema</p>
+                  <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-2">No hay preguntas creadas</h3>
+                  <p className="text-gray-500 fluid-mb-6 max-w-sm mx-auto">Comienza agregando tu primera pregunta para este tema</p>
                   <button 
                     onClick={() => setIsCreateModalOpen(true)}
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                    className="inline-flex items-center fluid-px-4 fluid-py-2 bg-blue-600 text-white font-medium rounded-fluid-lg hover:bg-blue-700 transition-colors"
                   >
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /> 
                     </svg>
                     Crear primera pregunta
@@ -704,31 +703,31 @@ const TopicDetailPage = () => {
                 </div>
               </div>
             ) : (
-              <div className="p-6 pt-4">
-                <div className="rounded-xl border border-gray-200 overflow-hidden">
+              <div className="fluid-p-6 fluid-pt-4">
+                <div className="rounded-fluid-xl border border-gray-200 overflow-hidden">
                   <div className="max-h-[350px] overflow-y-auto overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-100 sticky top-0 z-10">
                         <tr>
-                          <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-16 bg-gray-100">
+                          <th scope="col" className="fluid-px-6 fluid-py-4 text-left fluid-text-xs font-semibold text-gray-600 uppercase tracking-wider w-16 bg-gray-100">
                             #
                           </th>
-                          <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-44 bg-gray-100">
+                          <th scope="col" className="fluid-px-6 fluid-py-4 text-left fluid-text-xs font-semibold text-gray-600 uppercase tracking-wider w-44 bg-gray-100">
                             Tipo
                           </th>
-                          <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider w-28 bg-gray-100">
+                          <th scope="col" className="fluid-px-6 fluid-py-4 text-center fluid-text-xs font-semibold text-gray-600 uppercase tracking-wider w-28 bg-gray-100">
                             Modo
                           </th>
-                          <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider bg-gray-100">
+                          <th scope="col" className="fluid-px-6 fluid-py-4 text-left fluid-text-xs font-semibold text-gray-600 uppercase tracking-wider bg-gray-100">
                             Pregunta
                           </th>
-                          <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider w-20 bg-gray-100">
+                          <th scope="col" className="fluid-px-6 fluid-py-4 text-center fluid-text-xs font-semibold text-gray-600 uppercase tracking-wider w-24 bg-gray-100">
                             Valor
                           </th>
-                          <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider w-24 bg-gray-100">
+                          <th scope="col" className="fluid-px-6 fluid-py-4 text-center fluid-text-xs font-semibold text-gray-600 uppercase tracking-wider w-24 bg-gray-100">
                             Estado
                           </th>
-                          <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider w-28 bg-gray-100">
+                          <th scope="col" className="fluid-px-6 fluid-py-4 text-right fluid-text-xs font-semibold text-gray-600 uppercase tracking-wider w-28 bg-gray-100">
                             Acciones
                           </th>
                         </tr>
@@ -761,17 +760,17 @@ const TopicDetailPage = () => {
                               question.question_type?.name === 'column_grouping' ? 'cursor-pointer' : ''
                             }`}
                           >
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-blue-100 text-blue-700 font-bold text-sm shadow-sm">
+                            <td className="fluid-px-6 fluid-py-4 whitespace-nowrap">
+                              <span className="inline-flex items-center justify-center w-9 h-9 rounded-fluid-xl bg-blue-100 text-blue-700 font-bold fluid-text-sm shadow-sm">
                                 {index + 1}
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+                            <td className="fluid-px-6 fluid-py-4 whitespace-nowrap">
+                              <span className="inline-flex items-center fluid-px-3 fluid-py-1 rounded-fluid-lg fluid-text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
                                 {getQuestionTypeName(question.question_type?.name || '')}
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <td className="fluid-px-6 fluid-py-4 whitespace-nowrap text-center">
                               <select
                                 value={question.type || 'exam'}
                                 onClick={(e) => e.stopPropagation()}
@@ -782,7 +781,7 @@ const TopicDetailPage = () => {
                                     data: { type: e.target.value as 'exam' | 'simulator' } 
                                   })
                                 }}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200 ${
+                                className={`fluid-px-3 fluid-py-1 rounded-fluid-lg fluid-text-xs font-semibold border cursor-pointer focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200 ${
                                   question.type === 'simulator' 
                                     ? 'bg-amber-100 text-amber-700 border-amber-300' 
                                     : 'bg-teal-100 text-teal-700 border-teal-300'
@@ -792,14 +791,14 @@ const TopicDetailPage = () => {
                                 <option value="simulator">🎮 Simulador</option>
                               </select>
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="fluid-px-6 fluid-py-4">
                               <div 
                                 className="text-gray-700 prose prose-sm max-w-none line-clamp-2"
                                 dangerouslySetInnerHTML={{ __html: question.question_text }}
                               />
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-center">
-                              <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${
+                            <td className="fluid-px-6 fluid-py-4 whitespace-nowrap text-center">
+                              <span className={`inline-flex items-center fluid-px-3 fluid-py-1 rounded-fluid-lg fluid-text-xs font-bold ${
                                 (question.percentage || 0) > 0 
                                   ? question.type === 'simulator' 
                                     ? 'bg-amber-100 text-amber-700 border border-amber-200' 
@@ -809,34 +808,34 @@ const TopicDetailPage = () => {
                                 {(question.percentage || 0).toFixed(1)}%
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <td className="fluid-px-6 fluid-py-4 whitespace-nowrap text-center">
                               {questionAnswers[question.id] ? (
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-gradient-to-r from-green-50 to-emerald-100 text-green-700 border border-green-200/50">
-                                  <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <span className="inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-lg fluid-text-xs font-medium bg-gradient-to-r from-green-50 to-emerald-100 text-green-700 border border-green-200/50">
+                                  <svg className="fluid-icon-xs fluid-mr-1" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                   </svg>
                                   Listo
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200/50">
-                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <span className="inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-lg fluid-text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200/50">
+                                  <svg className="fluid-icon-xs fluid-mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
                                   Pendiente
                                 </span>
                               )}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right">
-                              <div className="flex items-center justify-end gap-1">
+                            <td className="fluid-px-6 fluid-py-4 whitespace-nowrap text-right">
+                              <div className="flex items-center justify-end fluid-gap-1">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     handleEdit(question)
                                   }}
-                                  className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-all duration-200"
+                                  className="fluid-p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-fluid-lg transition-all duration-200"
                                   title="Editar pregunta"
                                 >
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                   </svg>
                                 </button>
@@ -845,10 +844,10 @@ const TopicDetailPage = () => {
                                     e.stopPropagation()
                                     handleDelete(question)
                                   }}
-                                  className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
+                                  className="fluid-p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-fluid-lg transition-all duration-200"
                                   title="Eliminar pregunta"
                                 >
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                   </svg>
                                 </button>
@@ -896,17 +895,17 @@ const TopicDetailPage = () => {
         {activeTab === 'exercises' && (
           <div className="animate-fadeSlideIn">
             {/* Header FIJO - NO hace scroll */}
-            <div className="p-6 pb-4 border-b border-gray-100 bg-white">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="fluid-p-6 fluid-pb-4 border-b border-gray-100 bg-white">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center fluid-gap-4">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Ejercicios Interactivos</h2>
-                  <p className="text-sm text-gray-500 mt-1">Gestiona los ejercicios paso a paso de este tema</p>
+                  <h2 className="fluid-text-xl font-bold text-gray-900">Ejercicios Interactivos</h2>
+                  <p className="fluid-text-sm text-gray-500 fluid-mt-1">Gestiona los ejercicios paso a paso de este tema</p>
                 </div>
                 <button 
                   onClick={() => setIsCreateExerciseModalOpen(true)}
-                  className="inline-flex items-center px-4 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-medium shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 hover:from-violet-600 hover:to-purple-700 transform hover:-translate-y-0.5 transition-all duration-200"
+                  className="inline-flex items-center fluid-px-4 fluid-py-2 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 hover:from-violet-600 hover:to-purple-700 transform hover:-translate-y-0.5 transition-all duration-200"
                 >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                   Crear Ejercicio
@@ -916,24 +915,24 @@ const TopicDetailPage = () => {
 
             {/* Contenido - ESTE tiene scroll */}
             {isLoadingExercises ? (
-              <div className="p-6">
+              <div className="fluid-p-6">
                 <LoadingSpinner message="Cargando ejercicios..." />
               </div>
             ) : exercises.length === 0 ? (
-              <div className="p-6">
-                <div className="text-center py-16 px-4">
-                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-200 mb-6">
-                    <svg className="w-10 h-10 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="fluid-p-6">
+                <div className="text-center fluid-py-16 fluid-px-4">
+                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-fluid-2xl bg-gradient-to-br from-violet-100 to-purple-200 fluid-mb-6">
+                    <svg className="fluid-icon-xl text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay ejercicios creados</h3>
-                  <p className="text-gray-500 mb-6 max-w-sm mx-auto">Los ejercicios interactivos permiten a los estudiantes practicar con pasos guiados</p>
+                  <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-2">No hay ejercicios creados</h3>
+                  <p className="text-gray-500 fluid-mb-6 max-w-sm mx-auto">Los ejercicios interactivos permiten a los estudiantes practicar con pasos guiados</p>
                   <button 
                     onClick={() => setIsCreateExerciseModalOpen(true)}
-                    className="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-medium shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 hover:from-violet-600 hover:to-purple-700 transform hover:-translate-y-0.5 transition-all duration-200"
+                    className="inline-flex items-center fluid-px-5 fluid-py-2 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 hover:from-violet-600 hover:to-purple-700 transform hover:-translate-y-0.5 transition-all duration-200"
                   >
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
                     Crear Primer Ejercicio
@@ -941,31 +940,31 @@ const TopicDetailPage = () => {
                 </div>
               </div>
             ) : (
-              <div className="p-6 pt-4">
-                <div className="rounded-xl border border-gray-200 overflow-hidden">
+              <div className="fluid-p-6 fluid-pt-4">
+                <div className="rounded-fluid-xl border border-gray-200 overflow-hidden">
                   <div className="max-h-[350px] overflow-y-auto overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-100 sticky top-0 z-10">
                         <tr>
-                          <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider w-16 bg-gray-100">
+                          <th scope="col" className="fluid-px-6 fluid-py-4 text-left fluid-text-xs font-bold text-gray-600 uppercase tracking-wider w-16 bg-gray-100">
                             #
                           </th>
-                          <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider bg-gray-100">
+                          <th scope="col" className="fluid-px-6 fluid-py-4 text-left fluid-text-xs font-bold text-gray-600 uppercase tracking-wider bg-gray-100">
                             Ejercicio
                           </th>
-                          <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-32 bg-gray-100">
+                          <th scope="col" className="fluid-px-6 fluid-py-4 text-center fluid-text-xs font-bold text-gray-600 uppercase tracking-wider w-32 bg-gray-100">
                             Tipo
                           </th>
-                          <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-24 bg-gray-100">
+                          <th scope="col" className="fluid-px-6 fluid-py-4 text-center fluid-text-xs font-bold text-gray-600 uppercase tracking-wider w-24 bg-gray-100">
                             Pasos
                           </th>
-                          <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-20 bg-gray-100">
+                          <th scope="col" className="fluid-px-6 fluid-py-4 text-center fluid-text-xs font-bold text-gray-600 uppercase tracking-wider w-24 bg-gray-100">
                             Valor
                           </th>
-                          <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-32 bg-gray-100">
+                          <th scope="col" className="fluid-px-6 fluid-py-4 text-center fluid-text-xs font-bold text-gray-600 uppercase tracking-wider w-32 bg-gray-100">
                             Estado
                           </th>
-                          <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider w-36 bg-gray-100">
+                          <th scope="col" className="fluid-px-6 fluid-py-4 text-right fluid-text-xs font-bold text-gray-600 uppercase tracking-wider w-36 bg-gray-100">
                             Acciones
                           </th>
                         </tr>
@@ -977,18 +976,18 @@ const TopicDetailPage = () => {
                           className="hover:bg-gradient-to-r hover:from-violet-50/50 hover:to-transparent cursor-pointer transition-all duration-200 group"
                           onClick={() => handleOpenExerciseEditor(exercise)}
                         >
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-violet-100 to-purple-200 text-violet-700 font-bold text-sm shadow-sm">
+                          <td className="fluid-px-6 fluid-py-4 whitespace-nowrap">
+                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-fluid-lg bg-gradient-to-br from-violet-100 to-purple-200 text-violet-700 font-bold fluid-text-sm shadow-sm">
                               {index + 1}
                             </span>
                           </td>
-                          <td className="px-6 py-4"> 
+                          <td className="fluid-px-6 fluid-py-4"> 
                             <div 
                               className="text-gray-900 prose prose-sm max-w-none line-clamp-2 group-hover:text-violet-900 transition-colors"
                               dangerouslySetInnerHTML={{ __html: exercise.exercise_text }}
                             />
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <td className="fluid-px-6 fluid-py-4 whitespace-nowrap text-center">
                             <select
                               value={exercise.type || 'exam'}
                               onClick={(e) => e.stopPropagation()}
@@ -999,7 +998,7 @@ const TopicDetailPage = () => {
                                   data: { type: e.target.value as 'exam' | 'simulator' } 
                                 })
                               }}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200 ${
+                              className={`fluid-px-3 fluid-py-1 rounded-fluid-lg fluid-text-xs font-semibold border cursor-pointer focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200 ${
                                 exercise.type === 'simulator' 
                                   ? 'bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200' 
                                   : 'bg-teal-100 text-teal-700 border-teal-300 hover:bg-teal-200'
@@ -1009,16 +1008,16 @@ const TopicDetailPage = () => {
                             <option value="simulator">🎮 Simulador</option>
                           </select>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-purple-100 to-violet-100 text-purple-800">
-                            <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <td className="fluid-px-6 fluid-py-4 whitespace-nowrap text-center">
+                          <span className="inline-flex items-center fluid-px-3 fluid-py-1 rounded-fluid-lg fluid-text-xs font-semibold bg-gradient-to-r from-purple-100 to-violet-100 text-purple-800">
+                            <svg className="fluid-icon-xs fluid-mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                             </svg>
                             {exercise.total_steps || 0}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${
+                        <td className="fluid-px-6 fluid-py-4 whitespace-nowrap text-center">
+                          <span className={`inline-flex items-center fluid-px-3 fluid-py-1 rounded-fluid-lg fluid-text-xs font-bold ${
                             (exercise.percentage || 0) > 0 
                               ? exercise.type === 'simulator' 
                                 ? 'bg-amber-100 text-amber-700 border border-amber-200' 
@@ -1028,34 +1027,34 @@ const TopicDetailPage = () => {
                             {(exercise.percentage || 0).toFixed(1)}%
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <td className="fluid-px-6 fluid-py-4 whitespace-nowrap text-center">
                           {exercise.is_complete ? (
-                            <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-green-100 to-emerald-100 text-green-800">
-                              <svg className="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
+                            <span className="inline-flex items-center fluid-px-3 fluid-py-1 rounded-fluid-lg fluid-text-xs font-semibold bg-gradient-to-r from-green-100 to-emerald-100 text-green-800">
+                              <svg className="fluid-icon-xs fluid-mr-1" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                               </svg>
                               Completo
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-gray-100 to-gray-200 text-gray-600">
-                              <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <span className="inline-flex items-center fluid-px-3 fluid-py-1 rounded-fluid-lg fluid-text-xs font-semibold bg-gradient-to-r from-gray-100 to-gray-200 text-gray-600">
+                              <svg className="fluid-icon-xs fluid-mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                               Pendiente
                             </span>
                           )}
                         </td> 
-                        <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <div className="flex items-center justify-end gap-1">
+                        <td className="fluid-px-6 fluid-py-4 whitespace-nowrap text-right">
+                          <div className="flex items-center justify-end fluid-gap-1">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
                                 handleEditExercise(exercise)
                               }}
-                              className="p-2 rounded-lg text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-all duration-200"
+                              className="fluid-p-2 rounded-fluid-lg text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-all duration-200"
                               title="Editar descripción"
                             >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                               </svg>
                             </button>
@@ -1064,10 +1063,10 @@ const TopicDetailPage = () => {
                                 e.stopPropagation()
                                 handleDeleteExercise(exercise)
                               }}
-                              className="p-2 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 transition-all duration-200"
+                              className="fluid-p-2 rounded-fluid-lg text-red-600 hover:text-red-700 hover:bg-red-50 transition-all duration-200"
                               title="Eliminar ejercicio"
                             >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
                             </button>
@@ -1115,26 +1114,26 @@ const TopicDetailPage = () => {
       {/* Modal de Crear Pregunta */}
       {isCreateModalOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4"
           onClick={() => {
             setIsCreateModalOpen(false)
             setFormData({ question_type_id: '', question_text: '' })
           }}
         >
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
-              <h3 className="text-xl font-bold text-white">Crear Nueva Pregunta</h3>
-              <p className="text-blue-100 text-sm mt-1">Añade una nueva pregunta a este tema</p>
+          <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 fluid-px-6 fluid-py-4">
+              <h3 className="fluid-text-xl font-bold text-white">Crear Nueva Pregunta</h3>
+              <p className="text-blue-100 fluid-text-sm fluid-mt-1">Añade una nueva pregunta a este tema</p>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+            <form onSubmit={handleSubmit} className="fluid-p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+              <div className="fluid-mb-4">
+                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                   Tipo de Pregunta *
                 </label>
                 <select
                   value={formData.question_type_id}
                   onChange={(e) => setFormData({ ...formData, question_type_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   required
                 >
                   <option value="">Selecciona un tipo</option>
@@ -1147,8 +1146,8 @@ const TopicDetailPage = () => {
                     ))}
                 </select>
               </div>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="fluid-mb-6">
+                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                   Pregunta *
                 </label>
                 <RichTextEditor
@@ -1157,20 +1156,20 @@ const TopicDetailPage = () => {
                   placeholder="Escribe la pregunta aquí..."
                 />
               </div>
-              <div className="flex gap-3 justify-end">
+              <div className="flex fluid-gap-3 justify-end">
                 <button
                   type="button"
                   onClick={() => {
                     setIsCreateModalOpen(false)
                     setFormData({ question_type_id: '', question_text: '' })
                   }}
-                  className="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200"
+                  className="fluid-px-5 fluid-py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-xl font-medium transition-all duration-200"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="fluid-px-5 fluid-py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={createQuestionMutation.isPending}
                 >
                   {createQuestionMutation.isPending ? 'Creando...' : 'Crear Pregunta'}
@@ -1191,20 +1190,20 @@ const TopicDetailPage = () => {
             setFormData({ question_type_id: '', question_text: '' })
           }}
         >
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
-              <h3 className="text-xl font-bold text-white">Editar Pregunta</h3>
-              <p className="text-blue-100 text-sm mt-1">Modifica la información de la pregunta</p>
+          <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 fluid-px-6 fluid-py-4">
+              <h3 className="fluid-text-xl font-bold text-white">Editar Pregunta</h3>
+              <p className="text-blue-100 fluid-text-sm fluid-mt-1">Modifica la información de la pregunta</p>
             </div>
-            <form onSubmit={handleUpdateSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+            <form onSubmit={handleUpdateSubmit} className="fluid-p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+              <div className="fluid-mb-4">
+                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                   Tipo de Pregunta *
                 </label>
                 <select
                   value={formData.question_type_id}
                   onChange={(e) => setFormData({ ...formData, question_type_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   required
                 >
                   <option value="">Selecciona un tipo</option>
@@ -1217,8 +1216,8 @@ const TopicDetailPage = () => {
                     ))}
                 </select>
               </div>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="fluid-mb-6">
+                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                   Pregunta *
                 </label>
                 <RichTextEditor
@@ -1227,7 +1226,7 @@ const TopicDetailPage = () => {
                   placeholder="Escribe la pregunta aquí..."
                 />
               </div>
-              <div className="flex gap-3 justify-end">
+              <div className="flex fluid-gap-3 justify-end">
                 <button
                   type="button"
                   onClick={() => {
@@ -1235,13 +1234,13 @@ const TopicDetailPage = () => {
                     setSelectedQuestion(null)
                     setFormData({ question_type_id: '', question_text: '' })
                   }}
-                  className="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200"
+                  className="fluid-px-5 fluid-py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-xl font-medium transition-all duration-200"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="fluid-px-5 fluid-py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={updateQuestionMutation.isPending}
                 >
                   {updateQuestionMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
@@ -1255,52 +1254,52 @@ const TopicDetailPage = () => {
       {/* Modal de Confirmación de Eliminación */}
       {isDeleteModalOpen && selectedQuestion && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4"
           onClick={() => {
             setIsDeleteModalOpen(false)
             setSelectedQuestion(null)
           }}
         >
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-red-500 to-rose-600 px-6 py-4">
+          <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-red-500 to-rose-600 fluid-px-6 fluid-py-4">
               <div className="flex items-center">
-                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mr-3">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex-shrink-0 w-10 h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
+                  <svg className="fluid-icon-sm text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-white">Confirmar Eliminación</h3>
+                <h3 className="fluid-text-xl font-bold text-white">Confirmar Eliminación</h3>
               </div>
             </div>
             
-            <div className="p-6">
-              <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-xl p-4 mb-6">
+            <div className="fluid-p-6">
+              <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-fluid-xl fluid-p-4 fluid-mb-6">
                 <div className="flex items-start">
-                  <svg className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="fluid-icon-sm text-red-500 mt-0.5 fluid-mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
                   <div>
-                    <p className="text-sm font-semibold text-red-800">Esta acción no se puede deshacer</p>
-                    <p className="text-sm text-red-600 mt-1 line-clamp-2">{selectedQuestion.question_text}</p>
+                    <p className="fluid-text-sm font-semibold text-red-800">Esta acción no se puede deshacer</p>
+                    <p className="fluid-text-sm text-red-600 fluid-mt-1 line-clamp-2">{selectedQuestion.question_text}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 justify-end">
+              <div className="flex fluid-gap-3 justify-end">
                 <button
                   type="button"
                   onClick={() => {
                     setIsDeleteModalOpen(false)
                     setSelectedQuestion(null)
                   }}
-                  className="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200"
+                  className="fluid-px-5 fluid-py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-xl font-medium transition-all duration-200"
                   disabled={deleteQuestionMutation.isPending}
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={confirmDelete}
-                  className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-xl font-medium shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/30 hover:from-red-600 hover:to-rose-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="fluid-px-5 fluid-py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/30 hover:from-red-600 hover:to-rose-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={deleteQuestionMutation.isPending}
                 >
                   {deleteQuestionMutation.isPending ? 'Eliminando...' : 'Sí, eliminar'}
@@ -1314,20 +1313,20 @@ const TopicDetailPage = () => {
       {/* Modal de Crear Ejercicio */}
       {isCreateExerciseModalOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4"
           onClick={() => {
             setIsCreateExerciseModalOpen(false)
             setExerciseFormData({ exercise_text: '', is_complete: false })
           }}
         >
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-violet-500 to-purple-600 px-6 py-4">
-              <h3 className="text-xl font-bold text-white">Crear Nuevo Ejercicio</h3>
-              <p className="text-violet-100 text-sm mt-1">Añade un nuevo ejercicio interactivo a este tema</p>
+          <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-violet-500 to-purple-600 fluid-px-6 fluid-py-4">
+              <h3 className="fluid-text-xl font-bold text-white">Crear Nuevo Ejercicio</h3>
+              <p className="text-violet-100 fluid-text-sm fluid-mt-1">Añade un nuevo ejercicio interactivo a este tema</p>
             </div>
-            <form onSubmit={handleSubmitExercise} className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+            <form onSubmit={handleSubmitExercise} className="fluid-p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+              <div className="fluid-mb-6">
+                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                   Contenido del Ejercicio *
                 </label>
                 <RichTextEditor
@@ -1336,20 +1335,20 @@ const TopicDetailPage = () => {
                   placeholder="Escribe el contenido del ejercicio aquí..."
                 />
               </div>
-              <div className="flex gap-3 justify-end">
+              <div className="flex fluid-gap-3 justify-end">
                 <button
                   type="button"
                   onClick={() => {
                     setIsCreateExerciseModalOpen(false)
                     setExerciseFormData({ exercise_text: '', is_complete: false })
                   }}
-                  className="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200"
+                  className="fluid-px-5 fluid-py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-xl font-medium transition-all duration-200"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-medium shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 hover:from-violet-600 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="fluid-px-5 fluid-py-2 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 hover:from-violet-600 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={createExerciseMutation.isPending}
                 >
                   {createExerciseMutation.isPending ? 'Creando...' : 'Crear Ejercicio'}
@@ -1363,21 +1362,21 @@ const TopicDetailPage = () => {
       {/* Modal de Editar Ejercicio */}
       {isEditExerciseModalOpen && selectedExercise && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4"
           onClick={() => {
             setIsEditExerciseModalOpen(false)
             setSelectedExercise(null)
             setExerciseFormData({ exercise_text: '', is_complete: false })
           }}
         >
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-violet-500 to-purple-600 px-6 py-4">
-              <h3 className="text-xl font-bold text-white">Editar Ejercicio</h3>
-              <p className="text-violet-100 text-sm mt-1">Modifica la descripción del ejercicio</p>
+          <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-violet-500 to-purple-600 fluid-px-6 fluid-py-4">
+              <h3 className="fluid-text-xl font-bold text-white">Editar Ejercicio</h3>
+              <p className="text-violet-100 fluid-text-sm fluid-mt-1">Modifica la descripción del ejercicio</p>
             </div>
-            <form onSubmit={handleUpdateExerciseSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+            <form onSubmit={handleUpdateExerciseSubmit} className="fluid-p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+              <div className="fluid-mb-6">
+                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                   Contenido del Ejercicio *
                 </label>
                 <RichTextEditor
@@ -1386,7 +1385,7 @@ const TopicDetailPage = () => {
                   placeholder="Escribe el contenido del ejercicio aquí..."
                 />
               </div>
-              <div className="flex gap-3 justify-end">
+              <div className="flex fluid-gap-3 justify-end">
                 <button
                   type="button"
                   onClick={() => {
@@ -1394,13 +1393,13 @@ const TopicDetailPage = () => {
                     setSelectedExercise(null)
                     setExerciseFormData({ exercise_text: '', is_complete: false })
                   }}
-                  className="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200"
+                  className="fluid-px-5 fluid-py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-xl font-medium transition-all duration-200"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-medium shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 hover:from-violet-600 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="fluid-px-5 fluid-py-2 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 hover:from-violet-600 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={updateExerciseMutation.isPending}
                 >
                   {updateExerciseMutation.isPending ? 'Actualizando...' : 'Actualizar Ejercicio'}
@@ -1414,48 +1413,48 @@ const TopicDetailPage = () => {
       {/* Modal de Eliminar Ejercicio */}
       {isDeleteExerciseModalOpen && selectedExercise && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4"
           onClick={() => {
             setIsDeleteExerciseModalOpen(false)
             setSelectedExercise(null)
           }}
         >
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-red-500 to-rose-600 px-6 py-4">
+          <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-red-500 to-rose-600 fluid-px-6 fluid-py-4">
               <div className="flex items-center">
-                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mr-3">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex-shrink-0 fluid-icon-xl rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
+                  <svg className="fluid-icon-sm text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-white">Eliminar Ejercicio</h3>
+                <h3 className="fluid-text-xl font-bold text-white">Eliminar Ejercicio</h3>
               </div>
             </div>
-            <div className="p-6">
-              <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-xl p-4 mb-6">
+            <div className="fluid-p-6">
+              <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-fluid-xl fluid-p-4 fluid-mb-6">
                 <div className="flex items-start">
-                  <svg className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="fluid-icon-sm text-red-500 mt-0.5 fluid-mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
                   <div>
-                    <p className="text-sm font-semibold text-red-800">Esta acción no se puede deshacer</p>
-                    <p className="text-sm text-red-600 mt-1">¿Estás seguro de que deseas eliminar este ejercicio?</p>
+                    <p className="fluid-text-sm font-semibold text-red-800">Esta acción no se puede deshacer</p>
+                    <p className="fluid-text-sm text-red-600 mt-1">¿Estás seguro de que deseas eliminar este ejercicio?</p>
                   </div>
                 </div>
               </div>
-              <div className="flex gap-3 justify-end">
+              <div className="flex fluid-gap-3 justify-end">
                 <button
                   onClick={() => {
                     setIsDeleteExerciseModalOpen(false)
                     setSelectedExercise(null)
                   }}
-                  className="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200"
+                  className="fluid-px-5 fluid-py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-xl font-medium transition-all duration-200"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={confirmDeleteExercise}
-                  className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-xl font-medium shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/30 hover:from-red-600 hover:to-rose-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="fluid-px-5 fluid-py-2 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/30 hover:from-red-600 hover:to-rose-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={deleteExerciseMutation.isPending}
                 >
                   {deleteExerciseMutation.isPending ? 'Eliminando...' : 'Eliminar'}

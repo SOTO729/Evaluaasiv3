@@ -87,14 +87,14 @@ export default function StandardDetailPage() {
   }
 
   return (
-    <div className="max-w-5xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto px-4 sm:px-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 py-6 sm:py-8">
+    <div className="max-w-5xl mx-auto fluid-px-6 fluid-py-8">
       {/* Navegación */}
-      <div className="mb-4 sm:mb-6">
+      <div className="fluid-mb-6">
         <button
           onClick={() => navigate('/standards')}
-          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
+          className="inline-flex items-center fluid-text-sm text-gray-500 hover:text-gray-700"
         >
-          <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="fluid-mr-2 fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           Volver a estándares
@@ -102,31 +102,31 @@ export default function StandardDetailPage() {
       </div>
 
       {/* Header */}
-      <div className="bg-white shadow rounded-lg sm:rounded-lg overflow-hidden">
-        <div className="px-4 py-4 sm:px-6 sm:py-5 bg-gradient-to-r from-primary-600 to-primary-700">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="bg-white shadow rounded-fluid-lg overflow-hidden">
+        <div className="fluid-px-6 fluid-py-5 bg-gradient-to-r from-primary-600 to-primary-700">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-4">
             <div className="text-white">
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold">{standard.code}</h1>
+              <div className="flex flex-wrap items-center fluid-gap-3">
+                <h1 className="fluid-text-2xl font-bold">{standard.code}</h1>
                 {standard.level && (
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getLevelBadgeColor(standard.level)}`}>
+                  <span className={`inline-flex items-center fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium ${getLevelBadgeColor(standard.level)}`}>
                     Nivel {standard.level}
                   </span>
                 )}
                 {!standard.is_active && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800">
+                  <span className="inline-flex items-center fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium bg-gray-200 text-gray-800">
                     Inactivo
                   </span>
                 )}
               </div>
-              <p className="mt-1 text-base sm:text-lg text-primary-100">{standard.name}</p>
+              <p className="fluid-mt-1 fluid-text-lg text-primary-100">{standard.name}</p>
             </div>
             {(isAdmin || (isEditor && standard.created_by === user?.id)) && (
               <button
                 onClick={() => navigate(`/standards/${standard.id}/edit`)}
-                className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-white border-opacity-30 rounded-md text-sm font-medium text-white hover:bg-white hover:bg-opacity-10"
+                className="w-full sm:w-auto inline-flex items-center justify-center fluid-px-4 fluid-py-2 border border-white border-opacity-30 rounded-fluid-md fluid-text-sm font-medium text-white hover:bg-white hover:bg-opacity-10"
               >
-                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-mr-2 fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
                 Editar
@@ -136,57 +136,57 @@ export default function StandardDetailPage() {
         </div>
 
         {/* Información principal */}
-        <div className="px-4 py-5 sm:p-6">
+        <div className="fluid-px-6 fluid-py-5">
           {standard.description && (
-            <div className="mb-6">
-              <h3 className="text-sm font-medium text-gray-500">Descripción</h3>
-              <p className="mt-1 text-gray-900">{standard.description}</p>
+            <div className="fluid-mb-6">
+              <h3 className="fluid-text-sm font-medium text-gray-500">Descripción</h3>
+              <p className="fluid-mt-1 text-gray-900">{standard.description}</p>
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 fluid-gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <dt className="text-sm font-medium text-gray-500">Sector</dt>
-              <dd className="mt-1 text-sm text-gray-900">{standard.sector || 'No especificado'}</dd>
+              <dt className="fluid-text-sm font-medium text-gray-500">Sector</dt>
+              <dd className="fluid-mt-1 fluid-text-sm text-gray-900">{standard.sector || 'No especificado'}</dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-gray-500">Nivel de Competencia</dt>
-              <dd className="mt-1 text-sm text-gray-900">{getLevelDescription(standard.level)}</dd>
+              <dt className="fluid-text-sm font-medium text-gray-500">Nivel de Competencia</dt>
+              <dd className="fluid-mt-1 fluid-text-sm text-gray-900">{getLevelDescription(standard.level)}</dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-gray-500">Vigencia</dt>
-              <dd className="mt-1 text-sm text-gray-900">{standard.validity_years} años</dd>
+              <dt className="fluid-text-sm font-medium text-gray-500">Vigencia</dt>
+              <dd className="fluid-mt-1 fluid-text-sm text-gray-900">{standard.validity_years} años</dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-gray-500">Certificador</dt>
-              <dd className="mt-1 text-sm text-gray-900">{standard.certifying_body}</dd>
+              <dt className="fluid-text-sm font-medium text-gray-500">Certificador</dt>
+              <dd className="fluid-mt-1 fluid-text-sm text-gray-900">{standard.certifying_body}</dd>
             </div>
           </div>
 
           {/* Estadísticas */}
-          <div className="mt-6 sm:mt-8 grid grid-cols-2 gap-3 sm:gap-4">
-            <div className="bg-primary-50 rounded-lg p-3 sm:p-4">
-              <div className="text-xl sm:text-2xl font-bold text-primary-600">{standard.exam_count || 0}</div>
-              <div className="text-xs sm:text-sm text-primary-700">Exámenes asociados</div>
+          <div className="fluid-mt-8 grid grid-cols-2 fluid-gap-4">
+            <div className="bg-primary-50 rounded-fluid-lg fluid-p-4">
+              <div className="fluid-text-2xl font-bold text-primary-600">{standard.exam_count || 0}</div>
+              <div className="fluid-text-sm text-primary-700">Exámenes asociados</div>
             </div>
-            <div className="bg-green-50 rounded-lg p-3 sm:p-4">
-              <div className="text-xl sm:text-2xl font-bold text-green-600">{standard.results_count || 0}</div>
-              <div className="text-xs sm:text-sm text-green-700">Resultados totales</div>
+            <div className="bg-green-50 rounded-fluid-lg fluid-p-4">
+              <div className="fluid-text-2xl font-bold text-green-600">{standard.results_count || 0}</div>
+              <div className="fluid-text-sm text-green-700">Resultados totales</div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Exámenes asociados */}
-      <div className="mt-8">
-        <div className="sm:flex sm:items-center sm:justify-between mb-4">
-          <h2 className="text-lg font-medium text-gray-900">Exámenes basados en este estándar</h2>
+      <div className="fluid-mt-8">
+        <div className="sm:flex sm:items-center sm:justify-between fluid-mb-4">
+          <h2 className="fluid-text-lg font-medium text-gray-900">Exámenes basados en este estándar</h2>
           {(isAdmin || isEditor) && (
             <Link
               to={`/exams/new?standard=${standard.id}`}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
+              className="inline-flex items-center fluid-px-4 fluid-py-2 border border-transparent rounded-fluid-md shadow-sm fluid-text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
             >
-              <svg className="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="-ml-1 fluid-mr-2 fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               Crear Examen
@@ -195,11 +195,11 @@ export default function StandardDetailPage() {
         </div>
 
         {exams.length === 0 ? (
-          <div className="bg-white shadow sm:rounded-lg p-6 text-center">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-white shadow sm:rounded-lg fluid-p-6 text-center">
+            <svg className="mx-auto fluid-icon-xl text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <p className="mt-2 text-sm text-gray-500">No hay exámenes creados para este estándar</p>
+            <p className="fluid-mt-2 fluid-text-sm text-gray-500">No hay exámenes creados para este estándar</p>
           </div>
         ) : (
           <div className="bg-white shadow overflow-hidden sm:rounded-md">
@@ -210,31 +210,31 @@ export default function StandardDetailPage() {
                     to={`/exams/${exam.id}`}
                     className="block hover:bg-gray-50"
                   >
-                    <div className="px-4 py-4 sm:px-6">
+                    <div className="fluid-px-4 fluid-py-4">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <p className="text-sm font-medium text-primary-600">{exam.name}</p>
+                        <div className="flex items-center fluid-gap-3">
+                          <p className="fluid-text-sm font-medium text-primary-600">{exam.name}</p>
                           {exam.version && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                            <span className="inline-flex items-center fluid-px-2 fluid-py-1 rounded fluid-text-xs font-medium bg-gray-100 text-gray-800">
                               v{exam.version}
                             </span>
                           )}
                           {exam.is_published ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                            <span className="inline-flex items-center fluid-px-2 fluid-py-1 rounded fluid-text-xs font-medium bg-green-100 text-green-800">
                               Publicado
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                            <span className="inline-flex items-center fluid-px-2 fluid-py-1 rounded fluid-text-xs font-medium bg-yellow-100 text-yellow-800">
                               Borrador
                             </span>
                           )}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="fluid-text-sm text-gray-500">
                           {exam.question_count || 0} preguntas
                         </div>
                       </div>
                       {exam.description && (
-                        <p className="mt-1 text-sm text-gray-500 truncate">{exam.description}</p>
+                        <p className="fluid-mt-1 fluid-text-sm text-gray-500 truncate">{exam.description}</p>
                       )}
                     </div>
                   </Link>
@@ -246,7 +246,7 @@ export default function StandardDetailPage() {
       </div>
 
       {/* Metadata */}
-      <div className="mt-8 bg-gray-50 rounded-lg p-4 text-xs text-gray-500">
+      <div className="fluid-mt-8 bg-gray-50 rounded-fluid-lg fluid-p-4 fluid-text-xs text-gray-500">
         <p>Creado: {new Date(standard.created_at).toLocaleDateString('es-MX', { dateStyle: 'long' })}</p>
         {standard.updated_at && (
           <p>Última actualización: {new Date(standard.updated_at).toLocaleDateString('es-MX', { dateStyle: 'long' })}</p>

@@ -278,15 +278,15 @@ const ExamsListPage = () => {
   const total = data?.total || 0;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 animate-fade-in-up">
+    <div className="fluid-p-8 animate-fade-in-up">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6 lg:mb-8 xl:mb-10">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center fluid-gap-4 fluid-mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-gray-800 flex items-center gap-2 lg:gap-3 xl:gap-4">
-            <FileText className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12 text-blue-600" />
+          <h1 className="fluid-text-3xl font-bold text-gray-800 flex items-center fluid-gap-3">
+            <FileText className="fluid-icon-xl text-blue-600" />
             {isCandidate ? 'Exámenes Disponibles' : 'Exámenes'}
           </h1>
-          <p className="text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl text-gray-600 mt-1 lg:mt-2">
+          <p className="fluid-text-base text-gray-600 fluid-mt-2">
             {isCandidate 
               ? 'Explora los exámenes disponibles para tu certificación'
               : 'Gestiona los exámenes con sus categorías, preguntas y ejercicios'
@@ -296,19 +296,19 @@ const ExamsListPage = () => {
         {canCreateExam && (
           <button 
             onClick={() => navigate('/exams/create')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 2xl:px-10 2xl:py-5 rounded-lg xl:rounded-xl flex items-center justify-center gap-2 lg:gap-3 transition-colors w-full sm:w-auto text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl"
+            className="bg-blue-600 hover:bg-blue-700 text-white fluid-px-6 fluid-py-3 rounded-fluid-lg flex items-center justify-center fluid-gap-2 transition-colors w-full sm:w-auto fluid-text-base"
           >
-            <Plus className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 2xl:h-8 2xl:w-8" />
+            <Plus className="fluid-icon-lg" />
             Nuevo Examen
           </button>
         )}
       </div>
 
       {/* Search */}
-      <div className="bg-white rounded-lg xl:rounded-xl shadow p-3 sm:p-4 lg:p-5 xl:p-6 2xl:p-8 mb-4 sm:mb-6 lg:mb-8">
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 lg:gap-6">
+      <div className="bg-white rounded-fluid-lg shadow fluid-p-5 fluid-mb-6">
+        <div className="flex flex-col sm:flex-row fluid-gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 lg:left-4 top-1/2 -translate-y-1/2 h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-lg text-gray-400" />
             <input
               type="text"
               placeholder="Buscar exámenes..."
@@ -319,7 +319,7 @@ const ExamsListPage = () => {
                   refetch()
                 }
               }}
-              className="w-full pl-10 lg:pl-12 xl:pl-14 pr-4 py-2.5 sm:py-2 lg:py-3 xl:py-4 2xl:py-5 border border-gray-300 rounded-lg xl:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base lg:text-lg xl:text-xl 2xl:text-2xl"
+              className="w-full pl-10 pr-4 fluid-py-3 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-base"
             />
           </div>
           <button
@@ -327,9 +327,9 @@ const ExamsListPage = () => {
               // Forzar la búsqueda inmediatamente
               refetch()
             }}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 lg:px-8 xl:px-10 py-2.5 sm:py-2 lg:py-3 xl:py-4 2xl:py-5 rounded-lg xl:rounded-xl transition-colors w-full sm:w-auto flex items-center justify-center gap-2 lg:gap-3 font-medium text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl"
+            className="bg-blue-600 hover:bg-blue-700 text-white fluid-px-8 fluid-py-3 rounded-fluid-lg transition-colors w-full sm:w-auto flex items-center justify-center fluid-gap-2 font-medium fluid-text-base"
           >
-            <Search className="h-4 w-4 lg:h-5 lg:w-5 xl:h-6 xl:w-6" />
+            <Search className="fluid-icon" />
             Buscar
           </button>
         </div>
@@ -359,7 +359,7 @@ const ExamsListPage = () => {
         <>
           {/* Para candidatos: mostrar solo grid sin secciones */}
           {isCandidate ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 gap-4 sm:gap-6 lg:gap-8 xl:gap-10 mb-6 sm:mb-8 lg:mb-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 fluid-gap-6 fluid-mb-8">
               {allExams.map((exam: any, index: number) => (
                 <ExamCard 
                   key={exam.id} 
@@ -373,15 +373,15 @@ const ExamsListPage = () => {
             <>
               {/* Sección de Publicados */}
               {allExams.filter((e: any) => e.is_published).length > 0 && (
-                <div className="mb-8 lg:mb-10 xl:mb-12">
-                  <div className="flex items-center gap-2 lg:gap-3 mb-4 lg:mb-6">
-                    <Eye className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-green-600" />
-                    <h2 className="text-lg lg:text-xl xl:text-2xl 2xl:text-3xl font-semibold text-gray-800">Publicados</h2>
-                    <span className="bg-green-100 text-green-700 text-xs lg:text-sm xl:text-base font-medium px-2 py-0.5 lg:px-3 lg:py-1 rounded-full">
+                <div className="fluid-mb-10">
+                  <div className="flex items-center fluid-gap-2 fluid-mb-4">
+                    <Eye className="fluid-icon-lg text-green-600" />
+                    <h2 className="fluid-text-xl font-semibold text-gray-800">Publicados</h2>
+                    <span className="bg-green-100 text-green-700 fluid-text-sm font-medium fluid-px-2 fluid-py-1 rounded-full">
                       {allExams.filter((e: any) => e.is_published).length}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 gap-6 lg:gap-8 xl:gap-10">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 fluid-gap-6">
                     {allExams.filter((e: any) => e.is_published).map((exam: any, index: number) => (
                       <ExamCard 
                         key={exam.id} 
@@ -395,15 +395,15 @@ const ExamsListPage = () => {
 
               {/* Sección de Borradores */}
               {allExams.filter((e: any) => !e.is_published).length > 0 && (
-                <div ref={draftsRef} className="mb-8 lg:mb-10 xl:mb-12 scroll-mt-4">
-                  <div className="flex items-center gap-2 lg:gap-3 mb-4 lg:mb-6">
-                    <EyeOff className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-gray-500" />
-                    <h2 className="text-lg lg:text-xl xl:text-2xl 2xl:text-3xl font-semibold text-gray-800">Borradores</h2>
-                    <span className="bg-gray-100 text-gray-600 text-xs lg:text-sm xl:text-base font-medium px-2 py-0.5 lg:px-3 lg:py-1 rounded-full">
+                <div ref={draftsRef} className="fluid-mb-10 scroll-mt-4">
+                  <div className="flex items-center fluid-gap-2 fluid-mb-4">
+                    <EyeOff className="fluid-icon-lg text-gray-500" />
+                    <h2 className="fluid-text-xl font-semibold text-gray-800">Borradores</h2>
+                    <span className="bg-gray-100 text-gray-600 fluid-text-sm font-medium fluid-px-2 fluid-py-1 rounded-full">
                       {allExams.filter((e: any) => !e.is_published).length}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 gap-6 lg:gap-8 xl:gap-10">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 fluid-gap-6">
                     {allExams.filter((e: any) => !e.is_published).map((exam: any, index: number) => (
                       <ExamCard 
                         key={exam.id} 
@@ -419,27 +419,27 @@ const ExamsListPage = () => {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="mt-4 sm:mt-6 lg:mt-8 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white rounded-lg xl:rounded-xl shadow px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5">
-              <p className="text-xs sm:text-sm lg:text-base xl:text-lg text-gray-600 order-2 sm:order-1">
+            <div className="fluid-mt-6 flex flex-col sm:flex-row items-center justify-between fluid-gap-3 bg-white rounded-fluid-lg shadow fluid-px-6 fluid-py-4">
+              <p className="fluid-text-sm text-gray-600 order-2 sm:order-1">
                 Mostrando {allExams.length} de {total} exámenes
               </p>
-              <div className="flex items-center gap-2 lg:gap-3 order-1 sm:order-2">
+              <div className="flex items-center fluid-gap-2 order-1 sm:order-2">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="p-2 lg:p-3 rounded-lg xl:rounded-xl border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 active:bg-gray-100"
+                  className="fluid-p-2 rounded-fluid-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 active:bg-gray-100"
                 >
-                  <ChevronLeft className="h-5 w-5 lg:h-6 lg:w-6" />
+                  <ChevronLeft className="fluid-icon-lg" />
                 </button>
-                <span className="px-3 py-1 lg:px-4 lg:py-2 text-sm lg:text-base xl:text-lg min-w-[100px] lg:min-w-[120px] text-center">
+                <span className="fluid-px-3 fluid-py-1 fluid-text-base min-w-[100px] text-center">
                   {currentPage} de {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="p-2 lg:p-3 rounded-lg xl:rounded-xl border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 active:bg-gray-100"
+                  className="fluid-p-2 rounded-fluid-lg border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 active:bg-gray-100"
                 >
-                  <ChevronRight className="h-5 w-5 lg:h-6 lg:w-6" />
+                  <ChevronRight className="fluid-icon-lg" />
                 </button>
               </div>
             </div>

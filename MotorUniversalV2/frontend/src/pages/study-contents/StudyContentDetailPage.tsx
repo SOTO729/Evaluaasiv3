@@ -88,15 +88,15 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 
     xl: 'max-w-6xl'
   };
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className={`bg-white rounded-lg ${sizeClasses[size]} w-full max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-center p-4 border-b">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 fluid-p-4" onClick={onClose}>
+      <div className={`bg-white rounded-fluid-lg ${sizeClasses[size]} w-full max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center fluid-p-4 border-b">
           <h3 className="text-lg font-bold text-gray-900">{title}</h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
-            <X className="h-5 w-5" />
+            <X className="fluid-icon-sm" />
           </button>
         </div>
-        <div className="p-4">{children}</div>
+        <div className="fluid-p-4">{children}</div>
       </div>
     </div>
   );
@@ -119,17 +119,17 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
 
   return (
     <div className="fixed top-4 right-4 z-[100] animate-slide-in">
-      <div className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${
+      <div className={`flex items-center fluid-gap-3 fluid-px-6 fluid-py-4 rounded-fluid-lg shadow-lg ${
         type === 'success' 
           ? 'bg-green-600 text-white' 
           : 'bg-red-600 text-white'
       }`}>
         {type === 'success' ? (
-          <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="fluid-icon-lg flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         ) : (
-          <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="fluid-icon-lg flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         )}
@@ -138,7 +138,7 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
           onClick={onClose}
           className="ml-2 hover:opacity-80 transition-opacity"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
@@ -1129,14 +1129,14 @@ const StudyContentDetailPage = () => {
 
   if (!material) {
     return (
-      <div className="p-6">
+      <div className="fluid-p-6">
         <p className="text-red-600">Material no encontrado</p>
       </div>
     );
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto">
+    <div className="fluid-p-6 max-w-[1920px] mx-auto">
       {/* Toast notification */}
       {toast && (
         <Toast
@@ -1147,18 +1147,18 @@ const StudyContentDetailPage = () => {
       )}
       
       {/* Back button */}
-      <div className="mb-4">
+      <div className="fluid-mb-4">
         <button
           onClick={() => navigate('/study-contents')}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+          className="flex items-center fluid-gap-2 text-gray-600 hover:text-gray-800"
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="fluid-icon-sm" />
           Volver a la lista
         </button>
       </div>
 
       {/* Header with Image Background */}
-      <div className="relative rounded-xl overflow-hidden mb-6 shadow-lg">
+      <div className="relative rounded-fluid-xl overflow-hidden fluid-mb-6 shadow-lg">
         {/* Background Image */}
         {material.image_url ? (
           <div className="absolute inset-0">
@@ -1184,18 +1184,18 @@ const StudyContentDetailPage = () => {
         )}
 
         {/* Content */}
-        <div className="relative z-10 p-6">
+        <div className="relative z-10 fluid-p-6">
           {/* Top row with status badge only */}
-          <div className="flex justify-between items-start mb-20">
-            <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium ${material.is_published ? 'bg-green-500/90 text-white' : 'bg-white/90 text-gray-700'}`}>
-              {material.is_published ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          <div className="flex justify-between items-start fluid-mb-20">
+            <span className={`inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1 rounded-full fluid-text-sm font-medium ${material.is_published ? 'bg-green-500/90 text-white' : 'bg-white/90 text-gray-700'}`}>
+              {material.is_published ? <Eye className="fluid-icon-xs" /> : <EyeOff className="fluid-icon-xs" />}
               {material.is_published ? 'Publicado' : 'Borrador'}
             </span>
           </div>
 
           {/* Title and description */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-white mb-2 drop-shadow-md">{material.title}</h1>
+          <div className="fluid-mb-6">
+            <h1 className="fluid-text-3xl font-bold text-white fluid-mb-2 drop-shadow-md">{material.title}</h1>
             {material.description && (
               <div 
                 className="text-white/90 prose prose-sm max-w-none prose-invert drop-shadow"
@@ -1205,44 +1205,44 @@ const StudyContentDetailPage = () => {
           </div>
 
           {/* Statistics Grid */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <Layers className="h-5 w-5 text-white/80" />
-                <span className="text-white/80 text-sm">Sesiones</span>
+          <div className="grid grid-cols-3 fluid-gap-3">
+            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-lg fluid-p-4">
+              <div className="flex items-center fluid-gap-2 fluid-mb-1">
+                <Layers className="fluid-icon-sm text-white/80" />
+                <span className="text-white/80 fluid-text-sm">Sesiones</span>
               </div>
-              <span className="text-2xl font-bold text-white">{material.sessions?.length || 0}</span>
+              <span className="fluid-text-2xl font-bold text-white">{material.sessions?.length || 0}</span>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <FileText className="h-5 w-5 text-white/80" />
-                <span className="text-white/80 text-sm">Temas</span>
+            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-lg fluid-p-4">
+              <div className="flex items-center fluid-gap-2 fluid-mb-1">
+                <FileText className="fluid-icon-sm text-white/80" />
+                <span className="text-white/80 fluid-text-sm">Temas</span>
               </div>
-              <span className="text-2xl font-bold text-white">
+              <span className="fluid-text-2xl font-bold text-white">
                 {material.sessions?.reduce((acc, s) => acc + (s.topics?.length || 0), 0) || 0}
               </span>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <ClipboardList className="h-5 w-5 text-white/80" />
-                <span className="text-white/80 text-sm">Exámenes vinculados</span>
+            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-lg fluid-p-4">
+              <div className="flex items-center fluid-gap-2 fluid-mb-1">
+                <ClipboardList className="fluid-icon-sm text-white/80" />
+                <span className="text-white/80 fluid-text-sm">Exámenes vinculados</span>
               </div>
-              <span className="text-2xl font-bold text-white">{material.linked_exams?.length || 0}</span>
+              <span className="fluid-text-2xl font-bold text-white">{material.linked_exams?.length || 0}</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Action buttons bar - Fondo blanco */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 flex-wrap">
+      <div className="bg-white rounded-fluid-lg shadow-sm border border-gray-200 fluid-p-4 fluid-mb-4 flex flex-wrap items-center justify-between fluid-gap-3">
+        <div className="flex items-center fluid-gap-2 flex-wrap">
           {/* Botón Probar Contenido - solo visible cuando está publicado */}
           {material.is_published && material.sessions && material.sessions.length > 0 && material.sessions[0].topics && material.sessions[0].topics.length > 0 && (
             <button
               onClick={() => navigate(`/study-contents/${materialId}/preview`)}
-              className="px-4 py-2 btn-animated-gradient text-white rounded-lg font-medium flex items-center gap-2 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:scale-105 transition-all duration-300"
+              className="fluid-px-4 fluid-py-2 btn-animated-gradient text-white rounded-fluid-lg font-medium flex items-center fluid-gap-2 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:scale-105 transition-all duration-300"
             >
-              <PlayCircle className="w-5 h-5" />
+              <PlayCircle className="fluid-icon-sm" />
               Probar Contenido
             </button>
           )}
@@ -1259,9 +1259,9 @@ const StudyContentDetailPage = () => {
                   setToast({ message: 'Error al cambiar a borrador', type: 'error' });
                 }
               }}
-              className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors font-medium flex items-center gap-2 border border-gray-300"
+              className="fluid-px-4 fluid-py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-fluid-lg transition-colors font-medium flex items-center fluid-gap-2 border border-gray-300"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
               Cambiar a Borrador
@@ -1269,16 +1269,16 @@ const StudyContentDetailPage = () => {
           ) : (
             <button
               onClick={handleValidateAndPublish}
-              className="px-4 py-2 bg-green-500 text-white hover:bg-green-600 rounded-lg transition-colors font-medium flex items-center gap-2 shadow-sm"
+              className="fluid-px-4 fluid-py-2 bg-green-500 text-white hover:bg-green-600 rounded-fluid-lg transition-colors font-medium flex items-center fluid-gap-2 shadow-sm"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               Publicar
             </button>
           )}
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center fluid-gap-2 flex-wrap">
           <button
             onClick={() => {
               if (material.is_published) {
@@ -1288,13 +1288,13 @@ const StudyContentDetailPage = () => {
               navigate(`/study-contents/${materialId}/edit`);
             }}
             disabled={material.is_published}
-            className={`px-4 py-2 rounded-lg transition-colors font-medium flex items-center gap-2 border ${
+            className={`fluid-px-4 fluid-py-2 rounded-fluid-lg transition-colors font-medium flex items-center fluid-gap-2 border ${
               material.is_published
                 ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                 : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
             }`}
           >
-            <Edit2 className="h-5 w-5" />
+            <Edit2 className="fluid-icon-sm" />
             Editar Material
           </button>
           {/* Botón Eliminar Material (solo admin) */}
@@ -1308,13 +1308,13 @@ const StudyContentDetailPage = () => {
                 setShowDeleteMaterialModal(true);
               }}
               disabled={material.is_published}
-              className={`px-4 py-2 rounded-lg transition-colors font-medium flex items-center gap-2 ${
+              className={`fluid-px-4 fluid-py-2 rounded-fluid-lg transition-colors font-medium flex items-center fluid-gap-2 ${
                 material.is_published
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : 'bg-red-500 text-white hover:bg-red-600'
               }`}
             >
-              <Trash2 className="h-5 w-5" />
+              <Trash2 className="fluid-icon-sm" />
               Eliminar
             </button>
           )}
@@ -1323,49 +1323,49 @@ const StudyContentDetailPage = () => {
 
       {/* Warning when published */}
       {material.is_published && (
-        <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center gap-3">
-          <svg className="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="fluid-mb-4 bg-amber-50 border border-amber-200 rounded-fluid-lg fluid-p-4 flex items-center fluid-gap-3">
+          <svg className="fluid-icon text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <div>
             <p className="text-amber-800 font-medium">Contenido publicado</p>
-            <p className="text-amber-700 text-sm">Para editar el contenido, primero cambia el material a borrador.</p>
+            <p className="text-amber-700 fluid-text-sm">Para editar el contenido, primero cambia el material a borrador.</p>
           </div>
         </div>
       )}
 
       {/* Sessions */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-4 border-b flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-gray-800">Sesiones</h2>
+      <div className="bg-white rounded-fluid-lg shadow">
+        <div className="fluid-p-4 border-b flex justify-between items-center">
+          <h2 className="fluid-text-lg font-semibold text-gray-800">Sesiones</h2>
           <button
             onClick={() => openSessionModal()}
             disabled={material.is_published}
-            className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-sm font-medium transition-colors shadow-sm ${
+            className={`fluid-px-3 fluid-py-1 rounded-fluid-lg flex items-center fluid-gap-1 fluid-text-sm font-medium transition-colors shadow-sm ${
               material.is_published
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
             }`}
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="fluid-icon-xs" />
             Nueva Sesión
           </button>
         </div>
 
         {!material.sessions?.length ? (
-          <div className="p-8 text-center">
-            <Layers className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+          <div className="fluid-p-8 text-center">
+            <Layers className="fluid-icon-xl text-gray-300 mx-auto fluid-mb-3" />
             <p className="text-gray-500">No hay sesiones aún</p>
             <button
               onClick={() => openSessionModal()}
               disabled={material.is_published}
-              className={`mt-3 px-4 py-2 rounded-lg inline-flex items-center gap-2 ${
+              className={`fluid-mt-3 fluid-px-4 fluid-py-2 rounded-fluid-lg inline-flex items-center fluid-gap-2 ${
                 material.is_published
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
               }`}
             >
-              <Plus className="h-5 w-5" />
+              <Plus className="fluid-icon-sm" />
               Crear Primera Sesión
             </button>
           </div>
@@ -1375,51 +1375,51 @@ const StudyContentDetailPage = () => {
               <div id={`session-${session.id}`} key={session.id} className={`border-b last:border-b-0 scroll-mt-24 ${expandedSessions.has(session.id) ? 'ring-2 ring-blue-500 ring-inset bg-blue-50/30' : ''}`}>
                 {/* Session Header */}
                 <div
-                  className={`flex items-center justify-between p-4 cursor-pointer transition-colors ${expandedSessions.has(session.id) ? 'bg-blue-100/50 hover:bg-blue-100' : 'hover:bg-gray-50'}`}
+                  className={`flex items-center justify-between fluid-p-4 cursor-pointer transition-colors ${expandedSessions.has(session.id) ? 'bg-blue-100/50 hover:bg-blue-100' : 'hover:bg-gray-50'}`}
                   onClick={() => toggleSession(session.id)}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center fluid-gap-3">
                     {expandedSessions.has(session.id) ? (
-                      <ChevronDown className="h-5 w-5 text-blue-600" />
+                      <ChevronDown className="fluid-icon-sm text-blue-600" />
                     ) : (
-                      <ChevronRight className="h-5 w-5 text-gray-400" />
+                      <ChevronRight className="fluid-icon-sm text-gray-400" />
                     )}
-                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${expandedSessions.has(session.id) ? 'bg-blue-600' : 'bg-blue-100'}`}>
-                      <FolderOpen className={`h-4 w-4 ${expandedSessions.has(session.id) ? 'text-white' : 'text-blue-600'}`} />
+                    <div className={`fluid-icon-xl rounded-fluid-lg flex items-center justify-center ${expandedSessions.has(session.id) ? 'bg-blue-600' : 'bg-blue-100'}`}>
+                      <FolderOpen className={`fluid-icon-xs ${expandedSessions.has(session.id) ? 'text-white' : 'text-blue-600'}`} />
                     </div>
                     <div>
                       <h3 className={`font-medium ${expandedSessions.has(session.id) ? 'text-blue-900' : 'text-gray-900'}`}>
                         Sesión {session.session_number}: {session.title}
                       </h3>
                       {session.description && (
-                        <p className="text-sm text-gray-500">{session.description}</p>
+                        <p className="fluid-text-sm text-gray-500">{session.description}</p>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                    <span className="text-sm text-gray-500">
+                  <div className="flex items-center fluid-gap-2" onClick={(e) => e.stopPropagation()}>
+                    <span className="fluid-text-sm text-gray-500">
                       {session.topics?.length || 0} temas
                       {session.topics && session.topics.reduce((sum, t) => sum + (t.estimated_time_minutes || 0), 0) > 0 && (
-                        <> · <Clock className="w-3 h-3 inline-block mb-0.5" /> {session.topics.reduce((sum, t) => sum + (t.estimated_time_minutes || 0), 0)}m</>
+                        <> · <Clock className="fluid-icon-xs inline-block fluid-mb-1" /> {session.topics.reduce((sum, t) => sum + (t.estimated_time_minutes || 0), 0)}m</>
                       )}
                     </span>
                     {!material.is_published && (
                       <>
                         <button
                           onClick={() => openSessionModal(session)}
-                          className="p-2 text-primary-600 hover:bg-primary-100 rounded-lg transition-colors"
+                          className="fluid-p-2 text-primary-600 hover:bg-primary-100 rounded-fluid-lg transition-colors"
                           title="Editar sesión"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </button>
                         <button
                           onClick={() => openDeleteModal('session', session.id, session.title)}
-                          className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                          className="fluid-p-2 text-red-600 hover:bg-red-100 rounded-fluid-lg transition-colors"
                           title="Eliminar sesión"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         </button>
@@ -1431,25 +1431,25 @@ const StudyContentDetailPage = () => {
                 {/* Topics */}
                 {expandedSessions.has(session.id) && (
                   <div className="bg-gray-50 border-t">
-                    <div className="p-3 flex justify-between items-center border-b bg-gray-100">
-                      <span className="text-sm font-medium text-gray-600">Temas de la sesión</span>
+                    <div className="fluid-p-3 flex justify-between items-center border-b bg-gray-100">
+                      <span className="fluid-text-sm font-medium text-gray-600">Temas de la sesión</span>
                       <button
                         onClick={() => openTopicModal(session.id)}
                         disabled={material.is_published}
-                        className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-sm font-medium transition-colors shadow-sm ${
+                        className={`fluid-px-3 fluid-py-1 rounded-fluid-lg flex items-center fluid-gap-1 fluid-text-sm font-medium transition-colors shadow-sm ${
                           material.is_published
                             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                             : 'bg-blue-600 hover:bg-blue-700 text-white'
                         }`}
                       >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="fluid-icon-xs" />
                         Nuevo Tema
                       </button>
                     </div>
 
                     {!session.topics?.length ? (
-                      <div className="p-6 text-center">
-                        <p className="text-gray-500 text-sm">No hay temas en esta sesión</p>
+                      <div className="fluid-p-6 text-center">
+                        <p className="text-gray-500 fluid-text-sm">No hay temas en esta sesión</p>
                       </div>
                     ) : (
                       <div className="divide-y divide-gray-200">
@@ -1457,43 +1457,43 @@ const StudyContentDetailPage = () => {
                           <div id={`topic-${topic.id}`} key={topic.id} className={`scroll-mt-24 ${expandedTopics.has(topic.id) ? 'ring-2 ring-slate-300 ring-inset bg-slate-50' : 'bg-white'}`}>
                             {/* Topic Header */}
                             <div
-                              className={`flex items-center justify-between p-3 pl-8 cursor-pointer transition-colors ${expandedTopics.has(topic.id) ? 'bg-slate-100 hover:bg-slate-200' : 'hover:bg-gray-50'}`}
+                              className={`flex items-center justify-between fluid-p-3 pl-8 cursor-pointer transition-colors ${expandedTopics.has(topic.id) ? 'bg-slate-100 hover:bg-slate-200' : 'hover:bg-gray-50'}`}
                               onClick={() => toggleTopic(topic.id)}
                             >
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center fluid-gap-3">
                                 {expandedTopics.has(topic.id) ? (
-                                  <ChevronDown className="h-4 w-4 text-slate-600" />
+                                  <ChevronDown className="fluid-icon-xs text-slate-600" />
                                 ) : (
-                                  <ChevronRight className="h-4 w-4 text-gray-400" />
+                                  <ChevronRight className="fluid-icon-xs text-gray-400" />
                                 )}
                                 <span className={`font-medium ${expandedTopics.has(topic.id) ? 'text-slate-900' : 'text-gray-800'}`}>{topic.title}</span>
                                 {topic.estimated_time_minutes && (
-                                  <span className="flex items-center gap-1 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                                    <Clock className="w-3 h-3" />
+                                  <span className="flex items-center fluid-gap-1 fluid-text-xs text-gray-400 bg-gray-100 fluid-px-2 fluid-py-1 rounded-full">
+                                    <Clock className="fluid-icon-xs" />
                                     {topic.estimated_time_minutes}m
                                   </span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center fluid-gap-2" onClick={(e) => e.stopPropagation()}>
                                 {/* Element indicators - solo mostrar los tipos permitidos */}
-                                <div className="flex gap-1">
+                                <div className="flex fluid-gap-1">
                                   {topic.allow_reading !== false && (
-                                    <span className={`p-1 rounded ${topic.reading ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Lectura">
+                                    <span className={`fluid-p-1 rounded ${topic.reading ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Lectura">
                                       <FileText className="h-3.5 w-3.5" />
                                     </span>
                                   )}
                                   {topic.allow_video !== false && (
-                                    <span className={`p-1 rounded ${topic.video ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Video">
+                                    <span className={`fluid-p-1 rounded ${topic.video ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Video">
                                       <Video className="h-3.5 w-3.5" />
                                     </span>
                                   )}
                                   {topic.allow_downloadable !== false && (
-                                    <span className={`p-1 rounded ${topic.downloadable_exercise ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Descargable">
+                                    <span className={`fluid-p-1 rounded ${topic.downloadable_exercise ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Descargable">
                                       <Download className="h-3.5 w-3.5" />
                                     </span>
                                   )}
                                   {topic.allow_interactive !== false && (
-                                    <span className={`p-1 rounded ${topic.interactive_exercise ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Interactivo">
+                                    <span className={`fluid-p-1 rounded ${topic.interactive_exercise ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Interactivo">
                                       <Gamepad2 className="h-3.5 w-3.5" />
                                     </span>
                                   )}
@@ -1502,19 +1502,19 @@ const StudyContentDetailPage = () => {
                                   <>
                                     <button
                                       onClick={() => openTopicModal(session.id, topic)}
-                                      className="p-2 text-primary-600 hover:bg-primary-100 rounded-lg transition-colors"
+                                      className="fluid-p-2 text-primary-600 hover:bg-primary-100 rounded-fluid-lg transition-colors"
                                       title="Editar tema"
                                     >
-                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                       </svg>
                                     </button>
                                     <button
                                       onClick={() => openDeleteModal('topic', topic.id, topic.title, session.id)}
-                                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                      className="fluid-p-2 text-red-600 hover:bg-red-100 rounded-fluid-lg transition-colors"
                                       title="Eliminar tema"
                                     >
-                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                       </svg>
                                     </button>
@@ -1525,7 +1525,7 @@ const StudyContentDetailPage = () => {
 
                             {/* Topic Elements */}
                             {expandedTopics.has(topic.id) && (
-                              <div className="bg-gray-50 p-4 pl-16 grid grid-cols-2 gap-3">
+                              <div className="bg-gray-50 fluid-p-4 pl-16 grid grid-cols-2 fluid-gap-3">
                                 {/* Lectura - solo si allow_reading es true */}
                                 {(topic.allow_reading !== false) && (
                                   <div
@@ -1536,7 +1536,7 @@ const StudyContentDetailPage = () => {
                                       }
                                       openReadingModal(session.id, topic);
                                     }}
-                                    className={`p-3 rounded-lg border transition-colors ${
+                                    className={`fluid-p-3 rounded-fluid-lg border transition-colors ${
                                       material.is_published
                                         ? 'cursor-not-allowed opacity-60'
                                         : 'cursor-pointer'
@@ -1546,11 +1546,11 @@ const StudyContentDetailPage = () => {
                                       !material.is_published && (topic.reading ? 'hover:bg-green-100' : 'hover:bg-gray-100')
                                     }`}
                                   >
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <FileText className={`h-5 w-5 ${topic.reading ? 'text-green-600' : 'text-gray-400'}`} />
-                                      <span className="font-medium text-sm">Lectura</span>
+                                    <div className="flex items-center fluid-gap-2 fluid-mb-1">
+                                      <FileText className={`fluid-icon-sm ${topic.reading ? 'text-green-600' : 'text-gray-400'}`} />
+                                      <span className="font-medium fluid-text-sm">Lectura</span>
                                     </div>
-                                    <p className="text-xs text-gray-500">
+                                    <p className="fluid-text-xs text-gray-500">
                                       {topic.reading ? topic.reading.title : 'Sin contenido'}
                                     </p>
                                   </div>
@@ -1566,7 +1566,7 @@ const StudyContentDetailPage = () => {
                                       }
                                       openVideoModal(session.id, topic);
                                     }}
-                                    className={`p-3 rounded-lg border transition-colors ${
+                                    className={`fluid-p-3 rounded-fluid-lg border transition-colors ${
                                       material.is_published
                                         ? 'cursor-not-allowed opacity-60'
                                         : 'cursor-pointer'
@@ -1576,11 +1576,11 @@ const StudyContentDetailPage = () => {
                                       !material.is_published && (topic.video ? 'hover:bg-green-100' : 'hover:bg-gray-100')
                                     }`}
                                   >
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <Video className={`h-5 w-5 ${topic.video ? 'text-green-600' : 'text-gray-400'}`} />
-                                      <span className="font-medium text-sm">Video</span>
+                                    <div className="flex items-center fluid-gap-2 fluid-mb-1">
+                                      <Video className={`fluid-icon-sm ${topic.video ? 'text-green-600' : 'text-gray-400'}`} />
+                                      <span className="font-medium fluid-text-sm">Video</span>
                                     </div>
-                                    <p className="text-xs text-gray-500">
+                                    <p className="fluid-text-xs text-gray-500">
                                       {topic.video ? topic.video.title : 'Sin contenido'}
                                     </p>
                                   </div>
@@ -1596,7 +1596,7 @@ const StudyContentDetailPage = () => {
                                       }
                                       openDownloadableModal(session.id, topic);
                                     }}
-                                    className={`p-3 rounded-lg border transition-colors ${
+                                    className={`fluid-p-3 rounded-fluid-lg border transition-colors ${
                                       material.is_published
                                         ? 'cursor-not-allowed opacity-60'
                                         : 'cursor-pointer'
@@ -1606,11 +1606,11 @@ const StudyContentDetailPage = () => {
                                       !material.is_published && (topic.downloadable_exercise ? 'hover:bg-green-100' : 'hover:bg-gray-100')
                                     }`}
                                   >
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <Download className={`h-5 w-5 ${topic.downloadable_exercise ? 'text-green-600' : 'text-gray-400'}`} />
-                                      <span className="font-medium text-sm">Ejercicio Descargable</span>
+                                    <div className="flex items-center fluid-gap-2 fluid-mb-1">
+                                      <Download className={`fluid-icon-sm ${topic.downloadable_exercise ? 'text-green-600' : 'text-gray-400'}`} />
+                                      <span className="font-medium fluid-text-sm">Ejercicio Descargable</span>
                                     </div>
-                                    <p className="text-xs text-gray-500">
+                                    <p className="fluid-text-xs text-gray-500">
                                       {topic.downloadable_exercise ? topic.downloadable_exercise.title : 'Sin contenido'}
                                     </p>
                                   </div>
@@ -1642,7 +1642,7 @@ const StudyContentDetailPage = () => {
                                       }
                                       setInteractiveConfigOpen(true);
                                     }}
-                                    className={`p-3 rounded-lg border transition-colors ${
+                                    className={`fluid-p-3 rounded-fluid-lg border transition-colors ${
                                       material.is_published
                                         ? 'cursor-not-allowed opacity-60'
                                         : 'cursor-pointer'
@@ -1652,11 +1652,11 @@ const StudyContentDetailPage = () => {
                                       !material.is_published && (topic.interactive_exercise ? 'hover:bg-green-100' : 'hover:bg-gray-100')
                                     }`}
                                   >
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <Gamepad2 className={`h-5 w-5 ${topic.interactive_exercise ? 'text-green-600' : 'text-gray-400'}`} />
-                                      <span className="font-medium text-sm">Ejercicio Interactivo</span>
+                                    <div className="flex items-center fluid-gap-2 fluid-mb-1">
+                                      <Gamepad2 className={`fluid-icon-sm ${topic.interactive_exercise ? 'text-green-600' : 'text-gray-400'}`} />
+                                      <span className="font-medium fluid-text-sm">Ejercicio Interactivo</span>
                                     </div>
-                                    <p className="text-xs text-gray-500">
+                                    <p className="fluid-text-xs text-gray-500">
                                       {topic.interactive_exercise ? topic.interactive_exercise.title : 'Sin contenido'}
                                     </p>
                                   </div>
@@ -1681,36 +1681,36 @@ const StudyContentDetailPage = () => {
         onClose={() => setSessionModalOpen(false)}
         title={editingSession ? 'Editar Sesión' : 'Nueva Sesión'}
       >
-        <div className="space-y-4">
+        <div className="flex flex-col fluid-gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Título *</label>
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Título *</label>
             <input
               type="text"
               value={sessionForm.title}
               onChange={(e) => setSessionForm({ ...sessionForm, title: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full fluid-px-3 fluid-py-2 border rounded-fluid-lg focus:ring-2 focus:ring-blue-500"
               placeholder="Ej: Introducción al tema"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Descripción</label>
             <textarea
               value={sessionForm.description || ''}
               onChange={(e) => setSessionForm({ ...sessionForm, description: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full fluid-px-3 fluid-py-2 border rounded-fluid-lg focus:ring-2 focus:ring-blue-500"
               rows={3}
             />
           </div>
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <button onClick={() => setSessionModalOpen(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">
+          <div className="flex justify-end fluid-gap-3 fluid-pt-4 border-t">
+            <button onClick={() => setSessionModalOpen(false)} className="fluid-px-4 fluid-py-2 border rounded-fluid-lg hover:bg-gray-50">
               Cancelar
             </button>
             <button
               onClick={handleSaveSession}
               disabled={saving || !sessionForm.title.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+              className="fluid-px-4 fluid-py-2 bg-blue-600 text-white rounded-fluid-lg hover:bg-blue-700 disabled:opacity-50 flex items-center fluid-gap-2"
             >
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              {saving && <Loader2 className="fluid-icon-xs animate-spin" />}
               Guardar
             </button>
           </div>
@@ -1723,53 +1723,53 @@ const StudyContentDetailPage = () => {
         onClose={() => setTopicModalOpen(false)}
         title={editingTopic ? 'Editar Tema' : 'Nuevo Tema'}
       >
-        <div className="space-y-4">
+        <div className="flex flex-col fluid-gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Título *</label>
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Título *</label>
             <input
               type="text"
               value={topicForm.title}
               onChange={(e) => setTopicForm({ ...topicForm, title: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full fluid-px-3 fluid-py-2 border rounded-fluid-lg focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Descripción</label>
             <textarea
               value={topicForm.description || ''}
               onChange={(e) => setTopicForm({ ...topicForm, description: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full fluid-px-3 fluid-py-2 border rounded-fluid-lg focus:ring-2 focus:ring-blue-500"
               rows={3}
             />
           </div>
           
           {/* Tiempo estimado */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
               Tiempo estimado de estudio
-              <span className="text-gray-400 text-xs font-normal ml-1">(opcional)</span>
+              <span className="text-gray-400 fluid-text-xs font-normal fluid-ml-1">(opcional)</span>
             </label>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center fluid-gap-2">
               <input
                 type="number"
                 min="1"
                 value={topicForm.estimated_time_minutes || ''}
                 onChange={(e) => setTopicForm({ ...topicForm, estimated_time_minutes: e.target.value ? parseInt(e.target.value) : undefined })}
-                className="w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-24 fluid-px-3 fluid-py-2 border rounded-fluid-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="30"
               />
-              <span className="text-sm text-gray-500">minutos</span>
+              <span className="fluid-text-sm text-gray-500">minutos</span>
             </div>
-            <p className="text-xs text-gray-400 mt-1">Tiempo aproximado que tomará completar este tema</p>
+            <p className="fluid-text-xs text-gray-400 fluid-mt-1">Tiempo aproximado que tomará completar este tema</p>
           </div>
           
           {/* Tipos de contenido permitidos */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-3">
               Tipos de contenido para este tema
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+            <div className="grid grid-cols-2 fluid-gap-3">
+              <label className={`flex items-center fluid-gap-3 fluid-p-3 rounded-fluid-lg border-2 cursor-pointer transition-all ${
                 topicForm.allow_reading 
                   ? 'border-blue-500 bg-blue-50' 
                   : 'border-gray-200 hover:border-gray-300'
@@ -1778,15 +1778,15 @@ const StudyContentDetailPage = () => {
                   type="checkbox"
                   checked={topicForm.allow_reading ?? true}
                   onChange={(e) => setTopicForm({ ...topicForm, allow_reading: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  className="fluid-icon-sm text-blue-600 rounded focus:ring-blue-500"
                 />
-                <div className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-blue-600" />
+                <div className="flex items-center fluid-gap-2">
+                  <FileText className="fluid-icon-sm text-blue-600" />
                   <span className="font-medium text-gray-700">Lectura</span>
                 </div>
               </label>
               
-              <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+              <label className={`flex items-center fluid-gap-3 fluid-p-3 rounded-fluid-lg border-2 cursor-pointer transition-all ${
                 topicForm.allow_video 
                   ? 'border-red-500 bg-red-50' 
                   : 'border-gray-200 hover:border-gray-300'
@@ -1795,15 +1795,15 @@ const StudyContentDetailPage = () => {
                   type="checkbox"
                   checked={topicForm.allow_video ?? true}
                   onChange={(e) => setTopicForm({ ...topicForm, allow_video: e.target.checked })}
-                  className="w-4 h-4 text-red-600 rounded focus:ring-red-500"
+                  className="fluid-icon-sm text-red-600 rounded focus:ring-red-500"
                 />
-                <div className="flex items-center gap-2">
-                  <Video className="h-5 w-5 text-red-600" />
+                <div className="flex items-center fluid-gap-2">
+                  <Video className="fluid-icon-sm text-red-600" />
                   <span className="font-medium text-gray-700">Video</span>
                 </div>
               </label>
               
-              <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+              <label className={`flex items-center fluid-gap-3 fluid-p-3 rounded-fluid-lg border-2 cursor-pointer transition-all ${
                 topicForm.allow_downloadable 
                   ? 'border-green-500 bg-green-50' 
                   : 'border-gray-200 hover:border-gray-300'
@@ -1812,15 +1812,15 @@ const StudyContentDetailPage = () => {
                   type="checkbox"
                   checked={topicForm.allow_downloadable ?? true}
                   onChange={(e) => setTopicForm({ ...topicForm, allow_downloadable: e.target.checked })}
-                  className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                  className="fluid-icon-sm text-green-600 rounded focus:ring-green-500"
                 />
-                <div className="flex items-center gap-2">
-                  <Download className="h-5 w-5 text-green-600" />
+                <div className="flex items-center fluid-gap-2">
+                  <Download className="fluid-icon-sm text-green-600" />
                   <span className="font-medium text-gray-700">Ejercicio Descargable</span>
                 </div>
               </label>
               
-              <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+              <label className={`flex items-center fluid-gap-3 fluid-p-3 rounded-fluid-lg border-2 cursor-pointer transition-all ${
                 topicForm.allow_interactive 
                   ? 'border-purple-500 bg-purple-50' 
                   : 'border-gray-200 hover:border-gray-300'
@@ -1829,29 +1829,29 @@ const StudyContentDetailPage = () => {
                   type="checkbox"
                   checked={topicForm.allow_interactive ?? true}
                   onChange={(e) => setTopicForm({ ...topicForm, allow_interactive: e.target.checked })}
-                  className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                  className="fluid-icon-sm text-purple-600 rounded focus:ring-purple-500"
                 />
-                <div className="flex items-center gap-2">
-                  <Gamepad2 className="h-5 w-5 text-purple-600" />
+                <div className="flex items-center fluid-gap-2">
+                  <Gamepad2 className="fluid-icon-sm text-purple-600" />
                   <span className="font-medium text-gray-700">Ejercicio Interactivo</span>
                 </div>
               </label>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="fluid-text-xs text-gray-500 fluid-mt-2">
               Solo se mostrarán los tipos de contenido seleccionados en la lista del tema.
             </p>
           </div>
           
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <button onClick={() => setTopicModalOpen(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">
+          <div className="flex justify-end fluid-gap-3 fluid-pt-4 border-t">
+            <button onClick={() => setTopicModalOpen(false)} className="fluid-px-4 fluid-py-2 border rounded-fluid-lg hover:bg-gray-50">
               Cancelar
             </button>
             <button
               onClick={handleSaveTopic}
               disabled={saving || !topicForm.title.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+              className="fluid-px-4 fluid-py-2 bg-blue-600 text-white rounded-fluid-lg hover:bg-blue-700 disabled:opacity-50 flex items-center fluid-gap-2"
             >
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              {saving && <Loader2 className="fluid-icon-xs animate-spin" />}
               Guardar
             </button>
           </div>
@@ -1865,50 +1865,50 @@ const StudyContentDetailPage = () => {
         title={readingForm.title ? "Editar Material de Lectura" : "Crear Material de Lectura"}
         size="lg"
       >
-        <div className="space-y-6">
+        <div className="flex flex-col fluid-gap-6">
           {/* Header visual mejorado */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-500 rounded-xl p-6 text-white">
+          <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-500 rounded-fluid-xl fluid-p-6 text-white">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
             <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
             <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2.5 bg-white/20 rounded-lg backdrop-blur-sm">
-                  <FileText className="h-6 w-6" />
+              <div className="flex items-center fluid-gap-3 fluid-mb-3">
+                <div className="fluid-p-2 bg-white/20 rounded-fluid-lg backdrop-blur-sm">
+                  <FileText className="fluid-icon-lg" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-semibold">Material de Lectura</h4>
-                  <p className="text-white/80 text-sm">Contenido textual para el tema</p>
+                  <h4 className="fluid-text-lg font-semibold">Material de Lectura</h4>
+                  <p className="text-white/80 fluid-text-sm">Contenido textual para el tema</p>
                 </div>
               </div>
-              <p className="text-sm text-white/90 leading-relaxed">
+              <p className="fluid-text-sm text-white/90 leading-relaxed">
                 Crea contenido de lectura enriquecido con formato, imágenes y enlaces para que los estudiantes puedan estudiar el tema.
               </p>
             </div>
           </div>
 
           {/* Indicador de progreso */}
-          <div className="flex items-center gap-3">
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
+          <div className="flex items-center fluid-gap-3">
+            <div className={`flex items-center justify-center fluid-icon-xl rounded-full fluid-text-sm font-semibold transition-colors ${
               readingForm.title.trim() ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-400'
             }`}>
-              {readingForm.title.trim() ? <Check className="w-4 h-4" /> : '1'}
+              {readingForm.title.trim() ? <Check className="fluid-icon-sm" /> : '1'}
             </div>
             <div className={`h-1 flex-1 rounded-full transition-colors ${
               readingForm.title.trim() ? 'bg-blue-600' : 'bg-gray-200'
             }`}></div>
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
+            <div className={`flex items-center justify-center fluid-icon-xl rounded-full fluid-text-sm font-semibold transition-colors ${
               readingForm.content.trim() && readingForm.content !== '<p><br></p>' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-400'
             }`}>
-              {readingForm.content.trim() && readingForm.content !== '<p><br></p>' ? <Check className="w-4 h-4" /> : '2'}
+              {readingForm.content.trim() && readingForm.content !== '<p><br></p>' ? <Check className="fluid-icon-sm" /> : '2'}
             </div>
-            <div className="text-xs text-gray-500 ml-2">Título + Contenido</div>
+            <div className="fluid-text-xs text-gray-500 fluid-ml-2">Título + Contenido</div>
           </div>
 
           {/* Botón de acceso rápido - visible cuando el formulario está completo */}
           {readingForm.title.trim() && readingForm.content.trim() && readingForm.content !== '<p><br></p>' && (
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-cyan-400 to-teal-400 rounded-2xl blur-lg opacity-30 animate-pulse"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-cyan-400 to-teal-400 rounded-fluid-2xl blur-lg opacity-30 animate-pulse"></div>
               <button
                 onClick={() => {
                   const modal = document.querySelector('.reading-modal-save-btn');
@@ -1916,21 +1916,21 @@ const StudyContentDetailPage = () => {
                     modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   }
                 }}
-                className="relative w-full bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-500 text-white rounded-2xl p-4 flex items-center justify-between group hover:from-blue-600 hover:via-cyan-600 hover:to-teal-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
+                className="relative w-full bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-500 text-white rounded-fluid-2xl fluid-p-4 flex items-center justify-between group hover:from-blue-600 hover:via-cyan-600 hover:to-teal-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
               >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-                    <Check className="w-5 h-5" />
+                <div className="flex items-center fluid-gap-3">
+                  <div className="fluid-p-2 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
+                    <Check className="fluid-icon-sm" />
                   </div>
                   <div className="text-left">
-                    <p className="font-semibold text-base">¡Formulario completo!</p>
-                    <p className="text-sm text-white/80">Haz clic para ir al botón de guardar</p>
+                    <p className="font-semibold fluid-text-base">¡Formulario completo!</p>
+                    <p className="fluid-text-sm text-white/80">Haz clic para ir al botón de guardar</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full">Guardar</span>
-                  <div className="p-2 bg-white/20 rounded-full group-hover:translate-y-1 transition-transform duration-300">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-center fluid-gap-2">
+                  <span className="fluid-text-sm font-medium bg-white/20 fluid-px-3 fluid-py-1 rounded-full">Guardar</span>
+                  <div className="fluid-p-2 bg-white/20 rounded-full group-hover:translate-y-1 transition-transform duration-300">
+                    <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                     </svg>
                   </div>
@@ -1940,11 +1940,11 @@ const StudyContentDetailPage = () => {
           )}
 
           {/* Formulario */}
-          <div className="space-y-5">
+          <div className="flex flex-col fluid-gap-5">
             {/* Título */}
             <div className="group">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <span className="flex items-center justify-center w-5 h-5 bg-blue-100 text-blue-600 rounded text-xs font-bold">1</span>
+              <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                <span className="flex items-center justify-center fluid-icon bg-blue-100 text-blue-600 rounded fluid-text-xs font-bold">1</span>
                 Título de la lectura <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -1952,7 +1952,7 @@ const StudyContentDetailPage = () => {
                   type="text"
                   value={readingForm.title}
                   onChange={(e) => setReadingForm({ ...readingForm, title: e.target.value })}
-                  className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 outline-none ${
+                  className={`w-full fluid-px-4 fluid-py-3 border-2 rounded-fluid-xl transition-all duration-200 outline-none ${
                     readingForm.title.trim() 
                       ? 'border-green-300 bg-green-50/50 focus:border-green-500 focus:ring-2 focus:ring-green-200' 
                       : 'border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200'
@@ -1961,27 +1961,27 @@ const StudyContentDetailPage = () => {
                 />
                 {readingForm.title.trim() && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white" />
+                    <div className="fluid-icon bg-green-500 rounded-full flex items-center justify-center">
+                      <Check className="fluid-icon-xs text-white" />
                     </div>
                   </div>
                 )}
               </div>
-              <p className="text-xs text-gray-400 mt-1.5 ml-7">
+              <p className="fluid-text-xs text-gray-400 fluid-mt-1 fluid-ml-7">
                 Un título descriptivo ayuda a los estudiantes a identificar el contenido
               </p>
             </div>
           
             {/* Contenido */}
             <div className="group">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <span className="flex items-center justify-center w-5 h-5 bg-blue-100 text-blue-600 rounded text-xs font-bold">2</span>
+              <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                <span className="flex items-center justify-center fluid-icon bg-blue-100 text-blue-600 rounded fluid-text-xs font-bold">2</span>
                 Contenido <span className="text-red-500">*</span>
               </label>
-              <p className="text-xs text-gray-500 mb-3 ml-7">
+              <p className="fluid-text-xs text-gray-500 fluid-mb-3 fluid-ml-7">
                 Utiliza el editor para dar formato al texto, agregar imágenes, enlaces y más.
               </p>
-              <div className={`border-2 rounded-xl overflow-hidden transition-all duration-200 ${
+              <div className={`border-2 rounded-fluid-xl overflow-hidden transition-all duration-200 ${
                 readingForm.content.trim() && readingForm.content !== '<p><br></p>'
                   ? 'border-green-300 ring-2 ring-green-100' 
                   : 'border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100'
@@ -2016,11 +2016,11 @@ const StudyContentDetailPage = () => {
                   style={{ minHeight: '280px' }}
                 />
               </div>
-              <div className="flex items-start gap-2 mt-2 ml-7">
-                <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-start fluid-gap-2 fluid-mt-2 fluid-ml-7">
+                <svg className="fluid-icon-sm text-amber-500 flex-shrink-0 fluid-mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
-                <p className="text-xs text-gray-500">
+                <p className="fluid-text-xs text-gray-500">
                   <span className="font-medium text-gray-600">Tip:</span> Usa encabezados para organizar el contenido y facilitar la lectura.
                 </p>
               </div>
@@ -2028,12 +2028,12 @@ const StudyContentDetailPage = () => {
           </div>
 
           {/* Botones de acción mejorados */}
-          <div className="flex flex-col gap-4 pt-4 border-t border-gray-200">
+          <div className="flex flex-col fluid-gap-4 fluid-pt-4 border-t border-gray-200">
             {/* Botón principal - Guardar */}
             <button
               onClick={handleSaveReading}
               disabled={saving || !readingForm.title.trim() || !readingForm.content.trim() || readingForm.content === '<p><br></p>'}
-              className={`reading-modal-save-btn w-full py-3.5 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-3 ${
+              className={`reading-modal-save-btn w-full fluid-py-3 rounded-fluid-xl font-semibold transition-all duration-200 flex items-center justify-center fluid-gap-3 ${
                 !readingForm.title.trim() || !readingForm.content.trim() || readingForm.content === '<p><br></p>'
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : 'bg-gradient-to-r from-blue-500 to-cyan-600 text-white hover:from-blue-600 hover:to-cyan-700 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40'
@@ -2041,12 +2041,12 @@ const StudyContentDetailPage = () => {
             >
               {saving ? (
                 <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <Loader2 className="fluid-icon-sm animate-spin" />
                   <span>Guardando...</span>
                 </>
               ) : (
                 <>
-                  <FileText className="h-5 w-5" />
+                  <FileText className="fluid-icon-sm" />
                   <span>Guardar Material de Lectura</span>
                 </>
               )}
@@ -2055,18 +2055,18 @@ const StudyContentDetailPage = () => {
             {/* Botón Cancelar */}
             <button 
               onClick={() => setReadingModalOpen(false)} 
-              className="w-full px-4 py-2.5 border border-gray-300 text-gray-600 rounded-xl hover:bg-gray-50 font-medium transition-colors"
+              className="w-full fluid-px-4 fluid-py-2 border border-gray-300 text-gray-600 rounded-fluid-xl hover:bg-gray-50 font-medium transition-colors"
             >
               Cancelar
             </button>
 
             {/* Mensaje de ayuda */}
             {(!readingForm.title.trim() || !readingForm.content.trim() || readingForm.content === '<p><br></p>') && (
-              <div className="flex items-center gap-2 justify-center text-amber-600 bg-amber-50 rounded-lg py-2 px-3">
-                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-center fluid-gap-2 justify-center text-amber-600 bg-amber-50 rounded-fluid-lg fluid-py-2 fluid-px-3">
+                <svg className="fluid-icon-sm flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                <span className="text-sm">
+                <span className="fluid-text-sm">
                   {!readingForm.title.trim() 
                     ? 'Ingresa un título para la lectura' 
                     : 'Escribe el contenido de la lectura'
@@ -2085,50 +2085,50 @@ const StudyContentDetailPage = () => {
         title={videoForm.title ? "Editar Video Educativo" : "Crear Video Educativo"}
         size="lg"
       >
-        <div className="space-y-6">
+        <div className="flex flex-col fluid-gap-6">
           {/* Header visual mejorado */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 via-violet-500 to-indigo-500 rounded-xl p-6 text-white">
+          <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 via-violet-500 to-indigo-500 rounded-fluid-xl fluid-p-6 text-white">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
             <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
             <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2.5 bg-white/20 rounded-lg backdrop-blur-sm">
-                  <Video className="h-6 w-6" />
+              <div className="flex items-center fluid-gap-3 fluid-mb-3">
+                <div className="fluid-p-2 bg-white/20 rounded-fluid-lg backdrop-blur-sm">
+                  <Video className="fluid-icon-lg" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-semibold">Video Educativo</h4>
-                  <p className="text-white/80 text-sm">Contenido multimedia para el tema</p>
+                  <h4 className="fluid-text-lg font-semibold">Video Educativo</h4>
+                  <p className="text-white/80 fluid-text-sm">Contenido multimedia para el tema</p>
                 </div>
               </div>
-              <p className="text-sm text-white/90 leading-relaxed">
+              <p className="fluid-text-sm text-white/90 leading-relaxed">
                 Agrega videos de YouTube, Vimeo o sube tu propio archivo de video para enriquecer el contenido del tema.
               </p>
             </div>
           </div>
 
           {/* Indicador de progreso */}
-          <div className="flex items-center gap-3">
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
+          <div className="flex items-center fluid-gap-3">
+            <div className={`flex items-center justify-center fluid-icon-xl rounded-full fluid-text-sm font-semibold transition-colors ${
               videoForm.title.trim() ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-400'
             }`}>
-              {videoForm.title.trim() ? <Check className="w-4 h-4" /> : '1'}
+              {videoForm.title.trim() ? <Check className="fluid-icon-sm" /> : '1'}
             </div>
             <div className={`h-1 flex-1 rounded-full transition-colors ${
               videoForm.title.trim() ? 'bg-purple-600' : 'bg-gray-200'
             }`}></div>
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
+            <div className={`flex items-center justify-center fluid-icon-xl rounded-full fluid-text-sm font-semibold transition-colors ${
               (videoMode === 'url' ? videoForm.video_url.trim() : selectedVideoFile) ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-400'
             }`}>
-              {(videoMode === 'url' ? videoForm.video_url.trim() : selectedVideoFile) ? <Check className="w-4 h-4" /> : '2'}
+              {(videoMode === 'url' ? videoForm.video_url.trim() : selectedVideoFile) ? <Check className="fluid-icon-sm" /> : '2'}
             </div>
-            <div className="text-xs text-gray-500 ml-2">Título + Video</div>
+            <div className="fluid-text-xs text-gray-500 fluid-ml-2">Título + Video</div>
           </div>
 
           {/* Botón de acceso rápido - visible cuando el formulario está completo */}
           {videoForm.title.trim() && (videoMode === 'url' ? videoForm.video_url.trim() : selectedVideoFile) && (
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-400 via-violet-400 to-indigo-400 rounded-2xl blur-lg opacity-30 animate-pulse"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-400 via-violet-400 to-indigo-400 rounded-fluid-2xl blur-lg opacity-30 animate-pulse"></div>
               <button
                 onClick={() => {
                   const modal = document.querySelector('.video-modal-save-btn');
@@ -2136,21 +2136,21 @@ const StudyContentDetailPage = () => {
                     modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   }
                 }}
-                className="relative w-full bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500 text-white rounded-2xl p-4 flex items-center justify-between group hover:from-purple-600 hover:via-violet-600 hover:to-indigo-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
+                className="relative w-full bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500 text-white rounded-fluid-2xl fluid-p-4 flex items-center justify-between group hover:from-purple-600 hover:via-violet-600 hover:to-indigo-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
               >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-                    <Check className="w-5 h-5" />
+                <div className="flex items-center fluid-gap-3">
+                  <div className="p-2 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
+                    <Check className="fluid-icon" />
                   </div>
                   <div className="text-left">
-                    <p className="font-semibold text-base">¡Formulario completo!</p>
-                    <p className="text-sm text-white/80">Haz clic para ir al botón de guardar</p>
+                    <p className="font-semibold fluid-text-base">¡Formulario completo!</p>
+                    <p className="fluid-text-sm text-white/80">Haz clic para ir al botón de guardar</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full">Guardar</span>
+                <div className="flex items-center fluid-gap-2">
+                  <span className="fluid-text-sm font-medium bg-white/20 fluid-px-3 fluid-py-1 rounded-full">Guardar</span>
                   <div className="p-2 bg-white/20 rounded-full group-hover:translate-y-1 transition-transform duration-300">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                     </svg>
                   </div>
@@ -2160,11 +2160,11 @@ const StudyContentDetailPage = () => {
           )}
 
           {/* Formulario */}
-          <div className="space-y-5">
+          <div className="flex flex-col fluid-gap-5">
             {/* Título */}
             <div className="group">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <span className="flex items-center justify-center w-5 h-5 bg-purple-100 text-purple-600 rounded text-xs font-bold">1</span>
+              <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                <span className="flex items-center justify-center fluid-icon bg-purple-100 text-purple-600 rounded fluid-text-xs font-bold">1</span>
                 Título del video <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -2172,7 +2172,7 @@ const StudyContentDetailPage = () => {
                   type="text"
                   value={videoForm.title}
                   onChange={(e) => setVideoForm({ ...videoForm, title: e.target.value })}
-                  className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 outline-none ${
+                  className={`w-full fluid-px-4 fluid-py-3 border-2 rounded-fluid-xl transition-all duration-200 outline-none ${
                     videoForm.title.trim() 
                       ? 'border-green-300 bg-green-50/50 focus:border-green-500 focus:ring-2 focus:ring-green-200' 
                       : 'border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200'
@@ -2181,45 +2181,45 @@ const StudyContentDetailPage = () => {
                 />
                 {videoForm.title.trim() && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white" />
+                    <div className="fluid-icon bg-green-500 rounded-full flex items-center justify-center">
+                      <Check className="fluid-icon-xs text-white" />
                     </div>
                   </div>
                 )}
               </div>
-              <p className="text-xs text-gray-400 mt-1.5 ml-7">
+              <p className="fluid-text-xs text-gray-400 fluid-mt-2 fluid-ml-7">
                 Un título descriptivo ayuda a los estudiantes a identificar el contenido
               </p>
             </div>
           
             {/* Tabs para elegir entre URL o Subir archivo */}
             <div className="group">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <span className="flex items-center justify-center w-5 h-5 bg-purple-100 text-purple-600 rounded text-xs font-bold">2</span>
+              <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                <span className="flex items-center justify-center fluid-icon bg-purple-100 text-purple-600 rounded fluid-text-xs font-bold">2</span>
                 Fuente del video <span className="text-red-500">*</span>
               </label>
-              <div className="border-2 border-gray-200 rounded-xl overflow-hidden">
+              <div className="border-2 border-gray-200 rounded-fluid-xl overflow-hidden">
                 <nav className="flex bg-gray-50">
                   <button
                     onClick={() => setVideoMode('url')}
-                    className={`flex-1 px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-all duration-200 ${
+                    className={`flex-1 fluid-px-4 fluid-py-3 fluid-text-sm font-medium flex items-center justify-center fluid-gap-2 transition-all duration-200 ${
                       videoMode === 'url'
                         ? 'bg-white text-purple-600 border-b-2 border-purple-500 shadow-sm'
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    <Link className="h-4 w-4" />
+                    <Link className="fluid-icon-xs" />
                     Enlace URL
                   </button>
                   <button
                     onClick={() => setVideoMode('upload')}
-                    className={`flex-1 px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-all duration-200 ${
+                    className={`flex-1 fluid-px-4 fluid-py-3 fluid-text-sm font-medium flex items-center justify-center fluid-gap-2 transition-all duration-200 ${
                       videoMode === 'upload'
                         ? 'bg-white text-purple-600 border-b-2 border-purple-500 shadow-sm'
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    <Upload className="h-4 w-4" />
+                    <Upload className="fluid-icon-xs" />
                     Subir archivo
                   </button>
                 </nav>
@@ -2229,49 +2229,49 @@ const StudyContentDetailPage = () => {
             {/* Contenido según el modo seleccionado */}
             {videoMode === 'url' ? (
               <div className="group">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                  <PlayCircle className="w-4 h-4 text-purple-500" />
+                <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                  <PlayCircle className="fluid-icon-sm text-purple-500" />
                   URL del video
                 </label>
                 {/* Si el video está en Azure (Blob o CDN), mostrar mensaje informativo con opción de cambiar a enlace */}
                 {(videoForm.video_url && isAzureUrl(videoForm.video_url)) ? (
-                  <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-purple-100 rounded-lg flex-shrink-0">
-                        <Video className="w-5 h-5 text-purple-600" />
+                  <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-fluid-xl fluid-p-4">
+                    <div className="flex items-start fluid-gap-3">
+                      <div className="p-2 bg-purple-100 rounded-fluid-lg flex-shrink-0">
+                        <Video className="fluid-icon text-purple-600" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-purple-800 mb-1">Video almacenado en la nube</p>
-                        <p className="text-xs text-purple-600">
+                        <p className="fluid-text-sm font-medium text-purple-800 fluid-mb-1">Video almacenado en la nube</p>
+                        <p className="fluid-text-xs text-purple-600">
                           Este video fue subido directamente a la plataforma. El enlace está protegido.
                         </p>
-                        <div className="flex items-center gap-2 mt-3">
-                          <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                            <Check className="w-3 h-3 text-white" />
+                        <div className="flex items-center fluid-gap-2 fluid-mt-3">
+                          <div className="fluid-icon bg-green-500 rounded-full flex items-center justify-center">
+                            <Check className="fluid-icon-xs text-white" />
                           </div>
-                          <span className="text-xs text-green-700 font-medium">Video disponible</span>
+                          <span className="fluid-text-xs text-green-700 font-medium">Video disponible</span>
                         </div>
                       </div>
                     </div>
                     
                     {/* Opciones para cambiar el video */}
-                    <div className="mt-4 pt-4 border-t border-purple-200">
-                      <p className="text-xs text-purple-700 font-medium mb-3">¿Deseas reemplazar este video?</p>
-                      <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="fluid-mt-4 fluid-pt-4 border-t border-purple-200">
+                      <p className="fluid-text-xs text-purple-700 font-medium fluid-mb-3">¿Deseas reemplazar este video?</p>
+                      <div className="flex flex-col sm:flex-row fluid-gap-2">
                         <button
                           type="button"
                           onClick={() => setShowChangeVideoSourceModal(true)}
-                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-purple-700 bg-white border border-purple-300 rounded-lg hover:bg-purple-50 transition-colors"
+                          className="flex-1 flex items-center justify-center fluid-gap-2 fluid-px-3 fluid-py-2 fluid-text-xs font-medium text-purple-700 bg-white border border-purple-300 rounded-fluid-lg hover:bg-purple-50 transition-colors"
                         >
-                          <Link className="w-4 h-4" />
+                          <Link className="fluid-icon-sm" />
                           Cambiar a enlace URL
                         </button>
                         <button
                           type="button"
                           onClick={() => setVideoMode('upload')}
-                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors"
+                          className="flex-1 flex items-center justify-center fluid-gap-2 fluid-px-3 fluid-py-2 fluid-text-xs font-medium text-white bg-purple-600 rounded-fluid-lg hover:bg-purple-700 transition-colors"
                         >
-                          <Upload className="w-4 h-4" />
+                          <Upload className="fluid-icon-sm" />
                           Subir nuevo archivo
                         </button>
                       </div>
@@ -2293,7 +2293,7 @@ const StudyContentDetailPage = () => {
                           }
                           setVideoForm({ ...videoForm, video_url: url, video_type: detectedType as any });
                         }}
-                        className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 outline-none ${
+                        className={`w-full fluid-px-4 fluid-py-3 border-2 rounded-fluid-xl transition-all duration-200 outline-none ${
                           videoForm.video_url.trim() 
                             ? 'border-green-300 bg-green-50/50 focus:border-green-500 focus:ring-2 focus:ring-green-200' 
                             : 'border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200'
@@ -2302,46 +2302,46 @@ const StudyContentDetailPage = () => {
                       />
                       {videoForm.video_url.trim() && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                            <Check className="w-3 h-3 text-white" />
+                          <div className="fluid-icon bg-green-500 rounded-full flex items-center justify-center">
+                            <Check className="fluid-icon-xs text-white" />
                           </div>
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 mt-2 ml-1">
-                      <span className="text-xs text-gray-400 flex items-center gap-1">
-                        <svg className="w-4 h-4 text-red-500" viewBox="0 0 24 24" fill="currentColor"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+                    <div className="flex items-center fluid-gap-4 fluid-mt-2 fluid-ml-1">
+                      <span className="fluid-text-xs text-gray-400 flex items-center fluid-gap-1">
+                        <svg className="fluid-icon-sm text-red-500" viewBox="0 0 24 24" fill="currentColor"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
                         YouTube
                       </span>
-                      <span className="text-xs text-gray-400 flex items-center gap-1">
-                        <svg className="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm-1 16.5v-9l6 4.5-6 4.5z"/></svg>
+                      <span className="fluid-text-xs text-gray-400 flex items-center fluid-gap-1">
+                        <svg className="fluid-icon-sm text-blue-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm-1 16.5v-9l6 4.5-6 4.5z"/></svg>
                         Vimeo
                       </span>
-                      <span className="text-xs text-gray-400">MP4/WebM directo</span>
+                      <span className="fluid-text-xs text-gray-400">MP4/WebM directo</span>
                     </div>
                   </>
                 )}
               </div>
             ) : (
               <div className="group">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                  <Upload className="w-4 h-4 text-purple-500" />
+                <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                  <Upload className="fluid-icon-sm text-purple-500" />
                   Archivo de video
                 </label>
-                <div className="mt-1">
+                <div className="fluid-mt-1">
                   {!selectedVideoFile ? (
-                    <label className={`flex flex-col items-center justify-center w-full h-44 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-200 ${
+                    <label className={`flex flex-col items-center justify-center w-full h-44 border-2 border-dashed rounded-fluid-xl cursor-pointer transition-all duration-200 ${
                       'border-gray-300 hover:border-purple-400 hover:bg-purple-50'
                     }`}>
-                      <div className="flex flex-col items-center justify-center py-6">
-                        <div className="p-4 bg-purple-100 rounded-full mb-4">
-                          <Upload className="h-8 w-8 text-purple-500" />
+                      <div className="flex flex-col items-center justify-center fluid-py-6">
+                        <div className="p-4 bg-purple-100 rounded-full fluid-mb-4">
+                          <Upload className="fluid-icon-xl text-purple-500" />
                         </div>
-                        <p className="text-sm text-gray-600 mb-1">
+                        <p className="fluid-text-sm text-gray-600 fluid-mb-1">
                           <span className="font-semibold text-purple-600">Haz clic para seleccionar</span> o arrastra un archivo
                         </p>
-                        <p className="text-xs text-gray-400 mt-2">Formatos: MP4, WebM, OGG, MOV, AVI</p>
-                        <p className="text-xs text-gray-400">Tamaño máximo: 500MB</p>
+                        <p className="fluid-text-xs text-gray-400 fluid-mt-2">Formatos: MP4, WebM, OGG, MOV, AVI</p>
+                        <p className="fluid-text-xs text-gray-400">Tamaño máximo: 500MB</p>
                       </div>
                       <input
                         type="file"
@@ -2351,36 +2351,36 @@ const StudyContentDetailPage = () => {
                       />
                     </label>
                   ) : (
-                    <div className={`p-4 rounded-xl border-2 transition-all duration-200 ${
+                    <div className={`p-4 rounded-fluid-xl border-2 transition-all duration-200 ${
                       'border-green-300 bg-green-50/50'
                     }`}>
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-green-100 rounded-lg">
-                            <Video className="h-6 w-6 text-green-600" />
+                        <div className="flex items-center fluid-gap-3">
+                          <div className="p-2 bg-green-100 rounded-fluid-lg">
+                            <Video className="fluid-icon-lg text-green-600" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-gray-700">{selectedVideoFile.name}</p>
-                            <p className="text-xs text-gray-500">{formatFileSize(selectedVideoFile.size)}</p>
+                            <p className="fluid-text-sm font-medium text-gray-700">{selectedVideoFile.name}</p>
+                            <p className="fluid-text-xs text-gray-500">{formatFileSize(selectedVideoFile.size)}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                            <Check className="w-3 h-3 text-white" />
+                        <div className="flex items-center fluid-gap-2">
+                          <div className="fluid-icon bg-green-500 rounded-full flex items-center justify-center">
+                            <Check className="fluid-icon-xs text-white" />
                           </div>
                           <button
                             onClick={() => setSelectedVideoFile(null)}
-                            className="p-2 hover:bg-red-100 rounded-lg transition-colors group"
+                            className="p-2 hover:bg-red-100 rounded-fluid-lg transition-colors group"
                           >
-                            <X className="h-4 w-4 text-gray-400 group-hover:text-red-500" />
+                            <X className="fluid-icon-xs text-gray-400 group-hover:text-red-500" />
                           </button>
                         </div>
                       </div>
                       {isUploading && (
-                        <div className="mt-4 bg-blue-50 rounded-xl p-3 border border-blue-200">
-                          <div className="flex items-center justify-between text-sm mb-2">
-                            <span className="text-blue-700 font-medium flex items-center gap-2">
-                              <Loader2 className="h-4 w-4 animate-spin" />
+                        <div className="mt-4 bg-blue-50 rounded-fluid-xl fluid-p-3 border border-blue-200">
+                          <div className="flex items-center justify-between fluid-text-sm fluid-mb-2">
+                            <span className="text-blue-700 font-medium flex items-center fluid-gap-2">
+                              <Loader2 className="fluid-icon-xs animate-spin" />
                               Subiendo video...
                             </span>
                             <span className="text-blue-600 font-bold">{uploadProgress}%</span>
@@ -2401,11 +2401,11 @@ const StudyContentDetailPage = () => {
           
             {/* Descripción del video */}
             <div className="group">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <span className="flex items-center justify-center w-5 h-5 bg-purple-100 text-purple-600 rounded text-xs font-bold">3</span>
-                Descripción del video <span className="text-gray-400 text-xs font-normal">(opcional)</span>
+              <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                <span className="flex items-center justify-center fluid-icon bg-purple-100 text-purple-600 rounded fluid-text-xs font-bold">3</span>
+                Descripción del video <span className="text-gray-400 fluid-text-xs font-normal">(opcional)</span>
               </label>
-              <div className={`border-2 rounded-xl overflow-hidden transition-all duration-200 ${
+              <div className={`border-2 rounded-fluid-xl overflow-hidden transition-all duration-200 ${
                 videoForm.description && videoForm.description.trim() && videoForm.description !== '<p><br></p>'
                   ? 'border-green-300 ring-2 ring-green-100' 
                   : 'border-gray-200 focus-within:border-purple-500 focus-within:ring-2 focus-within:ring-purple-100'
@@ -2435,11 +2435,11 @@ const StudyContentDetailPage = () => {
                   style={{ minHeight: '100px' }}
                 />
               </div>
-              <div className="flex items-start gap-2 mt-2 ml-7">
-                <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-start fluid-gap-2 fluid-mt-2 fluid-ml-7">
+                <svg className="fluid-icon-sm text-amber-500 flex-shrink-0 fluid-mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
-                <p className="text-xs text-gray-500">
+                <p className="fluid-text-xs text-gray-500">
                   <span className="font-medium text-gray-600">Tip:</span> Incluye los temas principales que se cubren en el video.
                 </p>
               </div>
@@ -2447,12 +2447,12 @@ const StudyContentDetailPage = () => {
           </div>
 
           {/* Botones de acción mejorados */}
-          <div className="flex flex-col gap-4 pt-4 border-t border-gray-200">
+          <div className="flex flex-col fluid-gap-4 fluid-pt-4 border-t border-gray-200">
             {/* Botón principal - Guardar */}
             <button
               onClick={handleSaveVideo}
               disabled={saving || isUploading || !videoForm.title.trim() || (videoMode === 'url' ? !videoForm.video_url.trim() : !selectedVideoFile)}
-              className={`video-modal-save-btn w-full py-3.5 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-3 ${
+              className={`video-modal-save-btn w-full fluid-py-4 rounded-fluid-xl font-semibold transition-all duration-200 flex items-center justify-center fluid-gap-3 ${
                 !videoForm.title.trim() || (videoMode === 'url' ? !videoForm.video_url.trim() : !selectedVideoFile)
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : 'bg-gradient-to-r from-purple-500 to-violet-600 text-white hover:from-purple-600 hover:to-violet-700 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40'
@@ -2460,12 +2460,12 @@ const StudyContentDetailPage = () => {
             >
               {(saving || isUploading) ? (
                 <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <Loader2 className="fluid-icon-sm animate-spin" />
                   <span>{isUploading ? 'Subiendo...' : 'Guardando...'}</span>
                 </>
               ) : (
                 <>
-                  <Video className="h-5 w-5" />
+                  <Video className="fluid-icon-sm" />
                   <span>Guardar Video Educativo</span>
                 </>
               )}
@@ -2474,7 +2474,7 @@ const StudyContentDetailPage = () => {
             {/* Botón Cancelar */}
             <button 
               onClick={() => setVideoModalOpen(false)} 
-              className="w-full px-4 py-2.5 border border-gray-300 text-gray-600 rounded-xl hover:bg-gray-50 font-medium transition-colors"
+              className="w-full fluid-px-4 fluid-py-3 border border-gray-300 text-gray-600 rounded-fluid-xl hover:bg-gray-50 font-medium transition-colors"
               disabled={isUploading}
             >
               Cancelar
@@ -2482,11 +2482,11 @@ const StudyContentDetailPage = () => {
 
             {/* Mensaje de ayuda */}
             {(!videoForm.title.trim() || (videoMode === 'url' ? !videoForm.video_url.trim() : !selectedVideoFile)) && (
-              <div className="flex items-center gap-2 justify-center text-amber-600 bg-amber-50 rounded-lg py-2 px-3">
-                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-center fluid-gap-2 justify-center text-amber-600 bg-amber-50 rounded-fluid-lg fluid-py-2 fluid-px-3">
+                <svg className="fluid-icon-sm flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                <span className="text-sm">
+                <span className="fluid-text-sm">
                   {!videoForm.title.trim() 
                     ? 'Ingresa un título para el video' 
                     : videoMode === 'url' 
@@ -2507,50 +2507,50 @@ const StudyContentDetailPage = () => {
         title={downloadableForm.title ? "Editar Ejercicio Descargable" : "Crear Ejercicio Descargable"}
         size="lg"
       >
-        <div className="space-y-6">
+        <div className="flex flex-col fluid-gap-6">
           {/* Header visual mejorado */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 rounded-xl p-6 text-white">
+          <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 rounded-fluid-xl fluid-p-6 text-white">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
             <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
             <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2.5 bg-white/20 rounded-lg backdrop-blur-sm">
-                  <Download className="h-6 w-6" />
+              <div className="flex items-center fluid-gap-3 fluid-mb-3">
+                <div className="p-2.5 bg-white/20 rounded-fluid-lg backdrop-blur-sm">
+                  <Download className="fluid-icon-lg" />
                 </div>
                 <div>
                   <h4 className="text-lg font-semibold">Ejercicio Descargable</h4>
-                  <p className="text-white/80 text-sm">Archivos para práctica offline</p>
+                  <p className="text-white/80 fluid-text-sm">Archivos para práctica offline</p>
                 </div>
               </div>
-              <p className="text-sm text-white/90 leading-relaxed">
+              <p className="fluid-text-sm text-white/90 leading-relaxed">
                 Sube archivos como PDF, Word, Excel o ZIP para que los estudiantes puedan descargar y completar ejercicios prácticos fuera de la plataforma.
               </p>
             </div>
           </div>
 
           {/* Indicador de progreso */}
-          <div className="flex items-center gap-3">
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
+          <div className="flex items-center fluid-gap-3">
+            <div className={`flex items-center justify-center fluid-icon-xl rounded-full fluid-text-sm font-semibold transition-colors ${
               downloadableForm.title.trim() ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-400'
             }`}>
-              {downloadableForm.title.trim() ? <Check className="w-4 h-4" /> : '1'}
+              {downloadableForm.title.trim() ? <Check className="fluid-icon-sm" /> : '1'}
             </div>
             <div className={`h-1 flex-1 rounded-full transition-colors ${
               downloadableForm.title.trim() ? 'bg-orange-600' : 'bg-gray-200'
             }`}></div>
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
+            <div className={`flex items-center justify-center fluid-icon-xl rounded-full fluid-text-sm font-semibold transition-colors ${
               (selectedDownloadableFiles.length > 0 || downloadableForm.file_url) ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-400'
             }`}>
-              {(selectedDownloadableFiles.length > 0 || downloadableForm.file_url) ? <Check className="w-4 h-4" /> : '2'}
+              {(selectedDownloadableFiles.length > 0 || downloadableForm.file_url) ? <Check className="fluid-icon-sm" /> : '2'}
             </div>
-            <div className="text-xs text-gray-500 ml-2">Título + Archivos</div>
+            <div className="fluid-text-xs text-gray-500 fluid-ml-2">Título + Archivos</div>
           </div>
 
           {/* Botón de acceso rápido - visible cuando el formulario está completo */}
           {downloadableForm.title.trim() && (selectedDownloadableFiles.length > 0 || downloadableForm.file_url) && (
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 rounded-2xl blur-lg opacity-30 animate-pulse"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 rounded-fluid-2xl blur-lg opacity-30 animate-pulse"></div>
               <button
                 onClick={() => {
                   const modal = document.querySelector('.downloadable-modal-save-btn');
@@ -2558,21 +2558,21 @@ const StudyContentDetailPage = () => {
                     modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   }
                 }}
-                className="relative w-full bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white rounded-2xl p-4 flex items-center justify-between group hover:from-orange-600 hover:via-amber-600 hover:to-yellow-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
+                className="relative w-full bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white rounded-fluid-2xl fluid-p-4 flex items-center justify-between group hover:from-orange-600 hover:via-amber-600 hover:to-yellow-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
               >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-                    <Check className="w-5 h-5" />
+                <div className="flex items-center fluid-gap-3">
+                  <div className="p-2 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
+                    <Check className="fluid-icon" />
                   </div>
                   <div className="text-left">
-                    <p className="font-semibold text-base">¡Formulario completo!</p>
-                    <p className="text-sm text-white/80">Haz clic para ir al botón de guardar</p>
+                    <p className="font-semibold fluid-text-base">¡Formulario completo!</p>
+                    <p className="fluid-text-sm text-white/80">Haz clic para ir al botón de guardar</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full">Guardar</span>
+                <div className="flex items-center fluid-gap-2">
+                  <span className="fluid-text-sm font-medium bg-white/20 fluid-px-3 fluid-py-1 rounded-full">Guardar</span>
                   <div className="p-2 bg-white/20 rounded-full group-hover:translate-y-1 transition-transform duration-300">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                     </svg>
                   </div>
@@ -2582,11 +2582,11 @@ const StudyContentDetailPage = () => {
           )}
 
           {/* Formulario */}
-          <div className="space-y-5">
+          <div className="flex flex-col fluid-gap-5">
             {/* Título */}
             <div className="group">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <span className="flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded text-xs font-bold">1</span>
+              <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                <span className="flex items-center justify-center fluid-icon bg-orange-100 text-orange-600 rounded fluid-text-xs font-bold">1</span>
                 Título del ejercicio <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -2594,7 +2594,7 @@ const StudyContentDetailPage = () => {
                   type="text"
                   value={downloadableForm.title}
                   onChange={(e) => setDownloadableForm({ ...downloadableForm, title: e.target.value })}
-                  className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 outline-none ${
+                  className={`w-full fluid-px-4 fluid-py-3 border-2 rounded-fluid-xl transition-all duration-200 outline-none ${
                     downloadableForm.title.trim() 
                       ? 'border-green-300 bg-green-50/50 focus:border-green-500 focus:ring-2 focus:ring-green-200' 
                       : 'border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
@@ -2603,24 +2603,24 @@ const StudyContentDetailPage = () => {
                 />
                 {downloadableForm.title.trim() && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white" />
+                    <div className="fluid-icon bg-green-500 rounded-full flex items-center justify-center">
+                      <Check className="fluid-icon-xs text-white" />
                     </div>
                   </div>
                 )}
               </div>
-              <p className="text-xs text-gray-400 mt-1.5 ml-7">
+              <p className="fluid-text-xs text-gray-400 fluid-mt-2 fluid-ml-7">
                 Un título descriptivo ayuda a los estudiantes a identificar el ejercicio
               </p>
             </div>
             
             {/* Instrucciones con editor de texto enriquecido */}
             <div className="group">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <span className="flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded text-xs font-bold">2</span>
-                Instrucciones <span className="text-gray-400 text-xs font-normal">(opcional)</span>
+              <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                <span className="flex items-center justify-center fluid-icon bg-orange-100 text-orange-600 rounded fluid-text-xs font-bold">2</span>
+                Instrucciones <span className="text-gray-400 fluid-text-xs font-normal">(opcional)</span>
               </label>
-              <div className={`border-2 rounded-xl overflow-hidden transition-all duration-200 ${
+              <div className={`border-2 rounded-fluid-xl overflow-hidden transition-all duration-200 ${
                 downloadableForm.description && downloadableForm.description.trim() && downloadableForm.description !== '<p><br></p>'
                   ? 'border-green-300 ring-2 ring-green-100' 
                   : 'border-gray-200 focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-100'
@@ -2651,11 +2651,11 @@ const StudyContentDetailPage = () => {
                   placeholder="Escribe las instrucciones para realizar el ejercicio..."
                 />
               </div>
-              <div className="flex items-start gap-2 mt-2 ml-7">
-                <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-start fluid-gap-2 fluid-mt-2 fluid-ml-7">
+                <svg className="fluid-icon-sm text-amber-500 flex-shrink-0 fluid-mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
-                <p className="text-xs text-gray-500">
+                <p className="fluid-text-xs text-gray-500">
                   <span className="font-medium text-gray-600">Tip:</span> Incluye instrucciones claras sobre cómo completar y entregar el ejercicio.
                 </p>
               </div>
@@ -2663,24 +2663,24 @@ const StudyContentDetailPage = () => {
           
             {/* Archivo actual si existe */}
             {downloadableForm.file_url && (
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 bg-blue-100 rounded-lg">
-                    <Download className="h-4 w-4 text-blue-600" />
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-fluid-xl fluid-p-4">
+                <div className="flex items-center fluid-gap-2 fluid-mb-2">
+                  <div className="p-1.5 bg-blue-100 rounded-fluid-lg">
+                    <Download className="fluid-icon-xs text-blue-600" />
                   </div>
-                  <p className="text-sm font-semibold text-blue-800">Archivo actual</p>
+                  <p className="fluid-text-sm font-semibold text-blue-800">Archivo actual</p>
                 </div>
                 <a 
                   href={downloadableForm.file_url} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 hover:underline font-medium"
+                  className="inline-flex items-center fluid-gap-2 fluid-text-sm text-blue-600 hover:text-blue-700 hover:underline font-medium"
                 >
-                  <FileText className="h-4 w-4" />
+                  <FileText className="fluid-icon-xs" />
                   {downloadableForm.file_name || 'Descargar archivo'}
                 </a>
-                <p className="text-xs text-blue-500 mt-2 flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <p className="fluid-text-xs text-blue-500 fluid-mt-2 flex items-center fluid-gap-1">
+                  <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   Sube nuevos archivos para reemplazar el actual
@@ -2690,15 +2690,15 @@ const StudyContentDetailPage = () => {
           
             {/* Área de subida de archivos */}
             <div className="group">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <span className="flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded text-xs font-bold">3</span>
+              <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                <span className="flex items-center justify-center fluid-icon bg-orange-100 text-orange-600 rounded fluid-text-xs font-bold">3</span>
                 Archivos {!downloadableForm.file_url && <span className="text-red-500">*</span>}
               </label>
-              <p className="text-xs text-gray-500 mb-3 ml-7">Máximo 100MB total. Si subes múltiples archivos se comprimirán automáticamente en ZIP.</p>
+              <p className="fluid-text-xs text-gray-500 fluid-mb-3 fluid-ml-7">Máximo 100MB total. Si subes múltiples archivos se comprimirán automáticamente en ZIP.</p>
               
               {/* Área de drop mejorada */}
               <div
-                className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 cursor-pointer ${
+                className={`border-2 border-dashed rounded-fluid-xl fluid-p-8 text-center transition-all duration-200 cursor-pointer ${
                   selectedDownloadableFiles.length > 0 
                     ? 'border-green-300 bg-green-50/50' 
                     : 'border-gray-300 hover:border-orange-400 hover:bg-orange-50'
@@ -2723,22 +2723,22 @@ const StudyContentDetailPage = () => {
                   }
                 }}
               >
-                <div className={`p-4 rounded-full mx-auto mb-4 w-fit ${
+                <div className={`p-4 rounded-full mx-auto fluid-mb-4 w-fit ${
                   selectedDownloadableFiles.length > 0 ? 'bg-green-100' : 'bg-orange-100'
                 }`}>
                   {selectedDownloadableFiles.length > 0 ? (
-                    <Check className="h-8 w-8 text-green-500" />
+                    <Check className="fluid-icon-xl text-green-500" />
                   ) : (
-                    <Upload className="h-8 w-8 text-orange-500" />
+                    <Upload className="fluid-icon-xl text-orange-500" />
                   )}
                 </div>
-                <p className="text-gray-600 font-medium mb-1">
+                <p className="text-gray-600 font-medium fluid-mb-1">
                   {selectedDownloadableFiles.length > 0 
                     ? `${selectedDownloadableFiles.length} archivo(s) seleccionado(s)` 
                     : 'Arrastra archivos aquí o haz clic para seleccionar'
                   }
                 </p>
-                <p className="text-gray-400 text-sm">Formatos: PDF, DOC, DOCX, XLS, XLSX, PPT, ZIP, RAR</p>
+                <p className="text-gray-400 fluid-text-sm">Formatos: PDF, DOC, DOCX, XLS, XLSX, PPT, ZIP, RAR</p>
                 <input
                   id="downloadable-file-input"
                   type="file"
@@ -2750,37 +2750,37 @@ const StudyContentDetailPage = () => {
               
               {/* Lista de archivos seleccionados */}
               {selectedDownloadableFiles.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  <p className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-orange-500" />
+                <div className="mt-4 flex flex-col fluid-gap-2">
+                  <p className="fluid-text-sm font-medium text-gray-700 flex items-center fluid-gap-2">
+                    <FileText className="fluid-icon-sm text-orange-500" />
                     {selectedDownloadableFiles.length > 1 && 'Se comprimirán en ZIP'}
                   </p>
                   {selectedDownloadableFiles.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between bg-gradient-to-r from-gray-50 to-gray-100 p-3 rounded-xl border border-gray-200">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-orange-100 rounded-lg">
-                          <Download className="h-4 w-4 text-orange-600" />
+                    <div key={index} className="flex items-center justify-between bg-gradient-to-r from-gray-50 to-gray-100 fluid-p-3 rounded-fluid-xl border border-gray-200">
+                      <div className="flex items-center fluid-gap-3">
+                        <div className="p-2 bg-orange-100 rounded-fluid-lg">
+                          <Download className="fluid-icon-xs text-orange-600" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-700">{file.name}</p>
-                          <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                          <p className="fluid-text-sm font-medium text-gray-700">{file.name}</p>
+                          <p className="fluid-text-xs text-gray-500">{formatFileSize(file.size)}</p>
                         </div>
                       </div>
                       <button
                         onClick={() => removeDownloadableFile(index)}
-                        className="p-2 hover:bg-red-100 rounded-lg transition-colors group"
+                        className="p-2 hover:bg-red-100 rounded-fluid-lg transition-colors group"
                       >
-                        <X className="h-4 w-4 text-gray-400 group-hover:text-red-500" />
+                        <X className="fluid-icon-xs text-gray-400 group-hover:text-red-500" />
                       </button>
                     </div>
                   ))}
                   
                   {/* Barra de progreso mejorada */}
                   {isUploadingDownloadable && (
-                    <div className="mt-4 bg-blue-50 rounded-xl p-4 border border-blue-200">
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-blue-700 font-medium flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                    <div className="mt-4 bg-blue-50 rounded-fluid-xl fluid-p-4 border border-blue-200">
+                      <div className="flex items-center justify-between fluid-text-sm fluid-mb-2">
+                        <span className="text-blue-700 font-medium flex items-center fluid-gap-2">
+                          <Loader2 className="fluid-icon-xs animate-spin" />
                           Subiendo archivos...
                         </span>
                         <span className="text-blue-600 font-bold">{downloadableUploadProgress}%</span>
@@ -2799,12 +2799,12 @@ const StudyContentDetailPage = () => {
           </div>
 
           {/* Botones de acción mejorados */}
-          <div className="flex flex-col gap-4 pt-4 border-t border-gray-200">
+          <div className="flex flex-col fluid-gap-4 fluid-pt-4 border-t border-gray-200">
             {/* Botón principal - Guardar */}
             <button
               onClick={handleSaveDownloadable}
               disabled={saving || isUploadingDownloadable || !downloadableForm.title.trim() || (selectedDownloadableFiles.length === 0 && !downloadableForm.file_url)}
-              className={`downloadable-modal-save-btn w-full py-3.5 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-3 ${
+              className={`downloadable-modal-save-btn w-full fluid-py-4 rounded-fluid-xl font-semibold transition-all duration-200 flex items-center justify-center fluid-gap-3 ${
                 !downloadableForm.title.trim() || (selectedDownloadableFiles.length === 0 && !downloadableForm.file_url)
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : 'bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:from-orange-600 hover:to-amber-700 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40'
@@ -2812,12 +2812,12 @@ const StudyContentDetailPage = () => {
             >
               {(saving || isUploadingDownloadable) ? (
                 <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <Loader2 className="fluid-icon-sm animate-spin" />
                   <span>{isUploadingDownloadable ? 'Subiendo...' : 'Guardando...'}</span>
                 </>
               ) : (
                 <>
-                  <Download className="h-5 w-5" />
+                  <Download className="fluid-icon-sm" />
                   <span>Guardar Ejercicio Descargable</span>
                 </>
               )}
@@ -2826,7 +2826,7 @@ const StudyContentDetailPage = () => {
             {/* Botón Cancelar */}
             <button 
               onClick={() => setDownloadableModalOpen(false)} 
-              className="w-full px-4 py-2.5 border border-gray-300 text-gray-600 rounded-xl hover:bg-gray-50 font-medium transition-colors"
+              className="w-full fluid-px-4 fluid-py-3 border border-gray-300 text-gray-600 rounded-fluid-xl hover:bg-gray-50 font-medium transition-colors"
               disabled={isUploadingDownloadable}
             >
               Cancelar
@@ -2834,11 +2834,11 @@ const StudyContentDetailPage = () => {
 
             {/* Mensaje de ayuda */}
             {(!downloadableForm.title.trim() || (selectedDownloadableFiles.length === 0 && !downloadableForm.file_url)) && (
-              <div className="flex items-center gap-2 justify-center text-amber-600 bg-amber-50 rounded-lg py-2 px-3">
-                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-center fluid-gap-2 justify-center text-amber-600 bg-amber-50 rounded-fluid-lg fluid-py-2 fluid-px-3">
+                <svg className="fluid-icon-sm flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                <span className="text-sm">
+                <span className="fluid-text-sm">
                   {!downloadableForm.title.trim() 
                     ? 'Ingresa un título para el ejercicio' 
                     : 'Sube al menos un archivo para continuar'
@@ -2856,35 +2856,35 @@ const StudyContentDetailPage = () => {
         onClose={() => setSuccessModalOpen(false)}
         title=""
       >
-        <div className="text-center py-6">
-          <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+        <div className="text-center fluid-py-6">
+          <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center fluid-mb-4">
             <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">
+          <h3 className="text-xl font-bold text-gray-900 fluid-mb-2">
             ¡{successModalData?.contentType === 'video' ? 'Video' : 'Archivo'} cargado exitosamente!
           </h3>
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-600 fluid-mb-4">
             {successModalData?.contentType === 'video' 
               ? 'Tu video ha sido subido y procesado correctamente.'
               : 'Tu ejercicio descargable ha sido guardado correctamente.'}
           </p>
           
           {successModalData && (
-            <div className="bg-gray-50 rounded-lg p-4 text-left mb-6">
-              <div className="space-y-2">
+            <div className="bg-gray-50 rounded-fluid-lg fluid-p-4 text-left fluid-mb-6">
+              <div className="flex flex-col fluid-gap-2">
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Título:</span>
-                  <span className="text-sm font-medium text-gray-900">{successModalData.title}</span>
+                  <span className="fluid-text-sm text-gray-500">Título:</span>
+                  <span className="fluid-text-sm font-medium text-gray-900">{successModalData.title}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">{successModalData.contentType === 'video' ? 'Video:' : 'Archivo:'}</span>
-                  <span className="text-sm font-medium text-gray-900">{successModalData.fileName}</span>
+                  <span className="fluid-text-sm text-gray-500">{successModalData.contentType === 'video' ? 'Video:' : 'Archivo:'}</span>
+                  <span className="fluid-text-sm font-medium text-gray-900">{successModalData.fileName}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Tamaño original:</span>
-                  <span className="text-sm font-medium text-gray-900">{successModalData.fileSize}</span>
+                  <span className="fluid-text-sm text-gray-500">Tamaño original:</span>
+                  <span className="fluid-text-sm font-medium text-gray-900">{successModalData.fileSize}</span>
                 </div>
               </div>
             </div>
@@ -2892,7 +2892,7 @@ const StudyContentDetailPage = () => {
           
           <button
             onClick={() => setSuccessModalOpen(false)}
-            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+            className="px-6 fluid-py-2 bg-green-600 text-white rounded-fluid-lg hover:bg-green-700 font-medium"
           >
             Aceptar
           </button>
@@ -2909,27 +2909,27 @@ const StudyContentDetailPage = () => {
         title="Confirmar eliminación"
       >
         <div>
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-600 fluid-mb-4">
             ¿Estás seguro de que deseas eliminar "{deleteTarget?.name}"?
             {deleteTarget?.type === 'session' && ' Esto también eliminará todos los temas asociados.'}
             {deleteTarget?.type === 'topic' && ' Esto también eliminará todos los elementos del tema.'}
           </p>
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end fluid-gap-3">
             <button
               onClick={() => {
                 setDeleteModalOpen(false);
                 setDeleteTarget(null);
               }}
-              className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+              className="px-4 fluid-py-2 border rounded-fluid-lg hover:bg-gray-50"
             >
               Cancelar
             </button>
             <button
               onClick={handleDelete}
               disabled={saving}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+              className="px-4 fluid-py-2 bg-red-600 text-white rounded-fluid-lg hover:bg-red-700 disabled:opacity-50 flex items-center fluid-gap-2"
             >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              {saving ? <Loader2 className="fluid-icon-xs animate-spin" /> : <Trash2 className="fluid-icon-xs" />}
               Eliminar
             </button>
           </div>
@@ -2946,23 +2946,23 @@ const StudyContentDetailPage = () => {
         title={interactiveConfigData?.isNew ? "Crear Ejercicio Interactivo" : "Configurar Ejercicio Interactivo"}
         size="lg"
       >
-        <div className="space-y-6">
+        <div className="flex flex-col fluid-gap-6">
           {/* Header visual mejorado */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-xl p-6 text-white">
+          <div className="relative overflow-hidden bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-fluid-xl fluid-p-6 text-white">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
             <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
             <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2.5 bg-white/20 rounded-lg backdrop-blur-sm">
-                  <Gamepad2 className="h-6 w-6" />
+              <div className="flex items-center fluid-gap-3 fluid-mb-3">
+                <div className="p-2.5 bg-white/20 rounded-fluid-lg backdrop-blur-sm">
+                  <Gamepad2 className="fluid-icon-lg" />
                 </div>
                 <div>
                   <h4 className="text-lg font-semibold">Ejercicio Interactivo</h4>
-                  <p className="text-white/80 text-sm">Paso 1 de 2: Configuración básica</p>
+                  <p className="text-white/80 fluid-text-sm">Paso 1 de 2: Configuración básica</p>
                 </div>
               </div>
-              <p className="text-sm text-white/90 leading-relaxed">
+              <p className="fluid-text-sm text-white/90 leading-relaxed">
                 Define el título y las instrucciones que verán los estudiantes antes de realizar el ejercicio. 
                 En el siguiente paso podrás diseñar los pasos interactivos.
               </p>
@@ -2970,15 +2970,15 @@ const StudyContentDetailPage = () => {
           </div>
 
           {/* Indicador de progreso */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 flex-1">
-              <div className="flex items-center justify-center w-8 h-8 bg-indigo-600 text-white rounded-full text-sm font-semibold">
+          <div className="flex items-center fluid-gap-2">
+            <div className="flex items-center fluid-gap-2 flex-1">
+              <div className="flex items-center justify-center fluid-icon-xl bg-indigo-600 text-white rounded-full fluid-text-sm font-semibold">
                 1
               </div>
               <div className="h-1 flex-1 bg-indigo-600 rounded-full"></div>
             </div>
-            <div className="flex items-center gap-2 flex-1">
-              <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
+            <div className="flex items-center fluid-gap-2 flex-1">
+              <div className={`flex items-center justify-center fluid-icon-xl rounded-full fluid-text-sm font-semibold transition-colors ${
                 interactiveForm.title.trim() && interactiveForm.description.trim() && interactiveForm.description !== '<p><br></p>'
                   ? 'bg-indigo-600 text-white' 
                   : 'bg-gray-200 text-gray-400'
@@ -2991,13 +2991,13 @@ const StudyContentDetailPage = () => {
                   : 'bg-gray-200'
               }`}></div>
             </div>
-            <div className="text-xs text-gray-500 ml-2">Editor de Pasos</div>
+            <div className="fluid-text-xs text-gray-500 fluid-ml-2">Editor de Pasos</div>
           </div>
 
           {/* Botón de acceso rápido al Editor - visible cuando el formulario está completo */}
           {interactiveForm.title.trim() && interactiveForm.description.trim() && interactiveForm.description !== '<p><br></p>' && (
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 rounded-2xl blur-lg opacity-30 animate-pulse"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 rounded-fluid-2xl blur-lg opacity-30 animate-pulse"></div>
               <button
                 onClick={() => {
                   const modal = document.querySelector('.interactive-config-modal-actions');
@@ -3005,21 +3005,21 @@ const StudyContentDetailPage = () => {
                     modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   }
                 }}
-                className="relative w-full bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white rounded-2xl p-4 flex items-center justify-between group hover:from-green-600 hover:via-emerald-600 hover:to-teal-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
+                className="relative w-full bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white rounded-fluid-2xl fluid-p-4 flex items-center justify-between group hover:from-green-600 hover:via-emerald-600 hover:to-teal-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
               >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-                    <Check className="w-5 h-5" />
+                <div className="flex items-center fluid-gap-3">
+                  <div className="p-2 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
+                    <Check className="fluid-icon" />
                   </div>
                   <div className="text-left">
-                    <p className="font-semibold text-base">¡Formulario completo!</p>
-                    <p className="text-sm text-white/80">Haz clic para ir al botón del Editor de Pasos</p>
+                    <p className="font-semibold fluid-text-base">¡Formulario completo!</p>
+                    <p className="fluid-text-sm text-white/80">Haz clic para ir al botón del Editor de Pasos</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full">Continuar</span>
+                <div className="flex items-center fluid-gap-2">
+                  <span className="fluid-text-sm font-medium bg-white/20 fluid-px-3 fluid-py-1 rounded-full">Continuar</span>
                   <div className="p-2 bg-white/20 rounded-full group-hover:translate-y-1 transition-transform duration-300">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                     </svg>
                   </div>
@@ -3029,11 +3029,11 @@ const StudyContentDetailPage = () => {
           )}
 
           {/* Formulario */}
-          <div className="space-y-5">
+          <div className="flex flex-col fluid-gap-5">
             {/* Título */}
             <div className="group">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <span className="flex items-center justify-center w-5 h-5 bg-indigo-100 text-indigo-600 rounded text-xs font-bold">1</span>
+              <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                <span className="flex items-center justify-center fluid-icon bg-indigo-100 text-indigo-600 rounded fluid-text-xs font-bold">1</span>
                 Título del ejercicio <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -3041,7 +3041,7 @@ const StudyContentDetailPage = () => {
                   type="text"
                   value={interactiveForm.title}
                   onChange={(e) => setInteractiveForm({ ...interactiveForm, title: e.target.value })}
-                  className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 outline-none ${
+                  className={`w-full fluid-px-4 fluid-py-3 border-2 rounded-fluid-xl transition-all duration-200 outline-none ${
                     interactiveForm.title.trim() 
                       ? 'border-green-300 bg-green-50/50 focus:border-green-500 focus:ring-2 focus:ring-green-200' 
                       : 'border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'
@@ -3050,24 +3050,24 @@ const StudyContentDetailPage = () => {
                 />
                 {interactiveForm.title.trim() && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                      <Check className="w-3 h-3 text-white" />
+                    <div className="fluid-icon bg-green-500 rounded-full flex items-center justify-center">
+                      <Check className="fluid-icon-xs text-white" />
                     </div>
                   </div>
                 )}
               </div>
-              <p className="text-xs text-gray-400 mt-1.5 ml-7">
+              <p className="fluid-text-xs text-gray-400 fluid-mt-2 fluid-ml-7">
                 Un título claro ayuda a los estudiantes a entender qué van a practicar
               </p>
             </div>
 
             {/* Instrucciones con editor de texto enriquecido */}
             <div className="group">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                <span className="flex items-center justify-center w-5 h-5 bg-indigo-100 text-indigo-600 rounded text-xs font-bold">2</span>
+              <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                <span className="flex items-center justify-center fluid-icon bg-indigo-100 text-indigo-600 rounded fluid-text-xs font-bold">2</span>
                 Instrucciones del ejercicio <span className="text-red-500">*</span>
               </label>
-              <div className={`border-2 rounded-xl overflow-hidden transition-all duration-200 ${
+              <div className={`border-2 rounded-fluid-xl overflow-hidden transition-all duration-200 ${
                 interactiveForm.description.trim() && interactiveForm.description !== '<p><br></p>'
                   ? 'border-green-300 ring-2 ring-green-100' 
                   : 'border-gray-200 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100'
@@ -3097,11 +3097,11 @@ const StudyContentDetailPage = () => {
                   style={{ minHeight: '150px' }}
                 />
               </div>
-              <div className="flex items-start gap-2 mt-2 ml-7">
-                <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-start fluid-gap-2 fluid-mt-2 fluid-ml-7">
+                <svg className="fluid-icon-sm text-amber-500 flex-shrink-0 fluid-mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
-                <p className="text-xs text-gray-500">
+                <p className="fluid-text-xs text-gray-500">
                   <span className="font-medium text-gray-600">Tip:</span> Sé específico. Indica qué acciones debe realizar el estudiante, 
                   cuántos elementos debe identificar y cómo sabrá que ha completado el ejercicio.
                 </p>
@@ -3111,22 +3111,22 @@ const StudyContentDetailPage = () => {
 
           {/* Preview card - muestra cómo se verá */}
           {(interactiveForm.title.trim() || (interactiveForm.description.trim() && interactiveForm.description !== '<p><br></p>')) && (
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-              <div className="flex items-center gap-2 mb-3">
-                <Eye className="w-4 h-4 text-gray-400" />
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Vista previa</span>
+            <div className="bg-gray-50 rounded-fluid-xl fluid-p-4 border border-gray-200">
+              <div className="flex items-center fluid-gap-2 fluid-mb-3">
+                <Eye className="fluid-icon-sm text-gray-400" />
+                <span className="fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Vista previa</span>
               </div>
-              <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-                <h5 className="font-semibold text-gray-900 mb-2">
+              <div className="bg-white rounded-fluid-lg fluid-p-4 shadow-sm border border-gray-100">
+                <h5 className="font-semibold text-gray-900 fluid-mb-2">
                   {interactiveForm.title || 'Título del ejercicio'}
                 </h5>
                 {interactiveForm.description && interactiveForm.description !== '<p><br></p>' ? (
                   <div 
-                    className="text-sm text-gray-600 prose prose-sm max-w-none"
+                    className="fluid-text-sm text-gray-600 prose prose-sm max-w-none"
                     dangerouslySetInnerHTML={{ __html: interactiveForm.description }}
                   />
                 ) : (
-                  <p className="text-sm text-gray-400 italic">Las instrucciones aparecerán aquí...</p>
+                  <p className="fluid-text-sm text-gray-400 italic">Las instrucciones aparecerán aquí...</p>
                 )}
               </div>
             </div>
@@ -3178,7 +3178,7 @@ const StudyContentDetailPage = () => {
           )}
 
           {/* Botones de acción mejorados */}
-          <div className="flex flex-col gap-4 pt-4 border-t border-gray-200">
+          <div className="flex flex-col fluid-gap-4 fluid-pt-4 border-t border-gray-200">
             {/* Botón principal - Ir al Editor */}
             <button
               onClick={async () => {
@@ -3212,7 +3212,7 @@ const StudyContentDetailPage = () => {
                 }
               }}
               disabled={savingInteractive || !interactiveForm.title.trim() || !interactiveForm.description.trim() || interactiveForm.description === '<p><br></p>'}
-              className={`interactive-config-modal-actions w-full py-3.5 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-3 ${
+              className={`interactive-config-modal-actions w-full fluid-py-4 rounded-fluid-xl font-semibold transition-all duration-200 flex items-center justify-center fluid-gap-3 ${
                 !interactiveForm.title.trim() || !interactiveForm.description.trim() || interactiveForm.description === '<p><br></p>'
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 shadow-lg shadow-green-500/25 hover:shadow-green-500/40'
@@ -3220,14 +3220,14 @@ const StudyContentDetailPage = () => {
             >
               {savingInteractive ? (
                 <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <Loader2 className="fluid-icon-sm animate-spin" />
                   <span>Guardando...</span>
                 </>
               ) : (
                 <>
-                  <Edit2 className="h-5 w-5" />
+                  <Edit2 className="fluid-icon-sm" />
                   <span>Continuar al Editor de Pasos</span>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
                 </>
@@ -3235,13 +3235,13 @@ const StudyContentDetailPage = () => {
             </button>
 
             {/* Botones secundarios */}
-            <div className="flex gap-3">
+            <div className="flex fluid-gap-3">
               <button
                 onClick={() => {
                   setInteractiveConfigOpen(false);
                   setInteractiveConfigData(null);
                 }}
-                className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-600 rounded-xl hover:bg-gray-50 font-medium transition-colors"
+                className="flex-1 fluid-px-4 fluid-py-3 border border-gray-300 text-gray-600 rounded-fluid-xl hover:bg-gray-50 font-medium transition-colors"
               >
                 Cancelar
               </button>
@@ -3282,20 +3282,20 @@ const StudyContentDetailPage = () => {
                   }
                 }}
                 disabled={savingInteractive || !interactiveForm.title.trim()}
-                className="flex-1 px-4 py-2.5 bg-indigo-50 text-indigo-700 rounded-xl hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium transition-colors border border-indigo-200"
+                className="flex-1 fluid-px-4 fluid-py-3 bg-indigo-50 text-indigo-700 rounded-fluid-xl hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center fluid-gap-2 font-medium transition-colors border border-indigo-200"
               >
-                {savingInteractive && <Loader2 className="h-4 w-4 animate-spin" />}
+                {savingInteractive && <Loader2 className="fluid-icon-xs animate-spin" />}
                 Solo Guardar
               </button>
             </div>
 
             {/* Mensaje de ayuda */}
             {(!interactiveForm.title.trim() || !interactiveForm.description.trim() || interactiveForm.description === '<p><br></p>') && (
-              <div className="flex items-center gap-2 justify-center text-amber-600 bg-amber-50 rounded-lg py-2 px-3">
-                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-center fluid-gap-2 justify-center text-amber-600 bg-amber-50 rounded-fluid-lg fluid-py-2 fluid-px-3">
+                <svg className="fluid-icon-sm flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                <span className="text-sm">Completa el título y las instrucciones para continuar al editor</span>
+                <span className="fluid-text-sm">Completa el título y las instrucciones para continuar al editor</span>
               </div>
             )}
           </div>
@@ -3304,38 +3304,38 @@ const StudyContentDetailPage = () => {
 
       {/* Modal de confirmación para cambiar video de Azure a enlace externo */}
       {showChangeVideoSourceModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4" onClick={() => setShowChangeVideoSourceModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] fluid-p-4" onClick={() => setShowChangeVideoSourceModal(false)}>
+          <div className="bg-white rounded-fluid-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
-            <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 fluid-p-6">
+              <div className="flex items-center fluid-gap-4">
+                <div className="p-3 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
+                  <svg className="fluid-icon-lg text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-white">Cambiar fuente del video</h3>
-                  <p className="text-white/80 text-sm">Esta acción no se puede deshacer</p>
+                  <p className="text-white/80 fluid-text-sm">Esta acción no se puede deshacer</p>
                 </div>
               </div>
             </div>
             
             {/* Content */}
-            <div className="p-6">
-              <p className="text-gray-700 mb-4">
+            <div className="fluid-p-6">
+              <p className="text-gray-700 fluid-mb-4">
                 ¿Estás seguro de que deseas reemplazar el video almacenado en la nube por un enlace externo?
               </p>
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-                <div className="flex items-start gap-3">
-                  <div className="p-1.5 bg-red-100 rounded-lg flex-shrink-0">
-                    <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-4 fluid-mb-6">
+                <div className="flex items-start fluid-gap-3">
+                  <div className="p-1.5 bg-red-100 rounded-fluid-lg flex-shrink-0">
+                    <svg className="fluid-icon-sm text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-red-800">El video actual será eliminado</p>
-                    <p className="text-xs text-red-600 mt-1">
+                    <p className="fluid-text-sm font-medium text-red-800">El video actual será eliminado</p>
+                    <p className="fluid-text-xs text-red-600 fluid-mt-1">
                       El archivo de video almacenado en la nube se eliminará permanentemente al guardar los cambios.
                     </p>
                   </div>
@@ -3343,10 +3343,10 @@ const StudyContentDetailPage = () => {
               </div>
               
               {/* Buttons */}
-              <div className="flex gap-3">
+              <div className="flex fluid-gap-3">
                 <button
                   onClick={() => setShowChangeVideoSourceModal(false)}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-colors"
+                  className="flex-1 fluid-px-4 fluid-py-3 border border-gray-300 text-gray-700 rounded-fluid-xl hover:bg-gray-50 font-medium transition-colors"
                 >
                   Cancelar
                 </button>
@@ -3355,7 +3355,7 @@ const StudyContentDetailPage = () => {
                     setVideoForm({ ...videoForm, video_url: '', video_type: 'youtube' });
                     setShowChangeVideoSourceModal(false);
                   }}
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl hover:from-amber-600 hover:to-orange-600 font-medium transition-colors shadow-lg shadow-amber-500/25"
+                  className="flex-1 fluid-px-4 fluid-py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-fluid-xl hover:from-amber-600 hover:to-orange-600 font-medium transition-colors shadow-lg shadow-amber-500/25"
                 >
                   Sí, cambiar a enlace
                 </button>
@@ -3372,82 +3372,82 @@ const StudyContentDetailPage = () => {
         title={validationResult?.is_valid ? '¡Material Listo para Publicar!' : 'Validación del Material'}
         size="lg"
       >
-        <div className="space-y-4">
+        <div className="flex flex-col fluid-gap-4">
           {validationResult && (
             <>
               {/* Resumen */}
-              <div className={`p-4 rounded-xl ${validationResult.is_valid ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'}`}>
-                <div className="flex items-center gap-3 mb-3">
+              <div className={`p-4 rounded-fluid-xl ${validationResult.is_valid ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'}`}>
+                <div className="flex items-center fluid-gap-3 fluid-mb-3">
                   {validationResult.is_valid ? (
                     <>
                       <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                        <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="fluid-icon-lg text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
                       <div>
                         <h3 className="font-semibold text-green-800">Todo el contenido está completo</h3>
-                        <p className="text-sm text-green-600">El material cumple con todos los requisitos para ser publicado</p>
+                        <p className="fluid-text-sm text-green-600">El material cumple con todos los requisitos para ser publicado</p>
                       </div>
                     </>
                   ) : (
                     <>
                       <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-                        <AlertCircle className="w-6 h-6 text-amber-600" />
+                        <AlertCircle className="fluid-icon-lg text-amber-600" />
                       </div>
                       <div>
                         <h3 className="font-semibold text-amber-800">Contenido incompleto</h3>
-                        <p className="text-sm text-amber-600">Completa todos los elementos antes de publicar</p>
+                        <p className="fluid-text-sm text-amber-600">Completa todos los elementos antes de publicar</p>
                       </div>
                     </>
                   )}
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-4 gap-2 text-center">
-                  <div className="bg-white/60 rounded-lg p-2">
+                <div className="grid grid-cols-4 fluid-gap-2 text-center">
+                  <div className="bg-white/60 rounded-fluid-lg fluid-p-2">
                     <div className="text-lg font-bold text-gray-800">{validationResult.summary.total_sessions}</div>
-                    <div className="text-xs text-gray-500">Sesiones</div>
+                    <div className="fluid-text-xs text-gray-500">Sesiones</div>
                   </div>
-                  <div className="bg-white/60 rounded-lg p-2">
+                  <div className="bg-white/60 rounded-fluid-lg fluid-p-2">
                     <div className="text-lg font-bold text-gray-800">{validationResult.summary.total_topics}</div>
-                    <div className="text-xs text-gray-500">Temas</div>
+                    <div className="fluid-text-xs text-gray-500">Temas</div>
                   </div>
-                  <div className="bg-white/60 rounded-lg p-2">
+                  <div className="bg-white/60 rounded-fluid-lg fluid-p-2">
                     <div className="text-lg font-bold text-green-600">{validationResult.summary.complete_topics}</div>
-                    <div className="text-xs text-gray-500">Completos</div>
+                    <div className="fluid-text-xs text-gray-500">Completos</div>
                   </div>
-                  <div className="bg-white/60 rounded-lg p-2">
+                  <div className="bg-white/60 rounded-fluid-lg fluid-p-2">
                     <div className={`text-lg font-bold ${validationResult.summary.incomplete_topics > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
                       {validationResult.summary.incomplete_topics}
                     </div>
-                    <div className="text-xs text-gray-500">Incompletos</div>
+                    <div className="fluid-text-xs text-gray-500">Incompletos</div>
                   </div>
                 </div>
               </div>
 
               {/* Lista de errores */}
               {!validationResult.is_valid && validationResult.errors.length > 0 && (
-                <div className="border-2 border-red-200 rounded-xl overflow-hidden">
-                  <div className="bg-red-50 px-4 py-3 border-b border-red-200">
-                    <h4 className="text-sm font-bold text-red-700 flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4" />
+                <div className="border-2 border-red-200 rounded-fluid-xl overflow-hidden">
+                  <div className="bg-red-50 fluid-px-4 fluid-py-3 border-b border-red-200">
+                    <h4 className="fluid-text-sm font-bold text-red-700 flex items-center fluid-gap-2">
+                      <AlertCircle className="fluid-icon-sm" />
                       ⚠️ Material Incompleto - {validationResult.errors.length} elemento{validationResult.errors.length > 1 ? 's' : ''} faltante{validationResult.errors.length > 1 ? 's' : ''}
                     </h4>
-                    <p className="text-xs text-red-600 mt-1">Debes completar los siguientes elementos antes de publicar:</p>
+                    <p className="fluid-text-xs text-red-600 fluid-mt-1">Debes completar los siguientes elementos antes de publicar:</p>
                   </div>
                   <div className="max-h-52 overflow-y-auto bg-white">
                     {validationResult.errors.map((error, index) => (
-                      <div key={index} className={`p-3 flex items-start gap-3 ${index > 0 ? 'border-t border-red-100' : ''}`}>
-                        <div className="w-6 h-6 rounded-full bg-red-500 flex-shrink-0 flex items-center justify-center">
-                          <span className="text-xs font-bold text-white">{index + 1}</span>
+                      <div key={index} className={`p-3 flex items-start fluid-gap-3 ${index > 0 ? 'border-t border-red-100' : ''}`}>
+                        <div className="fluid-icon-lg rounded-full bg-red-500 flex-shrink-0 flex items-center justify-center">
+                          <span className="fluid-text-xs font-bold text-white">{index + 1}</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-semibold text-gray-900">{error.session}</div>
+                          <div className="fluid-text-sm font-semibold text-gray-900">{error.session}</div>
                           {error.topic && (
-                            <div className="text-sm text-gray-600">→ {error.topic}</div>
+                            <div className="fluid-text-sm text-gray-600">→ {error.topic}</div>
                           )}
-                          <div className="text-sm text-red-600 mt-1 font-medium flex items-center gap-1.5 bg-red-50 px-2 py-1 rounded inline-flex">
+                          <div className="fluid-text-sm text-red-600 fluid-mt-1 font-medium flex items-center fluid-gap-2 bg-red-50 fluid-px-2 fluid-py-1 rounded inline-flex">
                             <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
                             Falta: {error.element}
                           </div>
@@ -3459,11 +3459,11 @@ const StudyContentDetailPage = () => {
               )}
 
               {/* Buttons */}
-              <div className="flex gap-3 pt-2">
+              <div className="flex fluid-gap-3 fluid-pt-2">
                 <button
                   onClick={() => setShowValidationModal(false)}
                   disabled={isPublishing}
-                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium disabled:opacity-50"
+                  className="flex-1 fluid-px-4 fluid-py-3 bg-gray-100 text-gray-700 rounded-fluid-lg hover:bg-gray-200 transition-colors font-medium disabled:opacity-50"
                 >
                   {validationResult.is_valid ? 'Cancelar' : 'Cerrar'}
                 </button>
@@ -3471,16 +3471,16 @@ const StudyContentDetailPage = () => {
                   <button
                     onClick={handlePublish}
                     disabled={isPublishing}
-                    className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 fluid-px-4 fluid-py-3 bg-green-600 text-white rounded-fluid-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 flex items-center justify-center fluid-gap-2"
                   >
                     {isPublishing ? (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="fluid-icon-xs animate-spin" />
                         Publicando...
                       </>
                     ) : (
                       <>
-                        <Eye className="h-4 w-4" />
+                        <Eye className="fluid-icon-xs" />
                         Publicar Ahora
                       </>
                     )}
@@ -3495,10 +3495,10 @@ const StudyContentDetailPage = () => {
       {/* Modal de Confirmación de Eliminación del Material */}
       {showDeleteMaterialModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex items-center mb-4">
-              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mr-4">
-                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-white rounded-fluid-lg fluid-p-6 w-full max-w-md">
+            <div className="flex items-center fluid-mb-4">
+              <div className="flex-shrink-0 fluid-icon-2xl rounded-full bg-red-100 flex items-center justify-center fluid-mr-4">
+                <svg className="fluid-icon-lg text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
@@ -3507,22 +3507,22 @@ const StudyContentDetailPage = () => {
               </h3>
             </div>
             
-            <p className="text-gray-700 mb-2">
+            <p className="text-gray-700 fluid-mb-2">
               ¿Estás seguro de que deseas eliminar el material <strong>"{material?.title}"</strong>?
             </p>
             
-            <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+            <div className="bg-red-50 border-l-4 border-red-500 fluid-p-4 fluid-mb-4">
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="fluid-icon-sm text-red-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <div className="ml-3">
-                  <p className="text-sm text-red-800 font-medium">
+                <div className="fluid-ml-3">
+                  <p className="fluid-text-sm text-red-800 font-medium">
                     Esta acción no se puede deshacer. Se eliminarán permanentemente:
                   </p>
-                  <ul className="list-disc list-inside text-sm text-red-700 mt-2">
+                  <ul className="list-disc list-inside fluid-text-sm text-red-700 fluid-mt-2">
                     <li>Todas las sesiones ({material?.sessions?.length || 0})</li>
                     <li>Todos los temas, lecturas, videos y ejercicios</li>
                     <li>Todos los archivos descargables asociados</li>
@@ -3532,8 +3532,8 @@ const StudyContentDetailPage = () => {
             </div>
 
             <form onSubmit={handleDeleteMaterial}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="fluid-mb-4">
+                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                   Para confirmar, ingresa tu contraseña:
                 </label>
                 <input
@@ -3543,17 +3543,17 @@ const StudyContentDetailPage = () => {
                     setDeletePassword(e.target.value);
                     setDeleteError('');
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
                   placeholder="Tu contraseña"
                   required
                   autoFocus
                 />
                 {deleteError && (
-                  <p className="mt-2 text-sm text-red-600">{deleteError}</p>
+                  <p className="mt-2 fluid-text-sm text-red-600">{deleteError}</p>
                 )}
               </div>
 
-              <div className="flex gap-3 justify-end">
+              <div className="flex fluid-gap-3 justify-end">
                 <button
                   type="button"
                   onClick={() => {
@@ -3561,24 +3561,24 @@ const StudyContentDetailPage = () => {
                     setDeletePassword('');
                     setDeleteError('');
                   }}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  className="px-4 fluid-py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-lg transition-colors"
                   disabled={isDeleting}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors font-medium disabled:opacity-50 flex items-center gap-2"
+                  className="px-4 fluid-py-2 bg-red-600 text-white hover:bg-red-700 rounded-fluid-lg transition-colors font-medium disabled:opacity-50 flex items-center fluid-gap-2"
                   disabled={isDeleting}
                 >
                   {isDeleting ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="fluid-icon-xs animate-spin" />
                       Eliminando...
                     </>
                   ) : (
                     <>
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="fluid-icon-xs" />
                       Eliminar Material
                     </>
                   )}

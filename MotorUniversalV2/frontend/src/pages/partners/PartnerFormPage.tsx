@@ -145,25 +145,25 @@ export default function PartnerFormPage() {
 
   if (loading) {
     return (
-      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto">
+      <div className="fluid-p-6 max-w-[2800px] mx-auto">
         <LoadingSpinner message="Cargando partner..." />
       </div>
     );
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-4xl xl:max-w-5xl 2xl:max-w-6xl 3xl:max-w-7xl 4xl:max-w-[2000px] mx-auto animate-fade-in-up">
+    <div className="fluid-p-6 max-w-6xl mx-auto animate-fade-in-up">
       {/* Header */}
-      <div className="flex items-center gap-4 lg:gap-6 mb-6 lg:mb-8">
+      <div className="flex items-center fluid-gap-5 fluid-mb-6">
         <Link
           to={isEditing ? `/partners/${partnerId}` : '/partners'}
-          className="p-2 lg:p-3 hover:bg-gray-100 rounded-lg lg:rounded-xl transition-colors"
+          className="fluid-p-2 hover:bg-gray-100 rounded-fluid-xl transition-colors"
         >
-          <ArrowLeft className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-gray-600" />
+          <ArrowLeft className="fluid-icon-lg text-gray-600" />
         </Link>
         <div>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-gray-800 flex items-center gap-2 lg:gap-3">
-            <Building2 className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12 text-blue-600" />
+          <h1 className="fluid-text-3xl font-bold text-gray-800 flex items-center fluid-gap-2">
+            <Building2 className="fluid-icon-xl text-blue-600" />
             {isEditing ? 'Editar Partner' : 'Nuevo Partner'}
           </h1>
         </div>
@@ -171,138 +171,138 @@ export default function PartnerFormPage() {
 
       {/* Error */}
       {error && (
-        <div className="mb-6 p-4 lg:p-5 bg-red-50 border border-red-200 rounded-lg lg:rounded-xl flex items-center gap-3 lg:gap-4">
-          <AlertCircle className="h-5 w-5 lg:h-6 lg:w-6 text-red-600 flex-shrink-0" />
-          <p className="text-sm lg:text-base text-red-700">{error}</p>
+        <div className="mb-6 fluid-p-4 bg-red-50 border border-red-200 rounded-fluid-xl flex items-center fluid-gap-3">
+          <AlertCircle className="fluid-icon-lg text-red-600 flex-shrink-0" />
+          <p className="fluid-text-base text-red-700">{error}</p>
           <button onClick={() => setError(null)} className="ml-auto">
             <X className="h-5 w-5 text-red-600" />
           </button>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6 lg:space-y-8">
+      <form onSubmit={handleSubmit} className="flex flex-col fluid-gap-6 flex flex-col fluid-gap-6">
         {/* Información básica */}
-        <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6 xl:p-8">
-          <h2 className="text-lg lg:text-xl xl:text-2xl font-semibold text-gray-800 mb-4 lg:mb-6">
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-6">
+          <h2 className="fluid-text-xl font-semibold text-gray-800 fluid-mb-5">
             Información del Partner
           </h2>
           
-          <div className="grid md:grid-cols-2 gap-4 lg:gap-6">
+          <div className="grid md:grid-cols-2 fluid-gap-5">
             <div>
-              <label className="block text-sm lg:text-base font-medium text-gray-700 mb-1.5 lg:mb-2">
+              <label className="block fluid-text-base font-medium text-gray-700 fluid-mb-2">
                 Nombre <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-300 rounded-lg lg:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base lg:text-lg"
+                className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-base"
                 placeholder="Nombre del partner"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm lg:text-base font-medium text-gray-700 mb-1.5 lg:mb-2">
+              <label className="block fluid-text-base font-medium text-gray-700 fluid-mb-2">
                 Razón Social
               </label>
               <input
                 type="text"
                 value={formData.legal_name}
                 onChange={(e) => setFormData({ ...formData, legal_name: e.target.value })}
-                className="w-full px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-300 rounded-lg lg:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base lg:text-lg"
+                className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-base"
                 placeholder="Razón social completa"
               />
             </div>
 
             <div>
-              <label className="block text-sm lg:text-base font-medium text-gray-700 mb-1.5 lg:mb-2">
+              <label className="block fluid-text-base font-medium text-gray-700 fluid-mb-2">
                 RFC
               </label>
               <input
                 type="text"
                 value={formData.rfc}
                 onChange={(e) => setFormData({ ...formData, rfc: e.target.value.toUpperCase() })}
-                className="w-full px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-300 rounded-lg lg:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base lg:text-lg font-mono"
+                className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-base font-mono"
                 placeholder="RFC del partner"
                 maxLength={13}
               />
             </div>
 
             <div>
-              <label className="block text-sm lg:text-base font-medium text-gray-700 mb-1.5 lg:mb-2">
+              <label className="block fluid-text-base font-medium text-gray-700 fluid-mb-2">
                 Correo Electrónico
               </label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-300 rounded-lg lg:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base lg:text-lg"
+                className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-base"
                 placeholder="correo@ejemplo.com"
               />
             </div>
 
             <div>
-              <label className="block text-sm lg:text-base font-medium text-gray-700 mb-1.5 lg:mb-2">
+              <label className="block fluid-text-base font-medium text-gray-700 fluid-mb-2">
                 Teléfono
               </label>
               <input
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-300 rounded-lg lg:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base lg:text-lg"
+                className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-base"
                 placeholder="(55) 1234-5678"
               />
             </div>
 
             <div>
-              <label className="block text-sm lg:text-base font-medium text-gray-700 mb-1.5 lg:mb-2">
+              <label className="block fluid-text-base font-medium text-gray-700 fluid-mb-2">
                 Sitio Web
               </label>
               <input
                 type="url"
                 value={formData.website}
                 onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                className="w-full px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-300 rounded-lg lg:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base lg:text-lg"
+                className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-base"
                 placeholder="https://ejemplo.com"
               />
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm lg:text-base font-medium text-gray-700 mb-1.5 lg:mb-2">
+              <label className="block fluid-text-base font-medium text-gray-700 fluid-mb-2">
                 URL del Logo
               </label>
               <input
                 type="url"
                 value={formData.logo_url}
                 onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
-                className="w-full px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-300 rounded-lg lg:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base lg:text-lg"
+                className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-base"
                 placeholder="https://ejemplo.com/logo.png"
               />
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm lg:text-base font-medium text-gray-700 mb-1.5 lg:mb-2">
+              <label className="block fluid-text-base font-medium text-gray-700 fluid-mb-2">
                 Notas
               </label>
               <textarea
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 rows={3}
-                className="w-full px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-300 rounded-lg lg:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base lg:text-lg resize-none"
+                className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-base resize-none"
                 placeholder="Notas adicionales sobre el partner..."
               />
             </div>
 
             <div className="md:col-span-2">
-              <label className="flex items-center gap-3 lg:gap-4 cursor-pointer">
+              <label className="flex items-center fluid-gap-3 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={formData.is_active}
                   onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <span className="text-sm lg:text-base font-medium text-gray-700">Partner activo</span>
+                <span className="fluid-text-base font-medium text-gray-700">Partner activo</span>
               </label>
             </div>
           </div>
@@ -310,18 +310,18 @@ export default function PartnerFormPage() {
 
         {/* Estados (solo en edición) */}
         {isEditing && (
-          <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6 xl:p-8">
-            <h2 className="text-lg lg:text-xl xl:text-2xl font-semibold text-gray-800 mb-4 lg:mb-6 flex items-center gap-2 lg:gap-3">
-              <MapPin className="h-5 w-5 lg:h-6 lg:w-6 text-emerald-600" />
+          <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-6">
+            <h2 className="fluid-text-xl font-semibold text-gray-800 fluid-mb-5 flex items-center fluid-gap-2">
+              <MapPin className="fluid-icon-lg text-emerald-600" />
               Presencia por Estado
             </h2>
 
             {/* Agregar estado */}
-            <div className="flex gap-3 lg:gap-4 mb-4 lg:mb-6">
+            <div className="flex fluid-gap-3 fluid-mb-5">
               <select
                 value={selectedState}
                 onChange={(e) => setSelectedState(e.target.value)}
-                className="flex-1 px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-300 rounded-lg lg:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base lg:text-lg"
+                className="flex-1 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-base"
               >
                 <option value="">Seleccionar estado...</option>
                 {availableStates.map((state) => (
@@ -332,35 +332,35 @@ export default function PartnerFormPage() {
                 type="button"
                 onClick={handleAddState}
                 disabled={!selectedState}
-                className="px-4 lg:px-6 py-2.5 lg:py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white rounded-lg lg:rounded-xl font-medium text-base lg:text-lg transition-colors flex items-center gap-2"
+                className="fluid-px-5 fluid-py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white rounded-fluid-xl font-medium fluid-text-base transition-colors flex items-center gap-2"
               >
-                <Plus className="h-5 w-5 lg:h-6 lg:w-6" />
+                <Plus className="fluid-icon-lg" />
                 Agregar
               </button>
             </div>
 
             {/* Lista de estados */}
             {partnerStates.length > 0 ? (
-              <div className="flex flex-wrap gap-2 lg:gap-3">
+              <div className="flex flex-wrap fluid-gap-2">
                 {partnerStates.map((presence) => (
                   <div
                     key={presence.id}
-                    className="inline-flex items-center gap-2 px-3 lg:px-4 py-1.5 lg:py-2 bg-emerald-50 text-emerald-700 rounded-lg lg:rounded-xl text-sm lg:text-base"
+                    className="inline-flex items-center gap-2 fluid-px-3 fluid-py-2 bg-emerald-50 text-emerald-700 rounded-fluid-xl fluid-text-base"
                   >
-                    <MapPin className="h-4 w-4 lg:h-5 lg:w-5" />
+                    <MapPin className="fluid-icon-sm" />
                     <span>{presence.state_name}</span>
                     <button
                       type="button"
                       onClick={() => handleRemoveState(presence.id)}
                       className="p-0.5 hover:bg-emerald-200 rounded-full transition-colors"
                     >
-                      <X className="h-4 w-4 lg:h-5 lg:w-5" />
+                      <X className="fluid-icon-sm" />
                     </button>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-sm lg:text-base text-center py-4">
+              <p className="text-gray-500 fluid-text-base text-center py-4">
                 No hay estados registrados. Agrega los estados donde el partner tiene presencia.
               </p>
             )}
@@ -368,27 +368,27 @@ export default function PartnerFormPage() {
         )}
 
         {/* Botones */}
-        <div className="flex flex-col sm:flex-row gap-3 lg:gap-4">
+        <div className="flex flex-col sm:flex-row fluid-gap-3">
           <button
             type="submit"
             disabled={saving}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 lg:gap-3 px-6 lg:px-8 xl:px-10 py-3 lg:py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg lg:rounded-xl font-medium text-base lg:text-lg xl:text-xl transition-colors"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-fluid-xl font-medium fluid-text-lg transition-colors"
           >
             {saving ? (
               <>
-                <div className="w-5 h-5 lg:w-6 lg:h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 Guardando...
               </>
             ) : (
               <>
-                <Save className="h-5 w-5 lg:h-6 lg:w-6" />
+                <Save className="fluid-icon-lg" />
                 {isEditing ? 'Guardar Cambios' : 'Crear Partner'}
               </>
             )}
           </button>
           <Link
             to={isEditing ? `/partners/${partnerId}` : '/partners'}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 lg:gap-3 px-6 lg:px-8 xl:px-10 py-3 lg:py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg lg:rounded-xl font-medium text-base lg:text-lg xl:text-xl transition-colors"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-fluid-xl font-medium fluid-text-lg transition-colors"
           >
             Cancelar
           </Link>

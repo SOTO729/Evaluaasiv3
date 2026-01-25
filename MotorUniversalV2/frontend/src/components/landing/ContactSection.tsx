@@ -33,24 +33,24 @@ export default function ContactSection() {
   }
 
   return (
-    <section id="contact" className="py-20 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-2 gap-12">
+    <section id="contact" className="fluid-py-20 bg-gray-50">
+      <div className="max-w-7xl mx-auto fluid-px-6">
+        <div className="grid lg:grid-cols-2 fluid-gap-12">
           {/* Info */}
           <div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="fluid-text-3xl font-bold text-gray-900 fluid-mb-4">
               ¿Listo para transformar tu evaluación educativa?
             </h2>
-            <p className="text-xl text-gray-600 mb-8">
+            <p className="fluid-text-xl text-gray-600 fluid-mb-8">
               Nuestro equipo está aquí para ayudarte. Cuéntanos sobre tu institución 
               y encontraremos la mejor solución para ti.
             </p>
 
             {/* Contact Info */}
-            <div className="space-y-6 mb-8">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Mail className="w-6 h-6 text-primary-600" />
+            <div className="flex flex-col fluid-gap-6 fluid-mb-8">
+              <div className="flex items-start fluid-gap-4">
+                <div className="w-12 h-12 bg-primary-100 rounded-fluid-xl flex items-center justify-center flex-shrink-0">
+                  <Mail className="fluid-icon-lg text-primary-600" />
                 </div>
                 <div>
                   <div className="font-semibold text-gray-900">Email</div>
@@ -60,9 +60,9 @@ export default function ContactSection() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Phone className="w-6 h-6 text-primary-600" />
+              <div className="flex items-start fluid-gap-4">
+                <div className="w-12 h-12 bg-primary-100 rounded-fluid-xl flex items-center justify-center flex-shrink-0">
+                  <Phone className="fluid-icon-lg text-primary-600" />
                 </div>
                 <div>
                   <div className="font-semibold text-gray-900">Teléfono</div>
@@ -75,9 +75,9 @@ export default function ContactSection() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <MapPin className="w-6 h-6 text-primary-600" />
+              <div className="flex items-start fluid-gap-4">
+                <div className="w-12 h-12 bg-primary-100 rounded-fluid-xl flex items-center justify-center flex-shrink-0">
+                  <MapPin className="fluid-icon-lg text-primary-600" />
                 </div>
                 <div>
                   <div className="font-semibold text-gray-900">Oficinas</div>
@@ -85,21 +85,21 @@ export default function ContactSection() {
                     Av. 31 Oriente No. 618, 2° Piso<br />
                     Col. Ladrillera de Benítez<br />
                     Puebla, Pue, México. C.P. 72530<br />
-                    <span className="text-sm">Lun - Vie: 9:00 - 18:00</span>
+                    <span className="fluid-text-sm">Lun - Vie: 9:00 - 18:00</span>
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Quick Response */}
-            <div className="bg-primary-50 rounded-xl p-6 border border-primary-100">
-              <div className="flex items-center gap-3 mb-3">
+            <div className="bg-primary-50 rounded-fluid-xl fluid-p-6 border border-primary-100">
+              <div className="flex items-center fluid-gap-3 fluid-mb-3">
                 <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center">
-                  <CheckCircle2 className="w-5 h-5 text-white" />
+                  <CheckCircle2 className="fluid-icon-sm text-white" />
                 </div>
                 <span className="font-semibold text-gray-900">Respuesta rápida garantizada</span>
               </div>
-              <p className="text-gray-600 text-sm">
+              <p className="text-gray-600 fluid-text-sm">
                 Respondemos todas las consultas en menos de 24 horas hábiles. 
                 Para urgencias, llámanos directamente.
               </p>
@@ -107,13 +107,13 @@ export default function ContactSection() {
           </div>
 
           {/* Form */}
-          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-fluid-2xl fluid-p-8 shadow-sm border border-gray-100">
             {isSubmitted ? (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle2 className="w-8 h-8 text-green-600" />
+              <div className="text-center fluid-py-12">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto fluid-mb-4">
+                  <CheckCircle2 className="fluid-icon-xl text-green-600" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                <h3 className="fluid-text-xl font-semibold text-gray-900 fluid-mb-2">
                   ¡Mensaje enviado!
                 </h3>
                 <p className="text-gray-600">
@@ -121,10 +121,10 @@ export default function ContactSection() {
                 </p>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <div className="grid sm:grid-cols-2 gap-5">
+              <form onSubmit={handleSubmit} className="flex flex-col fluid-gap-5">
+                <div className="grid sm:grid-cols-2 fluid-gap-5">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                       Nombre completo *
                     </label>
                     <input
@@ -133,12 +133,12 @@ export default function ContactSection() {
                       value={formData.name}
                       onChange={handleChange}
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       placeholder="Tu nombre"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                       Email *
                     </label>
                     <input
@@ -147,15 +147,15 @@ export default function ContactSection() {
                       value={formData.email}
                       onChange={handleChange}
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       placeholder="tu@email.com"
                     />
                   </div>
                 </div>
 
-                <div className="grid sm:grid-cols-2 gap-5">
+                <div className="grid sm:grid-cols-2 fluid-gap-5">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                       Institución / Empresa
                     </label>
                     <input
@@ -163,12 +163,12 @@ export default function ContactSection() {
                       name="company"
                       value={formData.company}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       placeholder="Nombre de tu institución"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                       Teléfono
                     </label>
                     <input
@@ -176,21 +176,21 @@ export default function ContactSection() {
                       name="phone"
                       value={formData.phone}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       placeholder="+52 55 1234 5678"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                     ¿En qué podemos ayudarte?
                   </label>
                   <select
                     name="subject"
                     value={formData.subject}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   >
                     <option value="general">Información general</option>
                     <option value="demo">Solicitar demo</option>
@@ -202,7 +202,7 @@ export default function ContactSection() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                     Mensaje *
                   </label>
                   <textarea
@@ -211,7 +211,7 @@ export default function ContactSection() {
                     onChange={handleChange}
                     required
                     rows={4}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+                    className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
                     placeholder="Cuéntanos más sobre tus necesidades..."
                   />
                 </div>
@@ -219,22 +219,22 @@ export default function ContactSection() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-primary-600 text-white rounded-fluid-xl hover:bg-primary-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <Loader2 className="fluid-icon-sm animate-spin" />
                       Enviando...
                     </>
                   ) : (
                     <>
-                      <Send className="w-5 h-5" />
+                      <Send className="fluid-icon-sm" />
                       Enviar mensaje
                     </>
                   )}
                 </button>
 
-                <p className="text-xs text-gray-500 text-center">
+                <p className="fluid-text-xs text-gray-500 text-center">
                   Al enviar este formulario, aceptas nuestra{' '}
                   <a href="/privacidad" className="text-primary-600 hover:underline">política de privacidad</a>.
                 </p>

@@ -54,60 +54,60 @@ export default function PartnersListPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto animate-fade-in-up">
+    <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8 xl:mb-10">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center fluid-gap-5 mb-4 fluid-mb-6 fluid-mb-8">
         <div>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-gray-800 flex items-center gap-2 lg:gap-3 xl:gap-4">
-            <Building2 className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12 text-blue-600" />
+          <h1 className="fluid-text-3xl font-bold text-gray-800 flex items-center fluid-gap-2 fluid-gap-4">
+            <Building2 className="fluid-icon-xl text-blue-600" />
             Partners
           </h1>
-          <p className="text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl text-gray-600 mt-1 lg:mt-2">
+          <p className="text-sm fluid-text-lg fluid-text-xl text-gray-600 fluid-mt-1">
             Organizaciones y empresas asociadas
           </p>
         </div>
         <Link
           to="/partners/new"
-          className="inline-flex items-center justify-center gap-2 lg:gap-3 px-4 lg:px-5 xl:px-6 2xl:px-8 py-2 lg:py-2.5 xl:py-3 2xl:py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg lg:rounded-xl font-medium text-sm lg:text-base xl:text-lg 2xl:text-xl transition-colors w-full sm:w-auto"
+          className="inline-flex items-center justify-center fluid-gap-2 fluid-px-5 fluid-py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl font-medium fluid-text-base transition-colors w-full sm:w-auto"
         >
-          <Plus className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7" />
+          <Plus className="fluid-icon-lg" />
           Nuevo Partner
         </Link>
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-lg lg:rounded-xl xl:rounded-2xl shadow p-3 sm:p-4 lg:p-5 xl:p-6 2xl:p-8 mb-4 sm:mb-6 lg:mb-8 xl:mb-10">
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 lg:gap-5 xl:gap-6">
+      <div className="bg-white rounded-fluid-xl shadow p-3 fluid-p-5 fluid-p-8 mb-4 fluid-mb-6 fluid-mb-8">
+        <div className="flex flex-col sm:flex-row gap-3 fluid-gap-5">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 lg:left-4 xl:left-5 top-1/2 -translate-y-1/2 h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-gray-400" />
+            <Search className="absolute left-3 left-4 left-5 top-1/2 -translate-y-1/2 fluid-icon-lg text-gray-400" />
             <input
               type="text"
               placeholder="Buscar por nombre, razón social o RFC..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              className="w-full pl-10 lg:pl-12 xl:pl-14 2xl:pl-16 pr-4 lg:pr-5 xl:pr-6 py-2.5 sm:py-2 lg:py-3 xl:py-4 border border-gray-300 rounded-lg lg:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base lg:text-lg xl:text-xl"
+              className="w-full fluid-pl-12 pr-4 fluid-pr-5 fluid-pr-6 py-2.5 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-lg"
             />
           </div>
           
-          <label className="inline-flex items-center cursor-pointer bg-gray-50 px-4 lg:px-5 xl:px-6 py-2 lg:py-3 rounded-lg lg:rounded-xl border border-gray-200">
+          <label className="inline-flex items-center cursor-pointer bg-gray-50 fluid-px-5 fluid-py-2 rounded-fluid-xl border border-gray-200">
             <input
               type="checkbox"
               checked={showInactive}
               onChange={(e) => setShowInactive(e.target.checked)}
               className="sr-only peer"
             />
-            <div className="relative w-9 lg:w-11 h-5 lg:h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 lg:after:h-5 after:w-4 lg:after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-            <span className="ms-3 text-sm lg:text-base font-medium text-gray-700 whitespace-nowrap">
+            <div className="relative w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <span className="ms-3 fluid-text-base font-medium text-gray-700 whitespace-nowrap">
               Mostrar inactivos
             </span>
           </label>
           
           <button
             onClick={handleSearch}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 lg:px-8 xl:px-10 py-2.5 lg:py-3 xl:py-4 rounded-lg lg:rounded-xl transition-colors w-full sm:w-auto flex items-center justify-center gap-2 lg:gap-3 font-medium text-base lg:text-lg xl:text-xl"
+            className="bg-blue-600 hover:bg-blue-700 text-white fluid-px-6 fluid-py-3 rounded-fluid-xl transition-colors w-full sm:w-auto flex items-center justify-center fluid-gap-2 font-medium fluid-text-lg"
           >
-            <Search className="h-4 w-4 lg:h-5 lg:w-5 xl:h-6 xl:w-6" />
+            <Search className="fluid-icon-sm" />
             Buscar
           </button>
         </div>
@@ -115,10 +115,10 @@ export default function PartnersListPage() {
 
       {/* Error Message */}
       {error && (
-        <div className="mb-4 lg:mb-6 p-4 lg:p-5 xl:p-6 bg-red-50 border border-red-200 rounded-lg lg:rounded-xl flex items-center gap-3 lg:gap-4">
-          <AlertCircle className="h-5 w-5 lg:h-6 lg:w-6 text-red-600 flex-shrink-0" />
-          <p className="text-sm lg:text-base text-red-700">{error}</p>
-          <button onClick={() => loadPartners()} className="ml-auto text-sm lg:text-base text-red-700 underline">
+        <div className="fluid-mb-5 fluid-p-5 bg-red-50 border border-red-200 rounded-fluid-xl flex items-center fluid-gap-3">
+          <AlertCircle className="fluid-icon-lg text-red-600 flex-shrink-0" />
+          <p className="fluid-text-base text-red-700">{error}</p>
+          <button onClick={() => loadPartners()} className="ml-auto fluid-text-base text-red-700 underline">
             Reintentar
           </button>
         </div>
@@ -126,75 +126,75 @@ export default function PartnersListPage() {
 
       {/* Partners List */}
       {loading ? (
-        <div className="bg-white rounded-lg lg:rounded-xl shadow p-8 lg:p-10 xl:p-12">
+        <div className="bg-white rounded-fluid-xl shadow fluid-p-10">
           <LoadingSpinner message="Cargando partners..." />
         </div>
       ) : partners.length === 0 ? (
-        <div className="bg-white rounded-lg lg:rounded-xl shadow p-8 lg:p-10 xl:p-12 text-center">
-          <Building2 className="h-16 w-16 lg:h-20 lg:w-20 xl:h-24 xl:w-24 text-gray-300 mx-auto mb-4 lg:mb-6" />
-          <h3 className="text-lg lg:text-xl xl:text-2xl font-medium text-gray-700 mb-2 lg:mb-3">
+        <div className="bg-white rounded-fluid-xl shadow fluid-p-10 text-center">
+          <Building2 className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-5" />
+          <h3 className="fluid-text-xl font-medium text-gray-700 fluid-mb-2">
             {searchTerm ? 'No se encontraron partners' : 'No hay partners'}
           </h3>
-          <p className="text-gray-500 text-base lg:text-lg mb-4 lg:mb-6">
+          <p className="text-gray-500 fluid-text-base fluid-mb-5">
             {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Comienza creando un nuevo partner'}
           </p>
           {!searchTerm && (
             <Link
               to="/partners/new"
-              className="inline-flex items-center gap-2 lg:gap-3 px-4 lg:px-6 py-2 lg:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg lg:rounded-xl font-medium text-sm lg:text-base transition-colors"
+              className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl font-medium fluid-text-base transition-colors"
             >
-              <Plus className="h-5 w-5 lg:h-6 lg:w-6" />
+              <Plus className="fluid-icon-lg" />
               Crear Partner
             </Link>
           )}
         </div>
       ) : (
-        <div className="space-y-3 lg:space-y-4 xl:space-y-5">
+        <div className="flex flex-col fluid-gap-3 flex flex-col fluid-gap-4">
           {/* Contador */}
-          <div className="text-sm lg:text-base xl:text-lg text-gray-500 px-1">
+          <div className="fluid-text-base text-gray-500 px-1">
             {totalPartners} partner{totalPartners !== 1 ? 's' : ''} encontrado{totalPartners !== 1 ? 's' : ''}
           </div>
           
           {/* Grid de Partners */}
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 4xl:grid-cols-6 gap-4 lg:gap-5 xl:gap-6 2xl:gap-8">
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 4xl:grid-cols-6 fluid-gap-5">
             {partners.map((partner) => (
               <div
                 key={partner.id}
                 onClick={() => navigate(`/partners/${partner.id}`)}
-                className="bg-white border-2 border-gray-200 rounded-xl lg:rounded-2xl p-4 sm:p-5 lg:p-6 xl:p-7 hover:border-blue-500 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group"
+                className="bg-white border-2 border-gray-200 rounded-fluid-2xl fluid-p-5 hover:border-blue-500 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group"
               >
-                <div className="flex items-start justify-between mb-3 lg:mb-4">
-                  <div className="flex items-center gap-3 lg:gap-4">
+                <div className="flex items-start justify-between fluid-mb-3">
+                  <div className="flex items-center fluid-gap-3">
                     {partner.logo_url ? (
                       <img 
                         src={partner.logo_url} 
                         alt={partner.name}
-                        className="w-12 h-12 lg:w-14 lg:h-14 xl:w-16 xl:h-16 rounded-lg object-cover"
+                        className="w-14 h-14 rounded-lg object-cover"
                       />
                     ) : (
-                      <div className="w-12 h-12 lg:w-14 lg:h-14 xl:w-16 xl:h-16 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <Building2 className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8 text-blue-600" />
+                      <div className="w-14 h-14 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <Building2 className="h-6 w-6 h-7 w-7 h-8 w-8 text-blue-600" />
                       </div>
                     )}
                     <div>
-                      <h3 className="font-semibold text-base lg:text-lg xl:text-xl text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-1">
+                      <h3 className="font-semibold fluid-text-lg text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-1">
                         {partner.name}
                       </h3>
                       {partner.rfc && (
-                        <p className="text-xs lg:text-sm xl:text-base text-gray-500 font-mono">
+                        <p className="fluid-text-sm text-gray-500 font-mono">
                           {partner.rfc}
                         </p>
                       )}
                     </div>
                   </div>
                   {partner.is_active ? (
-                    <span className="inline-flex items-center gap-1 text-xs lg:text-sm font-medium text-green-700 bg-green-50 px-2 lg:px-3 py-0.5 lg:py-1 rounded-full">
-                      <CheckCircle2 className="h-3 w-3 lg:h-4 lg:w-4" />
+                    <span className="inline-flex items-center gap-1 fluid-text-xs font-medium text-green-700 bg-green-50 fluid-px-2 fluid-py-1 rounded-full">
+                      <CheckCircle2 className="fluid-icon-xs" />
                       Activo
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-xs lg:text-sm font-medium text-gray-600 bg-gray-100 px-2 lg:px-3 py-0.5 lg:py-1 rounded-full">
-                      <XCircle className="h-3 w-3 lg:h-4 lg:w-4" />
+                    <span className="inline-flex items-center gap-1 fluid-text-xs font-medium text-gray-600 bg-gray-100 fluid-px-2 fluid-py-1 rounded-full">
+                      <XCircle className="fluid-icon-xs" />
                       Inactivo
                     </span>
                   )}
@@ -202,19 +202,19 @@ export default function PartnersListPage() {
 
                 {/* Estados donde tiene presencia */}
                 {partner.states && partner.states.length > 0 && (
-                  <div className="flex items-center gap-2 mb-3 lg:mb-4">
-                    <MapPin className="h-4 w-4 lg:h-5 lg:w-5 text-gray-400 flex-shrink-0" />
-                    <div className="flex flex-wrap gap-1 lg:gap-1.5">
+                  <div className="flex items-center gap-2 fluid-mb-3">
+                    <MapPin className="fluid-icon-sm text-gray-400 flex-shrink-0" />
+                    <div className="flex flex-wrap fluid-gap-1">
                       {partner.states.slice(0, 3).map((state) => (
                         <span
                           key={state.id}
-                          className="px-2 py-0.5 text-xs lg:text-sm bg-gray-100 text-gray-600 rounded"
+                          className="px-2 py-0.5 fluid-text-xs bg-gray-100 text-gray-600 rounded"
                         >
                           {state.state_name}
                         </span>
                       ))}
                       {partner.states.length > 3 && (
-                        <span className="px-2 py-0.5 text-xs lg:text-sm bg-blue-100 text-blue-600 rounded">
+                        <span className="px-2 py-0.5 fluid-text-xs bg-blue-100 text-blue-600 rounded">
                           +{partner.states.length - 3} más
                         </span>
                       )}
@@ -223,35 +223,35 @@ export default function PartnersListPage() {
                 )}
 
                 {/* Contacto */}
-                <div className="space-y-1.5 lg:space-y-2 text-sm lg:text-base text-gray-600 mb-3 lg:mb-4">
+                <div className="space-y-1.5 flex flex-col fluid-gap-2 fluid-text-base text-gray-600 fluid-mb-3">
                   {partner.email && (
                     <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 lg:h-5 lg:w-5 text-gray-400" />
+                      <Mail className="fluid-icon-sm text-gray-400" />
                       <span className="truncate">{partner.email}</span>
                     </div>
                   )}
                   {partner.phone && (
                     <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 lg:h-5 lg:w-5 text-gray-400" />
+                      <Phone className="fluid-icon-sm text-gray-400" />
                       <span>{partner.phone}</span>
                     </div>
                   )}
                   {partner.website && (
                     <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4 lg:h-5 lg:w-5 text-gray-400" />
+                      <Globe className="fluid-icon-sm text-gray-400" />
                       <span className="truncate">{partner.website}</span>
                     </div>
                   )}
                 </div>
 
                 {/* Estadísticas y acción */}
-                <div className="flex items-center justify-between pt-3 lg:pt-4 border-t border-gray-100">
-                  <span className="text-sm lg:text-base text-gray-500">
+                <div className="flex items-center justify-between fluid-pt-3 border-t border-gray-100">
+                  <span className="fluid-text-base text-gray-500">
                     {partner.campus_count || 0} plantel{partner.campus_count !== 1 ? 'es' : ''}
                   </span>
-                  <div className="flex items-center gap-1 lg:gap-2 text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-xs lg:text-sm font-medium">Ver detalle</span>
-                    <ChevronRight className="h-4 w-4 lg:h-5 lg:w-5" />
+                  <div className="flex items-center gap-1 fluid-gap-2 text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="fluid-text-xs font-medium">Ver detalle</span>
+                    <ChevronRight className="fluid-icon-sm" />
                   </div>
                 </div>
               </div>

@@ -1040,8 +1040,8 @@ const ExamTestRunPage: React.FC = () => {
     switch (currentItem.question_type) {
       case 'true_false':
         return (
-          <div className="space-y-3 w-full">
-            <label className={`group flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-all w-full ${
+          <div className="flex flex-col fluid-gap-3 w-full">
+            <label className={`group flex items-center fluid-gap-4 fluid-p-4 border rounded-fluid-md cursor-pointer transition-all w-full ${
               currentAnswer === true 
                 ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' 
                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
@@ -1064,7 +1064,7 @@ const ExamTestRunPage: React.FC = () => {
                 Verdadero
               </span>
             </label>
-            <label className={`group flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-all w-full ${
+            <label className={`group flex items-center fluid-gap-4 fluid-p-4 border rounded-fluid-md cursor-pointer transition-all w-full ${
               currentAnswer === false 
                 ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' 
                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
@@ -1092,17 +1092,17 @@ const ExamTestRunPage: React.FC = () => {
 
       case 'multiple_choice':
         return (
-          <div className="space-y-2">
+          <div className="flex flex-col fluid-gap-2">
             {currentItem.options?.map((option: any, index: number) => (
               <label
                 key={option.id}
-                className={`group flex items-center p-3 border rounded-lg cursor-pointer transition-all ${
+                className={`group flex items-center fluid-p-3 border rounded-fluid-md cursor-pointer transition-all ${
                   currentAnswer === option.id 
                     ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' 
                     : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
-                <div className={`flex items-center justify-center w-7 h-7 rounded-full font-medium text-sm flex-shrink-0 transition-all ${
+                <div className={`flex items-center justify-center w-7 h-7 rounded-full font-medium fluid-text-sm flex-shrink-0 transition-all ${
                   currentAnswer === option.id 
                     ? 'bg-primary-500 text-white' 
                     : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'
@@ -1118,7 +1118,7 @@ const ExamTestRunPage: React.FC = () => {
                   className="hidden"
                 />
                 <div
-                  className="ml-3 text-sm text-gray-700 prose prose-sm max-w-none flex-1"
+                  className="fluid-ml-3 fluid-text-sm text-gray-700 prose prose-sm max-w-none flex-1"
                   dangerouslySetInnerHTML={{ __html: option.answer_text }}
                 />
               </label>
@@ -1128,8 +1128,8 @@ const ExamTestRunPage: React.FC = () => {
 
       case 'multiple_select':
         return (
-          <div className="space-y-2">
-            <p className="text-xs text-gray-500 mb-3 flex items-center gap-1.5">
+          <div className="flex flex-col fluid-gap-2">
+            <p className="fluid-text-xs text-gray-500 fluid-mb-3 flex items-center fluid-gap-2">
               <span className="w-4 h-4 rounded bg-primary-100 text-primary-600 flex items-center justify-center text-[10px]">✓</span>
               Selecciona todas las opciones correctas
             </p>
@@ -1140,7 +1140,7 @@ const ExamTestRunPage: React.FC = () => {
               return (
                 <label
                   key={option.id}
-                  className={`group flex items-center p-3 border rounded-lg cursor-pointer transition-all ${
+                  className={`group flex items-center fluid-p-3 border rounded-fluid-md cursor-pointer transition-all ${
                     isChecked 
                       ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' 
                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
@@ -1165,7 +1165,7 @@ const ExamTestRunPage: React.FC = () => {
                     className="hidden"
                   />
                   <div
-                    className="ml-3 text-sm text-gray-700 prose prose-sm max-w-none flex-1"
+                    className="fluid-ml-3 fluid-text-sm text-gray-700 prose prose-sm max-w-none flex-1"
                     dangerouslySetInnerHTML={{ __html: option.answer_text }}
                   />
                 </label>
@@ -1229,9 +1229,9 @@ const ExamTestRunPage: React.FC = () => {
         };
 
         return (
-          <div className="space-y-2">
-            <p className="text-xs text-gray-500 mb-3 flex items-center gap-1.5">
-              <GripVertical className="w-4 h-4 text-gray-400" />
+          <div className="flex flex-col fluid-gap-2">
+            <p className="fluid-text-xs text-gray-500 fluid-mb-3 flex items-center fluid-gap-2">
+              <GripVertical className="fluid-icon-sm text-gray-400" />
               Arrastra para ordenar correctamente
             </p>
             {orderedOptions.map((option: any, index: number) => (
@@ -1242,7 +1242,7 @@ const ExamTestRunPage: React.FC = () => {
                 style={{
                   transition: 'all 0.15s ease'
                 }}
-                className={`group flex items-center p-3 border-2 rounded-xl cursor-grab active:cursor-grabbing select-none ${
+                className={`group flex items-center fluid-p-3 border-2 rounded-fluid-lg cursor-grab active:cursor-grabbing select-none ${
                   draggedIndex === index 
                     ? 'border-primary-500 bg-primary-100 border-dashed opacity-50' 
                     : draggedIndex !== null
@@ -1250,14 +1250,14 @@ const ExamTestRunPage: React.FC = () => {
                     : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
                 }`}
               >
-                <div className={`flex items-center justify-center w-7 h-7 rounded-lg font-bold text-sm flex-shrink-0 transition-all ${
+                <div className={`flex items-center justify-center w-7 h-7 rounded-fluid-md font-bold fluid-text-sm flex-shrink-0 transition-all ${
                   draggedIndex === index 
                     ? 'bg-primary-300 text-white' 
                     : 'bg-gray-100 text-gray-600'
                 }`}>
                   {index + 1}
                 </div>
-                <GripVertical className={`w-5 h-5 flex-shrink-0 mx-2 transition-colors ${
+                <GripVertical className={`fluid-icon-sm flex-shrink-0 fluid-mx-2 transition-colors ${
                   draggedIndex === index 
                     ? 'text-primary-300' 
                     : 'text-gray-300 group-hover:text-gray-500'
@@ -1284,12 +1284,12 @@ const ExamTestRunPage: React.FC = () => {
                   minWidth: '320px',
                   maxWidth: '90vw',
                 }}
-                className="flex items-center p-4 border-2 border-primary-500 bg-white rounded-xl shadow-2xl ring-4 ring-primary-200"
+                className="flex items-center fluid-p-4 border-2 border-primary-500 bg-white rounded-fluid-lg shadow-2xl ring-4 ring-primary-200"
               >
                 <div className="flex items-center justify-center w-8 h-8 rounded-lg font-bold text-base flex-shrink-0 bg-primary-500 text-white shadow-md">
                   {draggedContent.index}
                 </div>
-                <GripVertical className="w-6 h-6 flex-shrink-0 mx-3 text-primary-500" />
+                <GripVertical className="fluid-icon flex-shrink-0 fluid-mx-3 text-primary-500" />
                 <div
                   className="text-base prose prose-base max-w-none flex-1 text-gray-900 font-medium"
                   dangerouslySetInnerHTML={{ __html: draggedContent.text }}
@@ -1408,7 +1408,7 @@ const ExamTestRunPage: React.FC = () => {
             textParts.push(
               <span
                 key={blankId}
-                className={`inline-block min-w-[120px] mx-1 px-3 py-1.5 rounded-lg border-2 border-dashed transition-all ${
+                className={`inline-block min-w-[120px] fluid-mx-1 fluid-px-3 fluid-py-2 rounded-fluid-md border-2 border-dashed transition-all ${
                   assignedOption 
                     ? 'bg-indigo-100 border-indigo-400 cursor-grab' 
                     : 'bg-gray-100 border-gray-300'
@@ -1422,19 +1422,19 @@ const ExamTestRunPage: React.FC = () => {
                     draggable
                     onDragStart={(e) => handleFillDragStart(e, assignedOption.id)}
                     onDragEnd={handleFillDragEnd}
-                    className="flex items-center gap-1 text-indigo-800 font-medium cursor-grab active:cursor-grabbing"
+                    className="flex items-center fluid-gap-1 text-indigo-800 font-medium cursor-grab active:cursor-grabbing"
                   >
-                    <GripVertical className="w-3 h-3 opacity-50" />
+                    <GripVertical className="fluid-icon-xs opacity-50" />
                     {assignedOption.answer_text}
                     <button
                       onClick={(e) => { e.stopPropagation(); handleRemoveFromBlank(blankId); }}
-                      className="ml-1 p-0.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"
+                      className="fluid-ml-1 fluid-p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-fluid-sm"
                     >
                       ✕
                     </button>
                   </span>
                 ) : (
-                  <span className="text-gray-400 text-sm">Espacio {match[1]}</span>
+                  <span className="text-gray-400 fluid-text-sm">Espacio {match[1]}</span>
                 )}
               </span>
             );
@@ -1455,20 +1455,20 @@ const ExamTestRunPage: React.FC = () => {
         };
 
         return (
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600 mb-3 flex items-center gap-2 bg-indigo-50 p-3 rounded-lg">
-              <GripVertical className="w-5 h-5 text-indigo-500" />
+          <div className="flex flex-col fluid-gap-4">
+            <p className="fluid-text-sm text-gray-600 fluid-mb-3 flex items-center fluid-gap-2 bg-indigo-50 fluid-p-3 rounded-fluid-md">
+              <GripVertical className="fluid-icon-sm text-indigo-500" />
               <span><strong>Arrastra</strong> cada opción al espacio en blanco correspondiente</span>
             </p>
             
             {/* Texto con blanks */}
-            <div className="p-5 bg-white rounded-xl border border-gray-200 shadow-sm text-gray-800 leading-relaxed text-lg">
+            <div className="fluid-p-5 bg-white rounded-fluid-lg border border-gray-200 shadow-sm text-gray-800 leading-relaxed fluid-text-lg">
               {renderTextWithBlanks()}
             </div>
             
             {/* Opciones disponibles */}
             <div 
-              className="p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 min-h-[80px] transition-all"
+              className="fluid-p-4 bg-gray-50 rounded-fluid-lg border-2 border-dashed border-gray-300 min-h-[80px] transition-all"
               onDragOver={(e) => {
                 e.preventDefault();
                 e.currentTarget.classList.add('ring-2', 'ring-gray-400', 'bg-gray-100');
@@ -1478,27 +1478,27 @@ const ExamTestRunPage: React.FC = () => {
               }}
               onDrop={handleDropOnAvailable}
             >
-              <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <List className="w-5 h-5 text-gray-500" />
+              <p className="fluid-text-sm font-semibold text-gray-700 fluid-mb-3 flex items-center fluid-gap-2">
+                <List className="fluid-icon-sm text-gray-500" />
                 Opciones disponibles
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap fluid-gap-2">
                 {availableOptions.map((option: any) => (
                   <div
                     key={option.id}
                     draggable
                     onDragStart={(e) => handleFillDragStart(e, option.id)}
                     onDragEnd={handleFillDragEnd}
-                    className="px-4 py-2 bg-white border-2 border-gray-300 text-gray-800 rounded-lg cursor-grab active:cursor-grabbing hover:bg-gray-50 hover:border-gray-400 transition-all text-sm font-medium shadow-sm select-none"
+                    className="fluid-px-4 fluid-py-2 bg-white border-2 border-gray-300 text-gray-800 rounded-fluid-md cursor-grab active:cursor-grabbing hover:bg-gray-50 hover:border-gray-400 transition-all fluid-text-sm font-medium shadow-sm select-none"
                   >
-                    <span className="flex items-center gap-2">
-                      <GripVertical className="w-4 h-4 text-gray-400" />
+                    <span className="flex items-center fluid-gap-2">
+                      <GripVertical className="fluid-icon-sm text-gray-400" />
                       {option.answer_text}
                     </span>
                   </div>
                 ))}
                 {availableOptions.length === 0 && (
-                  <p className="text-green-600 text-sm italic flex items-center gap-1">
+                  <p className="text-green-600 fluid-text-sm italic flex items-center fluid-gap-1">
                     ✓ Todas las opciones han sido asignadas
                   </p>
                 )}
@@ -1591,15 +1591,15 @@ const ExamTestRunPage: React.FC = () => {
         ];
 
         return (
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600 mb-3 flex items-center gap-2 bg-indigo-50 p-3 rounded-lg">
-              <GripVertical className="w-5 h-5 text-indigo-500" />
+          <div className="flex flex-col fluid-gap-4">
+            <p className="fluid-text-sm text-gray-600 fluid-mb-3 flex items-center fluid-gap-2 bg-indigo-50 fluid-p-3 rounded-fluid-md">
+              <GripVertical className="fluid-icon-sm text-indigo-500" />
               <span><strong>Arrastra</strong> cada elemento a la columna donde corresponde</span>
             </p>
             
             {/* Elementos sin clasificar - Área de origen */}
             <div 
-              className="p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 min-h-[80px] transition-all"
+              className="fluid-p-4 bg-gray-50 rounded-fluid-lg border-2 border-dashed border-gray-300 min-h-[80px] transition-all"
               onDragOver={(e) => {
                 e.preventDefault();
                 e.currentTarget.classList.add('ring-2', 'ring-gray-400', 'bg-gray-100');
@@ -1609,27 +1609,27 @@ const ExamTestRunPage: React.FC = () => {
               }}
               onDrop={handleDropOnUnclassified}
             >
-              <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <List className="w-5 h-5 text-gray-500" />
+              <p className="fluid-text-sm font-semibold text-gray-700 fluid-mb-3 flex items-center fluid-gap-2">
+                <List className="fluid-icon-sm text-gray-500" />
                 Elementos por clasificar
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap fluid-gap-2">
                 {unclassifiedItems.map((option: any) => (
                   <div
                     key={option.id}
                     draggable
                     onDragStart={(e) => handleColDragStart(e, option.id)}
                     onDragEnd={handleColDragEnd}
-                    className="px-4 py-2 bg-white border-2 border-gray-300 text-gray-800 rounded-lg cursor-grab active:cursor-grabbing hover:bg-gray-50 hover:border-gray-400 transition-all text-sm font-medium shadow-sm select-none"
+                    className="fluid-px-4 fluid-py-2 bg-white border-2 border-gray-300 text-gray-800 rounded-fluid-md cursor-grab active:cursor-grabbing hover:bg-gray-50 hover:border-gray-400 transition-all fluid-text-sm font-medium shadow-sm select-none"
                   >
-                    <span className="flex items-center gap-2">
-                      <GripVertical className="w-4 h-4 text-gray-400" />
+                    <span className="flex items-center fluid-gap-2">
+                      <GripVertical className="fluid-icon-sm text-gray-400" />
                       {option.answer_text}
                     </span>
                   </div>
                 ))}
                 {unclassifiedItems.length === 0 && (
-                  <p className="text-green-600 text-sm italic flex items-center gap-1">
+                  <p className="text-green-600 fluid-text-sm italic flex items-center fluid-gap-1">
                     ✓ Todos los elementos han sido clasificados
                   </p>
                 )}
@@ -1638,7 +1638,7 @@ const ExamTestRunPage: React.FC = () => {
             
             {/* Columnas de destino */}
             <div 
-              className="grid gap-4" 
+              className="grid fluid-gap-4" 
               style={{ gridTemplateColumns: `repeat(${Math.min(columns.length, 3)}, minmax(0, 1fr))` }}
             >
               {columns.map((columnId, idx) => {
@@ -1650,42 +1650,42 @@ const ExamTestRunPage: React.FC = () => {
                 return (
                   <div
                     key={columnId}
-                    className={`rounded-xl overflow-hidden border-2 ${color.border} shadow-md transition-all`}
+                    className={`rounded-fluid-lg overflow-hidden border-2 ${color.border} shadow-md transition-all`}
                     onDragOver={(e) => handleColDragOver(e, color.ring)}
                     onDragLeave={(e) => handleColDragLeave(e, color.ring)}
                     onDrop={(e) => handleDropOnColumn(e, columnId, color.ring)}
                   >
                     {/* Header de la columna */}
-                    <div className={`${color.header} text-white px-4 py-3 font-bold text-center`}>
+                    <div className={`${color.header} text-white fluid-px-4 fluid-py-3 font-bold text-center`}>
                       {columnId.replace('columna_', 'Columna ').replace(/_/g, ' ')}
                     </div>
                     
                     {/* Área de soltar */}
-                    <div className={`${color.bg} p-3 min-h-[160px]`}>
+                    <div className={`${color.bg} fluid-p-3 min-h-[160px]`}>
                       {colItems.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full min-h-[120px] text-gray-400">
-                          <div className="w-12 h-12 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center mb-2">
-                            <ArrowDown className="w-6 h-6 text-gray-400" />
+                          <div className="w-12 h-12 border-2 border-dashed border-gray-300 rounded-fluid-md flex items-center justify-center fluid-mb-2">
+                            <ArrowDown className="fluid-icon text-gray-400" />
                           </div>
-                          <p className="text-xs text-center">Suelta elementos aquí</p>
+                          <p className="fluid-text-xs text-center">Suelta elementos aquí</p>
                         </div>
                       ) : (
-                        <div className="space-y-2">
+                        <div className="flex flex-col fluid-gap-2">
                           {colItems.map((item: any) => (
                             <div
                               key={item.id}
                               draggable
                               onDragStart={(e) => handleColDragStart(e, item.id)}
                               onDragEnd={handleColDragEnd}
-                              className={`${color.item} border px-3 py-2 rounded-lg text-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-all flex items-center justify-between group`}
+                              className={`${color.item} border fluid-px-3 fluid-py-2 rounded-fluid-md fluid-text-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-all flex items-center justify-between group`}
                             >
-                              <span className="flex items-center gap-2">
-                                <GripVertical className="w-4 h-4 opacity-50" />
+                              <span className="flex items-center fluid-gap-2">
+                                <GripVertical className="fluid-icon-sm opacity-50" />
                                 <span>{item.answer_text}</span>
                               </span>
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleUnclassify(item.id); }}
-                                className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                                className="opacity-0 group-hover:opacity-100 fluid-p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-fluid-sm transition-all"
                               >
                                 ✕
                               </button>
@@ -1714,9 +1714,9 @@ const ExamTestRunPage: React.FC = () => {
     
     if (steps.length === 0) {
       return (
-        <div className="text-center py-6">
-          <Image className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-500 text-sm">Este ejercicio no tiene pasos configurados</p>
+        <div className="text-center fluid-py-6">
+          <Image className="fluid-icon-xl mx-auto text-gray-300 fluid-mb-3" />
+          <p className="text-gray-500 fluid-text-sm">Este ejercicio no tiene pasos configurados</p>
         </div>
       );
     }
@@ -1725,10 +1725,10 @@ const ExamTestRunPage: React.FC = () => {
     const isStepDone = stepCompleted[`${currentItem.exercise_id}_${currentStepIndex}`];
 
     return (
-      <div className="space-y-4">
+      <div className="flex flex-col fluid-gap-4">
         {/* Indicador de pasos */}
         {steps.length > 1 && (
-          <div className="flex items-center justify-center gap-1 mb-2">
+          <div className="flex items-center justify-center fluid-gap-1 fluid-mb-2">
             {steps.map((_: any, idx: number) => (
               <div
                 key={idx}
@@ -1791,7 +1791,7 @@ const ExamTestRunPage: React.FC = () => {
   if (isLoading || loadingExercises) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 flex flex-col justify-center items-center">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-4">
+        <div className="bg-white rounded-fluid-xl shadow-xl fluid-p-8 max-w-md w-full fluid-mx-4">
           <LoadingSpinner message={loadingExercises ? 'Cargando ejercicios...' : 'Cargando examen...'} />
         </div>
       </div>
@@ -1801,8 +1801,8 @@ const ExamTestRunPage: React.FC = () => {
   if (!exam) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 flex justify-center items-center">
-        <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
-          <AlertCircle className="w-16 h-16 mx-auto text-red-400 mb-4" />
+        <div className="bg-white rounded-fluid-xl shadow-xl fluid-p-8 text-center">
+          <AlertCircle className="fluid-icon-2xl mx-auto text-red-400 fluid-mb-4" />
           <p className="text-gray-600 font-medium">Examen no encontrado</p>
         </div>
       </div>
@@ -1812,9 +1812,9 @@ const ExamTestRunPage: React.FC = () => {
   if (selectedItems.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 flex justify-center items-center">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-4">
+        <div className="bg-white rounded-fluid-xl shadow-xl fluid-p-8 max-w-md w-full fluid-mx-4">
           <LoadingSpinner />
-          <p className="text-gray-600 text-center mt-4">Preparando preguntas...</p>
+          <p className="text-gray-600 text-center fluid-mt-4">Preparando preguntas...</p>
         </div>
       </div>
     );
@@ -1830,20 +1830,20 @@ const ExamTestRunPage: React.FC = () => {
     <div className="min-h-screen bg-slate-50 overflow-x-hidden overscroll-contain">
       {/* Modal de confirmación de salida */}
       {showExitConfirm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden">
-            <div className="p-6 text-center">
-              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertCircle className="w-6 h-6 text-amber-600" />
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4">
+          <div className="bg-white rounded-fluid-xl shadow-2xl max-w-sm w-full overflow-hidden">
+            <div className="fluid-p-6 text-center">
+              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto fluid-mb-4">
+                <AlertCircle className="fluid-icon text-amber-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">¿Salir del examen?</h3>
-              <p className="text-sm text-gray-500 mb-6">
+              <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-2">¿Salir del examen?</h3>
+              <p className="fluid-text-sm text-gray-500 fluid-mb-6">
                 Tu progreso será guardado y podrás continuar después.
               </p>
-              <div className="flex gap-3">
+              <div className="flex fluid-gap-3">
                 <button
                   onClick={() => setShowExitConfirm(false)}
-                  className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="flex-1 fluid-px-4 fluid-py-3 fluid-text-sm font-medium text-gray-700 bg-gray-100 rounded-fluid-md hover:bg-gray-200 transition-colors"
                 >
                   Continuar
                 </button>
@@ -1870,7 +1870,7 @@ const ExamTestRunPage: React.FC = () => {
                     localStorage.setItem(examSessionKey, JSON.stringify(sessionData));
                     navigate('/exams');
                   }}
-                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors"
+                  className="flex-1 fluid-px-4 fluid-py-3 fluid-text-sm font-medium text-white bg-amber-500 rounded-fluid-md hover:bg-amber-600 transition-colors"
                 >
                   Salir
                 </button>
@@ -1886,7 +1886,7 @@ const ExamTestRunPage: React.FC = () => {
           className="fixed top-20 right-4 z-[100] animate-slide-in-right"
         >
           <div 
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border backdrop-blur-sm ${
+            className={`flex items-center fluid-gap-3 fluid-px-4 fluid-py-3 rounded-fluid-md shadow-lg border backdrop-blur-sm ${
               showTimeWarning.minutes === 1 
                 ? 'bg-red-50 border-red-200 text-red-800' 
                 : showTimeWarning.minutes === 5
@@ -1901,7 +1901,7 @@ const ExamTestRunPage: React.FC = () => {
                   ? 'bg-orange-100'
                   : 'bg-amber-100'
             }`}>
-              <Clock className={`w-4 h-4 ${
+              <Clock className={`fluid-icon-sm ${
                 showTimeWarning.minutes === 1 
                   ? 'text-red-600' 
                   : showTimeWarning.minutes === 5
@@ -1910,12 +1910,12 @@ const ExamTestRunPage: React.FC = () => {
               }`} />
             </div>
             <div className="flex flex-col">
-              <span className="font-semibold text-sm">
+              <span className="font-semibold fluid-text-sm">
                 {showTimeWarning.minutes === 1 
                   ? '¡Último minuto!' 
                   : `Quedan ${showTimeWarning.minutes} minutos`}
               </span>
-              <span className={`text-xs ${
+              <span className={`fluid-text-xs ${
                 showTimeWarning.minutes === 1 
                   ? 'text-red-600' 
                   : showTimeWarning.minutes === 5
@@ -1928,7 +1928,7 @@ const ExamTestRunPage: React.FC = () => {
               </span>
             </div>
             <button 
-              className={`ml-2 p-1.5 rounded-md transition-colors ${
+              className={`fluid-ml-2 fluid-p-2 rounded-fluid-sm transition-colors ${
                 showTimeWarning.minutes === 1 
                   ? 'hover:bg-red-100 text-red-400 hover:text-red-600' 
                   : showTimeWarning.minutes === 5
@@ -1937,7 +1937,7 @@ const ExamTestRunPage: React.FC = () => {
               }`}
               onClick={() => setShowTimeWarning(null)}
             >
-              <X className="w-4 h-4" />
+              <X className="fluid-icon-sm" />
             </button>
           </div>
         </div>
@@ -1946,19 +1946,19 @@ const ExamTestRunPage: React.FC = () => {
       {/* Modal de ejercicio completado - notificación tipo toast */}
       {showExerciseCompleted && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center fluid-p-4"
           onClick={() => setShowExerciseCompleted(false)}
         >
           <div 
-            className="bg-emerald-600 text-white rounded-xl shadow-2xl px-6 py-4 flex items-center gap-3 animate-bounce-in"
+            className="bg-emerald-600 text-white rounded-fluid-xl shadow-2xl fluid-px-6 fluid-py-4 flex items-center fluid-gap-3 animate-bounce-in"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-6 h-6" />
+              <CheckCircle className="fluid-icon" />
             </div>
             <div>
               <h3 className="font-semibold">¡Ejercicio completado!</h3>
-              <p className="text-sm text-emerald-100">Has terminado todos los pasos</p>
+              <p className="fluid-text-sm text-emerald-100">Has terminado todos los pasos</p>
             </div>
           </div>
         </div>
@@ -1966,18 +1966,18 @@ const ExamTestRunPage: React.FC = () => {
 
       {/* Modal de error para campo incorrecto */}
       {showErrorModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4" onClick={() => setShowErrorModal(null)}>
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[85vh] flex flex-col animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] fluid-p-4" onClick={() => setShowErrorModal(null)}>
+          <div className="bg-white rounded-fluid-xl shadow-2xl max-w-lg w-full fluid-mx-4 max-h-[85vh] flex flex-col animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
             {/* Header fijo */}
-            <div className="flex items-center gap-4 p-6 pb-4 border-b border-gray-100">
+            <div className="flex items-center fluid-gap-4 fluid-p-6 pb-4 border-b border-gray-100">
               <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                <X className="w-6 h-6 text-red-600" />
+                <X className="fluid-icon text-red-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">Respuesta incorrecta</h3>
+              <h3 className="fluid-text-lg font-semibold text-gray-900">Respuesta incorrecta</h3>
             </div>
             
             {/* Contenido con scroll */}
-            <div className="flex-1 overflow-y-auto p-6 pt-4">
+            <div className="flex-1 overflow-y-auto fluid-p-6 pt-4">
               <div 
                 className="text-gray-600 prose prose-sm max-w-none [&>p]:my-2 [&>ul]:my-2 [&>ol]:my-2 [&>h1]:text-lg [&>h2]:text-base [&>h3]:text-sm"
                 dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(showErrorModal.message) }}
@@ -1985,7 +1985,7 @@ const ExamTestRunPage: React.FC = () => {
             </div>
             
             {/* Footer fijo */}
-            <div className="p-6 pt-4 border-t border-gray-100">
+            <div className="fluid-p-6 pt-4 border-t border-gray-100">
               {(() => {
                 // max_attempts son oportunidades ADICIONALES después del primer error 
                 const currentExercise = currentItem;
@@ -1998,7 +1998,7 @@ const ExamTestRunPage: React.FC = () => {
                 const remaining = additionalAttempts - usedAttempts + 1;
                 
                 return (
-                  <p className="text-xs text-amber-600 mb-3 text-center">
+                  <p className="fluid-text-xs text-amber-600 fluid-mb-3 text-center">
                     {remaining > 0 
                       ? `Te ${remaining === 1 ? 'queda' : 'quedan'} ${remaining} ${remaining === 1 ? 'oportunidad' : 'oportunidades'}`
                       : 'No te quedan más oportunidades'
@@ -2008,7 +2008,7 @@ const ExamTestRunPage: React.FC = () => {
               })()}
               <button
                 onClick={() => setShowErrorModal(null)}
-                className={`w-full px-4 py-2.5 text-white rounded-lg font-medium transition-colors ${currentMode === 'simulator' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}
+                className={`w-full fluid-px-4 fluid-py-3 text-white rounded-fluid-md font-medium transition-colors ${currentMode === 'simulator' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}
               >
                 Intentar de nuevo
               </button>
@@ -2092,14 +2092,14 @@ const ExamTestRunPage: React.FC = () => {
 
       {/* Header minimalista - FIJO */}
       <div className="fixed top-0 left-0 right-0 z-40 shadow-md bg-blue-600">
-        <div className="w-full px-2 sm:px-4 md:px-6 lg:px-8 xl:px-12 py-2 sm:py-3">
+        <div className="w-full fluid-px-6 fluid-py-3">
           <div className="flex items-center justify-between">
             {/* Izquierda: Título */}
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-              <div className="min-w-0 flex items-center gap-2 sm:gap-3">
-                <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl 2xl:text-4xl font-bold text-white truncate max-w-[160px] xs:max-w-[200px] sm:max-w-[260px] md:max-w-[360px] lg:max-w-none drop-shadow-sm">{exam.name}</h1>
+            <div className="flex items-center fluid-gap-3 min-w-0 flex-1">
+              <div className="min-w-0 flex items-center fluid-gap-3">
+                <h1 className="fluid-text-2xl font-bold text-white truncate max-w-[360px] lg:max-w-none drop-shadow-sm">{exam.name}</h1>
                 {/* Badge Examen/Simulador en navbar */}
-                <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
+                <span className={`hidden sm:inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-sm text-[10px] font-semibold uppercase tracking-wide ${
                   currentMode === 'simulator' 
                     ? 'bg-yellow-300 text-yellow-900' 
                     : 'bg-emerald-400 text-emerald-900'
@@ -2108,13 +2108,13 @@ const ExamTestRunPage: React.FC = () => {
                 </span>
                 {/* Indicador de pausa por desconexión */}
                 {isPaused && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-amber-400 text-amber-900 animate-pulse">
+                  <span className="inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-sm text-[10px] font-semibold uppercase tracking-wide bg-amber-400 text-amber-900 animate-pulse">
                     ⏸ Pausado
                   </span>
                 )}
                 {/* Indicador de sin conexión */}
                 {!isOnline && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-red-400 text-red-900">
+                  <span className="inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-sm text-[10px] font-semibold uppercase tracking-wide bg-red-400 text-red-900">
                     📶 Sin conexión
                   </span>
                 )}
@@ -2122,11 +2122,11 @@ const ExamTestRunPage: React.FC = () => {
             </div>
             
             {/* Derecha: Timer, ID y Salir */}
-            <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0">
+            <div className="flex items-center fluid-gap-3 flex-shrink-0">
               {/* ID del usuario */}
-              <div className="hidden lg:flex items-center gap-2 text-sm">
+              <div className="hidden lg:flex items-center fluid-gap-2 fluid-text-sm">
                 <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
-                  <User className="w-4 h-4 text-white" />
+                  <User className="fluid-icon-sm text-white" />
                 </div>
                 <span className="text-white/90 font-medium">
                   {user?.id || '---'}
@@ -2134,14 +2134,14 @@ const ExamTestRunPage: React.FC = () => {
               </div>
               
               {/* Timer */}
-              <div className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 md:px-3 py-1 sm:py-1.5 rounded-lg font-mono text-xs sm:text-sm transition-all ${
+              <div className={`flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 rounded-fluid-md font-mono fluid-text-sm transition-all ${
                 isTimeCritical 
                   ? 'bg-red-500 text-white animate-pulse' 
                   : isTimeWarning 
                   ? 'bg-amber-400 text-amber-900' 
                   : 'bg-white/20 text-white'
               }`}>
-                <Clock className="w-4 h-4" />
+                <Clock className="fluid-icon-sm" />
                 <span className="font-medium">
                   {String(displayMinutes).padStart(2, '0')}:{String(displaySeconds).padStart(2, '0')}
                 </span>
@@ -2150,10 +2150,10 @@ const ExamTestRunPage: React.FC = () => {
               {/* Botón Salir */}
               <button
                 onClick={() => setShowExitConfirm(true)}
-                className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 text-white/90 hover:text-white bg-white/10 hover:bg-red-500/80 rounded-lg transition-colors text-xs sm:text-sm font-medium"
+                className="flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 text-white/90 hover:text-white bg-white/10 hover:bg-red-500/80 rounded-fluid-md transition-colors fluid-text-sm font-medium"
                 title="Salir del examen"
               >
-                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <LogOut className="fluid-icon-sm" />
                 <span className="hidden md:inline">Salir</span>
               </button>
             </div>
@@ -2170,22 +2170,22 @@ const ExamTestRunPage: React.FC = () => {
       </div>
 
       {/* Navegación de ítems - FIJO debajo del header */}
-      <div className="fixed top-[57px] sm:top-[65px] md:top-[73px] left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100">
-        <div className="w-full px-2 sm:px-4 md:px-6 lg:px-8 xl:px-12 py-1.5 sm:py-2">
-          <div className="flex items-center justify-between gap-2">
+      <div className="fixed top-[65px] left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100">
+        <div className="w-full fluid-px-6 fluid-py-2">
+          <div className="flex items-center justify-between fluid-gap-2">
             {/* Izquierda: Navegación de pregunta + botón marcar */}
-            <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="flex items-center fluid-gap-2">
               <button
                 onClick={() => setShowNavPanel(!showNavPanel)}
-                className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1 sm:py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all min-w-[90px] sm:min-w-[120px]"
+                className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-gray-100 hover:bg-gray-200 rounded-fluid-md transition-all min-w-[120px]"
               >
-                <span className="flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 text-white rounded-full text-xs sm:text-sm font-bold bg-blue-600">
+                <span className="flex items-center justify-center w-8 h-8 text-white rounded-full fluid-text-sm font-bold bg-blue-600">
                   {currentItemIndex + 1}
                 </span>
-                <span className="text-xs sm:text-sm text-gray-600">
+                <span className="fluid-text-sm text-gray-600">
                   de <span className="font-semibold text-gray-900">{selectedItems.length}</span>
                 </span>
-                <ChevronRight className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 transition-transform ${showNavPanel ? 'rotate-90' : ''}`} />
+                <ChevronRight className={`fluid-icon-sm text-gray-400 transition-transform ${showNavPanel ? 'rotate-90' : ''}`} />
               </button>
 
               {/* Botón de marcar pregunta (junto a navegación) */}
@@ -2201,7 +2201,7 @@ const ExamTestRunPage: React.FC = () => {
                     return newSet;
                   });
                 }}
-                className={`flex items-center justify-center px-2 sm:px-3 py-1 sm:py-1.5 h-[30px] sm:h-[38px] rounded-lg transition-colors ${
+                className={`flex items-center justify-center fluid-px-3 fluid-py-2 h-[38px] rounded-fluid-md transition-colors ${
                   flaggedQuestions.has(currentItemIndex)
                     ? 'bg-orange-500 text-white hover:bg-orange-600'
                     : 'bg-gray-100 text-gray-500 hover:bg-orange-100 hover:text-orange-600'
@@ -2213,30 +2213,30 @@ const ExamTestRunPage: React.FC = () => {
             </div>
             
             {/* Derecha: Botones de navegación */}
-            <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="flex items-center fluid-gap-2">
               <button
                 onClick={handlePrevious}
                 disabled={currentItemIndex === 0}
-                className="flex items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-lg"
+                className="flex items-center fluid-gap-1 fluid-px-3 fluid-py-2 fluid-text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-fluid-md"
               >
-                <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <ChevronLeft className="fluid-icon-sm" />
                 <span className="hidden md:inline">Anterior</span>
               </button>
               
               {currentItemIndex === selectedItems.length - 1 ? (
                 <button
                   onClick={() => setShowConfirmSubmit(true)}
-                  className="flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors rounded-lg"
+                  className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 fluid-text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors rounded-fluid-md"
                 >
                   <span>Entregar Examen</span>
                 </button>
               ) : (
                 <button
                   onClick={handleNext}
-                  className="flex items-center gap-0.5 sm:gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors rounded-lg"
+                  className="flex items-center fluid-gap-1 fluid-px-3 fluid-py-2 fluid-text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors rounded-fluid-md"
                 >
                   <span className="hidden md:inline">Siguiente</span>
-                  <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <ChevronRight className="fluid-icon-sm" />
                 </button>
               )}
             </div>
@@ -2254,8 +2254,8 @@ const ExamTestRunPage: React.FC = () => {
           />
           
           {/* Panel */}
-          <div className="fixed top-[95px] sm:top-[105px] md:top-[120px] left-1/2 -translate-x-1/2 z-50 w-[95vw] sm:w-[90vw] max-w-md bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
-            <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+          <div className="fixed top-[105px] left-1/2 -translate-x-1/2 z-50 w-[90vw] max-w-md bg-white rounded-fluid-xl shadow-2xl border border-gray-200 overflow-hidden">
+            <div className="fluid-px-4 fluid-py-3 bg-gray-50 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-gray-900">Navegación del examen</h3>
                 <button 
@@ -2265,11 +2265,11 @@ const ExamTestRunPage: React.FC = () => {
                   ✕
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Selecciona una pregunta para ir directamente</p>
+              <p className="fluid-text-xs text-gray-500 fluid-mt-1">Selecciona una pregunta para ir directamente</p>
             </div>
             
-            <div className="p-3 sm:p-4 max-h-[45vh] sm:max-h-[50vh] overflow-y-auto">
-              <div className="grid grid-cols-4 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-1.5 sm:gap-2">
+            <div className="fluid-p-4 max-h-[50vh] overflow-y-auto">
+              <div className="grid grid-cols-6 fluid-gap-2">
                 {selectedItems.map((item, idx) => {
                   const isAnswered = item.type === 'question' 
                     ? (item.question_type === 'ordering' 
@@ -2291,7 +2291,7 @@ const ExamTestRunPage: React.FC = () => {
                           setCurrentStepIndex(0);
                           setShowNavPanel(false);
                         }}
-                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-xs sm:text-sm font-medium transition-all ${
+                        className={`w-10 h-10 rounded-fluid-md flex items-center justify-center fluid-text-sm font-medium transition-all ${
                           isCurrent
                             ? (currentMode === 'simulator' ? 'bg-amber-500 text-white ring-2 ring-amber-300 scale-105' : 'bg-blue-600 text-white ring-2 ring-blue-300 scale-105')
                             : isFlagged
@@ -2324,7 +2324,7 @@ const ExamTestRunPage: React.FC = () => {
                         }`}
                         title={isFlagged ? 'Quitar marca' : 'Marcar para revisar'}
                       >
-                        <Flag className="w-2.5 h-2.5" />
+                        <Flag className="fluid-icon-xs" />
                       </button>
                     </div>
                   );
@@ -2333,21 +2333,21 @@ const ExamTestRunPage: React.FC = () => {
             </div>
             
             {/* Leyenda */}
-            <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex flex-wrap items-center justify-center gap-3 text-xs">
-              <div className="flex items-center gap-1.5">
-                <div className={`w-4 h-4 rounded ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-blue-600'}`}></div>
+            <div className="fluid-px-4 fluid-py-3 bg-gray-50 border-t border-gray-100 flex flex-wrap items-center justify-center fluid-gap-3 fluid-text-xs">
+              <div className="flex items-center fluid-gap-2">
+                <div className={`w-4 h-4 rounded-fluid-sm ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-blue-600'}`}></div>
                 <span className="text-gray-600">Actual</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded bg-emerald-500"></div>
+              <div className="flex items-center fluid-gap-2">
+                <div className="w-4 h-4 rounded-fluid-sm bg-emerald-500"></div>
                 <span className="text-gray-600">Respondida</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded bg-orange-500"></div>
+              <div className="flex items-center fluid-gap-2">
+                <div className="w-4 h-4 rounded-fluid-sm bg-orange-500"></div>
                 <span className="text-gray-600">Marcada</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded bg-gray-200"></div>
+              <div className="flex items-center fluid-gap-2">
+                <div className="w-4 h-4 rounded-fluid-sm bg-gray-200"></div>
                 <span className="text-gray-600">Sin responder</span>
               </div>
             </div>
@@ -2356,15 +2356,15 @@ const ExamTestRunPage: React.FC = () => {
       )}
 
       {/* Contenido principal */}
-      <div className="pt-[100px] sm:pt-[110px] md:pt-[125px] lg:pt-[140px] xl:pt-[150px] 2xl:pt-[160px] 3xl:pt-[180px] 4xl:pt-[200px] pb-[50px] sm:pb-[70px] lg:pb-[90px] xl:pb-[100px] 2xl:pb-[120px] 3xl:pb-[140px] 4xl:pb-[160px] min-h-screen">
-        <div className="max-w-3xl xl:max-w-4xl 2xl:max-w-5xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 xl:px-10 2xl:px-12 3xl:px-14 4xl:px-16 py-3 sm:py-4 md:py-6 lg:py-8 xl:py-10 2xl:py-12 3xl:py-14 4xl:py-16">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="pt-[125px] pb-[90px] min-h-screen">
+        <div className="max-w-4xl mx-auto fluid-px-6 fluid-py-8">
+          <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
             {/* Header del ítem - más simple */}
-            <div className="px-3 sm:px-4 md:px-5 lg:px-6 xl:px-8 2xl:px-10 3xl:px-12 4xl:px-14 py-2 sm:py-3 lg:py-4 xl:py-5 2xl:py-6 3xl:py-7 4xl:py-8 bg-gray-50 border-b border-gray-100">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+            <div className="fluid-px-6 fluid-py-4 bg-gray-50 border-b border-gray-100">
+              <div className="flex items-center justify-between fluid-gap-2">
+                <div className="flex items-center fluid-gap-2 flex-wrap">
                   {/* Badge Examen/Simulador */}
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
+                  <span className={`inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-sm text-[10px] font-semibold uppercase tracking-wide ${
                     currentMode === 'simulator' 
                       ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' 
                       : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
@@ -2372,7 +2372,7 @@ const ExamTestRunPage: React.FC = () => {
                     {currentMode === 'simulator' ? 'Simulador' : 'Examen'}
                   </span>
                   {/* Tipo de pregunta/ejercicio */}
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${
+                  <span className={`inline-flex items-center fluid-px-3 fluid-py-1 rounded-fluid-sm fluid-text-xs font-medium ${
                     currentItem?.type === 'question' 
                       ? (currentMode === 'simulator' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700')
                       : 'bg-purple-100 text-purple-700'
@@ -2392,13 +2392,13 @@ const ExamTestRunPage: React.FC = () => {
               
                 {/* Indicador de estado - solo para ejercicios */}
                 {currentItem?.type === 'exercise' && (
-                  <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-md ${
+                  <span className={`inline-flex items-center fluid-px-2 fluid-py-1 fluid-text-xs font-medium rounded-fluid-sm ${
                     isExerciseCompleted(currentItem)
                       ? 'text-emerald-700 bg-emerald-100'
                       : 'text-amber-700 bg-amber-100'
                   }`}>
                     {isExerciseCompleted(currentItem) ? (
-                      <><CheckCircle className="w-3 h-3 mr-1" />Completado</>
+                      <><CheckCircle className="fluid-icon-xs fluid-mr-1" />Completado</>
                     ) : (
                       'Pendiente'
                     )}
@@ -2408,11 +2408,11 @@ const ExamTestRunPage: React.FC = () => {
             </div>
           
             {/* Contenido */}
-            <div className="p-3 sm:p-4 md:p-5 lg:p-6">
+            <div className="fluid-p-6">
               {currentItem?.type === 'question' ? (
                 <>
                   <div
-                    className="prose prose-gray max-w-none mb-6 text-gray-800 leading-relaxed"
+                    className="prose prose-gray max-w-none fluid-mb-6 text-gray-800 leading-relaxed"
                     dangerouslySetInnerHTML={{ __html: (() => {
                       // Para drag_drop, extraer solo las instrucciones del question_text
                       const text = currentItem.question_text || '';
@@ -2431,11 +2431,11 @@ const ExamTestRunPage: React.FC = () => {
               ) : (
                 <>
                   {currentItem?.title && (
-                    <h2 className="text-lg font-semibold text-gray-900 mb-2">{currentItem.title}</h2>
+                    <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-2">{currentItem.title}</h2>
                   )}
                   {currentItem?.description && (
                     <div
-                      className="prose prose-sm max-w-none mb-4 text-gray-600"
+                      className="prose prose-sm max-w-none fluid-mb-4 text-gray-600"
                     dangerouslySetInnerHTML={{ __html: currentItem.description }}
                   />
                 )}
@@ -2449,20 +2449,20 @@ const ExamTestRunPage: React.FC = () => {
 
       {/* Modal de confirmación - Simplificado */}
       {showConfirmSubmit && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full overflow-hidden">
-            <div className="p-6 text-center">
-              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-6 h-6 text-emerald-600" />
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4">
+          <div className="bg-white rounded-fluid-xl shadow-xl max-w-sm w-full overflow-hidden">
+            <div className="fluid-p-6 text-center">
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto fluid-mb-4">
+                <CheckCircle className="fluid-icon text-emerald-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-2">
                 ¿Finalizar examen?
               </h3>
-              <p className="text-sm text-gray-500 mb-2">
+              <p className="fluid-text-sm text-gray-500 fluid-mb-2">
                 Has completado <span className="font-semibold text-gray-900">{getAnsweredCount()}</span> de <span className="font-semibold text-gray-900">{selectedItems.length}</span> ítems.
               </p>
               {getAnsweredCount() < selectedItems.length && (
-                <p className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-md inline-block mb-4">
+                <p className="fluid-text-xs text-amber-600 bg-amber-50 fluid-px-3 fluid-py-2 rounded-fluid-sm inline-block fluid-mb-4">
                   {selectedItems.length - getAnsweredCount()} sin completar
                 </p>
               )}
@@ -2472,18 +2472,18 @@ const ExamTestRunPage: React.FC = () => {
               <button
                 onClick={() => setShowConfirmSubmit(false)}
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 border-r border-gray-100"
+                className="flex-1 fluid-px-4 fluid-py-3 fluid-text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 border-r border-gray-100"
               >
                 Continuar
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-3 text-sm font-medium text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50 flex items-center justify-center"
+                className="flex-1 fluid-px-4 fluid-py-3 fluid-text-sm font-medium text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50 flex items-center justify-center"
               >
                 {isSubmitting ? (
                   <>
-                    <svg className="animate-spin mr-2 h-4 w-4 text-emerald-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin fluid-mr-2 h-4 w-4 text-emerald-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -2590,7 +2590,7 @@ const ExerciseAction: React.FC<ExerciseActionProps> = ({
           }
         }}
         disabled={isStepCompleted}
-        className={`flex items-center justify-center text-xs font-medium rounded border-2 transition-all ${
+        className={`flex items-center justify-center fluid-text-xs font-medium rounded-fluid-sm border-2 transition-all ${
           currentValue 
             ? 'bg-green-100 border-green-500 text-green-700' 
             : showFeedback
@@ -2599,7 +2599,7 @@ const ExerciseAction: React.FC<ExerciseActionProps> = ({
         }`}
       >
         {action.label && (
-          <span className="truncate px-1">{action.label}</span>
+          <span className="truncate fluid-px-1">{action.label}</span>
         )}
         {currentValue && <span className="ml-1">✓</span>}
       </button>

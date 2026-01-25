@@ -328,21 +328,21 @@ export default function StandardFormPage() {
         />
       )}
       
-      <div className="max-w-3xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16">
-        <div className="mb-8">
+      <div className="max-w-3xl mx-auto fluid-p-6">
+        <div className="fluid-mb-8">
           <button
             onClick={() => navigate('/standards')}
-            className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
+            className="inline-flex items-center fluid-text-sm text-gray-500 hover:text-gray-700"
           >
-            <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="fluid-mr-2 fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             Volver a estándares
           </button>
-          <h1 className="mt-4 text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl 3xl:text-6xl 4xl:text-7xl font-bold text-gray-900">
+          <h1 className="fluid-mt-4 fluid-text-3xl font-bold text-gray-900">
             {isEditing ? 'Editar Estándar' : 'Nuevo Estándar de Competencia'}
           </h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="fluid-mt-1 fluid-text-sm text-gray-500">
             {isEditing
               ? 'Actualiza la información del estándar de competencia.'
               : 'Define un nuevo ECM para crear exámenes basados en él.'}
@@ -350,8 +350,8 @@ export default function StandardFormPage() {
         </div>
 
         {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-            <p className="text-sm text-red-600">{error}</p>
+          <div className="fluid-mb-6 bg-red-50 border border-red-200 rounded-fluid-md fluid-p-4">
+            <p className="fluid-text-sm text-red-600">{error}</p>
           </div>
         )}
 

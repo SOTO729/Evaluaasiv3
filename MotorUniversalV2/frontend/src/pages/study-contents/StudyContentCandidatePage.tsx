@@ -158,26 +158,26 @@ const StudyContentCandidatePage = () => {
     <div className="min-h-screen bg-gray-50 overflow-x-hidden overscroll-contain">
       {/* Barra de navegación superior */}
       <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 border-b border-gray-200/80 shadow-sm sticky top-0 z-40 backdrop-blur-sm bg-opacity-95">
-        <div className="max-w-7xl xl:max-w-[1400px] 2xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-14 py-3 lg:py-4 xl:py-5 2xl:py-6">
+        <div className="max-w-7xl mx-auto fluid-px-6 fluid-py-4">
           <div className="flex items-center justify-between">
             {/* Botón volver */}
             <button
               onClick={() => navigate('/study-contents')}
-              className="group inline-flex items-center gap-2 lg:gap-3 xl:gap-4 px-3 lg:px-4 xl:px-5 2xl:px-6 py-2 lg:py-2.5 xl:py-3 2xl:py-3.5 rounded-xl lg:rounded-2xl bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300 shadow-sm hover:shadow-md transition-all duration-200"
+              className="group inline-flex items-center fluid-gap-3 fluid-px-4 fluid-py-2 rounded-fluid-xl bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300 shadow-sm hover:shadow-md transition-all duration-200"
             >
-              <div className="p-1 lg:p-1.5 xl:p-2 rounded-lg bg-gray-100 group-hover:bg-blue-100 transition-colors">
-                <ArrowLeft className="h-4 w-4 lg:h-5 lg:w-5 xl:h-6 xl:w-6 2xl:h-7 2xl:w-7 text-gray-600 group-hover:text-blue-600 transition-colors" />
+              <div className="fluid-p-2 rounded-lg bg-gray-100 group-hover:bg-blue-100 transition-colors">
+                <ArrowLeft className="fluid-icon-base text-gray-600 group-hover:text-blue-600 transition-colors" />
               </div>
-              <span className="text-sm lg:text-base xl:text-lg 2xl:text-xl font-medium text-gray-700 group-hover:text-blue-700 transition-colors">
+              <span className="fluid-text-sm font-medium text-gray-700 group-hover:text-blue-700 transition-colors">
                 Volver a materiales
               </span>
             </button>
             
             {/* Indicador de breadcrumb */}
-            <div className="hidden sm:flex items-center gap-2 lg:gap-3 text-sm lg:text-base xl:text-lg text-gray-400">
+            <div className="hidden sm:flex items-center fluid-gap-2 fluid-text-sm text-gray-400">
               <span className="text-gray-400">Materiales</span>
-              <ChevronRight className="h-4 w-4 lg:h-5 lg:w-5 text-gray-300" />
-              <span className="text-gray-600 font-medium truncate max-w-[200px] lg:max-w-[300px] xl:max-w-[400px]">
+              <ChevronRight className="fluid-icon-sm text-gray-300" />
+              <span className="text-gray-600 font-medium truncate max-w-[200px]">
                 {material.title}
               </span>
             </div>
@@ -186,11 +186,11 @@ const StudyContentCandidatePage = () => {
       </div>
 
       {/* Contenido principal con layout de dos columnas */}
-      <div className="max-w-7xl xl:max-w-[1400px] 2xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-14 py-6 lg:py-10 xl:py-12 2xl:py-16">
+      <div className="max-w-7xl mx-auto fluid-px-6 fluid-py-10">
         
         {/* Hero con imagen de fondo */}
         <div 
-          className="relative rounded-xl lg:rounded-2xl xl:rounded-3xl overflow-hidden shadow-lg mb-8 lg:mb-12 xl:mb-14 2xl:mb-16"
+          className="relative rounded-fluid-2xl overflow-hidden shadow-lg fluid-mb-12"
           style={{
             background: material.image_url 
               ? `url(${material.image_url}) center/cover no-repeat`
@@ -201,40 +201,40 @@ const StudyContentCandidatePage = () => {
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30" />
           
           {/* Contenido superpuesto */}
-          <div className="relative z-10 p-6 sm:p-8 lg:p-10 xl:p-12 2xl:p-16">
-            <div className="max-w-2xl xl:max-w-3xl 2xl:max-w-4xl">
+          <div className="relative z-10 fluid-p-10">
+            <div className="max-w-2xl">
               {/* Título */}
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl 2xl:text-6xl font-bold text-white mb-4 lg:mb-5 xl:mb-6 2xl:mb-8 drop-shadow-lg">
+              <h1 className="fluid-text-3xl font-bold text-white fluid-mb-6 drop-shadow-lg">
                 {material.title}
               </h1>
 
               {/* Estadísticas en línea */}
-              <div className="flex flex-wrap items-center gap-3 sm:gap-4 lg:gap-5 xl:gap-6 2xl:gap-8 mb-5 lg:mb-6 xl:mb-8 2xl:mb-10">
-                <div className="flex items-center gap-2 xl:gap-3">
-                  <div className="p-1.5 xl:p-2 2xl:p-2.5 bg-white/20 backdrop-blur-sm rounded-lg xl:rounded-xl">
-                    <Layers className="h-4 w-4 lg:h-5 lg:w-5 xl:h-6 xl:w-6 2xl:h-7 2xl:w-7 text-white" />
+              <div className="flex flex-wrap items-center fluid-gap-5 fluid-mb-8">
+                <div className="flex items-center fluid-gap-2">
+                  <div className="fluid-p-2 bg-white/20 backdrop-blur-sm rounded-fluid-lg">
+                    <Layers className="fluid-icon-base text-white" />
                   </div>
-                  <span className="text-sm lg:text-base xl:text-lg 2xl:text-xl text-white/90">
+                  <span className="fluid-text-sm text-white/90">
                     <span className="font-semibold text-white">{totalSessions}</span> {totalSessions === 1 ? 'Sesión' : 'Sesiones'}
                   </span>
                 </div>
-                <div className="w-px h-4 xl:h-5 2xl:h-6 bg-white/30 hidden sm:block" />
-                <div className="flex items-center gap-2 xl:gap-3">
-                  <div className="p-1.5 xl:p-2 2xl:p-2.5 bg-white/20 backdrop-blur-sm rounded-lg xl:rounded-xl">
-                    <FileText className="h-4 w-4 lg:h-5 lg:w-5 xl:h-6 xl:w-6 2xl:h-7 2xl:w-7 text-white" />
+                <div className="w-px h-4 bg-white/30 hidden sm:block" />
+                <div className="flex items-center fluid-gap-2">
+                  <div className="fluid-p-2 bg-white/20 backdrop-blur-sm rounded-fluid-lg">
+                    <FileText className="fluid-icon-base text-white" />
                   </div>
-                  <span className="text-sm lg:text-base xl:text-lg 2xl:text-xl text-white/90">
+                  <span className="fluid-text-sm text-white/90">
                     <span className="font-semibold text-white">{totalTopics}</span> {totalTopics === 1 ? 'Tema' : 'Temas'}
                   </span>
                 </div>
                 {totalEstimatedTime > 0 && (
                   <>
-                    <div className="w-px h-4 xl:h-5 2xl:h-6 bg-white/30 hidden sm:block" />
-                    <div className="flex items-center gap-2 xl:gap-3">
-                      <div className="p-1.5 xl:p-2 2xl:p-2.5 bg-white/20 backdrop-blur-sm rounded-lg xl:rounded-xl">
-                        <Clock className="h-4 w-4 lg:h-5 lg:w-5 xl:h-6 xl:w-6 2xl:h-7 2xl:w-7 text-white" />
+                    <div className="w-px h-4 bg-white/30 hidden sm:block" />
+                    <div className="flex items-center fluid-gap-2">
+                      <div className="fluid-p-2 bg-white/20 backdrop-blur-sm rounded-fluid-lg">
+                        <Clock className="fluid-icon-base text-white" />
                       </div>
-                      <span className="text-sm lg:text-base xl:text-lg 2xl:text-xl text-white/90">
+                      <span className="fluid-text-sm text-white/90">
                         <span className="font-semibold text-white">~{totalEstimatedTime}</span> min
                       </span>
                     </div>
@@ -245,9 +245,9 @@ const StudyContentCandidatePage = () => {
               {/* Botón de acción principal */}
               <button
                 onClick={() => navigate(`/study-contents/${materialId}/preview`)}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 lg:gap-3 xl:gap-4 bg-white hover:bg-gray-100 text-gray-900 px-6 lg:px-8 xl:px-10 2xl:px-12 py-3 lg:py-4 xl:py-5 2xl:py-6 rounded-xl lg:rounded-2xl font-semibold text-sm lg:text-base xl:text-lg 2xl:text-xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
+                className="w-full sm:w-auto flex items-center justify-center fluid-gap-3 bg-white hover:bg-gray-100 text-gray-900 fluid-px-8 fluid-py-4 rounded-fluid-xl font-semibold fluid-text-base shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
               >
-                <PlayCircle className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 2xl:h-8 2xl:w-8 text-blue-600" />
+                <PlayCircle className="fluid-icon-lg text-blue-600" />
                 Iniciar Material de Estudio
               </button>
             </div>
@@ -255,20 +255,20 @@ const StudyContentCandidatePage = () => {
           
           {/* Icono de fondo si no hay imagen */}
           {!material.image_url && (
-            <div className="absolute right-8 bottom-8 xl:right-12 xl:bottom-12 2xl:right-16 2xl:bottom-16 opacity-10">
-              <BookOpen className="h-32 w-32 lg:h-48 lg:w-48 xl:h-56 xl:w-56 2xl:h-72 2xl:w-72 text-white" />
+            <div className="absolute right-8 bottom-8 opacity-10">
+              <BookOpen className="fluid-icon-2xl text-white" />
             </div>
           )}
         </div>
 
         {/* Lista de sesiones y temas */}
-        <div className="bg-white rounded-xl lg:rounded-2xl xl:rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-6 lg:p-8 xl:p-10 2xl:p-12 border-b border-gray-100">
-            <h2 className="text-xl lg:text-2xl xl:text-3xl 2xl:text-4xl font-bold text-gray-900 flex items-center gap-2 lg:gap-3 xl:gap-4">
-              <BookOpen className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8 2xl:h-10 2xl:w-10 text-blue-600" />
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="fluid-p-8 border-b border-gray-100">
+            <h2 className="fluid-text-2xl font-bold text-gray-900 flex items-center fluid-gap-3">
+              <BookOpen className="fluid-icon-lg text-blue-600" />
               Contenido de estudio
             </h2>
-            <p className="text-gray-500 lg:text-lg xl:text-xl 2xl:text-2xl mt-1 lg:mt-2 xl:mt-3">
+            <p className="text-gray-500 fluid-text-base fluid-mt-2">
               {totalSessions} {totalSessions === 1 ? 'sesión' : 'sesiones'} • {totalTopics} {totalTopics === 1 ? 'tema' : 'temas'}
             </p>
           </div>
@@ -283,26 +283,26 @@ const StudyContentCandidatePage = () => {
                     {/* Header de sesión */}
                     <button
                       onClick={() => toggleSession(sessionIndex)}
-                      className="w-full flex items-center justify-between p-4 sm:p-5 lg:p-6 xl:p-7 2xl:p-8 hover:bg-gray-50 transition-colors text-left"
+                      className="w-full flex items-center justify-between fluid-p-6 hover:bg-gray-50 transition-colors text-left"
                     >
-                      <div className="flex items-center gap-4 lg:gap-5 xl:gap-6 2xl:gap-7">
-                        <div className="flex-shrink-0 w-10 h-10 lg:w-12 lg:h-12 xl:w-14 xl:h-14 2xl:w-16 2xl:h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-base lg:text-lg xl:text-xl 2xl:text-2xl">
+                      <div className="flex items-center fluid-gap-5">
+                        <div className="flex-shrink-0 w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold fluid-text-base">
                           {sessionIndex + 1}
                         </div>
                         <div>
-                          <h3 className="font-semibold text-gray-900 text-base sm:text-lg lg:text-xl xl:text-2xl 2xl:text-3xl">
+                          <h3 className="font-semibold text-gray-900 fluid-text-lg">
                             {session.title}
                           </h3>
-                          <p className="text-sm lg:text-base xl:text-lg 2xl:text-xl text-gray-500 mt-0.5 lg:mt-1">
+                          <p className="fluid-text-sm text-gray-500 fluid-mt-1">
                             {session.topics?.length || 0} {(session.topics?.length || 0) === 1 ? 'tema' : 'temas'}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center fluid-gap-2">
                         {expandedSessions.has(sessionIndex) ? (
-                          <ChevronDown className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 2xl:h-8 2xl:w-8 text-gray-400" />
+                          <ChevronDown className="fluid-icon-base text-gray-400" />
                         ) : (
-                          <ChevronRight className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 2xl:h-8 2xl:w-8 text-gray-400" />
+                          <ChevronRight className="fluid-icon-base text-gray-400" />
                         )}
                       </div>
                     </button>
@@ -317,27 +317,27 @@ const StudyContentCandidatePage = () => {
                             return (
                               <div
                                 key={topic.id}
-                                className="flex items-start gap-4 lg:gap-5 xl:gap-6 2xl:gap-8 px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-4 lg:py-5 xl:py-6 2xl:py-7 border-b border-gray-100 last:border-b-0 hover:bg-gray-100/50 transition-colors"
+                                className="flex items-start fluid-gap-5 fluid-px-8 fluid-py-5 border-b border-gray-100 last:border-b-0 hover:bg-gray-100/50 transition-colors"
                               >
                                 {/* Número del tema */}
-                                <div className="flex-shrink-0 w-8 h-8 lg:w-10 lg:h-10 xl:w-12 xl:h-12 2xl:w-14 2xl:h-14 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-sm lg:text-base xl:text-lg 2xl:text-xl font-medium mt-0.5">
+                                <div className="flex-shrink-0 w-8 h-8 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center fluid-text-sm font-medium mt-0.5">
                                   {topicIndex + 1}
                                 </div>
                                 
                                 {/* Información del tema */}
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="font-medium text-gray-900 text-base lg:text-lg xl:text-xl 2xl:text-2xl mb-1 lg:mb-2">
+                                  <h4 className="font-medium text-gray-900 fluid-text-base fluid-mb-1">
                                     {topic.title}
                                   </h4>
                                   
                                   {/* Tipos de contenido disponibles */}
-                                  <div className="flex flex-wrap gap-2 lg:gap-3 xl:gap-4 mt-2 lg:mt-3">
+                                  <div className="flex flex-wrap fluid-gap-2 fluid-mt-2">
                                     {contentTypes.map(({ icon: Icon, label, color }, idx) => (
                                       <span
                                         key={idx}
-                                        className={`inline-flex items-center gap-1 lg:gap-1.5 xl:gap-2 px-2 lg:px-3 xl:px-4 2xl:px-5 py-1 lg:py-1.5 xl:py-2 2xl:py-2.5 bg-white rounded-md lg:rounded-lg xl:rounded-xl text-xs lg:text-sm xl:text-base 2xl:text-lg font-medium ${color} border border-gray-200`}
+                                        className={`inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1 bg-white rounded-fluid-md fluid-text-xs font-medium ${color} border border-gray-200`}
                                       >
-                                        <Icon className="h-3 w-3 lg:h-4 lg:w-4 xl:h-5 xl:w-5 2xl:h-6 2xl:w-6" />
+                                        <Icon className="fluid-icon-xs" />
                                         {label}
                                       </span>
                                     ))}
@@ -345,8 +345,8 @@ const StudyContentCandidatePage = () => {
                                   
                                   {/* Tiempo estimado */}
                                   {topic.estimated_time_minutes && topic.estimated_time_minutes > 0 && (
-                                    <div className="flex items-center gap-1 lg:gap-2 xl:gap-3 mt-2 lg:mt-3 text-xs lg:text-sm xl:text-base 2xl:text-lg text-gray-500">
-                                      <Clock className="h-3 w-3 lg:h-4 lg:w-4 xl:h-5 xl:w-5 2xl:h-6 2xl:w-6" />
+                                    <div className="flex items-center fluid-gap-1 fluid-mt-2 fluid-text-xs text-gray-500">
+                                      <Clock className="fluid-icon-xs" />
                                       <span>{topic.estimated_time_minutes} min</span>
                                     </div>
                                   )}
@@ -359,21 +359,21 @@ const StudyContentCandidatePage = () => {
                   </div>
                 ))
             ) : (
-              <div className="p-8 lg:p-12 xl:p-16 2xl:p-20 text-center">
-                <Layers className="h-12 w-12 lg:h-16 lg:w-16 xl:h-20 xl:w-20 2xl:h-24 2xl:w-24 text-gray-300 mx-auto mb-3 lg:mb-4 xl:mb-5 2xl:mb-6" />
-                <p className="text-gray-500 lg:text-lg xl:text-xl 2xl:text-2xl">Este material aún no tiene sesiones.</p>
+              <div className="fluid-p-12 text-center">
+                <Layers className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-4" />
+                <p className="text-gray-500 fluid-text-base">Este material aún no tiene sesiones.</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Botón de acción al final */}
-        <div className="mt-8 lg:mt-12 xl:mt-14 2xl:mt-16 text-center">
+        <div className="fluid-mt-12 text-center">
           <button
             onClick={() => navigate(`/study-contents/${materialId}/preview`)}
-            className="inline-flex items-center justify-center gap-3 lg:gap-4 xl:gap-5 bg-blue-600 hover:bg-blue-700 text-white px-8 lg:px-10 xl:px-12 2xl:px-16 py-4 lg:py-5 xl:py-6 2xl:py-7 rounded-xl lg:rounded-2xl xl:rounded-3xl font-semibold text-lg lg:text-xl xl:text-2xl 2xl:text-3xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
+            className="inline-flex items-center justify-center fluid-gap-4 bg-blue-600 hover:bg-blue-700 text-white fluid-px-10 fluid-py-5 rounded-fluid-2xl font-semibold fluid-text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
           >
-            <PlayCircle className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8 2xl:h-10 2xl:w-10" />
+            <PlayCircle className="fluid-icon-lg" />
             Iniciar Material de Estudio
           </button>
         </div>

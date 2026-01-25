@@ -177,50 +177,50 @@ export default function UserFormPage() {
 
   if (loading) {
     return (
-      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto">
+      <div className="fluid-p-6 max-w-[1920px] mx-auto">
         <LoadingSpinner message="Cargando usuario..." />
       </div>
     );
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-4xl 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto animate-fade-in-up">
-      <div className="mb-6 lg:mb-8">
+    <div className="fluid-p-6 max-w-4xl mx-auto animate-fade-in-up">
+      <div className="fluid-mb-6">
         <Link
           to="/user-management"
-          className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4"
+          className="inline-flex items-center fluid-gap-2 text-gray-600 hover:text-gray-800 fluid-mb-4"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="fluid-icon-sm" />
           Volver a usuarios
         </Link>
         
-        <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-gray-800 flex items-center gap-3">
-          <Users className="h-6 w-6 lg:h-8 lg:w-8 xl:h-10 xl:w-10 2xl:h-12 2xl:w-12 text-blue-600" />
+        <h1 className="fluid-text-2xl font-bold text-gray-800 flex items-center fluid-gap-3">
+          <Users className="fluid-icon-lg text-blue-600" />
           {isEditing ? 'Editar Usuario' : 'Nuevo Usuario'}
         </h1>
-        <p className="text-sm lg:text-base text-gray-600 mt-1">
+        <p className="fluid-text-sm text-gray-600 fluid-mt-1">
           {isEditing ? 'Modifica los datos del usuario' : 'Completa los datos para crear un nuevo usuario'}
         </p>
       </div>
 
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3 text-red-700">
-          <AlertCircle className="h-5 w-5 flex-shrink-0" />
+        <div className="fluid-mb-6 bg-red-50 border border-red-200 rounded-fluid-lg fluid-p-4 flex items-center fluid-gap-3 text-red-700">
+          <AlertCircle className="fluid-icon-sm flex-shrink-0" />
           {error}
         </div>
       )}
 
       {success && (
-        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3 text-green-700">
-          <CheckCircle className="h-5 w-5 flex-shrink-0" />
+        <div className="fluid-mb-6 bg-green-50 border border-green-200 rounded-fluid-lg fluid-p-4 flex items-center fluid-gap-3 text-green-700">
+          <CheckCircle className="fluid-icon-sm flex-shrink-0" />
           {success}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-6 lg:p-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <form onSubmit={handleSubmit} className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
               Nombre de usuario <span className="text-red-500">*</span>
             </label>
             <input
@@ -230,15 +230,15 @@ export default function UserFormPage() {
               onChange={handleChange}
               disabled={isEditing}
               placeholder="usuario123"
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
             {isEditing && (
-              <p className="text-xs text-gray-500 mt-1">El nombre de usuario no se puede cambiar</p>
+              <p className="fluid-text-xs text-gray-500 fluid-mt-1">El nombre de usuario no se puede cambiar</p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
               Email <span className="text-red-500">*</span>
             </label>
             <input
@@ -247,13 +247,13 @@ export default function UserFormPage() {
               value={formData.email}
               onChange={handleChange}
               placeholder="usuario@email.com"
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
           {!isEditing && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                 Contraseña <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -263,22 +263,22 @@ export default function UserFormPage() {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="••••••••"
-                  className="w-full px-4 py-2.5 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full fluid-px-4 py-2.5 fluid-pr-10 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                 >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  {showPassword ? <EyeOff className="fluid-icon-sm" /> : <Eye className="fluid-icon-sm" />}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Mínimo 8 caracteres</p>
+              <p className="fluid-text-xs text-gray-500 fluid-mt-1">Mínimo 8 caracteres</p>
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
               Rol <span className="text-red-500">*</span>
             </label>
             <select
@@ -286,7 +286,7 @@ export default function UserFormPage() {
               value={formData.role}
               onChange={handleChange}
               disabled={isEditing && currentUser?.role !== 'admin'}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               {roles.map(role => (
                 <option key={role.value} value={role.value}>
@@ -295,12 +295,12 @@ export default function UserFormPage() {
               ))}
             </select>
             {isEditing && currentUser?.role !== 'admin' && (
-              <p className="text-xs text-gray-500 mt-1">Solo administradores pueden cambiar roles</p>
+              <p className="fluid-text-xs text-gray-500 fluid-mt-1">Solo administradores pueden cambiar roles</p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
               Nombre(s) <span className="text-red-500">*</span>
             </label>
             <input
@@ -309,12 +309,12 @@ export default function UserFormPage() {
               value={formData.name}
               onChange={handleChange}
               placeholder="Juan"
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
               Primer Apellido <span className="text-red-500">*</span>
             </label>
             <input
@@ -323,12 +323,12 @@ export default function UserFormPage() {
               value={formData.first_surname}
               onChange={handleChange}
               placeholder="Pérez"
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
               Segundo Apellido
             </label>
             <input
@@ -337,12 +337,12 @@ export default function UserFormPage() {
               value={formData.second_surname}
               onChange={handleChange}
               placeholder="García"
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
               CURP
             </label>
             <input
@@ -352,12 +352,12 @@ export default function UserFormPage() {
               onChange={handleChange}
               placeholder="XXXX000000XXXXXX00"
               maxLength={18}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
+              className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
               Teléfono
             </label>
             <input
@@ -366,19 +366,19 @@ export default function UserFormPage() {
               value={formData.phone}
               onChange={handleChange}
               placeholder="5512345678"
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
               Género
             </label>
             <select
               name="gender"
               value={formData.gender}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">No especificado</option>
               <option value="M">Masculino</option>
@@ -389,7 +389,7 @@ export default function UserFormPage() {
 
           {isEditing && (
             <div className="md:col-span-2">
-              <label className="flex items-center gap-3 cursor-pointer">
+              <label className="flex items-center fluid-gap-3 cursor-pointer">
                 <input
                   type="checkbox"
                   name="is_active"
@@ -397,28 +397,28 @@ export default function UserFormPage() {
                   onChange={handleChange}
                   className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-sm font-medium text-gray-700">
+                <span className="fluid-text-sm font-medium text-gray-700">
                   Usuario activo
                 </span>
               </label>
-              <p className="text-xs text-gray-500 mt-1 ml-8">
+              <p className="fluid-text-xs text-gray-500 fluid-mt-1 ml-8">
                 Los usuarios inactivos no pueden iniciar sesión
               </p>
             </div>
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-4 mt-8 pt-6 border-t border-gray-200">
+        <div className="flex items-center justify-end fluid-gap-4 fluid-mt-8 fluid-pt-6 border-t border-gray-200">
           <Link
             to="/user-management"
-            className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+            className="fluid-px-6 py-2.5 border border-gray-300 text-gray-700 rounded-fluid-lg hover:bg-gray-50 font-medium transition-colors"
           >
             Cancelar
           </Link>
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center fluid-gap-2 fluid-px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? (
               <>
@@ -427,7 +427,7 @@ export default function UserFormPage() {
               </>
             ) : (
               <>
-                <Save className="h-5 w-5" />
+                <Save className="fluid-icon-sm" />
                 {isEditing ? 'Guardar Cambios' : 'Crear Usuario'}
               </>
             )}

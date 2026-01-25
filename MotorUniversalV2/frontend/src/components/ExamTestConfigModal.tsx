@@ -47,36 +47,36 @@ const ExamTestConfigModal: React.FC<ExamTestConfigModalProps> = ({
   const exercisePercentage = totalExercises > 0 ? (exerciseCount / totalExercises) * 100 : 0;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-slide-up">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4 animate-fade-in">
+      <div className="bg-white rounded-fluid-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-slide-up">
         {/* Header con gradiente primary */}
-        <div className="bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-5 relative">
+        <div className="bg-gradient-to-r from-primary-600 to-primary-700 fluid-px-6 fluid-py-5 relative">
           <button
             onClick={onClose}
-            className="absolute right-4 top-4 p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+            className="absolute right-4 top-4 fluid-p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
           >
-            <X className="w-5 h-5 text-white" />
+            <X className="fluid-icon-sm text-white" />
           </button>
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-white/20 rounded-xl">
-              <Settings className="w-6 h-6 text-white" />
+          <div className="flex items-center fluid-gap-3">
+            <div className="fluid-p-2 bg-white/20 rounded-fluid-xl">
+              <Settings className="fluid-icon-lg text-white" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white">
+              <h3 className="fluid-text-xl font-bold text-white">
                 Configurar Prueba
               </h3>
-              <p className="text-primary-100 text-sm mt-0.5 line-clamp-1">
+              <p className="text-primary-100 fluid-text-sm mt-0.5 line-clamp-1">
                 {examTitle}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="fluid-p-6">
           {/* Presets rápidos */}
-          <div className="mb-6">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Configuración rápida</p>
-            <div className={`grid gap-3 ${presets.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          <div className="fluid-mb-6">
+            <p className="fluid-text-xs font-medium text-gray-500 uppercase tracking-wider fluid-mb-3">Configuración rápida</p>
+            <div className={`grid fluid-gap-3 ${presets.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
               {presets.map((preset) => {
                 const Icon = preset.icon;
                 const isActive = questionCount === preset.questions && exerciseCount === preset.exercises;
@@ -84,22 +84,22 @@ const ExamTestConfigModal: React.FC<ExamTestConfigModalProps> = ({
                   <button
                     key={preset.label}
                     onClick={() => handlePreset(preset.questions, preset.exercises)}
-                    className={`flex flex-col items-center p-3 rounded-xl border-2 transition-all duration-200 ${
+                    className={`flex flex-col items-center fluid-p-3 rounded-fluid-xl border-2 transition-all duration-200 ${
                       isActive
                         ? `border-${preset.color}-500 bg-${preset.color}-50 shadow-md`
                         : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                     }`}
                   >
-                    <div className={`p-2 rounded-lg mb-2 ${
+                    <div className={`fluid-p-2 rounded-fluid-lg fluid-mb-2 ${
                       isActive ? `bg-${preset.color}-500` : 'bg-gray-100'
                     }`}>
-                      <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-gray-500'}`} />
+                      <Icon className={`fluid-icon-sm ${isActive ? 'text-white' : 'text-gray-500'}`} />
                     </div>
                     <div className="text-center">
-                      <p className={`text-sm font-semibold ${isActive ? `text-${preset.color}-700` : 'text-gray-700'}`}>
+                      <p className={`fluid-text-sm font-semibold ${isActive ? `text-${preset.color}-700` : 'text-gray-700'}`}>
                         {preset.label}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="fluid-text-xs text-gray-500">
                         {preset.description}
                       </p>
                     </div>
@@ -110,39 +110,39 @@ const ExamTestConfigModal: React.FC<ExamTestConfigModalProps> = ({
           </div>
 
           {/* Divisor */}
-          <div className="relative mb-6">
+          <div className="relative fluid-mb-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-200"></div>
             </div>
             <div className="relative flex justify-center">
-              <span className="bg-white px-3 text-xs font-medium text-gray-400 uppercase tracking-wider">
+              <span className="bg-white fluid-px-3 fluid-text-xs font-medium text-gray-400 uppercase tracking-wider">
                 O personaliza
               </span>
             </div>
           </div>
 
           {/* Configuración personalizada */}
-          <div className="space-y-6">
+          <div className="flex flex-col fluid-gap-6">
             {/* Preguntas */}
-            <div className="bg-gray-50 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-3">
+            <div className="bg-gray-50 rounded-fluid-xl fluid-p-4">
+              <div className="flex items-center justify-between fluid-mb-3">
                 <div className="flex items-center">
-                  <div className="p-2 bg-blue-100 rounded-lg mr-3">
-                    <HelpCircle className="w-4 h-4 text-blue-600" />
+                  <div className="fluid-p-2 bg-blue-100 rounded-fluid-lg fluid-mr-3">
+                    <HelpCircle className="fluid-icon-sm text-blue-600" />
                   </div>
                   <div>
-                    <label className="text-sm font-semibold text-gray-800">
+                    <label className="fluid-text-sm font-semibold text-gray-800">
                       Preguntas
                     </label>
-                    <p className="text-xs text-gray-500">
+                    <p className="fluid-text-xs text-gray-500">
                       de {totalQuestions} disponibles
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center bg-white rounded-lg border border-gray-200 shadow-sm">
+                <div className="flex items-center bg-white rounded-fluid-lg border border-gray-200 shadow-sm">
                   <button
                     onClick={() => setQuestionCount(Math.max(0, questionCount - 1))}
-                    className="px-3 py-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-l-lg transition-colors"
+                    className="fluid-px-3 fluid-py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-l-lg transition-colors"
                   >
                     −
                   </button>
@@ -152,11 +152,11 @@ const ExamTestConfigModal: React.FC<ExamTestConfigModalProps> = ({
                     max={totalQuestions}
                     value={questionCount}
                     onChange={(e) => setQuestionCount(Math.min(totalQuestions, Math.max(0, parseInt(e.target.value) || 0)))}
-                    className="w-14 text-center font-bold text-gray-800 border-x border-gray-200 py-1.5 focus:outline-none"
+                    className="w-14 text-center font-bold text-gray-800 border-x border-gray-200 fluid-py-2 focus:outline-none"
                   />
                   <button
                     onClick={() => setQuestionCount(Math.min(totalQuestions, questionCount + 1))}
-                    className="px-3 py-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-r-lg transition-colors"
+                    className="fluid-px-3 fluid-py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-r-lg transition-colors"
                   >
                     +
                   </button>
@@ -183,25 +183,25 @@ const ExamTestConfigModal: React.FC<ExamTestConfigModalProps> = ({
 
             {/* Ejercicios */}
             {totalExercises > 0 && (
-              <div className="bg-gray-50 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-3">
+              <div className="bg-gray-50 rounded-fluid-xl fluid-p-4">
+                <div className="flex items-center justify-between fluid-mb-3">
                   <div className="flex items-center">
-                    <div className="p-2 bg-purple-100 rounded-lg mr-3">
-                      <Target className="w-4 h-4 text-purple-600" />
+                    <div className="fluid-p-2 bg-purple-100 rounded-fluid-lg fluid-mr-3">
+                      <Target className="fluid-icon-sm text-purple-600" />
                     </div>
                     <div>
-                      <label className="text-sm font-semibold text-gray-800">
+                      <label className="fluid-text-sm font-semibold text-gray-800">
                         Ejercicios
                       </label>
-                      <p className="text-xs text-gray-500">
+                      <p className="fluid-text-xs text-gray-500">
                         de {totalExercises} disponibles
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center bg-white rounded-lg border border-gray-200 shadow-sm">
+                  <div className="flex items-center bg-white rounded-fluid-lg border border-gray-200 shadow-sm">
                     <button
                       onClick={() => setExerciseCount(Math.max(0, exerciseCount - 1))}
-                      className="px-3 py-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-l-lg transition-colors"
+                      className="fluid-px-3 fluid-py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-l-lg transition-colors"
                     >
                       −
                     </button>
@@ -211,11 +211,11 @@ const ExamTestConfigModal: React.FC<ExamTestConfigModalProps> = ({
                       max={totalExercises}
                       value={exerciseCount}
                       onChange={(e) => setExerciseCount(Math.min(totalExercises, Math.max(0, parseInt(e.target.value) || 0)))}
-                      className="w-14 text-center font-bold text-gray-800 border-x border-gray-200 py-1.5 focus:outline-none"
+                      className="w-14 text-center font-bold text-gray-800 border-x border-gray-200 fluid-py-2 focus:outline-none"
                     />
                     <button
                       onClick={() => setExerciseCount(Math.min(totalExercises, exerciseCount + 1))}
-                      className="px-3 py-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-r-lg transition-colors"
+                      className="fluid-px-3 fluid-py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-r-lg transition-colors"
                     >
                       +
                     </button>
@@ -243,18 +243,18 @@ const ExamTestConfigModal: React.FC<ExamTestConfigModalProps> = ({
           </div>
 
           {/* Resumen */}
-          <div className="mt-6 p-4 bg-gradient-to-r from-primary-50 to-blue-50 rounded-xl border border-primary-100">
+          <div className="fluid-mt-6 fluid-p-4 bg-gradient-to-r from-primary-50 to-blue-50 rounded-fluid-xl border border-primary-100">
             <div className="flex items-center justify-between">
-              <div className="flex items-center text-sm">
-                <HelpCircle className="w-4 h-4 text-primary-500 mr-2" />
+              <div className="flex items-center fluid-text-sm">
+                <HelpCircle className="fluid-icon-sm text-primary-500 fluid-mr-2" />
                 <span className="text-gray-600">Tu prueba tendrá:</span>
               </div>
-              <div className="flex items-center space-x-3">
-                <span className="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-semibold">
+              <div className="flex items-center fluid-gap-3">
+                <span className="fluid-px-3 fluid-py-1 bg-blue-100 text-blue-700 rounded-fluid-lg fluid-text-sm font-semibold">
                   {questionCount} preguntas
                 </span>
                 {totalExercises > 0 && (
-                  <span className="px-2.5 py-1 bg-purple-100 text-purple-700 rounded-lg text-sm font-semibold">
+                  <span className="fluid-px-3 fluid-py-1 bg-purple-100 text-purple-700 rounded-fluid-lg fluid-text-sm font-semibold">
                     {exerciseCount} ejercicios
                   </span>
                 )}
@@ -264,19 +264,19 @@ const ExamTestConfigModal: React.FC<ExamTestConfigModalProps> = ({
         </div>
 
         {/* Footer con botones */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end space-x-3">
+        <div className="fluid-px-6 fluid-py-4 bg-gray-50 border-t border-gray-100 flex justify-end fluid-gap-3">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
+            className="fluid-px-5 fluid-py-3 fluid-text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-fluid-xl hover:bg-gray-50 transition-colors"
           >
             Cancelar
           </button>
           <button
             onClick={handleStart}
             disabled={questionCount === 0 && exerciseCount === 0}
-            className="px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-primary-600 to-primary-700 rounded-xl hover:from-primary-700 hover:to-primary-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center shadow-lg shadow-primary-500/25 transition-all duration-200 hover:shadow-xl hover:shadow-primary-500/30"
+            className="fluid-px-6 fluid-py-3 fluid-text-sm font-semibold text-white bg-gradient-to-r from-primary-600 to-primary-700 rounded-fluid-xl hover:from-primary-700 hover:to-primary-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center shadow-lg shadow-primary-500/25 transition-all duration-200 hover:shadow-xl hover:shadow-primary-500/30"
           >
-            <Play className="w-4 h-4 mr-2" />
+            <Play className="fluid-icon-sm fluid-mr-2" />
             Iniciar Prueba
           </button>
         </div>

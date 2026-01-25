@@ -404,54 +404,54 @@ const ExamCreatePage = () => {
       {/* Modal de carga */}
       {loading && (
         <div className="fixed inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50">
-          <div className="text-center p-12">
+          <div className="text-center fluid-p-12">
             <div className="inline-block animate-spin rounded-full h-16 w-16 border-b-4 border-primary-600"></div>
-            <p className="mt-6 text-xl font-medium text-gray-700">
+            <p className="fluid-mt-6 fluid-text-xl font-medium text-gray-700">
               {creationMode === 'copy' ? 'Copiando examen...' : 'Creando examen...'}
             </p>
-            <p className="mt-2 text-base text-gray-500">Por favor espere</p>
+            <p className="fluid-mt-2 fluid-text-base text-gray-500">Por favor espere</p>
           </div>
         </div>
       )}
       
       <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
+      <div className="fluid-mb-6">
         <button
           onClick={() => navigate('/exams')}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4 transition-colors"
+          className="flex items-center fluid-gap-2 text-gray-600 hover:text-gray-800 fluid-mb-4 transition-colors"
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="fluid-icon" />
           <span>Volver a la lista</span>
         </button>
         
-        <h1 className="text-3xl font-bold mb-2">Crear Examen</h1>
+        <h1 className="fluid-text-3xl font-bold fluid-mb-2">Crear Examen</h1>
         <p className="text-gray-600">Complete los datos del nuevo examen y sus módulos</p>
       </div>
       
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="bg-red-50 border border-red-200 text-red-700 fluid-px-4 fluid-py-3 rounded-fluid-md fluid-mb-4">
           {error}
         </div>
       )}
       
       {/* Selector de modo de creación */}
-      <div className="card mb-6">
-        <h2 className="text-xl font-semibold mb-4">Modo de Creación</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="card fluid-mb-6">
+        <h2 className="fluid-text-xl font-semibold fluid-mb-4">Modo de Creación</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
           {/* Opción: Desde cero */}
           <div
             onClick={() => handleModeChange('scratch')}
-            className={`cursor-pointer border-2 rounded-lg p-4 transition-all ${
+            className={`cursor-pointer border-2 rounded-fluid-lg fluid-p-4 transition-all ${
               creationMode === 'scratch'
                 ? 'border-primary-600 bg-primary-50'
                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
             }`}
           >
-            <div className="flex items-start gap-3">
+            <div className="flex items-start fluid-gap-3">
               <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
                 creationMode === 'scratch' ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'
               }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
               </div>
@@ -459,12 +459,12 @@ const ExamCreatePage = () => {
                 <h3 className={`font-semibold ${creationMode === 'scratch' ? 'text-primary-900' : 'text-gray-900'}`}>
                   Crear desde cero
                 </h3>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="fluid-text-sm text-gray-600 fluid-mt-1">
                   Crear un nuevo examen vacío y agregar categorías manualmente
                 </p>
               </div>
               {creationMode === 'scratch' && (
-                <svg className="w-6 h-6 text-primary-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="fluid-icon-lg text-primary-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
               )}
@@ -474,17 +474,17 @@ const ExamCreatePage = () => {
           {/* Opción: Desde copia */}
           <div
             onClick={() => handleModeChange('copy')}
-            className={`cursor-pointer border-2 rounded-lg p-4 transition-all ${
+            className={`cursor-pointer border-2 rounded-fluid-lg fluid-p-4 transition-all ${
               creationMode === 'copy'
                 ? 'border-blue-600 bg-blue-50'
                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
             }`}
           >
-            <div className="flex items-start gap-3">
+            <div className="flex items-start fluid-gap-3">
               <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
                 creationMode === 'copy' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
               }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
               </div>
@@ -492,12 +492,12 @@ const ExamCreatePage = () => {
                 <h3 className={`font-semibold ${creationMode === 'copy' ? 'text-blue-900' : 'text-gray-900'}`}>
                   Copiar examen existente
                 </h3>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="fluid-text-sm text-gray-600 fluid-mt-1">
                   Duplicar un examen con todas sus categorías, temas, preguntas y ejercicios
                 </p>
               </div>
               {creationMode === 'copy' && (
-                <svg className="w-6 h-6 text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="fluid-icon-lg text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
               )}
@@ -507,17 +507,17 @@ const ExamCreatePage = () => {
         
         {/* Lista de exámenes para copiar */}
         {creationMode === 'copy' && (
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="fluid-mt-4">
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
               Seleccionar examen a copiar <span className="text-red-600">*</span>
             </label>
-            <div className="border border-gray-300 rounded-lg max-h-64 overflow-y-auto">
+            <div className="border border-gray-300 rounded-fluid-lg max-h-64 overflow-y-auto">
               {examsData?.exams && examsData.exams.length > 0 ? (
                 examsData.exams.map((exam: ExamListItem) => (
                   <div
                     key={exam.id}
                     onClick={() => handleSelectExamToCopy(exam)}
-                    className={`p-3 cursor-pointer border-b last:border-b-0 transition-colors ${
+                    className={`fluid-p-3 cursor-pointer border-b last:border-b-0 transition-colors ${
                       selectedExamToCopy?.id === exam.id
                         ? 'bg-blue-50 border-l-4 border-l-blue-500'
                         : 'hover:bg-gray-50'
@@ -526,22 +526,22 @@ const ExamCreatePage = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="font-medium text-gray-900">{exam.name}</p>
-                        <p className="text-sm text-gray-500 font-mono">{exam.version}</p>
+                        <p className="fluid-text-sm text-gray-500 font-mono">{exam.version}</p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 text-xs rounded-full ${
+                      <div className="flex items-center fluid-gap-2">
+                        <span className={`fluid-px-2 py-0.5 fluid-text-xs rounded-full ${
                           exam.is_published ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
                         }`}>
                           {exam.is_published ? 'Publicado' : 'Borrador'}
                         </span>
                         {selectedExamToCopy?.id === exam.id && (
-                          <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="fluid-icon text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                           </svg>
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                    <div className="flex fluid-gap-3 fluid-mt-1 fluid-text-xs text-gray-500">
                       <span>{exam.total_categories} categorías</span>
                       <span>{exam.total_questions} preguntas</span>
                       <span>{exam.total_exercises} ejercicios</span>
@@ -549,7 +549,7 @@ const ExamCreatePage = () => {
                   </div>
                 ))
               ) : (
-                <div className="p-4 text-center text-gray-500">
+                <div className="fluid-p-4 text-center text-gray-500">
                   No hay exámenes disponibles para copiar
                 </div>
               )}
@@ -557,18 +557,18 @@ const ExamCreatePage = () => {
             
             {/* Info del examen seleccionado */}
             {selectedExamToCopy && (
-              <div className="mt-3 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
+              <div className="fluid-mt-3 bg-blue-50 border-l-4 border-blue-500 fluid-p-4 rounded-r-lg">
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="fluid-icon text-blue-400" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-blue-800">
+                  <div className="fluid-ml-3">
+                    <p className="fluid-text-sm text-blue-800">
                       <strong>Se copiará:</strong> {selectedExamToCopy.name}
                     </p>
-                    <p className="text-xs text-blue-700 mt-1">
+                    <p className="fluid-text-xs text-blue-700 fluid-mt-1">
                       {selectedExamToCopy.total_categories} categorías, {selectedExamToCopy.total_questions} preguntas y {selectedExamToCopy.total_exercises} ejercicios
                     </p>
                   </div>
@@ -579,17 +579,17 @@ const ExamCreatePage = () => {
         )}
       </div>
       
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="flex flex-col fluid-gap-6">
         {/* Información General */}
         <div className="card">
-          <h2 className="text-xl font-semibold mb-4">
+          <h2 className="fluid-text-xl font-semibold fluid-mb-4">
             {creationMode === 'copy' ? 'Datos del Nuevo Examen' : 'Información General'}
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
             {/* Estándar de Competencia (ECM) */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                 Estándar de Competencia (ECM) <span className="text-red-600">*</span>
               </label>
               <select
@@ -608,20 +608,20 @@ const ExamCreatePage = () => {
                 ))}
               </select>
               {standardError && (
-                <p className="text-red-600 text-xs mt-1 font-medium">{standardError}</p>
+                <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{standardError}</p>
               )}
               {selectedStandard && (
-                <div className="mt-2 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="fluid-mt-2 fluid-p-3 bg-indigo-50 border border-indigo-200 rounded-fluid-lg">
+                  <div className="flex items-start fluid-gap-2">
+                    <svg className="fluid-icon text-indigo-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-indigo-900">{selectedStandard.code}: {selectedStandard.name}</p>
+                      <p className="fluid-text-sm font-medium text-indigo-900">{selectedStandard.code}: {selectedStandard.name}</p>
                       {selectedStandard.description && (
-                        <p className="text-xs text-indigo-700 mt-1">{selectedStandard.description}</p>
+                        <p className="fluid-text-xs text-indigo-700 fluid-mt-1">{selectedStandard.description}</p>
                       )}
-                      <div className="flex gap-3 mt-1 text-xs text-indigo-600">
+                      <div className="flex fluid-gap-3 fluid-mt-1 fluid-text-xs text-indigo-600">
                         {selectedStandard.sector && <span>Sector: {selectedStandard.sector}</span>}
                         {selectedStandard.level && <span>Nivel: {selectedStandard.level}</span>}
                         <span>Vigencia: {selectedStandard.validity_years} años</span>
@@ -631,7 +631,7 @@ const ExamCreatePage = () => {
                 </div>
               )}
               {!loadingStandards && (!standardsData?.standards || standardsData.standards.length === 0) && (
-                <p className="text-amber-600 text-xs mt-1">
+                <p className="text-amber-600 fluid-text-xs fluid-mt-1">
                   No hay estándares disponibles. <a href="/standards/new" className="underline font-medium">Crear uno primero</a>
                 </p>
               )}
@@ -639,7 +639,7 @@ const ExamCreatePage = () => {
             
             {/* Nombre del Examen */}
             <div className="md:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                 Nombre del Examen <span className="text-red-600">*</span>
               </label>
               <input
@@ -657,17 +657,17 @@ const ExamCreatePage = () => {
                 required
               />
               {nameError && (
-                <p className="text-red-600 text-xs mt-1 font-medium">{nameError}</p>
+                <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{nameError}</p>
               )}
               {!nameError && formData.name.trim() && (
-                <p className="text-green-600 text-xs mt-1 font-medium">✓ Nombre válido</p>
+                <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Nombre válido</p>
               )}
             </div>
             
             {/* Duración - Solo en modo desde cero */}
             {creationMode === 'scratch' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                   Duración (minutos) <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -686,10 +686,10 @@ const ExamCreatePage = () => {
                   required
                 />
                 {durationError && (
-                  <p className="text-red-600 text-xs mt-1 font-medium">{durationError}</p>
+                  <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{durationError}</p>
                 )}
                 {!durationError && (formData.duration_minutes ?? 0) > 0 && (
-                  <p className="text-green-600 text-xs mt-1 font-medium">✓ Duración válida</p>
+                  <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Duración válida</p>
                 )}
               </div>
             )}
@@ -697,7 +697,7 @@ const ExamCreatePage = () => {
             {/* Puntaje Mínimo - Solo en modo desde cero */}
             {creationMode === 'scratch' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                   Puntaje Mínimo para Aprobar (%) <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -717,10 +717,10 @@ const ExamCreatePage = () => {
                   required
                 />
                 {passingScoreError && (
-                  <p className="text-red-600 text-xs mt-1 font-medium">{passingScoreError}</p>
+                  <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{passingScoreError}</p>
                 )}
                 {!passingScoreError && (formData.passing_score ?? 0) >= 0 && (formData.passing_score ?? 0) <= 100 && (
-                  <p className="text-green-600 text-xs mt-1 font-medium">✓ Puntaje válido</p>
+                  <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Puntaje válido</p>
                 )}
               </div>
             )}
@@ -728,8 +728,8 @@ const ExamCreatePage = () => {
           
           {/* Imagen del Examen - Solo en modo desde cero */}
           {creationMode === 'scratch' && (
-            <div className="mt-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="fluid-mt-6">
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                 Imagen del Examen (opcional)
               </label>
               
@@ -738,15 +738,15 @@ const ExamCreatePage = () => {
                   <img 
                     src={imagePreview} 
                     alt="Vista previa" 
-                    className="w-full max-w-4xl h-64 object-cover rounded-lg border-2 border-gray-300"
+                    className="w-full max-w-4xl h-64 object-cover rounded-fluid-lg border-2 border-gray-300"
                   />
                   <button
                     type="button"
                     onClick={handleRemoveImage}
-                    className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full hover:bg-red-700 shadow-lg"
+                    className="absolute top-2 right-2 bg-red-600 text-white fluid-p-2 rounded-full hover:bg-red-700 shadow-lg"
                     title="Eliminar imagen"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
@@ -759,17 +759,17 @@ const ExamCreatePage = () => {
                   onDragOver={handleDrag}
                   onDrop={handleDrop}
                 >
-                  <label className={`flex flex-col items-center justify-center w-full max-w-4xl h-64 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                  <label className={`flex flex-col items-center justify-center w-full max-w-4xl h-64 border-2 border-dashed rounded-fluid-lg cursor-pointer transition-colors ${
                     dragActive 
                       ? 'border-blue-500 bg-blue-50' 
                       : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
                   }`}>
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <svg className="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-10 h-10 fluid-mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
-                      <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click para cargar</span> o arrastra y suelta</p>
-                      <p className="text-xs text-gray-500">PNG, JPG o JPEG (Máx. 2MB)</p>
+                      <p className="fluid-mb-2 fluid-text-sm text-gray-500"><span className="font-semibold">Click para cargar</span> o arrastra y suelta</p>
+                      <p className="fluid-text-xs text-gray-500">PNG, JPG o JPEG (Máx. 2MB)</p>
                     </div>
                     <input 
                       type="file" 
@@ -787,40 +787,40 @@ const ExamCreatePage = () => {
         {/* Categorías - Solo en modo desde cero */}
         {creationMode === 'scratch' && (
           <div className="card">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-center fluid-mb-4">
             <div>
-              <h2 className="text-xl font-semibold">Categorías del Examen</h2>
-              <p className="text-sm text-gray-600">La suma de porcentajes debe ser 100%</p>
+              <h2 className="fluid-text-xl font-semibold">Categorías del Examen</h2>
+              <p className="fluid-text-sm text-gray-600">La suma de porcentajes debe ser 100%</p>
             </div>
             <button
               type="button"
               onClick={distributePercentages}
-              className="btn btn-secondary text-sm"
+              className="btn btn-secondary fluid-text-sm"
             >
               Distribuir Equitativamente
             </button>
           </div>
           
-          <div className="space-y-4">
+          <div className="flex flex-col fluid-gap-4">
             {modules.map((module, index) => (
-              <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                <div className="flex justify-between items-start mb-3">
+              <div key={index} className="border border-gray-200 rounded-fluid-lg fluid-p-4 bg-gray-50">
+                <div className="flex justify-between items-start fluid-mb-3">
                   <h3 className="font-medium text-gray-900">Categoría {index + 1}</h3>
                   {modules.length > 1 && (
                     <button
                       type="button"
                       onClick={() => removeModule(index)}
-                      className="text-red-600 hover:text-red-800 text-sm"
+                      className="text-red-600 hover:text-red-800 fluid-text-sm"
                     >
                       Eliminar
                     </button>
                   )}
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 fluid-gap-3">
                   {/* Nombre del Módulo */}
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                       Nombre <span className="text-red-600">*</span>
                     </label>
                     <input
@@ -832,13 +832,13 @@ const ExamCreatePage = () => {
                       required
                     />
                     {moduleErrors[index]?.name && (
-                      <p className="text-red-600 text-xs mt-1 font-medium">{moduleErrors[index].name}</p>
+                      <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{moduleErrors[index].name}</p>
                     )}
                   </div>
                   
                   {/* Porcentaje */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                       Porcentaje (%) <span className="text-red-600">*</span>
                     </label>
                     <input
@@ -864,13 +864,13 @@ const ExamCreatePage = () => {
                       required
                     />
                     {moduleErrors[index]?.percentage && (
-                      <p className="text-red-600 text-xs mt-1 font-medium">{moduleErrors[index].percentage}</p>
+                      <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{moduleErrors[index].percentage}</p>
                     )}
                   </div>
                   
                   {/* Descripción */}
                   <div className="md:col-span-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                       Descripción
                     </label>
                     <input
@@ -889,16 +889,16 @@ const ExamCreatePage = () => {
           <button
             type="button"
             onClick={addModule}
-            className="btn btn-secondary w-full mt-4"
+            className="btn btn-secondary w-full fluid-mt-4"
           >
               + Agregar Categoría
             </button>
           
           {/* Resumen de Porcentajes */}
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded">
+          <div className="fluid-mt-4 fluid-p-3 bg-blue-50 border border-blue-200 rounded-fluid-md">
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-blue-900">Total de Porcentajes:</span>
-              <span className={`text-lg font-bold ${
+              <span className="fluid-text-sm font-medium text-blue-900">Total de Porcentajes:</span>
+              <span className={`fluid-text-lg font-bold ${
                 modules.reduce((sum, m) => sum + (m.percentage || 0), 0) === 100 
                   ? 'text-green-600' 
                   : 'text-red-600'
@@ -910,7 +910,7 @@ const ExamCreatePage = () => {
           
           {/* Mensaje de error de suma de porcentajes */}
           {percentageError && (
-            <div className="mt-3 bg-red-50 border border-red-300 text-red-700 px-3 py-2 rounded text-sm font-medium">
+            <div className="fluid-mt-3 bg-red-50 border border-red-300 text-red-700 fluid-px-3 fluid-py-2 rounded-fluid-md fluid-text-sm font-medium">
               ⚠️ {percentageError}
             </div>
           )}
@@ -918,7 +918,7 @@ const ExamCreatePage = () => {
         )}
         
         {/* Botones de Acción */}
-        <div className="flex justify-end gap-3">
+        <div className="flex justify-end fluid-gap-3">
           <button
             type="button"
             onClick={() => navigate('/exams')}
@@ -929,7 +929,7 @@ const ExamCreatePage = () => {
           </button>
           <button
             type="submit"
-            className="btn btn-primary flex items-center justify-center gap-2"
+            className="btn btn-primary flex items-center justify-center fluid-gap-2"
             disabled={
               loading || 
               !!standardError || 
@@ -940,7 +940,7 @@ const ExamCreatePage = () => {
           >
             {loading ? (
               <>
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <Loader2 className="fluid-icon animate-spin" />
                 {creationMode === 'copy' ? 'Copiando examen...' : 'Creando examen...'}
               </>
             ) : (

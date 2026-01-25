@@ -161,30 +161,30 @@ const HomePage = () => {
   const nextAction = getNextAction()
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="fluid-gap-5 flex flex-col">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-xl sm:rounded-2xl 3xl:rounded-3xl p-4 sm:p-6 md:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 text-white relative overflow-hidden">
+      <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-fluid-xl fluid-p-8 text-white relative overflow-hidden">
         {/* Decoración de fondo */}
-        <div className="absolute top-0 right-0 w-32 sm:w-64 h-32 sm:h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-24 sm:w-48 h-24 sm:h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+        <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-36 h-36 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
         
         <div className="relative z-10">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-4">
             <div className="flex-1">
-              <h1 className="text-xl sm:text-2xl md:text-3xl xl:text-4xl 2xl:text-5xl 3xl:text-6xl 4xl:text-7xl font-bold mb-1 sm:mb-2 3xl:mb-4">
+              <h1 className="fluid-text-4xl font-bold fluid-mb-2">
                 {motivationalMessage.title}
               </h1>
-              <p className="text-blue-100 text-xs sm:text-sm md:text-base xl:text-lg 2xl:text-xl 3xl:text-2xl 4xl:text-3xl">
+              <p className="text-blue-100 fluid-text-base">
                 {motivationalMessage.subtitle}
               </p>
-              <p className="text-blue-200 text-xs sm:text-sm mt-1">
+              <p className="text-blue-200 fluid-text-sm fluid-mt-1">
                 Hola, <span className="font-medium text-white">{user?.name}</span>
               </p>
             </div>
             
             {/* Progreso circular */}
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24">
+            <div className="flex items-center fluid-gap-4">
+              <div className="relative w-[clamp(4rem,3rem+2vw,6rem)] h-[clamp(4rem,3rem+2vw,6rem)]">
                 <svg className="w-full h-full transform -rotate-90">
                   <circle
                     cx="50%"
@@ -207,10 +207,10 @@ const HomePage = () => {
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-base sm:text-xl md:text-2xl font-bold">{overallProgress}%</span>
+                  <span className="fluid-text-xl font-bold">{overallProgress}%</span>
                 </div>
               </div>
-              <div className="text-xs sm:text-sm">
+              <div className="fluid-text-sm">
                 <p className="text-blue-100">Progreso</p>
                 <p className="font-semibold">General</p>
               </div>
@@ -220,55 +220,55 @@ const HomePage = () => {
           {/* Botón de acción principal */}
           <button
             onClick={() => navigate(nextAction.route)}
-            className={`mt-4 sm:mt-6 w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 ${nextAction.color} rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105`}
+            className={`fluid-mt-5 w-full sm:w-auto inline-flex items-center justify-center fluid-gap-2 fluid-px-5 fluid-py-3 ${nextAction.color} rounded-fluid-lg font-semibold fluid-text-base text-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105`}
           >
-            <nextAction.icon className="w-4 h-4 sm:w-5 sm:h-5" />
+            <nextAction.icon className="fluid-icon" />
             {nextAction.text}
-            <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
+            <ArrowRight className="fluid-icon-sm" />
           </button>
         </div>
       </div>
 
       {/* Timeline de Progreso Mejorado */}
-      <div className="bg-white rounded-xl sm:rounded-2xl 3xl:rounded-3xl border border-gray-200 p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16">
-        <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-4 sm:mb-6 flex items-center gap-2">
-          <Target className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+      <div className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-8">
+        <h2 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-5 flex items-center fluid-gap-2">
+          <Target className="fluid-icon text-blue-600" />
           Tu ruta de certificación
         </h2>
         
         <div className="relative">
           {/* Línea de conexión */}
-          <div className="absolute top-6 sm:top-8 left-6 right-6 sm:left-8 sm:right-8 md:left-[60px] md:right-[60px] h-0.5 sm:h-1 bg-gray-200 rounded-full">
+          <div className="absolute top-7 left-7 right-7 h-[clamp(0.125rem,0.1rem+0.1vw,0.25rem)] bg-gray-200 rounded-full">
             <div 
               className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-1000"
               style={{ width: `${(currentStep - 1) * 50}%` }}
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-1 sm:gap-2 md:gap-4 relative">
+          <div className="grid grid-cols-3 fluid-gap-3 relative">
             {/* Paso 1: Estudiar */}
             <div className="flex flex-col items-center text-center">
-              <div className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-2 sm:mb-3 transition-all duration-300 ${
+              <div className={`w-[clamp(3rem,2.5rem+1vw,4rem)] h-[clamp(3rem,2.5rem+1vw,4rem)] rounded-full flex items-center justify-center fluid-mb-2 transition-all duration-300 ${
                 currentStep >= 1 
                   ? materialCompleted 
                     ? 'bg-green-500 text-white shadow-lg shadow-green-500/30' 
-                    : 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 ring-2 sm:ring-4 ring-blue-100'
+                    : 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 ring-[clamp(2px,0.15rem+0.1vw,4px)] ring-blue-100'
                   : 'bg-gray-100 text-gray-400'
               }`}>
                 {materialCompleted ? (
-                  <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8" />
+                  <CheckCircle2 className="fluid-icon-xl" />
                 ) : (
-                  <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
+                  <BookOpen className="fluid-icon-lg" />
                 )}
               </div>
-              <h3 className={`font-semibold text-xs sm:text-sm md:text-base ${currentStep >= 1 ? 'text-gray-800' : 'text-gray-400'}`}>
+              <h3 className={`font-semibold fluid-text-sm ${currentStep >= 1 ? 'text-gray-800' : 'text-gray-400'}`}>
                 Estudiar
               </h3>
-              <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">
+              <p className="fluid-text-xs text-gray-500 fluid-mt-1">
                 {completedMaterials.length}/{materials.length} materiales
               </p>
               {currentStep === 1 && !materialCompleted && (
-                <span className="mt-1 sm:mt-2 text-[10px] sm:text-xs bg-blue-100 text-blue-700 px-1.5 sm:px-2 py-0.5 rounded-full font-medium">
+                <span className="fluid-mt-1 fluid-text-xs bg-blue-100 text-blue-700 fluid-px-2 py-0.5 rounded-full font-medium">
                   En progreso
                 </span>
               )}
@@ -276,27 +276,27 @@ const HomePage = () => {
 
             {/* Paso 2: Examinar */}
             <div className="flex flex-col items-center text-center">
-              <div className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-2 sm:mb-3 transition-all duration-300 ${
+              <div className={`w-[clamp(3rem,2.5rem+1vw,4rem)] h-[clamp(3rem,2.5rem+1vw,4rem)] rounded-full flex items-center justify-center fluid-mb-2 transition-all duration-300 ${
                 currentStep >= 2
                   ? allExamsApproved
                     ? 'bg-green-500 text-white shadow-lg shadow-green-500/30'
-                    : 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 ring-2 sm:ring-4 ring-blue-100'
+                    : 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 ring-[clamp(2px,0.15rem+0.1vw,4px)] ring-blue-100'
                   : 'bg-gray-100 text-gray-400'
               }`}>
                 {allExamsApproved ? (
-                  <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8" />
+                  <CheckCircle2 className="fluid-icon-xl" />
                 ) : (
-                  <FileText className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
+                  <FileText className="fluid-icon-lg" />
                 )}
               </div>
-              <h3 className={`font-semibold text-xs sm:text-sm md:text-base ${currentStep >= 2 ? 'text-gray-800' : 'text-gray-400'}`}>
+              <h3 className={`font-semibold fluid-text-sm ${currentStep >= 2 ? 'text-gray-800' : 'text-gray-400'}`}>
                 Examinar
               </h3>
-              <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">
+              <p className="fluid-text-xs text-gray-500 fluid-mt-1">
                 {approvedExams.length}/{exams.length} aprobados
               </p>
               {currentStep === 2 && !allExamsApproved && (
-                <span className="mt-1 sm:mt-2 text-[10px] sm:text-xs bg-blue-100 text-blue-700 px-1.5 sm:px-2 py-0.5 rounded-full font-medium">
+                <span className="fluid-mt-1 fluid-text-xs bg-blue-100 text-blue-700 fluid-px-2 py-0.5 rounded-full font-medium">
                   En progreso
                 </span>
               )}
@@ -304,26 +304,26 @@ const HomePage = () => {
 
             {/* Paso 3: Certificar */}
             <div className="flex flex-col items-center text-center">
-              <div className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center mb-2 sm:mb-3 transition-all duration-300 ${
+              <div className={`w-[clamp(3rem,2.5rem+1vw,4rem)] h-[clamp(3rem,2.5rem+1vw,4rem)] rounded-full flex items-center justify-center fluid-mb-2 transition-all duration-300 ${
                 currentStep >= 3
                   ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white shadow-lg shadow-amber-500/30'
                   : 'bg-gray-100 text-gray-400'
               }`}>
                 {allExamsApproved ? (
-                  <Trophy className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8" />
+                  <Trophy className="fluid-icon-xl" />
                 ) : (
-                  <Award className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
+                  <Award className="fluid-icon-lg" />
                 )}
               </div>
-              <h3 className={`font-semibold text-xs sm:text-sm md:text-base ${currentStep >= 3 ? 'text-gray-800' : 'text-gray-400'}`}>
+              <h3 className={`font-semibold fluid-text-sm ${currentStep >= 3 ? 'text-gray-800' : 'text-gray-400'}`}>
                 Certificar
               </h3>
-              <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">
+              <p className="fluid-text-xs text-gray-500 fluid-mt-1">
                 {allExamsApproved ? '¡Completado!' : 'Pendiente'}
               </p>
               {allExamsApproved && (
-                <span className="mt-1 sm:mt-2 text-[10px] sm:text-xs bg-green-100 text-green-700 px-1.5 sm:px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                  <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                <span className="fluid-mt-1 fluid-text-xs bg-green-100 text-green-700 fluid-px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  <Sparkles className="fluid-icon-xs" />
                   Logrado
                 </span>
               )}
@@ -333,33 +333,33 @@ const HomePage = () => {
       </div>
 
       {/* Tarjetas de Acceso Rápido */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-3 3xl:grid-cols-4 4xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 xl:gap-8 2xl:gap-10 3xl:gap-12">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 fluid-gap-5">
         {/* Materiales de Estudio */}
         <div 
           onClick={() => navigate('/study-contents')}
-          className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 p-4 sm:p-6 cursor-pointer group hover:border-blue-300 hover:shadow-lg transition-all duration-300 active:scale-[0.98]"
+          className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-5 cursor-pointer group hover:border-blue-300 hover:shadow-lg transition-all duration-300 active:scale-[0.98]"
         >
-          <div className="flex items-start justify-between mb-3 sm:mb-4">
-            <div className={`w-11 h-11 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl flex items-center justify-center ${
+          <div className="flex items-start justify-between fluid-mb-4">
+            <div className={`w-[clamp(2.75rem,2.5rem+0.5vw,3.5rem)] h-[clamp(2.75rem,2.5rem+0.5vw,3.5rem)] rounded-fluid-lg flex items-center justify-center ${
               materialCompleted ? 'bg-green-100' : 'bg-blue-100'
             }`}>
-              <BookOpen className={`w-5 h-5 sm:w-7 sm:h-7 ${materialCompleted ? 'text-green-600' : 'text-blue-600'}`} />
+              <BookOpen className={`fluid-icon-lg ${materialCompleted ? 'text-green-600' : 'text-blue-600'}`} />
             </div>
-            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+            <ChevronRight className="fluid-icon text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
           </div>
           
-          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-0.5 sm:mb-1">Materiales</h3>
-          <p className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">Material de estudio para tu preparación</p>
+          <h3 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-1">Materiales</h3>
+          <p className="fluid-text-sm text-gray-500 fluid-mb-4">Material de estudio para tu preparación</p>
           
           {/* Barra de progreso */}
-          <div className="mb-2 sm:mb-3">
-            <div className="flex justify-between text-[10px] sm:text-xs text-gray-500 mb-1">
+          <div className="fluid-mb-3">
+            <div className="flex justify-between fluid-text-xs text-gray-500 mb-1">
               <span>Progreso</span>
               <span className="font-medium text-gray-700">{avgMaterialProgress}%</span>
             </div>
-            <div className="w-full bg-gray-100 rounded-full h-1.5 sm:h-2">
+            <div className="w-full bg-gray-100 rounded-full h-[clamp(0.375rem,0.3rem+0.1vw,0.5rem)]">
               <div 
-                className={`h-1.5 sm:h-2 rounded-full transition-all duration-500 ${
+                className={`h-full rounded-full transition-all duration-500 ${
                   materialCompleted ? 'bg-green-500' : 'bg-blue-500'
                 }`}
                 style={{ width: `${avgMaterialProgress}%` }}
@@ -368,12 +368,12 @@ const HomePage = () => {
           </div>
           
           <div className="flex items-center justify-between">
-            <span className="text-xs sm:text-sm text-gray-600">
+            <span className="fluid-text-sm text-gray-600">
               {completedMaterials.length} de {materials.length} completos
             </span>
             {materialCompleted && (
-              <span className="flex items-center gap-1 text-green-600 text-[10px] sm:text-xs font-medium">
-                <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="flex items-center gap-1 text-green-600 fluid-text-xs font-medium">
+                <CheckCircle2 className="fluid-icon-sm" />
                 Completado
               </span>
             )}
@@ -383,29 +383,29 @@ const HomePage = () => {
         {/* Exámenes */}
         <div 
           onClick={() => navigate('/exams')}
-          className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 p-4 sm:p-6 cursor-pointer group hover:border-amber-300 hover:shadow-lg transition-all duration-300 active:scale-[0.98]"
+          className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-5 cursor-pointer group hover:border-amber-300 hover:shadow-lg transition-all duration-300 active:scale-[0.98]"
         >
-          <div className="flex items-start justify-between mb-3 sm:mb-4">
-            <div className={`w-11 h-11 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl flex items-center justify-center ${
+          <div className="flex items-start justify-between fluid-mb-4">
+            <div className={`w-[clamp(2.75rem,2.5rem+0.5vw,3.5rem)] h-[clamp(2.75rem,2.5rem+0.5vw,3.5rem)] rounded-fluid-lg flex items-center justify-center ${
               allExamsApproved ? 'bg-green-100' : 'bg-amber-100'
             }`}>
-              <FileText className={`w-5 h-5 sm:w-7 sm:h-7 ${allExamsApproved ? 'text-green-600' : 'text-amber-600'}`} />
+              <FileText className={`fluid-icon-lg ${allExamsApproved ? 'text-green-600' : 'text-amber-600'}`} />
             </div>
-            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-300 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
+            <ChevronRight className="fluid-icon text-gray-300 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
           </div>
           
-          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-0.5 sm:mb-1">Exámenes</h3>
-          <p className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">Demuestra tu conocimiento y certifícate</p>
+          <h3 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-1">Exámenes</h3>
+          <p className="fluid-text-sm text-gray-500 fluid-mb-4">Demuestra tu conocimiento y certifícate</p>
           
           {/* Barra de progreso */}
-          <div className="mb-2 sm:mb-3">
-            <div className="flex justify-between text-[10px] sm:text-xs text-gray-500 mb-1">
+          <div className="fluid-mb-3">
+            <div className="flex justify-between fluid-text-xs text-gray-500 mb-1">
               <span>Aprobación</span>
               <span className="font-medium text-gray-700">{Math.round(examApprovalRate)}%</span>
             </div>
-            <div className="w-full bg-gray-100 rounded-full h-1.5 sm:h-2">
+            <div className="w-full bg-gray-100 rounded-full h-[clamp(0.375rem,0.3rem+0.1vw,0.5rem)]">
               <div 
-                className={`h-1.5 sm:h-2 rounded-full transition-all duration-500 ${
+                className={`h-full rounded-full transition-all duration-500 ${
                   allExamsApproved ? 'bg-green-500' : 'bg-amber-500'
                 }`}
                 style={{ width: `${examApprovalRate}%` }}
@@ -414,12 +414,12 @@ const HomePage = () => {
           </div>
           
           <div className="flex items-center justify-between">
-            <span className="text-xs sm:text-sm text-gray-600">
+            <span className="fluid-text-sm text-gray-600">
               {approvedExams.length} de {exams.length} aprobados
             </span>
             {allExamsApproved && (
-              <span className="flex items-center gap-1 text-green-600 text-[10px] sm:text-xs font-medium">
-                <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="flex items-center gap-1 text-green-600 fluid-text-xs font-medium">
+                <CheckCircle2 className="fluid-icon-sm" />
                 Completado
               </span>
             )}
@@ -429,34 +429,34 @@ const HomePage = () => {
         {/* Certificados */}
         <div 
           onClick={() => navigate('/certificates')}
-          className="bg-white rounded-xl sm:rounded-2xl border border-green-200 p-4 sm:p-6 cursor-pointer group hover:border-green-400 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-white to-green-50 active:scale-[0.98] sm:col-span-2 lg:col-span-1"
+          className="bg-white rounded-fluid-xl border border-green-200 fluid-p-5 cursor-pointer group hover:border-green-400 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-white to-green-50 active:scale-[0.98] sm:col-span-2 lg:col-span-1"
         >
-          <div className="flex items-start justify-between mb-3 sm:mb-4">
-            <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl flex items-center justify-center bg-gradient-to-br from-yellow-100 to-amber-100">
-              <Award className="w-5 h-5 sm:w-7 sm:h-7 text-amber-600" />
+          <div className="flex items-start justify-between fluid-mb-4">
+            <div className="w-[clamp(2.75rem,2.5rem+0.5vw,3.5rem)] h-[clamp(2.75rem,2.5rem+0.5vw,3.5rem)] rounded-fluid-lg flex items-center justify-center bg-gradient-to-br from-yellow-100 to-amber-100">
+              <Award className="fluid-icon-lg text-amber-600" />
             </div>
-            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-green-400 group-hover:text-green-600 group-hover:translate-x-1 transition-all" />
+            <ChevronRight className="fluid-icon text-green-400 group-hover:text-green-600 group-hover:translate-x-1 transition-all" />
           </div>
           
-          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-0.5 sm:mb-1">Certificados</h3>
-          <p className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">
+          <h3 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-1">Certificados</h3>
+          <p className="fluid-text-sm text-gray-500 fluid-mb-4">
             {approvedExams.length > 0 ? 'Descarga tus certificaciones' : 'Consulta tus certificaciones'}
           </p>
           
           {approvedExams.length > 0 ? (
-            <div className="flex items-center gap-2 p-2.5 sm:p-3 bg-green-100 rounded-lg sm:rounded-xl">
-              <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+            <div className="flex items-center fluid-gap-2 fluid-p-3 bg-green-100 rounded-fluid-lg">
+              <Trophy className="fluid-icon text-green-600" />
               <div>
-                <p className="text-xs sm:text-sm font-medium text-green-800">{approvedExams.length} certificación{approvedExams.length !== 1 ? 'es' : ''}</p>
-                <p className="text-[10px] sm:text-xs text-green-600">Disponibles para descargar</p>
+                <p className="fluid-text-sm font-medium text-green-800">{approvedExams.length} certificación{approvedExams.length !== 1 ? 'es' : ''}</p>
+                <p className="fluid-text-xs text-green-600">Disponibles para descargar</p>
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-2 p-2.5 sm:p-3 bg-amber-50 rounded-lg sm:rounded-xl">
-              <Target className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
+            <div className="flex items-center fluid-gap-2 fluid-p-3 bg-amber-50 rounded-fluid-lg">
+              <Target className="fluid-icon text-amber-500" />
               <div>
-                <p className="text-xs sm:text-sm font-medium text-amber-700">En progreso</p>
-                <p className="text-[10px] sm:text-xs text-amber-500">Aprueba exámenes para obtener certificados</p>
+                <p className="fluid-text-sm font-medium text-amber-700">En progreso</p>
+                <p className="fluid-text-xs text-amber-500">Aprueba exámenes para obtener certificados</p>
               </div>
             </div>
           )}
@@ -464,78 +464,78 @@ const HomePage = () => {
       </div>
 
       {/* Estadísticas Rápidas */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 lg:gap-6 xl:gap-8 2xl:gap-10 3xl:gap-12">
-        <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 p-3 sm:p-4 text-center">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-1.5 sm:mb-2 bg-blue-100 rounded-full flex items-center justify-center">
-            <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 fluid-gap-4">
+        <div className="bg-white rounded-fluid-lg border border-gray-200 fluid-p-4 text-center">
+          <div className="w-[clamp(2rem,1.75rem+0.5vw,2.5rem)] h-[clamp(2rem,1.75rem+0.5vw,2.5rem)] mx-auto fluid-mb-2 bg-blue-100 rounded-full flex items-center justify-center">
+            <BookOpen className="fluid-icon text-blue-600" />
           </div>
-          <p className="text-lg sm:text-2xl font-bold text-gray-800">{materials.length}</p>
-          <p className="text-[10px] sm:text-xs text-gray-500">Materiales</p>
+          <p className="fluid-text-2xl font-bold text-gray-800">{materials.length}</p>
+          <p className="fluid-text-xs text-gray-500">Materiales</p>
         </div>
         
-        <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 p-3 sm:p-4 text-center">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-1.5 sm:mb-2 bg-amber-100 rounded-full flex items-center justify-center">
-            <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
+        <div className="bg-white rounded-fluid-lg border border-gray-200 fluid-p-4 text-center">
+          <div className="w-[clamp(2rem,1.75rem+0.5vw,2.5rem)] h-[clamp(2rem,1.75rem+0.5vw,2.5rem)] mx-auto fluid-mb-2 bg-amber-100 rounded-full flex items-center justify-center">
+            <FileText className="fluid-icon text-amber-600" />
           </div>
-          <p className="text-lg sm:text-2xl font-bold text-gray-800">{exams.length}</p>
-          <p className="text-[10px] sm:text-xs text-gray-500">Exámenes</p>
+          <p className="fluid-text-2xl font-bold text-gray-800">{exams.length}</p>
+          <p className="fluid-text-xs text-gray-500">Exámenes</p>
         </div>
         
-        <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 p-3 sm:p-4 text-center">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-1.5 sm:mb-2 bg-green-100 rounded-full flex items-center justify-center">
-            <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+        <div className="bg-white rounded-fluid-lg border border-gray-200 fluid-p-4 text-center">
+          <div className="w-[clamp(2rem,1.75rem+0.5vw,2.5rem)] h-[clamp(2rem,1.75rem+0.5vw,2.5rem)] mx-auto fluid-mb-2 bg-green-100 rounded-full flex items-center justify-center">
+            <CheckCircle2 className="fluid-icon text-green-600" />
           </div>
-          <p className="text-lg sm:text-2xl font-bold text-gray-800">{approvedExams.length}</p>
-          <p className="text-[10px] sm:text-xs text-gray-500">Certificaciones</p>
+          <p className="fluid-text-2xl font-bold text-gray-800">{approvedExams.length}</p>
+          <p className="fluid-text-xs text-gray-500">Certificaciones</p>
         </div>
         
-        <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 p-3 sm:p-4 text-center">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-1.5 sm:mb-2 bg-purple-100 rounded-full flex items-center justify-center">
-            <Star className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+        <div className="bg-white rounded-fluid-lg border border-gray-200 fluid-p-4 text-center">
+          <div className="w-[clamp(2rem,1.75rem+0.5vw,2.5rem)] h-[clamp(2rem,1.75rem+0.5vw,2.5rem)] mx-auto fluid-mb-2 bg-purple-100 rounded-full flex items-center justify-center">
+            <Star className="fluid-icon text-purple-600" />
           </div>
-          <p className="text-lg sm:text-2xl font-bold text-gray-800">{stats?.average_score ? Math.round(stats.average_score) : '--'}%</p>
-          <p className="text-[10px] sm:text-xs text-gray-500">Promedio</p>
+          <p className="fluid-text-2xl font-bold text-gray-800">{stats?.average_score ? Math.round(stats.average_score) : '--'}%</p>
+          <p className="fluid-text-xs text-gray-500">Promedio</p>
         </div>
       </div>
 
       {/* Próximos Pasos - Recomendaciones */}
       {!allExamsApproved && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl sm:rounded-2xl border border-blue-100 p-4 sm:p-6">
-          <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
-            <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-fluid-xl border border-blue-100 fluid-p-5">
+          <h2 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-4 flex items-center fluid-gap-2">
+            <Zap className="fluid-icon text-blue-600" />
             Próximos pasos recomendados
           </h2>
           
-          <div className="space-y-2 sm:space-y-3">
+          <div className="flex flex-col fluid-gap-3">
             {!materialCompleted && materials.length > 0 && (
               <div 
                 onClick={() => navigate('/study-contents')}
-                className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white rounded-lg sm:rounded-xl border border-blue-100 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group active:scale-[0.98]"
+                className="flex items-center fluid-gap-4 fluid-p-4 bg-white rounded-fluid-lg border border-blue-100 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group active:scale-[0.98]"
               >
-                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Play className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                <div className="w-[clamp(2.25rem,2rem+0.5vw,2.5rem)] h-[clamp(2.25rem,2rem+0.5vw,2.5rem)] bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Play className="fluid-icon text-blue-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm sm:text-base text-gray-800">Continúa estudiando</p>
-                  <p className="text-xs sm:text-sm text-gray-500">Te falta completar {pendingMaterials} material{pendingMaterials !== 1 ? 'es' : ''}</p>
+                  <p className="font-medium fluid-text-base text-gray-800">Continúa estudiando</p>
+                  <p className="fluid-text-sm text-gray-500">Te falta completar {pendingMaterials} material{pendingMaterials !== 1 ? 'es' : ''}</p>
                 </div>
-                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                <ArrowRight className="fluid-icon text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
               </div>
             )}
             
             {(materialCompleted || materials.length === 0) && pendingExams > 0 && (
               <div 
                 onClick={() => navigate('/exams')}
-                className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white rounded-lg sm:rounded-xl border border-amber-100 cursor-pointer hover:border-amber-300 hover:shadow-md transition-all group active:scale-[0.98]"
+                className="flex items-center fluid-gap-4 fluid-p-4 bg-white rounded-fluid-lg border border-amber-100 cursor-pointer hover:border-amber-300 hover:shadow-md transition-all group active:scale-[0.98]"
               >
-                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Target className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
+                <div className="w-[clamp(2.25rem,2rem+0.5vw,2.5rem)] h-[clamp(2.25rem,2rem+0.5vw,2.5rem)] bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Target className="fluid-icon text-amber-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm sm:text-base text-gray-800">Presenta tu examen</p>
-                  <p className="text-xs sm:text-sm text-gray-500">Tienes {pendingExams} examen{pendingExams !== 1 ? 'es' : ''} por aprobar</p>
+                  <p className="font-medium fluid-text-base text-gray-800">Presenta tu examen</p>
+                  <p className="fluid-text-sm text-gray-500">Tienes {pendingExams} examen{pendingExams !== 1 ? 'es' : ''} por aprobar</p>
                 </div>
-                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-300 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
+                <ArrowRight className="fluid-icon text-gray-300 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
               </div>
             )}
           </div>
@@ -544,19 +544,19 @@ const HomePage = () => {
 
       {/* Mensaje de felicitación cuando todo está completo */}
       {allExamsApproved && (
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl sm:rounded-2xl border border-green-200 p-4 sm:p-6 text-center">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-500/30">
-            <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-fluid-xl border border-green-200 fluid-p-5 text-center">
+          <div className="w-[clamp(3rem,2.5rem+1vw,4rem)] h-[clamp(3rem,2.5rem+1vw,4rem)] mx-auto fluid-mb-4 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-full flex items-center justify-center shadow-lg shadow-amber-500/30">
+            <Trophy className="fluid-icon-xl text-white" />
           </div>
-          <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-1 sm:mb-2">¡Proceso de certificación completado!</h2>
-          <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">Has aprobado todos tus exámenes exitosamente.</p>
+          <h2 className="fluid-text-xl font-bold text-gray-800 fluid-mb-2">¡Proceso de certificación completado!</h2>
+          <p className="fluid-text-base text-gray-600 fluid-mb-4">Has aprobado todos tus exámenes exitosamente.</p>
           <button
             onClick={() => navigate('/certificates')}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base transition-all transform hover:scale-105 active:scale-[0.98]"
+            className="w-full sm:w-auto inline-flex items-center justify-center fluid-gap-2 fluid-px-5 fluid-py-3 bg-green-600 hover:bg-green-700 text-white rounded-fluid-lg font-semibold fluid-text-base transition-all transform hover:scale-105 active:scale-[0.98]"
           >
-            <Award className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Award className="fluid-icon" />
             Ver mis certificados
-            <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
+            <ArrowRight className="fluid-icon-sm" />
           </button>
         </div>
       )}

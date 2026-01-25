@@ -103,32 +103,32 @@ export default function DeletionRequestsPage() {
   }
 
   return (
-    <div className="max-w-5xl 2xl:max-w-6xl 3xl:max-w-7xl 4xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 3xl:px-14 4xl:px-16 py-8 lg:py-10 xl:py-12 2xl:py-14 3xl:py-16 4xl:py-20">
+    <div className="max-w-5xl mx-auto fluid-px-6 fluid-py-10">
       {/* Header */}
-      <div className="mb-8 lg:mb-10 xl:mb-12">
+      <div className="fluid-mb-10">
         <button
           onClick={() => navigate('/standards')}
-          className="inline-flex items-center text-sm lg:text-base xl:text-lg text-gray-500 hover:text-gray-700"
+          className="inline-flex items-center fluid-text-sm text-gray-500 hover:text-gray-700"
         >
-          <svg className="mr-2 h-4 w-4 lg:h-5 lg:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="fluid-mr-2 fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           Volver a estándares
         </button>
-        <h1 className="mt-4 text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl 3xl:text-6xl 4xl:text-7xl font-bold text-gray-900">Solicitudes de Eliminación</h1>
-        <p className="mt-1 lg:mt-2 text-sm lg:text-base xl:text-lg 2xl:text-xl 3xl:text-2xl 4xl:text-3xl text-gray-500">
+        <h1 className="fluid-mt-4 fluid-text-3xl font-bold text-gray-900">Solicitudes de Eliminación</h1>
+        <p className="fluid-mt-2 fluid-text-base text-gray-500">
           Revisa y aprueba o rechaza las solicitudes de eliminación de estándares
         </p>
       </div>
 
       {/* Filtros */}
-      <div className="mb-6 lg:mb-8">
-        <div className="flex flex-wrap gap-2 lg:gap-3">
+      <div className="fluid-mb-8">
+        <div className="flex flex-wrap fluid-gap-3">
           {['', 'pending', 'approved', 'rejected'].map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 lg:px-5 lg:py-2.5 xl:px-6 xl:py-3 text-sm lg:text-base xl:text-lg font-medium rounded-md lg:rounded-lg ${
+              className={`fluid-px-5 fluid-py-2 fluid-text-sm font-medium rounded-fluid-md ${
                 statusFilter === status
                   ? 'bg-primary-600 text-white'
                   : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
@@ -141,60 +141,60 @@ export default function DeletionRequestsPage() {
       </div>
 
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-          <p className="text-sm text-red-600">{error}</p>
+        <div className="fluid-mb-6 bg-red-50 border border-red-200 rounded-fluid-md fluid-p-4">
+          <p className="fluid-text-sm text-red-600">{error}</p>
         </div>
       )}
 
       {/* Lista de solicitudes */}
       {requests.length === 0 ? (
-        <div className="text-center py-12 lg:py-16 xl:py-20 2xl:py-24 3xl:py-28 4xl:py-32 bg-white rounded-lg lg:rounded-xl 3xl:rounded-2xl shadow">
-          <svg className="mx-auto h-12 w-12 lg:h-16 lg:w-16 xl:h-20 xl:w-20 2xl:h-24 2xl:w-24 3xl:h-28 3xl:w-28 4xl:h-32 4xl:w-32 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="text-center fluid-py-16 bg-white rounded-fluid-lg shadow">
+          <svg className="mx-auto fluid-icon-2xl text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
-          <h3 className="mt-2 lg:mt-4 text-sm lg:text-base xl:text-lg font-medium text-gray-900">No hay solicitudes</h3>
-          <p className="mt-1 lg:mt-2 text-sm lg:text-base text-gray-500">
+          <h3 className="fluid-mt-4 fluid-text-base font-medium text-gray-900">No hay solicitudes</h3>
+          <p className="fluid-mt-2 fluid-text-sm text-gray-500">
             {statusFilter === 'pending'
               ? 'No hay solicitudes pendientes por revisar.'
               : 'No se encontraron solicitudes con este filtro.'}
           </p>
         </div>
       ) : (
-        <div className="bg-white shadow overflow-hidden sm:rounded-md lg:rounded-lg xl:rounded-xl">
+        <div className="bg-white shadow overflow-hidden sm:rounded-md rounded-fluid-lg">
           <ul className="divide-y divide-gray-200">
             {requests.map((req) => (
-              <li key={req.id} className="px-4 py-4 sm:px-6 lg:px-8 lg:py-6 xl:px-10 xl:py-8">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <li key={req.id} className="fluid-px-6 fluid-py-5">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between fluid-gap-4">
                   <div className="flex-1">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <p className="text-sm lg:text-base xl:text-lg font-medium text-gray-900">{req.entity_name}</p>
+                    <div className="flex flex-wrap items-center fluid-gap-3">
+                      <p className="fluid-text-base font-medium text-gray-900">{req.entity_name}</p>
                       {getStatusBadge(req.status)}
                     </div>
-                    <p className="mt-2 text-sm lg:text-base text-gray-500">
+                    <p className="fluid-mt-2 fluid-text-sm text-gray-500">
                       <span className="font-medium">Razón:</span> {req.reason}
                     </p>
-                    <p className="mt-1 text-xs lg:text-sm text-gray-400">
+                    <p className="fluid-mt-1 fluid-text-xs text-gray-400">
                       Solicitado: {new Date(req.requested_at).toLocaleDateString('es-MX', { dateStyle: 'medium' })}
                     </p>
                     {req.admin_response && (
-                      <div className="mt-2 lg:mt-3 bg-gray-50 rounded lg:rounded-lg p-2 lg:p-3">
-                        <p className="text-xs lg:text-sm text-gray-600">
+                      <div className="fluid-mt-3 bg-gray-50 rounded-fluid-md fluid-p-3">
+                        <p className="fluid-text-xs text-gray-600">
                           <span className="font-medium">Respuesta admin:</span> {req.admin_response}
                         </p>
                       </div>
                     )}
                   </div>
                   {req.status === 'pending' && (
-                    <div className="flex gap-2 lg:gap-3">
+                    <div className="flex fluid-gap-3">
                       <button
                         onClick={() => handleReview(req, 'approve')}
-                        className="px-3 py-1.5 lg:px-4 lg:py-2 xl:px-5 xl:py-2.5 text-sm lg:text-base font-medium text-green-700 bg-green-100 rounded-md lg:rounded-lg hover:bg-green-200"
+                        className="fluid-px-4 fluid-py-2 fluid-text-sm font-medium text-green-700 bg-green-100 rounded-fluid-md hover:bg-green-200"
                       >
                         Aprobar
                       </button>
                       <button
                         onClick={() => handleReview(req, 'reject')}
-                        className="px-3 py-1.5 lg:px-4 lg:py-2 xl:px-5 xl:py-2.5 text-sm lg:text-base font-medium text-red-700 bg-red-100 rounded-md lg:rounded-lg hover:bg-red-200"
+                        className="fluid-px-4 fluid-py-2 fluid-text-sm font-medium text-red-700 bg-red-100 rounded-fluid-md hover:bg-red-200"
                       >
                         Rechazar
                       </button>
@@ -209,38 +209,38 @@ export default function DeletionRequestsPage() {
 
       {/* Modal de revisión */}
       {reviewModal.show && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg lg:rounded-xl 3xl:rounded-2xl max-w-md lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl 3xl:max-w-3xl w-full mx-4 p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16">
-            <h3 className="text-lg lg:text-xl xl:text-2xl 2xl:text-3xl 3xl:text-4xl 4xl:text-5xl font-medium text-gray-900 mb-4 lg:mb-6 2xl:mb-8 3xl:mb-10">
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 fluid-p-4">
+          <div className="bg-white rounded-fluid-xl max-w-2xl w-full mx-4 fluid-p-8">
+            <h3 className="fluid-text-xl font-medium text-gray-900 fluid-mb-6">
               {reviewModal.action === 'approve' ? 'Aprobar Eliminación' : 'Rechazar Solicitud'}
             </h3>
-            <p className="text-sm lg:text-base xl:text-lg text-gray-500 mb-4 lg:mb-6">
+            <p className="fluid-text-base text-gray-500 fluid-mb-6">
               {reviewModal.action === 'approve'
                 ? `¿Confirmas la eliminación de "${reviewModal.request?.entity_name}"?`
                 : `¿Rechazar la solicitud de eliminación de "${reviewModal.request?.entity_name}"?`}
             </p>
-            <div className="mb-4 lg:mb-6">
-              <label className="block text-sm lg:text-base font-medium text-gray-700 mb-1 lg:mb-2">
+            <div className="fluid-mb-6">
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                 Respuesta (opcional)
               </label>
               <textarea
                 value={reviewModal.response}
                 onChange={(e) => setReviewModal({ ...reviewModal, response: e.target.value })}
                 rows={3}
-                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                className="w-full border-gray-300 rounded-fluid-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
                 placeholder="Agrega un comentario para el solicitante..."
               />
             </div>
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end fluid-gap-3">
               <button
                 onClick={() => setReviewModal({ show: false, request: null, action: null, response: '' })}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="fluid-px-4 fluid-py-2 border border-gray-300 rounded-fluid-md fluid-text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
                 Cancelar
               </button>
               <button
                 onClick={confirmReview}
-                className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+                className={`fluid-px-4 fluid-py-2 border border-transparent rounded-fluid-md shadow-sm fluid-text-sm font-medium text-white ${
                   reviewModal.action === 'approve'
                     ? 'bg-green-600 hover:bg-green-700'
                     : 'bg-red-600 hover:bg-red-700'

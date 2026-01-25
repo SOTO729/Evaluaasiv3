@@ -13,17 +13,17 @@ interface BreadcrumbProps {
 
 const Breadcrumb = ({ items }: BreadcrumbProps) => {
   return (
-    <nav className="flex items-center space-x-1 text-sm mb-4 bg-white/80 backdrop-blur-sm rounded-xl px-4 py-3 shadow-sm border border-gray-100">
+    <nav className="flex items-center flex-wrap fluid-gap-1 fluid-text-sm fluid-mb-4 bg-white/80 backdrop-blur-sm rounded-fluid-xl fluid-px-4 fluid-py-3 shadow-sm border border-gray-100">
       <Link 
         to="/exams" 
         className="flex items-center text-gray-500 hover:text-blue-600 transition-colors duration-200"
       >
-        <Home className="w-4 h-4" />
+        <Home className="fluid-icon-sm" />
       </Link>
       
       {items.map((item, index) => (
         <div key={index} className="flex items-center">
-          <ChevronRight className="w-4 h-4 text-gray-400 mx-1" />
+          <ChevronRight className="fluid-icon-sm text-gray-400 fluid-mx-1" />
           {item.path && !item.isActive ? (
             <Link
               to={item.path}

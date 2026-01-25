@@ -29,9 +29,9 @@ const stats = [
 
 export default function StatsSection() {
   return (
-    <section className="py-16 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+    <section className="fluid-py-16 bg-white">
+      <div className="max-w-7xl mx-auto fluid-px-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 fluid-gap-8">
           {stats.map((stat) => {
             const Icon = stat.icon
             const colorClasses = {
@@ -44,12 +44,12 @@ export default function StatsSection() {
             return (
               <div 
                 key={stat.label}
-                className="text-center p-8 rounded-2xl bg-gradient-to-br from-gray-50 to-white border border-gray-100"
+                className="text-center fluid-p-8 rounded-fluid-2xl bg-gradient-to-br from-gray-50 to-white border border-gray-100"
               >
-                <div className={`w-16 h-16 ${colorClasses[stat.color as keyof typeof colorClasses]} rounded-2xl flex items-center justify-center mx-auto mb-4`}>
-                  <Icon className="w-8 h-8" />
+                <div className={`w-16 h-16 ${colorClasses[stat.color as keyof typeof colorClasses]} rounded-fluid-2xl flex items-center justify-center mx-auto fluid-mb-4`}>
+                  <Icon className="fluid-icon-xl" />
                 </div>
-                <div className="text-4xl font-bold text-gray-900 mb-2">{stat.value}</div>
+                <div className="text-4xl font-bold text-gray-900 fluid-mb-2">{stat.value}</div>
                 <div className="text-gray-600">{stat.label}</div>
               </div>
             )

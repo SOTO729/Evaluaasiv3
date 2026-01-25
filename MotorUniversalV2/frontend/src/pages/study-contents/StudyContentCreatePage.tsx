@@ -356,7 +356,7 @@ const StudyContentCreatePage = () => {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto p-6 flex items-center justify-center min-h-[60vh]">
+      <div className="max-w-4xl mx-auto fluid-p-6 flex items-center justify-center min-h-[60vh]">
         <LoadingSpinner message="Cargando material..." />
       </div>
     );
@@ -367,28 +367,28 @@ const StudyContentCreatePage = () => {
       {/* Modal de carga */}
       {saving && (
         <div className="fixed inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50">
-          <div className="text-center p-12">
+          <div className="text-center fluid-p-12">
             <div className="inline-block animate-spin rounded-full h-16 w-16 border-b-4 border-primary-600"></div>
-            <p className="mt-6 text-xl font-medium text-gray-700">
+            <p className="fluid-mt-6 fluid-text-xl font-medium text-gray-700">
               {creationMode === 'copy' ? 'Copiando material...' : (isEditing ? 'Guardando cambios...' : 'Creando material...')}
             </p>
-            <p className="mt-2 text-base text-gray-500">Por favor espere</p>
+            <p className="fluid-mt-2 fluid-text-base text-gray-500">Por favor espere</p>
           </div>
         </div>
       )}
 
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
+        <div className="fluid-mb-6">
           <button
             onClick={() => navigate('/study-contents')}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4 transition-colors"
+            className="flex items-center fluid-gap-2 text-gray-600 hover:text-gray-800 fluid-mb-4 transition-colors"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="fluid-icon-sm" />
             <span>Volver a la lista</span>
           </button>
         
-        <h1 className="text-3xl font-bold mb-2">
+        <h1 className="fluid-text-3xl font-bold fluid-mb-2">
           {isEditing ? 'Editar Material de Estudio' : 'Crear Material de Estudio'}
         </h1>
         <p className="text-gray-600">
@@ -401,8 +401,8 @@ const StudyContentCreatePage = () => {
 
       {/* Success Message */}
       {showSuccess && (
-        <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center gap-3">
-          <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
+        <div className="fluid-mb-6 bg-green-50 border border-green-200 text-green-700 fluid-px-4 fluid-py-3 rounded-fluid-lg flex items-center fluid-gap-3">
+          <CheckCircle2 className="fluid-icon-sm text-green-600 flex-shrink-0" />
           <span className="font-medium">
             Material {isEditing ? 'actualizado' : (creationMode === 'copy' ? 'copiado' : 'creado')} exitosamente. Redirigiendo...
           </span>
@@ -411,29 +411,29 @@ const StudyContentCreatePage = () => {
 
       {/* Selector de modo de creación (solo al crear) */}
       {!isEditing && (
-        <div className="card mb-6">
-          <h2 className="text-xl font-semibold mb-4">Modo de Creación</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="card fluid-mb-6">
+          <h2 className="fluid-text-xl font-semibold fluid-mb-4">Modo de Creación</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
             {/* Opción: Desde cero */}
             <div
               onClick={() => handleModeChange('scratch')}
-              className={`cursor-pointer border-2 rounded-lg p-4 transition-all ${
+              className={`cursor-pointer border-2 rounded-fluid-lg fluid-p-4 transition-all ${
                 creationMode === 'scratch'
                   ? 'border-primary-600 bg-primary-50'
                   : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
               }`}
             >
-              <div className="flex items-start gap-3">
+              <div className="flex items-start fluid-gap-3">
                 <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
                   creationMode === 'scratch' ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'
                 }`}>
-                  <Plus className="w-5 h-5" />
+                  <Plus className="fluid-icon-sm" />
                 </div>
                 <div className="flex-1">
                   <h3 className={`font-semibold ${creationMode === 'scratch' ? 'text-primary-900' : 'text-gray-900'}`}>
                     Crear desde cero
                   </h3>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="fluid-text-sm text-gray-600 fluid-mt-1">
                     Crear un nuevo material vacío y agregar sesiones y temas manualmente
                   </p>
                 </div>
@@ -448,23 +448,23 @@ const StudyContentCreatePage = () => {
             {/* Opción: Copiar existente */}
             <div
               onClick={() => handleModeChange('copy')}
-              className={`cursor-pointer border-2 rounded-lg p-4 transition-all ${
+              className={`cursor-pointer border-2 rounded-fluid-lg fluid-p-4 transition-all ${
                 creationMode === 'copy'
                   ? 'border-blue-600 bg-blue-50'
                   : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
               }`}
             >
-              <div className="flex items-start gap-3">
+              <div className="flex items-start fluid-gap-3">
                 <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
                   creationMode === 'copy' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
                 }`}>
-                  <Copy className="w-5 h-5" />
+                  <Copy className="fluid-icon-sm" />
                 </div>
                 <div className="flex-1">
                   <h3 className={`font-semibold ${creationMode === 'copy' ? 'text-blue-900' : 'text-gray-900'}`}>
                     Copiar material existente
                   </h3>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="fluid-text-sm text-gray-600 fluid-mt-1">
                     Duplicar un material con todas sus sesiones, temas y contenidos
                   </p>
                 </div>
@@ -479,14 +479,14 @@ const StudyContentCreatePage = () => {
           
           {/* Lista de materiales para copiar */}
           {creationMode === 'copy' && (
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="fluid-mt-4">
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                 Seleccionar material a copiar <span className="text-red-600">*</span>
               </label>
               
               {/* Buscador */}
-              <div className="mb-3 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <div className="fluid-mb-3 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-xs text-gray-400" />
                 <input
                   type="text"
                   value={searchMaterial}
@@ -496,13 +496,13 @@ const StudyContentCreatePage = () => {
                 />
               </div>
               
-              <div className="border border-gray-300 rounded-lg max-h-64 overflow-y-auto">
+              <div className="border border-gray-300 rounded-fluid-lg max-h-64 overflow-y-auto">
                 {filteredMaterials.length > 0 ? (
                   filteredMaterials.map((material: StudyMaterial) => (
                     <div
                       key={material.id}
                       onClick={() => handleSelectMaterialToCopy(material)}
-                      className={`p-3 cursor-pointer border-b last:border-b-0 transition-colors ${
+                      className={`fluid-p-3 cursor-pointer border-b last:border-b-0 transition-colors ${
                         selectedMaterialToCopy?.id === material.id
                           ? 'bg-blue-50 border-l-4 border-l-blue-500'
                           : 'hover:bg-gray-50'
@@ -512,32 +512,32 @@ const StudyContentCreatePage = () => {
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{material.title}</p>
                           {material.description && (
-                            <p className="text-sm text-gray-500 truncate max-w-md" 
+                            <p className="fluid-text-sm text-gray-500 truncate max-w-md" 
                                dangerouslySetInnerHTML={{ __html: material.description.replace(/<[^>]*>/g, '').slice(0, 80) + '...' }} 
                             />
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 text-xs rounded-full ${
+                        <div className="flex items-center fluid-gap-2">
+                          <span className={`fluid-px-2 py-0.5 fluid-text-xs rounded-full ${
                             material.is_published ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
                           }`}>
                             {material.is_published ? 'Publicado' : 'Borrador'}
                           </span>
                           {selectedMaterialToCopy?.id === material.id && (
-                            <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="fluid-icon-sm text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
                           )}
                         </div>
                       </div>
-                      <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                      <div className="flex fluid-gap-3 fluid-mt-1 fluid-text-xs text-gray-500">
                         <span>{material.sessions_count || 0} sesiones</span>
                         <span>{material.topics_count || 0} temas</span>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="p-4 text-center text-gray-500">
+                  <div className="fluid-p-4 text-center text-gray-500">
                     {searchMaterial 
                       ? 'No se encontraron materiales con ese criterio'
                       : 'No hay materiales disponibles para copiar'
@@ -547,24 +547,24 @@ const StudyContentCreatePage = () => {
               </div>
               
               {errors.material && (
-                <p className="text-red-600 text-xs mt-2 font-medium flex items-center gap-1">
-                  <AlertCircle className="h-4 w-4" />
+                <p className="text-red-600 fluid-text-xs fluid-mt-2 font-medium flex items-center fluid-gap-1">
+                  <AlertCircle className="fluid-icon-xs" />
                   {errors.material}
                 </p>
               )}
               
               {/* Info del material seleccionado */}
               {selectedMaterialToCopy && (
-                <div className="mt-3 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
+                <div className="fluid-mt-3 bg-blue-50 border-l-4 border-blue-500 fluid-p-4 rounded-r-fluid-lg">
                   <div className="flex">
                     <div className="flex-shrink-0">
-                      <Copy className="h-5 w-5 text-blue-400" />
+                      <Copy className="fluid-icon-sm text-blue-400" />
                     </div>
-                    <div className="ml-3">
-                      <p className="text-sm text-blue-700">
+                    <div className="fluid-ml-3">
+                      <p className="fluid-text-sm text-blue-700">
                         <span className="font-medium">Se copiará:</span> {selectedMaterialToCopy.title}
                       </p>
-                      <p className="text-xs text-blue-600 mt-1">
+                      <p className="fluid-text-xs text-blue-600 fluid-mt-1">
                         Incluye {selectedMaterialToCopy.sessions_count || 0} sesiones, {selectedMaterialToCopy.topics_count || 0} temas 
                         y todo su contenido (lecturas, videos, ejercicios)
                       </p>
@@ -577,16 +577,16 @@ const StudyContentCreatePage = () => {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="flex flex-col fluid-gap-6">
         {/* Información General - Solo mostrar si es modo scratch o si está editando */}
         {(creationMode === 'scratch' || isEditing) && (
         <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Información General</h2>
+          <h2 className="fluid-text-xl font-semibold fluid-mb-4">Información General</h2>
           
-          <div className="space-y-4">
+          <div className="flex flex-col fluid-gap-4">
             {/* Título */}
             <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="title" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                 Título del Material <span className="text-red-600">*</span>
               </label>
               <input
@@ -599,19 +599,19 @@ const StudyContentCreatePage = () => {
                 className={`input ${errors.title ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
               />
               {errors.title && (
-                <p className="text-red-600 text-xs mt-1 font-medium">{errors.title}</p>
+                <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{errors.title}</p>
               )}
               {!errors.title && formData.title.trim() && (
-                <p className="text-green-600 text-xs mt-1 font-medium">✓ Título válido</p>
+                <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Título válido</p>
               )}
             </div>
 
             {/* Descripción con Editor de Texto */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                 Descripción
               </label>
-              <div className="border border-gray-300 rounded-lg overflow-hidden">
+              <div className="border border-gray-300 rounded-fluid-lg overflow-hidden">
                 <ReactQuill
                   theme="snow"
                   value={formData.description || ''}
@@ -621,7 +621,7 @@ const StudyContentCreatePage = () => {
                   placeholder="Describe el contenido y objetivos del material de estudio..."
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="fluid-text-xs text-gray-500 fluid-mt-1">
                 Usa el editor para dar formato al texto: negritas, listas, enlaces, etc.
               </p>
               <style>{`
@@ -644,8 +644,8 @@ const StudyContentCreatePage = () => {
           </div>
 
           {/* Imagen del Material */}
-          <div className="mt-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="fluid-mt-6">
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
               Imagen del Material (opcional)
             </label>
             
@@ -654,12 +654,12 @@ const StudyContentCreatePage = () => {
                 <img 
                   src={formData.image_url} 
                   alt="Vista previa" 
-                  className="w-full max-w-4xl h-64 object-cover rounded-lg border-2 border-gray-300"
+                  className="w-full max-w-4xl h-64 object-cover rounded-fluid-lg border-2 border-gray-300"
                 />
                 <button
                   type="button"
                   onClick={removeImage}
-                  className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full hover:bg-red-700 shadow-lg"
+                  className="absolute top-2 right-2 bg-red-600 text-white fluid-p-2 rounded-full hover:bg-red-700 shadow-lg"
                   title="Eliminar imagen"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -675,17 +675,17 @@ const StudyContentCreatePage = () => {
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
               >
-                <label className={`flex flex-col items-center justify-center w-full max-w-4xl h-64 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                <label className={`flex flex-col items-center justify-center w-full max-w-4xl h-64 border-2 border-dashed rounded-fluid-lg cursor-pointer transition-colors ${
                   dragActive 
                     ? 'border-blue-500 bg-blue-50' 
                     : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
                 }`}>
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <svg className="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex flex-col items-center justify-center fluid-pt-5 fluid-pb-6">
+                    <svg className="w-10 h-10 fluid-mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
-                    <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click para cargar</span> o arrastra y suelta</p>
-                    <p className="text-xs text-gray-500">PNG, JPG, GIF o WEBP (Máx. 5MB)</p>
+                    <p className="fluid-mb-2 fluid-text-sm text-gray-500"><span className="font-semibold">Click para cargar</span> o arrastra y suelta</p>
+                    <p className="fluid-text-xs text-gray-500">PNG, JPG, GIF o WEBP (Máx. 5MB)</p>
                   </div>
                   <input 
                     type="file" 
@@ -698,15 +698,15 @@ const StudyContentCreatePage = () => {
             )}
             
             {uploadingImage && (
-              <div className="mt-3 flex items-center gap-2 text-blue-600">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm">Subiendo imagen...</span>
+              <div className="fluid-mt-3 flex items-center fluid-gap-2 text-blue-600">
+                <Loader2 className="fluid-icon-xs animate-spin" />
+                <span className="fluid-text-sm">Subiendo imagen...</span>
               </div>
             )}
             
             {errors.image && (
-              <p className="text-red-600 text-xs mt-2 font-medium flex items-center gap-1">
-                <AlertCircle className="h-4 w-4" />
+              <p className="text-red-600 fluid-text-xs fluid-mt-2 font-medium flex items-center fluid-gap-1">
+                <AlertCircle className="fluid-icon-xs" />
                 {errors.image}
               </p>
             )}
@@ -717,37 +717,37 @@ const StudyContentCreatePage = () => {
         {/* Vincular con Exámenes - Solo mostrar si es modo scratch o si está editando */}
         {(creationMode === 'scratch' || isEditing) && (
         <div className="card">
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <Link2 className="h-5 w-5 text-blue-600" />
+          <div className="fluid-mb-4">
+            <h2 className="fluid-text-xl font-semibold flex items-center fluid-gap-2">
+              <Link2 className="fluid-icon-sm text-blue-600" />
               Vincular con Exámenes
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="fluid-text-sm text-gray-600 fluid-mt-1">
               Relaciona este material de estudio con uno o varios exámenes (opcional)
             </p>
           </div>
 
           {/* Exámenes seleccionados */}
           {selectedExams.length > 0 && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="fluid-mb-4">
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                 Exámenes vinculados ({selectedExams.length})
               </label>
-              <div className="space-y-2">
+              <div className="flex flex-col fluid-gap-2">
                 {selectedExams.map((exam) => (
                   <div 
                     key={exam.id}
-                    className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between"
+                    className="bg-blue-50 border border-blue-200 rounded-fluid-lg fluid-p-3 flex items-center justify-between"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <Link2 className="h-4 w-4 text-blue-600" />
+                    <div className="flex items-center fluid-gap-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-fluid-lg flex items-center justify-center">
+                        <Link2 className="fluid-icon-xs text-blue-600" />
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">{exam.name}</p>
-                        <p className="text-xs text-gray-500 font-mono">{exam.version}</p>
+                        <p className="fluid-text-xs text-gray-500 font-mono">{exam.version}</p>
                       </div>
-                      <span className={`px-2 py-0.5 text-xs rounded-full ${
+                      <span className={`fluid-px-2 py-0.5 fluid-text-xs rounded-full ${
                         exam.is_published ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
                       }`}>
                         {exam.is_published ? 'Publicado' : 'Borrador'}
@@ -756,10 +756,10 @@ const StudyContentCreatePage = () => {
                     <button
                       type="button"
                       onClick={() => handleRemoveExam(exam.id)}
-                      className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                      className="fluid-p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
                       title="Quitar examen"
                     >
-                      <X className="h-5 w-5" />
+                      <X className="fluid-icon-sm" />
                     </button>
                   </div>
                 ))}
@@ -769,13 +769,13 @@ const StudyContentCreatePage = () => {
 
           {/* Buscador y lista para agregar más exámenes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
               {selectedExams.length > 0 ? 'Agregar otro examen' : 'Buscar y seleccionar exámenes'}
             </label>
             
             {/* Buscador */}
-            <div className="mb-3 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <div className="fluid-mb-3 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-xs text-gray-400" />
               <input
                 type="text"
                 value={searchExam}
@@ -786,35 +786,35 @@ const StudyContentCreatePage = () => {
             </div>
 
             {/* Lista de exámenes disponibles */}
-            <div className="border border-gray-300 rounded-lg max-h-48 overflow-y-auto">
+            <div className="border border-gray-300 rounded-fluid-lg max-h-48 overflow-y-auto">
               {filteredExams.length > 0 ? (
                 filteredExams.map((exam: ExamListItem) => (
                   <div
                     key={exam.id}
                     onClick={() => handleAddExam(exam)}
-                    className="p-3 cursor-pointer border-b last:border-b-0 transition-colors hover:bg-blue-50 flex items-center justify-between"
+                    className="fluid-p-3 cursor-pointer border-b last:border-b-0 transition-colors hover:bg-blue-50 flex items-center justify-between"
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center fluid-gap-2">
                         <p className="font-medium text-gray-900 truncate">{exam.name}</p>
-                        <span className={`px-2 py-0.5 text-xs rounded-full whitespace-nowrap ${
+                        <span className={`fluid-px-2 py-0.5 fluid-text-xs rounded-full whitespace-nowrap ${
                           exam.is_published ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
                         }`}>
                           {exam.is_published ? 'Publicado' : 'Borrador'}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-500 font-mono">{exam.version}</p>
-                      <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                      <p className="fluid-text-sm text-gray-500 font-mono">{exam.version}</p>
+                      <div className="flex fluid-gap-3 fluid-mt-1 fluid-text-xs text-gray-500">
                         <span>{exam.total_categories} categorías</span>
                         <span>{exam.total_questions} preguntas</span>
                         <span>{exam.total_exercises} ejercicios</span>
                       </div>
                     </div>
-                    <Plus className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                    <Plus className="fluid-icon-sm text-blue-600 flex-shrink-0" />
                   </div>
                 ))
               ) : (
-                <div className="p-4 text-center text-gray-500">
+                <div className="fluid-p-4 text-center text-gray-500">
                   {searchExam 
                     ? 'No se encontraron exámenes con ese criterio'
                     : selectedExams.length > 0 
@@ -825,7 +825,7 @@ const StudyContentCreatePage = () => {
               )}
             </div>
 
-            <p className="text-xs text-gray-500 mt-3">
+            <p className="fluid-text-xs text-gray-500 fluid-mt-3">
               <span className="font-medium">Nota:</span> Vincular un material con exámenes permite que los estudiantes 
               accedan al contenido de estudio relacionado antes de tomar los exámenes.
             </p>
@@ -836,17 +836,17 @@ const StudyContentCreatePage = () => {
         {/* Sección para modo copia: solo título */}
         {creationMode === 'copy' && !isEditing && (
           <div className="card">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <Copy className="h-5 w-5 text-blue-600" />
+            <h2 className="fluid-text-xl font-semibold fluid-mb-4 flex items-center fluid-gap-2">
+              <Copy className="fluid-icon-sm text-blue-600" />
               Datos del Nuevo Material
             </h2>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="fluid-text-sm text-gray-600 fluid-mb-4">
               Ingresa el título para la copia. El contenido se duplicará del material seleccionado.
             </p>
             
             {/* Título */}
             <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="title" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                 Título del Material <span className="text-red-600">*</span>
               </label>
               <input
@@ -859,17 +859,17 @@ const StudyContentCreatePage = () => {
                 className={`input ${errors.title ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
               />
               {errors.title && (
-                <p className="text-red-600 text-xs mt-1 font-medium">{errors.title}</p>
+                <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{errors.title}</p>
               )}
               {!errors.title && formData.title.trim() && (
-                <p className="text-green-600 text-xs mt-1 font-medium">✓ Título válido</p>
+                <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Título válido</p>
               )}
             </div>
           </div>
         )}
 
         {/* Botones de Acción */}
-        <div className="flex justify-end gap-3">
+        <div className="flex justify-end fluid-gap-3">
           <button
             type="button"
             onClick={() => navigate('/study-contents')}
@@ -880,7 +880,7 @@ const StudyContentCreatePage = () => {
           </button>
           <button
             type="submit"
-            className="btn btn-primary flex items-center gap-2"
+            className="btn btn-primary flex items-center fluid-gap-2"
             disabled={
               saving || 
               uploadingImage || 
@@ -890,14 +890,14 @@ const StudyContentCreatePage = () => {
           >
             {saving ? (
               <>
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <Loader2 className="fluid-icon-sm animate-spin" />
                 {isEditing ? 'Guardando...' : (creationMode === 'copy' ? 'Copiando...' : 'Creando...')}
               </>
             ) : (
               <>
                 {isEditing ? 'Guardar Cambios' : (creationMode === 'copy' ? (
                   <>
-                    <Copy className="h-4 w-4" />
+                    <Copy className="fluid-icon-xs" />
                     Copiar Material
                   </>
                 ) : 'Crear Material')}
@@ -910,17 +910,17 @@ const StudyContentCreatePage = () => {
       {/* Modal de Error */}
       {errorModal.show && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
-            <div className="bg-red-600 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="h-6 w-6 text-white" />
-                <h3 className="text-lg font-semibold text-white">{errorModal.title}</h3>
+          <div className="bg-white rounded-fluid-lg shadow-xl max-w-md w-full fluid-mx-4 overflow-hidden">
+            <div className="bg-red-600 fluid-px-6 fluid-py-4">
+              <div className="flex items-center fluid-gap-3">
+                <AlertCircle className="fluid-icon-lg text-white" />
+                <h3 className="fluid-text-lg font-semibold text-white">{errorModal.title}</h3>
               </div>
             </div>
-            <div className="px-6 py-4">
+            <div className="fluid-px-6 fluid-py-4">
               <p className="text-gray-700">{errorModal.message}</p>
             </div>
-            <div className="px-6 py-4 bg-gray-50 flex justify-end">
+            <div className="fluid-px-6 fluid-py-4 bg-gray-50 flex justify-end">
               <button
                 type="button"
                 onClick={() => setErrorModal({ show: false, title: '', message: '' })}

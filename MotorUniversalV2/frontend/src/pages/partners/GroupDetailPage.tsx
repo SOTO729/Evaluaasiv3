@@ -279,7 +279,7 @@ export default function GroupDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto">
+      <div className="fluid-p-6 max-w-[2800px] mx-auto">
         <LoadingSpinner message="Cargando grupo..." />
       </div>
     );
@@ -287,11 +287,11 @@ export default function GroupDetailPage() {
 
   if (error || !group) {
     return (
-      <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto">
-        <div className="bg-red-50 border border-red-200 rounded-lg lg:rounded-xl p-4 lg:p-6 flex items-center gap-3 lg:gap-4">
-          <AlertCircle className="h-5 w-5 lg:h-6 lg:w-6 text-red-600" />
-          <p className="text-red-700 text-sm lg:text-base">{error || 'Grupo no encontrado'}</p>
-          <Link to="/partners" className="ml-auto text-red-700 underline text-sm lg:text-base">
+      <div className="fluid-p-6 max-w-[2800px] mx-auto">
+        <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-5 flex items-center fluid-gap-3">
+          <AlertCircle className="fluid-icon-lg text-red-600" />
+          <p className="text-red-700 fluid-text-base">{error || 'Grupo no encontrado'}</p>
+          <Link to="/partners" className="ml-auto text-red-700 underline fluid-text-base">
             Volver
           </Link>
         </div>
@@ -307,40 +307,40 @@ export default function GroupDetailPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12 3xl:p-14 4xl:p-16 max-w-[1920px] 3xl:max-w-[2400px] 4xl:max-w-[2800px] mx-auto animate-fade-in-up">
+    <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 lg:gap-6 mb-6 lg:mb-8">
-        <div className="flex items-center gap-4 lg:gap-6">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-5 fluid-mb-6">
+        <div className="flex items-center fluid-gap-5">
           <Link
             to={`/partners/campuses/${group.campus_id}`}
-            className="p-2 lg:p-3 hover:bg-gray-100 rounded-lg lg:rounded-xl transition-colors"
+            className="fluid-p-2 hover:bg-gray-100 rounded-fluid-xl transition-colors"
           >
-            <ArrowLeft className="h-5 w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 text-gray-600" />
+            <ArrowLeft className="fluid-icon-lg text-gray-600" />
           </Link>
           <div>
-            <div className="flex items-center gap-2 lg:gap-3 text-sm lg:text-base text-gray-500 mb-1">
-              <Building2 className="h-4 w-4 lg:h-5 lg:w-5" />
+            <div className="flex items-center fluid-gap-2 fluid-text-base text-gray-500 mb-1">
+              <Building2 className="fluid-icon-sm" />
               <Link to={`/partners/campuses/${group.campus_id}`} className="hover:text-blue-600 transition-colors">
                 {group.campus?.name}
               </Link>
             </div>
-            <div className="flex items-center gap-2 lg:gap-3">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-gray-800">
+            <div className="flex items-center fluid-gap-2">
+              <h1 className="fluid-text-3xl font-bold text-gray-800">
                 {group.name}
               </h1>
               {group.code && (
-                <span className="px-2 lg:px-3 py-0.5 lg:py-1 bg-gray-100 text-gray-600 rounded-lg text-sm lg:text-base font-mono">
+                <span className="fluid-px-2 fluid-py-1 bg-gray-100 text-gray-600 rounded-lg fluid-text-base font-mono">
                   {group.code}
                 </span>
               )}
               {group.is_active ? (
-                <span className="inline-flex items-center gap-1 text-xs lg:text-sm font-medium text-green-700 bg-green-50 px-2 lg:px-3 py-0.5 lg:py-1 rounded-full">
-                  <CheckCircle2 className="h-3 w-3 lg:h-4 lg:w-4" />
+                <span className="inline-flex items-center gap-1 fluid-text-xs font-medium text-green-700 bg-green-50 fluid-px-2 fluid-py-1 rounded-full">
+                  <CheckCircle2 className="fluid-icon-xs" />
                   Activo
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 text-xs lg:text-sm font-medium text-gray-600 bg-gray-100 px-2 lg:px-3 py-0.5 lg:py-1 rounded-full">
-                  <XCircle className="h-3 w-3 lg:h-4 lg:w-4" />
+                <span className="inline-flex items-center gap-1 fluid-text-xs font-medium text-gray-600 bg-gray-100 fluid-px-2 fluid-py-1 rounded-full">
+                  <XCircle className="fluid-icon-xs" />
                   Inactivo
                 </span>
               )}
@@ -348,46 +348,46 @@ export default function GroupDetailPage() {
           </div>
         </div>
         
-        <div className="flex flex-wrap gap-2 lg:gap-3">
+        <div className="flex flex-wrap fluid-gap-2">
           <button
             onClick={() => activeTab === 'members' ? setShowAddModal(true) : setShowExamModal(true)}
             disabled={!group.is_active}
-            className="inline-flex items-center gap-2 lg:gap-3 px-4 lg:px-5 py-2 lg:py-2.5 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg lg:rounded-xl font-medium text-sm lg:text-base transition-colors"
+            className="inline-flex items-center fluid-gap-2 fluid-px-4 py-2 fluid-py-2.5 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium fluid-text-base transition-colors"
           >
             {activeTab === 'members' ? (
               <>
-                <UserPlus className="h-4 w-4 lg:h-5 lg:w-5" />
+                <UserPlus className="fluid-icon-sm" />
                 Agregar Candidato
               </>
             ) : (
               <>
-                <Plus className="h-4 w-4 lg:h-5 lg:w-5" />
+                <Plus className="fluid-icon-sm" />
                 Asignar Examen
               </>
             )}
           </button>
           <Link
             to={`/partners/groups/${groupId}/edit`}
-            className="inline-flex items-center gap-2 lg:gap-3 px-4 lg:px-5 py-2 lg:py-2.5 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg lg:rounded-xl font-medium text-sm lg:text-base transition-colors"
+            className="inline-flex items-center fluid-gap-2 fluid-px-4 py-2 fluid-py-2.5 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 rounded-fluid-xl font-medium fluid-text-base transition-colors"
           >
-            <Edit className="h-4 w-4 lg:h-5 lg:w-5" />
+            <Edit className="fluid-icon-sm" />
             Editar
           </Link>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 mb-6 lg:mb-8">
+      <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-mb-6">
         <div className="flex border-b border-gray-200">
           <button
             onClick={() => setActiveTab('members')}
-            className={`flex-1 flex items-center justify-center gap-2 lg:gap-3 px-4 lg:px-6 py-3 lg:py-4 text-sm lg:text-base font-medium transition-colors relative ${
+            className={`flex-1 flex items-center justify-center fluid-gap-2 fluid-px-5 fluid-py-3 fluid-text-base font-medium transition-colors relative ${
               activeTab === 'members'
                 ? 'text-purple-600 bg-purple-50/50'
                 : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
             }`}
           >
-            <Users className="h-4 w-4 lg:h-5 lg:w-5" />
+            <Users className="fluid-icon-sm" />
             <span>Candidatos</span>
             <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
               activeTab === 'members' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
@@ -400,13 +400,13 @@ export default function GroupDetailPage() {
           </button>
           <button
             onClick={() => setActiveTab('exams')}
-            className={`flex-1 flex items-center justify-center gap-2 lg:gap-3 px-4 lg:px-6 py-3 lg:py-4 text-sm lg:text-base font-medium transition-colors relative ${
+            className={`flex-1 flex items-center justify-center fluid-gap-2 fluid-px-5 fluid-py-3 fluid-text-base font-medium transition-colors relative ${
               activeTab === 'exams'
                 ? 'text-blue-600 bg-blue-50/50'
                 : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
             }`}
           >
-            <ClipboardList className="h-4 w-4 lg:h-5 lg:w-5" />
+            <ClipboardList className="fluid-icon-sm" />
             <span>Exámenes</span>
             <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
               activeTab === 'exams' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
@@ -420,30 +420,30 @@ export default function GroupDetailPage() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
+      <div className="grid lg:grid-cols-3 fluid-gap-6">
         {/* Información del Grupo */}
-        <div className="lg:col-span-1 space-y-4 lg:space-y-6">
+        <div className="lg:col-span-1 flex flex-col fluid-gap-5">
           {/* Detalles */}
-          <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
-            <h2 className="text-lg lg:text-xl font-semibold text-gray-800 mb-4 lg:mb-5 flex items-center gap-2">
-              <Layers className="h-5 w-5 lg:h-6 lg:w-6 text-amber-600" />
+          <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
+            <h2 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-4 flex items-center gap-2">
+              <Layers className="fluid-icon-lg text-amber-600" />
               Información
             </h2>
             
             {group.description && (
-              <div className="mb-4 lg:mb-5">
-                <p className="text-xs lg:text-sm text-gray-500 mb-1">Descripción</p>
-                <p className="text-sm lg:text-base text-gray-900">{group.description}</p>
+              <div className="fluid-mb-4">
+                <p className="fluid-text-xs text-gray-500 mb-1">Descripción</p>
+                <p className="fluid-text-base text-gray-900">{group.description}</p>
               </div>
             )}
 
-            <div className="space-y-3 lg:space-y-4">
+            <div className="flex flex-col fluid-gap-3">
               {group.start_date && (
-                <div className="flex items-center gap-2 lg:gap-3">
-                  <Calendar className="h-4 w-4 lg:h-5 lg:w-5 text-gray-400" />
+                <div className="flex items-center fluid-gap-2">
+                  <Calendar className="fluid-icon-sm text-gray-400" />
                   <div>
-                    <p className="text-xs lg:text-sm text-gray-500">Período</p>
-                    <p className="text-sm lg:text-base text-gray-900">
+                    <p className="fluid-text-xs text-gray-500">Período</p>
+                    <p className="fluid-text-base text-gray-900">
                       {new Date(group.start_date).toLocaleDateString('es-MX')}
                       {group.end_date && ` - ${new Date(group.end_date).toLocaleDateString('es-MX')}`}
                     </p>
@@ -454,22 +454,22 @@ export default function GroupDetailPage() {
           </div>
 
           {/* Estadísticas */}
-          <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
-            <h2 className="text-lg lg:text-xl font-semibold text-gray-800 mb-4 lg:mb-5">
+          <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
+            <h2 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-4">
               Estadísticas
             </h2>
             
-            <div className="space-y-3 lg:space-y-4">
+            <div className="flex flex-col fluid-gap-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm lg:text-base text-gray-600">Capacidad</span>
-                <span className="text-lg lg:text-xl font-semibold text-gray-900">
+                <span className="fluid-text-base text-gray-600">Capacidad</span>
+                <span className="fluid-text-lg font-semibold text-gray-900">
                   {members.length} / {group.max_members}
                 </span>
               </div>
               
-              <div className="w-full bg-gray-200 rounded-full h-2.5 lg:h-3">
+              <div className="w-full bg-gray-200 rounded-full h-2.5 h-3">
                 <div
-                  className={`h-2.5 lg:h-3 rounded-full transition-all ${
+                  className={`h-2.5 h-3 rounded-full transition-all ${
                     members.length >= (group.max_members || 30) 
                       ? 'bg-red-500' 
                       : members.length >= (group.max_members || 30) * 0.8 
@@ -480,30 +480,30 @@ export default function GroupDetailPage() {
                 />
               </div>
 
-              <div className="pt-3 lg:pt-4 border-t border-gray-200 space-y-2 lg:space-y-3">
+              <div className="fluid-pt-3 border-t border-gray-200 flex flex-col fluid-gap-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm lg:text-base text-green-600 flex items-center gap-2">
+                  <span className="fluid-text-base text-green-600 flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4" />
                     Activos
                   </span>
                   <span className="font-medium">{membersByStatus.active.length}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm lg:text-base text-blue-600 flex items-center gap-2">
+                  <span className="fluid-text-base text-blue-600 flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4" />
                     Completados
                   </span>
                   <span className="font-medium">{membersByStatus.completed.length}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm lg:text-base text-gray-500 flex items-center gap-2">
+                  <span className="fluid-text-base text-gray-500 flex items-center gap-2">
                     <XCircle className="h-4 w-4" />
                     Pendientes
                   </span>
                   <span className="font-medium">{membersByStatus.inactive.length}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm lg:text-base text-red-500 flex items-center gap-2">
+                  <span className="fluid-text-base text-red-500 flex items-center gap-2">
                     <XCircle className="h-4 w-4" />
                     Dados de baja
                   </span>
@@ -517,47 +517,47 @@ export default function GroupDetailPage() {
         {/* Lista de Miembros - Solo visible en tab members */}
         {activeTab === 'members' && (
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
-              <div className="flex items-center justify-between mb-4 lg:mb-6">
-                <h2 className="text-lg lg:text-xl xl:text-2xl font-semibold text-gray-800 flex items-center gap-2 lg:gap-3">
-                  <Users className="h-5 w-5 lg:h-6 lg:w-6 text-purple-600" />
+            <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
+              <div className="flex items-center justify-between fluid-mb-5">
+                <h2 className="fluid-text-xl font-semibold text-gray-800 flex items-center fluid-gap-2">
+                  <Users className="fluid-icon-lg text-purple-600" />
                   Candidatos ({members.length})
                 </h2>
               </div>
 
               {members.length === 0 ? (
-                <div className="text-center py-8 lg:py-12">
-                  <Users className="h-12 w-12 lg:h-16 lg:w-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 text-sm lg:text-base mb-4">
+                <div className="text-center fluid-py-10">
+                  <Users className="fluid-icon-2xl text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 fluid-text-base mb-4">
                     No hay candidatos en este grupo
                   </p>
                   <button
                     onClick={() => setShowAddModal(true)}
                     disabled={!group.is_active}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 text-white rounded-lg text-sm lg:text-base font-medium transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 text-white rounded-lg fluid-text-base font-medium transition-colors"
                   >
-                    <UserPlus className="h-4 w-4 lg:h-5 lg:w-5" />
+                    <UserPlus className="fluid-icon-sm" />
                     Agregar Candidato
                   </button>
                 </div>
               ) : (
-                <div className="space-y-3 lg:space-y-4">
+                <div className="flex flex-col fluid-gap-3">
                   {members.map((member) => (
                     <div
                       key={member.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 lg:p-4 border border-gray-200 rounded-xl hover:border-purple-200 hover:bg-purple-50/30 transition-all"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 fluid-p-3 border border-gray-200 rounded-xl hover:border-purple-200 hover:bg-purple-50/30 transition-all"
                     >
-                      <div className="flex items-center gap-3 lg:gap-4">
-                        <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm lg:text-base">
+                      <div className="flex items-center fluid-gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold fluid-text-base">
                           {member.user?.name?.charAt(0).toUpperCase() || '?'}
                         </div>
                         <div>
-                          <p className="font-medium text-sm lg:text-base text-gray-900">
+                          <p className="font-medium fluid-text-base text-gray-900">
                             {member.user?.full_name || 'Usuario desconocido'}
                           </p>
                           {member.user?.email && (
-                            <p className="text-xs lg:text-sm text-gray-500 flex items-center gap-1">
-                              <Mail className="h-3 w-3 lg:h-4 lg:w-4" />
+                            <p className="fluid-text-xs text-gray-500 flex items-center gap-1">
+                              <Mail className="fluid-icon-xs" />
                               {member.user.email}
                             </p>
                           )}
@@ -567,11 +567,11 @@ export default function GroupDetailPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 lg:gap-3">
+                      <div className="flex items-center fluid-gap-2">
                         <select
                           value={member.status}
                           onChange={(e) => handleUpdateStatus(member.id, e.target.value as GroupMember['status'])}
-                          className={`px-2 lg:px-3 py-1 lg:py-1.5 border rounded-lg text-xs lg:text-sm font-medium ${
+                          className={`fluid-px-2 py-1 fluid-py-1.5 border rounded-lg fluid-text-xs font-medium ${
                             member.status === 'active' 
                               ? 'border-green-300 bg-green-50 text-green-700' 
                               : member.status === 'completed'
@@ -592,7 +592,7 @@ export default function GroupDetailPage() {
                           className="p-2 hover:bg-red-50 rounded-lg text-red-500 transition-colors"
                           title="Remover del grupo"
                         >
-                          <Trash2 className="h-4 w-4 lg:h-5 lg:w-5" />
+                          <Trash2 className="fluid-icon-sm" />
                         </button>
                       </div>
                     </div>
@@ -606,39 +606,39 @@ export default function GroupDetailPage() {
         {/* Lista de Exámenes - Solo visible en tab exams */}
         {activeTab === 'exams' && (
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 lg:p-6">
-              <div className="flex items-center justify-between mb-4 lg:mb-6">
-                <h2 className="text-lg lg:text-xl xl:text-2xl font-semibold text-gray-800 flex items-center gap-2 lg:gap-3">
-                  <ClipboardList className="h-5 w-5 lg:h-6 lg:w-6 text-blue-600" />
+            <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
+              <div className="flex items-center justify-between fluid-mb-5">
+                <h2 className="fluid-text-xl font-semibold text-gray-800 flex items-center fluid-gap-2">
+                  <ClipboardList className="fluid-icon-lg text-blue-600" />
                   Exámenes Asignados ({assignedExams.length})
                 </h2>
               </div>
 
               {assignedExams.length === 0 ? (
-                <div className="text-center py-8 lg:py-12">
-                  <ClipboardList className="h-12 w-12 lg:h-16 lg:w-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 text-sm lg:text-base mb-4">
+                <div className="text-center fluid-py-10">
+                  <ClipboardList className="fluid-icon-2xl text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 fluid-text-base mb-4">
                     No hay exámenes asignados a este grupo
                   </p>
                   <button
                     onClick={() => setShowExamModal(true)}
                     disabled={!group.is_active}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg text-sm lg:text-base font-medium transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg fluid-text-base font-medium transition-colors"
                   >
-                    <Plus className="h-4 w-4 lg:h-5 lg:w-5" />
+                    <Plus className="fluid-icon-sm" />
                     Asignar Examen
                   </button>
                 </div>
               ) : (
-                <div className="space-y-4 lg:space-y-5">
+                <div className="flex flex-col fluid-gap-4">
                   {assignedExams.map((assignment) => (
                     <div
                       key={assignment.id}
-                      className="p-4 lg:p-5 border border-gray-200 rounded-xl hover:border-blue-200 hover:bg-blue-50/30 transition-all"
+                      className="fluid-p-4 border border-gray-200 rounded-xl hover:border-blue-200 hover:bg-blue-50/30 transition-all"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                         <div className="flex-1">
-                          <h3 className="font-semibold text-base lg:text-lg text-gray-900 mb-1">
+                          <h3 className="font-semibold fluid-text-base text-gray-900 mb-1">
                             {assignment.exam?.name || 'Examen'}
                           </h3>
                           {assignment.exam?.description && (
@@ -646,16 +646,16 @@ export default function GroupDetailPage() {
                               {assignment.exam.description}
                             </p>
                           )}
-                          <div className="flex flex-wrap gap-2 lg:gap-3 text-xs lg:text-sm text-gray-500">
+                          <div className="flex flex-wrap fluid-gap-2 fluid-text-xs text-gray-500">
                             {assignment.exam?.duration_minutes && (
                               <span className="flex items-center gap-1">
-                                <Clock className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
+                                <Clock className="h-3.5 w-3.5 h-4 w-4" />
                                 {assignment.exam.duration_minutes} min
                               </span>
                             )}
                             {assignment.exam?.passing_score && (
                               <span className="flex items-center gap-1">
-                                <Target className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
+                                <Target className="h-3.5 w-3.5 h-4 w-4" />
                                 Aprobación: {assignment.exam.passing_score}%
                               </span>
                             )}
@@ -672,16 +672,16 @@ export default function GroupDetailPage() {
                           className="p-2 hover:bg-red-50 rounded-lg text-red-500 transition-colors self-start"
                           title="Desasignar examen"
                         >
-                          <Trash2 className="h-4 w-4 lg:h-5 lg:w-5" />
+                          <Trash2 className="fluid-icon-sm" />
                         </button>
                       </div>
 
                       {/* Materiales de estudio asociados - Siempre visible */}
-                      <div className={`mt-4 pt-4 border-t ${
+                      <div className={`mt-4 fluid-pt-4 border-t ${
                         assignment.study_materials && assignment.study_materials.length > 0 
                           ? 'border-green-200 bg-green-50/50' 
                           : 'border-amber-200 bg-amber-50/50'
-                      } -mx-4 lg:-mx-5 px-4 lg:px-5 pb-4 lg:pb-5 -mb-4 lg:-mb-5 rounded-b-xl`}>
+                      } -mx-4 -mx-5 fluid-px-4 pb-4 fluid-pb-5 -mb-4 -mb-5 rounded-b-xl`}>
                         {assignment.study_materials && assignment.study_materials.length > 0 ? (
                           <>
                             <div className="flex items-center justify-between mb-3">
@@ -700,7 +700,7 @@ export default function GroupDetailPage() {
                               </div>
                               <button
                                 onClick={() => handleOpenMaterialsModal(assignment.id, assignment.exam?.name || 'Examen')}
-                                className="text-xs lg:text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                                className="fluid-text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
                               >
                                 <Edit className="h-3.5 w-3.5" />
                                 Editar
@@ -710,7 +710,7 @@ export default function GroupDetailPage() {
                               {assignment.study_materials.map((material) => (
                                 <span
                                   key={material.id}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-green-200 text-green-700 rounded-lg text-xs lg:text-sm shadow-sm"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-green-200 text-green-700 rounded-lg fluid-text-xs shadow-sm"
                                 >
                                   <BookOpen className="h-3.5 w-3.5" />
                                   {material.title}
@@ -735,7 +735,7 @@ export default function GroupDetailPage() {
                             </div>
                             <button
                               onClick={() => handleOpenMaterialsModal(assignment.id, assignment.exam?.name || 'Examen')}
-                              className="text-xs lg:text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                              className="fluid-text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
                             >
                               <Plus className="h-3.5 w-3.5" />
                               Agregar
@@ -761,8 +761,8 @@ export default function GroupDetailPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
             {/* Header del modal */}
-            <div className="flex items-center justify-between p-4 lg:p-6 border-b">
-              <h3 className="text-lg lg:text-xl font-semibold text-gray-800">
+            <div className="flex items-center justify-between fluid-p-5 border-b">
+              <h3 className="fluid-text-lg font-semibold text-gray-800">
                 Agregar Candidato
               </h3>
               <button
@@ -778,7 +778,7 @@ export default function GroupDetailPage() {
             </div>
 
             {/* Buscador */}
-            <div className="p-4 lg:p-6 border-b">
+            <div className="fluid-p-5 border-b">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
@@ -796,7 +796,7 @@ export default function GroupDetailPage() {
             </div>
 
             {/* Resultados */}
-            <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+            <div className="flex-1 overflow-y-auto fluid-p-5">
               {searching ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin h-8 w-8 border-3 border-amber-500 border-t-transparent rounded-full" />
@@ -851,8 +851,8 @@ export default function GroupDetailPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
             {/* Header del modal */}
-            <div className="flex items-center justify-between p-4 lg:p-6 border-b">
-              <h3 className="text-lg lg:text-xl font-semibold text-gray-800">
+            <div className="flex items-center justify-between fluid-p-5 border-b">
+              <h3 className="fluid-text-lg font-semibold text-gray-800">
                 Asignar Examen al Grupo
               </h3>
               <button
@@ -868,7 +868,7 @@ export default function GroupDetailPage() {
             </div>
 
             {/* Buscador */}
-            <div className="p-4 lg:p-6 border-b">
+            <div className="fluid-p-5 border-b">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
@@ -886,7 +886,7 @@ export default function GroupDetailPage() {
             </div>
 
             {/* Resultados */}
-            <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+            <div className="flex-1 overflow-y-auto fluid-p-5">
               {searchingExams ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin h-8 w-8 border-3 border-blue-500 border-t-transparent rounded-full" />
@@ -965,9 +965,9 @@ export default function GroupDetailPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
             {/* Header del modal */}
-            <div className="flex items-center justify-between p-4 lg:p-6 border-b">
+            <div className="flex items-center justify-between fluid-p-5 border-b">
               <div>
-                <h3 className="text-lg lg:text-xl font-semibold text-gray-800">
+                <h3 className="fluid-text-lg font-semibold text-gray-800">
                   Materiales de Estudio
                 </h3>
                 <p className="text-sm text-gray-500 mt-1">
@@ -987,7 +987,7 @@ export default function GroupDetailPage() {
             </div>
 
             {/* Contenido */}
-            <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+            <div className="flex-1 overflow-y-auto fluid-p-5">
               {loadingMaterials ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin h-8 w-8 border-3 border-blue-500 border-t-transparent rounded-full" />
@@ -1085,7 +1085,7 @@ export default function GroupDetailPage() {
             </div>
 
             {/* Footer del modal */}
-            <div className="flex items-center justify-between p-4 lg:p-6 border-t bg-gray-50 rounded-b-2xl">
+            <div className="flex items-center justify-between fluid-p-5 border-t bg-gray-50 rounded-b-2xl">
               <button
                 onClick={handleResetMaterials}
                 disabled={savingMaterials}

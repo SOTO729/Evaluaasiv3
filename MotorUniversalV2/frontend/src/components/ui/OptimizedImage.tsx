@@ -74,7 +74,7 @@ export const OptimizedImage = ({
       >
         {fallbackIcon || (
           <svg 
-            className="w-12 h-12 text-gray-400" 
+            className="fluid-icon-xl text-gray-400" 
             fill="none" 
             stroke="currentColor" 
             viewBox="0 0 24 24"
@@ -97,7 +97,7 @@ export const OptimizedImage = ({
       {!isLoaded && (
         <div className={`absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-shimmer ${placeholderClassName || className}`}>
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-8 h-8 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin" />
+            <div className="fluid-icon-lg border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin" />
           </div>
         </div>
       )}

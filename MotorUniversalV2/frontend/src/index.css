@@ -2,6 +2,84 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =============================================================================
+   SISTEMA DE ESCALADO FLUIDO PROPORCIONAL
+   
+   Este sistema permite que todos los elementos escalen proporcionalmente
+   desde móviles pequeños hasta pantallas de cine/TV sin breakpoints.
+   
+   Base de cálculo: 16px en 1920px de ancho = escala 1
+   Fórmula: clamp(min, preferred, max) donde preferred usa vw
+   ============================================================================= */
+
+:root {
+  /* Factor de escala base - se usa como multiplicador */
+  --scale-factor: clamp(0.6, 0.4 + 0.5vw, 2.5);
+  
+  /* Tamaños de fuente fluidos */
+  --text-2xs: clamp(0.5rem, 0.4rem + 0.25vw, 0.875rem);
+  --text-xs: clamp(0.625rem, 0.5rem + 0.3vw, 1rem);
+  --text-sm: clamp(0.75rem, 0.6rem + 0.35vw, 1.25rem);
+  --text-base: clamp(0.875rem, 0.7rem + 0.4vw, 1.5rem);
+  --text-lg: clamp(1rem, 0.8rem + 0.5vw, 1.75rem);
+  --text-xl: clamp(1.125rem, 0.9rem + 0.6vw, 2rem);
+  --text-2xl: clamp(1.25rem, 1rem + 0.7vw, 2.5rem);
+  --text-3xl: clamp(1.5rem, 1.2rem + 0.8vw, 3rem);
+  --text-4xl: clamp(1.875rem, 1.5rem + 1vw, 4rem);
+  --text-5xl: clamp(2.25rem, 1.8rem + 1.2vw, 5rem);
+  --text-6xl: clamp(3rem, 2.4rem + 1.5vw, 6rem);
+  
+  /* Espaciados fluidos */
+  --space-0: 0;
+  --space-0-5: clamp(0.0625rem, 0.05rem + 0.1vw, 0.25rem);
+  --space-1: clamp(0.125rem, 0.1rem + 0.15vw, 0.5rem);
+  --space-1-5: clamp(0.1875rem, 0.15rem + 0.2vw, 0.75rem);
+  --space-2: clamp(0.25rem, 0.2rem + 0.25vw, 1rem);
+  --space-2-5: clamp(0.3125rem, 0.25rem + 0.3vw, 1.25rem);
+  --space-3: clamp(0.375rem, 0.3rem + 0.35vw, 1.5rem);
+  --space-4: clamp(0.5rem, 0.4rem + 0.4vw, 2rem);
+  --space-5: clamp(0.625rem, 0.5rem + 0.5vw, 2.5rem);
+  --space-6: clamp(0.75rem, 0.6rem + 0.6vw, 3rem);
+  --space-8: clamp(1rem, 0.8rem + 0.8vw, 4rem);
+  --space-10: clamp(1.25rem, 1rem + 1vw, 5rem);
+  --space-12: clamp(1.5rem, 1.2rem + 1.2vw, 6rem);
+  --space-16: clamp(2rem, 1.6rem + 1.6vw, 8rem);
+  --space-20: clamp(2.5rem, 2rem + 2vw, 10rem);
+  --space-24: clamp(3rem, 2.4rem + 2.4vw, 12rem);
+  
+  /* Tamaños de iconos fluidos */
+  --icon-xs: clamp(0.75rem, 0.6rem + 0.3vw, 1.25rem);
+  --icon-sm: clamp(1rem, 0.8rem + 0.4vw, 1.75rem);
+  --icon-base: clamp(1.25rem, 1rem + 0.5vw, 2rem);
+  --icon-lg: clamp(1.5rem, 1.2rem + 0.6vw, 2.5rem);
+  --icon-xl: clamp(2rem, 1.6rem + 0.8vw, 3.5rem);
+  --icon-2xl: clamp(2.5rem, 2rem + 1vw, 4.5rem);
+  --icon-3xl: clamp(3rem, 2.4rem + 1.2vw, 6rem);
+  
+  /* Bordes fluidos */
+  --border-radius-sm: clamp(0.125rem, 0.1rem + 0.1vw, 0.375rem);
+  --border-radius: clamp(0.25rem, 0.2rem + 0.15vw, 0.5rem);
+  --border-radius-md: clamp(0.375rem, 0.3rem + 0.2vw, 0.75rem);
+  --border-radius-lg: clamp(0.5rem, 0.4rem + 0.25vw, 1rem);
+  --border-radius-xl: clamp(0.75rem, 0.6rem + 0.35vw, 1.5rem);
+  --border-radius-2xl: clamp(1rem, 0.8rem + 0.5vw, 2rem);
+  
+  /* Alturas de elementos comunes */
+  --header-height: clamp(3rem, 2.5rem + 1.5vw, 6rem);
+  --btn-height-sm: clamp(1.75rem, 1.5rem + 0.5vw, 2.5rem);
+  --btn-height: clamp(2rem, 1.75rem + 0.6vw, 3rem);
+  --btn-height-lg: clamp(2.5rem, 2rem + 0.8vw, 4rem);
+  --input-height: clamp(2rem, 1.75rem + 0.6vw, 3rem);
+  
+  /* Anchos máximos fluidos para contenedores */
+  --container-sm: clamp(20rem, 18rem + 10vw, 36rem);
+  --container-md: clamp(24rem, 22rem + 15vw, 48rem);
+  --container-lg: clamp(32rem, 28rem + 20vw, 64rem);
+  --container-xl: clamp(36rem, 32rem + 25vw, 80rem);
+  --container-2xl: clamp(42rem, 36rem + 30vw, 96rem);
+  --container-full: clamp(64rem, 56rem + 40vw, 180rem);
+}
+
 @layer base {
   * {
     @apply border-gray-200;
@@ -14,6 +92,8 @@
     height: 100%;
     overflow-x: hidden;
     overflow-y: auto;
+    /* Aplicar el sistema de escalado fluido */
+    font-size: clamp(14px, 12px + 0.25vw, 20px);
   }
   
   body {
@@ -74,6 +154,131 @@
       background-color: rgba(156, 163, 175, 0.8);
     }
   }
+}
+
+/* =============================================================================
+   CLASES DE UTILIDAD PARA ESCALADO FLUIDO
+   ============================================================================= */
+
+@layer utilities {
+  /* Textos fluidos */
+  .fluid-text-2xs { font-size: var(--text-2xs); }
+  .fluid-text-xs { font-size: var(--text-xs); }
+  .fluid-text-sm { font-size: var(--text-sm); }
+  .fluid-text-base { font-size: var(--text-base); }
+  .fluid-text-lg { font-size: var(--text-lg); }
+  .fluid-text-xl { font-size: var(--text-xl); }
+  .fluid-text-2xl { font-size: var(--text-2xl); }
+  .fluid-text-3xl { font-size: var(--text-3xl); }
+  .fluid-text-4xl { font-size: var(--text-4xl); }
+  .fluid-text-5xl { font-size: var(--text-5xl); }
+  .fluid-text-6xl { font-size: var(--text-6xl); }
+  
+  /* Paddings fluidos */
+  .fluid-p-1 { padding: var(--space-1); }
+  .fluid-p-2 { padding: var(--space-2); }
+  .fluid-p-3 { padding: var(--space-3); }
+  .fluid-p-4 { padding: var(--space-4); }
+  .fluid-p-5 { padding: var(--space-5); }
+  .fluid-p-6 { padding: var(--space-6); }
+  .fluid-p-8 { padding: var(--space-8); }
+  .fluid-p-10 { padding: var(--space-10); }
+  .fluid-p-12 { padding: var(--space-12); }
+  
+  .fluid-px-1 { padding-left: var(--space-1); padding-right: var(--space-1); }
+  .fluid-px-2 { padding-left: var(--space-2); padding-right: var(--space-2); }
+  .fluid-px-3 { padding-left: var(--space-3); padding-right: var(--space-3); }
+  .fluid-px-4 { padding-left: var(--space-4); padding-right: var(--space-4); }
+  .fluid-px-5 { padding-left: var(--space-5); padding-right: var(--space-5); }
+  .fluid-px-6 { padding-left: var(--space-6); padding-right: var(--space-6); }
+  .fluid-px-8 { padding-left: var(--space-8); padding-right: var(--space-8); }
+  
+  .fluid-py-1 { padding-top: var(--space-1); padding-bottom: var(--space-1); }
+  .fluid-py-2 { padding-top: var(--space-2); padding-bottom: var(--space-2); }
+  .fluid-py-3 { padding-top: var(--space-3); padding-bottom: var(--space-3); }
+  .fluid-py-4 { padding-top: var(--space-4); padding-bottom: var(--space-4); }
+  .fluid-py-5 { padding-top: var(--space-5); padding-bottom: var(--space-5); }
+  .fluid-py-6 { padding-top: var(--space-6); padding-bottom: var(--space-6); }
+  .fluid-py-8 { padding-top: var(--space-8); padding-bottom: var(--space-8); }
+  
+  /* Margins fluidos */
+  .fluid-m-1 { margin: var(--space-1); }
+  .fluid-m-2 { margin: var(--space-2); }
+  .fluid-m-3 { margin: var(--space-3); }
+  .fluid-m-4 { margin: var(--space-4); }
+  .fluid-m-5 { margin: var(--space-5); }
+  .fluid-m-6 { margin: var(--space-6); }
+  .fluid-m-8 { margin: var(--space-8); }
+  
+  .fluid-mx-auto { margin-left: auto; margin-right: auto; }
+  .fluid-mx-1 { margin-left: var(--space-1); margin-right: var(--space-1); }
+  .fluid-mx-2 { margin-left: var(--space-2); margin-right: var(--space-2); }
+  .fluid-mx-3 { margin-left: var(--space-3); margin-right: var(--space-3); }
+  .fluid-mx-4 { margin-left: var(--space-4); margin-right: var(--space-4); }
+  
+  .fluid-my-1 { margin-top: var(--space-1); margin-bottom: var(--space-1); }
+  .fluid-my-2 { margin-top: var(--space-2); margin-bottom: var(--space-2); }
+  .fluid-my-3 { margin-top: var(--space-3); margin-bottom: var(--space-3); }
+  .fluid-my-4 { margin-top: var(--space-4); margin-bottom: var(--space-4); }
+  
+  .fluid-mt-1 { margin-top: var(--space-1); }
+  .fluid-mt-2 { margin-top: var(--space-2); }
+  .fluid-mt-3 { margin-top: var(--space-3); }
+  .fluid-mt-4 { margin-top: var(--space-4); }
+  .fluid-mt-6 { margin-top: var(--space-6); }
+  .fluid-mt-8 { margin-top: var(--space-8); }
+  
+  .fluid-mb-1 { margin-bottom: var(--space-1); }
+  .fluid-mb-2 { margin-bottom: var(--space-2); }
+  .fluid-mb-3 { margin-bottom: var(--space-3); }
+  .fluid-mb-4 { margin-bottom: var(--space-4); }
+  .fluid-mb-6 { margin-bottom: var(--space-6); }
+  .fluid-mb-8 { margin-bottom: var(--space-8); }
+  
+  /* Gaps fluidos */
+  .fluid-gap-1 { gap: var(--space-1); }
+  .fluid-gap-2 { gap: var(--space-2); }
+  .fluid-gap-3 { gap: var(--space-3); }
+  .fluid-gap-4 { gap: var(--space-4); }
+  .fluid-gap-5 { gap: var(--space-5); }
+  .fluid-gap-6 { gap: var(--space-6); }
+  .fluid-gap-8 { gap: var(--space-8); }
+  
+  /* Iconos fluidos */
+  .fluid-icon-xs { width: var(--icon-xs); height: var(--icon-xs); }
+  .fluid-icon-sm { width: var(--icon-sm); height: var(--icon-sm); }
+  .fluid-icon { width: var(--icon-base); height: var(--icon-base); }
+  .fluid-icon-lg { width: var(--icon-lg); height: var(--icon-lg); }
+  .fluid-icon-xl { width: var(--icon-xl); height: var(--icon-xl); }
+  .fluid-icon-2xl { width: var(--icon-2xl); height: var(--icon-2xl); }
+  .fluid-icon-3xl { width: var(--icon-3xl); height: var(--icon-3xl); }
+  
+  /* Border radius fluidos */
+  .fluid-rounded-sm { border-radius: var(--border-radius-sm); }
+  .fluid-rounded { border-radius: var(--border-radius); }
+  .fluid-rounded-md { border-radius: var(--border-radius-md); }
+  .fluid-rounded-lg { border-radius: var(--border-radius-lg); }
+  .fluid-rounded-xl { border-radius: var(--border-radius-xl); }
+  .fluid-rounded-2xl { border-radius: var(--border-radius-2xl); }
+  
+  /* Contenedores fluidos */
+  .fluid-container-sm { max-width: var(--container-sm); }
+  .fluid-container-md { max-width: var(--container-md); }
+  .fluid-container-lg { max-width: var(--container-lg); }
+  .fluid-container-xl { max-width: var(--container-xl); }
+  .fluid-container-2xl { max-width: var(--container-2xl); }
+  .fluid-container-full { max-width: var(--container-full); }
+  
+  /* Altura de header fluida */
+  .fluid-header-height { height: var(--header-height); }
+  
+  /* Botones fluidos */
+  .fluid-btn-sm { height: var(--btn-height-sm); padding-left: var(--space-3); padding-right: var(--space-3); }
+  .fluid-btn { height: var(--btn-height); padding-left: var(--space-4); padding-right: var(--space-4); }
+  .fluid-btn-lg { height: var(--btn-height-lg); padding-left: var(--space-6); padding-right: var(--space-6); }
+  
+  /* Input fluido */
+  .fluid-input { height: var(--input-height); padding-left: var(--space-3); padding-right: var(--space-3); }
 }
 
 @layer components {

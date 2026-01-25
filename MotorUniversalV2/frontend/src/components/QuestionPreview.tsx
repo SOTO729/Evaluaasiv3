@@ -15,8 +15,8 @@ const QuestionPreview = ({ questionText, className = '' }: QuestionPreviewProps)
   return (
     <div className={`card ${className}`}>
       <div className="flex items-start">
-        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-4">
-          <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center fluid-mr-4">
+          <svg className="fluid-icon-lg text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -26,24 +26,24 @@ const QuestionPreview = ({ questionText, className = '' }: QuestionPreviewProps)
           </svg>
         </div>
         <div className="flex-1">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-500">Pregunta:</h3>
+          <div className="flex items-center justify-between fluid-mb-2">
+            <h3 className="fluid-text-sm font-medium text-gray-500">Pregunta:</h3>
             {needsExpansion && (
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                className="fluid-text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center fluid-gap-1"
               >
                 {isExpanded ? (
                   <>
                     Mostrar menos
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                     </svg>
                   </>
                 ) : (
                   <>
                     Ver completa
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </>
@@ -58,7 +58,7 @@ const QuestionPreview = ({ questionText, className = '' }: QuestionPreviewProps)
               dangerouslySetInnerHTML={{ __html: questionText }}
             />
           ) : (
-            <p className="text-lg font-medium text-gray-900">
+            <p className="fluid-text-lg font-medium text-gray-900">
               {plainText.length > 100 ? `${plainText.substring(0, 100)}...` : plainText}
             </p>
           )}

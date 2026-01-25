@@ -88,22 +88,22 @@ const colorClasses = {
 
 export default function FeaturesSection() {
   return (
-    <section id="features" className="py-20 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="features" className="fluid-py-20 bg-gray-50">
+      <div className="max-w-7xl mx-auto fluid-px-6">
         {/* Header */}
-        <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+        <div className="text-center fluid-mb-16">
+          <h2 className="fluid-text-3xl font-bold text-gray-900 fluid-mb-4">
             Todo lo que necesitas para{' '}
             <span className="text-primary-600">evaluar mejor</span>
           </h2>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="fluid-text-xl text-gray-600 max-w-2xl mx-auto">
             Herramientas poderosas diseñadas para educadores que buscan 
             mejorar la experiencia de aprendizaje de sus estudiantes.
           </p>
         </div>
 
         {/* Features Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 fluid-gap-8">
           {features.map((feature) => {
             const colors = colorClasses[feature.color as keyof typeof colorClasses]
             const Icon = feature.icon
@@ -111,28 +111,28 @@ export default function FeaturesSection() {
             return (
               <div 
                 key={feature.title}
-                className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg hover:border-primary-100 transition-all group"
+                className="bg-white rounded-fluid-2xl fluid-p-6 shadow-sm border border-gray-100 hover:shadow-lg hover:border-primary-100 transition-all group"
               >
                 {/* Icon */}
-                <div className={`w-14 h-14 ${colors.bg} rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform`}>
-                  <Icon className={`w-7 h-7 ${colors.icon}`} />
+                <div className={`w-14 h-14 ${colors.bg} rounded-fluid-xl flex items-center justify-center fluid-mb-5 group-hover:scale-110 transition-transform`}>
+                  <Icon className={`fluid-icon-lg ${colors.icon}`} />
                 </div>
 
                 {/* Title */}
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                <h3 className="fluid-text-xl font-semibold text-gray-900 fluid-mb-3">
                   {feature.title}
                 </h3>
 
                 {/* Description */}
-                <p className="text-gray-600 mb-4">
+                <p className="text-gray-600 fluid-mb-4">
                   {feature.description}
                 </p>
 
                 {/* Highlights */}
-                <ul className="space-y-2">
+                <ul className="flex flex-col fluid-gap-2">
                   {feature.highlights.map((highlight) => (
-                    <li key={highlight} className="flex items-center gap-2 text-sm">
-                      <CheckCircle2 className={`w-4 h-4 ${colors.highlight}`} />
+                    <li key={highlight} className="flex items-center fluid-gap-2 fluid-text-sm">
+                      <CheckCircle2 className={`fluid-icon-sm ${colors.highlight}`} />
                       <span className="text-gray-700">{highlight}</span>
                     </li>
                   ))}
