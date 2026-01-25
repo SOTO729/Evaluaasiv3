@@ -373,7 +373,7 @@ const ExamsListPage = () => {
             <>
               {/* Sección de Publicados */}
               {allExams.filter((e: any) => e.is_published).length > 0 && (
-                <div className="fluid-mb-12 fluid-pb-8 border-b-2 border-gray-200">
+                <div className="fluid-mb-8">
                   <div className="flex items-center fluid-gap-2 fluid-mb-6">
                     <Eye className="fluid-icon text-green-600" />
                     <h2 className="fluid-text-lg font-semibold text-gray-800">Publicados</h2>
@@ -393,9 +393,16 @@ const ExamsListPage = () => {
                 </div>
               )}
 
+              {/* Línea divisoria entre secciones */}
+              {allExams.filter((e: any) => e.is_published).length > 0 && allExams.filter((e: any) => !e.is_published).length > 0 && (
+                <div className="fluid-my-8">
+                  <hr className="border-t-2 border-gray-300" />
+                </div>
+              )}
+
               {/* Sección de Borradores */}
               {allExams.filter((e: any) => !e.is_published).length > 0 && (
-                <div ref={draftsRef} className="fluid-mb-10 scroll-mt-4 fluid-pt-6">
+                <div ref={draftsRef} className="fluid-mb-10 scroll-mt-4">
                   <div className="flex items-center fluid-gap-2 fluid-mb-6">
                     <EyeOff className="fluid-icon text-gray-500" />
                     <h2 className="fluid-text-lg font-semibold text-gray-800">Borradores</h2>
