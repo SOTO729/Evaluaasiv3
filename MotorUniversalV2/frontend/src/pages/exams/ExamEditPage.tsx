@@ -106,6 +106,7 @@ const ExamEditPage = () => {
   const [testQuestionCount, setTestQuestionCount] = useState(0)
   const [testExerciseCount, setTestExerciseCount] = useState(0)
   const [dominantColor, setDominantColor] = useState<string | null>(null)
+  const [isDownloadingContent, setIsDownloadingContent] = useState(false)
 
   const { data: exam, isLoading, error } = useQuery({
     queryKey: ['exam', id],
@@ -575,6 +576,151 @@ const ExamEditPage = () => {
     setEditExamImagePreview(null)
   }
 
+  // Función para descargar contenido del examen (preguntas, respuestas y ejercicios)
+  const handleDownloadExamContent = async () => {
+    if (!exam) return
+    
+    setIsDownloadingContent(true)
+    
+    try {
+      let content = `# ${exam.name}\n`
+      content += `## Versión: ${exam.version}\n`
+      content += `## Duración: ${exam.duration_minutes} minutos\n`
+      content += `## Puntaje mínimo: ${exam.passing_score}%\n\n`
+      content += `---\n\n`
+      
+      // Iterar sobre categorías
+      if (exam.categories && exam.categories.length > 0) {
+        for (const category of exam.categories) {
+          content += `# CATEGORÍA: ${category.name}\n`
+          content += `Porcentaje: ${category.percentage}%\n`
+          if (category.description) {
+            content += `Descripción: ${category.description}\n`
+          }
+          content += `\n`
+          
+          // Obtener temas de la categoría
+          try {
+            const topicsResponse = await examService.getTopics(category.id)
+            const topics = topicsResponse.topics || []
+            
+            for (const topic of topics) {
+              content += `## TEMA: ${topic.name}\n`
+              if (topic.description) {
+                content += `Descripción: ${topic.description}\n`
+              }
+              content += `\n`
+              
+              // Obtener preguntas del tema
+              try {
+                const questionsResponse = await examService.getQuestions(topic.id)
+                const questions = questionsResponse.questions || []
+                
+                if (questions.length > 0) {
+                  content += `### PREGUNTAS (${questions.length})\n\n`
+                  
+                  for (const question of questions) {
+                    content += `**Pregunta ${question.question_number}:** ${question.question_text}\n`
+                    content += `Tipo: ${question.question_type?.name || 'No especificado'} | Dificultad: ${question.difficulty} | Puntos: ${question.points}\n`
+                    
+                    if (question.image_url) {
+                      content += `[Imagen adjunta]\n`
+                    }
+                    
+                    // Obtener respuestas de la pregunta
+                    try {
+                      const questionDetail = await examService.getQuestion(question.id)
+                      const answers = questionDetail.question?.answers || []
+                      
+                      if (answers.length > 0) {
+                        content += `Respuestas:\n`
+                        for (const answer of answers) {
+                          const correctMark = answer.is_correct ? '✓' : '✗'
+                          content += `  ${correctMark} ${answer.answer_number}. ${answer.answer_text}\n`
+                          if (answer.explanation) {
+                            content += `     Explicación: ${answer.explanation}\n`
+                          }
+                        }
+                      }
+                    } catch (e) {
+                      console.error('Error obteniendo respuestas:', e)
+                    }
+                    
+                    content += `\n`
+                  }
+                }
+              } catch (e) {
+                console.error('Error obteniendo preguntas:', e)
+              }
+              
+              // Obtener ejercicios del tema
+              try {
+                const exercisesResponse = await examService.getExercises(topic.id)
+                const exercises = exercisesResponse.exercises || []
+                
+                if (exercises.length > 0) {
+                  content += `### EJERCICIOS (${exercises.length})\n\n`
+                  
+                  for (const exercise of exercises) {
+                    content += `**Ejercicio ${exercise.exercise_number}:** ${exercise.title || 'Sin título'}\n`
+                    content += `${exercise.exercise_text}\n`
+                    content += `Total de pasos: ${exercise.total_steps}\n`
+                    
+                    if (exercise.image_url) {
+                      content += `[Imagen adjunta]\n`
+                    }
+                    
+                    // Obtener pasos del ejercicio
+                    if (exercise.steps && exercise.steps.length > 0) {
+                      content += `Pasos:\n`
+                      for (const step of exercise.steps) {
+                        content += `  Paso ${step.step_number}: ${step.title || step.description || 'Sin descripción'}\n`
+                        if (step.actions && step.actions.length > 0) {
+                          content += `    Acciones (${step.actions.length}):\n`
+                          for (const action of step.actions) {
+                            content += `      - ${action.action_type}: ${action.label || action.placeholder || 'Sin etiqueta'}`
+                            if (action.correct_answer) {
+                              content += ` → Respuesta: ${action.correct_answer}`
+                            }
+                            content += `\n`
+                          }
+                        }
+                      }
+                    }
+                    
+                    content += `\n`
+                  }
+                }
+              } catch (e) {
+                console.error('Error obteniendo ejercicios:', e)
+              }
+              
+              content += `---\n\n`
+            }
+          } catch (e) {
+            console.error('Error obteniendo temas:', e)
+          }
+        }
+      }
+      
+      // Crear y descargar el archivo
+      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
+      const link = document.createElement('a')
+      const cleanName = exam.name.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '').trim().replace(/\s+/g, '_')
+      link.download = `${cleanName}_${exam.version}_contenido.md`
+      link.href = URL.createObjectURL(blob)
+      link.click()
+      URL.revokeObjectURL(link.href)
+      
+      setToast({ message: 'Contenido descargado exitosamente', type: 'success' })
+    } catch (error) {
+      console.error('Error al descargar contenido:', error)
+      setToast({ message: 'Error al descargar el contenido', type: 'error' })
+    } finally {
+      setIsDownloadingContent(false)
+    }
+  }
+
   // Debug: Ver qué datos llegan
   console.log('Exam data:', exam)
   console.log('Categories:', exam?.categories)
@@ -656,6 +802,19 @@ const ExamEditPage = () => {
                 {isValidating ? 'Validando...' : 'Publicar'}
               </button>
             )}
+            
+            {/* Botón Descargar Contenido */}
+            <button
+              onClick={handleDownloadExamContent}
+              disabled={isDownloadingContent}
+              className="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-lg transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
+              title="Descargar preguntas, respuestas y ejercicios"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              {isDownloadingContent ? 'Descargando...' : 'Descargar Contenido'}
+            </button>
             
             {/* Botón Eliminar (solo admin) */}
             {user?.role === 'admin' && (
