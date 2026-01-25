@@ -117,8 +117,9 @@ const Layout = ({ children }: LayoutProps) => {
                 )}
               </button>
               
-              <Link to="/dashboard" className="flex items-center">
-                <img src="/logo.png" alt="Evaluaasi" className="h-[clamp(1.75rem,1.5rem+1vw,3rem)] w-auto" />
+              <Link to="/dashboard" className="flex items-center fluid-gap-2">
+                <img src="/logo.png" alt="Evaluaasi" className="h-[clamp(2.25rem,2rem+1.5vw,4.5rem)] w-auto" />
+                <span className="hidden sm:block fluid-text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">Evaluaasi</span>
               </Link>
               
               {/* Navegación desktop */}
@@ -212,13 +213,13 @@ const Layout = ({ children }: LayoutProps) => {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 fluid-rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                className="flex items-center fluid-gap-3 fluid-px-4 fluid-py-2 fluid-rounded-xl hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
               >
                 {/* Avatar con iniciales */}
-                <div className="w-[clamp(1.75rem,1.5rem+0.5vw,2.5rem)] h-[clamp(1.75rem,1.5rem+0.5vw,2.5rem)] rounded-full bg-primary-600 text-white flex items-center justify-center fluid-text-sm font-medium">
+                <div className="w-[clamp(2.25rem,2rem+0.75vw,3.5rem)] h-[clamp(2.25rem,2rem+0.75vw,3.5rem)] rounded-full bg-primary-600 text-white flex items-center justify-center fluid-text-base font-medium">
                   {user?.full_name ? getInitials(user.full_name) : 'U'}
                 </div>
-                <span className="fluid-text-sm font-medium text-gray-700 hidden sm:block max-w-[clamp(5rem,4rem+5vw,14rem)] truncate">
+                <span className="fluid-text-base font-medium text-gray-700 hidden sm:block max-w-[clamp(6rem,5rem+6vw,16rem)] truncate">
                   {user?.full_name}
                 </span>
                 {/* Flecha */}
@@ -234,21 +235,21 @@ const Layout = ({ children }: LayoutProps) => {
 
               {/* Dropdown Menu */}
               {isDropdownOpen && (
-                <div className="absolute right-0 fluid-mt-2 w-[clamp(16rem,14rem+8vw,28rem)] bg-white fluid-rounded-xl shadow-lg border border-gray-200 fluid-py-2 z-50">
+                <div className="absolute right-0 fluid-mt-2 w-[clamp(18rem,16rem+10vw,32rem)] bg-white fluid-rounded-2xl shadow-xl border border-gray-200 fluid-py-3 z-50">
                   {/* Header con info del usuario */}
-                  <div className="fluid-px-4 fluid-py-3 border-b border-gray-100">
-                    <div className="flex items-center fluid-gap-3">
-                      <div className="w-[clamp(2.5rem,2rem+1vw,5rem)] h-[clamp(2.5rem,2rem+1vw,5rem)] rounded-full bg-primary-600 text-white flex items-center justify-center fluid-text-lg font-medium">
+                  <div className="fluid-px-5 fluid-py-4 border-b border-gray-100">
+                    <div className="flex items-center fluid-gap-4">
+                      <div className="w-[clamp(3rem,2.5rem+1.25vw,6rem)] h-[clamp(3rem,2.5rem+1.25vw,6rem)] rounded-full bg-primary-600 text-white flex items-center justify-center fluid-text-xl font-medium">
                         {user?.full_name ? getInitials(user.full_name) : 'U'}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="fluid-text-sm font-semibold text-gray-900 truncate">
+                        <p className="fluid-text-base font-semibold text-gray-900 truncate">
                           {user?.full_name}
                         </p>
-                        <p className="fluid-text-xs text-gray-500 truncate">
+                        <p className="fluid-text-sm text-gray-500 truncate">
                           {user?.email}
                         </p>
-                        <span className={`inline-block fluid-mt-1 fluid-px-2 fluid-py-1 fluid-text-xs font-medium rounded-full ${getRoleBadgeColor(user?.role || '')}`}>
+                        <span className={`inline-block fluid-mt-2 fluid-px-3 fluid-py-1 fluid-text-sm font-medium rounded-full ${getRoleBadgeColor(user?.role || '')}`}>
                           {getRoleDisplayName(user?.role || '')}
                         </span>
                       </div>
@@ -256,13 +257,13 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
 
                   {/* Opciones del menú */}
-                  <div className="fluid-py-1">
+                  <div className="fluid-py-2">
                     <Link
                       to="/profile"
                       onClick={() => setIsDropdownOpen(false)}
-                      className="w-full flex items-center fluid-px-4 fluid-py-3 fluid-text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center fluid-px-5 fluid-py-4 fluid-text-base text-gray-700 hover:bg-gray-50 transition-colors"
                     >
-                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="fluid-icon-lg fluid-mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                       Mi Perfil
@@ -272,9 +273,9 @@ const Layout = ({ children }: LayoutProps) => {
                         setIsDropdownOpen(false)
                         handleLogout()
                       }}
-                      className="w-full flex items-center fluid-px-4 fluid-py-3 fluid-text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      className="w-full flex items-center fluid-px-5 fluid-py-4 fluid-text-base text-red-600 hover:bg-red-50 transition-colors"
                     >
-                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="fluid-icon-lg fluid-mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                       </svg>
                       Cerrar Sesión
