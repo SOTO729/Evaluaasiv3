@@ -722,6 +722,9 @@ const TopicDetailPage = () => {
                           <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider bg-gray-100">
                             Pregunta
                           </th>
+                          <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider w-20 bg-gray-100">
+                            Valor
+                          </th>
                           <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider w-24 bg-gray-100">
                             Estado
                           </th>
@@ -796,6 +799,17 @@ const TopicDetailPage = () => {
                               />
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-center">
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${
+                                (question.percentage || 0) > 0 
+                                  ? question.type === 'simulator' 
+                                    ? 'bg-amber-100 text-amber-700 border border-amber-200' 
+                                    : 'bg-teal-100 text-teal-700 border border-teal-200'
+                                  : 'bg-gray-100 text-gray-400 border border-gray-200'
+                              }`}>
+                                {(question.percentage || 0).toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
                               {questionAnswers[question.id] ? (
                                 <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-gradient-to-r from-green-50 to-emerald-100 text-green-700 border border-green-200/50">
                                   <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -844,6 +858,33 @@ const TopicDetailPage = () => {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                  {/* Footer con sumatoria de porcentajes */}
+                  <div className="bg-gray-50 border-t border-gray-200 px-6 py-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600 font-medium">Sumatoria de valores:</span>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-teal-600">📝 Examen:</span>
+                          <span className={`font-bold ${
+                            Math.abs(questions.filter((q: any) => q.type !== 'simulator').reduce((sum: number, q: any) => sum + (q.percentage || 0), 0) - 100) <= 0.01
+                              ? 'text-green-600' : 'text-amber-600'
+                          }`}>
+                            {questions.filter((q: any) => q.type !== 'simulator').reduce((sum: number, q: any) => sum + (q.percentage || 0), 0).toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="w-px h-4 bg-gray-300"></div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-amber-600">🎮 Simulador:</span>
+                          <span className={`font-bold ${
+                            Math.abs(questions.filter((q: any) => q.type === 'simulator').reduce((sum: number, q: any) => sum + (q.percentage || 0), 0) - 100) <= 0.01
+                              ? 'text-green-600' : 'text-amber-600'
+                          }`}>
+                            {questions.filter((q: any) => q.type === 'simulator').reduce((sum: number, q: any) => sum + (q.percentage || 0), 0).toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -918,6 +959,9 @@ const TopicDetailPage = () => {
                           <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-24 bg-gray-100">
                             Pasos
                           </th>
+                          <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-20 bg-gray-100">
+                            Valor
+                          </th>
                           <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider w-32 bg-gray-100">
                             Estado
                           </th>
@@ -974,6 +1018,17 @@ const TopicDetailPage = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${
+                            (exercise.percentage || 0) > 0 
+                              ? exercise.type === 'simulator' 
+                                ? 'bg-amber-100 text-amber-700 border border-amber-200' 
+                                : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                              : 'bg-gray-100 text-gray-400 border border-gray-200'
+                          }`}>
+                            {(exercise.percentage || 0).toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
                           {exercise.is_complete ? (
                             <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-green-100 to-emerald-100 text-green-800">
                               <svg className="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
@@ -1022,6 +1077,33 @@ const TopicDetailPage = () => {
                     ))}
                       </tbody>
                     </table>
+                  </div>
+                  {/* Footer con sumatoria de porcentajes */}
+                  <div className="bg-gray-50 border-t border-gray-200 px-6 py-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600 font-medium">Sumatoria de valores:</span>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-teal-600">📝 Examen:</span>
+                          <span className={`font-bold ${
+                            Math.abs(exercises.filter((e: any) => e.type !== 'simulator').reduce((sum: number, e: any) => sum + (e.percentage || 0), 0) - 100) <= 0.01
+                              ? 'text-green-600' : 'text-amber-600'
+                          }`}>
+                            {exercises.filter((e: any) => e.type !== 'simulator').reduce((sum: number, e: any) => sum + (e.percentage || 0), 0).toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="w-px h-4 bg-gray-300"></div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-amber-600">🎮 Simulador:</span>
+                          <span className={`font-bold ${
+                            Math.abs(exercises.filter((e: any) => e.type === 'simulator').reduce((sum: number, e: any) => sum + (e.percentage || 0), 0) - 100) <= 0.01
+                              ? 'text-green-600' : 'text-amber-600'
+                          }`}>
+                            {exercises.filter((e: any) => e.type === 'simulator').reduce((sum: number, e: any) => sum + (e.percentage || 0), 0).toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
