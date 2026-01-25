@@ -420,9 +420,10 @@ const StudyContentPreviewPage: React.FC = () => {
       const container = mainContainerRef.current;
       if (activeTab === 'interactive' && !exerciseStarted && startExerciseRef.current && container) {
         const startRect = startExerciseRef.current.getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
-        // Mostrar el hint si el botón de inicio NO está visible en el viewport
-        const isButtonVisible = startRect.top < viewportHeight && startRect.bottom > 0;
+        const containerRect = container.getBoundingClientRect();
+        
+        // Verificar si el botón está visible dentro del contenedor (no del viewport)
+        const isButtonVisible = startRect.top < containerRect.bottom && startRect.bottom > containerRect.top;
         
         // También verificar si ya llegamos al fondo del scroll
         const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
@@ -458,13 +459,14 @@ const StudyContentPreviewPage: React.FC = () => {
 
   // Detectar si el botón de descarga no está visible en pantalla
   useEffect(() => {
-    const container = mainContainerRef.current;
-    
     const checkDownloadButtonVisibility = () => {
+      const container = mainContainerRef.current;
       if (activeTab === 'downloadable' && downloadButtonRef.current && container) {
         const downloadRect = downloadButtonRef.current.getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
-        const isButtonVisible = downloadRect.top < viewportHeight && downloadRect.bottom > 0;
+        const containerRect = container.getBoundingClientRect();
+        
+        // Verificar si el botón está visible dentro del contenedor (no del viewport)
+        const isButtonVisible = downloadRect.top < containerRect.bottom && downloadRect.bottom > containerRect.top;
         
         // También verificar si ya llegamos al fondo del scroll
         const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
@@ -476,15 +478,20 @@ const StudyContentPreviewPage: React.FC = () => {
       }
     };
 
-    const timeoutId = setTimeout(checkDownloadButtonVisibility, 300);
+    const timeoutId1 = setTimeout(checkDownloadButtonVisibility, 100);
+    const timeoutId2 = setTimeout(checkDownloadButtonVisibility, 300);
+    const timeoutId3 = setTimeout(checkDownloadButtonVisibility, 600);
     checkDownloadButtonVisibility();
     
     // Escuchar scroll del contenedor principal
+    const container = mainContainerRef.current;
     container?.addEventListener('scroll', checkDownloadButtonVisibility);
     window.addEventListener('resize', checkDownloadButtonVisibility);
 
     return () => {
-      clearTimeout(timeoutId);
+      clearTimeout(timeoutId1);
+      clearTimeout(timeoutId2);
+      clearTimeout(timeoutId3);
       container?.removeEventListener('scroll', checkDownloadButtonVisibility);
       window.removeEventListener('resize', checkDownloadButtonVisibility);
     };
