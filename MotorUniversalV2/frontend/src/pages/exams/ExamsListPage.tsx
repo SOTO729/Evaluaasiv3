@@ -359,7 +359,7 @@ const ExamsListPage = () => {
         <>
           {/* Para candidatos: mostrar solo grid sin secciones */}
           {isCandidate ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 fluid-gap-6 fluid-mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-5 4xl:grid-cols-6 fluid-gap-6 fluid-mb-8">
               {allExams.map((exam: any, index: number) => (
                 <ExamCard 
                   key={exam.id} 
@@ -373,7 +373,7 @@ const ExamsListPage = () => {
             <>
               {/* Sección de Publicados */}
               {allExams.filter((e: any) => e.is_published).length > 0 && (
-                <div className="fluid-mb-10">
+                <div className="fluid-mb-12 fluid-pb-8 border-b-2 border-gray-200">
                   <div className="flex items-center fluid-gap-2 fluid-mb-4">
                     <Eye className="fluid-icon-lg text-green-600" />
                     <h2 className="fluid-text-xl font-semibold text-gray-800">Publicados</h2>
@@ -381,7 +381,7 @@ const ExamsListPage = () => {
                       {allExams.filter((e: any) => e.is_published).length}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 fluid-gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-5 4xl:grid-cols-6 fluid-gap-6">
                     {allExams.filter((e: any) => e.is_published).map((exam: any, index: number) => (
                       <ExamCard 
                         key={exam.id} 
@@ -395,7 +395,7 @@ const ExamsListPage = () => {
 
               {/* Sección de Borradores */}
               {allExams.filter((e: any) => !e.is_published).length > 0 && (
-                <div ref={draftsRef} className="fluid-mb-10 scroll-mt-4">
+                <div ref={draftsRef} className="fluid-mb-10 scroll-mt-4 fluid-pt-4">
                   <div className="flex items-center fluid-gap-2 fluid-mb-4">
                     <EyeOff className="fluid-icon-lg text-gray-500" />
                     <h2 className="fluid-text-xl font-semibold text-gray-800">Borradores</h2>
@@ -403,7 +403,7 @@ const ExamsListPage = () => {
                       {allExams.filter((e: any) => !e.is_published).length}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 fluid-gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-5 4xl:grid-cols-6 fluid-gap-6">
                     {allExams.filter((e: any) => !e.is_published).map((exam: any, index: number) => (
                       <ExamCard 
                         key={exam.id} 
