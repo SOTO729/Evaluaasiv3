@@ -124,6 +124,7 @@ const StudyContentPreviewPage: React.FC = () => {
   const [showDownloadScrollHint, setShowDownloadScrollHint] = useState(false);
   const [instructionsExpanded, setInstructionsExpanded] = useState(false);
   const readingMarkedCompleteRef = useRef(false);
+  const isProgrammaticScrollRef = useRef(false);  // Para ignorar scroll programático
   
   // Estado para el tamaño de la ventana - para calcular altura de imagen responsiva
   const [windowHeight, setWindowHeight] = useState(typeof window !== 'undefined' ? window.innerHeight : 800);
@@ -221,8 +222,8 @@ const StudyContentPreviewPage: React.FC = () => {
   const handleMainScroll = useCallback((e: React.UIEvent<HTMLElement>) => {
     const scrollTop = e.currentTarget.scrollTop;
     
-    // Si está animando, ignorar completamente
-    if (isAnimatingRef.current) {
+    // Si está animando o es scroll programático, ignorar completamente
+    if (isAnimatingRef.current || isProgrammaticScrollRef.current) {
       return;
     }
     
@@ -1679,7 +1680,12 @@ const StudyContentPreviewPage: React.FC = () => {
                         <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-[clamp(1rem,3vw,2rem)] z-[60]">
                           <button
                             onClick={() => {
+                              isProgrammaticScrollRef.current = true;
                               downloadButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              // Restaurar después de que termine el scroll suave
+                              setTimeout(() => {
+                                isProgrammaticScrollRef.current = false;
+                              }, 800);
                             }}
                             className="w-[clamp(2.5rem,4vw,3.5rem)] h-[clamp(2.5rem,4vw,3.5rem)] bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
                             title="Ver sección de descarga"
@@ -1767,7 +1773,12 @@ const StudyContentPreviewPage: React.FC = () => {
                           <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-[clamp(1rem,3vw,2rem)] z-[60]">
                             <button
                               onClick={() => {
+                                isProgrammaticScrollRef.current = true;
                                 startExerciseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                // Restaurar después de que termine el scroll suave
+                                setTimeout(() => {
+                                  isProgrammaticScrollRef.current = false;
+                                }, 800);
                               }}
                               className="w-[clamp(2.5rem,4vw,3.5rem)] h-[clamp(2.5rem,4vw,3.5rem)] bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
                               title="Ver sección para iniciar ejercicio"
