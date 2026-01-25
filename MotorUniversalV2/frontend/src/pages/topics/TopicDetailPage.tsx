@@ -25,7 +25,7 @@ const Toast = ({ message, type, onClose }: ToastProps) => {
     success: {
       bg: 'bg-gradient-to-r from-green-500 to-emerald-600',
       icon: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+        <svg className="fluid-icon" fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
         </svg>
       ),
@@ -33,7 +33,7 @@ const Toast = ({ message, type, onClose }: ToastProps) => {
     error: {
       bg: 'bg-gradient-to-r from-red-500 to-rose-600',
       icon: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+        <svg className="fluid-icon" fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
         </svg>
       ),
@@ -41,7 +41,7 @@ const Toast = ({ message, type, onClose }: ToastProps) => {
     warning: {
       bg: 'bg-gradient-to-r from-amber-500 to-yellow-600',
       icon: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+        <svg className="fluid-icon" fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
         </svg>
       ),
@@ -49,7 +49,7 @@ const Toast = ({ message, type, onClose }: ToastProps) => {
     info: {
       bg: 'bg-gradient-to-r from-blue-500 to-indigo-600',
       icon: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+        <svg className="fluid-icon" fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
         </svg>
       ),
@@ -58,13 +58,13 @@ const Toast = ({ message, type, onClose }: ToastProps) => {
 
   return (
     <div className="fixed top-4 right-4 z-[9999] animate-fadeSlideIn">
-      <div className={`${config[type].bg} text-white px-5 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[320px] max-w-md`}>
+      <div className={`${config[type].bg} text-white fluid-px-5 fluid-py-4 rounded-fluid-xl shadow-2xl flex items-center fluid-gap-3 min-w-[320px] max-w-md`}>
         <div className="flex-shrink-0">
           {config[type].icon}
         </div>
         <span className="font-medium flex-1">{message}</span>
-        <button onClick={onClose} className="flex-shrink-0 p-1.5 hover:bg-white/20 rounded-full transition-colors">
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+        <button onClick={onClose} className="flex-shrink-0 fluid-p-1 hover:bg-white/20 rounded-full transition-colors">
+          <svg className="fluid-icon-sm" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
           </svg>
         </button>
@@ -505,7 +505,7 @@ const TopicDetailPage = () => {
   ]
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="w-full fluid-px-6">
       {/* Breadcrumb */}
       <Breadcrumb items={breadcrumbItems} />
 
@@ -540,9 +540,9 @@ const TopicDetailPage = () => {
             {(questions.length > 0 || exercises.length > 0) && (
               <button
                 onClick={openPercentageModal}
-                className="inline-flex items-center px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-xl font-medium transition-all duration-200"
+                className="inline-flex items-center fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-fluid-xl font-medium transition-all duration-200"
               >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
                 </svg>
@@ -567,7 +567,7 @@ const TopicDetailPage = () => {
                 <div className="fluid-text-xs font-medium text-gray-500 uppercase tracking-wide fluid-mb-1">Preguntas</div>
                 <div className="fluid-text-2xl font-bold text-gray-900">{topic.total_questions || 0}</div>
               </div>
-              <div className="flex items-center justify-center w-12 h-12 rounded-fluid-xl bg-blue-600 text-white shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform duration-300">
+              <div className="flex items-center justify-center fluid-icon-xl rounded-fluid-xl bg-blue-600 text-white shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform duration-300">
                 <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -587,7 +587,7 @@ const TopicDetailPage = () => {
                 <div className="fluid-text-xs font-medium text-gray-500 uppercase tracking-wide fluid-mb-1">Ejercicios</div>
                 <div className="fluid-text-2xl font-bold text-gray-900">{topic.total_exercises || 0}</div>
               </div>
-              <div className="flex items-center justify-center w-12 h-12 rounded-fluid-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg shadow-violet-200 group-hover:scale-110 transition-transform duration-300">
+              <div className="flex items-center justify-center fluid-icon-xl rounded-fluid-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg shadow-violet-200 group-hover:scale-110 transition-transform duration-300">
                 <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
@@ -685,7 +685,7 @@ const TopicDetailPage = () => {
             ) : questions.length === 0 ? (
               <div className="fluid-p-6">
                 <div className="text-center fluid-py-16 fluid-px-4">
-                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-fluid-2xl bg-blue-100 fluid-mb-6">
+                  <div className="inline-flex items-center justify-center fluid-icon-2xl rounded-fluid-2xl bg-blue-100 fluid-mb-6">
                     <svg className="fluid-icon-xl text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -762,7 +762,7 @@ const TopicDetailPage = () => {
                             }`}
                           >
                             <td className="fluid-px-6 fluid-py-4 whitespace-nowrap">
-                              <span className="inline-flex items-center justify-center w-9 h-9 rounded-fluid-xl bg-blue-100 text-blue-700 font-bold fluid-text-sm shadow-sm">
+                              <span className="inline-flex items-center justify-center fluid-icon-lg rounded-fluid-xl bg-blue-100 text-blue-700 font-bold fluid-text-sm shadow-sm">
                                 {index + 1}
                               </span>
                             </td>
@@ -860,11 +860,11 @@ const TopicDetailPage = () => {
                     </table>
                   </div>
                   {/* Footer con sumatoria de porcentajes */}
-                  <div className="bg-gray-50 border-t border-gray-200 px-6 py-3">
-                    <div className="flex items-center justify-between text-sm">
+                  <div className="bg-gray-50 border-t border-gray-200 fluid-px-6 fluid-py-3">
+                    <div className="flex items-center justify-between fluid-text-sm">
                       <span className="text-gray-600 font-medium">Sumatoria de valores:</span>
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-center fluid-gap-4">
+                        <div className="flex items-center fluid-gap-2">
                           <span className="text-teal-600">📝 Examen:</span>
                           <span className={`font-bold ${
                             Math.abs(questions.filter((q: any) => q.type !== 'simulator').reduce((sum: number, q: any) => sum + (q.percentage || 0), 0) - 100) <= 0.01
@@ -874,7 +874,7 @@ const TopicDetailPage = () => {
                           </span>
                         </div>
                         <div className="w-px h-4 bg-gray-300"></div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center fluid-gap-2">
                           <span className="text-amber-600">🎮 Simulador:</span>
                           <span className={`font-bold ${
                             Math.abs(questions.filter((q: any) => q.type === 'simulator').reduce((sum: number, q: any) => sum + (q.percentage || 0), 0) - 100) <= 0.01
@@ -922,7 +922,7 @@ const TopicDetailPage = () => {
             ) : exercises.length === 0 ? (
               <div className="fluid-p-6">
                 <div className="text-center fluid-py-16 fluid-px-4">
-                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-fluid-2xl bg-gradient-to-br from-violet-100 to-purple-200 fluid-mb-6">
+                  <div className="inline-flex items-center justify-center fluid-icon-2xl rounded-fluid-2xl bg-gradient-to-br from-violet-100 to-purple-200 fluid-mb-6">
                     <svg className="fluid-icon-xl text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
@@ -978,7 +978,7 @@ const TopicDetailPage = () => {
                           onClick={() => handleOpenExerciseEditor(exercise)}
                         >
                           <td className="fluid-px-6 fluid-py-4 whitespace-nowrap">
-                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-fluid-lg bg-gradient-to-br from-violet-100 to-purple-200 text-violet-700 font-bold fluid-text-sm shadow-sm">
+                            <span className="inline-flex items-center justify-center fluid-icon-lg rounded-fluid-lg bg-gradient-to-br from-violet-100 to-purple-200 text-violet-700 font-bold fluid-text-sm shadow-sm">
                               {index + 1}
                             </span>
                           </td>
@@ -1079,11 +1079,11 @@ const TopicDetailPage = () => {
                     </table>
                   </div>
                   {/* Footer con sumatoria de porcentajes */}
-                  <div className="bg-gray-50 border-t border-gray-200 px-6 py-3">
-                    <div className="flex items-center justify-between text-sm">
+                  <div className="bg-gray-50 border-t border-gray-200 fluid-px-6 fluid-py-3">
+                    <div className="flex items-center justify-between fluid-text-sm">
                       <span className="text-gray-600 font-medium">Sumatoria de valores:</span>
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-center fluid-gap-4">
+                        <div className="flex items-center fluid-gap-2">
                           <span className="text-teal-600">📝 Examen:</span>
                           <span className={`font-bold ${
                             Math.abs(exercises.filter((e: any) => e.type !== 'simulator').reduce((sum: number, e: any) => sum + (e.percentage || 0), 0) - 100) <= 0.01
@@ -1093,7 +1093,7 @@ const TopicDetailPage = () => {
                           </span>
                         </div>
                         <div className="w-px h-4 bg-gray-300"></div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center fluid-gap-2">
                           <span className="text-amber-600">🎮 Simulador:</span>
                           <span className={`font-bold ${
                             Math.abs(exercises.filter((e: any) => e.type === 'simulator').reduce((sum: number, e: any) => sum + (e.percentage || 0), 0) - 100) <= 0.01
@@ -1184,7 +1184,7 @@ const TopicDetailPage = () => {
       {/* Modal de Editar Pregunta */}
       {isEditModalOpen && selectedQuestion && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4"
           onClick={() => {
             setIsEditModalOpen(false)
             setSelectedQuestion(null)
@@ -1264,7 +1264,7 @@ const TopicDetailPage = () => {
           <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
             <div className="bg-gradient-to-r from-red-500 to-rose-600 fluid-px-6 fluid-py-4">
               <div className="flex items-center">
-                <div className="flex-shrink-0 w-10 h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
+                <div className="flex-shrink-0 fluid-icon-lg rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
                   <svg className="fluid-icon-sm text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
@@ -1439,7 +1439,7 @@ const TopicDetailPage = () => {
                   </svg>
                   <div>
                     <p className="fluid-text-sm font-semibold text-red-800">Esta acción no se puede deshacer</p>
-                    <p className="fluid-text-sm text-red-600 mt-1">¿Estás seguro de que deseas eliminar este ejercicio?</p>
+                    <p className="fluid-text-sm text-red-600 fluid-mt-1">¿Estás seguro de que deseas eliminar este ejercicio?</p>
                   </div>
                 </div>
               </div>
@@ -1482,25 +1482,25 @@ const TopicDetailPage = () => {
       {/* Modal de Gestión de Porcentajes */}
       {isPercentageModalOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4"
           onClick={() => setIsPercentageModalOpen(false)}
         >
           <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden animate-fadeSlideIn" 
+            className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden animate-fadeSlideIn" 
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header con pestañas Examen/Simulador */}
-            <div className={`px-6 py-4 ${percentageMode === 'exam' ? 'bg-gradient-to-r from-teal-500 to-emerald-600' : 'bg-gradient-to-r from-amber-500 to-orange-600'}`}>
-              <div className="flex items-center justify-between mb-4">
+            <div className={`fluid-px-6 fluid-py-4 ${percentageMode === 'exam' ? 'bg-gradient-to-r from-teal-500 to-emerald-600' : 'bg-gradient-to-r from-amber-500 to-orange-600'}`}>
+              <div className="flex items-center justify-between fluid-mb-4">
                 <div>
-                  <h3 className="text-xl font-bold text-white">Gestión de Porcentajes</h3>
-                  <p className="text-white/80 text-sm mt-1">Configura el peso de cada pregunta y ejercicio por separado</p>
+                  <h3 className="fluid-text-xl font-bold text-white">Gestión de Porcentajes</h3>
+                  <p className="text-white/80 fluid-text-sm fluid-mt-1">Configura el peso de cada pregunta y ejercicio por separado</p>
                 </div>
                 <button
                   onClick={handleBalanceCurrentMode}
-                  className="inline-flex items-center px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-xl font-medium transition-all duration-200"
+                  className="inline-flex items-center fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-fluid-xl font-medium transition-all duration-200"
                 >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="fluid-icon fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                   Balancear {percentageMode === 'exam' ? 'Examen' : 'Simulador'}
@@ -1508,19 +1508,19 @@ const TopicDetailPage = () => {
               </div>
               
               {/* Pestañas Examen/Simulador */}
-              <div className="flex gap-2">
+              <div className="flex fluid-gap-2">
                 <button
                   onClick={() => setPercentageMode('exam')}
-                  className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all duration-200 ${
+                  className={`flex-1 fluid-py-3 fluid-px-4 rounded-fluid-xl font-semibold transition-all duration-200 ${
                     percentageMode === 'exam'
                       ? 'bg-white text-teal-700 shadow-lg'
                       : 'bg-white/20 text-white hover:bg-white/30'
                   }`}
                 >
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-lg">📝</span>
+                  <div className="flex items-center justify-center fluid-gap-2">
+                    <span className="fluid-text-lg">📝</span>
                     <span>Examen</span>
-                    <span className={`ml-1 px-2 py-0.5 rounded-full text-xs ${
+                    <span className={`fluid-ml-1 fluid-px-2 fluid-py-1 rounded-full fluid-text-xs ${
                       percentageMode === 'exam' ? 'bg-teal-100 text-teal-700' : 'bg-white/20'
                     }`}>
                       {getFilteredQuestions('exam').length + getFilteredExercises('exam').length}
@@ -1529,16 +1529,16 @@ const TopicDetailPage = () => {
                 </button>
                 <button
                   onClick={() => setPercentageMode('simulator')}
-                  className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all duration-200 ${
+                  className={`flex-1 fluid-py-3 fluid-px-4 rounded-fluid-xl font-semibold transition-all duration-200 ${
                     percentageMode === 'simulator'
                       ? 'bg-white text-amber-700 shadow-lg'
                       : 'bg-white/20 text-white hover:bg-white/30'
                   }`}
                 >
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-lg">🎮</span>
+                  <div className="flex items-center justify-center fluid-gap-2">
+                    <span className="fluid-text-lg">🎮</span>
                     <span>Simulador</span>
-                    <span className={`ml-1 px-2 py-0.5 rounded-full text-xs ${
+                    <span className={`fluid-ml-1 fluid-px-2 fluid-py-1 rounded-full fluid-text-xs ${
                       percentageMode === 'simulator' ? 'bg-amber-100 text-amber-700' : 'bg-white/20'
                     }`}>
                       {getFilteredQuestions('simulator').length + getFilteredExercises('simulator').length}
@@ -1548,7 +1548,7 @@ const TopicDetailPage = () => {
               </div>
             </div>
 
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-280px)]">
+            <div className="fluid-p-6 overflow-y-auto max-h-[calc(90vh-280px)]">
               {/* Indicador de suma total para el modo actual */}
               {(() => {
                 const currentTotal = calculateTotalPercentageForMode(percentageMode)
@@ -1556,19 +1556,19 @@ const TopicDetailPage = () => {
                 const isValid = currentItems === 0 || Math.abs(currentTotal - 100) <= 0.01
                 
                 return currentItems > 0 ? (
-                  <div className={`mb-6 p-4 rounded-xl border-2 ${isValid ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}`}>
+                  <div className={`fluid-mb-6 fluid-p-4 rounded-fluid-xl border-2 ${isValid ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         {isValid ? (
-                          <svg className="w-6 h-6 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="fluid-icon-lg text-green-500 fluid-mr-3" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                           </svg>
                         ) : (
-                          <svg className="w-6 h-6 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="fluid-icon-lg text-red-500 fluid-mr-3" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                           </svg>
                         )}
-                        <span className={`text-lg font-bold ${isValid ? 'text-green-700' : 'text-red-700'}`}>
+                        <span className={`fluid-text-lg font-bold ${isValid ? 'text-green-700' : 'text-red-700'}`}>
                           {percentageMode === 'exam' ? '📝 Examen' : '🎮 Simulador'}: {currentTotal}%
                         </span>
                       </div>
@@ -1588,8 +1588,8 @@ const TopicDetailPage = () => {
                 const isOtherValid = otherItems === 0 || Math.abs(otherTotal - 100) <= 0.01
                 
                 return otherItems > 0 ? (
-                  <div className={`mb-4 p-3 rounded-lg border ${isOtherValid ? 'bg-gray-50 border-gray-200' : 'bg-amber-50 border-amber-200'}`}>
-                    <div className="flex items-center justify-between text-sm">
+                  <div className={`fluid-mb-4 fluid-p-3 rounded-fluid-lg border ${isOtherValid ? 'bg-gray-50 border-gray-200' : 'bg-amber-50 border-amber-200'}`}>
+                    <div className="flex items-center justify-between fluid-text-sm">
                       <span className="text-gray-600">
                         {otherMode === 'exam' ? '📝 Examen' : '🎮 Simulador'}: {otherTotal}% ({otherItems} items)
                       </span>
@@ -1602,7 +1602,7 @@ const TopicDetailPage = () => {
               })()}
 
               {percentageError && (
-                <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+                <div className="fluid-mb-4 fluid-p-4 rounded-fluid-xl bg-red-50 border border-red-200 text-red-700 fluid-text-sm">
                   {percentageError}
                 </div>
               )}
@@ -1614,14 +1614,14 @@ const TopicDetailPage = () => {
                 
                 if (modeQuestions.length === 0 && modeExercises.length === 0) {
                   return (
-                    <div className="text-center py-12 text-gray-500">
-                      <div className={`w-20 h-20 mx-auto rounded-2xl flex items-center justify-center mb-4 ${
+                    <div className="text-center fluid-py-12 text-gray-500">
+                      <div className={`fluid-icon-2xl mx-auto rounded-fluid-2xl flex items-center justify-center fluid-mb-4 ${
                         percentageMode === 'exam' ? 'bg-teal-100' : 'bg-amber-100'
                       }`}>
                         <span className="text-4xl">{percentageMode === 'exam' ? '📝' : '🎮'}</span>
                       </div>
-                      <p className="text-lg font-medium">No hay contenido para {percentageMode === 'exam' ? 'Examen' : 'Simulador'}</p>
-                      <p className="text-sm mt-2">Cambia el tipo de las preguntas o ejercicios para asignarlos a este modo</p>
+                      <p className="fluid-text-lg font-medium">No hay contenido para {percentageMode === 'exam' ? 'Examen' : 'Simulador'}</p>
+                      <p className="fluid-text-sm fluid-mt-2">Cambia el tipo de las preguntas o ejercicios para asignarlos a este modo</p>
                     </div>
                   )
                 }
@@ -1630,37 +1630,37 @@ const TopicDetailPage = () => {
                   <>
                     {/* Sección de Preguntas */}
                     {modeQuestions.length > 0 && (
-                      <div className="mb-6">
-                        <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                          <svg className="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="fluid-mb-6">
+                        <h4 className="fluid-text-lg font-bold text-gray-800 fluid-mb-4 flex items-center">
+                          <svg className="fluid-icon fluid-mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                           Preguntas ({modeQuestions.length})
                         </h4>
-                        <div className="space-y-3">
+                        <div className="flex flex-col fluid-gap-3">
                           {modeQuestions.map((question: any, index: number) => (
-                            <div key={question.id} className={`flex items-center gap-4 p-4 rounded-xl border ${
+                            <div key={question.id} className={`flex items-center fluid-gap-4 fluid-p-4 rounded-fluid-xl border ${
                               percentageMode === 'exam' 
                                 ? 'bg-teal-50 border-teal-100' 
                                 : 'bg-amber-50 border-amber-100'
                             }`}>
-                              <span className={`w-8 h-8 flex items-center justify-center rounded-lg font-bold text-sm text-white ${
+                              <span className={`fluid-icon-lg flex items-center justify-center rounded-fluid-lg font-bold fluid-text-sm text-white ${
                                 percentageMode === 'exam' ? 'bg-teal-500' : 'bg-amber-500'
                               }`}>
                                 {index + 1}
                               </span>
                               <div className="flex-1 min-w-0">
                                 <div 
-                                  className="text-sm text-gray-700 line-clamp-1"
+                                  className="fluid-text-sm text-gray-700 line-clamp-1"
                                   dangerouslySetInnerHTML={{ __html: question.question_text }}
                                 />
-                                <span className={`text-xs font-medium ${
+                                <span className={`fluid-text-xs font-medium ${
                                   percentageMode === 'exam' ? 'text-teal-600' : 'text-amber-600'
                                 }`}>
                                   {getQuestionTypeName(question.question_type?.name || '')}
                                 </span>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center fluid-gap-2">
                                 <input
                                   type="number"
                                   min="0"
@@ -1668,7 +1668,7 @@ const TopicDetailPage = () => {
                                   step="0.01"
                                   value={percentages.questions[question.id] ?? question.percentage ?? 0}
                                   onChange={(e) => updatePercentage('questions', question.id, parseFloat(e.target.value) || 0)}
-                                  className={`w-20 px-3 py-2 border rounded-lg text-center font-semibold focus:ring-2 ${
+                                  className={`w-20 fluid-px-3 fluid-py-2 border rounded-fluid-lg text-center font-semibold focus:ring-2 ${
                                     percentageMode === 'exam' 
                                       ? 'border-teal-200 focus:ring-teal-500 focus:border-teal-500'
                                       : 'border-amber-200 focus:ring-amber-500 focus:border-amber-500'
@@ -1685,36 +1685,36 @@ const TopicDetailPage = () => {
                     {/* Sección de Ejercicios */}
                     {modeExercises.length > 0 && (
                       <div>
-                        <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                          <svg className="w-5 h-5 mr-2 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <h4 className="fluid-text-lg font-bold text-gray-800 fluid-mb-4 flex items-center">
+                          <svg className="fluid-icon fluid-mr-2 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
                           Ejercicios ({modeExercises.length})
                         </h4>
-                        <div className="space-y-3">
+                        <div className="flex flex-col fluid-gap-3">
                           {modeExercises.map((exercise: any, index: number) => (
-                            <div key={exercise.id} className={`flex items-center gap-4 p-4 rounded-xl border ${
+                            <div key={exercise.id} className={`flex items-center fluid-gap-4 fluid-p-4 rounded-fluid-xl border ${
                               percentageMode === 'exam' 
                                 ? 'bg-emerald-50 border-emerald-100' 
                                 : 'bg-orange-50 border-orange-100'
                             }`}>
-                              <span className={`w-8 h-8 flex items-center justify-center rounded-lg font-bold text-sm text-white ${
+                              <span className={`fluid-icon-lg flex items-center justify-center rounded-fluid-lg font-bold fluid-text-sm text-white ${
                                 percentageMode === 'exam' ? 'bg-emerald-500' : 'bg-orange-500'
                               }`}>
                                 {index + 1}
                               </span>
                               <div className="flex-1 min-w-0">
                                 <div 
-                                  className="text-sm text-gray-700 line-clamp-1"
+                                  className="fluid-text-sm text-gray-700 line-clamp-1"
                                   dangerouslySetInnerHTML={{ __html: exercise.exercise_text || exercise.title || 'Ejercicio sin título' }}
                                 />
-                                <span className={`text-xs font-medium ${
+                                <span className={`fluid-text-xs font-medium ${
                                   percentageMode === 'exam' ? 'text-emerald-600' : 'text-orange-600'
                                 }`}>
                                   {exercise.total_steps || 0} pasos
                                 </span>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center fluid-gap-2">
                                 <input
                                   type="number"
                                   min="0"
@@ -1722,7 +1722,7 @@ const TopicDetailPage = () => {
                                   step="0.01"
                                   value={percentages.exercises[exercise.id] ?? exercise.percentage ?? 0}
                                   onChange={(e) => updatePercentage('exercises', exercise.id, parseFloat(e.target.value) || 0)}
-                                  className={`w-20 px-3 py-2 border rounded-lg text-center font-semibold focus:ring-2 ${
+                                  className={`w-20 fluid-px-3 fluid-py-2 border rounded-fluid-lg text-center font-semibold focus:ring-2 ${
                                     percentageMode === 'exam' 
                                       ? 'border-emerald-200 focus:ring-emerald-500 focus:border-emerald-500'
                                       : 'border-orange-200 focus:ring-orange-500 focus:border-orange-500'
@@ -1740,9 +1740,9 @@ const TopicDetailPage = () => {
               })()}
             </div>
 
-            <div className="px-6 py-4 bg-gray-50 border-t flex gap-3 justify-between">
+            <div className="fluid-px-6 fluid-py-4 bg-gray-50 border-t flex fluid-gap-3 justify-between">
               {/* Resumen de validación */}
-              <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center fluid-gap-4 fluid-text-sm">
                 {(() => {
                   const examItems = getFilteredQuestions('exam').length + getFilteredExercises('exam').length
                   const simItems = getFilteredQuestions('simulator').length + getFilteredExercises('simulator').length
@@ -1752,12 +1752,12 @@ const TopicDetailPage = () => {
                   return (
                     <>
                       {examItems > 0 && (
-                        <span className={`flex items-center gap-1 ${examValid ? 'text-green-600' : 'text-red-600'}`}>
+                        <span className={`flex items-center fluid-gap-1 ${examValid ? 'text-green-600' : 'text-red-600'}`}>
                           {examValid ? '✓' : '✗'} Examen
                         </span>
                       )}
                       {simItems > 0 && (
-                        <span className={`flex items-center gap-1 ${simValid ? 'text-green-600' : 'text-red-600'}`}>
+                        <span className={`flex items-center fluid-gap-1 ${simValid ? 'text-green-600' : 'text-red-600'}`}>
                           {simValid ? '✓' : '✗'} Simulador
                         </span>
                       )}
@@ -1766,10 +1766,10 @@ const TopicDetailPage = () => {
                 })()}
               </div>
               
-              <div className="flex gap-3">
+              <div className="flex fluid-gap-3">
                 <button
                   onClick={() => setIsPercentageModalOpen(false)}
-                  className="px-5 py-2.5 text-gray-700 bg-white border border-gray-300 hover:bg-gray-100 rounded-xl font-medium transition-all duration-200"
+                  className="fluid-px-5 fluid-py-2 text-gray-700 bg-white border border-gray-300 hover:bg-gray-100 rounded-fluid-xl font-medium transition-all duration-200"
                 >
                   Cancelar
                 </button>
@@ -1782,7 +1782,7 @@ const TopicDetailPage = () => {
                     const simValid = simItems === 0 || Math.abs(calculateTotalPercentageForMode('simulator') - 100) <= 0.01
                     return !examValid || !simValid
                   })()}
-                  className={`px-5 py-2.5 text-white rounded-xl font-medium shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`fluid-px-5 fluid-py-2 text-white rounded-fluid-xl font-medium shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
                     percentageMode === 'exam'
                       ? 'bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 shadow-teal-500/25'
                       : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-500/25'

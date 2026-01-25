@@ -129,7 +129,7 @@ const CategoryDetailPage = () => {
   ]
 
   return (
-    <div className="max-w-7xl mx-auto fluid-p-6">
+    <div className="w-full fluid-px-6 fluid-py-6">
       {/* Breadcrumb */}
       <Breadcrumb items={breadcrumbItems} />
 
@@ -166,7 +166,7 @@ const CategoryDetailPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 fluid-gap-4 fluid-mb-8">
         <div className="bg-white rounded-fluid-xl border border-gray-100 fluid-p-5 shadow-sm hover:shadow-lg hover:border-green-200 transform hover:-translate-y-1 transition-all duration-300 group">
           <div className="flex items-center fluid-gap-4">
-            <div className="flex-shrink-0 w-12 h-12 rounded-fluid-xl bg-gradient-to-br from-green-100 to-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+            <div className="flex-shrink-0 fluid-icon-xl rounded-fluid-xl bg-gradient-to-br from-green-100 to-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
               <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
@@ -179,7 +179,7 @@ const CategoryDetailPage = () => {
         </div>
         <div className="bg-white rounded-fluid-xl border border-gray-100 fluid-p-5 shadow-sm hover:shadow-lg hover:border-blue-200 transform hover:-translate-y-1 transition-all duration-300 group">
           <div className="flex items-center fluid-gap-4">
-            <div className="flex-shrink-0 w-12 h-12 rounded-fluid-xl bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+            <div className="flex-shrink-0 fluid-icon-xl rounded-fluid-xl bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
               <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -192,7 +192,7 @@ const CategoryDetailPage = () => {
         </div>
         <div className="bg-white rounded-fluid-xl border border-gray-100 fluid-p-5 shadow-sm hover:shadow-lg hover:border-violet-200 transform hover:-translate-y-1 transition-all duration-300 group">
           <div className="flex items-center fluid-gap-4">
-            <div className="flex-shrink-0 w-12 h-12 rounded-fluid-xl bg-violet-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+            <div className="flex-shrink-0 fluid-icon-xl rounded-fluid-xl bg-violet-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
               <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
@@ -228,7 +228,7 @@ const CategoryDetailPage = () => {
             <LoadingSpinner message="Cargando temas..." />
           ) : topics.length === 0 ? (
             <div className="text-center fluid-py-16 fluid-px-4">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-fluid-2xl bg-gradient-to-br from-green-100 to-emerald-200 fluid-mb-6">
+              <div className="inline-flex items-center justify-center fluid-icon-2xl rounded-fluid-2xl bg-gradient-to-br from-green-100 to-emerald-200 fluid-mb-6">
                 <svg className="fluid-icon-xl text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
@@ -276,13 +276,13 @@ const CategoryDetailPage = () => {
                       className="hover:bg-gradient-to-r hover:from-green-50/50 hover:to-transparent cursor-pointer transition-all duration-200 group"
                     >
                       <td className="fluid-px-6 fluid-py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-fluid-lg bg-gradient-to-br from-green-100 to-emerald-200 text-green-700 font-bold fluid-text-sm shadow-sm">
+                        <span className="inline-flex items-center justify-center fluid-icon-lg rounded-fluid-lg bg-gradient-to-br from-green-100 to-emerald-200 text-green-700 font-bold fluid-text-sm shadow-sm">
                           {index + 1}
                         </span>
                       </td>
                       <td className="fluid-px-6 fluid-py-4">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 w-10 h-10 rounded-fluid-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center fluid-mr-3 group-hover:from-green-100 group-hover:to-emerald-100 transition-all duration-300">
+                          <div className="flex-shrink-0 fluid-icon-lg rounded-fluid-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center fluid-mr-3 group-hover:from-green-100 group-hover:to-emerald-100 transition-all duration-300">
                             <svg className="fluid-icon-sm text-gray-500 group-hover:text-green-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
@@ -405,7 +405,7 @@ const CategoryDetailPage = () => {
           <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
             <div className="bg-gradient-to-r from-red-500 to-rose-600 fluid-px-6 fluid-py-4">
               <div className="flex items-center">
-                <div className="flex-shrink-0 w-10 h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
+                <div className="flex-shrink-0 fluid-icon-lg rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
                   <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>

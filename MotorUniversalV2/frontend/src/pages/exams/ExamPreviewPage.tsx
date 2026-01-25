@@ -66,13 +66,13 @@ const ExamPreviewPage = () => {
   if (!exam) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-gray-500">
-        <FileText className="w-16 h-16 mb-4 text-gray-300" />
-        <p className="text-lg">Examen no encontrado</p>
+        <FileText className="fluid-icon-xl fluid-mb-4 text-gray-300" />
+        <p className="fluid-text-lg">Examen no encontrado</p>
         <button
           onClick={() => navigate('/exams')}
-          className="mt-4 text-blue-600 hover:text-blue-700 flex items-center gap-2"
+          className="fluid-mt-4 text-blue-600 hover:text-blue-700 flex items-center fluid-gap-2"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="fluid-icon-sm" />
           Volver a exámenes
         </button>
       </div>
@@ -83,7 +83,7 @@ const ExamPreviewPage = () => {
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50">
-      <div className="max-w-4xl mx-auto fluid-p-6">
+      <div className="w-full fluid-px-6 fluid-py-6">
         {/* Botón volver */}
         <button
           onClick={() => navigate(`/exams/${id}/select-mode`)}
@@ -123,11 +123,11 @@ const ExamPreviewPage = () => {
               src={exam.image_url}
               alt={exam.name}
               className="w-full h-full object-cover"
-              fallbackIcon={<FileText className="h-20 w-20 text-white/50" />}
+              fallbackIcon={<FileText className="fluid-icon-xl text-white/50" />}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <FileText className="h-20 w-20 text-white/50" />
+              <FileText className="fluid-icon-xl text-white/50" />
             </div>
           )}
           
@@ -215,7 +215,7 @@ const ExamPreviewPage = () => {
                   >
                     {cat.name}
                     {cat.percentage && (
-                      <span className="ml-1 text-gray-400">({cat.percentage}%)</span>
+                      <span className="fluid-ml-1 text-gray-400">({cat.percentage}%)</span>
                     )}
                   </span>
                 ))}
@@ -239,7 +239,7 @@ const ExamPreviewPage = () => {
                     onClick={() => navigate(`/study-contents/${material.id}`)}
                   >
                     {/* Icono */}
-                    <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-blue-500">
+                    <div className="flex-shrink-0 fluid-icon-lg rounded-full flex items-center justify-center bg-blue-500">
                       <BookOpen className="fluid-icon-sm text-white" />
                     </div>
                     

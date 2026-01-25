@@ -217,7 +217,7 @@ export const MultipleSelectAnswerPage = () => {
   const isValid = correctCount >= 1 && answers.every(a => a.answer_text.trim());
 
   return (
-    <div className="max-w-5xl mx-auto fluid-px-6 fluid-py-6">
+    <div className="w-full fluid-px-6 fluid-py-6">
       {/* Header */}
       <div className="fluid-mb-6">
         <button

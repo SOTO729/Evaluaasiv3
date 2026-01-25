@@ -286,7 +286,7 @@ export const ColumnGroupingAnswerPage = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="w-full fluid-px-6 fluid-py-6">
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
       
       {/* Header */}

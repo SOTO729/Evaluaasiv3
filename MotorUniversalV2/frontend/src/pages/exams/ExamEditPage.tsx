@@ -816,7 +816,7 @@ const ExamEditPage = () => {
   ]
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="w-full fluid-px-6">
       {/* Breadcrumb */}
       <Breadcrumb items={breadcrumbItems} />
 
@@ -888,10 +888,10 @@ const ExamEditPage = () => {
             <button
               onClick={handleDownloadExamContent}
               disabled={isDownloadingContent}
-              className="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-lg transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
+              className="fluid-px-4 fluid-py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-fluid-lg transition-colors font-medium flex items-center fluid-gap-2 disabled:opacity-50"
               title="Descargar preguntas, respuestas y ejercicios"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               {isDownloadingContent ? 'Descargando...' : 'Descargar Contenido'}
@@ -1130,7 +1130,7 @@ const ExamEditPage = () => {
                     }}
                   >
                     <td className="fluid-px-4 fluid-py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-fluid-lg bg-blue-100 text-blue-700 font-bold fluid-text-sm shadow-sm">
+                      <span className="inline-flex items-center justify-center fluid-icon-lg rounded-fluid-lg bg-blue-100 text-blue-700 font-bold fluid-text-sm shadow-sm">
                         {index + 1}
                       </span>
                     </td>
@@ -1231,7 +1231,7 @@ const ExamEditPage = () => {
           <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
             <div className="bg-gradient-to-r from-red-500 to-rose-600 fluid-px-6 fluid-py-4">
               <div className="flex items-center">
-                <div className="flex-shrink-0 w-10 h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
+                <div className="flex-shrink-0 fluid-w-10 fluid-h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
                   <svg className="fluid-icon-sm text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
@@ -1322,7 +1322,7 @@ const ExamEditPage = () => {
           <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
             <div className={`fluid-px-6 fluid-py-4 ${validationResult.is_valid ? 'bg-gradient-to-r from-green-500 to-emerald-600' : 'bg-gradient-to-r from-red-500 to-rose-600'}`}>
               <div className="flex items-center">
-                <div className="flex-shrink-0 w-10 h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
+                <div className="flex-shrink-0 fluid-w-10 fluid-h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
                   {validationResult.is_valid ? (
                     <svg className="fluid-icon-sm text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1457,7 +1457,7 @@ const ExamEditPage = () => {
           <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
             <div className="bg-gradient-to-r from-amber-500 to-orange-600 fluid-px-6 fluid-py-4">
               <div className="flex items-center">
-                <div className="flex-shrink-0 w-10 h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
+                <div className="flex-shrink-0 fluid-w-10 fluid-h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
                   <svg className="fluid-icon-lg text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
@@ -1709,7 +1709,7 @@ const ExamEditPage = () => {
           <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
             <div className="bg-gradient-to-r from-red-500 to-rose-600 fluid-px-6 fluid-py-4">
               <div className="flex items-center">
-                <div className="flex-shrink-0 w-10 h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
+                <div className="flex-shrink-0 fluid-w-10 fluid-h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
                   <svg className="fluid-icon-sm text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
@@ -1898,7 +1898,7 @@ const ExamEditPage = () => {
                         name="pauseOnDisconnect"
                         checked={editExamPauseOnDisconnect === true}
                         onChange={() => setEditExamPauseOnDisconnect(true)}
-                        className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                        className="fluid-icon-sm text-blue-600 focus:ring-blue-500"
                       />
                       <div>
                         <span className="fluid-text-sm font-medium text-gray-800">Pausar tiempo</span>
@@ -1911,7 +1911,7 @@ const ExamEditPage = () => {
                         name="pauseOnDisconnect"
                         checked={editExamPauseOnDisconnect === false}
                         onChange={() => setEditExamPauseOnDisconnect(false)}
-                        className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                        className="fluid-icon-sm text-blue-600 focus:ring-blue-500"
                       />
                       <div>
                         <span className="fluid-text-sm font-medium text-gray-800">Tiempo continúa</span>
@@ -1979,7 +1979,7 @@ const ExamEditPage = () => {
           <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
             <div className="bg-gradient-to-r from-amber-500 to-yellow-500 fluid-px-6 fluid-py-4">
               <div className="flex items-center">
-                <div className="flex-shrink-0 w-10 h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
+                <div className="flex-shrink-0 fluid-w-10 fluid-h-10 rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
                   <svg className="fluid-icon-sm text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>

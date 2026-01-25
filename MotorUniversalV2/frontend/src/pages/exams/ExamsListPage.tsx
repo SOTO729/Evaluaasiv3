@@ -67,7 +67,7 @@ const ExamCard = ({
     >
       {/* Card Image */}
       <div 
-        className="relative h-40 bg-gradient-to-br from-blue-600 to-blue-800 cursor-pointer"
+        className="relative fluid-h-40 bg-gradient-to-br from-blue-600 to-blue-800 cursor-pointer"
         onClick={handleCardClick}
       >
         {exam.image_url ? (
@@ -75,11 +75,11 @@ const ExamCard = ({
             src={exam.image_url}
             alt={exam.name}
             className="w-full h-full object-cover"
-            fallbackIcon={<FileText className="h-16 w-16 text-white/50" />}
+            fallbackIcon={<FileText className="fluid-icon-xl text-white/50" />}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <FileText className="h-16 w-16 text-white/50" />
+            <FileText className="fluid-icon-xl text-white/50" />
           </div>
         )}
         
@@ -87,7 +87,7 @@ const ExamCard = ({
         {showStatus && !isCandidate && (
           <div className="absolute top-3 left-3">
             <span
-              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+              className={`inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium ${
                 exam.is_published
                   ? 'bg-green-500 text-white'
                   : 'bg-gray-800/70 text-white'
@@ -95,12 +95,12 @@ const ExamCard = ({
             >
               {exam.is_published ? (
                 <>
-                  <Eye className="h-3 w-3" />
+                  <Eye className="fluid-icon-xs" />
                   Publicado
                 </>
               ) : (
                 <>
-                  <EyeOff className="h-3 w-3" />
+                  <EyeOff className="fluid-icon-xs" />
                   Borrador
                 </>
               )}
@@ -110,16 +110,16 @@ const ExamCard = ({
 
         {/* Version Badge */}
         <div className="absolute top-3 right-3">
-          <span className="px-2 py-1 rounded-full text-xs font-mono bg-black/30 text-white">
+          <span className="fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-mono bg-black/30 text-white">
             {exam.version}
           </span>
         </div>
       </div>
 
       {/* Card Content */}
-      <div className="p-4">
+      <div className="fluid-p-4">
         <h3 
-          className="font-semibold text-gray-900 mb-2 line-clamp-1 transition-colors cursor-pointer hover:text-blue-600"
+          className="font-semibold fluid-text-base text-gray-900 fluid-mb-2 line-clamp-1 transition-colors cursor-pointer hover:text-blue-600"
           onClick={handleCardClick}
         >
           {exam.name}
@@ -129,31 +129,31 @@ const ExamCard = ({
         {isCandidate ? (
           <>
             {/* Info principal para candidato: puntaje y simulador */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-1.5 text-sm">
-                <Award className="h-4 w-4 text-emerald-500" />
+            <div className="flex items-center justify-between fluid-mb-3">
+              <div className="flex items-center fluid-gap-2 fluid-text-sm">
+                <Award className="fluid-icon-sm text-emerald-500" />
                 <span className="text-gray-700 font-medium">Mínimo {exam.passing_score}%</span>
               </div>
               {exam.has_simulator_content && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
-                  <Gamepad2 className="h-3 w-3" />
+                <span className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium bg-purple-100 text-purple-700">
+                  <Gamepad2 className="fluid-icon-xs" />
                   Simulador
                 </span>
               )}
             </div>
             
             {/* Footer para candidato: info secundaria en gris */}
-            <div className="flex items-center gap-4 text-xs text-gray-400 pt-3 border-t">
-              <div className="flex items-center gap-1" title="Duración">
-                <Timer className="h-3.5 w-3.5" />
+            <div className="flex items-center fluid-gap-4 fluid-text-xs text-gray-400 fluid-pt-3 border-t">
+              <div className="flex items-center fluid-gap-1" title="Duración">
+                <Timer className="fluid-icon-sm" />
                 <span>{exam.duration_minutes || 0} min</span>
               </div>
-              <div className="flex items-center gap-1" title="Categorías">
-                <Layers className="h-3.5 w-3.5" />
+              <div className="flex items-center fluid-gap-1" title="Categorías">
+                <Layers className="fluid-icon-sm" />
                 <span>{exam.total_categories || 0} {exam.total_categories === 1 ? 'categoría' : 'categorías'}</span>
               </div>
-              <div className="flex items-center gap-1" title="Temas">
-                <BookOpen className="h-3.5 w-3.5" />
+              <div className="flex items-center fluid-gap-1" title="Temas">
+                <BookOpen className="fluid-icon-sm" />
                 <span>{exam.total_topics || 0} temas</span>
               </div>
             </div>
@@ -161,21 +161,21 @@ const ExamCard = ({
         ) : (
           <>
             {/* Stats Grid para admin/editor */}
-            <div className="grid grid-cols-2 gap-2 mb-3 text-xs text-gray-500">
-              <div className="flex items-center gap-1">
-                <BookOpen className="h-3.5 w-3.5 text-blue-500" />
+            <div className="grid grid-cols-2 fluid-gap-2 fluid-mb-3 fluid-text-xs text-gray-500">
+              <div className="flex items-center fluid-gap-1">
+                <BookOpen className="fluid-icon-sm text-blue-500" />
                 <span>{exam.total_topics || 0} temas</span>
               </div>
-              <div className="flex items-center gap-1">
-                <Timer className="h-3.5 w-3.5 text-slate-500" />
+              <div className="flex items-center fluid-gap-1">
+                <Timer className="fluid-icon-sm text-slate-500" />
                 <span>{exam.duration_minutes || 0} min</span>
               </div>
-              <div className="flex items-center gap-1">
-                <Award className="h-3.5 w-3.5 text-emerald-500" />
+              <div className="flex items-center fluid-gap-1">
+                <Award className="fluid-icon-sm text-emerald-500" />
                 <span>Mínimo {exam.passing_score}%</span>
               </div>
-              <div className="flex items-center gap-1">
-                <Gamepad2 className={`h-3.5 w-3.5 ${exam.has_simulator_content ? 'text-purple-500' : 'text-gray-300'}`} />
+              <div className="flex items-center fluid-gap-1">
+                <Gamepad2 className={`fluid-icon-sm ${exam.has_simulator_content ? 'text-purple-500' : 'text-gray-300'}`} />
                 <span className={exam.has_simulator_content ? 'text-purple-600 font-medium' : 'text-gray-400'}>
                   {exam.has_simulator_content ? 'Simulador' : 'Sin simulador'}
                 </span>
@@ -183,13 +183,13 @@ const ExamCard = ({
             </div>
             
             {/* Card Footer para admin/editor */}
-            <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t">
-              <div className="flex items-center gap-1">
-                <Layers className="h-3.5 w-3.5" />
+            <div className="flex items-center justify-between fluid-text-xs text-gray-400 fluid-pt-3 border-t">
+              <div className="flex items-center fluid-gap-1">
+                <Layers className="fluid-icon-sm" />
                 <span>{exam.total_categories || 0} categorías</span>
               </div>
-              <div className="flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
+              <div className="flex items-center fluid-gap-1">
+                <Calendar className="fluid-icon-sm" />
                 <span>
                   {new Date(exam.created_at).toLocaleDateString('es-ES', {
                     day: 'numeric',
@@ -337,20 +337,20 @@ const ExamsListPage = () => {
 
       {/* Exams Grid */}
       {isLoading ? (
-        <div className="bg-white rounded-lg shadow p-8">
+        <div className="bg-white rounded-fluid-lg shadow fluid-p-8">
           <LoadingSpinner message="Cargando exámenes..." />
         </div>
       ) : allExams.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center">
-          <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-700 mb-2">No hay exámenes</h3>
-          <p className="text-gray-500 mb-4">Crea tu primer examen para comenzar</p>
+        <div className="bg-white rounded-fluid-lg shadow fluid-p-8 text-center">
+          <FileText className="fluid-icon-xl text-gray-300 mx-auto fluid-mb-4" />
+          <h3 className="fluid-text-lg font-medium text-gray-700 fluid-mb-2">No hay exámenes</h3>
+          <p className="text-gray-500 fluid-mb-4">Crea tu primer examen para comenzar</p>
           {canCreateExam && (
             <button
               onClick={() => navigate('/exams/create')}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg inline-flex items-center gap-2"
+              className="bg-blue-600 hover:bg-blue-700 text-white fluid-px-4 fluid-py-2 rounded-fluid-lg inline-flex items-center fluid-gap-2"
             >
-              <Plus className="h-5 w-5" />
+              <Plus className="fluid-icon" />
               Crear Examen
             </button>
           )}
@@ -449,26 +449,26 @@ const ExamsListPage = () => {
 
       {/* Delete Modal */}
       {deleteModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => { setDeleteModalOpen(false); setExamToDelete(null); }}>
-          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Eliminar Examen</h3>
-            <p className="text-gray-600 mb-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4" onClick={() => { setDeleteModalOpen(false); setExamToDelete(null); }}>
+          <div className="bg-white rounded-fluid-xl shadow-2xl fluid-p-6 max-w-md w-full animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
+            <h3 className="fluid-text-lg font-bold text-gray-900 fluid-mb-2">Eliminar Examen</h3>
+            <p className="text-gray-600 fluid-mb-4">
               ¿Estás seguro de que deseas eliminar el examen "{examToDelete?.name}"? 
               Esta acción también eliminará todas las categorías, preguntas y ejercicios asociados.
             </p>
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end fluid-gap-3">
               <button
                 onClick={() => {
                   setDeleteModalOpen(false);
                   setExamToDelete(null);
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="fluid-px-4 fluid-py-2 border border-gray-300 rounded-fluid-lg hover:bg-gray-50 transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                className="fluid-px-4 fluid-py-2 bg-red-600 text-white rounded-fluid-lg hover:bg-red-700 transition-colors"
               >
                 Eliminar
               </button>

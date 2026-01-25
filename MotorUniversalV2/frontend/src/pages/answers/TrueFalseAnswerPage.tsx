@@ -111,7 +111,7 @@ const TrueFalseAnswerPage = () => {
   if (!question) return <div className="text-center py-12 text-gray-600">Pregunta no encontrada</div>
 
   return (
-    <div className="max-w-3xl mx-auto fluid-p-6">
+    <div className="w-full fluid-px-6 fluid-py-6">
       {/* Header */}
       <div className="mb-6">
         <button

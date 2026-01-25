@@ -63,13 +63,13 @@ const ExamModeSelectorPage = () => {
   if (!exam) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-gray-500">
-        <FileText className="w-16 h-16 mb-4 text-gray-300" />
-        <p className="text-lg">Examen no encontrado</p>
+        <FileText className="fluid-icon-xl fluid-mb-4 text-gray-300" />
+        <p className="fluid-text-lg">Examen no encontrado</p>
         <button
           onClick={() => navigate('/exams')}
-          className="mt-4 text-blue-600 hover:text-blue-700 flex items-center gap-2"
+          className="fluid-mt-4 text-blue-600 hover:text-blue-700 flex items-center fluid-gap-2"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="fluid-icon-sm" />
           Volver a exámenes
         </button>
       </div>
@@ -78,7 +78,7 @@ const ExamModeSelectorPage = () => {
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50">
-      <div className="max-w-4xl mx-auto fluid-px-6 fluid-py-6">
+      <div className="w-full fluid-px-6 fluid-py-6">
         {/* Botón volver */}
         <button
           onClick={() => navigate('/exams')}
@@ -91,17 +91,17 @@ const ExamModeSelectorPage = () => {
         {/* Header del examen */}
         <div className="bg-white rounded-fluid-xl shadow-lg overflow-hidden border border-gray-100 fluid-mb-6">
           {/* Imagen de cabecera */}
-          <div className="relative h-36 sm:h-48 md:h-56 lg:h-64 bg-gradient-to-br from-blue-600 to-blue-800">
+          <div className="relative fluid-h-48 bg-gradient-to-br from-blue-600 to-blue-800">
             {exam.image_url ? (
               <OptimizedImage
                 src={exam.image_url}
                 alt={exam.name}
                 className="w-full h-full object-cover"
-                fallbackIcon={<FileText className="h-16 w-16 text-white/50" />}
+                fallbackIcon={<FileText className="fluid-icon-xl text-white/50" />}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <FileText className="h-16 w-16 text-white/50" />
+                <FileText className="fluid-icon-xl text-white/50" />
               </div>
             )}
             
@@ -124,7 +124,7 @@ const ExamModeSelectorPage = () => {
                 <Clock className="fluid-icon-sm text-blue-500" />
                 <span className="fluid-text-sm"><strong className="text-gray-900">{exam.duration_minutes || '--'}</strong> min</span>
               </div>
-              <div className="w-px h-5 bg-gray-300" />
+              <div className="w-px fluid-h-5 bg-gray-300" />
               <div className="flex items-center fluid-gap-2 text-gray-700">
                 <Award className="fluid-icon-sm text-emerald-500" />
                 <span className="fluid-text-sm"><strong className="text-gray-900">{exam.passing_score}%</strong> para aprobar</span>
@@ -152,7 +152,7 @@ const ExamModeSelectorPage = () => {
             className="group bg-white rounded-fluid-xl shadow-lg border-2 border-transparent hover:border-blue-500 fluid-p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
           >
             <div className="flex flex-col items-center text-center">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center fluid-mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+              <div className="fluid-w-20 fluid-h-20 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center fluid-mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
                 <ClipboardCheck className="fluid-icon-xl text-white" />
               </div>
               <h3 className="fluid-text-xl font-bold text-gray-800 fluid-mb-2">
@@ -176,7 +176,7 @@ const ExamModeSelectorPage = () => {
             className="group bg-white rounded-fluid-xl shadow-lg border-2 border-transparent hover:border-purple-500 fluid-p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
           >
             <div className="flex flex-col items-center text-center">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center fluid-mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+              <div className="fluid-w-20 fluid-h-20 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center fluid-mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
                 <FlaskConical className="fluid-icon-xl text-white" />
               </div>
               <h3 className="fluid-text-xl font-bold text-gray-800 fluid-mb-2">
@@ -207,12 +207,12 @@ const ExamModeSelectorPage = () => {
         {hasBothModes && (
         <div className="fluid-mt-6 bg-blue-50 rounded-fluid-lg fluid-p-4 border border-blue-100">
           <div className="flex items-start fluid-gap-3">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+            <div className="flex-shrink-0 fluid-w-8 fluid-h-8 rounded-full bg-blue-100 flex items-center justify-center">
               <HelpCircle className="fluid-icon-sm text-blue-600" />
             </div>
             <div className="flex-1 min-w-0">
               <h4 className="font-semibold text-gray-800 fluid-mb-1 fluid-text-sm">¿Cuál es la diferencia?</h4>
-              <ul className="fluid-text-xs text-gray-600 space-y-1">
+              <ul className="fluid-text-xs text-gray-600 flex flex-col fluid-gap-1">
                 <li><strong className="text-blue-700">Examen Oficial:</strong> Si apruebas, obtienes tu certificación. Es la evaluación real y definitiva.</li>
                 <li><strong className="text-purple-700">Simulador:</strong> Modo de práctica para prepararte antes del examen oficial. Sin presión ni registro.</li>
               </ul>

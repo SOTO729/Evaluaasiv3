@@ -443,7 +443,7 @@ export const DragDropAnswerPage = () => {
     <div className="min-h-screen bg-gray-50">
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
       
-      <div className="max-w-5xl mx-auto fluid-px-6 fluid-py-6">
+      <div className="w-full fluid-px-6 fluid-py-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-4 fluid-mb-6">
           <div className="flex items-center gap-4">

@@ -414,7 +414,7 @@ const ExamCreatePage = () => {
         </div>
       )}
       
-      <div className="max-w-4xl mx-auto">
+      <div className="w-full fluid-px-6">
       <div className="fluid-mb-6">
         <button
           onClick={() => navigate('/exams')}
@@ -451,7 +451,7 @@ const ExamCreatePage = () => {
               <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
                 creationMode === 'scratch' ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'
               }`}>
-                <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
               </div>
@@ -484,7 +484,7 @@ const ExamCreatePage = () => {
               <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
                 creationMode === 'copy' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
               }`}>
-                <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
               </div>
@@ -529,7 +529,7 @@ const ExamCreatePage = () => {
                         <p className="fluid-text-sm text-gray-500 font-mono">{exam.version}</p>
                       </div>
                       <div className="flex items-center fluid-gap-2">
-                        <span className={`fluid-px-2 py-0.5 fluid-text-xs rounded-full ${
+                        <span className={`fluid-px-2 fluid-py-1 fluid-text-xs rounded-full ${
                           exam.is_published ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
                         }`}>
                           {exam.is_published ? 'Publicado' : 'Borrador'}
@@ -557,7 +557,7 @@ const ExamCreatePage = () => {
             
             {/* Info del examen seleccionado */}
             {selectedExamToCopy && (
-              <div className="fluid-mt-3 bg-blue-50 border-l-4 border-blue-500 fluid-p-4 rounded-r-lg">
+              <div className="fluid-mt-3 bg-blue-50 border-l-4 border-blue-500 fluid-p-4 rounded-fluid-lg">
                 <div className="flex">
                   <div className="flex-shrink-0">
                     <svg className="fluid-icon text-blue-400" fill="currentColor" viewBox="0 0 20 20">
@@ -738,7 +738,7 @@ const ExamCreatePage = () => {
                   <img 
                     src={imagePreview} 
                     alt="Vista previa" 
-                    className="w-full max-w-4xl h-64 object-cover rounded-fluid-lg border-2 border-gray-300"
+                    className="w-full h-64 object-cover rounded-fluid-lg border-2 border-gray-300"
                   />
                   <button
                     type="button"
@@ -759,13 +759,13 @@ const ExamCreatePage = () => {
                   onDragOver={handleDrag}
                   onDrop={handleDrop}
                 >
-                  <label className={`flex flex-col items-center justify-center w-full max-w-4xl h-64 border-2 border-dashed rounded-fluid-lg cursor-pointer transition-colors ${
+                  <label className={`flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-fluid-lg cursor-pointer transition-colors ${
                     dragActive 
                       ? 'border-blue-500 bg-blue-50' 
                       : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
                   }`}>
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <svg className="w-10 h-10 fluid-mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="flex flex-col items-center justify-center fluid-py-5 fluid-pb-6">
+                      <svg className="fluid-icon-lg fluid-mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
                       <p className="fluid-mb-2 fluid-text-sm text-gray-500"><span className="font-semibold">Click para cargar</span> o arrastra y suelta</p>
