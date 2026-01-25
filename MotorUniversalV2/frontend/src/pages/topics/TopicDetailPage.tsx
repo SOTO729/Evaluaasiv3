@@ -41,6 +41,7 @@ const TopicDetailPage = () => {
   const [isPercentageModalOpen, setIsPercentageModalOpen] = useState(false)
   const [percentages, setPercentages] = useState<{ questions: Record<string, number>; exercises: Record<string, number> }>({ questions: {}, exercises: {} })
   const [percentageError, setPercentageError] = useState<string | null>(null)
+  const [percentageMode, setPercentageMode] = useState<'exam' | 'simulator'>('exam')
 
   // Query para obtener el examen (para el breadcrumb)
   const { data: exam } = useQuery({
@@ -167,25 +168,6 @@ const TopicDetailPage = () => {
   })
 
   // Mutations para porcentajes
-  const balancePercentagesMutation = useMutation({
-    mutationFn: () => examService.balanceTopicPercentages(Number(topicId)),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['questions', topicId] })
-      queryClient.invalidateQueries({ queryKey: ['exercises', topicId] })
-      // Actualizar el estado local con los nuevos porcentajes
-      const newQuestionPercentages: Record<string, number> = {}
-      const newExercisePercentages: Record<string, number> = {}
-      data.questions.forEach((q: any) => { newQuestionPercentages[q.id] = q.percentage || 0 })
-      data.exercises.forEach((e: any) => { newExercisePercentages[e.id] = e.percentage || 0 })
-      setPercentages({ questions: newQuestionPercentages, exercises: newExercisePercentages })
-      setPercentageError(null)
-    },
-    onError: (error: any) => {
-      console.error('Error al balancear porcentajes:', error)
-      alert('Error al balancear porcentajes: ' + (error.response?.data?.error || error.message))
-    },
-  })
-
   const updatePercentagesMutation = useMutation({
     mutationFn: (data: { questions: Record<string, number>; exercises: Record<string, number> }) => 
       examService.updateTopicPercentages(Number(topicId), data),
@@ -315,6 +297,7 @@ const TopicDetailPage = () => {
     
     setPercentages({ questions: questionPercentages, exercises: exercisePercentages })
     setPercentageError(null)
+    setPercentageMode('exam')
     setIsPercentageModalOpen(true)
   }
 
@@ -326,18 +309,75 @@ const TopicDetailPage = () => {
     setPercentageError(null)
   }
 
-  const calculateTotalPercentage = () => {
-    const questionTotal = Object.values(percentages.questions).reduce((sum, val) => sum + (val || 0), 0)
-    const exerciseTotal = Object.values(percentages.exercises).reduce((sum, val) => sum + (val || 0), 0)
+  // Filtrar items por modo (exam o simulator)
+  const getFilteredQuestions = (mode: 'exam' | 'simulator') => {
+    return questions.filter((q: any) => (q.type || 'exam') === mode)
+  }
+
+  const getFilteredExercises = (mode: 'exam' | 'simulator') => {
+    return exercises.filter((e: any) => (e.type || 'exam') === mode)
+  }
+
+  // Calcular porcentaje total para un modo específico
+  const calculateTotalPercentageForMode = (mode: 'exam' | 'simulator') => {
+    const modeQuestions = getFilteredQuestions(mode)
+    const modeExercises = getFilteredExercises(mode)
+    
+    const questionTotal = modeQuestions.reduce((sum: number, q: any) => sum + (percentages.questions[q.id] || 0), 0)
+    const exerciseTotal = modeExercises.reduce((sum: number, e: any) => sum + (percentages.exercises[e.id] || 0), 0)
+    
     return Math.round((questionTotal + exerciseTotal) * 100) / 100
   }
 
+  // Balancear porcentajes para el modo actual
+  const handleBalanceCurrentMode = () => {
+    const modeQuestions = getFilteredQuestions(percentageMode)
+    const modeExercises = getFilteredExercises(percentageMode)
+    const totalItems = modeQuestions.length + modeExercises.length
+    
+    if (totalItems === 0) return
+    
+    const percentagePerItem = Math.round((100 / totalItems) * 100) / 100
+    const residue = Math.round((100 - percentagePerItem * totalItems) * 100) / 100
+    
+    const newQuestionPercentages = { ...percentages.questions }
+    const newExercisePercentages = { ...percentages.exercises }
+    
+    let first = true
+    modeQuestions.forEach((q: any) => {
+      newQuestionPercentages[q.id] = first ? percentagePerItem + residue : percentagePerItem
+      first = false
+    })
+    modeExercises.forEach((e: any) => {
+      newExercisePercentages[e.id] = first ? percentagePerItem + residue : percentagePerItem
+      first = false
+    })
+    
+    setPercentages({ questions: newQuestionPercentages, exercises: newExercisePercentages })
+    setPercentageError(null)
+  }
+
   const handleSavePercentages = () => {
-    const total = calculateTotalPercentage()
-    if (Math.abs(total - 100) > 0.01) {
-      setPercentageError(`Los porcentajes deben sumar 100%. Suma actual: ${total}%`)
+    // Validar ambos modos
+    const examTotal = calculateTotalPercentageForMode('exam')
+    const simulatorTotal = calculateTotalPercentageForMode('simulator')
+    
+    const examItems = getFilteredQuestions('exam').length + getFilteredExercises('exam').length
+    const simulatorItems = getFilteredQuestions('simulator').length + getFilteredExercises('simulator').length
+    
+    // Solo validar si hay items en ese modo
+    if (examItems > 0 && Math.abs(examTotal - 100) > 0.01) {
+      setPercentageError(`Examen: Los porcentajes deben sumar 100%. Suma actual: ${examTotal}%`)
+      setPercentageMode('exam')
       return
     }
+    
+    if (simulatorItems > 0 && Math.abs(simulatorTotal - 100) > 0.01) {
+      setPercentageError(`Simulador: Los porcentajes deben sumar 100%. Suma actual: ${simulatorTotal}%`)
+      setPercentageMode('simulator')
+      return
+    }
+    
     updatePercentagesMutation.mutate(percentages)
   }
 
@@ -1291,59 +1331,120 @@ const TopicDetailPage = () => {
           onClick={() => setIsPercentageModalOpen(false)}
         >
           <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fadeSlideIn" 
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden animate-fadeSlideIn" 
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-4">
-              <div className="flex items-center justify-between">
+            {/* Header con pestañas Examen/Simulador */}
+            <div className={`px-6 py-4 ${percentageMode === 'exam' ? 'bg-gradient-to-r from-teal-500 to-emerald-600' : 'bg-gradient-to-r from-amber-500 to-orange-600'}`}>
+              <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-xl font-bold text-white">Gestión de Porcentajes</h3>
-                  <p className="text-emerald-100 text-sm mt-1">Asigna el porcentaje del tema a cada pregunta y ejercicio</p>
+                  <p className="text-white/80 text-sm mt-1">Configura el peso de cada pregunta y ejercicio por separado</p>
                 </div>
                 <button
-                  onClick={() => balancePercentagesMutation.mutate()}
-                  disabled={balancePercentagesMutation.isPending}
-                  className="inline-flex items-center px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-xl font-medium transition-all duration-200 disabled:opacity-50"
+                  onClick={handleBalanceCurrentMode}
+                  className="inline-flex items-center px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-xl font-medium transition-all duration-200"
                 >
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  {balancePercentagesMutation.isPending ? 'Balanceando...' : 'Balancear Automáticamente'}
+                  Balancear {percentageMode === 'exam' ? 'Examen' : 'Simulador'}
+                </button>
+              </div>
+              
+              {/* Pestañas Examen/Simulador */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPercentageMode('exam')}
+                  className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all duration-200 ${
+                    percentageMode === 'exam'
+                      ? 'bg-white text-teal-700 shadow-lg'
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-lg">📝</span>
+                    <span>Examen</span>
+                    <span className={`ml-1 px-2 py-0.5 rounded-full text-xs ${
+                      percentageMode === 'exam' ? 'bg-teal-100 text-teal-700' : 'bg-white/20'
+                    }`}>
+                      {getFilteredQuestions('exam').length + getFilteredExercises('exam').length}
+                    </span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setPercentageMode('simulator')}
+                  className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all duration-200 ${
+                    percentageMode === 'simulator'
+                      ? 'bg-white text-amber-700 shadow-lg'
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-lg">🎮</span>
+                    <span>Simulador</span>
+                    <span className={`ml-1 px-2 py-0.5 rounded-full text-xs ${
+                      percentageMode === 'simulator' ? 'bg-amber-100 text-amber-700' : 'bg-white/20'
+                    }`}>
+                      {getFilteredQuestions('simulator').length + getFilteredExercises('simulator').length}
+                    </span>
+                  </div>
                 </button>
               </div>
             </div>
 
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
-              {/* Indicador de suma total */}
-              <div className={`mb-6 p-4 rounded-xl border-2 ${
-                Math.abs(calculateTotalPercentage() - 100) <= 0.01 
-                  ? 'bg-green-50 border-green-300' 
-                  : 'bg-red-50 border-red-300'
-              }`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    {Math.abs(calculateTotalPercentage() - 100) <= 0.01 ? (
-                      <svg className="w-6 h-6 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                    ) : (
-                      <svg className="w-6 h-6 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                    <span className={`text-lg font-bold ${
-                      Math.abs(calculateTotalPercentage() - 100) <= 0.01 ? 'text-green-700' : 'text-red-700'
-                    }`}>
-                      Suma Total: {calculateTotalPercentage()}%
-                    </span>
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-280px)]">
+              {/* Indicador de suma total para el modo actual */}
+              {(() => {
+                const currentTotal = calculateTotalPercentageForMode(percentageMode)
+                const currentItems = getFilteredQuestions(percentageMode).length + getFilteredExercises(percentageMode).length
+                const isValid = currentItems === 0 || Math.abs(currentTotal - 100) <= 0.01
+                
+                return currentItems > 0 ? (
+                  <div className={`mb-6 p-4 rounded-xl border-2 ${isValid ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        {isValid ? (
+                          <svg className="w-6 h-6 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg className="w-6 h-6 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                        <span className={`text-lg font-bold ${isValid ? 'text-green-700' : 'text-red-700'}`}>
+                          {percentageMode === 'exam' ? '📝 Examen' : '🎮 Simulador'}: {currentTotal}%
+                        </span>
+                      </div>
+                      <span className={`text-sm font-medium ${isValid ? 'text-green-600' : 'text-red-600'}`}>
+                        {isValid ? '✓ Correcto (100%)' : `Falta: ${(100 - currentTotal).toFixed(2)}%`}
+                      </span>
+                    </div>
                   </div>
-                  <span className={`text-sm font-medium ${
-                    Math.abs(calculateTotalPercentage() - 100) <= 0.01 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {Math.abs(calculateTotalPercentage() - 100) <= 0.01 ? '✓ Correcto' : `Falta: ${(100 - calculateTotalPercentage()).toFixed(2)}%`}
-                  </span>
-                </div>
-              </div>
+                ) : null
+              })()}
+
+              {/* Resumen del otro modo */}
+              {(() => {
+                const otherMode = percentageMode === 'exam' ? 'simulator' : 'exam'
+                const otherTotal = calculateTotalPercentageForMode(otherMode)
+                const otherItems = getFilteredQuestions(otherMode).length + getFilteredExercises(otherMode).length
+                const isOtherValid = otherItems === 0 || Math.abs(otherTotal - 100) <= 0.01
+                
+                return otherItems > 0 ? (
+                  <div className={`mb-4 p-3 rounded-lg border ${isOtherValid ? 'bg-gray-50 border-gray-200' : 'bg-amber-50 border-amber-200'}`}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">
+                        {otherMode === 'exam' ? '📝 Examen' : '🎮 Simulador'}: {otherTotal}% ({otherItems} items)
+                      </span>
+                      {!isOtherValid && (
+                        <span className="text-amber-600 font-medium">⚠️ Falta {(100 - otherTotal).toFixed(2)}%</span>
+                      )}
+                    </div>
+                  </div>
+                ) : null
+              })()}
 
               {percentageError && (
                 <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
@@ -1351,114 +1452,190 @@ const TopicDetailPage = () => {
                 </div>
               )}
 
-              {/* Sección de Preguntas */}
-              {questions.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                    <svg className="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Preguntas ({questions.length})
-                  </h4>
-                  <div className="space-y-3">
-                    {questions.map((question: any, index: number) => (
-                      <div key={question.id} className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
-                        <span className="w-8 h-8 flex items-center justify-center bg-blue-500 text-white rounded-lg font-bold text-sm">
-                          {index + 1}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div 
-                            className="text-sm text-gray-700 line-clamp-1"
-                            dangerouslySetInnerHTML={{ __html: question.question_text }}
-                          />
-                          <span className="text-xs text-blue-600 font-medium">
-                            {getQuestionTypeName(question.question_type?.name || '')}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            value={percentages.questions[question.id] ?? question.percentage ?? 0}
-                            onChange={(e) => updatePercentage('questions', question.id, parseFloat(e.target.value) || 0)}
-                            className="w-20 px-3 py-2 border border-blue-200 rounded-lg text-center font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                          <span className="text-gray-500 font-medium">%</span>
+              {/* Contenido del modo actual */}
+              {(() => {
+                const modeQuestions = getFilteredQuestions(percentageMode)
+                const modeExercises = getFilteredExercises(percentageMode)
+                
+                if (modeQuestions.length === 0 && modeExercises.length === 0) {
+                  return (
+                    <div className="text-center py-12 text-gray-500">
+                      <div className={`w-20 h-20 mx-auto rounded-2xl flex items-center justify-center mb-4 ${
+                        percentageMode === 'exam' ? 'bg-teal-100' : 'bg-amber-100'
+                      }`}>
+                        <span className="text-4xl">{percentageMode === 'exam' ? '📝' : '🎮'}</span>
+                      </div>
+                      <p className="text-lg font-medium">No hay contenido para {percentageMode === 'exam' ? 'Examen' : 'Simulador'}</p>
+                      <p className="text-sm mt-2">Cambia el tipo de las preguntas o ejercicios para asignarlos a este modo</p>
+                    </div>
+                  )
+                }
+                
+                return (
+                  <>
+                    {/* Sección de Preguntas */}
+                    {modeQuestions.length > 0 && (
+                      <div className="mb-6">
+                        <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                          <svg className="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Preguntas ({modeQuestions.length})
+                        </h4>
+                        <div className="space-y-3">
+                          {modeQuestions.map((question: any, index: number) => (
+                            <div key={question.id} className={`flex items-center gap-4 p-4 rounded-xl border ${
+                              percentageMode === 'exam' 
+                                ? 'bg-teal-50 border-teal-100' 
+                                : 'bg-amber-50 border-amber-100'
+                            }`}>
+                              <span className={`w-8 h-8 flex items-center justify-center rounded-lg font-bold text-sm text-white ${
+                                percentageMode === 'exam' ? 'bg-teal-500' : 'bg-amber-500'
+                              }`}>
+                                {index + 1}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <div 
+                                  className="text-sm text-gray-700 line-clamp-1"
+                                  dangerouslySetInnerHTML={{ __html: question.question_text }}
+                                />
+                                <span className={`text-xs font-medium ${
+                                  percentageMode === 'exam' ? 'text-teal-600' : 'text-amber-600'
+                                }`}>
+                                  {getQuestionTypeName(question.question_type?.name || '')}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  step="0.01"
+                                  value={percentages.questions[question.id] ?? question.percentage ?? 0}
+                                  onChange={(e) => updatePercentage('questions', question.id, parseFloat(e.target.value) || 0)}
+                                  className={`w-20 px-3 py-2 border rounded-lg text-center font-semibold focus:ring-2 ${
+                                    percentageMode === 'exam' 
+                                      ? 'border-teal-200 focus:ring-teal-500 focus:border-teal-500'
+                                      : 'border-amber-200 focus:ring-amber-500 focus:border-amber-500'
+                                  }`}
+                                />
+                                <span className="text-gray-500 font-medium">%</span>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    )}
 
-              {/* Sección de Ejercicios */}
-              {exercises.length > 0 && (
-                <div>
-                  <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                    <svg className="w-5 h-5 mr-2 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    Ejercicios ({exercises.length})
-                  </h4>
-                  <div className="space-y-3">
-                    {exercises.map((exercise: any, index: number) => (
-                      <div key={exercise.id} className="flex items-center gap-4 p-4 bg-violet-50 rounded-xl border border-violet-100">
-                        <span className="w-8 h-8 flex items-center justify-center bg-violet-500 text-white rounded-lg font-bold text-sm">
-                          {index + 1}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div 
-                            className="text-sm text-gray-700 line-clamp-1"
-                            dangerouslySetInnerHTML={{ __html: exercise.exercise_text || exercise.title || 'Ejercicio sin título' }}
-                          />
-                          <span className="text-xs text-violet-600 font-medium">
-                            {exercise.total_steps || 0} pasos
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            value={percentages.exercises[exercise.id] ?? exercise.percentage ?? 0}
-                            onChange={(e) => updatePercentage('exercises', exercise.id, parseFloat(e.target.value) || 0)}
-                            className="w-20 px-3 py-2 border border-violet-200 rounded-lg text-center font-semibold focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
-                          />
-                          <span className="text-gray-500 font-medium">%</span>
+                    {/* Sección de Ejercicios */}
+                    {modeExercises.length > 0 && (
+                      <div>
+                        <h4 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                          <svg className="w-5 h-5 mr-2 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          Ejercicios ({modeExercises.length})
+                        </h4>
+                        <div className="space-y-3">
+                          {modeExercises.map((exercise: any, index: number) => (
+                            <div key={exercise.id} className={`flex items-center gap-4 p-4 rounded-xl border ${
+                              percentageMode === 'exam' 
+                                ? 'bg-emerald-50 border-emerald-100' 
+                                : 'bg-orange-50 border-orange-100'
+                            }`}>
+                              <span className={`w-8 h-8 flex items-center justify-center rounded-lg font-bold text-sm text-white ${
+                                percentageMode === 'exam' ? 'bg-emerald-500' : 'bg-orange-500'
+                              }`}>
+                                {index + 1}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <div 
+                                  className="text-sm text-gray-700 line-clamp-1"
+                                  dangerouslySetInnerHTML={{ __html: exercise.exercise_text || exercise.title || 'Ejercicio sin título' }}
+                                />
+                                <span className={`text-xs font-medium ${
+                                  percentageMode === 'exam' ? 'text-emerald-600' : 'text-orange-600'
+                                }`}>
+                                  {exercise.total_steps || 0} pasos
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  step="0.01"
+                                  value={percentages.exercises[exercise.id] ?? exercise.percentage ?? 0}
+                                  onChange={(e) => updatePercentage('exercises', exercise.id, parseFloat(e.target.value) || 0)}
+                                  className={`w-20 px-3 py-2 border rounded-lg text-center font-semibold focus:ring-2 ${
+                                    percentageMode === 'exam' 
+                                      ? 'border-emerald-200 focus:ring-emerald-500 focus:border-emerald-500'
+                                      : 'border-orange-200 focus:ring-orange-500 focus:border-orange-500'
+                                  }`}
+                                />
+                                <span className="text-gray-500 font-medium">%</span>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {questions.length === 0 && exercises.length === 0 && (
-                <div className="text-center py-12 text-gray-500">
-                  <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <p>No hay preguntas ni ejercicios en este tema</p>
-                </div>
-              )}
+                    )}
+                  </>
+                )
+              })()}
             </div>
 
-            <div className="px-6 py-4 bg-gray-50 border-t flex gap-3 justify-end">
-              <button
-                onClick={() => setIsPercentageModalOpen(false)}
-                className="px-5 py-2.5 text-gray-700 bg-white border border-gray-300 hover:bg-gray-100 rounded-xl font-medium transition-all duration-200"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSavePercentages}
-                disabled={updatePercentagesMutation.isPending || Math.abs(calculateTotalPercentage() - 100) > 0.01}
-                className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 hover:from-emerald-600 hover:to-teal-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {updatePercentagesMutation.isPending ? 'Guardando...' : 'Guardar Porcentajes'}
-              </button>
+            <div className="px-6 py-4 bg-gray-50 border-t flex gap-3 justify-between">
+              {/* Resumen de validación */}
+              <div className="flex items-center gap-4 text-sm">
+                {(() => {
+                  const examItems = getFilteredQuestions('exam').length + getFilteredExercises('exam').length
+                  const simItems = getFilteredQuestions('simulator').length + getFilteredExercises('simulator').length
+                  const examValid = examItems === 0 || Math.abs(calculateTotalPercentageForMode('exam') - 100) <= 0.01
+                  const simValid = simItems === 0 || Math.abs(calculateTotalPercentageForMode('simulator') - 100) <= 0.01
+                  
+                  return (
+                    <>
+                      {examItems > 0 && (
+                        <span className={`flex items-center gap-1 ${examValid ? 'text-green-600' : 'text-red-600'}`}>
+                          {examValid ? '✓' : '✗'} Examen
+                        </span>
+                      )}
+                      {simItems > 0 && (
+                        <span className={`flex items-center gap-1 ${simValid ? 'text-green-600' : 'text-red-600'}`}>
+                          {simValid ? '✓' : '✗'} Simulador
+                        </span>
+                      )}
+                    </>
+                  )
+                })()}
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setIsPercentageModalOpen(false)}
+                  className="px-5 py-2.5 text-gray-700 bg-white border border-gray-300 hover:bg-gray-100 rounded-xl font-medium transition-all duration-200"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSavePercentages}
+                  disabled={updatePercentagesMutation.isPending || (() => {
+                    const examItems = getFilteredQuestions('exam').length + getFilteredExercises('exam').length
+                    const simItems = getFilteredQuestions('simulator').length + getFilteredExercises('simulator').length
+                    const examValid = examItems === 0 || Math.abs(calculateTotalPercentageForMode('exam') - 100) <= 0.01
+                    const simValid = simItems === 0 || Math.abs(calculateTotalPercentageForMode('simulator') - 100) <= 0.01
+                    return !examValid || !simValid
+                  })()}
+                  className={`px-5 py-2.5 text-white rounded-xl font-medium shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    percentageMode === 'exam'
+                      ? 'bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 shadow-teal-500/25'
+                      : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-500/25'
+                  }`}
+                >
+                  {updatePercentagesMutation.isPending ? 'Guardando...' : 'Guardar Todo'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
