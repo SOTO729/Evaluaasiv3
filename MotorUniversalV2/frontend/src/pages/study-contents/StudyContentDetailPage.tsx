@@ -8,6 +8,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
+import html2canvas from 'html2canvas';
 import {
   getMaterial,
   updateMaterial,
@@ -28,6 +29,7 @@ import {
   deleteDownloadable,
   createInteractive,
   updateInteractive,
+  getInteractive,
   StudyMaterial,
   StudySession,
   StudyTopic,
@@ -36,6 +38,8 @@ import {
   CreateReadingData,
   CreateVideoData,
   CreateDownloadableData,
+  StudyInteractiveExerciseStep,
+  StudyInteractiveExerciseAction,
 } from '../../services/studyContentService';
 import {
   ArrowLeft,
@@ -274,6 +278,11 @@ const StudyContentDetailPage = () => {
     description: ''
   });
   const [savingInteractive, setSavingInteractive] = useState(false);
+  
+  // Estados para descarga de imágenes del ejercicio interactivo
+  const [isDownloadingImages, setIsDownloadingImages] = useState(false);
+  const [interactiveSteps, setInteractiveSteps] = useState<StudyInteractiveExerciseStep[]>([]);
+  const [loadingInteractiveSteps, setLoadingInteractiveSteps] = useState(false);
 
   // Validation modal state
   const [showValidationModal, setShowValidationModal] = useState(false);
@@ -434,6 +443,201 @@ const StudyContentDetailPage = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Cargar pasos del ejercicio interactivo para la descarga
+  const loadInteractiveSteps = async (sessionId: number, topicId: number) => {
+    setLoadingInteractiveSteps(true);
+    try {
+      const data = await getInteractive(materialId, sessionId, topicId);
+      setInteractiveSteps(data?.steps || []);
+    } catch (error) {
+      console.error('Error loading interactive steps:', error);
+      setInteractiveSteps([]);
+    } finally {
+      setLoadingInteractiveSteps(false);
+    }
+  };
+
+  // Función auxiliar para generar imagen de un paso con overlays
+  const generateStepImageWithOverlays = async (step: StudyInteractiveExerciseStep): Promise<HTMLCanvasElement | null> => {
+    if (!step?.image_url) return null;
+    
+    // Filtrar acciones que deben mostrarse (comentarios + no-invisibles)
+    const visibleActions = (step.actions || []).filter((action: StudyInteractiveExerciseAction) => {
+      if (action.action_type === 'comment') return true;
+      return action.label_style && action.label_style !== 'invisible';
+    });
+    
+    const tempContainer = document.createElement('div');
+    tempContainer.style.position = 'absolute';
+    tempContainer.style.left = '-9999px';
+    tempContainer.style.top = '0';
+    document.body.appendChild(tempContainer);
+    
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Error cargando la imagen'));
+      img.src = step.image_url!;
+    });
+    
+    const imgWidth = img.naturalWidth;
+    const imgHeight = img.naturalHeight;
+    
+    tempContainer.innerHTML = `
+      <div style="position: relative; width: ${imgWidth}px; height: ${imgHeight}px; background: white;">
+        <img src="${step.image_url}" style="width: 100%; height: 100%; display: block;" crossorigin="anonymous" />
+        ${visibleActions.map((action: StudyInteractiveExerciseAction) => {
+          const left = (action.position_x / 100) * imgWidth;
+          const top = (action.position_y / 100) * imgHeight;
+          const width = (action.width / 100) * imgWidth;
+          const height = (action.height / 100) * imgHeight;
+          
+          if (action.action_type === 'comment') {
+            const bgColor = action.comment_bg_color || '#3b82f6';
+            const textColor = action.comment_text_color || '#ffffff';
+            const fontSize = action.comment_font_size || 14;
+            
+            return `
+              <div style="
+                position: absolute;
+                left: ${left}px;
+                top: ${top}px;
+                width: ${width}px;
+                height: ${height}px;
+                background-color: ${bgColor};
+                border: 2px solid ${textColor};
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 8px;
+                box-sizing: border-box;
+                color: ${textColor};
+                font-size: ${fontSize}px;
+                font-weight: 500;
+                text-align: center;
+                overflow: hidden;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+              ">
+                ${action.comment_text || action.label || 'Comentario'}
+              </div>
+            `;
+          } else {
+            const labelStyle = action.label_style;
+            const isTextInput = action.action_type === 'text_input';
+            const label = action.label || action.placeholder || '';
+            
+            let bgColor = 'transparent';
+            let textBg = 'transparent';
+            let textColor = '#1f2937';
+            let showText = false;
+            let showShadow = false;
+            
+            if (labelStyle === 'text_only') {
+              showText = true;
+              textBg = 'rgba(255, 255, 255, 0.9)';
+            } else if (labelStyle === 'text_with_shadow') {
+              showText = true;
+              showShadow = true;
+              bgColor = isTextInput ? 'rgba(101, 163, 13, 0.3)' : 'rgba(20, 184, 166, 0.3)';
+              textBg = 'rgba(255, 255, 255, 0.95)';
+            } else if (labelStyle === 'shadow_only') {
+              showShadow = true;
+              bgColor = isTextInput ? 'rgba(101, 163, 13, 0.3)' : 'rgba(20, 184, 166, 0.3)';
+            }
+            
+            if (!showText && !showShadow) return '';
+            
+            return `
+              <div style="
+                position: absolute;
+                left: ${left}px;
+                top: ${top}px;
+                width: ${width}px;
+                height: ${height}px;
+                ${showShadow ? `
+                  background-color: ${bgColor};
+                  border: 2px solid ${isTextInput ? '#65a30d' : '#14b8a6'};
+                  border-radius: 6px;
+                ` : ''}
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-sizing: border-box;
+              ">
+                ${showText && label ? `
+                  <span style="
+                    background: ${textBg};
+                    color: ${textColor};
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    font-weight: 500;
+                    max-width: 90%;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                  ">
+                    ${label}
+                  </span>
+                ` : ''}
+              </div>
+            `;
+          }
+        }).join('')}
+      </div>
+    `;
+    
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const targetElement = tempContainer.firstChild as HTMLElement;
+    const canvas = await html2canvas(targetElement, {
+      useCORS: true,
+      allowTaint: true,
+      scale: 2,
+      backgroundColor: '#ffffff',
+    });
+    
+    document.body.removeChild(tempContainer);
+    return canvas;
+  };
+
+  // Descargar todas las imágenes con overlays
+  const handleDownloadAllImagesWithOverlays = async () => {
+    if (!interactiveSteps.length) return;
+    
+    setIsDownloadingImages(true);
+    
+    try {
+      const stepsWithImages = interactiveSteps.filter(step => step.image_url);
+      
+      for (let i = 0; i < stepsWithImages.length; i++) {
+        const step = stepsWithImages[i];
+        const canvas = await generateStepImageWithOverlays(step);
+        
+        if (canvas) {
+          const link = document.createElement('a');
+          link.download = `paso_${step.step_number}_con_acciones.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+          
+          if (i < stepsWithImages.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+      }
+      
+      setToast({ message: `${stepsWithImages.length} imágenes descargadas`, type: 'success' });
+    } catch (error) {
+      console.error('Error al descargar las imágenes:', error);
+      setToast({ message: 'Error al descargar las imágenes', type: 'error' });
+    } finally {
+      setIsDownloadingImages(false);
     }
   };
 
@@ -1391,15 +1595,22 @@ const StudyContentDetailPage = () => {
                                         setToast({ message: 'Cambie el material a borrador para editar el contenido', type: 'error' });
                                         return;
                                       }
+                                      const isNew = !topic.interactive_exercise;
                                       setInteractiveConfigData({
                                         topicId: topic.id,
                                         sessionId: session.id,
-                                        isNew: !topic.interactive_exercise
+                                        isNew
                                       });
                                       setInteractiveForm({
                                         title: topic.interactive_exercise?.title || 'Ejercicio Interactivo',
                                         description: topic.interactive_exercise?.description || ''
                                       });
+                                      // Cargar los pasos si ya existe el ejercicio
+                                      if (!isNew) {
+                                        loadInteractiveSteps(session.id, topic.id);
+                                      } else {
+                                        setInteractiveSteps([]);
+                                      }
                                       setInteractiveConfigOpen(true);
                                     }}
                                     className={`p-3 rounded-lg border transition-colors ${
@@ -2888,6 +3099,51 @@ const StudyContentDetailPage = () => {
                 ) : (
                   <p className="text-sm text-gray-400 italic">Las instrucciones aparecerán aquí...</p>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Sección de descarga de imágenes para videos - solo cuando ya existe el ejercicio */}
+          {!interactiveConfigData?.isNew && (
+            <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
+              <div className="flex items-start gap-3">
+                <Download className="h-5 w-5 text-purple-600 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="text-sm font-medium text-purple-800">Descargar Imágenes para Videos</h4>
+                  <p className="text-sm text-purple-600 mt-1">
+                    Descarga las imágenes de los pasos con los comentarios y acciones visibles superpuestas. Útil para crear videos explicativos.
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {loadingInteractiveSteps ? (
+                      <div className="flex items-center gap-2 text-sm text-purple-600">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Cargando pasos...
+                      </div>
+                    ) : interactiveSteps.length > 0 ? (
+                      <button
+                        onClick={handleDownloadAllImagesWithOverlays}
+                        disabled={isDownloadingImages}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium transition-colors"
+                      >
+                        {isDownloadingImages ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Descargando...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="h-4 w-4" />
+                            Descargar Todas ({interactiveSteps.filter(s => s.image_url).length} imágenes)
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-purple-500 italic">
+                        No hay pasos con imágenes. Accede al Editor de Pasos para crear contenido.
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}

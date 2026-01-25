@@ -607,6 +607,21 @@ export const uploadDownloadable = async (
 };
 
 // --- Ejercicio Interactivo ---
+export const getInteractive = async (
+  materialId: number,
+  sessionId: number,
+  topicId: number
+): Promise<StudyInteractiveExercise | null> => {
+  try {
+    const response = await api.get(
+      `/study-contents/${materialId}/sessions/${sessionId}/topics/${topicId}/interactive`
+    );
+    return response.data.interactive_exercise;
+  } catch (error) {
+    return null;
+  }
+};
+
 export const createInteractive = async (
   materialId: number,
   sessionId: number,
