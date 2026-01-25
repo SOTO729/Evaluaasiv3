@@ -366,8 +366,8 @@ const StudyInteractiveExercisePage = () => {
     font_family: 'Arial',
     // Campos para comentarios
     comment_text: '',
-    comment_bg_color: '#fef3c7',
-    comment_text_color: '#92400e',
+    comment_bg_color: '#3b82f6',
+    comment_text_color: '#ffffff',
     comment_font_size: 14
   })
 
@@ -1138,8 +1138,8 @@ const StudyInteractiveExercisePage = () => {
         // Propiedades específicas para comentarios
         ...(isComment && {
           comment_text: 'Escribe tu comentario aquí',
-          comment_bg_color: '#fef3c7',
-          comment_text_color: '#92400e',
+          comment_bg_color: '#3b82f6',
+          comment_text_color: '#ffffff',
           comment_font_size: 14,
           // Guardar el punto de origen de la punta (donde se hizo clic primero)
           pointer_x: drawingState.startX,
@@ -1395,8 +1395,8 @@ const StudyInteractiveExercisePage = () => {
       font_family: (action as any).font_family || 'Arial',
       // Campos para comentarios
       comment_text: (action as any).comment_text || action.label || '',
-      comment_bg_color: (action as any).comment_bg_color || '#fef3c7',
-      comment_text_color: (action as any).comment_text_color || '#92400e',
+      comment_bg_color: (action as any).comment_bg_color || '#3b82f6',
+      comment_text_color: (action as any).comment_text_color || '#ffffff',
       comment_font_size: (action as any).comment_font_size || 14
     })
     setIsEditActionModalOpen(true)
@@ -1425,8 +1425,8 @@ const StudyInteractiveExercisePage = () => {
       const commentData = {
         label: actionFormData.comment_text || 'Comentario',
         comment_text: actionFormData.comment_text || '',
-        comment_bg_color: actionFormData.comment_bg_color || '#fef3c7',
-        comment_text_color: actionFormData.comment_text_color || '#92400e',
+        comment_bg_color: actionFormData.comment_bg_color || '#3b82f6',
+        comment_text_color: actionFormData.comment_text_color || '#ffffff',
         comment_font_size: actionFormData.comment_font_size || 14
       }
       
@@ -2033,8 +2033,8 @@ const StudyInteractiveExercisePage = () => {
                         
                         // Calcular offset para la punta (relativo al bocadillo)
                         let pointerStyle: React.CSSProperties = {}
-                        const bgColor = action.comment_bg_color || '#fef3c7'
-                        const borderColor = action.comment_text_color || '#92400e'
+                        const bgColor = action.comment_bg_color || '#3b82f6'
+                        const borderColor = action.comment_text_color || '#ffffff'
                         
                         // Si la punta está fuera del bocadillo, calcular el triángulo
                         const showPointer = isPointerLeft || isPointerRight || isPointerTop || isPointerBottom
@@ -2191,7 +2191,7 @@ const StudyInteractiveExercisePage = () => {
                           {selectedAction?.id === action.id && (
                             <div
                               data-pointer-id={action.id}
-                              className="absolute w-5 h-5 bg-amber-500 rounded-full cursor-move border-2 border-white shadow-lg flex items-center justify-center z-30 hover:bg-amber-600 transition-colors"
+                              className="absolute w-5 h-5 bg-red-500 rounded-full cursor-move border-2 border-white shadow-lg flex items-center justify-center z-30 hover:bg-red-600 transition-colors"
                               style={{
                                 left: `${action.pointer_x ?? action.position_x}%`,
                                 top: `${action.pointer_y ?? action.position_y}%`,
@@ -2419,7 +2419,7 @@ const StudyInteractiveExercisePage = () => {
                       const isWrongButton = action.action_type === 'button' && action.correct_answer === 'wrong'
                       const isCorrectButton = action.action_type === 'button' && action.correct_answer === 'correct'
                       const isCorrectAction = isCorrectButton || isTextbox
-                      // Calculate display number counting only non-correct actions (wrong buttons) using sorted array
+                      // Calculate display number for incorrect actions (wrong buttons)
                       const incorrectIndex = sortedActions
                         .slice(0, index)
                         .filter((a: StudyInteractiveExerciseAction) => {
@@ -2428,7 +2428,16 @@ const StudyInteractiveExercisePage = () => {
                           return !(aIsCorrectButton || aIsTextbox)
                         })
                         .length
-                      const displayNumber = isCorrectAction ? null : incorrectIndex + 1
+                      // Calculate display number for correct actions (correct buttons + textboxes)
+                      const correctIndex = sortedActions
+                        .slice(0, index)
+                        .filter((a: StudyInteractiveExerciseAction) => {
+                          const aIsCorrectButton = a.action_type === 'button' && a.correct_answer === 'correct'
+                          const aIsTextbox = a.action_type === 'text_input'
+                          return aIsCorrectButton || aIsTextbox
+                        })
+                        .length
+                      const displayNumber = isCorrectAction ? correctIndex + 1 : incorrectIndex + 1
                       return (
                         <div
                           key={action.id}
@@ -2474,11 +2483,7 @@ const StudyInteractiveExercisePage = () => {
                                       ? 'bg-orange-600' 
                                       : 'bg-lime-600'
                             }`}>
-                              {isCorrectAction ? (
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                </svg>
-                              ) : displayNumber}
+                              {displayNumber}
                             </span>
                             <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                               isCorrectButton
@@ -2798,16 +2803,16 @@ const StudyInteractiveExercisePage = () => {
                       <div className="flex items-center gap-2">
                         <input
                           type="color"
-                          value={actionFormData.comment_bg_color || '#fef3c7'}
+                          value={actionFormData.comment_bg_color || '#3b82f6'}
                           onChange={(e) => setActionFormData({ ...actionFormData, comment_bg_color: e.target.value })}
                           className="w-10 h-10 rounded border cursor-pointer"
                         />
                         <input
                           type="text"
-                          value={actionFormData.comment_bg_color || '#fef3c7'}
+                          value={actionFormData.comment_bg_color || '#3b82f6'}
                           onChange={(e) => setActionFormData({ ...actionFormData, comment_bg_color: e.target.value })}
                           className="flex-1 px-3 py-2 border rounded-lg text-sm"
-                          placeholder="#fef3c7"
+                          placeholder="#3b82f6"
                         />
                       </div>
                     </div>
@@ -2820,16 +2825,16 @@ const StudyInteractiveExercisePage = () => {
                       <div className="flex items-center gap-2">
                         <input
                           type="color"
-                          value={actionFormData.comment_text_color || '#92400e'}
+                          value={actionFormData.comment_text_color || '#ffffff'}
                           onChange={(e) => setActionFormData({ ...actionFormData, comment_text_color: e.target.value })}
                           className="w-10 h-10 rounded border cursor-pointer"
                         />
                         <input
                           type="text"
-                          value={actionFormData.comment_text_color || '#92400e'}
+                          value={actionFormData.comment_text_color || '#ffffff'}
                           onChange={(e) => setActionFormData({ ...actionFormData, comment_text_color: e.target.value })}
                           className="flex-1 px-3 py-2 border rounded-lg text-sm"
-                          placeholder="#92400e"
+                          placeholder="#ffffff"
                         />
                       </div>
                     </div>
@@ -2860,9 +2865,9 @@ const StudyInteractiveExercisePage = () => {
                     <div 
                       className="p-4 rounded-lg border-2 flex items-center justify-center min-h-[60px]"
                       style={{
-                        backgroundColor: actionFormData.comment_bg_color || '#fef3c7',
-                        borderColor: actionFormData.comment_text_color || '#92400e',
-                        color: actionFormData.comment_text_color || '#92400e',
+                        backgroundColor: actionFormData.comment_bg_color || '#3b82f6',
+                        borderColor: actionFormData.comment_text_color || '#ffffff',
+                        color: actionFormData.comment_text_color || '#ffffff',
                         fontSize: `${actionFormData.comment_font_size || 14}px`,
                         fontWeight: 500,
                       }}
