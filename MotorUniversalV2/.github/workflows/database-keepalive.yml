@@ -10,7 +10,7 @@ on:
     - cron: '*/45 6-23 * * 1-5'
     # Every 4 hours on weekends (to save costs)
     - cron: '0 */4 * * 0,6'
-  workflow_dispatch: # Allow manual trigger
+  workflow_dispatch: # Allow manual trigger 
 
 jobs:
   warmup:

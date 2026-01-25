@@ -1548,8 +1548,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       {/* Título del video */}
                       <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-py-1 border-b border-gray-300">{currentTopic.video.title}</h2>
                       
-                      {/* Video container - alineado a la izquierda con tamaño máximo controlado */}
-                      <div className="w-full fluid-container-lg">
+                      {/* Video container - fluid pero más contenido que el resto */}
+                      <div className="w-full max-w-[clamp(20rem,50vw,48rem)]">
                         {isAzureUrl(currentTopic.video.video_url) ? (
                           // Contenedor para videos de Azure Blob/CDN
                           <div className="relative w-full bg-black rounded-fluid-lg overflow-hidden shadow-md">
