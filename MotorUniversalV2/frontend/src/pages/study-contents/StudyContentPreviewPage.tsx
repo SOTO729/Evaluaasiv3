@@ -2426,6 +2426,145 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
     const textColor = action.comment_text_color || '#ffffff';
     const fontSize = action.comment_font_size || 14;
     
+    // Calcular la posición de la punta del bocadillo
+    const pointerX = action.pointer_x ?? action.position_x
+    const pointerY = action.pointer_y ?? action.position_y
+    
+    // Calcular en qué dirección está la punta respecto al bocadillo
+    const bubbleLeft = action.position_x
+    const bubbleTop = action.position_y
+    const bubbleRight = action.position_x + action.width
+    const bubbleBottom = action.position_y + action.height
+    
+    // Determinar de qué lado sale la punta
+    const isPointerLeft = pointerX < bubbleLeft
+    const isPointerRight = pointerX > bubbleRight
+    const isPointerTop = pointerY < bubbleTop
+    const isPointerBottom = pointerY > bubbleBottom
+    
+    // Calcular offset para la punta (relativo al bocadillo)
+    let pointerStyle: React.CSSProperties = {}
+    
+    // Si la punta está fuera del bocadillo, calcular el triángulo
+    const showPointer = isPointerLeft || isPointerRight || isPointerTop || isPointerBottom
+    
+    if (showPointer) {
+      // Tamaño base del triángulo
+      const triangleSize = 15
+      
+      // Detectar esquinas (combinaciones de direcciones)
+      const isCornerTopLeft = isPointerTop && isPointerLeft
+      const isCornerTopRight = isPointerTop && isPointerRight
+      const isCornerBottomLeft = isPointerBottom && isPointerLeft
+      const isCornerBottomRight = isPointerBottom && isPointerRight
+      
+      if (isCornerBottomRight) {
+        // Esquina inferior derecha
+        pointerStyle = {
+          position: 'absolute' as const,
+          bottom: '-10px',
+          right: '-10px',
+          width: `${triangleSize + 5}px`,
+          height: `${triangleSize + 5}px`,
+          background: `linear-gradient(135deg, ${bgColor} 50%, transparent 50%)`,
+          filter: `drop-shadow(1px 1px 0 ${textColor})`,
+        }
+      } else if (isCornerBottomLeft) {
+        // Esquina inferior izquierda
+        pointerStyle = {
+          position: 'absolute' as const,
+          bottom: '-10px',
+          left: '-10px',
+          width: `${triangleSize + 5}px`,
+          height: `${triangleSize + 5}px`,
+          background: `linear-gradient(-135deg, ${bgColor} 50%, transparent 50%)`,
+          filter: `drop-shadow(-1px 1px 0 ${textColor})`,
+        }
+      } else if (isCornerTopRight) {
+        // Esquina superior derecha
+        pointerStyle = {
+          position: 'absolute' as const,
+          top: '-10px',
+          right: '-10px',
+          width: `${triangleSize + 5}px`,
+          height: `${triangleSize + 5}px`,
+          background: `linear-gradient(45deg, transparent 50%, ${bgColor} 50%)`,
+          filter: `drop-shadow(1px -1px 0 ${textColor})`,
+        }
+      } else if (isCornerTopLeft) {
+        // Esquina superior izquierda
+        pointerStyle = {
+          position: 'absolute' as const,
+          top: '-10px',
+          left: '-10px',
+          width: `${triangleSize + 5}px`,
+          height: `${triangleSize + 5}px`,
+          background: `linear-gradient(-45deg, transparent 50%, ${bgColor} 50%)`,
+          filter: `drop-shadow(-1px -1px 0 ${textColor})`,
+        }
+      } else if (isPointerBottom) {
+        // Punta hacia abajo
+        const xPos = Math.max(15, Math.min(85, ((pointerX - bubbleLeft) / action.width) * 100))
+        pointerStyle = {
+          position: 'absolute' as const,
+          bottom: '-12px',
+          left: `${xPos}%`,
+          transform: 'translateX(-50%)',
+          width: 0,
+          height: 0,
+          borderLeft: `${triangleSize}px solid transparent`,
+          borderRight: `${triangleSize}px solid transparent`,
+          borderTop: `${triangleSize}px solid ${bgColor}`,
+          filter: `drop-shadow(0 2px 0 ${textColor})`,
+        }
+      } else if (isPointerTop) {
+        // Punta hacia arriba
+        const xPos = Math.max(15, Math.min(85, ((pointerX - bubbleLeft) / action.width) * 100))
+        pointerStyle = {
+          position: 'absolute' as const,
+          top: '-12px',
+          left: `${xPos}%`,
+          transform: 'translateX(-50%)',
+          width: 0,
+          height: 0,
+          borderLeft: `${triangleSize}px solid transparent`,
+          borderRight: `${triangleSize}px solid transparent`,
+          borderBottom: `${triangleSize}px solid ${bgColor}`,
+          filter: `drop-shadow(0 -2px 0 ${textColor})`,
+        }
+      } else if (isPointerLeft) {
+        // Punta hacia la izquierda
+        const yPos = Math.max(15, Math.min(85, ((pointerY - bubbleTop) / action.height) * 100))
+        pointerStyle = {
+          position: 'absolute' as const,
+          left: '-12px',
+          top: `${yPos}%`,
+          transform: 'translateY(-50%)',
+          width: 0,
+          height: 0,
+          borderTop: `${triangleSize}px solid transparent`,
+          borderBottom: `${triangleSize}px solid transparent`,
+          borderRight: `${triangleSize}px solid ${bgColor}`,
+          filter: `drop-shadow(-2px 0 0 ${textColor})`,
+        }
+      } else if (isPointerRight) {
+        // Punta hacia la derecha
+        const yPos = Math.max(15, Math.min(85, ((pointerY - bubbleTop) / action.height) * 100))
+        pointerStyle = {
+          position: 'absolute' as const,
+          right: '-12px',
+          top: `${yPos}%`,
+          transform: 'translateY(-50%)',
+          width: 0,
+          height: 0,
+          borderTop: `${triangleSize}px solid transparent`,
+          borderBottom: `${triangleSize}px solid transparent`,
+          borderLeft: `${triangleSize}px solid ${bgColor}`,
+          filter: `drop-shadow(2px 0 0 ${textColor})`,
+        }
+      }
+    }
+    
     return (
       <div
         style={{
@@ -2439,9 +2578,11 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
           alignItems: 'center',
           justifyContent: 'center',
           padding: '4px 8px',
-          overflow: 'hidden',
+          overflow: 'visible', // Permitir que la flecha salga del contenedor
         }}
       >
+        {/* Flecha del bocadillo */}
+        {showPointer && <div style={pointerStyle} />}
         <span
           style={{
             color: textColor,

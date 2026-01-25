@@ -2046,12 +2046,62 @@ const StudyInteractiveExercisePage = () => {
                         const showPointer = isPointerLeft || isPointerRight || isPointerTop || isPointerBottom
                         
                         if (showPointer) {
-                          // Tamaño base del triángulo en porcentaje del contenedor
+                          // Tamaño base del triángulo
                           const triangleSize = 15
                           
-                          if (isPointerBottom) {
+                          // Detectar esquinas (combinaciones de direcciones)
+                          const isCornerTopLeft = isPointerTop && isPointerLeft
+                          const isCornerTopRight = isPointerTop && isPointerRight
+                          const isCornerBottomLeft = isPointerBottom && isPointerLeft
+                          const isCornerBottomRight = isPointerBottom && isPointerRight
+                          
+                          if (isCornerBottomRight) {
+                            // Esquina inferior derecha - usar SVG para flecha diagonal
+                            pointerStyle = {
+                              position: 'absolute' as const,
+                              bottom: '-10px',
+                              right: '-10px',
+                              width: `${triangleSize + 5}px`,
+                              height: `${triangleSize + 5}px`,
+                              background: `linear-gradient(135deg, ${bgColor} 50%, transparent 50%)`,
+                              filter: `drop-shadow(1px 1px 0 ${borderColor})`,
+                            }
+                          } else if (isCornerBottomLeft) {
+                            // Esquina inferior izquierda
+                            pointerStyle = {
+                              position: 'absolute' as const,
+                              bottom: '-10px',
+                              left: '-10px',
+                              width: `${triangleSize + 5}px`,
+                              height: `${triangleSize + 5}px`,
+                              background: `linear-gradient(-135deg, ${bgColor} 50%, transparent 50%)`,
+                              filter: `drop-shadow(-1px 1px 0 ${borderColor})`,
+                            }
+                          } else if (isCornerTopRight) {
+                            // Esquina superior derecha
+                            pointerStyle = {
+                              position: 'absolute' as const,
+                              top: '-10px',
+                              right: '-10px',
+                              width: `${triangleSize + 5}px`,
+                              height: `${triangleSize + 5}px`,
+                              background: `linear-gradient(45deg, transparent 50%, ${bgColor} 50%)`,
+                              filter: `drop-shadow(1px -1px 0 ${borderColor})`,
+                            }
+                          } else if (isCornerTopLeft) {
+                            // Esquina superior izquierda
+                            pointerStyle = {
+                              position: 'absolute' as const,
+                              top: '-10px',
+                              left: '-10px',
+                              width: `${triangleSize + 5}px`,
+                              height: `${triangleSize + 5}px`,
+                              background: `linear-gradient(-45deg, transparent 50%, ${bgColor} 50%)`,
+                              filter: `drop-shadow(-1px -1px 0 ${borderColor})`,
+                            }
+                          } else if (isPointerBottom) {
                             // Punta hacia abajo
-                            const xPos = Math.max(10, Math.min(90, ((pointerX - bubbleLeft) / action.width) * 100))
+                            const xPos = Math.max(15, Math.min(85, ((pointerX - bubbleLeft) / action.width) * 100))
                             pointerStyle = {
                               position: 'absolute' as const,
                               bottom: '-12px',
@@ -2066,7 +2116,7 @@ const StudyInteractiveExercisePage = () => {
                             }
                           } else if (isPointerTop) {
                             // Punta hacia arriba
-                            const xPos = Math.max(10, Math.min(90, ((pointerX - bubbleLeft) / action.width) * 100))
+                            const xPos = Math.max(15, Math.min(85, ((pointerX - bubbleLeft) / action.width) * 100))
                             pointerStyle = {
                               position: 'absolute' as const,
                               top: '-12px',
@@ -2081,7 +2131,7 @@ const StudyInteractiveExercisePage = () => {
                             }
                           } else if (isPointerLeft) {
                             // Punta hacia la izquierda
-                            const yPos = Math.max(10, Math.min(90, ((pointerY - bubbleTop) / action.height) * 100))
+                            const yPos = Math.max(15, Math.min(85, ((pointerY - bubbleTop) / action.height) * 100))
                             pointerStyle = {
                               position: 'absolute' as const,
                               left: '-12px',
@@ -2096,7 +2146,7 @@ const StudyInteractiveExercisePage = () => {
                             }
                           } else if (isPointerRight) {
                             // Punta hacia la derecha
-                            const yPos = Math.max(10, Math.min(90, ((pointerY - bubbleTop) / action.height) * 100))
+                            const yPos = Math.max(15, Math.min(85, ((pointerY - bubbleTop) / action.height) * 100))
                             pointerStyle = {
                               position: 'absolute' as const,
                               right: '-12px',
