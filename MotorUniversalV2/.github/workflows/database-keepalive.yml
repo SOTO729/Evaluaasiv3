@@ -1,5 +1,5 @@
 # Database Keep-Alive Workflow  
-# Prevents SQL Serverless cold starts by calling warmup endpoint every 45 minutes  
+# Prevents SQL Serverless cold starts by calling warmup endpoint every 45 minutes
 # during business hours            
 
 name: Database Keep-Alive

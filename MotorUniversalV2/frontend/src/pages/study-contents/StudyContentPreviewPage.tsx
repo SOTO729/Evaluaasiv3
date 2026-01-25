@@ -1250,7 +1250,7 @@ const StudyContentPreviewPage: React.FC = () => {
   }
 
   return (
-    <div className="bg-white flex flex-col h-screen overflow-hidden">
+    <div className="bg-white flex flex-col h-full overflow-hidden">
       {/* Header minimalista - responsivo */}
       <header className="bg-white border-b border-gray-200 flex-shrink-0 z-40">
         <div className="w-full flex items-center justify-between fluid-px-4 fluid-header-height">
