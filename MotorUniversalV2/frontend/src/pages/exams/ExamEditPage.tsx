@@ -687,21 +687,82 @@ const ExamEditPage = () => {
                       content += `    📷 [Imagen adjunta]\n`
                     }
                     
-                    // Obtener pasos del ejercicio
-                    if (exercise.steps && exercise.steps.length > 0) {
-                      content += `\n    Pasos del ejercicio:\n`
-                      for (const step of exercise.steps) {
-                        content += `        Paso ${step.step_number}: ${step.title || step.description || 'Sin descripción'}\n`
-                        if (step.actions && step.actions.length > 0) {
-                          for (const action of step.actions) {
-                            content += `            • ${action.action_type}: ${action.label || action.placeholder || 'Sin etiqueta'}`
-                            if (action.correct_answer) {
-                              content += ` → Respuesta: "${action.correct_answer}"`
+                    // Obtener pasos del ejercicio desde la API
+                    try {
+                      const stepsResponse = await examService.getExerciseSteps(exercise.id.toString())
+                      const steps = stepsResponse.steps || []
+                      
+                      if (steps.length > 0) {
+                        content += `\n    Pasos del ejercicio:\n`
+                        for (const step of steps) {
+                          content += `        ┌${'─'.repeat(50)}┐\n`
+                          content += `        │ Paso ${step.step_number}: ${step.title || step.description || 'Sin descripción'}\n`
+                          content += `        └${'─'.repeat(50)}┘\n`
+                          
+                          // Obtener acciones del paso desde la API
+                          try {
+                            const actionsResponse = await examService.getStepActions(step.id.toString())
+                            const actions = actionsResponse.actions || []
+                            
+                            if (actions.length > 0) {
+                              // Contar clicks y campos de texto
+                              const clickActions = actions.filter((a: { action_type: string }) => a.action_type === 'click')
+                              const textActions = actions.filter((a: { action_type: string }) => 
+                                a.action_type === 'text' || a.action_type === 'input' || a.action_type === 'textarea'
+                              )
+                              
+                              // Mostrar resumen de interacciones
+                              if (clickActions.length > 0) {
+                                content += `            🖱️ Este paso requiere ${clickActions.length} click${clickActions.length > 1 ? 's' : ''}\n`
+                                for (const click of clickActions) {
+                                  const label = click.label || click.placeholder || 'elemento'
+                                  content += `               • Click en: "${label}"\n`
+                                }
+                              }
+                              
+                              if (textActions.length > 0) {
+                                content += `            ✏️ Este paso requiere ${textActions.length} campo${textActions.length > 1 ? 's' : ''} de texto:\n`
+                                for (const textAction of textActions) {
+                                  const fieldName = textAction.label || textAction.placeholder || 'Campo de texto'
+                                  const answer = textAction.correct_answer || '(sin respuesta definida)'
+                                  content += `               • ${fieldName}\n`
+                                  content += `                 📝 Respuesta correcta: "${answer}"\n`
+                                }
+                              }
+                              
+                              // Mostrar otras acciones que no son click ni texto
+                              const otherActions = actions.filter((a: { action_type: string }) => 
+                                a.action_type !== 'click' && 
+                                a.action_type !== 'text' && 
+                                a.action_type !== 'input' && 
+                                a.action_type !== 'textarea'
+                              )
+                              
+                              if (otherActions.length > 0) {
+                                content += `            📋 Otras acciones:\n`
+                                for (const action of otherActions) {
+                                  content += `               • ${action.action_type}: ${action.label || action.placeholder || 'Sin etiqueta'}`
+                                  if (action.correct_answer) {
+                                    content += ` → "${action.correct_answer}"`
+                                  }
+                                  content += `\n`
+                                }
+                              }
+                            } else {
+                              content += `            ℹ️ Paso sin interacciones definidas\n`
                             }
-                            content += `\n`
+                          } catch (actionsError) {
+                            console.error('Error obteniendo acciones del paso:', actionsError)
+                            content += `            ⚠️ Error al obtener acciones\n`
                           }
+                          content += `\n`
                         }
+                      } else {
+                        content += `\n    ℹ️ Ejercicio sin pasos definidos\n`
                       }
+                    } catch (stepsError) {
+                      console.error('Error obteniendo pasos del ejercicio:', stepsError)
+                      content += `\n    ⚠️ Error al obtener pasos del ejercicio\n`
                     }
                     
                     content += `\n    ${'·'.repeat(40)}\n\n`
