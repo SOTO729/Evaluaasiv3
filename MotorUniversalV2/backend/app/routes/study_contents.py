@@ -1568,6 +1568,24 @@ def upload_downloadable(material_id, session_id, topic_id):
 
 
 # --- Ejercicio Interactivo ---
+@study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/interactive', methods=['GET'])
+@jwt_required()
+def get_interactive(material_id, session_id, topic_id):
+    """Obtener el ejercicio interactivo de un tema con todos sus pasos y acciones"""
+    try:
+        topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
+        
+        if not topic.interactive_exercise:
+            return jsonify({'error': 'El tema no tiene un ejercicio interactivo'}), 404
+        
+        return jsonify({
+            'interactive_exercise': topic.interactive_exercise.to_dict(include_steps=True)
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @study_contents_bp.route('/<int:material_id>/sessions/<int:session_id>/topics/<int:topic_id>/interactive', methods=['POST'])
 @jwt_required()
 @admin_or_editor_required
