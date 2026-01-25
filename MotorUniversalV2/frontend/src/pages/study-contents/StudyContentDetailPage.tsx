@@ -91,8 +91,8 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 fluid-p-4" onClick={onClose}>
       <div className={`bg-white rounded-fluid-lg ${sizeClasses[size]} w-full max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center fluid-p-4 border-b">
-          <h3 className="text-lg font-bold text-gray-900">{title}</h3>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+          <h3 className="fluid-text-lg font-bold text-gray-900">{title}</h3>
+          <button onClick={onClose} className="fluid-p-1 hover:bg-gray-100 rounded">
             <X className="fluid-icon-sm" />
           </button>
         </div>
@@ -1121,7 +1121,7 @@ const StudyContentDetailPage = () => {
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-[60vh]">
+      <div className="fluid-p-6 flex items-center justify-center min-h-[60vh]">
         <LoadingSpinner message="Cargando material..." />
       </div>
     );
@@ -1479,22 +1479,22 @@ const StudyContentDetailPage = () => {
                                 <div className="flex fluid-gap-1">
                                   {topic.allow_reading !== false && (
                                     <span className={`fluid-p-1 rounded ${topic.reading ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Lectura">
-                                      <FileText className="h-3.5 w-3.5" />
+                                      <FileText className="fluid-icon-xs" />
                                     </span>
                                   )}
                                   {topic.allow_video !== false && (
                                     <span className={`fluid-p-1 rounded ${topic.video ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Video">
-                                      <Video className="h-3.5 w-3.5" />
+                                      <Video className="fluid-icon-xs" />
                                     </span>
                                   )}
                                   {topic.allow_downloadable !== false && (
                                     <span className={`fluid-p-1 rounded ${topic.downloadable_exercise ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Descargable">
-                                      <Download className="h-3.5 w-3.5" />
+                                      <Download className="fluid-icon-xs" />
                                     </span>
                                   )}
                                   {topic.allow_interactive !== false && (
                                     <span className={`fluid-p-1 rounded ${topic.interactive_exercise ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`} title="Interactivo">
-                                      <Gamepad2 className="h-3.5 w-3.5" />
+                                      <Gamepad2 className="fluid-icon-xs" />
                                     </span>
                                   )}
                                 </div>
@@ -2139,7 +2139,7 @@ const StudyContentDetailPage = () => {
                 className="relative w-full bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500 text-white rounded-fluid-2xl fluid-p-4 flex items-center justify-between group hover:from-purple-600 hover:via-violet-600 hover:to-indigo-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
               >
                 <div className="flex items-center fluid-gap-3">
-                  <div className="p-2 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
+                  <div className="fluid-p-2 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
                     <Check className="fluid-icon" />
                   </div>
                   <div className="text-left">
@@ -2149,7 +2149,7 @@ const StudyContentDetailPage = () => {
                 </div>
                 <div className="flex items-center fluid-gap-2">
                   <span className="fluid-text-sm font-medium bg-white/20 fluid-px-3 fluid-py-1 rounded-full">Guardar</span>
-                  <div className="p-2 bg-white/20 rounded-full group-hover:translate-y-1 transition-transform duration-300">
+                  <div className="fluid-p-2 bg-white/20 rounded-full group-hover:translate-y-1 transition-transform duration-300">
                     <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                     </svg>
@@ -2237,7 +2237,7 @@ const StudyContentDetailPage = () => {
                 {(videoForm.video_url && isAzureUrl(videoForm.video_url)) ? (
                   <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-fluid-xl fluid-p-4">
                     <div className="flex items-start fluid-gap-3">
-                      <div className="p-2 bg-purple-100 rounded-fluid-lg flex-shrink-0">
+                      <div className="fluid-p-2 bg-purple-100 rounded-fluid-lg flex-shrink-0">
                         <Video className="fluid-icon text-purple-600" />
                       </div>
                       <div className="flex-1">
@@ -2334,7 +2334,7 @@ const StudyContentDetailPage = () => {
                       'border-gray-300 hover:border-purple-400 hover:bg-purple-50'
                     }`}>
                       <div className="flex flex-col items-center justify-center fluid-py-6">
-                        <div className="p-4 bg-purple-100 rounded-full fluid-mb-4">
+                        <div className="fluid-p-4 bg-purple-100 rounded-full fluid-mb-4">
                           <Upload className="fluid-icon-xl text-purple-500" />
                         </div>
                         <p className="fluid-text-sm text-gray-600 fluid-mb-1">
@@ -2351,12 +2351,12 @@ const StudyContentDetailPage = () => {
                       />
                     </label>
                   ) : (
-                    <div className={`p-4 rounded-fluid-xl border-2 transition-all duration-200 ${
+                    <div className={`fluid-p-4 rounded-fluid-xl border-2 transition-all duration-200 ${
                       'border-green-300 bg-green-50/50'
                     }`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center fluid-gap-3">
-                          <div className="p-2 bg-green-100 rounded-fluid-lg">
+                          <div className="fluid-p-2 bg-green-100 rounded-fluid-lg">
                             <Video className="fluid-icon-lg text-green-600" />
                           </div>
                           <div>
@@ -2370,14 +2370,14 @@ const StudyContentDetailPage = () => {
                           </div>
                           <button
                             onClick={() => setSelectedVideoFile(null)}
-                            className="p-2 hover:bg-red-100 rounded-fluid-lg transition-colors group"
+                            className="fluid-p-2 hover:bg-red-100 rounded-fluid-lg transition-colors group"
                           >
                             <X className="fluid-icon-xs text-gray-400 group-hover:text-red-500" />
                           </button>
                         </div>
                       </div>
                       {isUploading && (
-                        <div className="mt-4 bg-blue-50 rounded-fluid-xl fluid-p-3 border border-blue-200">
+                        <div className="fluid-mt-4 bg-blue-50 rounded-fluid-xl fluid-p-3 border border-blue-200">
                           <div className="flex items-center justify-between fluid-text-sm fluid-mb-2">
                             <span className="text-blue-700 font-medium flex items-center fluid-gap-2">
                               <Loader2 className="fluid-icon-xs animate-spin" />
@@ -2515,11 +2515,11 @@ const StudyContentDetailPage = () => {
             <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
             <div className="relative z-10">
               <div className="flex items-center fluid-gap-3 fluid-mb-3">
-                <div className="p-2.5 bg-white/20 rounded-fluid-lg backdrop-blur-sm">
+                <div className="fluid-p-2 bg-white/20 rounded-fluid-lg backdrop-blur-sm">
                   <Download className="fluid-icon-lg" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-semibold">Ejercicio Descargable</h4>
+                  <h4 className="fluid-text-lg font-semibold">Ejercicio Descargable</h4>
                   <p className="text-white/80 fluid-text-sm">Archivos para práctica offline</p>
                 </div>
               </div>
@@ -2561,7 +2561,7 @@ const StudyContentDetailPage = () => {
                 className="relative w-full bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white rounded-fluid-2xl fluid-p-4 flex items-center justify-between group hover:from-orange-600 hover:via-amber-600 hover:to-yellow-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
               >
                 <div className="flex items-center fluid-gap-3">
-                  <div className="p-2 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
+                  <div className="fluid-p-2 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
                     <Check className="fluid-icon" />
                   </div>
                   <div className="text-left">
@@ -2571,7 +2571,7 @@ const StudyContentDetailPage = () => {
                 </div>
                 <div className="flex items-center fluid-gap-2">
                   <span className="fluid-text-sm font-medium bg-white/20 fluid-px-3 fluid-py-1 rounded-full">Guardar</span>
-                  <div className="p-2 bg-white/20 rounded-full group-hover:translate-y-1 transition-transform duration-300">
+                  <div className="fluid-p-2 bg-white/20 rounded-full group-hover:translate-y-1 transition-transform duration-300">
                     <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                     </svg>
@@ -2665,7 +2665,7 @@ const StudyContentDetailPage = () => {
             {downloadableForm.file_url && (
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-fluid-xl fluid-p-4">
                 <div className="flex items-center fluid-gap-2 fluid-mb-2">
-                  <div className="p-1.5 bg-blue-100 rounded-fluid-lg">
+                  <div className="fluid-p-1 bg-blue-100 rounded-fluid-lg">
                     <Download className="fluid-icon-xs text-blue-600" />
                   </div>
                   <p className="fluid-text-sm font-semibold text-blue-800">Archivo actual</p>
@@ -2723,7 +2723,7 @@ const StudyContentDetailPage = () => {
                   }
                 }}
               >
-                <div className={`p-4 rounded-full mx-auto fluid-mb-4 w-fit ${
+                <div className={`fluid-p-4 rounded-full mx-auto fluid-mb-4 w-fit ${
                   selectedDownloadableFiles.length > 0 ? 'bg-green-100' : 'bg-orange-100'
                 }`}>
                   {selectedDownloadableFiles.length > 0 ? (
@@ -2750,7 +2750,7 @@ const StudyContentDetailPage = () => {
               
               {/* Lista de archivos seleccionados */}
               {selectedDownloadableFiles.length > 0 && (
-                <div className="mt-4 flex flex-col fluid-gap-2">
+                <div className="fluid-mt-4 flex flex-col fluid-gap-2">
                   <p className="fluid-text-sm font-medium text-gray-700 flex items-center fluid-gap-2">
                     <FileText className="fluid-icon-sm text-orange-500" />
                     {selectedDownloadableFiles.length > 1 && 'Se comprimirán en ZIP'}
@@ -2758,7 +2758,7 @@ const StudyContentDetailPage = () => {
                   {selectedDownloadableFiles.map((file, index) => (
                     <div key={index} className="flex items-center justify-between bg-gradient-to-r from-gray-50 to-gray-100 fluid-p-3 rounded-fluid-xl border border-gray-200">
                       <div className="flex items-center fluid-gap-3">
-                        <div className="p-2 bg-orange-100 rounded-fluid-lg">
+                        <div className="fluid-p-2 bg-orange-100 rounded-fluid-lg">
                           <Download className="fluid-icon-xs text-orange-600" />
                         </div>
                         <div>
@@ -2768,7 +2768,7 @@ const StudyContentDetailPage = () => {
                       </div>
                       <button
                         onClick={() => removeDownloadableFile(index)}
-                        className="p-2 hover:bg-red-100 rounded-fluid-lg transition-colors group"
+                        className="fluid-p-2 hover:bg-red-100 rounded-fluid-lg transition-colors group"
                       >
                         <X className="fluid-icon-xs text-gray-400 group-hover:text-red-500" />
                       </button>
@@ -2777,7 +2777,7 @@ const StudyContentDetailPage = () => {
                   
                   {/* Barra de progreso mejorada */}
                   {isUploadingDownloadable && (
-                    <div className="mt-4 bg-blue-50 rounded-fluid-xl fluid-p-4 border border-blue-200">
+                    <div className="fluid-mt-4 bg-blue-50 rounded-fluid-xl fluid-p-4 border border-blue-200">
                       <div className="flex items-center justify-between fluid-text-sm fluid-mb-2">
                         <span className="text-blue-700 font-medium flex items-center fluid-gap-2">
                           <Loader2 className="fluid-icon-xs animate-spin" />
@@ -2857,12 +2857,12 @@ const StudyContentDetailPage = () => {
         title=""
       >
         <div className="text-center fluid-py-6">
-          <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center fluid-mb-4">
-            <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="mx-auto fluid-icon-2xl bg-green-100 rounded-full flex items-center justify-center fluid-mb-4">
+            <svg className="fluid-icon-xl text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h3 className="text-xl font-bold text-gray-900 fluid-mb-2">
+          <h3 className="fluid-text-xl font-bold text-gray-900 fluid-mb-2">
             ¡{successModalData?.contentType === 'video' ? 'Video' : 'Archivo'} cargado exitosamente!
           </h3>
           <p className="text-gray-600 fluid-mb-4">
@@ -2892,7 +2892,7 @@ const StudyContentDetailPage = () => {
           
           <button
             onClick={() => setSuccessModalOpen(false)}
-            className="px-6 fluid-py-2 bg-green-600 text-white rounded-fluid-lg hover:bg-green-700 font-medium"
+            className="fluid-px-6 fluid-py-2 bg-green-600 text-white rounded-fluid-lg hover:bg-green-700 font-medium"
           >
             Aceptar
           </button>
@@ -2920,14 +2920,14 @@ const StudyContentDetailPage = () => {
                 setDeleteModalOpen(false);
                 setDeleteTarget(null);
               }}
-              className="px-4 fluid-py-2 border rounded-fluid-lg hover:bg-gray-50"
+              className="fluid-px-4 fluid-py-2 border rounded-fluid-lg hover:bg-gray-50"
             >
               Cancelar
             </button>
             <button
               onClick={handleDelete}
               disabled={saving}
-              className="px-4 fluid-py-2 bg-red-600 text-white rounded-fluid-lg hover:bg-red-700 disabled:opacity-50 flex items-center fluid-gap-2"
+              className="fluid-px-4 fluid-py-2 bg-red-600 text-white rounded-fluid-lg hover:bg-red-700 disabled:opacity-50 flex items-center fluid-gap-2"
             >
               {saving ? <Loader2 className="fluid-icon-xs animate-spin" /> : <Trash2 className="fluid-icon-xs" />}
               Eliminar
@@ -2954,11 +2954,11 @@ const StudyContentDetailPage = () => {
             <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
             <div className="relative z-10">
               <div className="flex items-center fluid-gap-3 fluid-mb-3">
-                <div className="p-2.5 bg-white/20 rounded-fluid-lg backdrop-blur-sm">
+                <div className="fluid-p-2 bg-white/20 rounded-fluid-lg backdrop-blur-sm">
                   <Gamepad2 className="fluid-icon-lg" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-semibold">Ejercicio Interactivo</h4>
+                  <h4 className="fluid-text-lg font-semibold">Ejercicio Interactivo</h4>
                   <p className="text-white/80 fluid-text-sm">Paso 1 de 2: Configuración básica</p>
                 </div>
               </div>
@@ -3008,7 +3008,7 @@ const StudyContentDetailPage = () => {
                 className="relative w-full bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white rounded-fluid-2xl fluid-p-4 flex items-center justify-between group hover:from-green-600 hover:via-emerald-600 hover:to-teal-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
               >
                 <div className="flex items-center fluid-gap-3">
-                  <div className="p-2 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
+                  <div className="fluid-p-2 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
                     <Check className="fluid-icon" />
                   </div>
                   <div className="text-left">
@@ -3018,7 +3018,7 @@ const StudyContentDetailPage = () => {
                 </div>
                 <div className="flex items-center fluid-gap-2">
                   <span className="fluid-text-sm font-medium bg-white/20 fluid-px-3 fluid-py-1 rounded-full">Continuar</span>
-                  <div className="p-2 bg-white/20 rounded-full group-hover:translate-y-1 transition-transform duration-300">
+                  <div className="fluid-p-2 bg-white/20 rounded-full group-hover:translate-y-1 transition-transform duration-300">
                     <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                     </svg>
@@ -3134,40 +3134,40 @@ const StudyContentDetailPage = () => {
 
           {/* Sección de descarga de imágenes para videos - solo cuando ya existe el ejercicio */}
           {!interactiveConfigData?.isNew && (
-            <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
-              <div className="flex items-start gap-3">
-                <Download className="h-5 w-5 text-purple-600 mt-0.5" />
+            <div className="bg-purple-50 rounded-fluid-xl fluid-p-4 border border-purple-200">
+              <div className="flex items-start fluid-gap-3">
+                <Download className="fluid-icon-sm text-purple-600 fluid-mt-1" />
                 <div className="flex-1">
-                  <h4 className="text-sm font-medium text-purple-800">Descargar Imágenes para Videos</h4>
-                  <p className="text-sm text-purple-600 mt-1">
+                  <h4 className="fluid-text-sm font-medium text-purple-800">Descargar Imágenes para Videos</h4>
+                  <p className="fluid-text-sm text-purple-600 fluid-mt-1">
                     Descarga las imágenes de los pasos con los comentarios y acciones visibles superpuestas. Útil para crear videos explicativos.
                   </p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <div className="fluid-mt-3 flex flex-wrap items-center fluid-gap-2">
                     {loadingInteractiveSteps ? (
-                      <div className="flex items-center gap-2 text-sm text-purple-600">
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                      <div className="flex items-center fluid-gap-2 fluid-text-sm text-purple-600">
+                        <Loader2 className="fluid-icon-xs animate-spin" />
                         Cargando pasos...
                       </div>
                     ) : interactiveSteps.length > 0 ? (
                       <button
                         onClick={handleDownloadAllImagesWithOverlays}
                         disabled={isDownloadingImages}
-                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium transition-colors"
+                        className="fluid-px-4 fluid-py-2 bg-purple-600 text-white rounded-fluid-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 fluid-text-sm font-medium transition-colors"
                       >
                         {isDownloadingImages ? (
                           <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="fluid-icon-xs animate-spin" />
                             Descargando...
                           </>
                         ) : (
                           <>
-                            <Download className="h-4 w-4" />
+                            <Download className="fluid-icon-xs" />
                             Descargar Todas ({interactiveSteps.filter(s => s.image_url).length} imágenes)
                           </>
                         )}
                       </button>
                     ) : (
-                      <span className="text-xs text-purple-500 italic">
+                      <span className="fluid-text-xs text-purple-500 italic">
                         No hay pasos con imágenes. Accede al Editor de Pasos para crear contenido.
                       </span>
                     )}
@@ -3309,13 +3309,13 @@ const StudyContentDetailPage = () => {
             {/* Header */}
             <div className="bg-gradient-to-r from-amber-500 to-orange-500 fluid-p-6">
               <div className="flex items-center fluid-gap-4">
-                <div className="p-3 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
+                <div className="fluid-p-3 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
                   <svg className="fluid-icon-lg text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white">Cambiar fuente del video</h3>
+                  <h3 className="fluid-text-lg font-semibold text-white">Cambiar fuente del video</h3>
                   <p className="text-white/80 fluid-text-sm">Esta acción no se puede deshacer</p>
                 </div>
               </div>
@@ -3328,7 +3328,7 @@ const StudyContentDetailPage = () => {
               </p>
               <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-4 fluid-mb-6">
                 <div className="flex items-start fluid-gap-3">
-                  <div className="p-1.5 bg-red-100 rounded-fluid-lg flex-shrink-0">
+                  <div className="fluid-p-1 bg-red-100 rounded-fluid-lg flex-shrink-0">
                     <svg className="fluid-icon-sm text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
@@ -3376,12 +3376,12 @@ const StudyContentDetailPage = () => {
           {validationResult && (
             <>
               {/* Resumen */}
-              <div className={`p-4 rounded-fluid-xl ${validationResult.is_valid ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'}`}>
+              <div className={`fluid-p-4 rounded-fluid-xl ${validationResult.is_valid ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'}`}>
                 <div className="flex items-center fluid-gap-3 fluid-mb-3">
                   {validationResult.is_valid ? (
                     <>
-                      <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                        <svg className="fluid-icon-lg text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="fluid-icon-xl rounded-full bg-green-100 flex items-center justify-center">
+                        <svg className="fluid-icon text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
@@ -3392,8 +3392,8 @@ const StudyContentDetailPage = () => {
                     </>
                   ) : (
                     <>
-                      <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-                        <AlertCircle className="fluid-icon-lg text-amber-600" />
+                      <div className="fluid-icon-xl rounded-full bg-amber-100 flex items-center justify-center">
+                        <AlertCircle className="fluid-icon text-amber-600" />
                       </div>
                       <div>
                         <h3 className="font-semibold text-amber-800">Contenido incompleto</h3>
@@ -3406,19 +3406,19 @@ const StudyContentDetailPage = () => {
                 {/* Stats */}
                 <div className="grid grid-cols-4 fluid-gap-2 text-center">
                   <div className="bg-white/60 rounded-fluid-lg fluid-p-2">
-                    <div className="text-lg font-bold text-gray-800">{validationResult.summary.total_sessions}</div>
+                    <div className="fluid-text-lg font-bold text-gray-800">{validationResult.summary.total_sessions}</div>
                     <div className="fluid-text-xs text-gray-500">Sesiones</div>
                   </div>
                   <div className="bg-white/60 rounded-fluid-lg fluid-p-2">
-                    <div className="text-lg font-bold text-gray-800">{validationResult.summary.total_topics}</div>
+                    <div className="fluid-text-lg font-bold text-gray-800">{validationResult.summary.total_topics}</div>
                     <div className="fluid-text-xs text-gray-500">Temas</div>
                   </div>
                   <div className="bg-white/60 rounded-fluid-lg fluid-p-2">
-                    <div className="text-lg font-bold text-green-600">{validationResult.summary.complete_topics}</div>
+                    <div className="fluid-text-lg font-bold text-green-600">{validationResult.summary.complete_topics}</div>
                     <div className="fluid-text-xs text-gray-500">Completos</div>
                   </div>
                   <div className="bg-white/60 rounded-fluid-lg fluid-p-2">
-                    <div className={`text-lg font-bold ${validationResult.summary.incomplete_topics > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
+                    <div className={`fluid-text-lg font-bold ${validationResult.summary.incomplete_topics > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
                       {validationResult.summary.incomplete_topics}
                     </div>
                     <div className="fluid-text-xs text-gray-500">Incompletos</div>
@@ -3438,7 +3438,7 @@ const StudyContentDetailPage = () => {
                   </div>
                   <div className="max-h-52 overflow-y-auto bg-white">
                     {validationResult.errors.map((error, index) => (
-                      <div key={index} className={`p-3 flex items-start fluid-gap-3 ${index > 0 ? 'border-t border-red-100' : ''}`}>
+                      <div key={index} className={`fluid-p-3 flex items-start fluid-gap-3 ${index > 0 ? 'border-t border-red-100' : ''}`}>
                         <div className="fluid-icon-lg rounded-full bg-red-500 flex-shrink-0 flex items-center justify-center">
                           <span className="fluid-text-xs font-bold text-white">{index + 1}</span>
                         </div>
@@ -3502,7 +3502,7 @@ const StudyContentDetailPage = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900">
+              <h3 className="fluid-text-xl font-semibold text-gray-900">
                 Confirmar Eliminación del Material
               </h3>
             </div>
@@ -3549,7 +3549,7 @@ const StudyContentDetailPage = () => {
                   autoFocus
                 />
                 {deleteError && (
-                  <p className="mt-2 fluid-text-sm text-red-600">{deleteError}</p>
+                  <p className="fluid-mt-2 fluid-text-sm text-red-600">{deleteError}</p>
                 )}
               </div>
 
@@ -3561,14 +3561,14 @@ const StudyContentDetailPage = () => {
                     setDeletePassword('');
                     setDeleteError('');
                   }}
-                  className="px-4 fluid-py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-lg transition-colors"
+                  className="fluid-px-4 fluid-py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-lg transition-colors"
                   disabled={isDeleting}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 fluid-py-2 bg-red-600 text-white hover:bg-red-700 rounded-fluid-lg transition-colors font-medium disabled:opacity-50 flex items-center fluid-gap-2"
+                  className="fluid-px-4 fluid-py-2 bg-red-600 text-white hover:bg-red-700 rounded-fluid-lg transition-colors font-medium disabled:opacity-50 flex items-center fluid-gap-2"
                   disabled={isDeleting}
                 >
                   {isDeleting ? (

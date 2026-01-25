@@ -58,7 +58,7 @@ const MaterialCard = ({ material, navigate, index = 0, showStatus = true, isCand
     className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 group animate-stagger-in"
     style={{ animationDelay: `${index * 50}ms` }}
   >
-    {/* Card Image - altura fija como en exámenes */}
+    {/* Card Image - altura fija para consistencia */}
     <div 
       className="relative h-40 bg-gradient-to-br from-blue-500 to-blue-700 cursor-pointer"
       onClick={() => navigate(`/study-contents/${material.id}`)}
@@ -68,11 +68,11 @@ const MaterialCard = ({ material, navigate, index = 0, showStatus = true, isCand
           src={material.image_url}
           alt={material.title}
           className="w-full h-full object-cover"
-          fallbackIcon={<BookOpen className="h-16 w-16 text-white/50" />}
+          fallbackIcon={<BookOpen className="fluid-icon-xl text-white/50" />}
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center">
-          <BookOpen className="h-16 w-16 text-white/50" />
+          <BookOpen className="fluid-icon-xl text-white/50" />
         </div>
       )}
       
@@ -88,12 +88,12 @@ const MaterialCard = ({ material, navigate, index = 0, showStatus = true, isCand
           >
             {material.is_published ? (
               <>
-                <Eye className="h-3 w-3" />
+                <Eye className="w-3 h-3" />
                 Publicado
               </>
             ) : (
               <>
-                <EyeOff className="h-3 w-3" />
+                <EyeOff className="w-3 h-3" />
                 Borrador
               </>
             )}
@@ -102,10 +102,10 @@ const MaterialCard = ({ material, navigate, index = 0, showStatus = true, isCand
       )}
     </div>
 
-    {/* Card Content - mismo padding que exámenes */}
-    <div className="p-4">
+    {/* Card Content */}
+    <div className="fluid-p-4">
       <h3 
-        className="font-semibold text-gray-900 mb-2 line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors"
+        className="font-semibold text-gray-900 mb-2 fluid-text-base line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors"
         onClick={() => navigate(`/study-contents/${material.id}`)}
         title={material.title}
       >
@@ -113,34 +113,34 @@ const MaterialCard = ({ material, navigate, index = 0, showStatus = true, isCand
       </h3>
       {material.description && (
         <p 
-          className="text-xs text-gray-500 line-clamp-2 mb-3"
+          className="fluid-text-xs text-gray-500 line-clamp-2 mb-3"
           dangerouslySetInnerHTML={{ 
             __html: DOMPurify.sanitize(material.description, { ALLOWED_TAGS: [] }) 
           }}
         />
       )}
       
-      {/* Card Footer - mismo estilo que exámenes */}
-      <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t">
+      {/* Card Footer */}
+      <div className="flex items-center justify-between fluid-text-xs text-gray-400 pt-3 border-t">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1" title="Sesiones">
-            <Layers className="h-3.5 w-3.5" />
+            <Layers className="fluid-icon-xs" />
             <span>{material.sessions_count || 0}</span>
           </div>
           <div className="flex items-center gap-1" title="Temas">
-            <FileText className="h-3.5 w-3.5" />
+            <FileText className="fluid-icon-xs" />
             <span>{material.topics_count || 0}</span>
           </div>
           {(material.estimated_time_minutes && material.estimated_time_minutes > 0) && (
             <div className="flex items-center gap-1" title="Tiempo estimado">
-              <Clock className="h-3.5 w-3.5" />
+              <Clock className="fluid-icon-xs" />
               <span>{material.estimated_time_minutes} min</span>
             </div>
           )}
         </div>
         {!isCandidate && (
           <div className="flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5" />
+            <Calendar className="fluid-icon-xs" />
             <span>
               {new Date(material.created_at).toLocaleDateString('es-ES', {
                 day: '2-digit',
@@ -288,16 +288,16 @@ const StudyContentsListPage = () => {
 
       {/* Materials Grid */}
       {loading ? (
-        <div className="bg-white rounded-lg shadow p-8">
+        <div className="bg-white rounded-fluid-lg shadow fluid-p-8">
           <LoadingSpinner message="Cargando materiales..." />
         </div>
       ) : materials.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center">
-          <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-700 mb-2">
+        <div className="bg-white rounded-fluid-lg shadow fluid-p-8 text-center">
+          <BookOpen className="fluid-icon-xl text-gray-300 mx-auto fluid-mb-4" />
+          <h3 className="fluid-text-lg font-medium text-gray-700 fluid-mb-2">
             {isCandidate ? 'No hay materiales disponibles' : 'No hay materiales'}
           </h3>
-          <p className="text-gray-500 mb-4">
+          <p className="text-gray-500 fluid-mb-4">
             {isCandidate 
               ? 'Aún no hay materiales de estudio publicados' 
               : 'Crea tu primer material de estudio'}
@@ -305,9 +305,9 @@ const StudyContentsListPage = () => {
           {canCreate && (
             <button
               onClick={() => navigate('/study-contents/create')}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg inline-flex items-center gap-2"
+              className="bg-blue-600 hover:bg-blue-700 text-white fluid-px-4 fluid-py-2 rounded-fluid-lg inline-flex items-center fluid-gap-2"
             >
-              <Plus className="h-5 w-5" />
+              <Plus className="fluid-icon" />
               Crear Material
             </button>
           )}
@@ -316,7 +316,7 @@ const StudyContentsListPage = () => {
         <>
           {/* Para candidatos: mostrar todos en una sola lista sin secciones */}
           {isCandidate ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 fluid-gap-6 fluid-mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-5 4xl:grid-cols-6 fluid-gap-6 fluid-mb-8">
               {materials.map((material, index) => (
                 <MaterialCard 
                   key={material.id} 
@@ -332,15 +332,15 @@ const StudyContentsListPage = () => {
             <>
               {/* Sección de Publicados */}
               {materials.filter(m => m.is_published).length > 0 && (
-                <div className="fluid-mb-10">
-                  <div className="flex items-center fluid-gap-3 fluid-mb-5">
+                <div className="fluid-mb-8">
+                  <div className="flex items-center fluid-gap-2 fluid-mb-6">
                     <Eye className="fluid-icon text-green-600" />
-                    <h2 className="fluid-text-xl font-semibold text-gray-800">Publicados</h2>
-                    <span className="bg-green-100 text-green-700 fluid-text-sm font-medium fluid-px-3 fluid-py-1 rounded-full">
+                    <h2 className="fluid-text-lg font-semibold text-gray-800">Publicados</h2>
+                    <span className="bg-green-100 text-green-700 fluid-text-sm font-medium fluid-px-2 fluid-py-1 rounded-full">
                       {materials.filter(m => m.is_published).length}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 fluid-gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-5 4xl:grid-cols-6 fluid-gap-6">
                     {materials.filter(m => m.is_published).map((material, index) => (
                       <MaterialCard 
                         key={material.id} 
@@ -354,17 +354,24 @@ const StudyContentsListPage = () => {
                 </div>
               )}
 
+              {/* Línea divisoria entre secciones */}
+              {materials.filter(m => m.is_published).length > 0 && materials.filter(m => !m.is_published).length > 0 && (
+                <div className="fluid-my-8">
+                  <hr className="border-t-2 border-gray-300" />
+                </div>
+              )}
+
               {/* Sección de Borradores */}
               {materials.filter(m => !m.is_published).length > 0 && (
                 <div ref={draftsRef} className="fluid-mb-10 scroll-mt-4">
-                  <div className="flex items-center fluid-gap-3 fluid-mb-5">
+                  <div className="flex items-center fluid-gap-2 fluid-mb-6">
                     <EyeOff className="fluid-icon text-gray-500" />
-                    <h2 className="fluid-text-xl font-semibold text-gray-800">Borradores</h2>
-                    <span className="bg-gray-100 text-gray-600 fluid-text-sm font-medium fluid-px-3 fluid-py-1 rounded-full">
+                    <h2 className="fluid-text-lg font-semibold text-gray-800">Borradores</h2>
+                    <span className="bg-gray-100 text-gray-600 fluid-text-sm font-medium fluid-px-2 fluid-py-1 rounded-full">
                       {materials.filter(m => !m.is_published).length}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 fluid-gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-5 4xl:grid-cols-6 fluid-gap-6">
                     {materials.filter(m => !m.is_published).map((material, index) => (
                       <MaterialCard 
                         key={material.id} 

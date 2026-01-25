@@ -1256,7 +1256,7 @@ const StudyContentPreviewPage: React.FC = () => {
           <div className="flex items-center fluid-gap-3 flex-1 min-w-0">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="fluid-p-2 hover:bg-gray-100 rounded-lg transition-colors lg:hidden flex-shrink-0"
+              className="fluid-p-2 hover:bg-gray-100 rounded-fluid-lg transition-colors lg:hidden flex-shrink-0"
             >
               {sidebarOpen ? <X className="fluid-icon-sm" /> : <Menu className="fluid-icon-sm" />}
             </button>
@@ -1267,8 +1267,8 @@ const StudyContentPreviewPage: React.FC = () => {
               <ArrowLeft className="fluid-icon-sm" />
               <span className="hidden sm:inline font-medium fluid-text-sm">Volver</span>
             </button>
-            <div className="h-5 w-px bg-gray-200 hidden sm:block flex-shrink-0" />
-            <h1 className="font-semibold text-gray-900 truncate fluid-text-base max-w-[100px] xs:max-w-[140px] sm:max-w-[180px] md:max-w-[280px] lg:max-w-md xl:max-w-xl 2xl:max-w-2xl">
+            <div className="fluid-h-icon-sm w-px bg-gray-200 hidden sm:block flex-shrink-0" />
+            <h1 className="font-semibold text-gray-900 truncate fluid-text-base max-w-[clamp(100px,30vw,42rem)]">
               {material.title}
             </h1>
           </div>
@@ -1276,7 +1276,7 @@ const StudyContentPreviewPage: React.FC = () => {
           <div className="flex items-center fluid-gap-3 flex-shrink-0">
             {/* Progreso del material - visible en tablet y desktop */}
             <div className="hidden md:flex items-center fluid-gap-3">
-              <div className="w-28 lg:w-36 xl:w-48 h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className="w-[clamp(7rem,12vw,12rem)] h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-blue-600 rounded-full transition-all duration-500"
                   style={{ width: `${progressStats.percentage}%` }}
@@ -1286,7 +1286,7 @@ const StudyContentPreviewPage: React.FC = () => {
             </div>
             {/* Progreso compacto en móvil */}
             <div className="flex md:hidden items-center">
-              <span className="fluid-text-xs font-medium text-blue-600 bg-blue-50 fluid-px-2 py-0.5 rounded-full">{progressStats.percentage}%</span>
+              <span className="fluid-text-xs font-medium text-blue-600 bg-blue-50 fluid-px-2 fluid-py-1 rounded-full">{progressStats.percentage}%</span>
             </div>
           </div>
         </div>
@@ -1298,11 +1298,10 @@ const StudyContentPreviewPage: React.FC = () => {
           className={`
             ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0 lg:w-0 lg:min-w-0'}
             fixed lg:relative left-0 top-0 z-30 
-            w-[85vw] max-w-[320px] sm:w-80 md:w-72 lg:w-72 xl:w-80 2xl:w-[380px]
-            lg:min-w-[280px] xl:min-w-[320px] 2xl:min-w-[380px]
+            w-[85vw] max-w-[320px] lg:w-[clamp(280px,22vw,380px)] lg:min-w-[280px]
             bg-gray-50 border-r border-gray-200 
             transform transition-all duration-300 ease-in-out
-            h-screen lg:h-auto lg:max-h-[calc(100vh-56px)] xl:lg:max-h-[calc(100vh-64px)]
+            h-screen lg:h-auto lg:max-h-[calc(100vh-var(--header-height,60px))]
             flex flex-col
           `}
         >
@@ -1318,13 +1317,13 @@ const StudyContentPreviewPage: React.FC = () => {
 
           {/* Lista de sesiones y temas - scrolleable */}
           <div ref={sidebarScrollRef} className="flex-1 overflow-y-auto min-h-0 scroll-smooth">
-            <nav className="p-2 pb-20 lg:pb-16">
+            <nav className="fluid-p-2 pb-20 lg:pb-16">
               {material.sessions?.map((session, sIdx) => {
                 const sessionCompleted = isSessionCompleted(session);
                 return (
                 <div 
                   key={session.id} 
-                  className="mb-1"
+                  className="fluid-mb-1"
                   ref={(el) => {
                     if (el) sessionRefs.current.set(sIdx, el);
                   }}
@@ -1332,18 +1331,18 @@ const StudyContentPreviewPage: React.FC = () => {
                   {/* Session header */}
                   <button
                     onClick={() => toggleSession(sIdx)}
-                    className="w-full flex items-start gap-2 p-3 rounded-lg hover:bg-gray-100 transition-colors text-left"
+                    className="w-full flex items-start fluid-gap-2 fluid-p-3 rounded-fluid-lg hover:bg-gray-100 transition-colors text-left"
                   >
-                    <div className={`transform transition-transform mt-0.5 flex-shrink-0 ${expandedSessions.has(sIdx) ? 'rotate-90' : ''}`}>
-                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                    <div className={`transform transition-transform fluid-mt-1 flex-shrink-0 ${expandedSessions.has(sIdx) ? 'rotate-90' : ''}`}>
+                      <ChevronRight className="fluid-icon-xs text-gray-400" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900 break-words flex items-center gap-1.5">
+                      <p className="font-semibold text-gray-900 break-words flex items-center fluid-gap-2">
                         <span className="text-gray-400">{session.session_number}.</span>
                         <span className="flex-1">{session.title}</span>
                       </p>
                     </div>
-                    <span className={`text-xs flex-shrink-0 mt-0.5 ${sessionCompleted ? 'text-green-500 font-medium' : 'text-gray-400'}`}>
+                    <span className={`fluid-text-xs flex-shrink-0 fluid-mt-1 ${sessionCompleted ? 'text-green-500 font-medium' : 'text-gray-400'}`}>
                       {session.topics?.length || 0}
                       {session.topics && session.topics.reduce((sum, t) => sum + (t.estimated_time_minutes || 0), 0) > 0 && (
                         <span className="ml-1">· {session.topics.reduce((sum, t) => sum + (t.estimated_time_minutes || 0), 0)}m</span>
@@ -1363,20 +1362,20 @@ const StudyContentPreviewPage: React.FC = () => {
                             key={topic.id}
                             onClick={() => selectTopic(sIdx, tIdx)}
                             className={`
-                              w-full p-3 pl-4 text-left transition-colors
+                              w-full fluid-p-3 fluid-pl-4 text-left transition-colors
                               ${isActive 
                                 ? 'bg-blue-50 border-l-2 border-blue-600 -ml-0.5' 
                                 : 'hover:bg-gray-100 border-l-2 border-transparent -ml-0.5'
                               }
                             `}
                           >
-                            <div className={`text-sm flex items-center gap-2 ${isActive ? 'font-medium text-blue-600' : 'text-gray-700'}`}>
+                            <div className={`fluid-text-sm flex items-center fluid-gap-2 ${isActive ? 'font-medium text-blue-600' : 'text-gray-700'}`}>
                               <span className="flex-1">
-                                <span className="text-gray-400 mr-1">{session.session_number}.{tIdx + 1}</span> {topic.title}
+                                <span className="text-gray-400 fluid-mr-1">{session.session_number}.{tIdx + 1}</span> {topic.title}
                               </span>               
                               {topic.estimated_time_minutes && (
-                                <span className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0">
-                                  <Clock className="w-3 h-3" />
+                                <span className="flex items-center fluid-gap-1 fluid-text-xs text-gray-400 flex-shrink-0">
+                                  <Clock className="fluid-icon-xs" />
                                   {topic.estimated_time_minutes}m
                                 </span>
                               )}
@@ -1413,8 +1412,8 @@ const StudyContentPreviewPage: React.FC = () => {
             <div className={`fluid-container-xl mx-auto fluid-px-4 transition-all duration-300 ease-out ${isScrolled ? 'pt-0.5 pb-0' : 'fluid-py-3 pb-0'}`}>
               {/* Breadcrumb - se oculta al hacer scroll */}
               <div className={`flex items-center fluid-gap-1 fluid-text-xs text-gray-500 transition-all duration-300 ease-out overflow-hidden ${isScrolled ? 'h-0 opacity-0 mb-0' : 'h-auto opacity-100 fluid-mb-1'}`}>
-                <span className="truncate max-w-[80px] sm:max-w-[120px] md:max-w-none">{currentSession?.title}</span>
-                <ChevronRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" />
+                <span className="truncate max-w-[clamp(80px,15vw,none)]">{currentSession?.title}</span>
+                <ChevronRight className="fluid-icon-xs flex-shrink-0" />
                 <span className="text-gray-900 font-medium truncate">{currentTopic?.title}</span>
               </div>
 
@@ -1441,7 +1440,7 @@ const StudyContentPreviewPage: React.FC = () => {
                         <FileText className="fluid-icon-xs" />
                         <span className={isScrolled ? 'hidden sm:inline' : ''}>Lectura</span>
                         {currentTopic?.reading && completedContents.reading.has(currentTopic.reading.id) && (
-                          <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
+                          <span className="flex items-center justify-center fluid-icon-xs bg-green-500 rounded-full">
                             <Check className="w-2 h-2 text-white" strokeWidth={3} />
                           </span>
                         )}
@@ -1461,7 +1460,7 @@ const StudyContentPreviewPage: React.FC = () => {
                         <Video className="fluid-icon-xs" />
                         <span className={isScrolled ? 'hidden sm:inline' : ''}>Video</span>
                         {currentTopic?.video && completedContents.video.has(currentTopic.video.id) && (
-                          <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
+                          <span className="flex items-center justify-center fluid-icon-xs bg-green-500 rounded-full">
                             <Check className="w-2 h-2 text-white" strokeWidth={3} />
                           </span>
                         )}
@@ -1481,7 +1480,7 @@ const StudyContentPreviewPage: React.FC = () => {
                         <Gamepad2 className="fluid-icon-xs" />
                         <span className={isScrolled ? 'hidden sm:inline' : ''}>Ejercicio</span>
                         {currentTopic?.interactive_exercise && completedContents.interactive.has(currentTopic.interactive_exercise.id) && (
-                          <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
+                          <span className="flex items-center justify-center fluid-icon-xs bg-green-500 rounded-full">
                             <Check className="w-2 h-2 text-white" strokeWidth={3} />
                           </span>
                         )}
@@ -1501,7 +1500,7 @@ const StudyContentPreviewPage: React.FC = () => {
                         <Download className="fluid-icon-xs" />
                         <span className={isScrolled ? 'hidden sm:inline' : ''}>Recursos</span>
                         {currentTopic?.downloadable_exercise && completedContents.downloadable.has(currentTopic.downloadable_exercise.id) && (
-                          <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
+                          <span className="flex items-center justify-center fluid-icon-xs bg-green-500 rounded-full">
                             <Check className="w-2 h-2 text-white" strokeWidth={3} />
                           </span>
                         )}
@@ -1533,7 +1532,7 @@ const StudyContentPreviewPage: React.FC = () => {
                             {videoUrlLoading ? (
                               <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
                                 <div className="text-center">
-                                  <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                                  <div className="animate-spin rounded-full fluid-icon-lg border-b-2 border-blue-600 mx-auto fluid-mb-2"></div>
                                   <p className="text-gray-400 fluid-text-xs">Cargando video...</p>
                                 </div>
                               </div>
@@ -1550,7 +1549,7 @@ const StudyContentPreviewPage: React.FC = () => {
                               />
                             ) : (
                               <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
-                                <p className="text-gray-400 text-xs">Error al cargar el video</p>
+                                <p className="text-gray-400 fluid-text-xs">Error al cargar el video</p>
                               </div>
                             )}
                           </div>
@@ -1584,7 +1583,7 @@ const StudyContentPreviewPage: React.FC = () => {
                       <div className="fluid-mt-3 fluid-pt-3 border-t border-gray-200">
                         {completedContents.video.has(currentTopic.video.id) ? (
                           <div className="flex items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-3 bg-green-50 text-green-700 rounded-fluid-lg fluid-text-sm">
-                            <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
+                            <span className="flex items-center justify-center fluid-icon-xs bg-green-500 rounded-full">
                               <Check className="w-1.5 h-1.5 text-white" strokeWidth={3} />
                             </span>
                             <span className="font-medium">Video completado</span>
@@ -1631,7 +1630,7 @@ const StudyContentPreviewPage: React.FC = () => {
                       <div className="fluid-mt-4 fluid-pt-4 border-t border-gray-200">
                         {completedContents.reading.has(currentTopic.reading.id) ? (
                           <div className="flex items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-4 bg-green-50 text-green-700 rounded-fluid-lg fluid-text-sm">
-                            <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
+                            <span className="flex items-center justify-center fluid-icon-xs bg-green-500 rounded-full">
                               <Check className="w-2 h-2 text-white" strokeWidth={3} />
                             </span>
                             <span className="font-medium">Lectura completada</span>
@@ -1682,7 +1681,7 @@ const StudyContentPreviewPage: React.FC = () => {
                             onClick={() => {
                               downloadButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                             }}
-                            className="w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
+                            className="fluid-icon-md bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
                             title="Ver sección de descarga"
                           >
                             <ChevronDown className="fluid-icon-sm" />
@@ -1694,7 +1693,7 @@ const StudyContentPreviewPage: React.FC = () => {
                       <div ref={downloadButtonRef} className="bg-blue-50 rounded-fluid-lg fluid-p-3 border border-blue-200">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-2">
                           <div className="flex items-center fluid-gap-2">
-                            <div className="fluid-p-1 bg-blue-100 rounded-md flex-shrink-0">
+                            <div className="fluid-p-1 bg-blue-100 rounded-fluid-md flex-shrink-0">
                               <Download className="fluid-icon-sm text-blue-600" />
                             </div>
                             <div className="min-w-0">
@@ -1712,7 +1711,7 @@ const StudyContentPreviewPage: React.FC = () => {
                                 markContentCompleted('downloadable', currentTopic.downloadable_exercise.id);
                               }
                             }}
-                            className="fluid-px-3 fluid-py-1 bg-blue-600 text-white fluid-text-xs rounded-md font-medium hover:bg-blue-700 transition-colors flex items-center fluid-gap-1 shadow-sm"
+                            className="fluid-px-3 fluid-py-1 bg-blue-600 text-white fluid-text-xs rounded-fluid-md font-medium hover:bg-blue-700 transition-colors flex items-center fluid-gap-1 shadow-sm"
                           >
                             <Download className="fluid-icon-xs" />
                             Descargar
@@ -1723,7 +1722,7 @@ const StudyContentPreviewPage: React.FC = () => {
                       {/* Estado de completado del descargable */}
                       {completedContents.downloadable.has(currentTopic.downloadable_exercise.id) && (
                         <div className="fluid-mt-2 flex items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-3 bg-green-50 text-green-700 rounded-fluid-lg fluid-text-xs">
-                          <span className="flex items-center justify-center w-3 h-3 bg-green-500 rounded-full">
+                          <span className="flex items-center justify-center fluid-icon-xs bg-green-500 rounded-full">
                             <Check className="w-2 h-2 text-white" strokeWidth={3} />
                           </span>
                           <span className="font-medium">Archivo descargado</span>
@@ -1732,7 +1731,7 @@ const StudyContentPreviewPage: React.FC = () => {
                     </article>
                   ) : (
                     <div className="flex flex-col items-center justify-center fluid-py-10 text-gray-400">
-                      <Download className="w-12 h-12 fluid-mb-3 text-gray-300" />
+                      <Download className="fluid-icon-xl fluid-mb-3 text-gray-300" />
                       <p className="fluid-text-sm">No hay ejercicio descargable para este tema</p>
                     </div>
                   )}
@@ -1770,7 +1769,7 @@ const StudyContentPreviewPage: React.FC = () => {
                               onClick={() => {
                                 startExerciseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                               }}
-                              className="w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
+                              className="fluid-icon-md bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
                               title="Ver sección para iniciar ejercicio"
                             >
                               <ChevronDown className="fluid-icon-sm" />
@@ -1803,11 +1802,11 @@ const StudyContentPreviewPage: React.FC = () => {
                           {currentTopic.interactive_exercise.id && savedInteractiveScores[currentTopic.interactive_exercise.id] !== undefined ? (
                             savedInteractiveScores[currentTopic.interactive_exercise.id] >= 100 ? (
                               <div className="flex items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-4 bg-green-50 text-green-700 rounded-fluid-lg fluid-text-sm">
-                                <span className="flex items-center justify-center w-4 h-4 bg-green-500 rounded-full">
+                                <span className="flex items-center justify-center fluid-icon-sm bg-green-500 rounded-full">
                                   <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
                                 </span>
                                 <span className="font-medium fluid-text-sm">Ejercicio completado</span>
-                                <span className="text-green-600 font-bold ml-1 fluid-text-sm">({Math.round(savedInteractiveScores[currentTopic.interactive_exercise.id])}%)</span>
+                                <span className="text-green-600 font-bold fluid-ml-1 fluid-text-sm">({Math.round(savedInteractiveScores[currentTopic.interactive_exercise.id])}%)</span>
                               </div>
                             ) : (
                               <div className="flex flex-col sm:flex-row items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-4 bg-amber-50 text-amber-700 rounded-fluid-lg">
@@ -1839,7 +1838,7 @@ const StudyContentPreviewPage: React.FC = () => {
                       }`}>
                         {/* Círculo con calificación */}
                         <div className="relative inline-flex items-center justify-center fluid-mb-4">
-                          <svg className="w-24 h-24 transform -rotate-90">
+                          <svg className="w-[clamp(5rem,10vw,6rem)] h-[clamp(5rem,10vw,6rem)] transform -rotate-90">
                             <circle
                               cx="50%"
                               cy="50%"
@@ -1926,7 +1925,7 @@ const StudyContentPreviewPage: React.FC = () => {
                           if (!currentStep) {
                             return (
                               <div className="text-center fluid-py-6">
-                                <Image className="w-10 h-10 mx-auto text-gray-300 fluid-mb-2" />
+                                <Image className="fluid-icon-lg mx-auto text-gray-300 fluid-mb-2" />
                                 <p className="text-gray-500 fluid-text-xs">Este ejercicio no tiene pasos configurados</p>
                               </div>
                             );
@@ -2044,8 +2043,8 @@ const StudyContentPreviewPage: React.FC = () => {
                                       )}
                                     </>
                                   ) : (
-                                    <div className="flex items-center justify-center h-52 w-72 bg-gray-100">
-                                      <Image className="w-14 h-14 text-gray-300" />
+                                    <div className="flex items-center justify-center h-[clamp(10rem,25vh,13rem)] w-[clamp(14rem,35vw,18rem)] bg-gray-100">
+                                      <Image className="fluid-icon-xl text-gray-300" />
                                     </div>
                                   )}
                                 </div>
@@ -2113,7 +2112,7 @@ const StudyContentPreviewPage: React.FC = () => {
                     )
                   ) : (
                     <div className="flex flex-col items-center justify-center fluid-py-10 text-gray-400">
-                      <Gamepad2 className="w-12 h-12 fluid-mb-3 text-gray-300" />
+                      <Gamepad2 className="fluid-icon-xl fluid-mb-3 text-gray-300" />
                       <p className="fluid-text-base">No hay ejercicio interactivo para este tema</p>
                     </div>
                   )}
@@ -2163,10 +2162,10 @@ const StudyContentPreviewPage: React.FC = () => {
       {/* Modal de error para ejercicio interactivo */}
       {showErrorModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] fluid-p-4" onClick={() => setShowErrorModal(null)}>
-          <div className="bg-white rounded-fluid-lg shadow-2xl max-w-lg w-full mx-4 max-h-[85vh] flex flex-col animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-fluid-lg shadow-2xl max-w-lg w-full fluid-mx-4 max-h-[85vh] flex flex-col animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
             {/* Header fijo */}
             <div className="flex items-center fluid-gap-3 fluid-p-4 pb-3 border-b border-gray-100">
-              <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+              <div className="flex-shrink-0 fluid-icon-lg bg-red-100 rounded-full flex items-center justify-center">
                 <X className="fluid-icon-md text-red-600" />
               </div>
               <h3 className="fluid-text-base font-semibold text-gray-900">Respuesta incorrecta</h3>
@@ -2314,7 +2313,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
           }, 300);
         }}
         disabled={isStepCompleted}
-        className={`flex items-center justify-center text-xs font-medium transition-all ${
+        className={`flex items-center justify-center fluid-text-xs font-medium transition-all ${
           currentValue 
             ? 'bg-green-100 text-green-700' 
             : showFeedback
@@ -2332,7 +2331,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
         title={isInvisible ? '' : (action.placeholder || action.label || 'Clic aquí')}
       >
         {hasPlaceholder && showText && (
-          <span className="truncate px-2 text-sm">{action.placeholder}</span>
+          <span className="truncate fluid-px-2 fluid-text-sm">{action.placeholder}</span>
         )}
         {currentValue && <span className="ml-1">✓</span>}
       </button>
@@ -2373,7 +2372,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
               }, 300);
             }
           }}
-          className={`flex items-center justify-center text-xs font-medium transition-all ${
+          className={`flex items-center justify-center fluid-text-xs font-medium transition-all ${
             currentValue 
               ? 'bg-red-100 text-red-700' 
               : showFeedback
@@ -2385,7 +2384,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
           title={isInvisible ? '' : (action.placeholder || 'Escribe aquí')}
         >
           {hasPlaceholder && showText && (
-            <span className="truncate px-2 text-sm italic text-orange-600">{action.placeholder}</span>
+            <span className="truncate fluid-px-2 fluid-text-sm italic text-orange-600">{action.placeholder}</span>
           )}
         </div>
       );

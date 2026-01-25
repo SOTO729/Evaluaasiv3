@@ -46,9 +46,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] fluid-p-4" onClick={onClose}>
       <div className={`bg-white rounded-fluid-lg ${sizeClasses[size]} w-full max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center fluid-p-4 border-b">
-          <h3 className="text-lg font-bold text-gray-900">{title}</h3>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <h3 className="fluid-text-lg font-bold text-gray-900">{title}</h3>
+          <button onClick={onClose} className="fluid-p-1 hover:bg-gray-100 rounded">
+            <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -170,15 +170,15 @@ const LabelStyleDropdown: React.FC<LabelStyleDropdownProps> = ({ value, onChange
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full px-3 py-2 border rounded-lg text-sm transition-all duration-200 text-left flex items-center justify-between ${ringColor} ${
+        className={`w-full fluid-px-3 fluid-py-2 border rounded-fluid-lg fluid-text-sm transition-all duration-200 text-left flex items-center justify-between ${ringColor} ${
           isInvisible 
             ? 'border-purple-400 bg-purple-50 shadow-[0_0_12px_rgba(147,51,234,0.5)]' 
             : 'border-gray-300 bg-white hover:border-gray-400'
         }`}
       >
-        <span className="flex items-baseline gap-2 flex-wrap">
+        <span className="flex items-baseline fluid-gap-2 flex-wrap">
           <span className={isInvisible ? 'font-semibold text-purple-800' : 'text-gray-900'}>{selectedOption.label}</span>
-          <span className={`text-xs font-bold ${isInvisible ? 'text-purple-600' : 'text-gray-500'}`}>
+          <span className={`fluid-text-xs font-bold ${isInvisible ? 'text-purple-600' : 'text-gray-500'}`}>
             {selectedOption.description}
           </span>
         </span>
@@ -188,7 +188,7 @@ const LabelStyleDropdown: React.FC<LabelStyleDropdownProps> = ({ value, onChange
       </button>
       
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+        <div className="absolute z-50 fluid-mt-1 w-full bg-white border border-gray-200 rounded-fluid-lg shadow-lg overflow-hidden">
           {LABEL_STYLE_OPTIONS.map((option) => (
             <button
               key={option.value}
@@ -197,7 +197,7 @@ const LabelStyleDropdown: React.FC<LabelStyleDropdownProps> = ({ value, onChange
                 onChange(option.value);
                 setIsOpen(false);
               }}
-              className={`w-full px-3 py-2.5 text-left flex items-baseline gap-2 flex-wrap transition-colors ${
+              className={`w-full fluid-px-3 py-2.5 text-left flex items-baseline fluid-gap-2 flex-wrap transition-colors ${
                 option.value === value 
                   ? option.isHighlighted 
                     ? 'bg-purple-100' 
@@ -205,10 +205,10 @@ const LabelStyleDropdown: React.FC<LabelStyleDropdownProps> = ({ value, onChange
                   : 'hover:bg-gray-50'
               } ${option.isHighlighted ? 'border-l-4 border-purple-500' : ''}`}
             >
-              <span className={`text-sm ${option.isHighlighted ? 'font-semibold text-purple-800' : 'text-gray-900'}`}>
+              <span className={`fluid-text-sm ${option.isHighlighted ? 'font-semibold text-purple-800' : 'text-gray-900'}`}>
                 {option.label}
               </span>
-              <span className={`text-xs font-bold ${option.isHighlighted ? 'text-purple-600' : 'text-amber-600'}`}>
+              <span className={`fluid-text-xs font-bold ${option.isHighlighted ? 'text-purple-600' : 'text-amber-600'}`}>
                 {option.description}
               </span>
             </button>
@@ -1874,10 +1874,10 @@ const StudyInteractiveExercisePage = () => {
 
       {/* Header */}
       <div className="flex items-center justify-between fluid-px-6 fluid-py-4 border-b bg-white shadow-sm">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center fluid-gap-4">
           <button
             onClick={handleExitAttempt}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+            className="fluid-p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-fluid-lg"
             title="Volver"
           >
             <svg className="fluid-icon-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1885,36 +1885,36 @@ const StudyInteractiveExercisePage = () => {
             </svg>
           </button>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center fluid-gap-2">
               <h1 className="fluid-text-xl font-semibold text-gray-900">
                 {exercise?.title || 'Ejercicio Interactivo'}
               </h1>
               <button
                 onClick={openExerciseInfoModal}
-                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="fluid-p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-fluid-lg transition-colors"
                 title="Editar título e instrucciones"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
               </button>
             </div>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <p className="fluid-text-sm text-gray-500 fluid-mt-1">
               {topicData?.title || 'Cargando...'}
             </p>
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center fluid-gap-3">
           {hasUnsavedChanges && (
-            <span className="flex items-center gap-2 text-sm text-orange-600 bg-orange-50 px-3 py-1.5 rounded-lg">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span className="flex items-center fluid-gap-2 fluid-text-sm text-orange-600 bg-orange-50 fluid-px-3 fluid-py-1 rounded-fluid-lg">
+              <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
               {pendingChanges.length} cambio(s) sin guardar
             </span>
           )}
-          <span className="text-sm text-gray-500">
+          <span className="fluid-text-sm text-gray-500">
             {steps.length} paso(s) • {currentStep?.actions?.length || 0} acción(es) en paso actual
           </span>
           <button
@@ -1947,7 +1947,7 @@ const StudyInteractiveExercisePage = () => {
               }
             }}
             disabled={isSaving}
-            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+            className={`fluid-px-4 fluid-py-2 rounded-fluid-lg transition-colors flex items-center fluid-gap-2 ${
               isSaving
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
                 : 'bg-primary-600 text-white hover:bg-primary-700'
@@ -1969,38 +1969,38 @@ const StudyInteractiveExercisePage = () => {
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-4 px-6 py-3 border-b bg-gray-50">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700">Herramientas:</span>
+      <div className="flex items-center fluid-gap-4 fluid-px-6 fluid-py-3 border-b bg-gray-50">
+        <div className="flex items-center fluid-gap-2">
+          <span className="fluid-text-sm font-medium text-gray-700">Herramientas:</span>
           <button
             onClick={() => setSelectedTool('select')}
-            className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'select' ? 'bg-primary-600 text-white' : 'bg-white border hover:bg-gray-100'}`}
+            className={`fluid-p-2 rounded-fluid-lg transition-colors ${selectedTool === 'select' ? 'bg-primary-600 text-white' : 'bg-white border hover:bg-gray-100'}`}
             title="Seleccionar y Mover"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
             </svg>
           </button>
           
           {/* Separador visual */}
-          <div className="h-6 w-px bg-gray-300 mx-1"></div>
+          <div className="h-6 w-px bg-gray-300 fluid-mx-1"></div>
           
           {/* Grupo de acciones correctas (verdes) */}
           <button
             onClick={() => setSelectedTool('button')}
-            className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'button' ? 'bg-teal-600 text-white' : 'bg-white border hover:bg-teal-50 hover:border-teal-300'}`}
+            className={`fluid-p-2 rounded-fluid-lg transition-colors ${selectedTool === 'button' ? 'bg-teal-600 text-white' : 'bg-white border hover:bg-teal-50 hover:border-teal-300'}`}
             title="Agregar Botón Correcto"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </button>
           <button
             onClick={() => setSelectedTool('text_input')}
-            className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'text_input' ? 'bg-lime-600 text-white' : 'bg-white border hover:bg-lime-50 hover:border-lime-300'}`}
+            className={`fluid-p-2 rounded-fluid-lg transition-colors ${selectedTool === 'text_input' ? 'bg-lime-600 text-white' : 'bg-white border hover:bg-lime-50 hover:border-lime-300'}`}
             title="Agregar Campo de Texto"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
           </button>
@@ -2012,10 +2012,10 @@ const StudyInteractiveExercisePage = () => {
         {/* Campo incorrecto (naranja) */}
         <button
           onClick={() => setSelectedTool('button-wrong')}
-          className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'button-wrong' ? 'bg-orange-600 text-white' : 'bg-white border hover:bg-orange-50 hover:border-orange-300'}`}
+          className={`fluid-p-2 rounded-fluid-lg transition-colors ${selectedTool === 'button-wrong' ? 'bg-orange-600 text-white' : 'bg-white border hover:bg-orange-50 hover:border-orange-300'}`}
           title="Agregar Campo Incorrecto"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </button>
@@ -2025,10 +2025,10 @@ const StudyInteractiveExercisePage = () => {
         {/* Comentario/Letrero (azul) */}
         <button
           onClick={() => setSelectedTool('comment')}
-          className={`p-2.5 rounded-lg transition-colors ${selectedTool === 'comment' ? 'bg-blue-600 text-white' : 'bg-white border hover:bg-blue-50 hover:border-blue-300'}`}
+          className={`fluid-p-2 rounded-fluid-lg transition-colors ${selectedTool === 'comment' ? 'bg-blue-600 text-white' : 'bg-white border hover:bg-blue-50 hover:border-blue-300'}`}
           title="Agregar Comentario/Letrero"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
           </svg>
         </button>
@@ -2036,38 +2036,38 @@ const StudyInteractiveExercisePage = () => {
         <div className="h-6 w-px bg-gray-300"></div>
 
         {/* Controles de zoom en la toolbar */}
-        <div className="flex items-center gap-1">
-          <span className="text-sm font-medium text-gray-700">Zoom:</span>
+        <div className="flex items-center fluid-gap-1">
+          <span className="fluid-text-sm font-medium text-gray-700">Zoom:</span>
           <button
             onClick={() => {
               const idx = EDITOR_CONFIG.ZOOM_LEVELS.indexOf(zoom)
               if (idx > 0) setZoom(EDITOR_CONFIG.ZOOM_LEVELS[idx - 1])
             }}
             disabled={zoom === EDITOR_CONFIG.ZOOM_LEVELS[0]}
-            className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="fluid-p-1 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
             title="Alejar"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
             </svg>
           </button>
-          <span className="text-sm font-medium text-gray-700 min-w-[45px] text-center">{Math.round(zoom * 100)}%</span>
+          <span className="fluid-text-sm font-medium text-gray-700 min-w-[45px] text-center">{Math.round(zoom * 100)}%</span>
           <button
             onClick={() => {
               const idx = EDITOR_CONFIG.ZOOM_LEVELS.indexOf(zoom)
               if (idx < EDITOR_CONFIG.ZOOM_LEVELS.length - 1) setZoom(EDITOR_CONFIG.ZOOM_LEVELS[idx + 1])
             }}
             disabled={zoom === EDITOR_CONFIG.ZOOM_LEVELS[EDITOR_CONFIG.ZOOM_LEVELS.length - 1]}
-            className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="fluid-p-1 rounded hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
             title="Acercar"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
             </svg>
           </button>
           <button
             onClick={() => setZoom(1)}
-            className="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded text-gray-600 ml-1"
+            className="fluid-px-2 fluid-py-1 fluid-text-xs bg-gray-200 hover:bg-gray-300 rounded text-gray-600 fluid-ml-1"
             title="Restablecer zoom"
           >
             Reset
@@ -2076,29 +2076,29 @@ const StudyInteractiveExercisePage = () => {
 
         <div className="flex-1"></div>
 
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center fluid-gap-2 fluid-text-sm">
           {selectedTool === 'button' && (
-            <span className="px-3 py-1.5 bg-teal-50 text-teal-700 rounded-lg">
+            <span className="fluid-px-3 fluid-py-1 bg-teal-50 text-teal-700 rounded-fluid-lg">
               ✅ Dibuja un área en la imagen para agregar un botón correcto
             </span>
           )}
           {selectedTool === 'button-wrong' && (
-            <span className="px-3 py-1.5 bg-orange-50 text-orange-700 rounded-lg">
+            <span className="fluid-px-3 fluid-py-1 bg-orange-50 text-orange-700 rounded-fluid-lg">
               ❌ Dibuja un área en la imagen para agregar un campo incorrecto
             </span>
           )}
           {selectedTool === 'text_input' && (
-            <span className="px-3 py-1.5 bg-lime-50 text-lime-700 rounded-lg">
+            <span className="fluid-px-3 fluid-py-1 bg-lime-50 text-lime-700 rounded-fluid-lg">
               ✏️ Dibuja un área en la imagen para agregar un campo de texto
             </span>
           )}
           {selectedTool === 'comment' && (
-            <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg">
+            <span className="fluid-px-3 fluid-py-1 bg-blue-50 text-blue-700 rounded-fluid-lg">
               💬 Dibuja un área en la imagen para agregar un comentario/letrero
             </span>
           )}
           {selectedTool === 'select' && currentStep?.image_url && (
-            <span className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg">
+            <span className="fluid-px-3 fluid-py-1 bg-gray-100 text-gray-600 rounded-fluid-lg">
               Arrastra los elementos para moverlos • Doble clic para editar
             </span>
           )}
@@ -2107,12 +2107,12 @@ const StudyInteractiveExercisePage = () => {
 
       {/* Banner de advertencia de dimensiones inconsistentes */}
       {imageDimensionsWarning && (
-        <div className="flex items-center gap-3 px-6 py-2 bg-amber-50 border-b border-amber-200">
-          <svg className="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex items-center fluid-gap-3 fluid-px-6 fluid-py-2 bg-amber-50 border-b border-amber-200">
+          <svg className="fluid-icon-sm text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <div className="flex-1 min-w-0">
-            <span className="text-sm text-amber-800">
+            <span className="fluid-text-sm text-amber-800">
               <strong>Advertencia:</strong> Las imágenes no tienen dimensiones consistentes.
               Referencia (Paso 1): <strong>{imageDimensionsWarning.referenceWidth}×{imageDimensionsWarning.referenceHeight}px</strong>.
               {imageDimensionsWarning.inconsistentSteps.length === 1 
@@ -2128,51 +2128,51 @@ const StudyInteractiveExercisePage = () => {
       <div className="flex flex-1 overflow-hidden">
         {/* Steps sidebar */}
         <div className="w-64 border-r bg-gray-50 flex flex-col">
-          <div className="p-4 border-b bg-white">
+          <div className="fluid-p-4 border-b bg-white">
             <div className="flex items-center justify-between">
               <h3 className="font-medium text-gray-900">Pasos del Ejercicio</h3>
-              <span className="text-sm text-gray-500">{steps.length}</span>
+              <span className="fluid-text-sm text-gray-500">{steps.length}</span>
             </div>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          <div className="flex-1 overflow-y-auto fluid-p-3 fluid-space-y-3">
             {steps.length === 0 && !isCreatingStep ? (
-              <div className="text-center py-8">
+              <div className="text-center fluid-py-8">
                 <svg className="w-12 h-12 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <p className="mt-2 text-sm text-gray-500">No hay pasos</p>
-                <p className="text-xs text-gray-400">Agrega un paso con una imagen</p>
+                <p className="fluid-mt-2 fluid-text-sm text-gray-500">No hay pasos</p>
+                <p className="fluid-text-xs text-gray-400">Agrega un paso con una imagen</p>
               </div>
             ) : (
               steps.map((step: StudyInteractiveExerciseStep, index: number) => (
                 <div
                   key={step.id}
                   onClick={() => setCurrentStepIndex(index)}
-                  className={`rounded-lg cursor-pointer transition-all ${
+                  className={`rounded-fluid-lg cursor-pointer transition-all ${
                     currentStepIndex === index
                       ? 'ring-2 ring-primary-500 shadow-md'
                       : 'hover:shadow-md'
                   }`}
                 >
-                  <div className={`p-3 rounded-lg ${currentStepIndex === index ? 'bg-primary-50' : 'bg-white'}`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className={`text-sm font-medium ${currentStepIndex === index ? 'text-primary-700' : 'text-gray-700'}`}>
+                  <div className={`fluid-p-3 rounded-fluid-lg ${currentStepIndex === index ? 'bg-primary-50' : 'bg-white'}`}>
+                    <div className="flex items-center justify-between fluid-mb-2">
+                      <span className={`fluid-text-sm font-medium ${currentStepIndex === index ? 'text-primary-700' : 'text-gray-700'}`}>
                         Paso {step.step_number}
                       </span>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center fluid-gap-1">
                         {/* Botón para mover hacia arriba */}
                         <button
                           onClick={(e) => handleMoveStepUp(e, index)}
                           disabled={index === 0}
-                          className={`p-1 rounded ${
+                          className={`fluid-p-1 rounded ${
                             index === 0
                               ? 'text-gray-300 cursor-not-allowed'
                               : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50'
                           }`}
                           title="Mover paso arriba"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                           </svg>
                         </button>
@@ -2180,14 +2180,14 @@ const StudyInteractiveExercisePage = () => {
                         <button
                           onClick={(e) => handleMoveStepDown(e, index)}
                           disabled={index === steps.length - 1}
-                          className={`p-1 rounded ${
+                          className={`fluid-p-1 rounded ${
                             index === steps.length - 1
                               ? 'text-gray-300 cursor-not-allowed'
                               : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50'
                           }`}
                           title="Mover paso abajo"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                           </svg>
                         </button>
@@ -2203,10 +2203,10 @@ const StudyInteractiveExercisePage = () => {
                               actionsCount: step.actions?.length || 0
                             })
                           }}
-                          className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
+                          className="fluid-p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
                           title="Eliminar paso"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         </button>
@@ -2217,7 +2217,7 @@ const StudyInteractiveExercisePage = () => {
                         <img src={step.image_url} alt="" className="w-full h-full object-cover" />
                       </div>
                     )}
-                    <div className="mt-2 flex items-center justify-between text-xs">
+                    <div className="fluid-mt-2 flex items-center justify-between fluid-text-xs">
                       <span className="text-gray-500">{step.actions?.length || 0} acción(es)</span>
                       {currentStepIndex === index && (
                         <span className="text-primary-600 font-medium">Editando</span>
@@ -2230,10 +2230,10 @@ const StudyInteractiveExercisePage = () => {
             
             {/* Mostrar previsualización del nuevo paso mientras se crea */}
             {isCreatingStep && localPreviewImage && (
-              <div className="rounded-lg ring-2 ring-primary-500 shadow-md animate-pulse">
-                <div className="p-3 rounded-lg bg-primary-50">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-primary-700">
+              <div className="rounded-fluid-lg ring-2 ring-primary-500 shadow-md animate-pulse">
+                <div className="fluid-p-3 rounded-fluid-lg bg-primary-50">
+                  <div className="flex items-center justify-between fluid-mb-2">
+                    <span className="fluid-text-sm font-medium text-primary-700">
                       Paso {steps.length + 1}
                     </span>
                     <svg className="animate-spin h-4 w-4 text-primary-600" fill="none" viewBox="0 0 24 24">
@@ -2244,7 +2244,7 @@ const StudyInteractiveExercisePage = () => {
                   <div className="aspect-video bg-gray-100 rounded overflow-hidden">
                     <img src={localPreviewImage} alt="Nuevo paso" className="w-full h-full object-cover" />
                   </div>
-                  <div className="mt-2 text-xs text-primary-600 font-medium text-center">
+                  <div className="fluid-mt-2 fluid-text-xs text-primary-600 font-medium text-center">
                     Guardando...
                   </div>
                 </div>
@@ -2252,15 +2252,15 @@ const StudyInteractiveExercisePage = () => {
             )}
           </div>
           
-          <div className="p-3 border-t bg-white">
+          <div className="fluid-p-3 border-t bg-white">
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isCreatingStep}
-              className="w-full px-4 py-3 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 font-medium flex items-center justify-center gap-2"
+              className="w-full fluid-px-4 fluid-py-3 fluid-text-sm bg-primary-600 text-white rounded-fluid-lg hover:bg-primary-700 disabled:opacity-50 font-medium flex items-center justify-center fluid-gap-2"
             >
               {isCreatingStep ? (
                 <>
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin fluid-icon-xs" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
@@ -2268,7 +2268,7 @@ const StudyInteractiveExercisePage = () => {
                 </>
               ) : (
                 <>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                   Agregar Paso con Imagen
@@ -2279,26 +2279,26 @@ const StudyInteractiveExercisePage = () => {
         </div>
 
         {/* Canvas area */}
-        <div className="flex-1 overflow-auto bg-gray-50 p-8">
+        <div className="flex-1 overflow-auto bg-gray-50 fluid-p-8">
           {/* Mostrar previsualización mientras se crea el paso */}
           {isCreatingStep && localPreviewImage ? (
             <div className="w-full mx-auto" style={{ maxWidth: '1400px' }}>
-              <div className="relative bg-white shadow-2xl rounded-lg overflow-hidden">
+              <div className="relative bg-white shadow-2xl rounded-fluid-lg overflow-hidden">
                 <img
                   src={localPreviewImage}
                   alt="Previsualización"
-                  className="w-full h-auto rounded-lg"
+                  className="w-full h-auto rounded-fluid-lg"
                   draggable={false}
                 />
                 {/* Overlay de cargando */}
-                <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center rounded-lg">
-                  <div className="bg-white rounded-lg p-6 shadow-xl text-center">
+                <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center rounded-fluid-lg">
+                  <div className="bg-white rounded-fluid-lg fluid-p-6 shadow-xl text-center">
                     <svg className="animate-spin h-10 w-10 text-primary-600 mx-auto" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <p className="mt-3 text-gray-700 font-medium">Guardando imagen...</p>
-                    <p className="text-sm text-gray-500">Por favor espera</p>
+                    <p className="fluid-mt-3 text-gray-700 font-medium">Guardando imagen...</p>
+                    <p className="fluid-text-sm text-gray-500">Por favor espera</p>
                   </div>
                 </div>
               </div>
@@ -2311,7 +2311,7 @@ const StudyInteractiveExercisePage = () => {
                   <div className="overflow-auto mx-auto" style={{ maxHeight: 'calc(100vh - 240px)' }}>
                     <div
                       ref={imageContainerRef}
-                      className="relative bg-white shadow-2xl rounded-lg select-none mx-auto origin-top-left"
+                      className="relative bg-white shadow-2xl rounded-fluid-lg select-none mx-auto origin-top-left"
                       onMouseDown={handleImageMouseDown}
                       onMouseMove={handleImageMouseMove}
                       onMouseUp={handleImageMouseUp}
@@ -2330,7 +2330,7 @@ const StudyInteractiveExercisePage = () => {
                       <img
                         src={currentStep.image_url}
                         alt={`Paso ${currentStep.step_number}`}
-                        className="w-full h-auto pointer-events-none rounded-lg"
+                        className="w-full h-auto pointer-events-none rounded-fluid-lg"
                         draggable={false}
                       />
 
@@ -2755,9 +2755,9 @@ const StudyInteractiveExercisePage = () => {
                   </div> {/* Cierre del contenedor con scroll para zoom */}
                     
                     {/* Botón para cambiar imagen */}
-                    <div className="mt-4 text-center">
-                      <label className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-white text-gray-700 rounded-lg hover:bg-gray-50 cursor-pointer border shadow-sm">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="fluid-mt-4 text-center">
+                      <label className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 fluid-text-sm bg-white text-gray-700 rounded-fluid-lg hover:bg-gray-50 cursor-pointer border shadow-sm">
+                        <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                         Cambiar Imagen
@@ -2771,14 +2771,14 @@ const StudyInteractiveExercisePage = () => {
                     </div>
                   </>
                 ) : (
-                  <div className="bg-white rounded-xl shadow-lg p-16 text-center">
+                  <div className="bg-white rounded-fluid-xl shadow-lg fluid-p-16 text-center">
                     <svg className="w-20 h-20 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    <p className="mt-4 text-lg text-gray-600">Este paso no tiene imagen</p>
-                    <p className="text-sm text-gray-400 mt-1">Sube una imagen para comenzar a agregar acciones</p>
-                    <label className="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 cursor-pointer font-medium">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <p className="fluid-mt-4 fluid-text-lg text-gray-600">Este paso no tiene imagen</p>
+                    <p className="fluid-text-sm text-gray-400 fluid-mt-1">Sube una imagen para comenzar a agregar acciones</p>
+                    <label className="fluid-mt-6 inline-flex items-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-primary-600 text-white rounded-fluid-lg hover:bg-primary-700 cursor-pointer font-medium">
+                      <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
                       Subir Imagen
@@ -2798,16 +2798,16 @@ const StudyInteractiveExercisePage = () => {
                   <svg className="w-24 h-24 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                   </svg>
-                  <h3 className="mt-4 text-xl text-gray-600">No hay pasos en este ejercicio</h3>
-                  <p className="text-gray-400 mt-2">
+                  <h3 className="fluid-mt-4 fluid-text-xl text-gray-600">No hay pasos en este ejercicio</h3>
+                  <p className="text-gray-400 fluid-mt-2">
                     Cada paso es una imagen donde el alumno debe realizar acciones como hacer clic en botones o escribir texto.
                   </p>
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isCreatingStep}
-                    className="mt-6 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium inline-flex items-center gap-2"
+                    className="fluid-mt-6 fluid-px-6 fluid-py-3 bg-primary-600 text-white rounded-fluid-lg hover:bg-primary-700 font-medium inline-flex items-center fluid-gap-2"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
                     Agregar Primer Paso
@@ -2820,26 +2820,26 @@ const StudyInteractiveExercisePage = () => {
           {/* Actions panel */}
           {currentStep && currentStep.image_url && (
             <div className="w-80 border-l bg-white flex flex-col">
-              <div className="p-4 border-b">
+              <div className="fluid-p-4 border-b">
                 <h3 className="font-medium text-gray-900">Acciones del Paso {currentStep.step_number}</h3>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="fluid-text-sm text-gray-500 fluid-mt-1">
                   {currentStep.actions?.length || 0} acción(es) configurada(s)
                 </p>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-3">
+              <div className="flex-1 overflow-y-auto fluid-p-3">
                 {!currentStep.actions?.length ? (
-                  <div className="text-center py-8">
+                  <div className="text-center fluid-py-8">
                     <svg className="w-12 h-12 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p className="mt-2 text-sm text-gray-500">Sin acciones</p>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="fluid-mt-2 fluid-text-sm text-gray-500">Sin acciones</p>
+                    <p className="fluid-text-xs text-gray-400 fluid-mt-1">
                       Usa las herramientas para agregar botones o campos de texto
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="fluid-space-y-2">
                     {/* Ordenar acciones: text_input primero, luego botones correctos, luego incorrectos, luego comentarios */}
                     {(() => {
                       const sortedActions = [...currentStep.actions]
@@ -2894,7 +2894,7 @@ const StudyInteractiveExercisePage = () => {
                           <div
                             key={action.id}
                             onClick={() => setSelectedAction(action)}
-                            className={`relative p-3 rounded-lg cursor-pointer transition-all border overflow-hidden ${
+                            className={`relative fluid-p-3 rounded-fluid-lg cursor-pointer transition-all border overflow-hidden ${
                               selectedAction?.id === action.id
                                 ? 'border-blue-500 bg-blue-50 shadow ring-2 ring-blue-200'
                                 : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
@@ -2911,28 +2911,28 @@ const StudyInteractiveExercisePage = () => {
                                   isCorrect: false
                                 })
                               }}
-                              className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                              className="absolute top-2 right-2 fluid-p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                               title="Eliminar comentario"
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
                             </button>
 
-                            <div className="flex items-center gap-2 mb-2 pr-6">
-                              <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">
+                            <div className="flex items-center fluid-gap-2 fluid-mb-2 fluid-pr-6">
+                              <span className="w-6 h-6 rounded-full bg-blue-600 text-white fluid-text-xs flex items-center justify-center">
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                                 </svg>
                               </span>
-                              <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                              <span className="fluid-px-2 fluid-py-1 rounded fluid-text-xs font-medium bg-blue-100 text-blue-700">
                                 Comentario
                               </span>
                             </div>
                             
                             {/* Preview del comentario */}
                             <div 
-                              className="rounded-lg p-2 mb-2 text-center text-sm font-medium truncate"
+                              className="rounded-fluid-lg fluid-p-2 fluid-mb-2 text-center fluid-text-sm font-medium truncate"
                               style={{
                                 backgroundColor: action.comment_bg_color || '#3b82f6',
                                 color: action.comment_text_color || '#ffffff',
@@ -2942,39 +2942,39 @@ const StudyInteractiveExercisePage = () => {
                               {action.comment_text || action.label || 'Comentario'}
                             </div>
                             
-                            <div className="space-y-1.5 text-sm">
-                              <div className="flex items-center gap-1.5 min-w-0">
+                            <div className="fluid-space-y-1 fluid-text-sm">
+                              <div className="flex items-center fluid-gap-1 min-w-0">
                                 <svg className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
                                 </svg>
-                                <span className="text-xs text-gray-600 flex items-center">
+                                <span className="fluid-text-xs text-gray-600 flex items-center">
                                   Fondo: <span 
-                                    className="inline-block w-3 h-3 rounded border border-gray-300 ml-1 mr-2" 
+                                    className="inline-block w-3 h-3 rounded border border-gray-300 fluid-ml-1 fluid-mr-2" 
                                     style={{ backgroundColor: action.comment_bg_color || '#3b82f6' }}
                                   ></span>
                                   Texto: <span 
-                                    className="inline-block w-3 h-3 rounded border border-gray-300 ml-1" 
+                                    className="inline-block w-3 h-3 rounded border border-gray-300 fluid-ml-1" 
                                     style={{ backgroundColor: action.comment_text_color || '#ffffff' }}
                                   ></span>
                                 </span>
                               </div>
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center fluid-gap-1">
                                 <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                                 </svg>
-                                <span className="text-xs text-gray-600">
+                                <span className="fluid-text-xs text-gray-600">
                                   Tamaño: <span className="font-medium">{action.comment_font_size || 14}px</span>
                                 </span>
                               </div>
                             </div>
                             
-                            <div className="mt-3 pt-2 border-t border-blue-100">
+                            <div className="fluid-mt-3 fluid-pt-2 border-t border-blue-100">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   handleEditAction(action)
                                 }}
-                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors"
+                                className="w-full flex items-center justify-center fluid-gap-1 fluid-px-3 fluid-py-2 fluid-text-xs font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-fluid-lg transition-colors"
                               >
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -2990,7 +2990,7 @@ const StudyInteractiveExercisePage = () => {
                         <div
                           key={action.id}
                           onClick={() => setSelectedAction(action)}
-                          className={`relative p-3 rounded-lg cursor-pointer transition-all border overflow-hidden ${
+                          className={`relative fluid-p-3 rounded-fluid-lg cursor-pointer transition-all border overflow-hidden ${
                             selectedAction?.id === action.id
                               ? 'border-primary-500 bg-primary-50 shadow ring-2 ring-primary-200'
                               : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
@@ -3011,16 +3011,16 @@ const StudyInteractiveExercisePage = () => {
                                 isCorrect: !!actionIsCorrect
                               })
                             }}
-                            className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            className="absolute top-2 right-2 fluid-p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                             title="Eliminar acción"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                           </button>
 
-                          <div className="flex items-center gap-2 mb-2 pr-6">
-                            <span className={`w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold ${
+                          <div className="flex items-center fluid-gap-2 fluid-mb-2 fluid-pr-6">
+                            <span className={`w-6 h-6 rounded-full text-white fluid-text-xs flex items-center justify-center font-bold ${
                               isCorrectButton 
                                 ? 'bg-teal-600' 
                                 : isTextboxWithoutAnswer
@@ -3033,7 +3033,7 @@ const StudyInteractiveExercisePage = () => {
                             }`}>
                               {displayNumber}
                             </span>
-                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                            <span className={`fluid-px-2 fluid-py-1 rounded fluid-text-xs font-medium ${
                               isCorrectButton
                                 ? 'bg-teal-100 text-teal-700'
                                 : isWrongButton
@@ -3047,71 +3047,71 @@ const StudyInteractiveExercisePage = () => {
                                 : 'Campo de Texto'}
                             </span>
                           </div>
-                          <div className="text-sm">
+                          <div className="fluid-text-sm">
                             {action.action_type === 'button' ? (
                               <div>
                                 {isCorrectButton && (
-                                  <div className="space-y-1.5 mt-1">
-                                    <div className="flex items-center gap-1.5 min-w-0">
+                                  <div className="fluid-space-y-1 fluid-mt-1">
+                                    <div className="flex items-center fluid-gap-1 min-w-0">
                                       <LabelStyleIcon style={action.label_style} className="w-3.5 h-3.5 flex-shrink-0" />
-                                      <span className="text-xs text-gray-600 truncate min-w-0">
+                                      <span className="fluid-text-xs text-gray-600 truncate min-w-0">
                                         Estilo: <span className={`font-medium ${getLabelStyleInfo(action.label_style).color}`}>
                                           {getLabelStyleInfo(action.label_style).name}
                                         </span>
                                       </span>
                                     </div>
                                     {styleHasText(action.label_style) && (
-                                      <div className="flex items-center gap-1.5 min-w-0">
+                                      <div className="flex items-center fluid-gap-1 min-w-0">
                                         <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                                         </svg>
-                                        <span className="text-xs text-gray-600 truncate min-w-0">
+                                        <span className="fluid-text-xs text-gray-600 truncate min-w-0">
                                           Texto: <span className={`font-medium ${action.placeholder ? 'text-gray-700 italic' : 'text-gray-400'}`}>
                                             {action.placeholder || 'Sin texto indicativo'}
                                           </span>
                                         </span>
                                       </div>
                                     )}
-                                    <p className="text-xs text-teal-600">✓ Respuesta correcta</p>
+                                    <p className="fluid-text-xs text-teal-600">✓ Respuesta correcta</p>
                                   </div>
                                 )}
                                 {isWrongButton && (
-                                  <div className="space-y-1.5 mt-1">
-                                    <div className="flex items-center gap-1.5 min-w-0">
+                                  <div className="fluid-space-y-1 fluid-mt-1">
+                                    <div className="flex items-center fluid-gap-1 min-w-0">
                                       <LabelStyleIcon style={action.label_style} className="w-3.5 h-3.5 flex-shrink-0" />
-                                      <span className="text-xs text-gray-600 truncate min-w-0">
+                                      <span className="fluid-text-xs text-gray-600 truncate min-w-0">
                                         Estilo: <span className={`font-medium ${getLabelStyleInfo(action.label_style).color}`}>
                                           {getLabelStyleInfo(action.label_style).name}
                                         </span>
                                       </span>
                                     </div>
                                     {styleHasText(action.label_style) && (
-                                      <div className="flex items-center gap-1.5 min-w-0">
+                                      <div className="flex items-center fluid-gap-1 min-w-0">
                                         <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                                         </svg>
-                                        <span className="text-xs text-gray-600 truncate min-w-0">
+                                        <span className="fluid-text-xs text-gray-600 truncate min-w-0">
                                           Texto: <span className={`font-medium ${action.placeholder ? 'text-gray-700 italic' : 'text-gray-400'}`}>
                                             {action.placeholder || 'Sin texto indicativo'}
                                           </span>
                                         </span>
                                       </div>
                                     )}
-                                    <div className="flex items-center gap-1.5">
+                                    <div className="flex items-center fluid-gap-1">
                                       <svg className="w-3.5 h-3.5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
                                       </svg>
-                                      <span className="text-xs text-gray-600">
+                                      <span className="fluid-text-xs text-gray-600">
                                         Cursor: <span className="font-medium text-purple-700">
                                           {action.scoring_mode === 'text_cursor' ? 'Texto (I)' : action.scoring_mode === 'default_cursor' ? 'Flecha' : 'Puntero'}
                                         </span>
                                       </span>
                                     </div>
-                                    <div className="flex items-center gap-1.5">
+                                    <div className="flex items-center fluid-gap-1">
                                       <svg className="w-3.5 h-3.5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                                       </svg>
-                                      <span className="text-xs text-gray-600">
+                                      <span className="fluid-text-xs text-gray-600">
                                         Al seleccionar: <span className="font-medium text-orange-700">
                                           {action.on_error_action === 'show_message' ? 'Permitir reintentar' : 
                                            action.on_error_action === 'next_step' ? 'Siguiente paso' : 
@@ -3123,42 +3123,42 @@ const StudyInteractiveExercisePage = () => {
                                 )}
                               </div>
                             ) : (
-                              <div className="space-y-1.5 mt-1">
-                                <div className="flex items-center gap-1.5 min-w-0">
+                              <div className="fluid-space-y-1 fluid-mt-1">
+                                <div className="flex items-center fluid-gap-1 min-w-0">
                                   <svg className="w-3.5 h-3.5 text-lime-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
-                                  <span className="text-xs text-gray-600 truncate min-w-0">
+                                  <span className="fluid-text-xs text-gray-600 truncate min-w-0">
                                     Respuesta: <span className={`font-medium ${isTextboxWithoutAnswer ? 'text-red-600' : 'text-lime-700'}`}>
                                       {action.correct_answer || 'Sin definir'}
                                     </span>
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-1.5 min-w-0">
+                                <div className="flex items-center fluid-gap-1 min-w-0">
                                   <LabelStyleIcon style={action.label_style} className="w-3.5 h-3.5 flex-shrink-0" />
-                                  <span className="text-xs text-gray-600 truncate min-w-0">
+                                  <span className="fluid-text-xs text-gray-600 truncate min-w-0">
                                     Estilo: <span className={`font-medium ${getLabelStyleInfo(action.label_style).color}`}>
                                       {getLabelStyleInfo(action.label_style).name}
                                     </span>
                                   </span>
                                 </div>
                                 {styleHasText(action.label_style) && (
-                                  <div className="flex items-center gap-1.5 min-w-0">
+                                  <div className="flex items-center fluid-gap-1 min-w-0">
                                     <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                                     </svg>
-                                    <span className="text-xs text-gray-600 truncate min-w-0">
+                                    <span className="fluid-text-xs text-gray-600 truncate min-w-0">
                                       Texto: <span className={`font-medium ${action.placeholder ? 'text-gray-700 italic' : 'text-gray-400'}`}>
                                         {action.placeholder || 'Sin texto indicativo'}
                                       </span>
                                     </span>
                                   </div>
                                 )}
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center fluid-gap-1">
                                   <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                   </svg>
-                                  <span className="text-xs text-gray-600">
+                                  <span className="fluid-text-xs text-gray-600">
                                     Evaluación: <span className="font-medium text-blue-700">
                                       {action.scoring_mode === 'exact' ? 'Exacta' : 
                                        action.scoring_mode === 'similarity' ? 'Por similitud' : 
@@ -3166,25 +3166,25 @@ const StudyInteractiveExercisePage = () => {
                                     </span>
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center fluid-gap-1">
                                   <svg className="w-3.5 h-3.5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
                                   </svg>
-                                  <span className="text-xs text-gray-600 flex items-center">
-                                    Letra: <span className="font-medium text-purple-700 ml-0.5">{action.font_family || 'Arial'}</span>
-                                    <span className="mx-1">·</span>
+                                  <span className="fluid-text-xs text-gray-600 flex items-center">
+                                    Letra: <span className="font-medium text-purple-700 fluid-ml-1">{action.font_family || 'Arial'}</span>
+                                    <span className="fluid-mx-1">·</span>
                                     Color: <span 
-                                      className="inline-block w-2.5 h-2.5 rounded border border-gray-300 ml-0.5" 
+                                      className="inline-block w-2.5 h-2.5 rounded border border-gray-300 fluid-ml-1" 
                                       style={{ backgroundColor: action.text_color || '#000000' }}
                                     ></span>
                                   </span>
                                 </div>
                                 {action.scoring_mode === 'exact' && (
-                                  <div className="flex items-center gap-1.5">
+                                  <div className="flex items-center fluid-gap-1">
                                     <svg className="w-3.5 h-3.5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
-                                    <span className="text-xs text-gray-600">
+                                    <span className="fluid-text-xs text-gray-600">
                                       Si incorrecto: <span className="font-medium text-orange-700">
                                         {action.on_error_action === 'show_message' ? 'Permitir reintentar' : 
                                          action.on_error_action === 'next_step' ? 'Siguiente paso' : 
@@ -3196,13 +3196,13 @@ const StudyInteractiveExercisePage = () => {
                               </div>
                             )}
                           </div>
-                          <div className="mt-3 pt-2 border-t border-gray-100">
+                          <div className="fluid-mt-3 fluid-pt-2 border-t border-gray-100">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
                                 handleEditAction(action)
                               }}
-                              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors"
+                              className="w-full flex items-center justify-center fluid-gap-1 fluid-px-3 fluid-py-2 fluid-text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-fluid-lg transition-colors"
                             >
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -3224,44 +3224,44 @@ const StudyInteractiveExercisePage = () => {
       {/* Modal de confirmación para eliminar paso */}
       {deleteConfirmModal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]" onClick={() => setDeleteConfirmModal({ isOpen: false, stepId: null, stepNumber: null, hasImage: false, actionsCount: 0 })}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-center w-16 h-16 mx-auto bg-red-100 rounded-full mb-4">
+          <div className="bg-white rounded-fluid-xl shadow-2xl fluid-p-6 w-full max-w-md fluid-mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-center w-16 h-16 mx-auto bg-red-100 rounded-full fluid-mb-4">
               <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
             </div>
-            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">¿Eliminar Paso {deleteConfirmModal.stepNumber}?</h3>
-            <p className="text-gray-600 text-center mb-4">Esta acción no se puede deshacer. Se eliminará permanentemente:</p>
+            <h3 className="fluid-text-xl font-bold text-gray-900 text-center fluid-mb-2">¿Eliminar Paso {deleteConfirmModal.stepNumber}?</h3>
+            <p className="text-gray-600 text-center fluid-mb-4">Esta acción no se puede deshacer. Se eliminará permanentemente:</p>
 
-            <div className="bg-gray-50 rounded-lg p-4 mb-6 space-y-2">
+            <div className="bg-gray-50 rounded-fluid-lg fluid-p-4 fluid-mb-6 fluid-space-y-2">
               {deleteConfirmModal.hasImage && (
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-center fluid-gap-2 fluid-text-sm text-gray-700">
+                  <svg className="fluid-icon-xs text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <span>La imagen asociada al paso</span>
                 </div>
               )}
               {deleteConfirmModal.actionsCount > 0 && (
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-center fluid-gap-2 fluid-text-sm text-gray-700">
+                  <svg className="fluid-icon-xs text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
                   </svg>
                   <span>{deleteConfirmModal.actionsCount} área(s) interactiva(s)</span>
                 </div>
               )}
-              <div className="flex items-center gap-2 text-sm text-gray-700">
-                <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-center fluid-gap-2 fluid-text-sm text-gray-700">
+                <svg className="fluid-icon-xs text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <span>Los datos del paso en la base de datos</span>
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex fluid-gap-3">
               <button
                 onClick={() => setDeleteConfirmModal({ isOpen: false, stepId: null, stepNumber: null, hasImage: false, actionsCount: 0 })}
-                className="flex-1 px-4 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+                className="flex-1 fluid-px-4 fluid-py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-lg font-medium transition-colors"
               >
                 Cancelar
               </button>
@@ -3271,7 +3271,7 @@ const StudyInteractiveExercisePage = () => {
                     deleteStepMutation.mutate(deleteConfirmModal.stepId)
                   }
                 }}
-                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                className="flex-1 fluid-px-4 fluid-py-3 bg-red-600 text-white rounded-fluid-lg font-medium hover:bg-red-700 transition-colors flex items-center justify-center fluid-gap-2"
                 disabled={deleteStepMutation.isPending}
               >
                 {deleteStepMutation.isPending ? (
@@ -3294,28 +3294,28 @@ const StudyInteractiveExercisePage = () => {
       {/* Modal para editar acción */}
       {isEditActionModalOpen && selectedAction && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] overflow-y-auto" onClick={() => setIsEditActionModalOpen(false)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl my-8 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">
+          <div className="bg-white rounded-fluid-lg fluid-p-6 w-full max-w-2xl fluid-my-8 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between fluid-mb-4">
+              <h3 className="fluid-text-lg font-semibold">
                 Editar {selectedAction.action_type === 'button' ? 'Botón' : selectedAction.action_type === 'comment' ? 'Comentario' : 'Campo de Texto'}
               </h3>
               <button
                 onClick={() => setIsEditActionModalOpen(false)}
-                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="fluid-p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-fluid-lg transition-colors"
                 title="Cerrar"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
             
-            <div className="space-y-4">
+            <div className="fluid-space-y-4">
               {/* Campos específicos para Comentario */}
               {selectedAction.action_type === 'comment' ? (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4">
-                  <h4 className="text-sm font-semibold text-blue-900 flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-blue-50 border border-blue-200 rounded-fluid-lg fluid-p-4 fluid-space-y-4">
+                  <h4 className="fluid-text-sm font-semibold text-blue-900 flex items-center fluid-gap-2">
+                    <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                     </svg>
                     Configuración del Comentario
@@ -3323,7 +3323,7 @@ const StudyInteractiveExercisePage = () => {
                   
                   {/* Texto del comentario */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                       Texto del Comentario <span className="text-red-500">*</span>
                     </label>
                     <textarea
@@ -3333,22 +3333,22 @@ const StudyInteractiveExercisePage = () => {
                         comment_text: e.target.value,
                         label: e.target.value 
                       })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full fluid-px-3 fluid-py-2 border rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Escribe el texto del comentario..."
                       rows={3}
                     />
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="fluid-text-xs text-gray-500 fluid-mt-1">
                       Este texto será visible para el candidato durante el ejercicio
                     </p>
                   </div>
                   
                   {/* Color de fondo */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 fluid-gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                         Color de Fondo
                       </label>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center fluid-gap-2">
                         <input
                           type="color"
                           value={actionFormData.comment_bg_color || '#3b82f6'}
@@ -3359,7 +3359,7 @@ const StudyInteractiveExercisePage = () => {
                           type="text"
                           value={actionFormData.comment_bg_color || '#3b82f6'}
                           onChange={(e) => setActionFormData({ ...actionFormData, comment_bg_color: e.target.value })}
-                          className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                          className="flex-1 fluid-px-3 fluid-py-2 border rounded-fluid-lg fluid-text-sm"
                           placeholder="#3b82f6"
                         />
                       </div>
@@ -3367,10 +3367,10 @@ const StudyInteractiveExercisePage = () => {
                     
                     {/* Color de texto */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                         Color de Texto
                       </label>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center fluid-gap-2">
                         <input
                           type="color"
                           value={actionFormData.comment_text_color || '#ffffff'}
@@ -3381,7 +3381,7 @@ const StudyInteractiveExercisePage = () => {
                           type="text"
                           value={actionFormData.comment_text_color || '#ffffff'}
                           onChange={(e) => setActionFormData({ ...actionFormData, comment_text_color: e.target.value })}
-                          className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                          className="flex-1 fluid-px-3 fluid-py-2 border rounded-fluid-lg fluid-text-sm"
                           placeholder="#ffffff"
                         />
                       </div>
@@ -3390,7 +3390,7 @@ const StudyInteractiveExercisePage = () => {
                   
                   {/* Tamaño de fuente */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                       Tamaño de Fuente: {actionFormData.comment_font_size || 14}px
                     </label>
                     <input
@@ -3401,7 +3401,7 @@ const StudyInteractiveExercisePage = () => {
                       onChange={(e) => setActionFormData({ ...actionFormData, comment_font_size: parseInt(e.target.value) })}
                       className="w-full"
                     />
-                    <div className="flex justify-between text-xs text-gray-500">
+                    <div className="flex justify-between fluid-text-xs text-gray-500">
                       <span>10px</span>
                       <span>36px</span>
                     </div>
@@ -3409,9 +3409,9 @@ const StudyInteractiveExercisePage = () => {
                   
                   {/* Vista previa */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Vista Previa</label>
+                    <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">Vista Previa</label>
                     <div 
-                      className="p-4 rounded-lg border-2 flex items-center justify-center min-h-[60px]"
+                      className="fluid-p-4 rounded-fluid-lg border-2 flex items-center justify-center min-h-[60px]"
                       style={{
                         backgroundColor: actionFormData.comment_bg_color || '#3b82f6',
                         borderColor: actionFormData.comment_text_color || '#ffffff',
@@ -3427,23 +3427,23 @@ const StudyInteractiveExercisePage = () => {
               ) : selectedAction.action_type === 'button' ? (
                 <>
                   {/* Sección 1: Identificación del Botón */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="bg-blue-50 border border-blue-200 rounded-fluid-lg fluid-p-4">
+                    <h4 className="fluid-text-sm font-semibold text-blue-900 fluid-mb-3 flex items-center fluid-gap-2">
+                      <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       Identificación del Botón
                     </h4>
-                    <p className="text-sm text-blue-800 mb-3">
+                    <p className="fluid-text-sm text-blue-800 fluid-mb-3">
                       Etiqueta: <span className="font-medium">{actionFormData.label || `Botón ${selectedAction.action_number}`}</span>
                     </p>
-                    <p className="text-xs text-blue-700">
+                    <p className="fluid-text-xs text-blue-700">
                       La etiqueta se asigna automáticamente y se usa para identificar el botón en los reportes
                     </p>
                     
                     {/* Estilo del texto indicativo */}
-                    <div className="mt-3 pt-3 border-t border-blue-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <div className="fluid-mt-3 fluid-pt-3 border-t border-blue-200">
+                      <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                         Estilo de visualización
                       </label>
                       <LabelStyleDropdown
@@ -3461,15 +3461,15 @@ const StudyInteractiveExercisePage = () => {
 
                     {/* Campo de texto indicativo (si está activado) */}
                     {actionFormData.label_style !== 'shadow_only' && actionFormData.label_style !== 'invisible' && (
-                      <div className="mt-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <div className="fluid-mt-3">
+                        <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                           Texto Indicativo <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
                           value={actionFormData.placeholder}
                           onChange={(e) => setActionFormData({ ...actionFormData, placeholder: e.target.value })}
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${!actionFormData.placeholder?.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+                          className={`w-full fluid-px-3 fluid-py-2 border rounded-fluid-lg focus:ring-2 focus:ring-blue-500 ${!actionFormData.placeholder?.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
                           placeholder="Ej: Haz clic aquí"
                         />
                       </div>
@@ -3478,19 +3478,19 @@ const StudyInteractiveExercisePage = () => {
                   
                   {/* Sección 2: Tipo de cursor (solo para acciones incorrectas) */}
                   {actionFormData.correct_answer === 'wrong' && (
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                      <h4 className="text-sm font-semibold text-purple-900 mb-3 flex items-center gap-2">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="bg-purple-50 border border-purple-200 rounded-fluid-lg fluid-p-4">
+                      <h4 className="fluid-text-sm font-semibold text-purple-900 fluid-mb-3 flex items-center fluid-gap-2">
+                        <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
                         </svg>
                         Tipo de Cursor
                       </h4>
-                      <p className="text-xs text-gray-600 mb-3">
+                      <p className="fluid-text-xs text-gray-600 fluid-mb-3">
                         Elige cómo se verá el cursor cuando el alumno pase sobre esta área
                       </p>
                       
-                      <div className="space-y-2">
-                        <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-purple-100 ${!actionFormData.scoring_mode || actionFormData.scoring_mode === 'exact' ? 'border-purple-500 bg-purple-100' : 'border-gray-200 bg-white'}`}>
+                      <div className="fluid-space-y-2">
+                        <label className={`flex items-center fluid-gap-3 fluid-p-3 border-2 rounded-fluid-lg cursor-pointer transition-colors hover:bg-purple-100 ${!actionFormData.scoring_mode || actionFormData.scoring_mode === 'exact' ? 'border-purple-500 bg-purple-100' : 'border-gray-200 bg-white'}`}>
                           <input
                             type="radio"
                             name="cursor-type"
@@ -3499,18 +3499,18 @@ const StudyInteractiveExercisePage = () => {
                             onChange={() => setActionFormData({ ...actionFormData, scoring_mode: 'exact' })}
                             className="w-4 h-4 text-purple-600"
                           />
-                          <div className="flex-1 flex items-start gap-2">
-                            <svg className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className="flex-1 flex items-start fluid-gap-2">
+                            <svg className="fluid-icon-sm text-purple-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
                             </svg>
                             <div>
                               <span className="font-medium text-gray-900">Botón Incorrecto</span>
-                              <p className="text-xs text-gray-500 mt-1">Cursor de puntero (mano) - parece un botón clickeable</p>
+                              <p className="fluid-text-xs text-gray-500 fluid-mt-1">Cursor de puntero (mano) - parece un botón clickeable</p>
                             </div>
                           </div>
                         </label>
                         
-                        <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-purple-100 ${actionFormData.scoring_mode === 'text_cursor' ? 'border-purple-500 bg-purple-100' : 'border-gray-200 bg-white'}`}>
+                        <label className={`flex items-center fluid-gap-3 fluid-p-3 border-2 rounded-fluid-lg cursor-pointer transition-colors hover:bg-purple-100 ${actionFormData.scoring_mode === 'text_cursor' ? 'border-purple-500 bg-purple-100' : 'border-gray-200 bg-white'}`}>
                           <input
                             type="radio"
                             name="cursor-type"
@@ -3519,18 +3519,18 @@ const StudyInteractiveExercisePage = () => {
                             onChange={() => setActionFormData({ ...actionFormData, scoring_mode: 'text_cursor' })}
                             className="w-4 h-4 text-purple-600"
                           />
-                          <div className="flex-1 flex items-start gap-2">
-                            <svg className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className="flex-1 flex items-start fluid-gap-2">
+                            <svg className="fluid-icon-sm text-purple-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                             <div>
                               <span className="font-medium text-gray-900">Campo Incorrecto</span>
-                              <p className="text-xs text-gray-500 mt-1">Cursor de texto (I) - parece un campo para escribir</p>
+                              <p className="fluid-text-xs text-gray-500 fluid-mt-1">Cursor de texto (I) - parece un campo para escribir</p>
                             </div>
                           </div>
                         </label>
                         
-                        <label className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-purple-100 ${actionFormData.scoring_mode === 'default_cursor' ? 'border-purple-500 bg-purple-100' : 'border-gray-200 bg-white'}`}>
+                        <label className={`flex items-center fluid-gap-3 fluid-p-3 border-2 rounded-fluid-lg cursor-pointer transition-colors hover:bg-purple-100 ${actionFormData.scoring_mode === 'default_cursor' ? 'border-purple-500 bg-purple-100' : 'border-gray-200 bg-white'}`}>
                           <input
                             type="radio"
                             name="cursor-type"
@@ -3539,13 +3539,13 @@ const StudyInteractiveExercisePage = () => {
                             onChange={() => setActionFormData({ ...actionFormData, scoring_mode: 'default_cursor' })}
                             className="w-4 h-4 text-purple-600"
                           />
-                          <div className="flex-1 flex items-start gap-2">
-                            <svg className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className="flex-1 flex items-start fluid-gap-2">
+                            <svg className="fluid-icon-sm text-purple-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
                             </svg>
                             <div>
                               <span className="font-medium text-gray-900">Cursor Normal</span>
-                              <p className="text-xs text-gray-500 mt-1">Cursor de flecha normal - no indica interactividad</p>
+                              <p className="fluid-text-xs text-gray-500 fluid-mt-1">Cursor de flecha normal - no indica interactividad</p>
                             </div>
                           </div>
                         </label>
@@ -3555,23 +3555,23 @@ const StudyInteractiveExercisePage = () => {
                   
                   {/* Sección 3: Configuración de acción en error (solo para acciones incorrectas) */}
                   {actionFormData.correct_answer === 'wrong' && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                      <h4 className="text-sm font-semibold text-orange-900 mb-3 flex items-center gap-2">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="bg-orange-50 border border-orange-200 rounded-fluid-lg fluid-p-4">
+                      <h4 className="fluid-text-sm font-semibold text-orange-900 fluid-mb-3 flex items-center fluid-gap-2">
+                        <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
                         Acción cuando se seleccione esta área incorrecta
                       </h4>
                       
-                      <div className="space-y-3">
+                      <div className="fluid-space-y-3">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                             ¿Qué hacer al seleccionar?
                           </label>
                           <select
                             value={actionFormData.on_error_action}
                             onChange={(e) => setActionFormData({ ...actionFormData, on_error_action: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                            className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-orange-500 fluid-text-sm"
                           >
                             <option value="show_message">Mostrar mensaje de error y permitir reintentar</option>
                             <option value="next_step">Pasar al siguiente paso</option>
@@ -3583,10 +3583,10 @@ const StudyInteractiveExercisePage = () => {
                           <>
                             {/* Mensaje de error personalizado */}
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                                 Mensaje de error
                               </label>
-                              <div className="border border-gray-300 rounded-lg overflow-hidden error-message-editor" style={{ maxHeight: '120px' }}>
+                              <div className="border border-gray-300 rounded-fluid-lg overflow-hidden error-message-editor" style={{ maxHeight: '120px' }}>
                                 <ReactQuill
                                   theme="snow"
                                   value={actionFormData.error_message || ''}
@@ -3610,7 +3610,7 @@ const StudyInteractiveExercisePage = () => {
                             </div>
                             
                             <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                               Número máximo de intentos adicionales
                             </label>
                             <input
@@ -3619,9 +3619,9 @@ const StudyInteractiveExercisePage = () => {
                               max="10"
                               value={actionFormData.max_attempts}
                               onChange={(e) => setActionFormData({ ...actionFormData, max_attempts: parseInt(e.target.value) || 1 })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                              className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-orange-500 fluid-text-sm"
                             />
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="fluid-text-xs text-gray-500 fluid-mt-1">
                               Después de este número de intentos adicionales, se avanzará automáticamente
                             </p>
                           </div>
@@ -3634,34 +3634,34 @@ const StudyInteractiveExercisePage = () => {
               ) : (
                 <>
                   {/* Sección 1: Respuesta Esperada */}
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-green-900 mb-3 flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="bg-green-50 border border-green-200 rounded-fluid-lg fluid-p-4">
+                    <h4 className="fluid-text-sm font-semibold text-green-900 fluid-mb-3 flex items-center fluid-gap-2">
+                      <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       Respuesta Esperada
                     </h4>
                     
-                    <div className="space-y-3">
+                    <div className="fluid-space-y-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                           Respuesta(s) Correcta(s) <span className="text-red-600">*</span>
                         </label>
                         <textarea
                           value={actionFormData.correct_answer}
                           onChange={(e) => setActionFormData({ ...actionFormData, correct_answer: e.target.value })}
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 resize-none ${!actionFormData.correct_answer?.trim() ? 'border-red-400' : 'border-gray-300'}`}
+                          className={`w-full fluid-px-3 fluid-py-2 border rounded-fluid-lg focus:ring-2 focus:ring-green-500 resize-none ${!actionFormData.correct_answer?.trim() ? 'border-red-400' : 'border-gray-300'}`}
                           placeholder="respuesta1, respuesta2, respuesta3"
                           rows={2}
                         />
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="fluid-text-xs text-gray-500 fluid-mt-1">
                           Puedes poner varias respuestas correctas separadas por coma. Por ejemplo: "opción1, opción2, opción3"
                         </p>
                       </div>
 
                       {/* Estilo del texto indicativo */}
-                      <div className="pt-2 border-t border-green-200">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <div className="fluid-pt-2 border-t border-green-200">
+                        <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                           Estilo de visualización
                         </label>
                         <LabelStyleDropdown
@@ -3680,14 +3680,14 @@ const StudyInteractiveExercisePage = () => {
                       {/* Campo de texto indicativo (si está activado) */}
                       {actionFormData.label_style !== 'shadow_only' && actionFormData.label_style !== 'invisible' && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                             Texto Indicativo <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
                             value={actionFormData.placeholder}
                             onChange={(e) => setActionFormData({ ...actionFormData, placeholder: e.target.value })}
-                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 ${!actionFormData.placeholder?.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+                            className={`w-full fluid-px-3 fluid-py-2 border rounded-fluid-lg focus:ring-2 focus:ring-green-500 ${!actionFormData.placeholder?.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
                             placeholder="Ej: Escribe tu respuesta aquí"
                           />
                         </div>
@@ -3696,16 +3696,16 @@ const StudyInteractiveExercisePage = () => {
                   </div>
 
                   {/* Sección 2: Modo de Evaluación */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="bg-blue-50 border border-blue-200 rounded-fluid-lg fluid-p-4">
+                    <h4 className="fluid-text-sm font-semibold text-blue-900 fluid-mb-3 flex items-center fluid-gap-2">
+                      <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                       </svg>
                       Modo de Evaluación
                     </h4>
                     
-                    <div className="space-y-2">
-                      <label className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-blue-100 ${actionFormData.scoring_mode === 'exact' ? 'border-blue-500 bg-blue-100' : 'border-gray-200 bg-white'}`}>
+                    <div className="fluid-space-y-2">
+                      <label className={`flex items-start fluid-gap-3 fluid-p-3 border-2 rounded-fluid-lg cursor-pointer transition-colors hover:bg-blue-100 ${actionFormData.scoring_mode === 'exact' ? 'border-blue-500 bg-blue-100' : 'border-gray-200 bg-white'}`}>
                         <input
                           type="radio"
                           name="scoring-mode"
@@ -3715,16 +3715,16 @@ const StudyInteractiveExercisePage = () => {
                           className="w-4 h-4 text-blue-600 mt-0.5"
                         />
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center fluid-gap-2">
                             <span className="font-medium text-gray-900">Exacta (0% o 100%)</span>
                           </div>
-                          <p className="text-xs text-gray-600 mt-1">
+                          <p className="fluid-text-xs text-gray-600 fluid-mt-1">
                             La respuesta debe coincidir exactamente. Si es correcta: 100%, si no: 0%
                           </p>
                         </div>
                       </label>
                       
-                      <label className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors hover:bg-blue-100 ${actionFormData.scoring_mode === 'similarity' ? 'border-blue-500 bg-blue-100' : 'border-gray-200 bg-white'}`}>
+                      <label className={`flex items-start fluid-gap-3 fluid-p-3 border-2 rounded-fluid-lg cursor-pointer transition-colors hover:bg-blue-100 ${actionFormData.scoring_mode === 'similarity' ? 'border-blue-500 bg-blue-100' : 'border-gray-200 bg-white'}`}>
                         <input
                           type="radio"
                           name="scoring-mode"
@@ -3734,10 +3734,10 @@ const StudyInteractiveExercisePage = () => {
                           className="w-4 h-4 text-blue-600 mt-0.5"
                         />
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center fluid-gap-2">
                             <span className="font-medium text-gray-900">Por Similitud</span>
                           </div>
-                          <p className="text-xs text-gray-600 mt-1">
+                          <p className="fluid-text-xs text-gray-600 fluid-mt-1">
                             La puntuación será el porcentaje de similitud entre la respuesta del alumno y la correcta. Ej: si escribe "Hol" y la correcta es "Hola", obtiene ~75%
                           </p>
                         </div>
@@ -3746,24 +3746,24 @@ const StudyInteractiveExercisePage = () => {
                   </div>
 
                   {/* Sección 3: Apariencia del Texto (solo si NO es similitud) */}
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-purple-900 mb-3 flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="bg-purple-50 border border-purple-200 rounded-fluid-lg fluid-p-4">
+                    <h4 className="fluid-text-sm font-semibold text-purple-900 fluid-mb-3 flex items-center fluid-gap-2">
+                      <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
                       </svg>
                       Apariencia del Texto
                     </h4>
                     
-                    <div className="space-y-3">
+                    <div className="fluid-space-y-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                           Color de texto
                         </label>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center fluid-gap-2">
                           <button
                             type="button"
                             onClick={() => setActionFormData({ ...actionFormData, text_color: '#000000' })}
-                            className={`px-3 py-1.5 border rounded-lg text-sm font-medium transition-colors ${
+                            className={`fluid-px-3 py-1.5 border rounded-fluid-lg fluid-text-sm font-medium transition-colors ${
                               actionFormData.text_color === '#000000' 
                                 ? 'bg-gray-900 text-white border-gray-900' 
                                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
@@ -3774,7 +3774,7 @@ const StudyInteractiveExercisePage = () => {
                           <button
                             type="button"
                             onClick={() => setActionFormData({ ...actionFormData, text_color: '#ffffff' })}
-                            className={`px-3 py-1.5 border rounded-lg text-sm font-medium transition-colors ${
+                            className={`fluid-px-3 py-1.5 border rounded-fluid-lg fluid-text-sm font-medium transition-colors ${
                               actionFormData.text_color === '#ffffff' 
                                 ? 'bg-white text-gray-900 border-gray-900 ring-2 ring-gray-900' 
                                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
@@ -3797,7 +3797,7 @@ const StudyInteractiveExercisePage = () => {
                                 setActionFormData({ ...actionFormData, text_color: value })
                               }
                             }}
-                            className="w-24 px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm font-mono"
+                            className="w-24 fluid-px-2 py-1.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-purple-500 fluid-text-sm font-mono"
                             placeholder="#000000"
                             maxLength={7}
                           />
@@ -3805,13 +3805,13 @@ const StudyInteractiveExercisePage = () => {
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                           Tipo de letra
                         </label>
                         <select
                           value={actionFormData.font_family}
                           onChange={(e) => setActionFormData({ ...actionFormData, font_family: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                          className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-purple-500 fluid-text-sm"
                         >
                           <option value="Arial" style={{ fontFamily: 'Arial' }}>Arial</option>
                           <option value="Helvetica" style={{ fontFamily: 'Helvetica' }}>Helvetica</option>
@@ -3828,23 +3828,23 @@ const StudyInteractiveExercisePage = () => {
                   
                   {/* Sección 4: Configuración de Error (solo si el modo es exacto) */}
                   {actionFormData.scoring_mode === 'exact' && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                      <h4 className="text-sm font-semibold text-orange-900 mb-3 flex items-center gap-2">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="bg-orange-50 border border-orange-200 rounded-fluid-lg fluid-p-4">
+                      <h4 className="fluid-text-sm font-semibold text-orange-900 fluid-mb-3 flex items-center fluid-gap-2">
+                        <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
                         Acción cuando la respuesta sea incorrecta
                       </h4>
                       
-                      <div className="space-y-3">
+                      <div className="fluid-space-y-3">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                             ¿Qué hacer con respuesta incorrecta?
                           </label>
                           <select
                             value={actionFormData.on_error_action}
                             onChange={(e) => setActionFormData({ ...actionFormData, on_error_action: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                            className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-orange-500 fluid-text-sm"
                           >
                             <option value="show_message">Mostrar mensaje de error y permitir reintentar</option>
                             <option value="next_step">Pasar al siguiente paso</option>
@@ -3856,10 +3856,10 @@ const StudyInteractiveExercisePage = () => {
                           <>
                             {/* Mensaje de error personalizado */}
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                                 Mensaje de error
                               </label>
-                              <div className="border border-gray-300 rounded-lg overflow-hidden error-message-editor" style={{ maxHeight: '120px' }}>
+                              <div className="border border-gray-300 rounded-fluid-lg overflow-hidden error-message-editor" style={{ maxHeight: '120px' }}>
                                 <ReactQuill
                                   theme="snow"
                                   value={actionFormData.error_message || ''}
@@ -3883,7 +3883,7 @@ const StudyInteractiveExercisePage = () => {
                             </div>
                             
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                                 Número máximo de intentos adicionales
                               </label>
                             <input
@@ -3892,9 +3892,9 @@ const StudyInteractiveExercisePage = () => {
                               max="10"
                               value={actionFormData.max_attempts}
                               onChange={(e) => setActionFormData({ ...actionFormData, max_attempts: parseInt(e.target.value) || 1 })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                              className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-orange-500 fluid-text-sm"
                             />
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="fluid-text-xs text-gray-500 fluid-mt-1">
                               Después de este número de intentos adicionales, se avanzará automáticamente
                             </p>
                           </div>
@@ -3906,14 +3906,14 @@ const StudyInteractiveExercisePage = () => {
                   
                   {/* Nota informativa para modo similitud */}
                   {actionFormData.scoring_mode === 'similarity' && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <div className="flex items-start gap-2">
-                        <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="bg-blue-50 border border-blue-200 rounded-fluid-lg fluid-p-3">
+                      <div className="flex items-start fluid-gap-2">
+                        <svg className="fluid-icon-sm text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <div>
-                          <p className="text-sm font-medium text-blue-900">Modo Similitud</p>
-                          <p className="text-xs text-blue-700 mt-1">
+                          <p className="fluid-text-sm font-medium text-blue-900">Modo Similitud</p>
+                          <p className="fluid-text-xs text-blue-700 fluid-mt-1">
                             En este modo, cualquier respuesta es aceptada y se avanza automáticamente. La puntuación final será el porcentaje de similitud calculado.
                           </p>
                         </div>
@@ -3924,16 +3924,16 @@ const StudyInteractiveExercisePage = () => {
               )}
             </div>
 
-            <div className="flex gap-3 justify-end mt-6">
+            <div className="flex fluid-gap-3 justify-end fluid-mt-6">
               <button
                 onClick={() => setIsEditActionModalOpen(false)}
-                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                className="fluid-px-4 fluid-py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-lg"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSaveAction}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                className="fluid-px-4 fluid-py-2 bg-primary-600 text-white rounded-fluid-lg hover:bg-primary-700"
                 disabled={updateActionMutation.isPending}
               >
                 {updateActionMutation.isPending ? 'Guardando...' : 'Guardar'}
@@ -3950,16 +3950,16 @@ const StudyInteractiveExercisePage = () => {
         title="Configurar Ejercicio Interactivo"
         size="lg"
       >
-        <div className="space-y-5">
+        <div className="fluid-space-y-5">
           {/* Header descriptivo */}
-          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <svg className="h-5 w-5 text-indigo-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-indigo-50 border border-indigo-200 rounded-fluid-lg fluid-p-4">
+            <div className="flex items-start fluid-gap-3">
+              <svg className="fluid-icon-sm text-indigo-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
-                <h4 className="text-sm font-medium text-indigo-800">Información del Ejercicio</h4>
-                <p className="text-sm text-indigo-600 mt-1">
+                <h4 className="fluid-text-sm font-medium text-indigo-800">Información del Ejercicio</h4>
+                <p className="fluid-text-sm text-indigo-600 fluid-mt-1">
                   Configura el título y las instrucciones que verán los estudiantes antes de realizar el ejercicio interactivo.
                 </p>
               </div>
@@ -3968,27 +3968,27 @@ const StudyInteractiveExercisePage = () => {
 
           {/* Título */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
               Título del ejercicio <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={exerciseInfoForm.title}
               onChange={(e) => setExerciseInfoForm({ ...exerciseInfoForm, title: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+              className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
               placeholder="Ej: Identifica las partes del motor"
             />
           </div>
 
           {/* Instrucciones con editor de texto enriquecido */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
               Instrucciones del ejercicio
             </label>
-            <p className="text-xs text-gray-500 mb-2">
+            <p className="fluid-text-xs text-gray-500 fluid-mb-2">
               Describe qué debe hacer el estudiante para completar el ejercicio.
             </p>
-            <div className="border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+            <div className="border border-gray-300 rounded-fluid-lg overflow-hidden shadow-sm">
               <ReactQuill
                 theme="snow"
                 value={exerciseInfoForm.description}
@@ -4017,25 +4017,25 @@ const StudyInteractiveExercisePage = () => {
           </div>
 
           {/* Sección de descarga de imágenes para videos */}
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <svg className="h-5 w-5 text-purple-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-purple-50 border border-purple-200 rounded-fluid-lg fluid-p-4">
+            <div className="flex items-start fluid-gap-3">
+              <svg className="fluid-icon-sm text-purple-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
               <div className="flex-1">
-                <h4 className="text-sm font-medium text-purple-800">Descargar Imágenes para Videos</h4>
-                <p className="text-sm text-purple-600 mt-1">
+                <h4 className="fluid-text-sm font-medium text-purple-800">Descargar Imágenes para Videos</h4>
+                <p className="fluid-text-sm text-purple-600 fluid-mt-1">
                   Descarga las imágenes de los pasos con los comentarios y acciones visibles superpuestas. Útil para crear videos explicativos.
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="fluid-mt-3 flex flex-wrap fluid-gap-2">
                   <button
                     onClick={handleDownloadAllImagesWithOverlays}
                     disabled={isDownloading || !exercise?.steps?.length}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium transition-colors"
+                    className="fluid-px-4 fluid-py-2 bg-purple-600 text-white rounded-fluid-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 fluid-text-sm font-medium transition-colors"
                   >
                     {isDownloading ? (
                       <>
-                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <svg className="animate-spin fluid-icon-xs" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
@@ -4043,7 +4043,7 @@ const StudyInteractiveExercisePage = () => {
                       </>
                     ) : (
                       <>
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
                         Descargar Todas ({exercise?.steps?.length || 0} pasos)
@@ -4051,7 +4051,7 @@ const StudyInteractiveExercisePage = () => {
                     )}
                   </button>
                   {exercise?.steps?.length === 0 && (
-                    <span className="text-xs text-purple-500 italic self-center">No hay pasos para descargar</span>
+                    <span className="fluid-text-xs text-purple-500 italic self-center">No hay pasos para descargar</span>
                   )}
                 </div>
               </div>
@@ -4059,21 +4059,21 @@ const StudyInteractiveExercisePage = () => {
           </div>
 
           {/* Botones de acción */}
-          <div className="flex justify-end gap-3 pt-5 border-t border-gray-200">
+          <div className="flex justify-end fluid-gap-3 fluid-pt-5 border-t border-gray-200">
             <button 
               onClick={() => setIsExerciseInfoModalOpen(false)} 
-              className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+              className="fluid-px-4 py-2.5 border border-gray-300 text-gray-700 rounded-fluid-lg hover:bg-gray-50 font-medium transition-colors"
             >
               Cancelar
             </button>
             <button
               onClick={handleSaveExerciseInfo}
               disabled={isSavingExerciseInfo || !exerciseInfoForm.title.trim()}
-              className="px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors shadow-sm"
+              className="fluid-px-5 py-2.5 bg-indigo-600 text-white rounded-fluid-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 font-medium transition-colors shadow-sm"
             >
               {isSavingExerciseInfo ? (
                 <>
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin fluid-icon-xs" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
@@ -4081,7 +4081,7 @@ const StudyInteractiveExercisePage = () => {
                 </>
               ) : (
                 <>
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                   Guardar Información
@@ -4095,25 +4095,25 @@ const StudyInteractiveExercisePage = () => {
       {/* Modal de confirmación para eliminar acción */}
       {deleteActionModal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]" onClick={() => setDeleteActionModal({ isOpen: false, actionId: null, actionType: null, isCorrect: false })}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-fluid-xl shadow-2xl fluid-p-6 w-full max-w-md fluid-mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-col items-center text-center">
               {/* Icono de eliminación */}
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center fluid-mb-4">
                 <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </div>
               
               {/* Título */}
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-2">
                 Eliminar {deleteActionModal.actionType === 'button' ? 'Botón' : 'Campo de Texto'}
               </h3>
               
               {/* Mensaje */}
-              <p className="text-gray-600 mb-2">
+              <p className="text-gray-600 fluid-mb-2">
                 ¿Estás seguro de que deseas eliminar esta acción?
               </p>
-              <p className="text-sm text-gray-500 mb-6">
+              <p className="fluid-text-sm text-gray-500 fluid-mb-6">
                 {deleteActionModal.isCorrect ? (
                   <span className="text-green-600 font-medium">Esta es la respuesta correcta del paso.</span>
                 ) : (
@@ -4122,16 +4122,16 @@ const StudyInteractiveExercisePage = () => {
               </p>
               
               {/* Botones */}
-              <div className="flex gap-3">
+              <div className="flex fluid-gap-3">
                 <button
                   onClick={() => setDeleteActionModal({ isOpen: false, actionId: null, actionType: null, isCorrect: false })}
-                  className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  className="fluid-px-5 py-2.5 bg-gray-100 text-gray-700 rounded-fluid-lg hover:bg-gray-200 transition-colors font-medium"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={confirmDeleteAction}
-                  className="px-5 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+                  className="fluid-px-5 py-2.5 bg-red-500 text-white rounded-fluid-lg hover:bg-red-600 transition-colors font-medium"
                 >
                   Eliminar
                 </button>
@@ -4144,29 +4144,29 @@ const StudyInteractiveExercisePage = () => {
       {/* Modal de advertencia */}
       {warningModal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]" onClick={() => setWarningModal({ isOpen: false, title: '', message: '' })}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-fluid-xl shadow-2xl fluid-p-6 w-full max-w-md fluid-mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-col items-center text-center">
               {/* Icono de advertencia */}
-              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center fluid-mb-4">
                 <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
               
               {/* Título */}
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-2">
                 {warningModal.title}
               </h3>
               
               {/* Mensaje */}
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 fluid-mb-6">
                 {warningModal.message}
               </p>
               
               {/* Botón */}
               <button
                 onClick={() => setWarningModal({ isOpen: false, title: '', message: '' })}
-                className="px-6 py-2.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium"
+                className="fluid-px-6 py-2.5 bg-amber-500 text-white rounded-fluid-lg hover:bg-amber-600 transition-colors font-medium"
               >
                 Entendido
               </button>
@@ -4178,29 +4178,29 @@ const StudyInteractiveExercisePage = () => {
       {/* Modal de éxito */}
       {successModal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]" onClick={() => setSuccessModal({ isOpen: false, title: '', message: '' })}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-fluid-xl shadow-2xl fluid-p-6 w-full max-w-md fluid-mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-col items-center text-center">
               {/* Icono de éxito */}
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center fluid-mb-4">
                 <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
               
               {/* Título */}
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-2">
                 {successModal.title}
               </h3>
               
               {/* Mensaje */}
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 fluid-mb-6">
                 {successModal.message}
               </p>
               
               {/* Botón */}
               <button
                 onClick={() => setSuccessModal({ isOpen: false, title: '', message: '' })}
-                className="px-6 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
+                className="fluid-px-6 py-2.5 bg-green-500 text-white rounded-fluid-lg hover:bg-green-600 transition-colors font-medium"
               >
                 Entendido
               </button>
@@ -4212,36 +4212,36 @@ const StudyInteractiveExercisePage = () => {
       {/* Modal de confirmación para salir sin guardar */}
       {exitConfirmModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80]" onClick={() => setExitConfirmModal(false)}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-fluid-xl shadow-2xl fluid-p-6 w-full max-w-md fluid-mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-col items-center text-center">
               {/* Icono de advertencia */}
-              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center fluid-mb-4">
                 <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
               
               {/* Título */}
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-2">
                 ¿Salir sin guardar?
               </h3>
               
               {/* Mensaje */}
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 fluid-mb-6">
                 Tienes cambios sin guardar. Si sales ahora, perderás todos los cambios realizados desde la última vez que guardaste.
               </p>
               
               {/* Botones */}
-              <div className="flex gap-3 w-full">
+              <div className="flex fluid-gap-3 w-full">
                 <button
                   onClick={() => setExitConfirmModal(false)}
-                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  className="flex-1 fluid-px-4 py-2.5 bg-gray-100 text-gray-700 rounded-fluid-lg hover:bg-gray-200 transition-colors font-medium"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleDiscardAndExit}
-                  className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+                  className="flex-1 fluid-px-4 py-2.5 bg-red-500 text-white rounded-fluid-lg hover:bg-red-600 transition-colors font-medium"
                 >
                   Salir sin guardar
                 </button>
@@ -4254,36 +4254,36 @@ const StudyInteractiveExercisePage = () => {
       {/* Modal de confirmación de recarga */}
       {reloadConfirmModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80]" onClick={() => setReloadConfirmModal(false)}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-fluid-xl shadow-2xl fluid-p-6 w-full max-w-md fluid-mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-col items-center text-center">
               {/* Icono de advertencia */}
-              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center fluid-mb-4">
                 <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
               </div>
               
               {/* Título */}
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-2">
                 ¿Recargar página?
               </h3>
               
               {/* Mensaje */}
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 fluid-mb-6">
                 Tienes cambios sin guardar. Si recargas la página ahora, perderás todos los cambios realizados desde la última vez que guardaste.
               </p>
               
               {/* Botones */}
-              <div className="flex gap-3 w-full">
+              <div className="flex fluid-gap-3 w-full">
                 <button
                   onClick={() => setReloadConfirmModal(false)}
-                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  className="flex-1 fluid-px-4 py-2.5 bg-gray-100 text-gray-700 rounded-fluid-lg hover:bg-gray-200 transition-colors font-medium"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={() => window.location.reload()}
-                  className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+                  className="flex-1 fluid-px-4 py-2.5 bg-red-500 text-white rounded-fluid-lg hover:bg-red-600 transition-colors font-medium"
                 >
                   Recargar
                 </button>
