@@ -2068,6 +2068,7 @@ const StudyInteractiveExercisePage = () => {
                               borderRight: `${triangleSize}px solid ${bgColor}`,
                               borderBottom: `${triangleSize}px solid ${bgColor}`,
                               transform: 'translate(100%, 100%)',
+                              filter: `drop-shadow(1px 1px 0 ${borderColor}) drop-shadow(1px 0 0 ${borderColor}) drop-shadow(0 1px 0 ${borderColor})`,
                             }
                           } else if (isCornerBottomLeft) {
                             // Esquina inferior izquierda - triángulo pegado a la esquina
@@ -2082,6 +2083,7 @@ const StudyInteractiveExercisePage = () => {
                               borderLeft: `${triangleSize}px solid ${bgColor}`,
                               borderBottom: `${triangleSize}px solid ${bgColor}`,
                               transform: 'translate(-100%, 100%)',
+                              filter: `drop-shadow(-1px 1px 0 ${borderColor}) drop-shadow(-1px 0 0 ${borderColor}) drop-shadow(0 1px 0 ${borderColor})`,
                             }
                           } else if (isCornerTopRight) {
                             // Esquina superior derecha - triángulo pegado a la esquina
@@ -2096,6 +2098,7 @@ const StudyInteractiveExercisePage = () => {
                               borderRight: `${triangleSize}px solid ${bgColor}`,
                               borderTop: `${triangleSize}px solid ${bgColor}`,
                               transform: 'translate(100%, -100%)',
+                              filter: `drop-shadow(1px -1px 0 ${borderColor}) drop-shadow(1px 0 0 ${borderColor}) drop-shadow(0 -1px 0 ${borderColor})`,
                             }
                           } else if (isCornerTopLeft) {
                             // Esquina superior izquierda - triángulo pegado a la esquina
@@ -2110,6 +2113,7 @@ const StudyInteractiveExercisePage = () => {
                               borderLeft: `${triangleSize}px solid ${bgColor}`,
                               borderTop: `${triangleSize}px solid ${bgColor}`,
                               transform: 'translate(-100%, -100%)',
+                              filter: `drop-shadow(-1px -1px 0 ${borderColor}) drop-shadow(-1px 0 0 ${borderColor}) drop-shadow(0 -1px 0 ${borderColor})`,
                             }
                           } else if (isPointerBottom) {
                             // Punta hacia abajo - pegada al borde inferior
@@ -2124,6 +2128,7 @@ const StudyInteractiveExercisePage = () => {
                               borderLeft: `${triangleSize}px solid transparent`,
                               borderRight: `${triangleSize}px solid transparent`,
                               borderTop: `${triangleSize}px solid ${bgColor}`,
+                              filter: `drop-shadow(-1px 1px 0 ${borderColor}) drop-shadow(1px 1px 0 ${borderColor}) drop-shadow(0 1px 0 ${borderColor})`,
                             }
                           } else if (isPointerTop) {
                             // Punta hacia arriba - pegada al borde superior
@@ -2138,6 +2143,7 @@ const StudyInteractiveExercisePage = () => {
                               borderLeft: `${triangleSize}px solid transparent`,
                               borderRight: `${triangleSize}px solid transparent`,
                               borderBottom: `${triangleSize}px solid ${bgColor}`,
+                              filter: `drop-shadow(-1px -1px 0 ${borderColor}) drop-shadow(1px -1px 0 ${borderColor}) drop-shadow(0 -1px 0 ${borderColor})`,
                             }
                           } else if (isPointerLeft) {
                             // Punta hacia la izquierda - pegada al borde izquierdo
@@ -2152,6 +2158,7 @@ const StudyInteractiveExercisePage = () => {
                               borderTop: `${triangleSize}px solid transparent`,
                               borderBottom: `${triangleSize}px solid transparent`,
                               borderRight: `${triangleSize}px solid ${bgColor}`,
+                              filter: `drop-shadow(-1px -1px 0 ${borderColor}) drop-shadow(-1px 1px 0 ${borderColor}) drop-shadow(-1px 0 0 ${borderColor})`,
                             }
                           } else if (isPointerRight) {
                             // Punta hacia la derecha - pegada al borde derecho
@@ -2166,6 +2173,7 @@ const StudyInteractiveExercisePage = () => {
                               borderTop: `${triangleSize}px solid transparent`,
                               borderBottom: `${triangleSize}px solid transparent`,
                               borderLeft: `${triangleSize}px solid ${bgColor}`,
+                              filter: `drop-shadow(1px -1px 0 ${borderColor}) drop-shadow(1px 1px 0 ${borderColor}) drop-shadow(1px 0 0 ${borderColor})`,
                             }
                           }
                         }

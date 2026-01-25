@@ -2471,6 +2471,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
           borderRight: `${triangleSize}px solid ${bgColor}`,
           borderBottom: `${triangleSize}px solid ${bgColor}`,
           transform: 'translate(100%, 100%)',
+          filter: `drop-shadow(1px 1px 0 ${textColor}) drop-shadow(1px 0 0 ${textColor}) drop-shadow(0 1px 0 ${textColor})`,
         }
       } else if (isCornerBottomLeft) {
         // Esquina inferior izquierda - triángulo pegado a la esquina
@@ -2485,6 +2486,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
           borderLeft: `${triangleSize}px solid ${bgColor}`,
           borderBottom: `${triangleSize}px solid ${bgColor}`,
           transform: 'translate(-100%, 100%)',
+          filter: `drop-shadow(-1px 1px 0 ${textColor}) drop-shadow(-1px 0 0 ${textColor}) drop-shadow(0 1px 0 ${textColor})`,
         }
       } else if (isCornerTopRight) {
         // Esquina superior derecha - triángulo pegado a la esquina
@@ -2499,6 +2501,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
           borderRight: `${triangleSize}px solid ${bgColor}`,
           borderTop: `${triangleSize}px solid ${bgColor}`,
           transform: 'translate(100%, -100%)',
+          filter: `drop-shadow(1px -1px 0 ${textColor}) drop-shadow(1px 0 0 ${textColor}) drop-shadow(0 -1px 0 ${textColor})`,
         }
       } else if (isCornerTopLeft) {
         // Esquina superior izquierda - triángulo pegado a la esquina
@@ -2513,6 +2516,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
           borderLeft: `${triangleSize}px solid ${bgColor}`,
           borderTop: `${triangleSize}px solid ${bgColor}`,
           transform: 'translate(-100%, -100%)',
+          filter: `drop-shadow(-1px -1px 0 ${textColor}) drop-shadow(-1px 0 0 ${textColor}) drop-shadow(0 -1px 0 ${textColor})`,
         }
       } else if (isPointerBottom) {
         // Punta hacia abajo - pegada al borde inferior
@@ -2527,6 +2531,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
           borderLeft: `${triangleSize}px solid transparent`,
           borderRight: `${triangleSize}px solid transparent`,
           borderTop: `${triangleSize}px solid ${bgColor}`,
+          filter: `drop-shadow(-1px 1px 0 ${textColor}) drop-shadow(1px 1px 0 ${textColor}) drop-shadow(0 1px 0 ${textColor})`,
         }
       } else if (isPointerTop) {
         // Punta hacia arriba - pegada al borde superior
@@ -2541,6 +2546,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
           borderLeft: `${triangleSize}px solid transparent`,
           borderRight: `${triangleSize}px solid transparent`,
           borderBottom: `${triangleSize}px solid ${bgColor}`,
+          filter: `drop-shadow(-1px -1px 0 ${textColor}) drop-shadow(1px -1px 0 ${textColor}) drop-shadow(0 -1px 0 ${textColor})`,
         }
       } else if (isPointerLeft) {
         // Punta hacia la izquierda - pegada al borde izquierdo
@@ -2555,6 +2561,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
           borderTop: `${triangleSize}px solid transparent`,
           borderBottom: `${triangleSize}px solid transparent`,
           borderRight: `${triangleSize}px solid ${bgColor}`,
+          filter: `drop-shadow(-1px -1px 0 ${textColor}) drop-shadow(-1px 1px 0 ${textColor}) drop-shadow(-1px 0 0 ${textColor})`,
         }
       } else if (isPointerRight) {
         // Punta hacia la derecha - pegada al borde derecho
@@ -2569,6 +2576,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
           borderTop: `${triangleSize}px solid transparent`,
           borderBottom: `${triangleSize}px solid transparent`,
           borderLeft: `${triangleSize}px solid ${bgColor}`,
+          filter: `drop-shadow(1px -1px 0 ${textColor}) drop-shadow(1px 1px 0 ${textColor}) drop-shadow(1px 0 0 ${textColor})`,
         }
       }
     }
