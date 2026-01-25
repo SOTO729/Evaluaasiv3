@@ -969,10 +969,19 @@ const StudyInteractiveExercisePage = () => {
 
   // Calcular inconsistencias de dimensiones de imágenes comparando con el paso 1
   const imageDimensionsWarning = useMemo(() => {
+    // Debug: Log de dimensiones
+    console.log('📐 Checking dimensions. Steps:', steps.length)
+    steps.forEach((step: StudyInteractiveExerciseStep, idx: number) => {
+      console.log(`  Step ${idx + 1}: ${step.image_width}x${step.image_height}`)
+    })
+    
     if (steps.length < 2) return null
     
     const firstStep = steps[0] as StudyInteractiveExerciseStep
-    if (!firstStep?.image_width || !firstStep?.image_height) return null
+    if (!firstStep?.image_width || !firstStep?.image_height) {
+      console.log('  ⚠️ First step has no dimensions')
+      return null
+    }
     
     const referenceWidth = firstStep.image_width
     const referenceHeight = firstStep.image_height
@@ -989,6 +998,8 @@ const StudyInteractiveExercisePage = () => {
         inconsistentSteps.push(index + 1) // +1 para mostrar número de paso (1-indexed)
       }
     })
+    
+    console.log('  🔍 Inconsistent steps:', inconsistentSteps)
     
     if (inconsistentSteps.length === 0) return null
     

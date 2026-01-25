@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { examService } from '../services/examService'
 import type { Exercise, ExerciseStep, ExerciseAction } from '../types'
@@ -231,6 +231,49 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
 
   const steps = exerciseData?.exercise?.steps || []
   const currentStep = steps[currentStepIndex] as ExerciseStep | undefined
+
+  // Calcular inconsistencias de dimensiones de imágenes comparando con el paso 1
+  const imageDimensionsWarning = useMemo(() => {
+    // Debug: Log de dimensiones
+    console.log('📐 [ExamEditor] Checking dimensions. Steps:', steps.length)
+    steps.forEach((step: ExerciseStep, idx: number) => {
+      console.log(`  Step ${idx + 1}: ${step.image_width}x${step.image_height}`)
+    })
+    
+    if (steps.length < 2) return null
+    
+    const firstStep = steps[0] as ExerciseStep
+    if (!firstStep?.image_width || !firstStep?.image_height) {
+      console.log('  ⚠️ First step has no dimensions')
+      return null
+    }
+    
+    const referenceWidth = firstStep.image_width
+    const referenceHeight = firstStep.image_height
+    
+    const inconsistentSteps: number[] = []
+    
+    steps.forEach((step: ExerciseStep, index: number) => {
+      if (index === 0) return // Saltar el primer paso (es la referencia)
+      if (!step.image_width || !step.image_height) return // Saltar pasos sin imagen
+      
+      // Comparar dimensiones (permitir tolerancia de 1px por redondeo)
+      if (Math.abs(step.image_width - referenceWidth) > 1 || 
+          Math.abs(step.image_height - referenceHeight) > 1) {
+        inconsistentSteps.push(index + 1) // +1 para mostrar número de paso (1-indexed)
+      }
+    })
+    
+    console.log('  🔍 Inconsistent steps:', inconsistentSteps)
+    
+    if (inconsistentSteps.length === 0) return null
+    
+    return {
+      referenceWidth,
+      referenceHeight,
+      inconsistentSteps
+    }
+  }, [steps])
 
   // Verificar si hay campos de texto sin respuesta en todos los pasos
   const hasTextboxWithoutAnswer = steps.some((step: ExerciseStep) => 
@@ -1110,6 +1153,25 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
             )}
           </div>
         </div>
+
+        {/* Banner de advertencia de dimensiones inconsistentes */}
+        {imageDimensionsWarning && (
+          <div className="flex items-center gap-3 px-6 py-2 bg-amber-50 border-b border-amber-200">
+            <svg className="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div className="flex-1 min-w-0">
+              <span className="text-sm text-amber-800">
+                <strong>Advertencia:</strong> Las imágenes no tienen dimensiones consistentes.
+                Referencia (Paso 1): <strong>{imageDimensionsWarning.referenceWidth}×{imageDimensionsWarning.referenceHeight}px</strong>.
+                {imageDimensionsWarning.inconsistentSteps.length === 1 
+                  ? ` El paso ${imageDimensionsWarning.inconsistentSteps[0]} tiene diferente tamaño.`
+                  : ` Los pasos ${imageDimensionsWarning.inconsistentSteps.join(', ')} tienen diferente tamaño.`
+                }
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Main content */}
         <div className="flex flex-1 overflow-hidden">
