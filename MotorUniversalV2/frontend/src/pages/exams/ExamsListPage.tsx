@@ -62,26 +62,29 @@ const ExamCard = ({
 
   return (
     <div 
-      className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 group animate-stagger-in relative hover:shadow-lg cursor-pointer transition-all duration-300"
+      className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 group animate-stagger-in relative hover:shadow-lg cursor-pointer transition-all duration-300 flex flex-col"
       style={{ animationDelay: `${index * 50}ms` }}
     >
-      {/* Card Image */}
+      {/* Card Image - altura fija con overflow hidden para contener la imagen */}
       <div 
-        className="relative fluid-h-40 bg-gradient-to-br from-blue-600 to-blue-800 cursor-pointer"
+        className="relative flex-shrink-0 overflow-hidden cursor-pointer"
+        style={{ height: 'clamp(120px, 15vw, 180px)' }}
         onClick={handleCardClick}
       >
-        {exam.image_url ? (
-          <OptimizedImage
-            src={exam.image_url}
-            alt={exam.name}
-            className="w-full h-full object-cover"
-            fallbackIcon={<FileText className="fluid-icon-xl text-white/50" />}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <FileText className="fluid-icon-xl text-white/50" />
-          </div>
-        )}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-800">
+          {exam.image_url ? (
+            <OptimizedImage
+              src={exam.image_url}
+              alt={exam.name}
+              className="w-full h-full object-cover"
+              fallbackIcon={<FileText className="fluid-icon-xl text-white/50" />}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <FileText className="fluid-icon-xl text-white/50" />
+            </div>
+          )}
+        </div>
         
         {/* Status Badge - Solo mostrar si showStatus es true */}
         {showStatus && !isCandidate && (
