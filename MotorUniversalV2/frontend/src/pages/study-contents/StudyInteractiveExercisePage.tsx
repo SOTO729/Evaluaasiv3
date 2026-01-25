@@ -926,172 +926,193 @@ const StudyInteractiveExercisePage = () => {
     return response.data.url
   }
 
-  // Descargar imagen con comentarios y acciones visibles superpuestas
-  const handleDownloadImageWithOverlays = async () => {
-    if (!currentStep?.image_url) return
+  // Función auxiliar para generar imagen de un paso con overlays
+  const generateStepImageWithOverlays = async (step: StudyInteractiveExerciseStep): Promise<HTMLCanvasElement | null> => {
+    if (!step?.image_url) return null
+    
+    // Filtrar acciones que deben mostrarse (comentarios + no-invisibles)
+    const visibleActions = (step.actions || []).filter(action => {
+      // Siempre incluir comentarios
+      if (action.action_type === 'comment') return true
+      // Incluir acciones con estilo diferente a invisible
+      return action.label_style && action.label_style !== 'invisible'
+    })
+    
+    // Crear un contenedor temporal para la captura
+    const tempContainer = document.createElement('div')
+    tempContainer.style.position = 'absolute'
+    tempContainer.style.left = '-9999px'
+    tempContainer.style.top = '0'
+    document.body.appendChild(tempContainer)
+    
+    // Crear imagen para obtener dimensiones reales
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error('Error cargando la imagen'))
+      img.src = step.image_url!
+    })
+    
+    const imgWidth = img.naturalWidth
+    const imgHeight = img.naturalHeight
+    
+    // Construir el HTML con la imagen y las acciones superpuestas
+    tempContainer.innerHTML = `
+      <div style="position: relative; width: ${imgWidth}px; height: ${imgHeight}px; background: white;">
+        <img src="${step.image_url}" style="width: 100%; height: 100%; display: block;" crossorigin="anonymous" />
+        ${visibleActions.map(action => {
+          const left = (action.position_x / 100) * imgWidth
+          const top = (action.position_y / 100) * imgHeight
+          const width = (action.width / 100) * imgWidth
+          const height = (action.height / 100) * imgHeight
+          
+          if (action.action_type === 'comment') {
+            const bgColor = action.comment_bg_color || '#3b82f6'
+            const textColor = action.comment_text_color || '#ffffff'
+            const fontSize = action.comment_font_size || 14
+            
+            return `
+              <div style="
+                position: absolute;
+                left: ${left}px;
+                top: ${top}px;
+                width: ${width}px;
+                height: ${height}px;
+                background-color: ${bgColor};
+                border: 2px solid ${textColor};
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 8px;
+                box-sizing: border-box;
+                color: ${textColor};
+                font-size: ${fontSize}px;
+                font-weight: 500;
+                text-align: center;
+                overflow: hidden;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+              ">
+                ${action.comment_text || action.label || 'Comentario'}
+              </div>
+            `
+          } else {
+            // Acción con estilo visible (no invisible)
+            const labelStyle = action.label_style
+            const isTextInput = action.action_type === 'text_input'
+            const label = action.label || action.placeholder || ''
+            
+            let bgColor = 'transparent'
+            let textBg = 'transparent'
+            let textColor = '#1f2937'
+            let showText = false
+            let showShadow = false
+            
+            if (labelStyle === 'text_only') {
+              showText = true
+              textBg = 'rgba(255, 255, 255, 0.9)'
+            } else if (labelStyle === 'text_with_shadow') {
+              showText = true
+              showShadow = true
+              bgColor = isTextInput ? 'rgba(101, 163, 13, 0.3)' : 'rgba(20, 184, 166, 0.3)'
+              textBg = 'rgba(255, 255, 255, 0.95)'
+            } else if (labelStyle === 'shadow_only') {
+              showShadow = true
+              bgColor = isTextInput ? 'rgba(101, 163, 13, 0.3)' : 'rgba(20, 184, 166, 0.3)'
+            }
+            
+            if (!showText && !showShadow) return '' // invisible, no mostrar
+            
+            return `
+              <div style="
+                position: absolute;
+                left: ${left}px;
+                top: ${top}px;
+                width: ${width}px;
+                height: ${height}px;
+                ${showShadow ? `
+                  background-color: ${bgColor};
+                  border: 2px solid ${isTextInput ? '#65a30d' : '#14b8a6'};
+                  border-radius: 6px;
+                ` : ''}
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-sizing: border-box;
+              ">
+                ${showText && label ? `
+                  <span style="
+                    background: ${textBg};
+                    color: ${textColor};
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    font-weight: 500;
+                    max-width: 90%;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                  ">
+                    ${label}
+                  </span>
+                ` : ''}
+              </div>
+            `
+          }
+        }).join('')}
+      </div>
+    `
+    
+    // Esperar a que las imágenes se carguen
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    // Capturar con html2canvas
+    const targetElement = tempContainer.firstChild as HTMLElement
+    const canvas = await html2canvas(targetElement, {
+      useCORS: true,
+      allowTaint: true,
+      scale: 2, // Mayor resolución
+      backgroundColor: '#ffffff',
+    })
+    
+    // Limpiar el contenedor temporal
+    document.body.removeChild(tempContainer)
+    
+    return canvas
+  }
+
+  // Descargar todas las imágenes con comentarios y acciones visibles superpuestas
+  const handleDownloadAllImagesWithOverlays = async () => {
+    if (!exercise?.steps?.length) return
     
     setIsDownloading(true)
     
     try {
-      // Filtrar acciones que deben mostrarse (comentarios + no-invisibles)
-      const visibleActions = (currentStep.actions || []).filter(action => {
-        // Siempre incluir comentarios
-        if (action.action_type === 'comment') return true
-        // Incluir acciones con estilo diferente a invisible
-        return action.label_style && action.label_style !== 'invisible'
-      })
+      const stepsWithImages = exercise.steps.filter(step => step.image_url)
       
-      // Crear un contenedor temporal para la captura
-      const tempContainer = document.createElement('div')
-      tempContainer.style.position = 'absolute'
-      tempContainer.style.left = '-9999px'
-      tempContainer.style.top = '0'
-      document.body.appendChild(tempContainer)
-      
-      // Crear imagen para obtener dimensiones reales
-      const img = new Image()
-      img.crossOrigin = 'anonymous'
-      
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve()
-        img.onerror = () => reject(new Error('Error cargando la imagen'))
-        img.src = currentStep.image_url!
-      })
-      
-      const imgWidth = img.naturalWidth
-      const imgHeight = img.naturalHeight
-      
-      // Construir el HTML con la imagen y las acciones superpuestas
-      tempContainer.innerHTML = `
-        <div style="position: relative; width: ${imgWidth}px; height: ${imgHeight}px; background: white;">
-          <img src="${currentStep.image_url}" style="width: 100%; height: 100%; display: block;" crossorigin="anonymous" />
-          ${visibleActions.map(action => {
-            const left = (action.position_x / 100) * imgWidth
-            const top = (action.position_y / 100) * imgHeight
-            const width = (action.width / 100) * imgWidth
-            const height = (action.height / 100) * imgHeight
-            
-            if (action.action_type === 'comment') {
-              const bgColor = action.comment_bg_color || '#3b82f6'
-              const textColor = action.comment_text_color || '#ffffff'
-              const fontSize = action.comment_font_size || 14
-              
-              return `
-                <div style="
-                  position: absolute;
-                  left: ${left}px;
-                  top: ${top}px;
-                  width: ${width}px;
-                  height: ${height}px;
-                  background-color: ${bgColor};
-                  border: 2px solid ${textColor};
-                  border-radius: 12px;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  padding: 8px;
-                  box-sizing: border-box;
-                  color: ${textColor};
-                  font-size: ${fontSize}px;
-                  font-weight: 500;
-                  text-align: center;
-                  overflow: hidden;
-                  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-                ">
-                  ${action.comment_text || action.label || 'Comentario'}
-                </div>
-              `
-            } else {
-              // Acción con estilo visible (no invisible)
-              const labelStyle = action.label_style
-              const isTextInput = action.action_type === 'text_input'
-              const label = action.label || action.placeholder || ''
-              
-              let bgColor = 'transparent'
-              let textBg = 'transparent'
-              let textColor = '#1f2937'
-              let showText = false
-              let showShadow = false
-              
-              if (labelStyle === 'text_only') {
-                showText = true
-                textBg = 'rgba(255, 255, 255, 0.9)'
-              } else if (labelStyle === 'text_with_shadow') {
-                showText = true
-                showShadow = true
-                bgColor = isTextInput ? 'rgba(101, 163, 13, 0.3)' : 'rgba(20, 184, 166, 0.3)'
-                textBg = 'rgba(255, 255, 255, 0.95)'
-              } else if (labelStyle === 'shadow_only') {
-                showShadow = true
-                bgColor = isTextInput ? 'rgba(101, 163, 13, 0.3)' : 'rgba(20, 184, 166, 0.3)'
-              }
-              
-              if (!showText && !showShadow) return '' // invisible, no mostrar
-              
-              return `
-                <div style="
-                  position: absolute;
-                  left: ${left}px;
-                  top: ${top}px;
-                  width: ${width}px;
-                  height: ${height}px;
-                  ${showShadow ? `
-                    background-color: ${bgColor};
-                    border: 2px solid ${isTextInput ? '#65a30d' : '#14b8a6'};
-                    border-radius: 6px;
-                  ` : ''}
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  box-sizing: border-box;
-                ">
-                  ${showText && label ? `
-                    <span style="
-                      background: ${textBg};
-                      color: ${textColor};
-                      padding: 4px 8px;
-                      border-radius: 4px;
-                      font-size: 12px;
-                      font-weight: 500;
-                      max-width: 90%;
-                      overflow: hidden;
-                      text-overflow: ellipsis;
-                      white-space: nowrap;
-                    ">
-                      ${label}
-                    </span>
-                  ` : ''}
-                </div>
-              `
-            }
-          }).join('')}
-        </div>
-      `
-      
-      // Esperar a que las imágenes se carguen
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      // Capturar con html2canvas
-      const targetElement = tempContainer.firstChild as HTMLElement
-      const canvas = await html2canvas(targetElement, {
-        useCORS: true,
-        allowTaint: true,
-        scale: 2, // Mayor resolución
-        backgroundColor: '#ffffff',
-      })
-      
-      // Limpiar el contenedor temporal
-      document.body.removeChild(tempContainer)
-      
-      // Descargar la imagen
-      const link = document.createElement('a')
-      link.download = `paso_${currentStep.step_number}_con_acciones.png`
-      link.href = canvas.toDataURL('image/png')
-      link.click()
+      for (let i = 0; i < stepsWithImages.length; i++) {
+        const step = stepsWithImages[i]
+        const canvas = await generateStepImageWithOverlays(step)
+        
+        if (canvas) {
+          // Descargar la imagen
+          const link = document.createElement('a')
+          link.download = `paso_${step.step_number}_con_acciones.png`
+          link.href = canvas.toDataURL('image/png')
+          link.click()
+          
+          // Pequeña pausa entre descargas para evitar problemas con el navegador
+          if (i < stepsWithImages.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500))
+          }
+        }
+      }
       
     } catch (error) {
-      console.error('Error al descargar la imagen:', error)
-      alert('Error al descargar la imagen. Por favor intenta de nuevo.')
+      console.error('Error al descargar las imágenes:', error)
+      alert('Error al descargar las imágenes. Por favor intenta de nuevo.')
     } finally {
       setIsDownloading(false)
     }
@@ -1917,29 +1938,6 @@ const StudyInteractiveExercisePage = () => {
             Reset
           </button>
         </div>
-
-        {/* Separador y botón de descarga */}
-        <div className="h-6 w-px bg-gray-300"></div>
-        <button
-          onClick={handleDownloadImageWithOverlays}
-          disabled={!currentStep?.image_url || isDownloading}
-          className="p-2 rounded-lg bg-white border hover:bg-indigo-50 hover:border-indigo-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-          title="Descargar imagen con comentarios y acciones visibles"
-        >
-          {isDownloading ? (
-            <svg className="w-5 h-5 animate-spin text-indigo-600" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          ) : (
-            <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-          )}
-          <span className="text-sm font-medium text-indigo-600">
-            {isDownloading ? 'Descargando...' : 'Descargar'}
-          </span>
-        </button>
 
         <div className="flex-1"></div>
 
@@ -3861,6 +3859,48 @@ const StudyInteractiveExercisePage = () => {
                 placeholder="Ej: Haz clic en cada parte señalada para identificar correctamente los componentes..."
                 style={{ minHeight: '150px' }}
               />
+            </div>
+          </div>
+
+          {/* Sección de descarga de imágenes para videos */}
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <svg className="h-5 w-5 text-purple-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <div className="flex-1">
+                <h4 className="text-sm font-medium text-purple-800">Descargar Imágenes para Videos</h4>
+                <p className="text-sm text-purple-600 mt-1">
+                  Descarga las imágenes de los pasos con los comentarios y acciones visibles superpuestas. Útil para crear videos explicativos.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    onClick={handleDownloadAllImagesWithOverlays}
+                    disabled={isDownloading || !exercise?.steps?.length}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium transition-colors"
+                  >
+                    {isDownloading ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Descargando...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Descargar Todas ({exercise?.steps?.length || 0} pasos)
+                      </>
+                    )}
+                  </button>
+                  {exercise?.steps?.length === 0 && (
+                    <span className="text-xs text-purple-500 italic self-center">No hay pasos para descargar</span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
