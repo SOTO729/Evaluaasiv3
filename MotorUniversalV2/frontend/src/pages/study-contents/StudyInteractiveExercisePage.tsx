@@ -219,6 +219,59 @@ const LabelStyleDropdown: React.FC<LabelStyleDropdownProps> = ({ value, onChange
   );
 };
 
+// Función helper para verificar si dos rectángulos se superponen
+const checkRectanglesOverlap = (
+  rect1: { x: number; y: number; width: number; height: number },
+  rect2: { x: number; y: number; width: number; height: number }
+): boolean => {
+  const rect1Right = rect1.x + rect1.width
+  const rect1Bottom = rect1.y + rect1.height
+  const rect2Right = rect2.x + rect2.width
+  const rect2Bottom = rect2.y + rect2.height
+
+  // No hay superposición si un rectángulo está completamente a la izquierda, derecha, arriba o abajo del otro
+  return !(
+    rect1Right <= rect2.x ||
+    rect1.x >= rect2Right ||
+    rect1Bottom <= rect2.y ||
+    rect1.y >= rect2Bottom
+  )
+}
+
+// Función para verificar si una nueva área se superpone con alguna existente
+const checkOverlapWithExistingActions = (
+  newRect: { x: number; y: number; width: number; height: number },
+  existingActions: StudyInteractiveExerciseAction[],
+  excludeActionId?: string
+): StudyInteractiveExerciseAction | null => {
+  for (const action of existingActions) {
+    // Excluir la acción que se está moviendo/redimensionando
+    if (excludeActionId && action.id === excludeActionId) continue
+    
+    const actionRect = {
+      x: action.position_x,
+      y: action.position_y,
+      width: action.width,
+      height: action.height
+    }
+    
+    if (checkRectanglesOverlap(newRect, actionRect)) {
+      return action
+    }
+  }
+  return null
+}
+
+// Helper para obtener el nombre del tipo de acción para mensajes de error
+const getActionTypeName = (action: StudyInteractiveExerciseAction): string => {
+  if (action.action_type === 'comment') return 'comentario'
+  if (action.action_type === 'text_input') return 'campo de texto'
+  if (action.action_type === 'button') {
+    return action.correct_answer === 'correct' ? 'botón correcto' : 'botón incorrecto'
+  }
+  return 'área'
+}
+
 type Tool = 'select' | 'button' | 'button-wrong' | 'text_input' | 'comment'
 
 interface DragState {
@@ -1320,39 +1373,19 @@ const StudyInteractiveExercisePage = () => {
         }
       }
       
-      // Validar que campos incorrectos no se superpongan con respuestas correctas
-      const isWrongButton = selectedTool === 'button-wrong'
-      if (isWrongButton) {
-        // Considerar como respuesta correcta: botones correctos Y todos los text_input (incluso sin respuesta definida)
-        const correctAction = currentActions.find(a => 
-          (a.action_type === 'button' && a.correct_answer === 'correct') ||
-          (a.action_type === 'text_input')
-        )
-        
-        if (correctAction) {
-          // Verificar superposición de rectángulos
-          const newRight = left + width
-          const newBottom = top + height
-          const correctRight = correctAction.position_x + correctAction.width
-          const correctBottom = correctAction.position_y + correctAction.height
-          
-          const overlaps = !(
-            newRight <= correctAction.position_x ||
-            left >= correctRight ||
-            newBottom <= correctAction.position_y ||
-            top >= correctBottom
-          )
-          
-          if (overlaps) {
-            setWarningModal({
-              isOpen: true,
-              title: 'Superposición no permitida',
-              message: 'El campo incorrecto no puede quedar por encima de la respuesta correcta. Por favor, coloca el área en otra posición.'
-            })
-            setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
-            return
-          }
-        }
+      // Verificar superposición con TODAS las áreas existentes (no se permite superposición de ningún tipo)
+      const newRect = { x: left, y: top, width, height }
+      const overlappingAction = checkOverlapWithExistingActions(newRect, currentActions)
+      
+      if (overlappingAction) {
+        const overlappingType = getActionTypeName(overlappingAction)
+        setWarningModal({
+          isOpen: true,
+          title: 'Superposición no permitida',
+          message: `El área que intentas crear se superpone con un ${overlappingType} existente. Las áreas no pueden superponerse entre sí. Por favor, coloca el área en otra posición.`
+        })
+        setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
+        return
       }
       
       // Determinar tipo de acción a crear
@@ -1518,11 +1551,34 @@ const StudyInteractiveExercisePage = () => {
   }, [dragState, resizeState, pointerDragState])
 
   const handleMouseUp = useCallback(() => {
+    const currentActions = currentStep?.actions || []
+    
     if (dragState.isDragging && dragState.actionId && currentStep) {
       const actionEl = document.querySelector(`[data-action-id="${dragState.actionId}"]`) as HTMLElement
       if (actionEl) {
         const left = parseFloat(actionEl.style.left)
         const top = parseFloat(actionEl.style.top)
+        
+        // Obtener dimensiones de la acción que se está moviendo
+        const movingAction = currentActions.find(a => a.id === dragState.actionId)
+        if (movingAction) {
+          const newRect = { x: left, y: top, width: movingAction.width, height: movingAction.height }
+          const overlappingAction = checkOverlapWithExistingActions(newRect, currentActions, dragState.actionId)
+          
+          if (overlappingAction) {
+            // Revertir a posición original
+            actionEl.style.left = `${movingAction.position_x}%`
+            actionEl.style.top = `${movingAction.position_y}%`
+            const overlappingType = getActionTypeName(overlappingAction)
+            setWarningModal({
+              isOpen: true,
+              title: 'Superposición no permitida',
+              message: `No se puede mover aquí porque se superpone con un ${overlappingType} existente. Las áreas no pueden superponerse entre sí.`
+            })
+            setDragState({ isDragging: false, actionId: null, startX: 0, startY: 0, offsetX: 0, offsetY: 0 })
+            return
+          }
+        }
         
         updateActionMutation.mutate({
           stepId: currentStep.id,
@@ -1539,6 +1595,29 @@ const StudyInteractiveExercisePage = () => {
         const height = parseFloat(actionEl.style.height)
         const left = parseFloat(actionEl.style.left)
         const top = parseFloat(actionEl.style.top)
+        
+        // Verificar superposición después del resize
+        const resizingAction = currentActions.find(a => a.id === resizeState.actionId)
+        if (resizingAction) {
+          const newRect = { x: left, y: top, width, height }
+          const overlappingAction = checkOverlapWithExistingActions(newRect, currentActions, resizeState.actionId)
+          
+          if (overlappingAction) {
+            // Revertir a dimensiones originales
+            actionEl.style.left = `${resizingAction.position_x}%`
+            actionEl.style.top = `${resizingAction.position_y}%`
+            actionEl.style.width = `${resizingAction.width}%`
+            actionEl.style.height = `${resizingAction.height}%`
+            const overlappingType = getActionTypeName(overlappingAction)
+            setWarningModal({
+              isOpen: true,
+              title: 'Superposición no permitida',
+              message: `No se puede redimensionar así porque se superpone con un ${overlappingType} existente. Las áreas no pueden superponerse entre sí.`
+            })
+            setResizeState({ isResizing: false, actionId: null, corner: null, startX: 0, startY: 0, startWidth: 0, startHeight: 0, startPositionX: 0, startPositionY: 0 })
+            return
+          }
+        }
         
         updateActionMutation.mutate({
           stepId: currentStep.id,
