@@ -1434,7 +1434,7 @@ const StudyContentPreviewPage: React.FC = () => {
         <main ref={mainContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden bg-white overscroll-contain" onScroll={handleMainScroll}>
           {/* Header sticky con título y pestañas - más compacto */}
           <div className={`sticky top-0 z-20 bg-white border-b border-gray-100 transition-all duration-300 ease-out ${isScrolled ? 'py-0.5' : ''}`}>
-            <div className={`w-full fluid-px-4 transition-all duration-300 ease-out ${isScrolled ? 'pt-0.5 pb-0' : 'fluid-py-3 pb-0'}`}>
+            <div className={`w-full px-[clamp(1rem,4vw,3rem)] transition-all duration-300 ease-out ${isScrolled ? 'pt-0.5 pb-0' : 'fluid-py-3 pb-0'}`}>
               {/* Breadcrumb - se oculta al hacer scroll */}
               <div className={`flex items-center fluid-gap-1 fluid-text-xs text-gray-500 transition-all duration-300 ease-out overflow-hidden ${isScrolled ? 'h-0 opacity-0 mb-0' : 'h-auto opacity-100 fluid-mb-1'}`}>
                 <span className="truncate max-w-[clamp(80px,15vw,none)]">{currentSession?.title}</span>
@@ -1538,11 +1538,11 @@ const StudyContentPreviewPage: React.FC = () => {
           </div>
 
           {/* Contenido según tab activa */}
-          <div className="w-full fluid-px-4 fluid-pb-16">
+          <div className="w-full px-[clamp(1rem,4vw,3rem)] fluid-pb-16">
             <div className="min-h-[300px]">
               {/* Video */}
               {activeTab === 'video' && (
-                <div ref={videoContainerRef} className="w-full max-w-[min(100%,1200px)] mx-auto">
+                <div ref={videoContainerRef} className="fluid-container-lg mx-auto">
                   {currentTopic?.video ? (
                     <div className="flex flex-col fluid-gap-2">
                       {/* Título del video */}
