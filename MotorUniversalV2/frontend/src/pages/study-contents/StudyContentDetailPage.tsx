@@ -8,6 +8,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
+import JSZip from 'jszip';
 import {
   getMaterial,
   updateMaterial,
@@ -612,32 +613,55 @@ const StudyContentDetailPage = () => {
     return canvas;
   };
 
-  // Descargar todas las imágenes con overlays
+  // Descargar todas las imágenes con overlays en un ZIP
   const handleDownloadAllImagesWithOverlays = async () => {
-    if (!interactiveSteps.length) return;
+    if (!interactiveSteps.length || !interactiveConfigData) return;
     
     setIsDownloadingImages(true);
     
     try {
       const stepsWithImages = interactiveSteps.filter(step => step.image_url);
       
+      if (stepsWithImages.length === 0) {
+        setToast({ message: 'No hay pasos con imágenes para descargar', type: 'error' });
+        return;
+      }
+      
+      // Obtener información de la sesión
+      const session = material?.sessions?.find(s => s.id === interactiveConfigData.sessionId);
+      const sessionNumber = session?.session_number || 1;
+      const sessionTitle = session?.title || 'Sesion';
+      
+      // Crear el ZIP
+      const zip = new JSZip();
+      
       for (let i = 0; i < stepsWithImages.length; i++) {
         const step = stepsWithImages[i];
         const canvas = await generateStepImageWithOverlays(step);
         
         if (canvas) {
-          const link = document.createElement('a');
-          link.download = `paso_${step.step_number}_con_acciones.png`;
-          link.href = canvas.toDataURL('image/png');
-          link.click();
+          // Convertir canvas a blob
+          const dataUrl = canvas.toDataURL('image/png');
+          const base64Data = dataUrl.split(',')[1];
           
-          if (i < stepsWithImages.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
+          // Agregar al ZIP con nombre del paso
+          const fileName = `paso_${String(step.step_number).padStart(2, '0')}.png`;
+          zip.file(fileName, base64Data, { base64: true });
         }
       }
       
-      setToast({ message: `${stepsWithImages.length} imágenes descargadas`, type: 'success' });
+      // Generar y descargar el ZIP
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      
+      // Limpiar el título de caracteres especiales
+      const cleanTitle = sessionTitle.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '').trim().replace(/\s+/g, '_');
+      link.download = `Sesion_${sessionNumber}_${cleanTitle}.zip`;
+      link.href = URL.createObjectURL(zipBlob);
+      link.click();
+      URL.revokeObjectURL(link.href);
+      
+      setToast({ message: `ZIP creado con ${stepsWithImages.length} imágenes`, type: 'success' });
     } catch (error) {
       console.error('Error al descargar las imágenes:', error);
       setToast({ message: 'Error al descargar las imágenes', type: 'error' });

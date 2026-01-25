@@ -5,6 +5,7 @@
 import React, { useState, useRef, useEffect, useCallback, Fragment } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import JSZip from 'jszip'
 import { 
   getTopic,
   createInteractive,
@@ -1078,7 +1079,7 @@ const StudyInteractiveExercisePage = () => {
     return canvas
   }
 
-  // Descargar todas las imágenes con comentarios y acciones visibles superpuestas
+  // Descargar todas las imágenes con comentarios y acciones visibles en un ZIP
   const handleDownloadAllImagesWithOverlays = async () => {
     if (!exercise?.steps?.length) return
     
@@ -1087,23 +1088,40 @@ const StudyInteractiveExercisePage = () => {
     try {
       const stepsWithImages = exercise.steps.filter(step => step.image_url)
       
+      if (stepsWithImages.length === 0) {
+        alert('No hay pasos con imágenes para descargar.')
+        return
+      }
+      
+      // Crear el ZIP
+      const zip = new JSZip()
+      
       for (let i = 0; i < stepsWithImages.length; i++) {
         const step = stepsWithImages[i]
         const canvas = await generateStepImageWithOverlays(step)
         
         if (canvas) {
-          // Descargar la imagen
-          const link = document.createElement('a')
-          link.download = `paso_${step.step_number}_con_acciones.png`
-          link.href = canvas.toDataURL('image/png')
-          link.click()
+          // Convertir canvas a blob base64
+          const dataUrl = canvas.toDataURL('image/png')
+          const base64Data = dataUrl.split(',')[1]
           
-          // Pequeña pausa entre descargas para evitar problemas con el navegador
-          if (i < stepsWithImages.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 500))
-          }
+          // Agregar al ZIP con nombre del paso (con padding para ordenar bien)
+          const fileName = `paso_${String(step.step_number).padStart(2, '0')}.png`
+          zip.file(fileName, base64Data, { base64: true })
         }
       }
+      
+      // Generar y descargar el ZIP
+      const zipBlob = await zip.generateAsync({ type: 'blob' })
+      const link = document.createElement('a')
+      
+      // Usar sessionId y título del tema/ejercicio para el nombre del ZIP
+      const exerciseTitle = exercise.title || topicData?.title || 'Ejercicio'
+      const cleanTitle = exerciseTitle.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '').trim().replace(/\s+/g, '_')
+      link.download = `Sesion_${sessionId}_${cleanTitle}.zip`
+      link.href = URL.createObjectURL(zipBlob)
+      link.click()
+      URL.revokeObjectURL(link.href)
       
     } catch (error) {
       console.error('Error al descargar las imágenes:', error)
