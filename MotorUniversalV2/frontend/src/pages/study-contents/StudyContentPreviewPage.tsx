@@ -119,6 +119,7 @@ const StudyContentPreviewPage: React.FC = () => {
   const mainContainerRef = useRef<HTMLElement>(null);
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
   const sessionRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const bottomBarRef = useRef<HTMLDivElement>(null);
   const [showScrollHint, setShowScrollHint] = useState(false);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [showDownloadScrollHint, setShowDownloadScrollHint] = useState(false);
@@ -418,17 +419,24 @@ const StudyContentPreviewPage: React.FC = () => {
   useEffect(() => {
     const checkStartButtonVisibility = () => {
       const container = mainContainerRef.current;
-      if (activeTab === 'interactive' && !exerciseStarted && startExerciseRef.current && container) {
+      const bottomBar = bottomBarRef.current;
+      
+      if (activeTab === 'interactive' && !exerciseStarted && startExerciseRef.current && container && bottomBar) {
         const startRect = startExerciseRef.current.getBoundingClientRect();
+        const bottomBarRect = bottomBar.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
         
-        // Verificar si el botón está visible dentro del contenedor (no del viewport)
-        const isButtonVisible = startRect.top < containerRect.bottom && startRect.bottom > containerRect.top;
+        // El botón está visible si:
+        // 1. Su parte superior está por encima de donde empieza la barra inferior
+        // 2. Su parte inferior está dentro del área visible del contenedor
+        const isAboveBottomBar = startRect.bottom <= bottomBarRect.top + 10; // 10px de margen
+        const isInContainerView = startRect.top >= containerRect.top && startRect.top < bottomBarRect.top;
+        const isButtonVisible = isAboveBottomBar && isInContainerView;
         
         // También verificar si ya llegamos al fondo del scroll
         const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
         
-        // Solo mostrar hint si el botón no es visible Y no estamos al fondo
+        // Mostrar hint si el botón NO es visible Y no estamos al fondo
         setShowScrollHint(!isButtonVisible && !isAtBottom);
       } else {
         setShowScrollHint(false);
@@ -461,17 +469,22 @@ const StudyContentPreviewPage: React.FC = () => {
   useEffect(() => {
     const checkDownloadButtonVisibility = () => {
       const container = mainContainerRef.current;
-      if (activeTab === 'downloadable' && downloadButtonRef.current && container) {
+      const bottomBar = bottomBarRef.current;
+      
+      if (activeTab === 'downloadable' && downloadButtonRef.current && container && bottomBar) {
         const downloadRect = downloadButtonRef.current.getBoundingClientRect();
+        const bottomBarRect = bottomBar.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
         
-        // Verificar si el botón está visible dentro del contenedor (no del viewport)
-        const isButtonVisible = downloadRect.top < containerRect.bottom && downloadRect.bottom > containerRect.top;
+        // El botón está visible si está por encima de la barra inferior y dentro del contenedor
+        const isAboveBottomBar = downloadRect.bottom <= bottomBarRect.top + 10;
+        const isInContainerView = downloadRect.top >= containerRect.top && downloadRect.top < bottomBarRect.top;
+        const isButtonVisible = isAboveBottomBar && isInContainerView;
         
         // También verificar si ya llegamos al fondo del scroll
         const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
         
-        // Solo mostrar hint si el botón no es visible Y no estamos al fondo
+        // Mostrar hint si el botón NO es visible Y no estamos al fondo
         setShowDownloadScrollHint(!isButtonVisible && !isAtBottom);
       } else {
         setShowDownloadScrollHint(false);
@@ -2171,7 +2184,7 @@ const StudyContentPreviewPage: React.FC = () => {
       </div>
 
       {/* Barra de navegación fija inferior */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
+      <div ref={bottomBarRef} className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
         <div className="w-full fluid-px-6 fluid-py-3">
           <div className="flex items-center justify-between sm:justify-end fluid-gap-4">
             <button
