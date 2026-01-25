@@ -3,11 +3,17 @@
  * Muestra la jerarquía completa: Material → Sesiones → Temas → Elementos
  * v2.1 - Soporte para subida de archivos descargables con compresión ZIP
  */
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import DOMPurify from 'dompurify';
-import ReactQuill from 'react-quill-new';
+import ReactQuill, { Quill } from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
+import { ImageActions } from '@xeger/quill-image-actions';
+import { ImageFormats } from '@xeger/quill-image-formats';
+
+// Registrar módulos de imagen
+Quill.register('modules/imageActions', ImageActions);
+Quill.register('modules/imageFormats', ImageFormats);
 import JSZip from 'jszip';
 import {
   getMaterial,
@@ -452,7 +458,8 @@ const StudyContentDetailPage = () => {
   };
 
   // Cargar pasos del ejercicio interactivo para la descarga
-  const loadInteractiveSteps = async (sessionId: number, topicId: number) => {
+  // @ts-ignore - Función disponible para uso futuro
+  const _loadInteractiveSteps = async (sessionId: number, topicId: number) => {
     setLoadingInteractiveSteps(true);
     try {
       const data = await getInteractive(materialId, sessionId, topicId);
@@ -812,21 +819,51 @@ const StudyContentDetailPage = () => {
     }
   };
 
-  // Element handlers
-  const openReadingModal = (sessionId: number, topic: StudyTopic) => {
-    setSelectedSessionId(sessionId);
-    setSelectedTopicId(topic.id);
-    if (topic.reading) {
-      setReadingForm({
-        title: topic.reading.title,
-        content: topic.reading.content,
-        estimated_time_minutes: topic.reading.estimated_time_minutes,
-      });
-    } else {
-      setReadingForm({ title: '', content: '' });
-    }
-    setReadingModalOpen(true);
+  // Element handlers - Navegar a páginas de editor
+  const openReadingEditor = (sessionId: number, topic: StudyTopic) => {
+    navigate(`/study-contents/${materialId}/reading?sessionId=${sessionId}&topicId=${topic.id}`);
   };
+
+  const openVideoEditor = (sessionId: number, topic: StudyTopic) => {
+    navigate(`/study-contents/${materialId}/video?sessionId=${sessionId}&topicId=${topic.id}`);
+  };
+
+  const openDownloadableEditor = (sessionId: number, topic: StudyTopic) => {
+    navigate(`/study-contents/${materialId}/downloadable?sessionId=${sessionId}&topicId=${topic.id}`);
+  };
+
+  const openInteractiveEditor = (sessionId: number, topic: StudyTopic) => {
+    navigate(`/study-contents/${materialId}/sessions/${sessionId}/topics/${topic.id}/interactive`);
+  };
+
+  // Módulos de Quill con soporte para redimensionamiento de imágenes
+  const quillModules = useMemo(() => ({
+    imageActions: {},
+    imageFormats: {},
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ 'color': [] }, { 'background': [] }],
+      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+      [{ 'indent': '-1'}, { 'indent': '+1' }],
+      [{ 'align': [] }],
+      ['link', 'image'],
+      ['blockquote', 'code-block'],
+      ['clean']
+    ],
+  }), []);
+
+  // Formatos permitidos en Quill incluyendo tamaño de imagen
+  const quillFormats = useMemo(() => [
+    'header',
+    'bold', 'italic', 'underline', 'strike',
+    'color', 'background',
+    'list', 'indent',
+    'align',
+    'link', 'image',
+    'blockquote', 'code-block',
+    'float', 'height', 'width'
+  ], []);
 
   // Manejar pegado de imágenes en el editor de lectura
   const handleReadingImagePaste = useCallback(async (e: ClipboardEvent) => {
@@ -903,7 +940,8 @@ const StudyContentDetailPage = () => {
     }
   };
 
-  const openVideoModal = (sessionId: number, topic: StudyTopic) => {
+  // @ts-ignore - Modal legacy, ahora se usa navegación a página completa
+  const _openVideoModal = (sessionId: number, topic: StudyTopic) => {
     setSelectedSessionId(sessionId);
     setSelectedTopicId(topic.id);
     // Reset upload states
@@ -1031,7 +1069,8 @@ const StudyContentDetailPage = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const openDownloadableModal = (sessionId: number, topic: StudyTopic) => {
+  // @ts-ignore - Modal legacy, ahora se usa navegación a página completa
+  const _openDownloadableModal = (sessionId: number, topic: StudyTopic) => {
     setSelectedSessionId(sessionId);
     setSelectedTopicId(topic.id);
     if (topic.downloadable_exercise) {
@@ -1600,7 +1639,7 @@ const StudyContentDetailPage = () => {
                                         setToast({ message: 'Cambie el material a borrador para editar el contenido', type: 'error' });
                                         return;
                                       }
-                                      openReadingModal(session.id, topic);
+                                      openReadingEditor(session.id, topic);
                                     }}
                                     className={`fluid-p-3 rounded-fluid-lg border transition-colors ${
                                       material.is_published
@@ -1630,7 +1669,7 @@ const StudyContentDetailPage = () => {
                                         setToast({ message: 'Cambie el material a borrador para editar el contenido', type: 'error' });
                                         return;
                                       }
-                                      openVideoModal(session.id, topic);
+                                      openVideoEditor(session.id, topic);
                                     }}
                                     className={`fluid-p-3 rounded-fluid-lg border transition-colors ${
                                       material.is_published
@@ -1660,7 +1699,7 @@ const StudyContentDetailPage = () => {
                                         setToast({ message: 'Cambie el material a borrador para editar el contenido', type: 'error' });
                                         return;
                                       }
-                                      openDownloadableModal(session.id, topic);
+                                      openDownloadableEditor(session.id, topic);
                                     }}
                                     className={`fluid-p-3 rounded-fluid-lg border transition-colors ${
                                       material.is_published
@@ -1690,23 +1729,7 @@ const StudyContentDetailPage = () => {
                                         setToast({ message: 'Cambie el material a borrador para editar el contenido', type: 'error' });
                                         return;
                                       }
-                                      const isNew = !topic.interactive_exercise;
-                                      setInteractiveConfigData({
-                                        topicId: topic.id,
-                                        sessionId: session.id,
-                                        isNew
-                                      });
-                                      setInteractiveForm({
-                                        title: topic.interactive_exercise?.title || 'Ejercicio Interactivo',
-                                        description: topic.interactive_exercise?.description || ''
-                                      });
-                                      // Cargar los pasos si ya existe el ejercicio
-                                      if (!isNew) {
-                                        loadInteractiveSteps(session.id, topic.id);
-                                      } else {
-                                        setInteractiveSteps([]);
-                                      }
-                                      setInteractiveConfigOpen(true);
+                                      openInteractiveEditor(session.id, topic);
                                     }}
                                     className={`fluid-p-3 rounded-fluid-lg border transition-colors ${
                                       material.is_published
@@ -2063,28 +2086,8 @@ const StudyContentDetailPage = () => {
                   theme="snow"
                   value={readingForm.content}
                   onChange={(content) => setReadingForm({ ...readingForm, content })}
-                  modules={{
-                    toolbar: [
-                      [{ 'header': [1, 2, 3, false] }],
-                      ['bold', 'italic', 'underline', 'strike'],
-                      [{ 'color': [] }, { 'background': [] }],
-                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                      [{ 'indent': '-1'}, { 'indent': '+1' }],
-                      [{ 'align': [] }],
-                      ['link', 'image'],
-                      ['blockquote', 'code-block'],
-                      ['clean']
-                    ],
-                  }}
-                  formats={[
-                    'header',
-                    'bold', 'italic', 'underline', 'strike',
-                    'color', 'background',
-                    'list', 'indent',
-                    'align',
-                    'link', 'image',
-                    'blockquote', 'code-block'
-                  ]}
+                  modules={quillModules}
+                  formats={quillFormats}
                   placeholder="Escribe el contenido de la lectura aquí..."
                   style={{ minHeight: '280px' }}
                 />

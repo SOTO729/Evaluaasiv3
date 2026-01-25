@@ -726,3 +726,238 @@
   justify-content: center;
   overflow: visible;
 }
+
+/* =============================================================================
+   ESTILOS PARA QUILL IMAGE RESIZE
+   Permite redimensionar imágenes con puntos de arrastre en el editor
+   ============================================================================= */
+
+/* Estilo cuando la imagen está seleccionada para redimensionar */
+.ql-editor img.ql-image-resize-selected {
+  outline: 2px solid #3b82f6 !important;
+  cursor: pointer;
+}
+
+/* Overlay de acciones de imagen */
+.image-actions-container {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 6px;
+  padding: 4px;
+  display: flex;
+  gap: 4px;
+  z-index: 100;
+}
+
+/* Botones de acción de imagen */
+.image-actions-container button {
+  background: transparent;
+  border: none;
+  color: white;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.image-actions-container button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Puntos de redimensionamiento (resize handles) */
+.blot-formatter__overlay {
+  position: absolute;
+  border: 1px dashed #3b82f6;
+  box-sizing: border-box;
+}
+
+.blot-formatter__resize-handle {
+  width: 12px;
+  height: 12px;
+  background-color: #3b82f6;
+  border: 2px solid white;
+  border-radius: 50%;
+  position: absolute;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  z-index: 101;
+}
+
+.blot-formatter__resize-handle:hover {
+  background-color: #2563eb;
+  transform: scale(1.1);
+}
+
+/* Handles en las esquinas */
+.blot-formatter__resize-handle--nw { top: -6px; left: -6px; cursor: nwse-resize; }
+.blot-formatter__resize-handle--ne { top: -6px; right: -6px; cursor: nesw-resize; }
+.blot-formatter__resize-handle--sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+.blot-formatter__resize-handle--se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+
+/* Toolbar de alineación de imágenes */
+.blot-formatter__toolbar {
+  position: absolute;
+  top: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 2px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  z-index: 102;
+}
+
+.blot-formatter__toolbar button {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #6b7280;
+  transition: all 0.2s;
+}
+
+.blot-formatter__toolbar button:hover {
+  background: #f3f4f6;
+  color: #3b82f6;
+}
+
+.blot-formatter__toolbar button.is-selected {
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+/* Estilos para imágenes flotantes en el contenido */
+.ql-editor img[style*="float: left"] {
+  margin-right: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.ql-editor img[style*="float: right"] {
+  margin-left: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Imágenes clickeables en el editor */
+.quill-image-clickable .ql-editor img {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+  border-radius: 4px;
+}
+
+.quill-image-clickable .ql-editor img:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* Imagen seleccionada con handles de redimensionamiento */
+.quill-image-clickable .ql-editor img.image-selected {
+  border: 2px solid #3b82f6 !important;
+  box-shadow: 
+    0 0 0 3px rgba(59, 130, 246, 0.3),
+    /* Handle esquina NW */
+    -6px -6px 0 0 #3b82f6,
+    /* Handle esquina NE */
+    calc(100% + 4px) -6px 0 0 #3b82f6,
+    /* Handle esquina SW */
+    -6px calc(100% + 4px) 0 0 #3b82f6,
+    /* Handle esquina SE */
+    calc(100% + 4px) calc(100% + 4px) 0 0 #3b82f6;
+  position: relative;
+  resize: both;
+  overflow: auto;
+  max-width: 100%;
+}
+
+/* Contenedor wrapper para imagen seleccionada */
+.image-resize-wrapper {
+  position: relative;
+  display: inline-block;
+  margin: 4px;
+  border: 2px solid #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+  border-radius: 8px;
+  background: white;
+  padding: 8px;
+}
+
+.image-resize-wrapper img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+/* Handles de resize en las esquinas */
+.image-resize-wrapper::before,
+.image-resize-wrapper::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #3b82f6;
+  border: 2px solid white;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  z-index: 10;
+}
+
+/* Esquinas superiores */
+.image-resize-wrapper::before {
+  top: -6px;
+  left: -6px;
+  cursor: nwse-resize;
+}
+
+.image-resize-wrapper::after {
+  top: -6px;
+  right: -6px;
+  cursor: nesw-resize;
+}
+
+/* Handles adicionales con elementos hijos */
+.image-resize-wrapper .handle-se,
+.image-resize-wrapper .handle-sw {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #3b82f6;
+  border: 2px solid white;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  z-index: 10;
+}
+
+.image-resize-wrapper .handle-se {
+  bottom: -6px;
+  right: -6px;
+  cursor: nwse-resize;
+}
+
+.image-resize-wrapper .handle-sw {
+  bottom: -6px;
+  left: -6px;
+  cursor: nesw-resize;
+}
+
+/* Asegurar que el editor Quill permita overflow para los handles */
+.quill-image-clickable .ql-editor {
+  overflow: visible !important;
+  position: relative !important;
+}
+
+.quill-image-clickable .ql-container {
+  overflow: visible !important;
+}
+
+.quill-image-clickable {
+  overflow: visible !important;
+}

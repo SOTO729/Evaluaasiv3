@@ -72,13 +72,13 @@ export default function StandardDetailPage() {
 
   if (error || !standard) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <p className="text-sm text-red-600">{error || 'Estándar no encontrado'}</p>
+      <div className="max-w-3xl mx-auto fluid-px-4 fluid-py-8">
+        <div className="bg-red-50 border border-red-200 rounded-fluid-md fluid-p-4">
+          <p className="fluid-text-sm text-red-600">{error || 'Estándar no encontrado'}</p>
         </div>
         <button
           onClick={() => navigate('/standards')}
-          className="mt-4 text-primary-600 hover:text-primary-500"
+          className="fluid-mt-4 text-primary-600 hover:text-primary-500"
         >
           ← Volver a estándares
         </button>
@@ -195,14 +195,14 @@ export default function StandardDetailPage() {
         </div>
 
         {exams.length === 0 ? (
-          <div className="bg-white shadow sm:rounded-lg fluid-p-6 text-center">
+          <div className="bg-white shadow rounded-fluid-lg fluid-p-6 text-center">
             <svg className="mx-auto fluid-icon-xl text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <p className="fluid-mt-2 fluid-text-sm text-gray-500">No hay exámenes creados para este estándar</p>
           </div>
         ) : (
-          <div className="bg-white shadow overflow-hidden sm:rounded-md">
+          <div className="bg-white shadow overflow-hidden rounded-fluid-lg">
             <ul className="divide-y divide-gray-200">
               {exams.map((exam) => (
                 <li key={exam.id}>

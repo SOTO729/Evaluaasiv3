@@ -42,6 +42,9 @@ const StudyContentDetailPage = lazy(() => import('./pages/study-contents/StudyCo
 const StudyContentCandidatePage = lazy(() => import('./pages/study-contents/StudyContentCandidatePage'))
 const StudyContentPreviewPage = lazy(() => import('./pages/study-contents/StudyContentPreviewPage'))
 const StudyInteractiveExercisePage = lazy(() => import('./pages/study-contents/StudyInteractiveExercisePage'))
+const ReadingEditorPage = lazy(() => import('./pages/study-contents/ReadingEditorPage'))
+const VideoEditorPage = lazy(() => import('./pages/study-contents/VideoEditorPage'))
+const DownloadableEditorPage = lazy(() => import('./pages/study-contents/DownloadableEditorPage'))
 
 // Componente que decide qué página de detalle mostrar según el rol
 const StudyContentDetailRouter = () => {
@@ -165,14 +168,17 @@ function App() {
               <Route path="/study-contents/create" element={<RestrictedForCoordinator><StudyContentCreatePage /></RestrictedForCoordinator>} />
               <Route path="/study-contents/:id" element={<RestrictedForCoordinator><StudyContentDetailRouter /></RestrictedForCoordinator>} />
               <Route path="/study-contents/:id/edit" element={<RestrictedForCoordinator><StudyContentCreatePage /></RestrictedForCoordinator>} />
+              <Route path="/study-contents/:id/reading" element={<RestrictedForCoordinator><ReadingEditorPage /></RestrictedForCoordinator>} />
+              <Route path="/study-contents/:id/video" element={<RestrictedForCoordinator><VideoEditorPage /></RestrictedForCoordinator>} />
+              <Route path="/study-contents/:id/downloadable" element={<RestrictedForCoordinator><DownloadableEditorPage /></RestrictedForCoordinator>} />
+              <Route path="/study-contents/:id/sessions/:sessionId/topics/:topicId/interactive" element={<RestrictedForCoordinator><StudyInteractiveExercisePage /></RestrictedForCoordinator>} />
               
               {/* Standards (ECM) - Restringido para coordinador */}
               <Route path="/standards" element={<RestrictedForCoordinator><StandardsListPage /></RestrictedForCoordinator>} />
               <Route path="/standards/new" element={<RestrictedForCoordinator><StandardFormPage /></RestrictedForCoordinator>} />
-              <Route path="/standards/deletion-requests" element={<RestrictedForCoordinator><DeletionRequestsPage /></RestrictedForCoordinator>} />
               <Route path="/standards/:id" element={<RestrictedForCoordinator><StandardDetailPage /></RestrictedForCoordinator>} />
               <Route path="/standards/:id/edit" element={<RestrictedForCoordinator><StandardFormPage /></RestrictedForCoordinator>} />
-              <Route path="/study-contents/:id/sessions/:sessionId/topics/:topicId/interactive" element={<RestrictedForCoordinator><StudyInteractiveExercisePage /></RestrictedForCoordinator>} />
+              <Route path="/standards/deletion-requests" element={<RestrictedForCoordinator><DeletionRequestsPage /></RestrictedForCoordinator>} />
               
               {/* Certificates - Restringido para coordinador */}
               <Route path="/certificates" element={<RestrictedForCoordinator><CertificatesPage /></RestrictedForCoordinator>} />

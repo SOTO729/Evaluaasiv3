@@ -577,7 +577,7 @@ export default function StandardFormPage() {
           onClick={() => setShowValidationModal(false)}
         >
           <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fadeSlideIn" 
+            className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fadeSlideIn" 
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header del modal */}
@@ -626,7 +626,7 @@ export default function StandardFormPage() {
                 <button
                   type="button"
                   onClick={() => setShowValidationModal(false)}
-                  className="fluid-px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold rounded-fluid-xl hover:from-amber-600 hover:to-orange-600 transition-all duration-200 shadow-md hover:shadow-lg"
+                  className="fluid-px-6 fluid-py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold rounded-fluid-xl hover:from-amber-600 hover:to-orange-600 transition-all duration-200 shadow-md hover:shadow-lg"
                 >
                   Entendido
                 </button>

@@ -84,7 +84,7 @@ export default function DeletionRequestsPage() {
       rejected: 'Rechazada',
     };
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badges[status]}`}>
+      <span className={`inline-flex items-center fluid-px-3 fluid-py-1 rounded-fluid-full fluid-text-xs font-medium ${badges[status]}`}>
         {labels[status]}
       </span>
     );
