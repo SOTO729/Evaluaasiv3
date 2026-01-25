@@ -79,6 +79,9 @@ const ExamTestRunPage: React.FC = () => {
   // Estado para errores en acciones de ejercicios (campos incorrectos)
   const [actionErrors, setActionErrors] = useState<Record<string, { message: string; attempts: number }>>({});
   const [showErrorModal, setShowErrorModal] = useState<{ message: string; actionKey: string; exerciseId: string; stepIndex: number } | null>(null);
+  
+  // Estado para modal de avance por error (cuando la acción es next_step o next_exercise)
+  const [showSkippedModal, setShowSkippedModal] = useState<{ message: string; type: 'next_step' | 'next_exercise'; autoClose?: boolean } | null>(null);
 
   // Estado para advertencias de tiempo
   const [timeWarningsShown, setTimeWarningsShown] = useState<Set<number>>(new Set());
@@ -529,25 +532,42 @@ const ExamTestRunPage: React.FC = () => {
 
     // Si la acción es terminar ejercicio inmediatamente
     if (onErrorAction === 'end_exercise' || onErrorAction === 'next_exercise') {
-      // Cerrar modal y terminar ejercicio inmediatamente
+      // Cerrar modal de error si estaba abierto
       setShowErrorModal(null);
       handleExerciseActionResponse(exerciseId, action.step_id, action.id, false);
       markStepCompleted(exerciseId, stepIndex);
-      // Mostrar modal de completado
-      setShowExerciseCompleted(true);
-      setTimeout(() => setShowExerciseCompleted(false), 5000);
+      
+      // Mostrar modal informando que se pasa al siguiente por error
+      const errorMsg = action.error_message || 'Has cometido un error en este ejercicio.';
+      setShowSkippedModal({ 
+        message: errorMsg, 
+        type: 'next_exercise',
+        autoClose: true 
+      });
       return;
     }
 
     // Si la acción es pasar al siguiente paso (sin reintentos)
     if (onErrorAction === 'next_step') {
-      // Marcar como completado (aunque incorrecto) y avanzar
+      // Cerrar modal de error si estaba abierto
+      setShowErrorModal(null);
       handleExerciseActionResponse(exerciseId, action.step_id, action.id, false);
       markStepCompleted(exerciseId, stepIndex);
       
       const currentExercise = currentItem;
+      const errorMsg = action.error_message || 'Has cometido un error en este paso.';
+      
       if (currentExercise?.steps && stepIndex < currentExercise.steps.length - 1) {
-        setCurrentStepIndex(stepIndex + 1);
+        // Mostrar modal informando que se pasa al siguiente paso por error
+        setShowSkippedModal({ 
+          message: errorMsg, 
+          type: 'next_step',
+          autoClose: true 
+        });
+        // Avanzar después de cerrar el modal
+        setTimeout(() => {
+          setCurrentStepIndex(stepIndex + 1);
+        }, 100);
       } else {
         // Es el último paso, mostrar modal de completado
         setShowExerciseCompleted(true);
@@ -1991,6 +2011,79 @@ const ExamTestRunPage: React.FC = () => {
                 className={`w-full px-4 py-2.5 text-white rounded-lg font-medium transition-colors ${currentMode === 'simulator' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}
               >
                 Intentar de nuevo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de avance por error (next_step o next_exercise) */}
+      {showSkippedModal && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4" 
+          onClick={() => {
+            setShowSkippedModal(null);
+            if (showSkippedModal.type === 'next_exercise') {
+              setShowExerciseCompleted(true);
+              setTimeout(() => setShowExerciseCompleted(false), 5000);
+            }
+          }}
+        >
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center gap-4 p-6 pb-4 border-b border-gray-100">
+              <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-amber-100 to-orange-100 rounded-full flex items-center justify-center">
+                <svg className="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {showSkippedModal.type === 'next_exercise' ? 'Ejercicio terminado' : 'Pasando al siguiente paso'}
+                </h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {showSkippedModal.type === 'next_exercise' 
+                    ? 'Se ha terminado este ejercicio debido a un error'
+                    : 'Se te ha pasado al siguiente paso debido a un error'
+                  }
+                </p>
+              </div>
+            </div>
+            
+            {/* Contenido */}
+            <div className="p-6">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0">
+                    <svg className="w-5 h-5 text-amber-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div 
+                    className="text-amber-800 prose prose-sm max-w-none [&>p]:my-1"
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(showSkippedModal.message) }}
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="p-6 pt-0">
+              <button
+                onClick={() => {
+                  setShowSkippedModal(null);
+                  if (showSkippedModal.type === 'next_exercise') {
+                    setShowExerciseCompleted(true);
+                    setTimeout(() => setShowExerciseCompleted(false), 5000);
+                  }
+                }}
+                className={`w-full px-4 py-3 text-white rounded-lg font-medium transition-colors ${
+                  currentMode === 'simulator' 
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600' 
+                    : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700'
+                }`}
+              >
+                {showSkippedModal.type === 'next_exercise' ? 'Continuar' : 'Ir al siguiente paso'}
               </button>
             </div>
           </div>
