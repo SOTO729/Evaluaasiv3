@@ -65,10 +65,9 @@ const ExamCard = ({
       className="bg-white rounded-fluid-lg shadow-sm overflow-hidden border border-gray-100 group animate-stagger-in relative hover:shadow-lg cursor-pointer transition-all duration-300 flex flex-col"
       style={{ animationDelay: `${index * 50}ms` }}
     >
-      {/* Card Image - altura fija con overflow hidden para contener la imagen */}
+      {/* Card Image - altura proporcional al ancho para forma casi cuadrada */}
       <div 
-        className="relative flex-shrink-0 overflow-hidden cursor-pointer"
-        style={{ height: 'clamp(90px, 10vw, 130px)' }}
+        className="relative flex-shrink-0 overflow-hidden cursor-pointer aspect-[4/3]"
         onClick={handleCardClick}
       >
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-800">
@@ -77,20 +76,20 @@ const ExamCard = ({
               src={exam.image_url}
               alt={exam.name}
               className="w-full h-full object-cover"
-              fallbackIcon={<FileText className="fluid-icon-lg text-white/50" />}
+              fallbackIcon={<FileText className="fluid-icon-xl text-white/50" />}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <FileText className="fluid-icon-lg text-white/50" />
+              <FileText className="fluid-icon-xl text-white/50" />
             </div>
           )}
         </div>
         
         {/* Status Badge - Solo mostrar si showStatus es true */}
         {showStatus && !isCandidate && (
-          <div className="absolute top-2 left-2">
+          <div className="absolute top-3 left-3">
             <span
-              className={`inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-0.5 rounded-full fluid-text-xs font-medium ${
+              className={`inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium ${
                 exam.is_published
                   ? 'bg-green-500 text-white'
                   : 'bg-gray-800/70 text-white'
@@ -112,17 +111,17 @@ const ExamCard = ({
         )}
 
         {/* Version Badge */}
-        <div className="absolute top-2 right-2">
-          <span className="fluid-px-2 fluid-py-0.5 rounded-full fluid-text-xs font-mono bg-black/30 text-white">
+        <div className="absolute top-3 right-3">
+          <span className="fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-mono bg-black/30 text-white">
             {exam.version}
           </span>
         </div>
       </div>
 
       {/* Card Content */}
-      <div className="fluid-p-3">
+      <div className="fluid-p-4">
         <h3 
-          className="font-semibold fluid-text-sm text-gray-900 fluid-mb-1 line-clamp-1 transition-colors cursor-pointer hover:text-blue-600"
+          className="font-semibold fluid-text-base text-gray-900 fluid-mb-2 line-clamp-1 transition-colors cursor-pointer hover:text-blue-600"
           onClick={handleCardClick}
         >
           {exam.name}
@@ -132,13 +131,13 @@ const ExamCard = ({
         {isCandidate ? (
           <>
             {/* Info principal para candidato: puntaje y simulador */}
-            <div className="flex items-center justify-between fluid-mb-2">
-              <div className="flex items-center fluid-gap-1 fluid-text-xs">
-                <Award className="fluid-icon-xs text-emerald-500" />
+            <div className="flex items-center justify-between fluid-mb-3">
+              <div className="flex items-center fluid-gap-2 fluid-text-sm">
+                <Award className="fluid-icon-sm text-emerald-500" />
                 <span className="text-gray-700 font-medium">Mínimo {exam.passing_score}%</span>
               </div>
               {exam.has_simulator_content && (
-                <span className="inline-flex items-center fluid-gap-1 fluid-px-1.5 fluid-py-0.5 rounded-full fluid-text-xs font-medium bg-purple-100 text-purple-700">
+                <span className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium bg-purple-100 text-purple-700">
                   <Gamepad2 className="fluid-icon-xs" />
                   Simulador
                 </span>
@@ -146,57 +145,58 @@ const ExamCard = ({
             </div>
             
             {/* Footer para candidato: info secundaria en gris */}
-            <div className="flex items-center fluid-gap-3 fluid-text-xs text-gray-400 fluid-pt-2 border-t">
+            <div className="flex items-center fluid-gap-4 fluid-text-xs text-gray-400 fluid-pt-3 border-t">
               <div className="flex items-center fluid-gap-1" title="Duración">
-                <Timer className="fluid-icon-xs" />
+                <Timer className="fluid-icon-sm" />
                 <span>{exam.duration_minutes || 0} min</span>
               </div>
               <div className="flex items-center fluid-gap-1" title="Categorías">
-                <Layers className="fluid-icon-xs" />
-                <span>{exam.total_categories || 0} cat.</span>
+                <Layers className="fluid-icon-sm" />
+                <span>{exam.total_categories || 0} {exam.total_categories === 1 ? 'categoría' : 'categorías'}</span>
               </div>
               <div className="flex items-center fluid-gap-1" title="Temas">
-                <BookOpen className="fluid-icon-xs" />
-                <span>{exam.total_topics || 0}</span>
+                <BookOpen className="fluid-icon-sm" />
+                <span>{exam.total_topics || 0} temas</span>
               </div>
             </div>
           </>
         ) : (
           <>
             {/* Stats Grid para admin/editor */}
-            <div className="grid grid-cols-2 fluid-gap-1 fluid-mb-2 fluid-text-xs text-gray-500">
+            <div className="grid grid-cols-2 fluid-gap-2 fluid-mb-3 fluid-text-xs text-gray-500">
               <div className="flex items-center fluid-gap-1">
-                <BookOpen className="fluid-icon-xs text-blue-500" />
+                <BookOpen className="fluid-icon-sm text-blue-500" />
                 <span>{exam.total_topics || 0} temas</span>
               </div>
               <div className="flex items-center fluid-gap-1">
-                <Timer className="fluid-icon-xs text-slate-500" />
+                <Timer className="fluid-icon-sm text-slate-500" />
                 <span>{exam.duration_minutes || 0} min</span>
               </div>
               <div className="flex items-center fluid-gap-1">
-                <Award className="fluid-icon-xs text-emerald-500" />
-                <span>{exam.passing_score}%</span>
+                <Award className="fluid-icon-sm text-emerald-500" />
+                <span>Mínimo {exam.passing_score}%</span>
               </div>
               <div className="flex items-center fluid-gap-1">
-                <Gamepad2 className={`fluid-icon-xs ${exam.has_simulator_content ? 'text-purple-500' : 'text-gray-300'}`} />
+                <Gamepad2 className={`fluid-icon-sm ${exam.has_simulator_content ? 'text-purple-500' : 'text-gray-300'}`} />
                 <span className={exam.has_simulator_content ? 'text-purple-600 font-medium' : 'text-gray-400'}>
-                  {exam.has_simulator_content ? 'Sim' : '-'}
+                  {exam.has_simulator_content ? 'Simulador' : 'Sin simulador'}
                 </span>
               </div>
             </div>
             
             {/* Card Footer para admin/editor */}
-            <div className="flex items-center justify-between fluid-text-xs text-gray-400 fluid-pt-2 border-t">
+            <div className="flex items-center justify-between fluid-text-xs text-gray-400 fluid-pt-3 border-t">
               <div className="flex items-center fluid-gap-1">
-                <Layers className="fluid-icon-xs" />
-                <span>{exam.total_categories || 0} cat.</span>
+                <Layers className="fluid-icon-sm" />
+                <span>{exam.total_categories || 0} categorías</span>
               </div>
               <div className="flex items-center fluid-gap-1">
-                <Calendar className="fluid-icon-xs" />
+                <Calendar className="fluid-icon-sm" />
                 <span>
                   {new Date(exam.created_at).toLocaleDateString('es-ES', {
                     day: 'numeric',
-                    month: 'short'
+                    month: 'long',
+                    year: 'numeric'
                   })}
                 </span>
               </div>
@@ -361,7 +361,7 @@ const ExamsListPage = () => {
         <>
           {/* Para candidatos: mostrar solo grid sin secciones */}
           {isCandidate ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4 5xl:grid-cols-5 fluid-gap-6 fluid-mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-7 4xl:grid-cols-8 fluid-gap-4 fluid-mb-8">
               {allExams.map((exam: any, index: number) => (
                 <ExamCard 
                   key={exam.id} 
@@ -383,7 +383,7 @@ const ExamsListPage = () => {
                       {allExams.filter((e: any) => e.is_published).length}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4 5xl:grid-cols-5 fluid-gap-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-7 4xl:grid-cols-8 fluid-gap-4">
                     {allExams.filter((e: any) => e.is_published).map((exam: any, index: number) => (
                       <ExamCard 
                         key={exam.id} 
@@ -405,7 +405,7 @@ const ExamsListPage = () => {
                       {allExams.filter((e: any) => !e.is_published).length}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4 5xl:grid-cols-5 fluid-gap-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-7 4xl:grid-cols-8 fluid-gap-4">
                     {allExams.filter((e: any) => !e.is_published).map((exam: any, index: number) => (
                       <ExamCard 
                         key={exam.id} 
