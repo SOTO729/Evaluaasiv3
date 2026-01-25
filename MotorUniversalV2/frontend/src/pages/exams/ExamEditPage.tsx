@@ -583,16 +583,24 @@ const ExamEditPage = () => {
     setIsDownloadingContent(true)
     
     try {
-      let content = `# ${exam.name}\n`
-      content += `## Versión: ${exam.version}\n`
-      content += `## Duración: ${exam.duration_minutes} minutos\n`
-      content += `## Puntaje mínimo: ${exam.passing_score}%\n\n`
-      content += `---\n\n`
+      const separator = '═'.repeat(80)
+      const subSeparator = '─'.repeat(60)
+      
+      let content = `${separator}\n`
+      content += `                         EXAMEN: ${exam.name.toUpperCase()}\n`
+      content += `${separator}\n\n`
+      content += `Versión:         ${exam.version}\n`
+      content += `Duración:        ${exam.duration_minutes} minutos\n`
+      content += `Puntaje mínimo:  ${exam.passing_score}%\n`
+      content += `\n${separator}\n\n`
       
       // Iterar sobre categorías
       if (exam.categories && exam.categories.length > 0) {
-        for (const category of exam.categories) {
-          content += `# CATEGORÍA: ${category.name}\n`
+        for (let catIndex = 0; catIndex < exam.categories.length; catIndex++) {
+          const category = exam.categories[catIndex]
+          content += `╔${'═'.repeat(78)}╗\n`
+          content += `║  CATEGORÍA ${catIndex + 1}: ${category.name.toUpperCase().padEnd(62)}║\n`
+          content += `╚${'═'.repeat(78)}╝\n`
           content += `Porcentaje: ${category.percentage}%\n`
           if (category.description) {
             content += `Descripción: ${category.description}\n`
@@ -604,8 +612,11 @@ const ExamEditPage = () => {
             const topicsResponse = await examService.getTopics(category.id)
             const topics = topicsResponse.topics || []
             
-            for (const topic of topics) {
-              content += `## TEMA: ${topic.name}\n`
+            for (let topicIndex = 0; topicIndex < topics.length; topicIndex++) {
+              const topic = topics[topicIndex]
+              content += `┌${subSeparator}┐\n`
+              content += `│ TEMA ${topicIndex + 1}: ${topic.name}\n`
+              content += `└${subSeparator}┘\n`
               if (topic.description) {
                 content += `Descripción: ${topic.description}\n`
               }
@@ -617,14 +628,18 @@ const ExamEditPage = () => {
                 const questions = questionsResponse.questions || []
                 
                 if (questions.length > 0) {
-                  content += `### PREGUNTAS (${questions.length})\n\n`
+                  content += `    ▶ PREGUNTAS (${questions.length})\n`
+                  content += `    ${'─'.repeat(40)}\n\n`
                   
                   for (const question of questions) {
-                    content += `**Pregunta ${question.question_number}:** ${question.question_text}\n`
-                    content += `Tipo: ${question.question_type?.name || 'No especificado'} | Dificultad: ${question.difficulty} | Puntos: ${question.points}\n`
+                    content += `    Pregunta ${question.question_number}:\n`
+                    content += `    ${question.question_text}\n\n`
+                    content += `    [Tipo: ${question.question_type?.name || 'No especificado'}] `
+                    content += `[Dificultad: ${question.difficulty}] `
+                    content += `[Puntos: ${question.points}]\n`
                     
                     if (question.image_url) {
-                      content += `[Imagen adjunta]\n`
+                      content += `    📷 [Imagen adjunta]\n`
                     }
                     
                     // Obtener respuestas de la pregunta
@@ -633,12 +648,13 @@ const ExamEditPage = () => {
                       const answers = questionDetail.question?.answers || []
                       
                       if (answers.length > 0) {
-                        content += `Respuestas:\n`
+                        content += `\n    Respuestas:\n`
                         for (const answer of answers) {
-                          const correctMark = answer.is_correct ? '✓' : '✗'
-                          content += `  ${correctMark} ${answer.answer_number}. ${answer.answer_text}\n`
+                          const correctMark = answer.is_correct ? '✓ CORRECTA' : '✗'
+                          content += `        ${answer.answer_number}. ${answer.answer_text}\n`
+                          content += `           ${correctMark}\n`
                           if (answer.explanation) {
-                            content += `     Explicación: ${answer.explanation}\n`
+                            content += `           💡 ${answer.explanation}\n`
                           }
                         }
                       }
@@ -646,7 +662,7 @@ const ExamEditPage = () => {
                       console.error('Error obteniendo respuestas:', e)
                     }
                     
-                    content += `\n`
+                    content += `\n    ${'·'.repeat(40)}\n\n`
                   }
                 }
               } catch (e) {
@@ -659,28 +675,28 @@ const ExamEditPage = () => {
                 const exercises = exercisesResponse.exercises || []
                 
                 if (exercises.length > 0) {
-                  content += `### EJERCICIOS (${exercises.length})\n\n`
+                  content += `    ▶ EJERCICIOS (${exercises.length})\n`
+                  content += `    ${'─'.repeat(40)}\n\n`
                   
                   for (const exercise of exercises) {
-                    content += `**Ejercicio ${exercise.exercise_number}:** ${exercise.title || 'Sin título'}\n`
-                    content += `${exercise.exercise_text}\n`
-                    content += `Total de pasos: ${exercise.total_steps}\n`
+                    content += `    Ejercicio ${exercise.exercise_number}: ${exercise.title || 'Sin título'}\n`
+                    content += `    ${exercise.exercise_text}\n`
+                    content += `    Total de pasos: ${exercise.total_steps}\n`
                     
                     if (exercise.image_url) {
-                      content += `[Imagen adjunta]\n`
+                      content += `    📷 [Imagen adjunta]\n`
                     }
                     
                     // Obtener pasos del ejercicio
                     if (exercise.steps && exercise.steps.length > 0) {
-                      content += `Pasos:\n`
+                      content += `\n    Pasos del ejercicio:\n`
                       for (const step of exercise.steps) {
-                        content += `  Paso ${step.step_number}: ${step.title || step.description || 'Sin descripción'}\n`
+                        content += `        Paso ${step.step_number}: ${step.title || step.description || 'Sin descripción'}\n`
                         if (step.actions && step.actions.length > 0) {
-                          content += `    Acciones (${step.actions.length}):\n`
                           for (const action of step.actions) {
-                            content += `      - ${action.action_type}: ${action.label || action.placeholder || 'Sin etiqueta'}`
+                            content += `            • ${action.action_type}: ${action.label || action.placeholder || 'Sin etiqueta'}`
                             if (action.correct_answer) {
-                              content += ` → Respuesta: ${action.correct_answer}`
+                              content += ` → Respuesta: "${action.correct_answer}"`
                             }
                             content += `\n`
                           }
@@ -688,26 +704,30 @@ const ExamEditPage = () => {
                       }
                     }
                     
-                    content += `\n`
+                    content += `\n    ${'·'.repeat(40)}\n\n`
                   }
                 }
               } catch (e) {
                 console.error('Error obteniendo ejercicios:', e)
               }
-              
-              content += `---\n\n`
             }
           } catch (e) {
             console.error('Error obteniendo temas:', e)
           }
+          
+          content += `\n`
         }
       }
       
+      content += `\n${separator}\n`
+      content += `                    FIN DEL DOCUMENTO\n`
+      content += `${separator}\n`
+      
       // Crear y descargar el archivo
-      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
       const link = document.createElement('a')
       const cleanName = exam.name.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '').trim().replace(/\s+/g, '_')
-      link.download = `${cleanName}_${exam.version}_contenido.md`
+      link.download = `${cleanName}_${exam.version}_contenido.txt`
       link.href = URL.createObjectURL(blob)
       link.click()
       URL.revokeObjectURL(link.href)
