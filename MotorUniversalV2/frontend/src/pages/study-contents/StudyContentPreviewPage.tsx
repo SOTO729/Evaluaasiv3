@@ -666,21 +666,21 @@ const StudyContentPreviewPage: React.FC = () => {
           
           // Para inputs de texto correctos, comparar con respuesta correcta
           maxScore += 1;
-          const correctAnswer = action.correct_answer || '';
+          const correctAnswerRaw = action.correct_answer || '';
           const isCaseSensitive = action.is_case_sensitive;
           const scoringMode = action.scoring_mode || 'exact';
+          
+          // Soportar múltiples respuestas correctas separadas por coma
+          const correctAnswers = String(correctAnswerRaw).split(',').map(a => a.trim()).filter(a => a.length > 0);
 
-          if (userResponse && correctAnswer) {
+          if (userResponse && correctAnswers.length > 0) {
             // Extraer el valor si es un objeto (respuesta parcial o con similitud)
             const userText = typeof userResponse === 'object' 
               ? String(userResponse.value || '').trim() 
               : String(userResponse).trim();
-            const correctText = String(correctAnswer).trim();
             const compareUser = isCaseSensitive ? userText : userText.toLowerCase();
-            const compareCorrect = isCaseSensitive ? correctText : correctText.toLowerCase();
 
-            console.log(`  text_input eval: userText="${userText}", correctText="${correctText}", mode=${scoringMode}`);
-            console.log(`  compareUser="${compareUser}", compareCorrect="${compareCorrect}"`);
+            console.log(`  text_input eval: userText="${userText}", correctAnswers=[${correctAnswers.join(', ')}], mode=${scoringMode}`);
 
             // Verificar si la respuesta tiene formato de similitud (objeto con value y similarity)
             if (scoringMode === 'similarity' && typeof userResponse === 'object' && userResponse.similarity !== undefined) {
@@ -688,22 +688,34 @@ const StudyContentPreviewPage: React.FC = () => {
               score += userResponse.similarity / 100;
               console.log(`  -> Similarity mode (stored): ${userResponse.similarity}%`);
             } else if (scoringMode === 'similarity') {
-              // Calcular similitud si no se guardó (respuesta parcial)
-              const similarity = calculateSimilarity(compareUser, compareCorrect);
-              score += similarity / 100;
-              console.log(`  -> Similarity mode (calculated): ${similarity}%`);
+              // Calcular similitud con la mejor coincidencia entre todas las respuestas correctas
+              let bestSimilarity = 0;
+              for (const correctAnswer of correctAnswers) {
+                const compareCorrect = isCaseSensitive ? correctAnswer : correctAnswer.toLowerCase();
+                const similarity = calculateSimilarity(compareUser, compareCorrect);
+                if (similarity > bestSimilarity) bestSimilarity = similarity;
+              }
+              score += bestSimilarity / 100;
+              console.log(`  -> Similarity mode (calculated): ${bestSimilarity}%`);
             } else if (scoringMode === 'exact') {
-              // 0% o 100% - debe coincidir exactamente
-              const isMatch = compareUser === compareCorrect;
+              // 0% o 100% - debe coincidir exactamente con alguna de las respuestas
+              const isMatch = correctAnswers.some(correctAnswer => {
+                const compareCorrect = isCaseSensitive ? correctAnswer : correctAnswer.toLowerCase();
+                return compareUser === compareCorrect;
+              });
               if (isMatch) score += 1;
               console.log(`  -> Exact mode: match=${isMatch}, score=${score}`);
             } else if (scoringMode === 'contains') {
-              const contains = compareUser.includes(compareCorrect);
+              // Verificar si contiene alguna de las respuestas correctas
+              const contains = correctAnswers.some(correctAnswer => {
+                const compareCorrect = isCaseSensitive ? correctAnswer : correctAnswer.toLowerCase();
+                return compareUser.includes(compareCorrect);
+              });
               if (contains) score += 1;
               console.log(`  -> Contains mode: contains=${contains}, score=${score}`);
             }
-          } else if (userResponse && !correctAnswer) {
-            // Si no hay respuesta correcta definida pero el usuario escribi\u00f3 algo, es v\u00e1lido
+          } else if (userResponse && correctAnswers.length === 0) {
+            // Si no hay respuesta correcta definida pero el usuario escribió algo, es válido
             score += 1;
           }
         }
@@ -855,21 +867,28 @@ const StudyContentPreviewPage: React.FC = () => {
     if (!exerciseId || !value.trim()) return;
 
     const actionKey = `${action.step_id}_${action.id}`;
-    const correctAnswer = action.correct_answer || '';
+    const correctAnswerRaw = action.correct_answer || '';
     const isCaseSensitive = action.is_case_sensitive;
     const scoringMode = action.scoring_mode || 'exact';
 
+    // Soportar múltiples respuestas correctas separadas por coma
+    const correctAnswers = String(correctAnswerRaw).split(',').map(a => a.trim()).filter(a => a.length > 0);
+    
     const userText = value.trim();
-    const correctText = correctAnswer.trim();
     const compareUser = isCaseSensitive ? userText : userText.toLowerCase();
-    const compareCorrect = isCaseSensitive ? correctText : correctText.toLowerCase();
 
     // Modo similitud: siempre acepta la respuesta y guarda el porcentaje de similitud
-    if (scoringMode === 'similarity' && correctText) {
-      const similarityScore = calculateSimilarity(compareUser, compareCorrect);
+    if (scoringMode === 'similarity' && correctAnswers.length > 0) {
+      // Calcular similitud con la mejor coincidencia
+      let bestSimilarity = 0;
+      for (const correctAnswer of correctAnswers) {
+        const compareCorrect = isCaseSensitive ? correctAnswer : correctAnswer.toLowerCase();
+        const similarity = calculateSimilarity(compareUser, compareCorrect);
+        if (similarity > bestSimilarity) bestSimilarity = similarity;
+      }
       
       // Guardar respuesta con el porcentaje de similitud
-      const newResponses = { ...actionResponses, [actionKey]: { value, similarity: similarityScore } };
+      const newResponses = { ...actionResponses, [actionKey]: { value, similarity: bestSimilarity } };
       setActionResponses(newResponses);
 
       // Marcar paso como completado
@@ -892,15 +911,23 @@ const StudyContentPreviewPage: React.FC = () => {
     // Para otros modos: verificar si la respuesta es correcta
     let isCorrect = false;
 
-    if (correctText) {
+    if (correctAnswers.length > 0) {
       if (scoringMode === 'exact') {
-        // 0% o 100% - debe coincidir exactamente
-        isCorrect = compareUser === compareCorrect;
+        // 0% o 100% - debe coincidir exactamente con alguna respuesta
+        isCorrect = correctAnswers.some(correctAnswer => {
+          const compareCorrect = isCaseSensitive ? correctAnswer : correctAnswer.toLowerCase();
+          return compareUser === compareCorrect;
+        });
       } else if (scoringMode === 'contains') {
-        isCorrect = compareUser.includes(compareCorrect);
+        // Verificar si contiene alguna de las respuestas correctas
+        isCorrect = correctAnswers.some(correctAnswer => {
+          const compareCorrect = isCaseSensitive ? correctAnswer : correctAnswer.toLowerCase();
+          return compareUser.includes(compareCorrect);
+        });
       } else if (scoringMode === 'regex') {
+        // Usar la primera respuesta como patrón regex
         try {
-          const regex = new RegExp(correctText, isCaseSensitive ? '' : 'i');
+          const regex = new RegExp(correctAnswers[0], isCaseSensitive ? '' : 'i');
           isCorrect = regex.test(userText);
         } catch {
           isCorrect = false;

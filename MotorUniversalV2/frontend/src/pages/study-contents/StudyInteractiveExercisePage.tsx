@@ -1070,18 +1070,41 @@ const StudyInteractiveExercisePage = () => {
       
       // Los comentarios no necesitan validación de respuesta correcta
       if (!isComment) {
-        // Validar que solo haya una respuesta correcta por paso
-        // Incluye todos los text_input (incluso sin respuesta configurada aún)
-        const hasCorrectAnswer = currentActions.some(a => 
-          (a.action_type === 'button' && a.correct_answer === 'correct') ||
-          (a.action_type === 'text_input')
+        // Validar que no haya mezcla de botón correcto con campos de texto
+        // Se permite: múltiples campos de texto O un solo botón correcto (no ambos)
+        const hasCorrectButton = currentActions.some(a => 
+          a.action_type === 'button' && a.correct_answer === 'correct'
         )
+        const hasTextInput = currentActions.some(a => a.action_type === 'text_input')
       
-        if ((isCorrectButton || isTextInput) && hasCorrectAnswer) {
+        // Si intenta añadir un botón correcto y ya hay campos de texto
+        if (isCorrectButton && hasTextInput) {
           setWarningModal({
             isOpen: true,
-            title: 'Respuesta correcta ya existe',
-            message: 'Este paso ya tiene una respuesta correcta configurada. Solo puede haber un botón correcto o un campo de texto por cada paso del ejercicio.'
+            title: 'No se puede mezclar tipos',
+            message: 'Este paso ya tiene campos de texto. No puede añadir un botón correcto junto con campos de texto. Use solo uno de los dos tipos.'
+          })
+          setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
+          return
+        }
+        
+        // Si intenta añadir campo de texto y ya hay un botón correcto
+        if (isTextInput && hasCorrectButton) {
+          setWarningModal({
+            isOpen: true,
+            title: 'No se puede mezclar tipos',
+            message: 'Este paso ya tiene un botón correcto. No puede añadir campos de texto junto con botones correctos. Use solo uno de los dos tipos.'
+          })
+          setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
+          return
+        }
+        
+        // Si intenta añadir otro botón correcto
+        if (isCorrectButton && hasCorrectButton) {
+          setWarningModal({
+            isOpen: true,
+            title: 'Botón correcto ya existe',
+            message: 'Este paso ya tiene un botón correcto. Solo puede haber un botón correcto por paso. Si necesita múltiples respuestas, use campos de texto en su lugar.'
           })
           setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
           return
@@ -3272,17 +3295,17 @@ const StudyInteractiveExercisePage = () => {
                     <div className="space-y-3">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Respuesta Correcta <span className="text-red-600">*</span>
+                          Respuesta(s) Correcta(s) <span className="text-red-600">*</span>
                         </label>
-                        <input
-                          type="text"
+                        <textarea
                           value={actionFormData.correct_answer}
                           onChange={(e) => setActionFormData({ ...actionFormData, correct_answer: e.target.value })}
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 ${!actionFormData.correct_answer?.trim() ? 'border-red-400' : 'border-gray-300'}`}
-                          placeholder="La respuesta que debe escribir el alumno"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 resize-none ${!actionFormData.correct_answer?.trim() ? 'border-red-400' : 'border-gray-300'}`}
+                          placeholder="respuesta1, respuesta2, respuesta3"
+                          rows={2}
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                          Esta es la respuesta contra la cual se comparará lo que escriba el alumno
+                          Puedes poner varias respuestas correctas separadas por coma. Por ejemplo: "opción1, opción2, opción3"
                         </p>
                       </div>
 
