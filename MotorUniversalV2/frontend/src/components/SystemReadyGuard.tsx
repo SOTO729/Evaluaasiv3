@@ -12,7 +12,11 @@ interface SystemStatus {
   showTip: boolean
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+// Usar la URL del backend de Azure Container Apps en producción
+const API_URL = import.meta.env.VITE_API_URL || 
+  (import.meta.env.MODE === 'production' 
+    ? 'https://evaluaasi-motorv2-api.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api' 
+    : '/api')
 const MAX_ATTEMPTS = 5
 const RETRY_DELAY = 5000 // 5 seconds
 
