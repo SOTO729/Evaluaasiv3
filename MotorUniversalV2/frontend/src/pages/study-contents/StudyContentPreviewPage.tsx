@@ -239,8 +239,8 @@ const StudyContentPreviewPage: React.FC = () => {
     scrollTimeoutRef.current = setTimeout(() => {
       const currentScrollTop = lastScrollTopRef.current;
       
-      // Verificar si todavía no está animando
-      if (isAnimatingRef.current) {
+      // Verificar si todavía no está animando o es scroll programático
+      if (isAnimatingRef.current || isProgrammaticScrollRef.current) {
         return;
       }
       
