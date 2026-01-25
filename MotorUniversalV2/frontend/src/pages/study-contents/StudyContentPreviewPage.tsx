@@ -1267,7 +1267,7 @@ const StudyContentPreviewPage: React.FC = () => {
               <ArrowLeft className="fluid-icon-sm" />
               <span className="hidden sm:inline font-medium fluid-text-sm">Volver</span>
             </button>
-            <div className="fluid-h-icon-sm w-px bg-gray-200 hidden sm:block flex-shrink-0" />
+            <div className="h-4 w-px bg-gray-200 hidden sm:block flex-shrink-0" />
             <h1 className="font-semibold text-gray-900 truncate fluid-text-base max-w-[clamp(100px,30vw,42rem)]">
               {material.title}
             </h1>
@@ -1317,7 +1317,7 @@ const StudyContentPreviewPage: React.FC = () => {
 
           {/* Lista de sesiones y temas - scrolleable */}
           <div ref={sidebarScrollRef} className="flex-1 overflow-y-auto min-h-0 scroll-smooth">
-            <nav className="fluid-p-2 pb-20 lg:pb-16">
+            <nav className="fluid-p-2 pb-20">
               {material.sessions?.map((session, sIdx) => {
                 const sessionCompleted = isSessionCompleted(session);
                 return (
@@ -1345,14 +1345,14 @@ const StudyContentPreviewPage: React.FC = () => {
                     <span className={`fluid-text-xs flex-shrink-0 fluid-mt-1 ${sessionCompleted ? 'text-green-500 font-medium' : 'text-gray-400'}`}>
                       {session.topics?.length || 0}
                       {session.topics && session.topics.reduce((sum, t) => sum + (t.estimated_time_minutes || 0), 0) > 0 && (
-                        <span className="ml-1">· {session.topics.reduce((sum, t) => sum + (t.estimated_time_minutes || 0), 0)}m</span>
+                        <span className="fluid-ml-1">· {session.topics.reduce((sum, t) => sum + (t.estimated_time_minutes || 0), 0)}m</span>
                       )}
                     </span>
                   </button>
 
                   {/* Topics list */}
                   {expandedSessions.has(sIdx) && (
-                    <div className="ml-4 border-l-2 border-gray-200">
+                    <div className="fluid-ml-4 border-l-2 border-gray-200">
                       {session.topics?.map((topic, tIdx) => {
                         const isActive = sIdx === currentSessionIndex && tIdx === currentTopicIndex;
                         const topicCompleted = isTopicCompleted(topic);
@@ -1517,7 +1517,7 @@ const StudyContentPreviewPage: React.FC = () => {
             <div className="min-h-[300px]">
               {/* Video */}
               {activeTab === 'video' && (
-                <div ref={videoContainerRef} className="max-w-3xl">
+                <div ref={videoContainerRef} className="fluid-container-lg">
                   {currentTopic?.video ? (
                     <div className="flex flex-col fluid-gap-2">
                       {/* Título del video */}
@@ -2121,14 +2121,14 @@ const StudyContentPreviewPage: React.FC = () => {
             </div>
 
             {/* Espaciado para la barra fija inferior */}
-            <div className="h-16" />
+            <div className="fluid-h-16" />
           </div>
         </main>
       </div>
 
       {/* Barra de navegación fija inferior */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
-        <div className="max-w-7xl mx-auto fluid-px-6 fluid-py-3">
+        <div className="fluid-container-full mx-auto fluid-px-6 fluid-py-3">
           <div className="flex items-center justify-between sm:justify-end fluid-gap-4">
             <button
               onClick={goToPreviousContent}

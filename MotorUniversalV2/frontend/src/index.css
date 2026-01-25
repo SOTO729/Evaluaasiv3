@@ -235,6 +235,23 @@
   .fluid-mb-6 { margin-bottom: var(--space-6); }
   .fluid-mb-8 { margin-bottom: var(--space-8); }
   
+  .fluid-ml-1 { margin-left: var(--space-1); }
+  .fluid-ml-2 { margin-left: var(--space-2); }
+  .fluid-ml-3 { margin-left: var(--space-3); }
+  .fluid-ml-4 { margin-left: var(--space-4); }
+  .fluid-ml-6 { margin-left: var(--space-6); }
+  .fluid-ml-8 { margin-left: var(--space-8); }
+  
+  .fluid-mr-1 { margin-right: var(--space-1); }
+  .fluid-mr-2 { margin-right: var(--space-2); }
+  .fluid-mr-3 { margin-right: var(--space-3); }
+  .fluid-mr-4 { margin-right: var(--space-4); }
+  
+  .fluid-pb-16 { padding-bottom: var(--space-8); }
+  .fluid-pb-20 { padding-bottom: calc(var(--space-8) * 2.5); }
+  
+  .fluid-h-16 { height: calc(var(--space-8) * 2); }
+  
   /* Gaps fluidos */
   .fluid-gap-1 { gap: var(--space-1); }
   .fluid-gap-2 { gap: var(--space-2); }
@@ -247,6 +264,7 @@
   /* Iconos fluidos */
   .fluid-icon-xs { width: var(--icon-xs); height: var(--icon-xs); }
   .fluid-icon-sm { width: var(--icon-sm); height: var(--icon-sm); }
+  .fluid-icon-md { width: var(--icon-base); height: var(--icon-base); }
   .fluid-icon { width: var(--icon-base); height: var(--icon-base); }
   .fluid-icon-lg { width: var(--icon-lg); height: var(--icon-lg); }
   .fluid-icon-xl { width: var(--icon-xl); height: var(--icon-xl); }
