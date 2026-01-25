@@ -103,7 +103,7 @@ const Layout = ({ children }: LayoutProps) => {
               {/* Botón hamburguesa para móvil */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="lg:hidden fluid-p-2 rounded-fluid-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 fluid-mr-2"
+                className="lg:hidden fluid-p-2 fluid-rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 fluid-mr-2"
                 aria-label="Abrir menú"
               >
                 {isMobileMenuOpen ? (
@@ -125,7 +125,7 @@ const Layout = ({ children }: LayoutProps) => {
               <nav className="hidden lg:flex fluid-ml-6 fluid-gap-3">
                 <Link 
                   to="/dashboard" 
-                  className={`fluid-px-3 fluid-py-2 rounded-fluid-lg fluid-text-sm transition-all ${
+                  className={`fluid-px-3 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                     location.pathname === '/dashboard' 
                       ? 'text-primary-600 font-semibold bg-primary-50' 
                       : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -136,7 +136,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role !== 'editor' && user?.role !== 'coordinator' && (
                   <Link 
                     to="/certificates" 
-                    className={`fluid-px-3 fluid-py-2 rounded-fluid-lg fluid-text-sm transition-all ${
+                    className={`fluid-px-3 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/certificates') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -148,7 +148,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role !== 'coordinator' && (
                   <Link 
                     to="/exams" 
-                    className={`fluid-px-3 fluid-py-2 rounded-fluid-lg fluid-text-sm transition-all ${
+                    className={`fluid-px-3 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/exams') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -160,7 +160,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role !== 'coordinator' && (
                   <Link 
                     to="/study-contents" 
-                  className={`fluid-px-3 fluid-py-2 rounded-fluid-lg fluid-text-sm transition-all ${
+                  className={`fluid-px-3 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                     location.pathname.startsWith('/study-contents') 
                       ? 'text-primary-600 font-semibold bg-primary-50' 
                       : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -172,7 +172,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role !== 'candidato' && user?.role !== 'coordinator' && (
                   <Link 
                     to="/standards" 
-                    className={`fluid-px-3 fluid-py-2 rounded-fluid-lg fluid-text-sm transition-all ${
+                    className={`fluid-px-3 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/standards') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -184,7 +184,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {(user?.role === 'admin' || user?.role === 'coordinator') && (
                   <Link 
                     to="/partners/dashboard" 
-                    className={`fluid-px-3 fluid-py-2 rounded-fluid-lg fluid-text-sm transition-all ${
+                    className={`fluid-px-3 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/partners') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -196,7 +196,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {(user?.role === 'admin' || user?.role === 'coordinator') && (
                   <Link 
                     to="/user-management" 
-                    className={`fluid-px-3 fluid-py-2 rounded-fluid-lg fluid-text-sm transition-all ${
+                    className={`fluid-px-3 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/user-management') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -212,7 +212,7 @@ const Layout = ({ children }: LayoutProps) => {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 rounded-fluid-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                className="flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 fluid-rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
               >
                 {/* Avatar con iniciales */}
                 <div className="w-[clamp(1.75rem,1.5rem+0.5vw,2.5rem)] h-[clamp(1.75rem,1.5rem+0.5vw,2.5rem)] rounded-full bg-primary-600 text-white flex items-center justify-center fluid-text-sm font-medium">
@@ -234,7 +234,7 @@ const Layout = ({ children }: LayoutProps) => {
 
               {/* Dropdown Menu */}
               {isDropdownOpen && (
-                <div className="absolute right-0 fluid-mt-2 w-[clamp(16rem,14rem+8vw,28rem)] bg-white rounded-fluid-xl shadow-lg border border-gray-200 fluid-py-2 z-50">
+                <div className="absolute right-0 fluid-mt-2 w-[clamp(16rem,14rem+8vw,28rem)] bg-white fluid-rounded-xl shadow-lg border border-gray-200 fluid-py-2 z-50">
                   {/* Header con info del usuario */}
                   <div className="fluid-px-4 fluid-py-3 border-b border-gray-100">
                     <div className="flex items-center fluid-gap-3">
@@ -295,7 +295,7 @@ const Layout = ({ children }: LayoutProps) => {
             <nav className="fluid-px-4 fluid-py-3 space-y-1">
               <Link 
                 to="/dashboard" 
-                className={`block fluid-px-3 fluid-py-3 rounded-fluid-lg transition-all fluid-text-sm ${
+                className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
                   location.pathname === '/dashboard' 
                     ? 'bg-primary-50 text-primary-600 font-medium' 
                     : 'text-gray-700 hover:bg-gray-100'
@@ -311,7 +311,7 @@ const Layout = ({ children }: LayoutProps) => {
               {user?.role !== 'editor' && user?.role !== 'coordinator' && (
                 <Link 
                   to="/certificates" 
-                  className={`block fluid-px-3 fluid-py-3 rounded-fluid-lg transition-all fluid-text-sm ${
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
                     location.pathname.startsWith('/certificates') 
                       ? 'bg-primary-50 text-primary-600 font-medium' 
                       : 'text-gray-700 hover:bg-gray-100'
@@ -328,7 +328,7 @@ const Layout = ({ children }: LayoutProps) => {
               {user?.role !== 'coordinator' && (
                 <Link 
                   to="/exams" 
-                  className={`block fluid-px-3 fluid-py-3 rounded-fluid-lg transition-all fluid-text-sm ${
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
                     location.pathname.startsWith('/exams') 
                       ? 'bg-primary-50 text-primary-600 font-medium' 
                       : 'text-gray-700 hover:bg-gray-100'
@@ -345,7 +345,7 @@ const Layout = ({ children }: LayoutProps) => {
               {user?.role !== 'coordinator' && (
                 <Link 
                   to="/study-contents" 
-                  className={`block fluid-px-3 fluid-py-3 rounded-fluid-lg transition-all fluid-text-sm ${
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
                     location.pathname.startsWith('/study-contents') 
                       ? 'bg-primary-50 text-primary-600 font-medium' 
                       : 'text-gray-700 hover:bg-gray-100'
@@ -362,7 +362,7 @@ const Layout = ({ children }: LayoutProps) => {
               {user?.role !== 'candidato' && user?.role !== 'coordinator' && (
                 <Link 
                   to="/standards" 
-                  className={`block fluid-px-3 fluid-py-3 rounded-fluid-lg transition-all fluid-text-sm ${
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
                     location.pathname.startsWith('/standards') 
                       ? 'bg-primary-50 text-primary-600 font-medium' 
                       : 'text-gray-700 hover:bg-gray-100'
@@ -379,7 +379,7 @@ const Layout = ({ children }: LayoutProps) => {
               {(user?.role === 'admin' || user?.role === 'coordinator') && (
                 <Link 
                   to="/partners/dashboard" 
-                  className={`block fluid-px-3 fluid-py-3 rounded-fluid-lg transition-all fluid-text-sm ${
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
                     location.pathname.startsWith('/partners') 
                       ? 'bg-primary-50 text-primary-600 font-medium' 
                       : 'text-gray-700 hover:bg-gray-100'
@@ -396,7 +396,7 @@ const Layout = ({ children }: LayoutProps) => {
               {(user?.role === 'admin' || user?.role === 'coordinator') && (
                 <Link 
                   to="/user-management" 
-                  className={`block fluid-px-3 fluid-py-3 rounded-fluid-lg transition-all fluid-text-sm ${
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
                     location.pathname.startsWith('/user-management') 
                       ? 'bg-primary-50 text-primary-600 font-medium' 
                       : 'text-gray-700 hover:bg-gray-100'
@@ -417,7 +417,7 @@ const Layout = ({ children }: LayoutProps) => {
               {/* Cerrar sesión en menú móvil */}
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center fluid-px-3 fluid-py-3 rounded-fluid-lg fluid-text-sm text-red-600 hover:bg-red-50 transition-colors"
+                className="w-full flex items-center fluid-px-3 fluid-py-3 fluid-rounded-lg fluid-text-sm text-red-600 hover:bg-red-50 transition-colors"
               >
                 <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
