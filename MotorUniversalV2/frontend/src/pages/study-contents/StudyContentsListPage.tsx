@@ -143,8 +143,8 @@ const MaterialCard = ({ material, navigate, index = 0, showStatus = true, isCand
             <Calendar className="h-3.5 w-3.5" />
             <span>
               {new Date(material.created_at).toLocaleDateString('es-ES', {
-                day: 'numeric',
-                month: 'long',
+                day: '2-digit',
+                month: '2-digit',
                 year: 'numeric'
               })}
             </span>
