@@ -416,9 +416,8 @@ const StudyContentPreviewPage: React.FC = () => {
 
   // Detectar si el botón de iniciar ejercicio no está visible en pantalla
   useEffect(() => {
-    const container = mainContainerRef.current;
-    
     const checkStartButtonVisibility = () => {
+      const container = mainContainerRef.current;
       if (activeTab === 'interactive' && !exerciseStarted && startExerciseRef.current && container) {
         const startRect = startExerciseRef.current.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
@@ -435,18 +434,23 @@ const StudyContentPreviewPage: React.FC = () => {
       }
     };
 
-    // Ejecutar después de un delay para asegurar que el DOM está renderizado
-    const timeoutId = setTimeout(checkStartButtonVisibility, 300);
+    // Ejecutar con múltiples delays para asegurar que el DOM está renderizado
+    const timeoutId1 = setTimeout(checkStartButtonVisibility, 100);
+    const timeoutId2 = setTimeout(checkStartButtonVisibility, 300);
+    const timeoutId3 = setTimeout(checkStartButtonVisibility, 600);
     
     // También ejecutar inmediatamente
     checkStartButtonVisibility();
     
     // Escuchar scroll del contenedor principal
+    const container = mainContainerRef.current;
     container?.addEventListener('scroll', checkStartButtonVisibility);
     window.addEventListener('resize', checkStartButtonVisibility);
 
     return () => {
-      clearTimeout(timeoutId);
+      clearTimeout(timeoutId1);
+      clearTimeout(timeoutId2);
+      clearTimeout(timeoutId3);
       container?.removeEventListener('scroll', checkStartButtonVisibility);
       window.removeEventListener('resize', checkStartButtonVisibility);
     };
