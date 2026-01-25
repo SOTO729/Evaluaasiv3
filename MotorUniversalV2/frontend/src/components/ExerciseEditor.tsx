@@ -49,6 +49,49 @@ const EDITOR_CONFIG = {
   DEFAULT_ZOOM: 1
 }
 
+// Función helper para verificar si dos rectángulos se superponen
+const checkRectanglesOverlap = (
+  rect1: { x: number; y: number; width: number; height: number },
+  rect2: { x: number; y: number; width: number; height: number }
+): boolean => {
+  const rect1Right = rect1.x + rect1.width
+  const rect1Bottom = rect1.y + rect1.height
+  const rect2Right = rect2.x + rect2.width
+  const rect2Bottom = rect2.y + rect2.height
+
+  // No hay superposición si un rectángulo está completamente a la izquierda, derecha, arriba o abajo del otro
+  return !(
+    rect1Right <= rect2.x ||
+    rect1.x >= rect2Right ||
+    rect1Bottom <= rect2.y ||
+    rect1.y >= rect2Bottom
+  )
+}
+
+// Función para verificar si una nueva área se superpone con alguna existente
+const checkOverlapWithExistingActions = (
+  newRect: { x: number; y: number; width: number; height: number },
+  existingActions: ExerciseAction[],
+  excludeActionId?: string
+): ExerciseAction | null => {
+  for (const action of existingActions) {
+    // Excluir la acción que se está moviendo/redimensionando
+    if (excludeActionId && action.id === excludeActionId) continue
+    
+    const actionRect = {
+      x: action.position_x,
+      y: action.position_y,
+      width: action.width,
+      height: action.height
+    }
+    
+    if (checkRectanglesOverlap(newRect, actionRect)) {
+      return action
+    }
+  }
+  return null
+}
+
 const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   const imageContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -420,42 +463,21 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
       const isButton = selectedTool === 'button' || selectedTool === 'button-wrong'
       const isCorrectButton = selectedTool === 'button'
       
-      // Se permiten múltiples respuestas correctas por paso
-      // Cada respuesta correcta (botón o textbox) tendrá su propio número de acción
+      // Verificar superposición con TODAS las áreas existentes (no se permite superposición de ningún tipo)
+      const newRect = { x: left, y: top, width, height }
+      const overlappingAction = checkOverlapWithExistingActions(newRect, currentActions)
       
-      // Validar que campos incorrectos no se superpongan con respuestas correctas
-      const isWrongButton = selectedTool === 'button-wrong'
-      if (isWrongButton) {
-        // Considerar como respuestas correctas: botones correctos Y todos los textbox (incluso sin respuesta definida)
-        const correctActions = currentActions.filter(a => 
-          (a.action_type === 'button' && a.correct_answer === 'correct') ||
-          (a.action_type === 'textbox')
-        )
-        
-        // Verificar superposición con TODAS las respuestas correctas
-        for (const correctAction of correctActions) {
-          const newRight = left + width
-          const newBottom = top + height
-          const correctRight = correctAction.position_x + correctAction.width
-          const correctBottom = correctAction.position_y + correctAction.height
-          
-          const overlaps = !(
-            newRight <= correctAction.position_x ||
-            left >= correctRight ||
-            newBottom <= correctAction.position_y ||
-            top >= correctBottom
-          )
-          
-          if (overlaps) {
-            setWarningModal({
-              isOpen: true,
-              title: 'Superposición no permitida',
-              message: 'El campo incorrecto no puede quedar por encima de una respuesta correcta. Por favor, coloca el área en otra posición.'
-            })
-            setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
-            return
-          }
-        }
+      if (overlappingAction) {
+        const overlappingType = overlappingAction.action_type === 'button' 
+          ? (overlappingAction.correct_answer === 'correct' ? 'botón correcto' : 'botón incorrecto')
+          : 'campo de texto'
+        setWarningModal({
+          isOpen: true,
+          title: 'Superposición no permitida',
+          message: `El área que intentas crear se superpone con un ${overlappingType} existente. Las áreas no pueden superponerse entre sí. Por favor, coloca el área en otra posición.`
+        })
+        setDrawingState({ isDrawing: false, startX: 0, startY: 0, currentX: 0, currentY: 0 })
+        return
       }
       
       const newAction = {
@@ -579,16 +601,36 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
   }, [dragState, resizeState])
 
   const handleMouseUp = useCallback(() => {
+    const currentActions = currentStep?.actions || []
+    
     if (dragState.isDragging && dragState.actionId) {
       const actionEl = document.querySelector(`[data-action-id="${dragState.actionId}"]`) as HTMLElement
       if (actionEl) {
         const left = parseFloat(actionEl.style.left)
         const top = parseFloat(actionEl.style.top)
         
-        updateActionMutation.mutate({
-          actionId: dragState.actionId,
-          data: { position_x: left, position_y: top }
-        })
+        // Encontrar la acción original para obtener sus dimensiones
+        const originalAction = currentActions.find(a => a.id === dragState.actionId)
+        if (originalAction) {
+          const newRect = { x: left, y: top, width: originalAction.width, height: originalAction.height }
+          const overlappingAction = checkOverlapWithExistingActions(newRect, currentActions, dragState.actionId)
+          
+          if (overlappingAction) {
+            // Revertir a posición original
+            actionEl.style.left = `${dragState.offsetX}%`
+            actionEl.style.top = `${dragState.offsetY}%`
+            setWarningModal({
+              isOpen: true,
+              title: 'Superposición no permitida',
+              message: 'No puedes mover el área a una posición donde se superponga con otra área existente.'
+            })
+          } else {
+            updateActionMutation.mutate({
+              actionId: dragState.actionId,
+              data: { position_x: left, position_y: top }
+            })
+          }
+        }
       }
     }
 
@@ -600,16 +642,32 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
         const left = parseFloat(actionEl.style.left)
         const top = parseFloat(actionEl.style.top)
         
-        updateActionMutation.mutate({
-          actionId: resizeState.actionId,
-          data: { width, height, position_x: left, position_y: top }
-        })
+        const newRect = { x: left, y: top, width, height }
+        const overlappingAction = checkOverlapWithExistingActions(newRect, currentActions, resizeState.actionId)
+        
+        if (overlappingAction) {
+          // Revertir a tamaño y posición original
+          actionEl.style.left = `${resizeState.startPositionX}%`
+          actionEl.style.top = `${resizeState.startPositionY}%`
+          actionEl.style.width = `${resizeState.startWidth}%`
+          actionEl.style.height = `${resizeState.startHeight}%`
+          setWarningModal({
+            isOpen: true,
+            title: 'Superposición no permitida',
+            message: 'No puedes redimensionar el área de forma que se superponga con otra área existente.'
+          })
+        } else {
+          updateActionMutation.mutate({
+            actionId: resizeState.actionId,
+            data: { width, height, position_x: left, position_y: top }
+          })
+        }
       }
     }
 
     setDragState({ isDragging: false, actionId: null, startX: 0, startY: 0, offsetX: 0, offsetY: 0 })
     setResizeState({ isResizing: false, actionId: null, corner: null, startX: 0, startY: 0, startWidth: 0, startHeight: 0, startPositionX: 0, startPositionY: 0 })
-  }, [dragState, resizeState, updateActionMutation])
+  }, [dragState, resizeState, updateActionMutation, currentStep, setWarningModal])
 
   useEffect(() => {
     if (dragState.isDragging || resizeState.isResizing) {
