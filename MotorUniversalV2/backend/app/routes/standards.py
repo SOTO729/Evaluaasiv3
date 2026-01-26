@@ -13,7 +13,6 @@ standards_bp = Blueprint('standards', __name__)
 
 @standards_bp.route('/', methods=['GET'])
 @jwt_required()
-@cache.cached(timeout=60, key_prefix=make_cache_key)
 def get_standards():
     """
     Obtener lista de estándares de competencia
@@ -21,6 +20,8 @@ def get_standards():
     Query params:
         - active_only: Solo estándares activos (default: true)
         - include_stats: Incluir estadísticas (default: false)
+    
+    Nota: Se eliminó el caché para garantizar datos actualizados inmediatamente
     """
     active_only = request.args.get('active_only', 'true').lower() == 'true'
     include_stats = request.args.get('include_stats', 'false').lower() == 'true'
