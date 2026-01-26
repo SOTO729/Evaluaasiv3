@@ -36,9 +36,9 @@ export default function UserFormPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [roles, setRoles] = useState<RoleOption[]>([]);
   const [showPassword, setShowPassword] = useState(false);
+  const [existingUsername, setExistingUsername] = useState<string>('');
 
   const [formData, setFormData] = useState({
-    username: '',
     email: '',
     password: '',
     name: '',
@@ -74,8 +74,9 @@ export default function UserFormPage() {
     try {
       setLoading(true);
       const data = await getUser(userId!);
+      // El username se guarda por separado ya que es solo lectura
+      setExistingUsername(data.username || '');
       setFormData({
-        username: data.username || '',
         email: data.email || '',
         password: '',
         name: data.name || '',
@@ -107,10 +108,6 @@ export default function UserFormPage() {
     setError(null);
     setSuccess(null);
 
-    if (!formData.username.trim()) {
-      setError('El nombre de usuario es requerido');
-      return;
-    }
     if (!formData.email.trim()) {
       setError('El email es requerido');
       return;
@@ -152,7 +149,6 @@ export default function UserFormPage() {
         setTimeout(() => navigate('/user-management'), 1500);
       } else {
         const createData: CreateUserData = {
-          username: formData.username,
           email: formData.email,
           password: formData.password,
           name: formData.name,
@@ -219,23 +215,18 @@ export default function UserFormPage() {
 
       <form onSubmit={handleSubmit} className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-6">
-          <div>
-            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-              Nombre de usuario <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              disabled={isEditing}
-              placeholder="usuario123"
-              className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-            />
-            {isEditing && (
-              <p className="fluid-text-xs text-gray-500 fluid-mt-1">El nombre de usuario no se puede cambiar</p>
-            )}
-          </div>
+          {/* Username solo se muestra al editar (es generado automáticamente) */}
+          {isEditing && (
+            <div>
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                Nombre de usuario
+              </label>
+              <div className="w-full fluid-px-4 py-2.5 border border-gray-200 rounded-fluid-lg bg-gray-50 text-gray-600 font-mono">
+                {existingUsername || '—'}
+              </div>
+              <p className="fluid-text-xs text-gray-500 fluid-mt-1">Generado automáticamente, no se puede cambiar</p>
+            </div>
+          )}
 
           <div>
             <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">

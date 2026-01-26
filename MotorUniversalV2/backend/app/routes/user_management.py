@@ -199,20 +199,19 @@ def create_user():
             if User.query.filter_by(curp=curp).first():
                 return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
         
-        # Generar username si no se proporciona
-        username = data.get('username', '').strip()
-        if not username:
-            # Generar username a partir del email
-            base_username = email.split('@')[0]
-            username = base_username
-            counter = 1
-            while User.query.filter_by(username=username).first():
-                username = f"{base_username}{counter}"
-                counter += 1
-        else:
-            # Verificar username único
-            if User.query.filter_by(username=username).first():
-                return jsonify({'error': 'Ya existe un usuario con ese nombre de usuario'}), 400
+        # Generar username automáticamente (10 caracteres alfanuméricos únicos)
+        import random
+        import string
+        
+        def generate_unique_username():
+            """Genera un username único de 10 caracteres alfanuméricos"""
+            chars = string.ascii_lowercase + string.digits
+            while True:
+                username = ''.join(random.choices(chars, k=10))
+                if not User.query.filter_by(username=username).first():
+                    return username
+        
+        username = generate_unique_username()
         
         # Crear usuario
         new_user = User(
