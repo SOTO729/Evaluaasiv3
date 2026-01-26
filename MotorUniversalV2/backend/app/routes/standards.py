@@ -21,7 +21,7 @@ def get_standards():
         - active_only: Solo estándares activos (default: true)
         - include_stats: Incluir estadísticas (default: false)
     
-    Nota: Se eliminó el caché para garantizar datos actualizados inmediatamente
+    Nota: Se eliminó el caché y se agregan headers no-cache para garantizar datos actualizados
     """
     active_only = request.args.get('active_only', 'true').lower() == 'true'
     include_stats = request.args.get('include_stats', 'false').lower() == 'true'
@@ -33,10 +33,15 @@ def get_standards():
     
     standards = query.order_by(CompetencyStandard.code).all()
     
-    return jsonify({
+    response = jsonify({
         'standards': [s.to_dict(include_stats=include_stats) for s in standards],
         'total': len(standards)
     })
+    # Evitar cualquier caché en navegador o proxies
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 
 @standards_bp.route('/<int:standard_id>', methods=['GET'])
