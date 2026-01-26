@@ -9,6 +9,7 @@ from flask_jwt_extended import (
     get_jwt_identity,
     get_jwt
 )
+from sqlalchemy import func
 from app import db, cache
 from app.models.user import User
 from app.utils.rate_limit import rate_limit_login, rate_limit_register
@@ -143,9 +144,10 @@ def login():
     if not username or not password:
         return jsonify({'error': 'Username y password son requeridos'}), 400
     
-    # Buscar usuario (por username o email)
+    # Buscar usuario (por username o email, ignorando mayúsculas/minúsculas)
+    username_lower = username.lower().strip()
     user = User.query.filter(
-        (User.username == username) | (User.email == username)
+        (func.lower(User.username) == username_lower) | (func.lower(User.email) == username_lower)
     ).first()
     
     if not user or not user.check_password(password):

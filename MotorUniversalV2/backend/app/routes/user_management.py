@@ -163,14 +163,23 @@ def create_user():
         current_user = g.current_user
         data = request.get_json()
         
-        # Validar campos requeridos
-        required_fields = ['email', 'password', 'name', 'first_surname', 'role']
+        # Validar campos requeridos (password no es requerido para editores)
+        required_fields = ['email', 'name', 'first_surname', 'role']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({'error': f'El campo {field} es requerido'}), 400
         
         email = data['email'].strip().lower()
         role = data['role']
+        
+        # Para editores, generar contraseña automática si no se proporciona
+        password = data.get('password')
+        if role == 'editor' and not password:
+            import secrets
+            # Generar contraseña segura de 16 caracteres
+            password = secrets.token_urlsafe(12)
+        elif not password:
+            return jsonify({'error': 'El campo password es requerido'}), 400
         
         # Validar email
         if not validate_email(email):
@@ -181,7 +190,7 @@ def create_user():
             return jsonify({'error': 'Ya existe un usuario con ese email'}), 400
         
         # Validar contraseña
-        is_valid, error_msg = validate_password(data['password'])
+        is_valid, error_msg = validate_password(password)
         if not is_valid:
             return jsonify({'error': error_msg}), 400
         
@@ -193,25 +202,32 @@ def create_user():
             else:
                 return jsonify({'error': f'No tienes permiso para crear usuarios con rol {role}'}), 403
         
-        # Verificar CURP único si se proporciona
-        if data.get('curp'):
+        # Verificar CURP único si se proporciona (solo para roles diferentes a editor)
+        if data.get('curp') and role != 'editor':
             curp = data['curp'].upper().strip()
             if User.query.filter_by(curp=curp).first():
                 return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
         
-        # Generar username automáticamente (10 caracteres alfanuméricos únicos)
+        # Generar username automáticamente (10 caracteres alfanuméricos únicos EN MAYÚSCULAS)
         import random
         import string
         
         def generate_unique_username():
-            """Genera un username único de 10 caracteres alfanuméricos"""
-            chars = string.ascii_lowercase + string.digits
+            """Genera un username único de 10 caracteres alfanuméricos en MAYÚSCULAS"""
+            chars = string.ascii_uppercase + string.digits
             while True:
                 username = ''.join(random.choices(chars, k=10))
                 if not User.query.filter_by(username=username).first():
                     return username
         
         username = generate_unique_username()
+        
+        # Para usuarios tipo editor, no guardar CURP ni phone
+        user_curp = None
+        user_phone = None
+        if role != 'editor':
+            user_curp = data.get('curp', '').upper().strip() or None
+            user_phone = data.get('phone', '').strip() or None
         
         # Crear usuario
         new_user = User(
@@ -222,13 +238,13 @@ def create_user():
             first_surname=data['first_surname'].strip(),
             second_surname=data.get('second_surname', '').strip() or None,
             gender=data.get('gender'),
-            curp=data.get('curp', '').upper().strip() or None,
-            phone=data.get('phone', '').strip() or None,
+            curp=user_curp,
+            phone=user_phone,
             role=role,
             is_active=data.get('is_active', True),
             is_verified=data.get('is_verified', False)
         )
-        new_user.set_password(data['password'])
+        new_user.set_password(password)  # Usar la variable password (puede ser generada automáticamente)
         
         db.session.add(new_user)
         db.session.commit()
@@ -264,13 +280,16 @@ def update_user(user_id):
             return jsonify({'error': 'Usa la opción de perfil para editar tu propia cuenta'}), 400
         
         # Campos actualizables
-        basic_fields = ['name', 'first_surname', 'second_surname', 'gender', 'phone']
+        basic_fields = ['name', 'first_surname', 'second_surname', 'gender']
+        # Solo actualizar phone si el usuario NO es editor
+        if user.role != 'editor':
+            basic_fields.append('phone')
         for field in basic_fields:
             if field in data:
                 setattr(user, field, data[field].strip() if data[field] else None)
         
-        # CURP - verificar unicidad
-        if 'curp' in data:
+        # CURP - verificar unicidad (solo si el usuario no es editor)
+        if 'curp' in data and user.role != 'editor':
             curp = data['curp'].upper().strip() if data['curp'] else None
             if curp:
                 existing = User.query.filter(User.curp == curp, User.id != user_id).first()
@@ -295,6 +314,10 @@ def update_user(user_id):
                 # Admin no puede crear otros admins
                 if new_role == 'admin' and user.role != 'admin':
                     return jsonify({'error': 'No se puede asignar rol de administrador'}), 403
+                # Si cambia a editor, limpiar CURP y phone
+                if new_role == 'editor' and user.role != 'editor':
+                    user.curp = None
+                    user.phone = None
                 user.role = new_role
             
             if 'is_active' in data:
@@ -353,6 +376,69 @@ def change_user_password(user_id):
         
     except Exception as e:
         db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# ============== GENERAR CONTRASEÑA TEMPORAL (SOLO ADMIN) ==============
+
+@bp.route('/users/<string:user_id>/generate-password', methods=['POST'])
+@jwt_required()
+@admin_required
+def generate_temp_password(user_id):
+    """Generar una contraseña temporal para un usuario (solo admin)"""
+    try:
+        import secrets
+        
+        user = User.query.get_or_404(user_id)
+        
+        # Generar contraseña segura de 12 caracteres
+        temp_password = secrets.token_urlsafe(9)  # Genera ~12 caracteres
+        
+        # Establecer la nueva contraseña
+        user.set_password(temp_password)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Contraseña temporal generada exitosamente',
+            'password': temp_password,
+            'user': user.to_dict(include_private=True)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# ============== VER CONTRASEÑA DE USUARIO (SOLO ADMIN) ==============
+
+@bp.route('/users/<string:user_id>/password', methods=['GET'])
+@jwt_required()
+@admin_required
+def get_user_password(user_id):
+    """Obtener la contraseña descifrada de un usuario (solo admin)"""
+    try:
+        user = User.query.get_or_404(user_id)
+        
+        # Desencriptar la contraseña
+        decrypted_password = user.get_decrypted_password()
+        
+        if not decrypted_password:
+            return jsonify({
+                'error': 'No se puede recuperar la contraseña. Genera una nueva contraseña temporal.',
+                'has_password': False
+            }), 404
+        
+        return jsonify({
+            'password': decrypted_password,
+            'has_password': True,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'full_name': user.full_name
+            }
+        })
+        
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
@@ -415,6 +501,38 @@ def update_user_document_options(user_id):
         return jsonify({
             'message': 'Opciones de documentos actualizadas',
             'user': user.to_dict(include_private=True)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# ============== ELIMINAR USUARIO (SOLO ADMIN) ==============
+
+@bp.route('/users/<string:user_id>', methods=['DELETE'])
+@jwt_required()
+@admin_required
+def delete_user(user_id):
+    """Eliminar un usuario permanentemente (solo admin)"""
+    try:
+        current_user = g.current_user
+        user = User.query.get_or_404(user_id)
+        
+        # No se puede eliminar a uno mismo
+        if user_id == current_user.id:
+            return jsonify({'error': 'No puedes eliminarte a ti mismo'}), 400
+        
+        # Guardar info para el mensaje
+        user_email = user.email
+        user_name = user.full_name
+        
+        # Eliminar usuario
+        db.session.delete(user)
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'Usuario {user_name} ({user_email}) eliminado permanentemente'
         })
         
     except Exception as e:
@@ -697,8 +815,8 @@ def bulk_upload_candidates():
                     })
                     continue
             
-            # Generar username único
-            base_username = email.split('@')[0]
+            # Generar username único EN MAYÚSCULAS
+            base_username = email.split('@')[0].upper()
             username = base_username
             counter = 1
             while User.query.filter_by(username=username).first():

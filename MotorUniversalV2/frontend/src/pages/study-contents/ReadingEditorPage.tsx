@@ -10,6 +10,7 @@ import {
   getMaterial,
   upsertReading,
   uploadReadingImage,
+  deleteReading,
   StudyTopic,
 } from '../../services/studyContentService';
 import {
@@ -20,7 +21,10 @@ import {
   Save,
   Eye,
   EyeOff,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import DOMPurify from 'dompurify';
 
@@ -36,8 +40,14 @@ const ReadingEditorPage = () => {
   const sessionId = searchParams.get('sessionId');
   const topicId = searchParams.get('topicId');
   
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [hasExistingReading, setHasExistingReading] = useState(false);
   const [topic, setTopic] = useState<StudyTopic | null>(null);
   const [form, setForm] = useState<ReadingForm>({ title: '', content: '' });
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -103,6 +113,7 @@ const ReadingEditorPage = () => {
         if (foundTopic) {
           setTopic(foundTopic);
           if (foundTopic.reading) {
+            setHasExistingReading(true);
             setForm({
               title: foundTopic.reading.title,
               content: foundTopic.reading.content,
@@ -517,6 +528,23 @@ const ReadingEditorPage = () => {
     }
   };
 
+  // Eliminar lectura (solo admin)
+  const handleDelete = async () => {
+    if (!materialId || !sessionId || !topicId) return;
+    setDeleting(true);
+    try {
+      await deleteReading(parseInt(materialId), parseInt(sessionId), parseInt(topicId));
+      setToast({ message: 'Lectura eliminada exitosamente', type: 'success' });
+      setShowDeleteModal(false);
+      setTimeout(() => navigate(`/study-contents/${materialId}`), 1000);
+    } catch (error) {
+      console.error('Error deleting reading:', error);
+      setToast({ message: 'Error al eliminar la lectura', type: 'error' });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   // Auto-hide toast
   useEffect(() => {
     if (toast) {
@@ -578,6 +606,24 @@ const ReadingEditorPage = () => {
               >
                 {showPreview ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
+              
+              {/* Botón eliminar - solo admin y si existe lectura */}
+              {isAdmin && hasExistingReading && (
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  disabled={deleting}
+                  className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 rounded-lg font-medium transition-all fluid-text-sm bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
+                  title="Eliminar lectura"
+                >
+                  {deleting ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-5 h-5" />
+                  )}
+                  <span className="hidden sm:inline">Eliminar</span>
+                </button>
+              )}
+              
               <button
                 onClick={handleSave}
                 disabled={saving || !isFormComplete}
@@ -699,6 +745,56 @@ const ReadingEditorPage = () => {
           )}
         </div>
       </main>
+
+      {/* Modal de confirmación de eliminación */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
+            <div className="fluid-p-6">
+              <div className="flex items-center fluid-gap-4 fluid-mb-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="fluid-text-lg font-semibold text-gray-900">
+                    Eliminar lectura
+                  </h3>
+                  <p className="fluid-text-sm text-gray-500">
+                    Esta acción no se puede deshacer
+                  </p>
+                </div>
+              </div>
+              
+              <p className="fluid-text-sm text-gray-600 fluid-mb-6">
+                ¿Estás seguro de que deseas eliminar la lectura <strong>"{form.title}"</strong>? 
+                Todo el contenido será eliminado permanentemente.
+              </p>
+
+              <div className="flex fluid-gap-3 justify-end">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={deleting}
+                  className="fluid-px-4 fluid-py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors fluid-text-sm font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors fluid-text-sm font-medium disabled:opacity-50"
+                >
+                  {deleting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

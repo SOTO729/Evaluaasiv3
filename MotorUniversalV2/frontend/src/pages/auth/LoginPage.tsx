@@ -75,7 +75,7 @@ const LoginPage = () => {
             {/* Username/Email Field */}
             <div>
               <label htmlFor="username" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
-                Usuario o Email
+                Email o Usuario
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 fluid-pl-4 flex items-center pointer-events-none">
@@ -85,10 +85,10 @@ const LoginPage = () => {
                   id="username"
                   name="username"
                   type="text"
-                  autoComplete="username"
+                  autoComplete="username email"
                   required
                   className="block w-full fluid-pl-12 fluid-pr-4 fluid-py-3 border border-gray-300 fluid-rounded-xl fluid-text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                  placeholder="tu@email.com"
+                  placeholder="tu@email.com o tu usuario"
                   value={formData.username}
                   onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                 />

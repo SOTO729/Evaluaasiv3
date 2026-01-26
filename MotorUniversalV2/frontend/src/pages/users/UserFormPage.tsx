@@ -112,7 +112,8 @@ export default function UserFormPage() {
       setError('El email es requerido');
       return;
     }
-    if (!isEditing && !formData.password) {
+    // Contraseña solo es requerida si NO es editor (para editores se genera automáticamente)
+    if (!isEditing && !formData.password && formData.role !== 'editor') {
       setError('La contraseña es requerida');
       return;
     }
@@ -150,7 +151,7 @@ export default function UserFormPage() {
       } else {
         const createData: CreateUserData = {
           email: formData.email,
-          password: formData.password,
+          password: formData.password || undefined, // Para editores será undefined y el backend genera una
           name: formData.name,
           first_surname: formData.first_surname,
           second_surname: formData.second_surname || undefined,
@@ -242,7 +243,7 @@ export default function UserFormPage() {
             />
           </div>
 
-          {!isEditing && (
+          {!isEditing && formData.role !== 'editor' && (
             <div>
               <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                 Contraseña <span className="text-red-500">*</span>
@@ -265,6 +266,14 @@ export default function UserFormPage() {
                 </button>
               </div>
               <p className="fluid-text-xs text-gray-500 fluid-mt-1">Mínimo 8 caracteres</p>
+            </div>
+          )}
+
+          {!isEditing && formData.role === 'editor' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-fluid-lg fluid-p-4">
+              <p className="fluid-text-sm text-blue-700">
+                <strong>Nota:</strong> Se generará una contraseña automática para este editor.
+              </p>
             </div>
           )}
 
@@ -332,34 +341,38 @@ export default function UserFormPage() {
             />
           </div>
 
-          <div>
-            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-              CURP
-            </label>
-            <input
-              type="text"
-              name="curp"
-              value={formData.curp}
-              onChange={handleChange}
-              placeholder="XXXX000000XXXXXX00"
-              maxLength={18}
-              className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
-            />
-          </div>
+          {formData.role !== 'editor' && (
+            <div>
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                CURP
+              </label>
+              <input
+                type="text"
+                name="curp"
+                value={formData.curp}
+                onChange={handleChange}
+                placeholder="XXXX000000XXXXXX00"
+                maxLength={18}
+                className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
+              />
+            </div>
+          )}
 
-          <div>
-            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-              Teléfono
-            </label>
-            <input
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              placeholder="5512345678"
-              className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
+          {formData.role !== 'editor' && (
+            <div>
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                Teléfono
+              </label>
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="5512345678"
+                className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          )}
 
           <div>
             <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">

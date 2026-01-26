@@ -627,6 +627,24 @@ def delete_material(material_id):
                         azure_storage.delete_downloadable(topic.downloadable_exercise.file_url)
                     except Exception as e:
                         print(f"Error eliminando descargable {topic.downloadable_exercise.file_url}: {e}")
+                
+                # Eliminar ejercicio interactivo si existe (pasos, acciones e imágenes)
+                if topic.interactive_exercise:
+                    exercise_id = topic.interactive_exercise.id
+                    steps = StudyInteractiveExerciseStep.query.filter_by(exercise_id=exercise_id).all()
+                    for step in steps:
+                        # Eliminar imagen del paso del Azure blob
+                        if step.image_url and 'blob.core.windows.net' in step.image_url:
+                            try:
+                                azure_storage.delete_file(step.image_url)
+                            except:
+                                pass
+                        # Eliminar acciones del paso
+                        StudyInteractiveExerciseAction.query.filter_by(step_id=step.id).delete()
+                    # Eliminar pasos
+                    StudyInteractiveExerciseStep.query.filter_by(exercise_id=exercise_id).delete()
+                    # Eliminar ejercicio
+                    db.session.delete(topic.interactive_exercise)
         
         # Eliminar imagen de portada si existe
         if material.image_url and 'blob.core.windows.net' in material.image_url:
@@ -871,10 +889,34 @@ def delete_session(material_id, session_id):
         for topic in session.topics:
             # Eliminar archivo de video si existe
             if topic.video and topic.video.video_url and 'blob.core.windows.net' in topic.video.video_url:
-                azure_storage.delete_video(topic.video.video_url)
+                try:
+                    azure_storage.delete_video(topic.video.video_url)
+                except:
+                    pass
             # Eliminar archivo descargable si existe
             if topic.downloadable_exercise and topic.downloadable_exercise.file_url and 'blob.core.windows.net' in topic.downloadable_exercise.file_url:
-                azure_storage.delete_downloadable(topic.downloadable_exercise.file_url)
+                try:
+                    azure_storage.delete_downloadable(topic.downloadable_exercise.file_url)
+                except:
+                    pass
+            
+            # Eliminar ejercicio interactivo si existe (pasos, acciones e imágenes)
+            if topic.interactive_exercise:
+                exercise_id = topic.interactive_exercise.id
+                steps = StudyInteractiveExerciseStep.query.filter_by(exercise_id=exercise_id).all()
+                for step in steps:
+                    # Eliminar imagen del paso del Azure blob
+                    if step.image_url and 'blob.core.windows.net' in step.image_url:
+                        try:
+                            azure_storage.delete_file(step.image_url)
+                        except:
+                            pass
+                    # Eliminar acciones del paso
+                    StudyInteractiveExerciseAction.query.filter_by(step_id=step.id).delete()
+                # Eliminar pasos
+                StudyInteractiveExerciseStep.query.filter_by(exercise_id=exercise_id).delete()
+                # Eliminar ejercicio
+                db.session.delete(topic.interactive_exercise)
         
         db.session.delete(session)
         db.session.commit()
@@ -1014,10 +1056,34 @@ def delete_topic(material_id, session_id, topic_id):
         # Eliminar archivos de Azure Storage antes de borrar el tema
         # Eliminar video si existe
         if topic.video and topic.video.video_url and 'blob.core.windows.net' in topic.video.video_url:
-            azure_storage.delete_video(topic.video.video_url)
+            try:
+                azure_storage.delete_video(topic.video.video_url)
+            except:
+                pass
         # Eliminar archivo descargable si existe
         if topic.downloadable_exercise and topic.downloadable_exercise.file_url and 'blob.core.windows.net' in topic.downloadable_exercise.file_url:
-            azure_storage.delete_downloadable(topic.downloadable_exercise.file_url)
+            try:
+                azure_storage.delete_downloadable(topic.downloadable_exercise.file_url)
+            except:
+                pass
+        
+        # Eliminar ejercicio interactivo si existe (pasos, acciones e imágenes)
+        if topic.interactive_exercise:
+            exercise_id = topic.interactive_exercise.id
+            steps = StudyInteractiveExerciseStep.query.filter_by(exercise_id=exercise_id).all()
+            for step in steps:
+                # Eliminar imagen del paso del Azure blob
+                if step.image_url and 'blob.core.windows.net' in step.image_url:
+                    try:
+                        azure_storage.delete_file(step.image_url)
+                    except:
+                        pass
+                # Eliminar acciones del paso
+                StudyInteractiveExerciseAction.query.filter_by(step_id=step.id).delete()
+            # Eliminar pasos
+            StudyInteractiveExerciseStep.query.filter_by(exercise_id=exercise_id).delete()
+            # Eliminar ejercicio
+            db.session.delete(topic.interactive_exercise)
         
         db.session.delete(topic)
         db.session.commit()
@@ -1753,6 +1819,25 @@ def delete_interactive(material_id, session_id, topic_id):
     try:
         topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
         if topic.interactive_exercise:
+            exercise_id = topic.interactive_exercise.id
+            
+            # Obtener todos los pasos para eliminar imágenes del blob y sus acciones
+            steps = StudyInteractiveExerciseStep.query.filter_by(exercise_id=exercise_id).all()
+            for step in steps:
+                # Eliminar imagen del paso del Azure blob si existe
+                if step.image_url and 'blob.core.windows.net' in step.image_url:
+                    try:
+                        azure_storage.delete_file(step.image_url)
+                    except:
+                        pass  # Si falla, continuamos
+                
+                # Eliminar todas las acciones del paso explícitamente
+                StudyInteractiveExerciseAction.query.filter_by(step_id=step.id).delete()
+            
+            # Eliminar todos los pasos explícitamente
+            StudyInteractiveExerciseStep.query.filter_by(exercise_id=exercise_id).delete()
+            
+            # Ahora eliminar el ejercicio interactivo
             db.session.delete(topic.interactive_exercise)
             db.session.commit()
         
@@ -1850,6 +1935,18 @@ def delete_step(material_id, session_id, topic_id, step_id):
             return jsonify({'error': 'El tema no tiene un ejercicio interactivo'}), 404
         
         step = StudyInteractiveExerciseStep.query.filter_by(id=step_id, exercise_id=topic.interactive_exercise.id).first_or_404()
+        
+        # Eliminar imagen del paso del Azure blob si existe
+        if step.image_url and 'blob.core.windows.net' in step.image_url:
+            try:
+                azure_storage.delete_file(step.image_url)
+            except:
+                pass  # Si falla, continuamos
+        
+        # Eliminar todas las acciones del paso explícitamente
+        StudyInteractiveExerciseAction.query.filter_by(step_id=step_id).delete()
+        
+        # Ahora eliminar el paso
         db.session.delete(step)
         db.session.commit()
         

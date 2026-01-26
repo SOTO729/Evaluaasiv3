@@ -124,11 +124,36 @@ export async function changeUserPassword(userId: string, newPassword: string): P
   return response.data;
 }
 
+export async function generateTempPassword(userId: string): Promise<{
+  message: string;
+  password: string;
+  user: ManagedUser;
+}> {
+  const response = await api.post(`/user-management/users/${userId}/generate-password`);
+  return response.data;
+}
+
+export async function getUserPassword(userId: string): Promise<{
+  password: string;
+  has_password: boolean;
+  user: { id: string; email: string; full_name: string };
+}> {
+  const response = await api.get(`/user-management/users/${userId}/password`);
+  return response.data;
+}
+
 export async function toggleUserActive(userId: string): Promise<{
   message: string;
   user: ManagedUser;
 }> {
   const response = await api.post(`/user-management/users/${userId}/toggle-active`);
+  return response.data;
+}
+
+export async function deleteUser(userId: string): Promise<{
+  message: string;
+}> {
+  const response = await api.delete(`/user-management/users/${userId}`);
   return response.data;
 }
 

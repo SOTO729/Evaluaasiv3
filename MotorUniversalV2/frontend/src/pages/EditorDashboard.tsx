@@ -102,7 +102,7 @@ const EditorDashboard = () => {
                 <span className="text-blue-200 fluid-text-sm font-medium uppercase tracking-wider">Panel de Editor</span>
               </div>
               <h1 className="fluid-text-3xl font-bold fluid-mb-2">
-                ¡Bienvenido, {user?.name}!
+                ¡{user?.gender === 'F' ? 'Bienvenida' : 'Bienvenido'}, {user?.name}!
               </h1>
               <p className="text-blue-100 fluid-text-base">
                 Gestiona y crea contenido para la plataforma de certificación

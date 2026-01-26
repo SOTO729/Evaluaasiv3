@@ -608,7 +608,7 @@ def update_exam(exam_id):
 @require_permission('exams:delete')
 def delete_exam(exam_id):
     """
-    Eliminar examen
+    Eliminar examen y todo su contenido
     ---
     tags:
       - Exams
@@ -625,15 +625,68 @@ def delete_exam(exam_id):
       404:
         description: Examen no encontrado
     """
+    from app.models.question import Question
+    from app.models.answer import Answer
+    from app.models.exercise import Exercise, ExerciseStep, ExerciseAction
+    
     exam = Exam.query.get(exam_id)
     
     if not exam:
         return jsonify({'error': 'Examen no encontrado'}), 404
     
-    db.session.delete(exam)
-    db.session.commit()
-    
-    return jsonify({'message': 'Examen eliminado exitosamente'}), 200
+    try:
+        # Eliminar study_materials y study_material_exams que referencian este examen
+        from sqlalchemy import text
+        db.session.execute(text('DELETE FROM dbo.study_materials WHERE exam_id = :exam_id'), {'exam_id': exam_id})
+        db.session.execute(text('DELETE FROM dbo.study_material_exams WHERE exam_id = :exam_id'), {'exam_id': exam_id})
+        
+        # Eliminar results
+        db.session.execute(text('DELETE FROM dbo.results WHERE exam_id = :exam_id'), {'exam_id': exam_id})
+        
+        # Eliminar group_exam_materials de group_exams relacionados
+        db.session.execute(text('''
+            DELETE FROM dbo.group_exam_materials 
+            WHERE group_exam_id IN (SELECT id FROM dbo.group_exams WHERE exam_id = :exam_id)
+        '''), {'exam_id': exam_id})
+        
+        # Eliminar group_exams
+        db.session.execute(text('DELETE FROM dbo.group_exams WHERE exam_id = :exam_id'), {'exam_id': exam_id})
+        
+        # Eliminar en orden correcto (de más profundo a más superficial)
+        for category in exam.categories.all():
+            for topic in category.topics.all():
+                # 1. Eliminar respuestas de las preguntas
+                for question in topic.questions.all():
+                    Answer.query.filter_by(question_id=question.id).delete()
+                
+                # 2. Eliminar preguntas
+                Question.query.filter_by(topic_id=topic.id).delete()
+                
+                # 3. Eliminar acciones de los pasos de ejercicios
+                for exercise in topic.exercises.all():
+                    for step in exercise.steps.all():
+                        ExerciseAction.query.filter_by(step_id=step.id).delete()
+                    # 4. Eliminar pasos de ejercicios
+                    ExerciseStep.query.filter_by(exercise_id=exercise.id).delete()
+                
+                # 5. Eliminar ejercicios
+                Exercise.query.filter_by(topic_id=topic.id).delete()
+            
+            # 6. Eliminar topics
+            Topic.query.filter_by(category_id=category.id).delete()
+        
+        # 7. Eliminar categorías
+        Category.query.filter_by(exam_id=exam_id).delete()
+        
+        # 8. Finalmente eliminar el examen
+        db.session.delete(exam)
+        db.session.commit()
+        
+        return jsonify({'message': 'Examen eliminado exitosamente'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al eliminar examen: {str(e)}'}), 500
 
 
 # ============= CATEGORÍAS =============
@@ -692,7 +745,11 @@ def create_category(exam_id):
 @jwt_required()
 @require_permission('exams:delete')
 def delete_category(exam_id, category_id):
-    """Eliminar categoría"""
+    """Eliminar categoría y todo su contenido (topics, questions, answers, exercises)"""
+    from app.models.question import Question
+    from app.models.answer import Answer
+    from app.models.exercise import Exercise, ExerciseStep, ExerciseAction
+    
     exam = Exam.query.get(exam_id)
     if not exam:
         return jsonify({'error': 'Examen no encontrado'}), 404
@@ -709,12 +766,40 @@ def delete_category(exam_id, category_id):
     if category.exam_id != exam_id:
         return jsonify({'error': 'La categoría no pertenece a este examen'}), 400
     
-    db.session.delete(category)
-    db.session.commit()
-    
-    return jsonify({
-        'message': 'Categoría eliminada exitosamente'
-    }), 200
+    try:
+        # Eliminar en orden correcto (de más profundo a más superficial)
+        for topic in category.topics.all():
+            # 1. Eliminar respuestas de las preguntas
+            for question in topic.questions.all():
+                Answer.query.filter_by(question_id=question.id).delete()
+            
+            # 2. Eliminar preguntas
+            Question.query.filter_by(topic_id=topic.id).delete()
+            
+            # 3. Eliminar acciones de los pasos de ejercicios
+            for exercise in topic.exercises.all():
+                for step in exercise.steps.all():
+                    ExerciseAction.query.filter_by(step_id=step.id).delete()
+                # 4. Eliminar pasos de ejercicios
+                ExerciseStep.query.filter_by(exercise_id=exercise.id).delete()
+            
+            # 5. Eliminar ejercicios
+            Exercise.query.filter_by(topic_id=topic.id).delete()
+        
+        # 6. Eliminar topics
+        Topic.query.filter_by(category_id=category.id).delete()
+        
+        # 7. Finalmente eliminar la categoría
+        db.session.delete(category)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Categoría y todo su contenido eliminado exitosamente'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al eliminar categoría: {str(e)}'}), 500
 
 
 @bp.route('/<int:exam_id>/categories/<int:category_id>', methods=['PUT'])
@@ -841,17 +926,38 @@ def update_topic(topic_id):
 @jwt_required()
 @require_permission('exams:delete')
 def delete_topic(topic_id):
-    """Eliminar tema y todo su contenido"""
+    """Eliminar tema y todo su contenido (preguntas, respuestas, ejercicios, pasos, acciones)"""
+    from app.models.question import Question
+    from app.models.answer import Answer
+    from app.models.exercise import Exercise, ExerciseStep, ExerciseAction
+    
     topic = Topic.query.get(topic_id)
     if not topic:
         return jsonify({'error': 'Tema no encontrado'}), 404
     
     try:
+        # 1. Eliminar respuestas de las preguntas (sin importar tipo exam/simulator)
+        for question in topic.questions.all():
+            Answer.query.filter_by(question_id=question.id).delete()
+        
+        # 2. Eliminar preguntas (sin importar tipo exam/simulator)
+        Question.query.filter_by(topic_id=topic.id).delete()
+        
+        # 3. Eliminar acciones y pasos de ejercicios (sin importar tipo exam/simulator)
+        for exercise in topic.exercises.all():
+            for step in exercise.steps.all():
+                ExerciseAction.query.filter_by(step_id=step.id).delete()
+            ExerciseStep.query.filter_by(exercise_id=exercise.id).delete()
+        
+        # 4. Eliminar ejercicios (sin importar tipo exam/simulator)
+        Exercise.query.filter_by(topic_id=topic.id).delete()
+        
+        # 5. Finalmente eliminar el tema
         db.session.delete(topic)
         db.session.commit()
         
         return jsonify({
-            'message': 'Tema eliminado exitosamente'
+            'message': 'Tema y todo su contenido eliminado exitosamente'
         }), 200
     except Exception as e:
         db.session.rollback()
@@ -1108,15 +1214,28 @@ def update_question(question_id):
 @jwt_required()
 @require_permission('exams:delete')
 def delete_question(question_id):
-    """Eliminar pregunta"""
+    """Eliminar pregunta y todas sus respuestas"""
+    from app.models.answer import Answer
+    
     question = Question.query.get(question_id)
     if not question:
         return jsonify({'error': 'Pregunta no encontrada'}), 404
     
-    db.session.delete(question)
-    db.session.commit()
-    
-    return jsonify({'message': 'Pregunta eliminada exitosamente'}), 200
+    try:
+        # 1. Eliminar todas las respuestas de la pregunta primero
+        answers_deleted = Answer.query.filter_by(question_id=question.id).delete()
+        
+        # 2. Eliminar la pregunta
+        db.session.delete(question)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Pregunta eliminada exitosamente',
+            'answers_deleted': answers_deleted
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al eliminar pregunta: {str(e)}'}), 500
 
 
 @bp.route('/questions/<question_id>', methods=['GET'])
@@ -1359,6 +1478,7 @@ def delete_exercise(exercise_id):
     """
     import sys
     from app.utils.azure_storage import AzureStorageService
+    from app.models.exercise import ExerciseStep, ExerciseAction
     
     # Forzar flush para que los logs se muestren inmediatamente
     def log(msg):
@@ -1404,8 +1524,19 @@ def delete_exercise(exercise_id):
     total_actions = sum(step.actions.count() for step in steps)
     log(f"\n📊 Ejercicio tiene {total_actions} acciones en total")
     
-    # Eliminar ejercicio (cascade eliminará pasos y acciones automáticamente)
+    # Eliminar explícitamente acciones, pasos y ejercicio (no confiar en cascade de BD)
     log(f"\n🗑️  ELIMINANDO EJERCICIO DE LA BASE DE DATOS...")
+    
+    # 1. Eliminar todas las acciones de todos los pasos
+    for step in steps:
+        ExerciseAction.query.filter_by(step_id=step.id).delete()
+    log(f"✓ {total_actions} acciones eliminadas")
+    
+    # 2. Eliminar todos los pasos
+    ExerciseStep.query.filter_by(exercise_id=exercise.id).delete()
+    log(f"✓ {len(steps)} pasos eliminados")
+    
+    # 3. Finalmente eliminar el ejercicio
     db.session.delete(exercise)
     db.session.commit()
     
@@ -1620,9 +1751,10 @@ def update_step(step_id):
 @require_permission('exams:delete')
 def delete_step(step_id):
     """
-    Eliminar un paso y su imagen del blob storage
+    Eliminar un paso, sus acciones y su imagen del blob storage
     """
     from app.utils.azure_storage import AzureStorageService
+    from app.models.exercise import ExerciseAction
     
     print(f"\n=== ELIMINAR PASO ===")
     print(f"Step ID: {step_id}")
@@ -1650,6 +1782,11 @@ def delete_step(step_id):
         except Exception as e:
             print(f"Error al eliminar imagen del blob: {str(e)}")
     
+    # 1. Eliminar todas las acciones del paso primero
+    actions_deleted = ExerciseAction.query.filter_by(step_id=step.id).delete()
+    print(f"✓ {actions_deleted} acciones eliminadas")
+    
+    # 2. Eliminar el paso
     db.session.delete(step)
     db.session.commit()
     print(f"✓ Paso eliminado de la base de datos")

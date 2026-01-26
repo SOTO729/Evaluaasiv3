@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Ocultar el icono de ojo que agrega el navegador en campos de contraseña */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear,
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-password-viewable-toggle-button {
+  display: none !important;
+  visibility: hidden !important;
+}
+
 /* =============================================================================
    SISTEMA DE ESCALADO FLUIDO PROPORCIONAL
    

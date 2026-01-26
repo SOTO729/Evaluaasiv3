@@ -5,6 +5,10 @@ from datetime import datetime
 from app import db
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
+from cryptography.fernet import Fernet
+import base64
+import hashlib
+import os
 
 ph = PasswordHasher(
     time_cost=3,
@@ -13,6 +17,34 @@ ph = PasswordHasher(
     hash_len=32,
     salt_len=16
 )
+
+# Funciones de encriptación/desencriptación para contraseñas (solo admin puede acceder)
+def _get_encryption_key():
+    """Genera una clave de encriptación basada en SECRET_KEY"""
+    secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+    # Derivar una clave Fernet válida (32 bytes base64)
+    key = hashlib.sha256(secret_key.encode()).digest()
+    return base64.urlsafe_b64encode(key)
+
+def encrypt_password(password):
+    """Encripta una contraseña de forma reversible"""
+    if not password:
+        return None
+    try:
+        f = Fernet(_get_encryption_key())
+        return f.encrypt(password.encode()).decode()
+    except Exception:
+        return None
+
+def decrypt_password(encrypted_password):
+    """Desencripta una contraseña"""
+    if not encrypted_password:
+        return None
+    try:
+        f = Fernet(_get_encryption_key())
+        return f.decrypt(encrypted_password.encode()).decode()
+    except Exception:
+        return None
 
 
 class User(db.Model):
@@ -24,13 +56,14 @@ class User(db.Model):
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     username = db.Column(db.String(100), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
+    encrypted_password = db.Column(db.String(500))  # Contraseña encriptada (reversible) para que admin pueda verla
     
     # Información personal
     name = db.Column(db.String(100), nullable=False)
     first_surname = db.Column(db.String(100), nullable=False)
     second_surname = db.Column(db.String(100))
     gender = db.Column(db.String(1))  # M, F, O
-    curp = db.Column(db.String(18), unique=True)
+    curp = db.Column(db.String(18))  # Unicidad manejada a nivel aplicación (no constraint por NULLs en editores)
     phone = db.Column(db.String(20))
     
     # Institucional
@@ -74,8 +107,14 @@ class User(db.Model):
         return ' '.join(parts)
     
     def set_password(self, password):
-        """Hashear contraseña con Argon2"""
+        """Hashear contraseña con Argon2 y guardar versión encriptada"""
         self.password_hash = ph.hash(password)
+        # También guardar la versión encriptada para que admin pueda verla
+        self.encrypted_password = encrypt_password(password)
+    
+    def get_decrypted_password(self):
+        """Obtener contraseña desencriptada (solo para admin)"""
+        return decrypt_password(self.encrypted_password)
     
     def check_password(self, password):
         """Verificar contraseña"""
