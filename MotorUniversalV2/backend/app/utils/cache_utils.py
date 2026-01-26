@@ -96,7 +96,11 @@ def invalidate_exams_cache():
 
 def invalidate_standards_cache():
     """Invalida todo el cache relacionado con estándares"""
-    return invalidate_cache_pattern("/api/competency-standards")
+    # Limpiar por patrón de ruta y también por prefijo de función
+    count = invalidate_cache_pattern("/api/competency-standards")
+    count += invalidate_cache_pattern("standards_list")
+    count += invalidate_cache_pattern("view//competency-standards")
+    return count
 
 
 def invalidate_study_contents_cache():

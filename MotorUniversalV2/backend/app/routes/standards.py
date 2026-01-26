@@ -13,7 +13,7 @@ standards_bp = Blueprint('standards', __name__)
 
 @standards_bp.route('/', methods=['GET'])
 @jwt_required()
-@cache.cached(timeout=300, key_prefix='standards_list')
+@cache.cached(timeout=60, key_prefix=make_cache_key)
 def get_standards():
     """
     Obtener lista de estándares de competencia
