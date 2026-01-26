@@ -106,10 +106,8 @@ def create_standard():
         db.session.add(standard)
         db.session.commit()
         
-        # Invalidar el caché de la lista de estándares
+        # Invalidar caché de estándares
         invalidate_standards_cache()
-        print(f"✅ [STANDARDS] Estándar creado: {standard.code} - {standard.name}")
-        print(f"✅ [STANDARDS] Cache invalidado para la lista de estándares")
         
         return jsonify({
             'message': 'Estándar creado exitosamente',
@@ -176,9 +174,8 @@ def update_standard(standard_id):
         
         db.session.commit()
         
-        # Invalidar el caché
+        # Invalidar caché de estándares
         invalidate_standards_cache()
-        print(f"✅ [STANDARDS] Estándar actualizado: {standard.code}")
         
         return jsonify({
             'message': 'Estándar actualizado exitosamente',
@@ -228,9 +225,8 @@ def delete_standard(standard_id):
         db.session.delete(standard)
         db.session.commit()
         
-        # Invalidar el caché
+        # Invalidar caché de estándares
         invalidate_standards_cache()
-        print(f"✅ [STANDARDS] Estándar eliminado: {standard.code}")
         
         return jsonify({'message': 'Estándar eliminado exitosamente'})
         

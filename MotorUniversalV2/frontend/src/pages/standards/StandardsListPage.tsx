@@ -2,7 +2,7 @@
  * Página de Listado de Estándares de Competencia (ECM)
  */
 import { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import {
   getStandards,
@@ -128,7 +128,6 @@ const StandardRow = ({
 export default function StandardsListPage() {
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
-  const location = useLocation();
   const [standards, setStandards] = useState<CompetencyStandard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -140,46 +139,20 @@ export default function StandardsListPage() {
   const isEditor = user?.role === 'editor';
   const canCreate = isAdmin || isEditor;
 
-  // Cargar estándares cuando el componente se monta
-  useEffect(() => {
-    loadStandards();
-  }, []);
-
-  // Cargar estándares cuando se vuelve a la página (location change)
-  useEffect(() => {
-    loadStandards();
-  }, [location.pathname]);
-
-  // Cargar estándares cuando cambia showInactive
   useEffect(() => {
     loadStandards();
   }, [showInactive]);
 
-  // Cargar estándares cada vez que la página se vuelve visible (focus)
-  useEffect(() => {
-    const handleFocus = () => {
-      console.log('📄 StandardsListPage - Reloading due to window focus');
-      loadStandards();
-    };
-    
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, []);
-
   const loadStandards = async () => {
     try {
       setLoading(true);
-      setError(null);
       const response = await getStandards({
         active_only: !showInactive,
         include_stats: true,
       });
       setStandards(response.standards);
-      console.log('✅ Estándares cargados:', response.standards.length);
     } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Error al cargar los estándares';
-      setError(errorMsg);
-      console.error('❌ Error al cargar estándares:', errorMsg);
+      setError(err.response?.data?.error || 'Error al cargar los estándares');
     } finally {
       setLoading(false);
     }
