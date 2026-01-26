@@ -32,7 +32,7 @@ export interface ManagedUser {
 
 export interface CreateUserData {
   email: string;
-  password: string;
+  password?: string;
   name: string;
   first_surname: string;
   second_surname?: string;

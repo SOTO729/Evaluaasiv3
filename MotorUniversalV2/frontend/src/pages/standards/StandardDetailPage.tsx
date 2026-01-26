@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { getStandard, getStandardExams, CompetencyStandard } from '../../services/standardsService';
+import { getStandard, getStandardExams, deleteStandard, CompetencyStandard } from '../../services/standardsService';
 
 export default function StandardDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -14,6 +14,8 @@ export default function StandardDetailPage() {
   const [exams, setExams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const isAdmin = user?.role === 'admin';
   const isEditor = user?.role === 'editor';
@@ -60,6 +62,20 @@ export default function StandardDetailPage() {
       5: 'bg-red-100 text-red-800',
     };
     return colors[level] || 'bg-gray-100 text-gray-800';
+  };
+
+  const handleDelete = async () => {
+    if (!standard) return;
+    try {
+      setDeleting(true);
+      await deleteStandard(standard.id);
+      navigate('/standards', { replace: true });
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al eliminar el estándar');
+      setShowDeleteModal(false);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (loading) {
@@ -122,15 +138,28 @@ export default function StandardDetailPage() {
               <p className="fluid-mt-1 fluid-text-lg text-primary-100">{standard.name}</p>
             </div>
             {(isAdmin || (isEditor && standard.created_by === user?.id)) && (
-              <button
-                onClick={() => navigate(`/standards/${standard.id}/edit`)}
-                className="w-full sm:w-auto inline-flex items-center justify-center fluid-px-4 fluid-py-2 border border-white border-opacity-30 rounded-fluid-md fluid-text-sm font-medium text-white hover:bg-white hover:bg-opacity-10"
-              >
-                <svg className="fluid-mr-2 fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                Editar
-              </button>
+              <div className="flex flex-col sm:flex-row fluid-gap-2">
+                <button
+                  onClick={() => navigate(`/standards/${standard.id}/edit`)}
+                  className="w-full sm:w-auto inline-flex items-center justify-center fluid-px-4 fluid-py-2 border border-white border-opacity-30 rounded-fluid-md fluid-text-sm font-medium text-white hover:bg-white hover:bg-opacity-10"
+                >
+                  <svg className="fluid-mr-2 fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Editar
+                </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => setShowDeleteModal(true)}
+                    className="w-full sm:w-auto inline-flex items-center justify-center fluid-px-4 fluid-py-2 bg-red-600 hover:bg-red-700 rounded-fluid-md fluid-text-sm font-medium text-white"
+                  >
+                    <svg className="fluid-mr-2 fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Eliminar
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -252,6 +281,66 @@ export default function StandardDetailPage() {
           <p>Última actualización: {new Date(standard.updated_at).toLocaleDateString('es-MX', { dateStyle: 'long' })}</p>
         )}
       </div>
+
+      {/* Modal de confirmación para eliminar */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 fluid-p-4">
+          <div className="bg-white rounded-fluid-xl shadow-xl w-full max-w-md">
+            <div className="fluid-p-6">
+              <div className="flex items-center fluid-gap-4 fluid-mb-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="fluid-text-lg font-semibold text-gray-900">Eliminar Estándar</h3>
+                  <p className="fluid-text-sm text-gray-500">Esta acción no se puede deshacer</p>
+                </div>
+              </div>
+
+              <div className="bg-red-50 border border-red-200 rounded-fluid-lg fluid-p-4 fluid-mb-4">
+                <p className="fluid-text-sm text-red-800">
+                  <strong>¡Advertencia!</strong> Se eliminará permanentemente el estándar <strong>{standard.code}</strong> y todos sus datos asociados.
+                </p>
+              </div>
+
+              <p className="fluid-text-sm text-gray-600 fluid-mb-6">
+                ¿Estás seguro de que deseas eliminar el estándar "{standard.name}"?
+              </p>
+
+              <div className="flex justify-end fluid-gap-3">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={deleting}
+                  className="fluid-px-4 fluid-py-2 border border-gray-300 text-gray-700 rounded-fluid-lg hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-red-600 hover:bg-red-700 text-white rounded-fluid-lg font-medium disabled:opacity-50"
+                >
+                  {deleting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Eliminando...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Eliminar
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

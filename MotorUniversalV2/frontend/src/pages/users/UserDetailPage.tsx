@@ -58,8 +58,6 @@ export default function UserDetailPage() {
   const [showStoredPassword, setShowStoredPassword] = useState(false);  // Para ocultar/mostrar la contraseña
   const [loadingPassword, setLoadingPassword] = useState(false);
   const [storedPasswordError, setStoredPasswordError] = useState<string | null>(null);
-  const [showStoredPasswordModal, setShowStoredPasswordModal] = useState(false);
-  const [storedPassword, setStoredPassword] = useState<string | null>(null);
 
   // Estados para eliminar usuario (solo admin)
   const [showDeleteModal, setShowDeleteModal] = useState(false);
