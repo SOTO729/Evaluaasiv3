@@ -106,6 +106,11 @@ def create_standard():
         db.session.add(standard)
         db.session.commit()
         
+        # Invalidar el caché de la lista de estándares
+        invalidate_standards_cache()
+        print(f"✅ [STANDARDS] Estándar creado: {standard.code} - {standard.name}")
+        print(f"✅ [STANDARDS] Cache invalidado para la lista de estándares")
+        
         return jsonify({
             'message': 'Estándar creado exitosamente',
             'standard': standard.to_dict()
@@ -171,6 +176,10 @@ def update_standard(standard_id):
         
         db.session.commit()
         
+        # Invalidar el caché
+        invalidate_standards_cache()
+        print(f"✅ [STANDARDS] Estándar actualizado: {standard.code}")
+        
         return jsonify({
             'message': 'Estándar actualizado exitosamente',
             'standard': standard.to_dict()
@@ -218,6 +227,10 @@ def delete_standard(standard_id):
     try:
         db.session.delete(standard)
         db.session.commit()
+        
+        # Invalidar el caché
+        invalidate_standards_cache()
+        print(f"✅ [STANDARDS] Estándar eliminado: {standard.code}")
         
         return jsonify({'message': 'Estándar eliminado exitosamente'})
         
