@@ -1904,6 +1904,20 @@ def update_step(material_id, session_id, topic_id, step_id):
         step = StudyInteractiveExerciseStep.query.filter_by(id=step_id, exercise_id=topic.interactive_exercise.id).first_or_404()
         data = request.get_json()
         
+        # Si se está actualizando la imagen, eliminar la anterior del blob
+        new_image_url = data.get('image_url')
+        if new_image_url and new_image_url != step.image_url:
+            # Guardar la URL anterior para eliminarla
+            old_image_url = step.image_url
+            if old_image_url and 'blob.core.windows.net' in old_image_url:
+                try:
+                    if azure_storage.delete_file(old_image_url):
+                        print(f"Imagen anterior de paso eliminada del blob: {old_image_url[:80]}...")
+                    else:
+                        print(f"No se pudo eliminar imagen anterior de paso: {old_image_url[:80]}...")
+                except Exception as e:
+                    print(f"Error al eliminar imagen anterior de paso: {e}")
+        
         step.title = data.get('title', step.title)
         step.description = data.get('description', step.description)
         step.step_number = data.get('step_number', step.step_number)

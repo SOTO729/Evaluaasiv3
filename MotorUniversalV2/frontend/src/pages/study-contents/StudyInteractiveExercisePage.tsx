@@ -334,6 +334,7 @@ const StudyInteractiveExercisePage = () => {
   const queryClient = useQueryClient()
   const imageContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const replaceImageInputRef = useRef<HTMLInputElement>(null)
 
   // Estados principales
   const [exercise, setExercise] = useState<StudyInteractiveExercise | null>(null)
@@ -342,6 +343,10 @@ const StudyInteractiveExercisePage = () => {
   const [selectedAction, setSelectedAction] = useState<StudyInteractiveExerciseAction | null>(null)
   const [localPreviewImage, setLocalPreviewImage] = useState<string | null>(null)
   const [isCreatingStep, setIsCreatingStep] = useState(false)
+  
+  // Estado para reemplazar imagen de un paso existente
+  const [replacingImageStepId, setReplacingImageStepId] = useState<string | null>(null)
+  const [isReplacingImage, setIsReplacingImage] = useState(false)
   
   // Estado para cambios pendientes (sin guardar)
   const [pendingChanges, setPendingChanges] = useState<any[]>([])
@@ -709,8 +714,26 @@ const StudyInteractiveExercisePage = () => {
     }
   })
 
-  // Actualizar paso - se mantiene para uso futuro
-  void updateStep
+  // Actualizar paso - mutation para reemplazar imagen
+  const updateStepMutation = useMutation({
+    mutationFn: ({ stepId, data }: { stepId: string; data: Partial<{ image_url: string; image_width: number; image_height: number }> }) => 
+      updateStep(
+        Number(materialId),
+        Number(sessionId),
+        Number(topicId),
+        stepId,
+        data
+      ),
+    onSuccess: (updatedStep: StudyInteractiveExerciseStep) => {
+      if (exercise && exercise.steps) {
+        const updatedSteps = exercise.steps.map((step: StudyInteractiveExerciseStep) => 
+          step.id === updatedStep.id ? { ...step, ...updatedStep } : step
+        )
+        setExercise({ ...exercise, steps: updatedSteps })
+      }
+      queryClient.invalidateQueries({ queryKey: ['study-topic', materialId, sessionId, topicId] })
+    }
+  })
 
   // Eliminar paso
   const deleteStepMutation = useMutation({
@@ -1267,6 +1290,60 @@ const StudyInteractiveExercisePage = () => {
       img.src = result
     }
     reader.readAsDataURL(file)
+  }
+
+  // Handler para iniciar reemplazo de imagen de un paso
+  const handleReplaceStepImage = (e: React.MouseEvent, stepId: string) => {
+    e.stopPropagation()
+    setReplacingImageStepId(stepId)
+    replaceImageInputRef.current?.click()
+  }
+
+  // Handler para procesar la nueva imagen de reemplazo
+  const handleReplaceImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !replacingImageStepId) {
+      setReplacingImageStepId(null)
+      return
+    }
+
+    setIsReplacingImage(true)
+    
+    try {
+      // Subir imagen
+      const imageUrl = await uploadImage(file)
+      
+      // Obtener dimensiones
+      const img = new Image()
+      img.onload = async () => {
+        try {
+          // Actualizar el paso con la nueva imagen
+          await updateStepMutation.mutateAsync({
+            stepId: replacingImageStepId,
+            data: {
+              image_url: imageUrl,
+              image_width: img.width,
+              image_height: img.height
+            }
+          })
+        } catch (error) {
+          console.error('Error al actualizar imagen del paso:', error)
+        } finally {
+          setIsReplacingImage(false)
+          setReplacingImageStepId(null)
+        }
+      }
+      img.src = imageUrl
+    } catch (error) {
+      console.error('Error al subir nueva imagen:', error)
+      setIsReplacingImage(false)
+      setReplacingImageStepId(null)
+    }
+    
+    // Limpiar el input
+    if (replaceImageInputRef.current) {
+      replaceImageInputRef.current.value = ''
+    }
   }
 
   // Handler para iniciar dibujo de área (rubber band) - mousedown
@@ -1871,6 +1948,15 @@ const StudyInteractiveExercisePage = () => {
         className="hidden"
         onChange={handleImageUpload}
       />
+      
+      {/* Input oculto para reemplazar imagen de paso existente */}
+      <input
+        ref={replaceImageInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleReplaceImageSelect}
+      />
 
       {/* Header */}
       <div className="flex items-center justify-between fluid-px-6 fluid-py-4 border-b bg-white shadow-sm">
@@ -2190,6 +2276,28 @@ const StudyInteractiveExercisePage = () => {
                           <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                           </svg>
+                        </button>
+                        {/* Botón para reemplazar imagen */}
+                        <button
+                          onClick={(e) => handleReplaceStepImage(e, step.id)}
+                          disabled={isReplacingImage && replacingImageStepId === step.id}
+                          className={`fluid-p-1 rounded ${
+                            isReplacingImage && replacingImageStepId === step.id
+                              ? 'text-primary-400 animate-pulse'
+                              : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50'
+                          }`}
+                          title="Reemplazar imagen"
+                        >
+                          {isReplacingImage && replacingImageStepId === step.id ? (
+                            <svg className="fluid-icon-xs animate-spin" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          ) : (
+                            <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          )}
                         </button>
                         {/* Botón para eliminar */}
                         <button
