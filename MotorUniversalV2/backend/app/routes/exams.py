@@ -2041,6 +2041,7 @@ def options_action_item(action_id):
 def upload_step_image(step_id):
     """
     Subir imagen para un paso (como base64)
+    Si ya existe una imagen, se elimina del blob antes de subir la nueva
     """
     from datetime import datetime
     from app.utils.azure_storage import azure_storage
@@ -2054,6 +2055,9 @@ def upload_step_image(step_id):
     if 'image_data' not in data:
         return jsonify({'error': 'Se requiere image_data (base64)'}), 400
     
+    # Guardar la URL de la imagen anterior para eliminarla después
+    old_image_url = step.image_url
+    
     image_data = data['image_data']
     
     # Subir a Azure Blob Storage si es base64
@@ -2061,6 +2065,16 @@ def upload_step_image(step_id):
         blob_url = azure_storage.upload_base64_image(image_data, folder='exercise-steps')
         if blob_url:
             image_data = blob_url
+            
+            # Eliminar la imagen anterior del blob si existe
+            if old_image_url and 'blob.core.windows.net' in old_image_url:
+                try:
+                    if azure_storage.delete_file(old_image_url):
+                        print(f"Imagen anterior eliminada del blob: {old_image_url[:80]}...")
+                    else:
+                        print(f"No se pudo eliminar imagen anterior: {old_image_url[:80]}...")
+                except Exception as e:
+                    print(f"Error al eliminar imagen anterior: {e}")
         else:
             print("Warning: Blob storage no disponible, guardando base64 en BD")
     
