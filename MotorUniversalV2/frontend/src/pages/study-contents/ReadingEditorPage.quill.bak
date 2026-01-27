@@ -1,0 +1,2416 @@
+/**
+ * Página de Editor de Lectura
+ * Pantalla completa para crear/editar material de lectura
+ */
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
+import {
+  getMaterial,
+  upsertReading,
+  uploadReadingImage,
+  deleteReading,
+  StudyTopic,
+} from '../../services/studyContentService';
+import {
+  ArrowLeft,
+  FileText,
+  Loader2,
+  Check,
+  Save,
+  Eye,
+  EyeOff,
+  Trash2,
+  AlertTriangle,
+} from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import DOMPurify from 'dompurify';
+
+interface ReadingForm {
+  title: string;
+  content: string;
+}
+
+const ReadingEditorPage = () => {
+  const navigate = useNavigate();
+  const { id: materialId } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const sessionId = searchParams.get('sessionId');
+  const topicId = searchParams.get('topicId');
+  
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
+  
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [hasExistingReading, setHasExistingReading] = useState(false);
+  const [topic, setTopic] = useState<StudyTopic | null>(null);
+  const [form, setForm] = useState<ReadingForm>({ title: '', content: '' });
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  
+  const quillRef = useRef<ReactQuill>(null);
+  const isProcessingPaste = useRef(false);
+  const selectedImageRef = useRef<HTMLImageElement | null>(null);
+  const selectedTableRef = useRef<HTMLTableElement | null>(null);
+  const createResizeHandlesFnRef = useRef<((img: HTMLImageElement) => void) | null>(null);
+  const resizeHandlesRef = useRef<HTMLDivElement[]>([]);
+  const tableResizeHandlesRef = useRef<HTMLDivElement[]>([]);
+  const isResizing = useRef(false);
+  const isResizingTable = useRef(false);
+  const startX = useRef(0);
+  const startY = useRef(0);
+  const startWidth = useRef(0);
+  const startHeight = useRef(0);
+  const currentHandle = useRef<string>('');
+  const dimensionTooltipRef = useRef<HTMLDivElement | null>(null);
+  const alignmentToolbarRef = useRef<HTMLDivElement | null>(null);
+  const tableToolbarRef = useRef<HTMLDivElement | null>(null);
+  
+  // Refs para funciones de resize de tabla (para evitar stale closures)
+  const handleTableResizeMoveRef = useRef<(e: MouseEvent) => void>(() => {});
+  const handleTableResizeEndRef = useRef<() => void>(() => {});
+  
+  // Módulos de Quill con soporte para tablas
+  const quillModules = useMemo(() => ({
+    toolbar: {
+      container: [
+        [{ 'header': [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ 'color': [] }, { 'background': [] }],
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+        [{ 'indent': '-1'}, { 'indent': '+1' }],
+        [{ 'align': [] }],
+        ['link', 'image'],
+        ['blockquote', 'code-block'],
+        ['table'],
+        ['clean']
+      ],
+      handlers: {
+        'table': function() {
+          // Insertar tabla 3x3
+          const quill = quillRef.current?.getEditor();
+          if (quill) {
+            const range = quill.getSelection(true);
+            const tableHtml = `
+              <table style="border-collapse: collapse; width: 100%; margin: 1rem 0;">
+                <tbody>
+                  <tr>
+                    <td style="border: 1px solid #d1d5db; padding: 8px 12px; min-width: 100px;">&nbsp;</td>
+                    <td style="border: 1px solid #d1d5db; padding: 8px 12px; min-width: 100px;">&nbsp;</td>
+                    <td style="border: 1px solid #d1d5db; padding: 8px 12px; min-width: 100px;">&nbsp;</td>
+                  </tr>
+                  <tr>
+                    <td style="border: 1px solid #d1d5db; padding: 8px 12px; min-width: 100px;">&nbsp;</td>
+                    <td style="border: 1px solid #d1d5db; padding: 8px 12px; min-width: 100px;">&nbsp;</td>
+                    <td style="border: 1px solid #d1d5db; padding: 8px 12px; min-width: 100px;">&nbsp;</td>
+                  </tr>
+                  <tr>
+                    <td style="border: 1px solid #d1d5db; padding: 8px 12px; min-width: 100px;">&nbsp;</td>
+                    <td style="border: 1px solid #d1d5db; padding: 8px 12px; min-width: 100px;">&nbsp;</td>
+                    <td style="border: 1px solid #d1d5db; padding: 8px 12px; min-width: 100px;">&nbsp;</td>
+                  </tr>
+                </tbody>
+              </table>
+            `;
+            quill.clipboard.dangerouslyPasteHTML(range.index, tableHtml);
+          }
+        }
+      }
+    },
+    clipboard: {
+      matchVisual: false,
+    },
+  }), []);
+
+  // Formatos permitidos en Quill
+  const quillFormats = useMemo(() => [
+    'header',
+    'bold', 'italic', 'underline', 'strike',
+    'color', 'background',
+    'list', 'indent',
+    'align',
+    'link', 'image',
+    'blockquote', 'code-block',
+    'table'
+  ], []);
+
+  // Función para aplicar estilos desde atributos data-* al DOM
+  // Esto es necesario porque Quill no preserva estilos inline
+  const applyDataAttributeStyles = useCallback(() => {
+    const quill = quillRef.current?.getEditor();
+    if (!quill) return;
+    
+    const root = quill.root;
+    
+    // Aplicar estilos a imágenes
+    root.querySelectorAll('img[data-align]').forEach((img) => {
+      const imgEl = img as HTMLImageElement;
+      const align = imgEl.getAttribute('data-align');
+      if (align === 'left') {
+        imgEl.style.display = 'block';
+        imgEl.style.marginLeft = '0';
+        imgEl.style.marginRight = 'auto';
+      } else if (align === 'center') {
+        imgEl.style.display = 'block';
+        imgEl.style.marginLeft = 'auto';
+        imgEl.style.marginRight = 'auto';
+      } else if (align === 'right') {
+        imgEl.style.display = 'block';
+        imgEl.style.marginLeft = 'auto';
+        imgEl.style.marginRight = '0';
+      }
+    });
+    
+    root.querySelectorAll('img[data-width]').forEach((img) => {
+      const imgEl = img as HTMLImageElement;
+      const width = imgEl.getAttribute('data-width');
+      if (width) {
+        imgEl.style.width = width;
+        imgEl.style.height = 'auto';
+      }
+    });
+    
+    // Aplicar estilos a wrappers de tabla
+    root.querySelectorAll('div[data-table-wrapper][data-width]').forEach((wrapper) => {
+      const wrapperEl = wrapper as HTMLDivElement;
+      const width = wrapperEl.getAttribute('data-width');
+      if (width) {
+        wrapperEl.style.width = width;
+        wrapperEl.style.margin = '1rem 0';
+        wrapperEl.style.overflowX = 'auto';
+      }
+    });
+    
+    // Aplicar estilos a tablas directamente (legacy)
+    root.querySelectorAll('table[data-width]').forEach((table) => {
+      const tableEl = table as HTMLTableElement;
+      const width = tableEl.getAttribute('data-width');
+      if (width) {
+        tableEl.style.width = width;
+      }
+    });
+    
+    // Aplicar estilos a celdas
+    root.querySelectorAll('td[data-bgcolor], th[data-bgcolor]').forEach((cell) => {
+      const cellEl = cell as HTMLElement;
+      const bgcolor = cellEl.getAttribute('data-bgcolor');
+      if (bgcolor) {
+        cellEl.style.backgroundColor = bgcolor;
+      }
+    });
+  }, []);
+
+  // Cargar datos
+  useEffect(() => {
+    const loadData = async () => {
+      if (!materialId || !sessionId || !topicId) {
+        navigate(-1);
+        return;
+      }
+      
+      try {
+        const data = await getMaterial(parseInt(materialId));
+        
+        // Buscar el topic
+        const session = data.sessions?.find(s => s.id === parseInt(sessionId));
+        const foundTopic = session?.topics?.find(t => t.id === parseInt(topicId));
+        
+        if (foundTopic) {
+          setTopic(foundTopic);
+          if (foundTopic.reading) {
+            setHasExistingReading(true);
+            setForm({
+              title: foundTopic.reading.title,
+              content: foundTopic.reading.content,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+        setToast({ message: 'Error al cargar los datos', type: 'error' });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
+  }, [materialId, sessionId, topicId, navigate]);
+
+  // Manejar pegado de imágenes - evitar duplicados
+  const handleImagePaste = useCallback(async (e: ClipboardEvent) => {
+    // Evitar procesamiento doble
+    if (isProcessingPaste.current) return;
+    
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf('image') !== -1) {
+        e.preventDefault();
+        e.stopPropagation();
+        isProcessingPaste.current = true;
+        
+        const file = item.getAsFile();
+        if (!file) {
+          isProcessingPaste.current = false;
+          continue;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const base64Data = event.target?.result as string;
+          if (!base64Data) {
+            isProcessingPaste.current = false;
+            return;
+          }
+
+          setIsUploadingImage(true);
+          try {
+            const imageUrl = await uploadReadingImage(base64Data);
+            
+            const quill = quillRef.current?.getEditor();
+            if (quill) {
+              const range = quill.getSelection(true);
+              const insertIndex = range.index;
+              quill.insertEmbed(insertIndex, 'image', imageUrl);
+              quill.setSelection(insertIndex + 1, 0);
+              // MutationObserver detectará la nueva imagen y mostrará handles automáticamente
+            }
+            
+            setToast({ message: 'Imagen pegada exitosamente', type: 'success' });
+          } catch (error) {
+            console.error('Error uploading pasted image:', error);
+            setToast({ message: 'Error al subir la imagen', type: 'error' });
+          } finally {
+            setIsUploadingImage(false);
+            setTimeout(() => {
+              isProcessingPaste.current = false;
+            }, 100);
+          }
+        };
+        reader.readAsDataURL(file);
+        break;
+      }
+    }
+  }, []);
+
+  // Registrar listener de pegado con captura para interceptar antes que Quill
+  useEffect(() => {
+    const quillEditor = quillRef.current?.getEditor()?.root;
+    if (!quillEditor) return;
+    
+    const pasteHandler = (e: Event) => {
+      if (e instanceof ClipboardEvent) {
+        handleImagePaste(e);
+      }
+    };
+    
+    // Usar capture: true para interceptar el evento antes que Quill
+    quillEditor.addEventListener('paste', pasteHandler, true);
+    
+    return () => {
+      quillEditor.removeEventListener('paste', pasteHandler, true);
+    };
+  }, [handleImagePaste, loading]);
+
+  // Remover handles de resize existentes
+  const removeResizeHandles = useCallback(() => {
+    resizeHandlesRef.current.forEach(handle => handle.remove());
+    resizeHandlesRef.current = [];
+  }, []);
+
+  // Actualizar posición de los handles (usando coordenadas fijas del viewport)
+  const updateHandlePositions = useCallback(() => {
+    if (!selectedImageRef.current || resizeHandlesRef.current.length === 0) return;
+    
+    const img = selectedImageRef.current;
+    const rect = img.getBoundingClientRect();
+    
+    // Posiciones basadas en viewport (position: fixed)
+    const positions = [
+      { handle: 'nw', left: rect.left, top: rect.top },
+      { handle: 'n', left: rect.left + rect.width / 2, top: rect.top },
+      { handle: 'ne', left: rect.right, top: rect.top },
+      { handle: 'w', left: rect.left, top: rect.top + rect.height / 2 },
+      { handle: 'e', left: rect.right, top: rect.top + rect.height / 2 },
+      { handle: 'sw', left: rect.left, top: rect.bottom },
+      { handle: 's', left: rect.left + rect.width / 2, top: rect.bottom },
+      { handle: 'se', left: rect.right, top: rect.bottom },
+    ];
+    
+    resizeHandlesRef.current.forEach((el, i) => {
+      if (positions[i]) {
+        el.style.left = `${positions[i].left}px`;
+        el.style.top = `${positions[i].top}px`;
+      }
+    });
+  }, []);
+
+  // Crear/actualizar tooltip de dimensiones
+  const updateDimensionTooltip = useCallback((width: number, height: number, x: number, y: number) => {
+    if (!dimensionTooltipRef.current) {
+      const tooltip = document.createElement('div');
+      tooltip.id = 'image-dimension-tooltip';
+      tooltip.style.cssText = `
+        position: fixed;
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        color: white;
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: system-ui, -apple-system, sans-serif;
+        z-index: 999999;
+        pointer-events: none;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        white-space: nowrap;
+        transform: translate(-50%, -100%);
+        margin-top: -12px;
+      `;
+      document.body.appendChild(tooltip);
+      dimensionTooltipRef.current = tooltip;
+    }
+    dimensionTooltipRef.current.textContent = `${Math.round(width)} × ${Math.round(height)} px`;
+    dimensionTooltipRef.current.style.left = `${x}px`;
+    dimensionTooltipRef.current.style.top = `${y}px`;
+    dimensionTooltipRef.current.style.display = 'block';
+  }, []);
+
+  // Ocultar tooltip de dimensiones
+  const hideDimensionTooltip = useCallback(() => {
+    if (dimensionTooltipRef.current) {
+      dimensionTooltipRef.current.style.display = 'none';
+    }
+  }, []);
+
+  // Manejar movimiento durante resize
+  const handleResizeMove = useCallback((e: MouseEvent) => {
+    if (!isResizing.current || !selectedImageRef.current) return;
+    e.preventDefault();
+
+    // Factor de sensibilidad (0.7 = más responsivo pero aún suave)
+    const sensitivity = 0.7;
+    
+    const deltaX = (e.clientX - startX.current) * sensitivity;
+    const deltaY = (e.clientY - startY.current) * sensitivity;
+    const aspectRatio = startWidth.current / startHeight.current;
+    
+    let newWidth = startWidth.current;
+    let newHeight = startHeight.current;
+    
+    const handle = currentHandle.current;
+    
+    // Calcular nuevas dimensiones según el handle
+    if (handle.includes('e')) {
+      newWidth = Math.max(50, startWidth.current + deltaX);
+    }
+    if (handle.includes('w')) {
+      newWidth = Math.max(50, startWidth.current - deltaX);
+    }
+    if (handle.includes('s')) {
+      newHeight = Math.max(50, startHeight.current + deltaY);
+    }
+    if (handle.includes('n')) {
+      newHeight = Math.max(50, startHeight.current - deltaY);
+    }
+
+    // Mantener proporción para esquinas (a menos que Shift esté presionado)
+    if ((handle === 'nw' || handle === 'ne' || handle === 'sw' || handle === 'se') && !e.shiftKey) {
+      if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        newHeight = newWidth / aspectRatio;
+      } else {
+        newWidth = newHeight * aspectRatio;
+      }
+    }
+
+    // Aplicar tamaño con transición suave
+    selectedImageRef.current.style.width = `${Math.round(newWidth)}px`;
+    selectedImageRef.current.style.height = `${Math.round(newHeight)}px`;
+
+    // Mostrar tooltip con dimensiones
+    const rect = selectedImageRef.current.getBoundingClientRect();
+    updateDimensionTooltip(newWidth, newHeight, rect.left + rect.width / 2, rect.top);
+
+    // Actualizar posición de handles para que sigan la imagen
+    updateHandlePositions();
+  }, [updateHandlePositions, updateDimensionTooltip]);
+
+  // Manejar fin de resize
+  const handleResizeEnd = useCallback(() => {
+    if (!isResizing.current) return;
+    
+    isResizing.current = false;
+    document.removeEventListener('mousemove', handleResizeMove);
+    document.removeEventListener('mouseup', handleResizeEnd);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    
+    // Ocultar tooltip de dimensiones
+    hideDimensionTooltip();
+    
+    // Guardar dimensiones finales en atributos
+    if (selectedImageRef.current) {
+      const finalWidth = selectedImageRef.current.offsetWidth;
+      const finalHeight = selectedImageRef.current.offsetHeight;
+      selectedImageRef.current.setAttribute('width', String(finalWidth));
+      selectedImageRef.current.setAttribute('height', String(finalHeight));
+      
+      // Mostrar toast de confirmación
+      setToast({ message: `Imagen redimensionada: ${finalWidth}×${finalHeight}px`, type: 'success' });
+      
+      // Actualizar contenido del form
+      const quill = quillRef.current?.getEditor();
+      if (quill) {
+        const html = quill.root.innerHTML;
+        setForm(prev => ({ ...prev, content: html }));
+      }
+      
+      console.log('[Resize] Tamaño final:', finalWidth, 'x', finalHeight);
+    }
+  }, [handleResizeMove, hideDimensionTooltip]);
+
+  // Manejar inicio de resize
+  const handleResizeStart = useCallback((e: MouseEvent, corner: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!selectedImageRef.current) return;
+
+    isResizing.current = true;
+    currentHandle.current = corner;
+    startX.current = e.clientX;
+    startY.current = e.clientY;
+    startWidth.current = selectedImageRef.current.offsetWidth;
+    startHeight.current = selectedImageRef.current.offsetHeight;
+    
+    // Cambiar cursor y deshabilitar selección de texto
+    const cursors: Record<string, string> = {
+      'nw': 'nwse-resize', 'se': 'nwse-resize',
+      'ne': 'nesw-resize', 'sw': 'nesw-resize',
+      'n': 'ns-resize', 's': 'ns-resize',
+      'e': 'ew-resize', 'w': 'ew-resize'
+    };
+    document.body.style.cursor = cursors[corner] || 'nwse-resize';
+    document.body.style.userSelect = 'none';
+    
+    document.addEventListener('mousemove', handleResizeMove);
+    document.addEventListener('mouseup', handleResizeEnd);
+    
+    console.log('[Resize] Iniciando desde:', corner);
+  }, [handleResizeMove, handleResizeEnd]);
+
+  // Crear handles de resize como overlay fijo sobre la imagen
+  const createResizeHandles = useCallback((_img: HTMLImageElement) => {
+    removeResizeHandles();
+    
+    // Guardar referencia a la imagen
+    selectedImageRef.current = _img;
+    
+    const corners = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'];
+    const cursors: Record<string, string> = {
+      'nw': 'nwse-resize', 'se': 'nwse-resize',
+      'ne': 'nesw-resize', 'sw': 'nesw-resize',
+      'n': 'ns-resize', 's': 'ns-resize',
+      'e': 'ew-resize', 'w': 'ew-resize'
+    };
+
+    // Crear contenedor de overlay si no existe
+    let overlayContainer = document.getElementById('image-resize-overlay');
+    if (!overlayContainer) {
+      overlayContainer = document.createElement('div');
+      overlayContainer.id = 'image-resize-overlay';
+      overlayContainer.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 99999;
+      `;
+      document.body.appendChild(overlayContainer);
+    }
+
+    corners.forEach(corner => {
+      const handle = document.createElement('div');
+      handle.className = 'image-resize-handle';
+      handle.dataset.corner = corner;
+      const isCorner = ['nw', 'ne', 'sw', 'se'].includes(corner);
+      handle.style.cssText = `
+        position: fixed;
+        width: ${isCorner ? '16px' : '12px'};
+        height: ${isCorner ? '16px' : '12px'};
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        border: 2px solid white;
+        border-radius: ${isCorner ? '50%' : '3px'};
+        cursor: ${cursors[corner]};
+        z-index: 99999;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.5), 0 0 0 2px rgba(59, 130, 246, 0.2);
+        pointer-events: auto;
+        transform: translate(-50%, -50%);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      `;
+      
+      // Efecto hover
+      handle.addEventListener('mouseenter', () => {
+        handle.style.transform = 'translate(-50%, -50%) scale(1.3)';
+        handle.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.6), 0 0 0 4px rgba(59, 130, 246, 0.3)';
+      });
+      handle.addEventListener('mouseleave', () => {
+        if (!isResizing.current) {
+          handle.style.transform = 'translate(-50%, -50%)';
+          handle.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.5), 0 0 0 2px rgba(59, 130, 246, 0.2)';
+        }
+      });
+      
+      handle.addEventListener('mousedown', (e) => handleResizeStart(e, corner));
+      
+      overlayContainer!.appendChild(handle);
+      resizeHandlesRef.current.push(handle);
+    });
+    
+    // Posicionar handles usando coordenadas del viewport
+    updateHandlePositions();
+    
+    // Crear toolbar de alineación
+    createAlignmentToolbar(_img);
+    
+    console.log('[Handles] Creados', corners.length, 'handles en overlay fijo');
+  }, [removeResizeHandles, handleResizeStart, updateHandlePositions]);
+
+  // Crear toolbar de alineación para imágenes
+  const createAlignmentToolbar = useCallback((img: HTMLImageElement) => {
+    // Remover toolbar existente
+    if (alignmentToolbarRef.current) {
+      alignmentToolbarRef.current.remove();
+      alignmentToolbarRef.current = null;
+    }
+    
+    const rect = img.getBoundingClientRect();
+    const toolbar = document.createElement('div');
+    toolbar.id = 'image-alignment-toolbar';
+    toolbar.style.cssText = `
+      position: fixed;
+      left: ${rect.left + rect.width / 2}px;
+      top: ${rect.top - 50}px;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 4px;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 6px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      z-index: 999999;
+    `;
+    
+    const alignments = [
+      { align: 'left', icon: '◀', title: 'Alinear izquierda' },
+      { align: 'center', icon: '◆', title: 'Centrar' },
+      { align: 'right', icon: '▶', title: 'Alinear derecha' },
+    ];
+    
+    alignments.forEach(({ align, title }) => {
+      const btn = document.createElement('button');
+      btn.title = title;
+      btn.style.cssText = `
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: transparent;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        color: #6b7280;
+      `;
+      
+      // SVG icons
+      const icons: Record<string, string> = {
+        left: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>',
+        center: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="10" x2="6" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="18" y1="18" x2="6" y2="18"/></svg>',
+        right: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/></svg>'
+      };
+      btn.innerHTML = icons[align];
+      
+      btn.addEventListener('mouseenter', () => {
+        btn.style.background = '#f3f4f6';
+        btn.style.color = '#3b82f6';
+      });
+      btn.addEventListener('mouseleave', () => {
+        btn.style.background = 'transparent';
+        btn.style.color = '#6b7280';
+      });
+      
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Aplicar alineación al DOM
+        img.setAttribute('data-align', align);
+        if (align === 'left') {
+          img.style.display = 'block';
+          img.style.marginLeft = '0';
+          img.style.marginRight = 'auto';
+        } else if (align === 'center') {
+          img.style.display = 'block';
+          img.style.marginLeft = 'auto';
+          img.style.marginRight = 'auto';
+        } else if (align === 'right') {
+          img.style.display = 'block';
+          img.style.marginLeft = 'auto';
+          img.style.marginRight = '0';
+        }
+        
+        // Actualizar contenido
+        const quill = quillRef.current?.getEditor();
+        if (quill) {
+          setForm(prev => ({ ...prev, content: quill.root.innerHTML }));
+        }
+        
+        // Actualizar handles
+        setTimeout(() => {
+          updateHandlePositions();
+          updateAlignmentToolbarPosition(img);
+        }, 50);
+        
+        setToast({ message: `Imagen alineada: ${align === 'left' ? 'izquierda' : align === 'center' ? 'centro' : 'derecha'}`, type: 'success' });
+      });
+      
+      toolbar.appendChild(btn);
+    });
+
+    // Separador
+    const sep = document.createElement('div');
+    sep.style.cssText = 'width: 1px; height: 20px; background: #e5e7eb; margin: 0 4px;';
+    toolbar.appendChild(sep);
+
+    // Botón de tamaño de imagen
+    const sizeBtn = document.createElement('button');
+    sizeBtn.title = 'Cambiar tamaño';
+    sizeBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 21H3V3"/><path d="M21 15V21H15"/><path d="M15 15l6 6"/><path d="M3 9V3h6"/><path d="M9 9L3 3"/></svg>';
+    sizeBtn.style.cssText = `
+      width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      border: none; background: transparent; border-radius: 8px; cursor: pointer;
+      transition: all 0.15s ease; color: #6b7280;
+    `;
+    sizeBtn.addEventListener('mouseenter', () => { sizeBtn.style.background = '#f3f4f6'; sizeBtn.style.color = '#3b82f6'; });
+    sizeBtn.addEventListener('mouseleave', () => { sizeBtn.style.background = 'transparent'; sizeBtn.style.color = '#6b7280'; });
+    sizeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const currentWidth = img.getAttribute('data-width') || img.style.width || 'auto';
+      const newWidth = prompt('Ancho de imagen (ej: 300px, 50%, auto):', currentWidth);
+      if (newWidth !== null) {
+        // Aplicar al DOM directamente
+        img.setAttribute('data-width', newWidth || 'auto');
+        img.style.width = newWidth || 'auto';
+        img.style.height = 'auto';
+        
+        const quill = quillRef.current?.getEditor();
+        if (quill) {
+          setForm(prev => ({ ...prev, content: quill.root.innerHTML }));
+        }
+        
+        setTimeout(() => {
+          updateHandlePositions();
+          updateAlignmentToolbarPosition(img);
+        }, 50);
+        
+        setToast({ message: `Imagen: ${newWidth || 'auto'}`, type: 'success' });
+      }
+    });
+    toolbar.appendChild(sizeBtn);
+
+    // Botón de tamaños rápidos
+    const quickSizeBtn = document.createElement('button');
+    quickSizeBtn.title = 'Tamaños rápidos';
+    quickSizeBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M9 2v20"/><path d="M2 9h20"/></svg>';
+    quickSizeBtn.style.cssText = `
+      width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      border: none; background: transparent; border-radius: 8px; cursor: pointer;
+      transition: all 0.15s ease; color: #6b7280; position: relative;
+    `;
+    
+    const sizeDropdown = document.createElement('div');
+    sizeDropdown.style.cssText = `
+      position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+      display: none; flex-direction: column; gap: 2px; padding: 6px;
+      background: white; border: 1px solid #e5e7eb; border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top: 4px; min-width: 100px; z-index: 1000000;
+    `;
+    
+    const sizes = [
+      { value: '25%', label: 'Pequeña (25%)' },
+      { value: '50%', label: 'Mediana (50%)' },
+      { value: '75%', label: 'Grande (75%)' },
+      { value: '100%', label: 'Completa (100%)' },
+      { value: '200px', label: '200px' },
+      { value: '400px', label: '400px' },
+      { value: 'auto', label: 'Original' },
+    ];
+    
+    sizes.forEach(({ value, label }) => {
+      const sizeOption = document.createElement('button');
+      sizeOption.textContent = label;
+      sizeOption.style.cssText = `
+        padding: 6px 10px; border: none; background: transparent; border-radius: 6px;
+        cursor: pointer; text-align: left; font-size: 13px; color: #374151; white-space: nowrap;
+      `;
+      sizeOption.addEventListener('mouseenter', () => { sizeOption.style.background = '#f3f4f6'; });
+      sizeOption.addEventListener('mouseleave', () => { sizeOption.style.background = 'transparent'; });
+      sizeOption.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        sizeDropdown.style.display = 'none';
+        
+        // Aplicar al DOM directamente
+        img.setAttribute('data-width', value);
+        img.style.width = value;
+        img.style.height = 'auto';
+        
+        const quill = quillRef.current?.getEditor();
+        if (quill) {
+          setForm(prev => ({ ...prev, content: quill.root.innerHTML }));
+        }
+        
+        setTimeout(() => {
+          updateHandlePositions();
+          updateAlignmentToolbarPosition(img);
+        }, 50);
+        
+        setToast({ message: `Imagen: ${label}`, type: 'success' });
+      });
+      sizeDropdown.appendChild(sizeOption);
+    });
+    
+    quickSizeBtn.addEventListener('mouseenter', () => { quickSizeBtn.style.background = '#f3f4f6'; quickSizeBtn.style.color = '#3b82f6'; });
+    quickSizeBtn.addEventListener('mouseleave', () => { quickSizeBtn.style.background = 'transparent'; quickSizeBtn.style.color = '#6b7280'; });
+    quickSizeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      sizeDropdown.style.display = sizeDropdown.style.display === 'none' ? 'flex' : 'none';
+    });
+    quickSizeBtn.appendChild(sizeDropdown);
+    toolbar.appendChild(quickSizeBtn);
+    
+    document.body.appendChild(toolbar);
+    alignmentToolbarRef.current = toolbar;
+  }, [updateHandlePositions]);
+
+  // Actualizar posición del toolbar de alineación
+  const updateAlignmentToolbarPosition = useCallback((img: HTMLImageElement) => {
+    if (!alignmentToolbarRef.current) return;
+    const rect = img.getBoundingClientRect();
+    alignmentToolbarRef.current.style.left = `${rect.left + rect.width / 2}px`;
+    alignmentToolbarRef.current.style.top = `${rect.top - 50}px`;
+  }, []);
+
+  // Remover toolbar de alineación
+  const removeAlignmentToolbar = useCallback(() => {
+    if (alignmentToolbarRef.current) {
+      alignmentToolbarRef.current.remove();
+      alignmentToolbarRef.current = null;
+    }
+  }, []);
+
+  // Seleccionar/deseleccionar imagen (añadir clase y crear handles de resize)
+  const selectImage = useCallback((img: HTMLImageElement | null) => {
+    // Quitar selección anterior y remover handles
+    removeResizeHandles();
+    removeAlignmentToolbar();
+    const quillEditor = quillRef.current?.getEditor()?.root;
+    if (quillEditor) {
+      quillEditor.querySelectorAll('img.image-selected').forEach(el => {
+        el.classList.remove('image-selected');
+      });
+    }
+    
+    // Seleccionar nueva imagen y crear handles
+    if (img) {
+      img.classList.add('image-selected');
+      selectedImageRef.current = img;
+      createResizeHandles(img);
+      console.log('[Image] Imagen seleccionada:', img.offsetWidth, 'x', img.offsetHeight);
+    } else {
+      selectedImageRef.current = null;
+    }
+  }, [removeResizeHandles, removeAlignmentToolbar, createResizeHandles]);
+
+  // Remover selección de imagen
+  const deselectImage = useCallback(() => {
+    removeResizeHandles();
+    removeAlignmentToolbar();
+    selectImage(null);
+  }, [selectImage, removeResizeHandles, removeAlignmentToolbar]);
+
+  // ===== FUNCIONES PARA TABLAS =====
+  
+  // Remover handles de tabla
+  const removeTableResizeHandles = useCallback(() => {
+    tableResizeHandlesRef.current.forEach(handle => handle.remove());
+    tableResizeHandlesRef.current = [];
+  }, []);
+
+  // Actualizar posición de handles de tabla
+  const updateTableHandlePositions = useCallback(() => {
+    if (!selectedTableRef.current || tableResizeHandlesRef.current.length === 0) return;
+    
+    const table = selectedTableRef.current;
+    const rect = table.getBoundingClientRect();
+    
+    const positions = [
+      { handle: 'nw', left: rect.left, top: rect.top },
+      { handle: 'n', left: rect.left + rect.width / 2, top: rect.top },
+      { handle: 'ne', left: rect.right, top: rect.top },
+      { handle: 'w', left: rect.left, top: rect.top + rect.height / 2 },
+      { handle: 'e', left: rect.right, top: rect.top + rect.height / 2 },
+      { handle: 'sw', left: rect.left, top: rect.bottom },
+      { handle: 's', left: rect.left + rect.width / 2, top: rect.bottom },
+      { handle: 'se', left: rect.right, top: rect.bottom },
+    ];
+    
+    tableResizeHandlesRef.current.forEach((el, i) => {
+      if (positions[i]) {
+        el.style.left = `${positions[i].left}px`;
+        el.style.top = `${positions[i].top}px`;
+      }
+    });
+  }, []);
+
+  // Manejar movimiento durante resize de tabla
+  const handleTableResizeMove = useCallback((e: MouseEvent) => {
+    if (!isResizingTable.current || !selectedTableRef.current) return;
+    e.preventDefault();
+
+    const sensitivity = 0.7;
+    const deltaX = (e.clientX - startX.current) * sensitivity;
+    const deltaY = (e.clientY - startY.current) * sensitivity;
+    
+    let newWidth = startWidth.current;
+    
+    const handle = currentHandle.current;
+    
+    if (handle.includes('e')) {
+      newWidth = Math.max(150, startWidth.current + deltaX);
+    }
+    if (handle.includes('w')) {
+      newWidth = Math.max(150, startWidth.current - deltaX);
+    }
+    // Las tablas ajustan su altura automáticamente al contenido
+    void deltaY; // Evitar warning de variable no usada
+
+    const widthPx = `${Math.round(newWidth)}px`;
+    selectedTableRef.current.style.setProperty('width', widthPx, 'important');
+    selectedTableRef.current.style.setProperty('min-width', widthPx, 'important');
+    selectedTableRef.current.style.setProperty('max-width', widthPx, 'important');
+    selectedTableRef.current.setAttribute('width', String(Math.round(newWidth)));
+
+    const rect = selectedTableRef.current.getBoundingClientRect();
+    updateDimensionTooltip(newWidth, rect.height, rect.left + rect.width / 2, rect.top);
+    updateTableHandlePositions();
+  }, [updateTableHandlePositions]);
+
+  // Manejar fin de resize de tabla
+  const handleTableResizeEnd = useCallback(() => {
+    if (!isResizingTable.current) return;
+    
+    isResizingTable.current = false;
+    document.removeEventListener('mousemove', handleTableResizeMoveRef.current);
+    document.removeEventListener('mouseup', handleTableResizeEndRef.current);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    
+    hideDimensionTooltip();
+    
+    if (selectedTableRef.current) {
+      const finalWidth = selectedTableRef.current.offsetWidth;
+      const widthPx = `${finalWidth}px`;
+      
+      // Asegurar que el ancho persista con !important
+      selectedTableRef.current.style.setProperty('width', widthPx, 'important');
+      selectedTableRef.current.style.setProperty('min-width', widthPx, 'important');
+      selectedTableRef.current.style.setProperty('max-width', widthPx, 'important');
+      selectedTableRef.current.setAttribute('width', String(finalWidth));
+      
+      setToast({ message: `Tabla redimensionada: ${finalWidth}px de ancho`, type: 'success' });
+      
+      // Forzar actualización del contenido en Quill
+      const quill = quillRef.current?.getEditor();
+      if (quill) {
+        // Obtener el HTML actualizado después de un pequeño delay
+        setTimeout(() => {
+          const html = quill.root.innerHTML;
+          setForm(prev => ({ ...prev, content: html }));
+        }, 50);
+      }
+      
+      // Actualizar posiciones de handles y toolbar
+      updateTableHandlePositions();
+      if (tableToolbarRef.current) {
+        const rect = selectedTableRef.current.getBoundingClientRect();
+        tableToolbarRef.current.style.left = `${rect.left + rect.width / 2}px`;
+        tableToolbarRef.current.style.top = `${rect.top - 55}px`;
+      }
+    }
+  }, [hideDimensionTooltip, updateTableHandlePositions]);
+
+  // Mantener las refs actualizadas
+  handleTableResizeMoveRef.current = handleTableResizeMove;
+  handleTableResizeEndRef.current = handleTableResizeEnd;
+
+  // Manejar inicio de resize de tabla
+  const handleTableResizeStart = useCallback((e: MouseEvent, corner: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!selectedTableRef.current) return;
+
+    isResizingTable.current = true;
+    currentHandle.current = corner;
+    startX.current = e.clientX;
+    startY.current = e.clientY;
+    startWidth.current = selectedTableRef.current.offsetWidth;
+    startHeight.current = selectedTableRef.current.offsetHeight;
+    
+    const cursors: Record<string, string> = {
+      'nw': 'nwse-resize', 'se': 'nwse-resize',
+      'ne': 'nesw-resize', 'sw': 'nesw-resize',
+      'n': 'ns-resize', 's': 'ns-resize',
+      'e': 'ew-resize', 'w': 'ew-resize'
+    };
+    document.body.style.cursor = cursors[corner] || 'nwse-resize';
+    document.body.style.userSelect = 'none';
+    
+    document.addEventListener('mousemove', handleTableResizeMoveRef.current);
+    document.addEventListener('mouseup', handleTableResizeEndRef.current);
+  }, []);
+
+  // Crear handles de resize para tabla
+  const createTableResizeHandles = useCallback((table: HTMLTableElement) => {
+    removeTableResizeHandles();
+    selectedTableRef.current = table;
+    
+    const corners = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'];
+    const cursors: Record<string, string> = {
+      'nw': 'nwse-resize', 'se': 'nwse-resize',
+      'ne': 'nesw-resize', 'sw': 'nesw-resize',
+      'n': 'ns-resize', 's': 'ns-resize',
+      'e': 'ew-resize', 'w': 'ew-resize'
+    };
+
+    let overlayContainer = document.getElementById('table-resize-overlay');
+    if (!overlayContainer) {
+      overlayContainer = document.createElement('div');
+      overlayContainer.id = 'table-resize-overlay';
+      overlayContainer.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 99998;
+      `;
+      document.body.appendChild(overlayContainer);
+    }
+
+    corners.forEach(corner => {
+      const handle = document.createElement('div');
+      handle.className = 'table-resize-handle';
+      handle.dataset.corner = corner;
+      const isCorner = ['nw', 'ne', 'sw', 'se'].includes(corner);
+      handle.style.cssText = `
+        position: fixed;
+        width: ${isCorner ? '14px' : '10px'};
+        height: ${isCorner ? '14px' : '10px'};
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        border: 2px solid white;
+        border-radius: ${isCorner ? '50%' : '3px'};
+        cursor: ${cursors[corner]};
+        z-index: 99998;
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.5), 0 0 0 2px rgba(16, 185, 129, 0.2);
+        pointer-events: auto;
+        transform: translate(-50%, -50%);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      `;
+      
+      handle.addEventListener('mouseenter', () => {
+        handle.style.transform = 'translate(-50%, -50%) scale(1.3)';
+        handle.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.6), 0 0 0 4px rgba(16, 185, 129, 0.3)';
+      });
+      handle.addEventListener('mouseleave', () => {
+        if (!isResizingTable.current) {
+          handle.style.transform = 'translate(-50%, -50%)';
+          handle.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.5), 0 0 0 2px rgba(16, 185, 129, 0.2)';
+        }
+      });
+      
+      handle.addEventListener('mousedown', (e) => handleTableResizeStart(e, corner));
+      
+      overlayContainer!.appendChild(handle);
+      tableResizeHandlesRef.current.push(handle);
+    });
+    
+    updateTableHandlePositions();
+    
+    // Crear toolbar de tabla
+    createTableToolbar(table);
+  }, [removeTableResizeHandles, handleTableResizeStart, updateTableHandlePositions]);
+
+  // Crear toolbar para tabla con colores y bordes
+  const createTableToolbar = useCallback((table: HTMLTableElement) => {
+    // Remover toolbar existente
+    if (tableToolbarRef.current) {
+      tableToolbarRef.current.remove();
+      tableToolbarRef.current = null;
+    }
+    
+    const rect = table.getBoundingClientRect();
+    const toolbar = document.createElement('div');
+    toolbar.id = 'table-toolbar';
+    toolbar.style.cssText = `
+      position: fixed;
+      left: ${rect.left + rect.width / 2}px;
+      top: ${rect.top - 55}px;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 4px;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 6px 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      z-index: 999999;
+    `;
+
+    // Colores de fondo
+    const bgColors = [
+      { color: '#ffffff', name: 'Blanco' },
+      { color: '#fef3c7', name: 'Amarillo claro' },
+      { color: '#dcfce7', name: 'Verde claro' },
+      { color: '#dbeafe', name: 'Azul claro' },
+      { color: '#fce7f3', name: 'Rosa claro' },
+      { color: '#f3e8ff', name: 'Morado claro' },
+      { color: '#e5e7eb', name: 'Gris' },
+    ];
+
+    // Contenedor de color de fondo (cubeta)
+    const bgContainer = document.createElement('div');
+    bgContainer.style.cssText = 'position: relative; display: flex;';
+    
+    const bgBtn = document.createElement('button');
+    bgBtn.title = 'Color de fondo';
+    bgBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 11H5m14 0a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2m14 0V9a2 2 0 0 0-2-2M5 11V9a2 2 0 0 1 2-2m0 0V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2M7 7h10"/></svg>';
+    bgBtn.style.cssText = `
+      width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      border: none; background: transparent; border-radius: 8px; cursor: pointer;
+      transition: all 0.15s ease; color: #6b7280;
+    `;
+    
+    const bgDropdown = document.createElement('div');
+    bgDropdown.style.cssText = `
+      position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+      display: none; flex-wrap: wrap; gap: 4px; padding: 8px;
+      background: white; border: 1px solid #e5e7eb; border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top: 4px; width: 140px;
+    `;
+    
+    bgColors.forEach(({ color, name }) => {
+      const colorBtn = document.createElement('button');
+      colorBtn.title = name;
+      colorBtn.style.cssText = `
+        width: 24px; height: 24px; border: 1px solid #d1d5db; border-radius: 4px;
+        cursor: pointer; background: ${color}; transition: transform 0.1s;
+      `;
+      colorBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // Aplicar color a todas las celdas usando atributos de datos (CSS los renderiza)
+        table.querySelectorAll('td, th').forEach(cell => {
+          const cellEl = cell as HTMLElement;
+          // Guardar como atributo - CSS lo renderizará
+          cellEl.setAttribute('data-bgcolor', color);
+          // También aplicar inline por si acaso
+          cellEl.style.backgroundColor = color;
+        });
+        bgDropdown.style.display = 'none';
+        
+        // Forzar re-render: obtener HTML, actualizar form, y re-insertar
+        const quill = quillRef.current?.getEditor();
+        if (quill) {
+          const html = quill.root.innerHTML;
+          // Deseleccionar tabla temporalmente
+          const tableRect = table.getBoundingClientRect();
+          
+          // Actualizar el form con el nuevo contenido
+          setForm(prev => ({ ...prev, content: html }));
+          
+          // Re-seleccionar la tabla después de un momento
+          setTimeout(() => {
+            const editor = quillRef.current?.getEditor()?.root;
+            if (editor) {
+              const tables = editor.querySelectorAll('table');
+              tables.forEach(t => {
+                const rect = t.getBoundingClientRect();
+                if (Math.abs(rect.top - tableRect.top) < 50) {
+                  selectTable(t as HTMLTableElement);
+                }
+              });
+            }
+          }, 100);
+        }
+        setToast({ message: `Color de fondo: ${name}`, type: 'success' });
+      });
+      colorBtn.addEventListener('mouseenter', () => { colorBtn.style.transform = 'scale(1.1)'; });
+      colorBtn.addEventListener('mouseleave', () => { colorBtn.style.transform = 'scale(1)'; });
+      bgDropdown.appendChild(colorBtn);
+    });
+    
+    bgBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      bgDropdown.style.display = bgDropdown.style.display === 'none' ? 'flex' : 'none';
+    });
+    bgBtn.addEventListener('mouseenter', () => { bgBtn.style.background = '#f3f4f6'; bgBtn.style.color = '#10b981'; });
+    bgBtn.addEventListener('mouseleave', () => { bgBtn.style.background = 'transparent'; bgBtn.style.color = '#6b7280'; });
+    
+    bgContainer.appendChild(bgBtn);
+    bgContainer.appendChild(bgDropdown);
+    toolbar.appendChild(bgContainer);
+
+    // Separador
+    const sep1 = document.createElement('div');
+    sep1.style.cssText = 'width: 1px; background: #e5e7eb; margin: 0 4px;';
+    toolbar.appendChild(sep1);
+
+    // Estilos de borde
+    const borderStyles = [
+      { borderValue: '1px solid #d1d5db', name: 'Borde fino', icon: '▢' },
+      { borderValue: '2px solid #9ca3af', name: 'Borde medio', icon: '▣' },
+      { borderValue: '3px solid #374151', name: 'Borde grueso', icon: '■' },
+      { borderValue: '2px dashed #6b7280', name: 'Borde punteado', icon: '┅' },
+      { borderValue: 'none', name: 'Sin borde', icon: '○' },
+    ];
+
+    const borderContainer = document.createElement('div');
+    borderContainer.style.cssText = 'position: relative; display: flex;';
+    
+    const borderBtn = document.createElement('button');
+    borderBtn.title = 'Estilo de borde';
+    borderBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>';
+    borderBtn.style.cssText = `
+      width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      border: none; background: transparent; border-radius: 8px; cursor: pointer;
+      transition: all 0.15s ease; color: #6b7280;
+    `;
+    
+    const borderDropdown = document.createElement('div');
+    borderDropdown.style.cssText = `
+      position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+      display: none; flex-direction: column; gap: 2px; padding: 6px;
+      background: white; border: 1px solid #e5e7eb; border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top: 4px; min-width: 140px;
+    `;
+    
+    borderStyles.forEach(({ borderValue, name, icon }) => {
+      const styleBtn = document.createElement('button');
+      styleBtn.innerHTML = `<span style="margin-right: 8px;">${icon}</span>${name}`;
+      styleBtn.style.cssText = `
+        padding: 6px 10px; border: none; background: transparent; border-radius: 6px;
+        cursor: pointer; text-align: left; font-size: 13px; color: #374151;
+        display: flex; align-items: center; transition: background 0.1s;
+      `;
+      styleBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // Aplicar borde a todas las celdas usando atributos de datos (CSS los renderiza)
+        table.querySelectorAll('td, th').forEach(cell => {
+          const cellEl = cell as HTMLElement;
+          // Guardar como atributo - CSS lo renderizará
+          cellEl.setAttribute('data-border', borderValue);
+          // También aplicar inline por si acaso
+          cellEl.style.border = borderValue;
+        });
+        table.style.borderCollapse = 'collapse';
+        borderDropdown.style.display = 'none';
+        
+        // Forzar re-render
+        const quill = quillRef.current?.getEditor();
+        if (quill) {
+          const html = quill.root.innerHTML;
+          const tableRect = table.getBoundingClientRect();
+          
+          setForm(prev => ({ ...prev, content: html }));
+          
+          // Re-seleccionar la tabla después de un momento
+          setTimeout(() => {
+            const editor = quillRef.current?.getEditor()?.root;
+            if (editor) {
+              const tables = editor.querySelectorAll('table');
+              tables.forEach(t => {
+                const rect = t.getBoundingClientRect();
+                if (Math.abs(rect.top - tableRect.top) < 50) {
+                  selectTable(t as HTMLTableElement);
+                }
+              });
+            }
+          }, 100);
+        }
+        setToast({ message: `Borde: ${name}`, type: 'success' });
+      });
+      styleBtn.addEventListener('mouseenter', () => { styleBtn.style.background = '#f3f4f6'; });
+      styleBtn.addEventListener('mouseleave', () => { styleBtn.style.background = 'transparent'; });
+      borderDropdown.appendChild(styleBtn);
+    });
+    
+    borderBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      borderDropdown.style.display = borderDropdown.style.display === 'none' ? 'flex' : 'none';
+    });
+    borderBtn.addEventListener('mouseenter', () => { borderBtn.style.background = '#f3f4f6'; borderBtn.style.color = '#10b981'; });
+    borderBtn.addEventListener('mouseleave', () => { borderBtn.style.background = 'transparent'; borderBtn.style.color = '#6b7280'; });
+    
+    borderContainer.appendChild(borderBtn);
+    borderContainer.appendChild(borderDropdown);
+    toolbar.appendChild(borderContainer);
+
+    // Separador
+    const sep2 = document.createElement('div');
+    sep2.style.cssText = 'width: 1px; background: #e5e7eb; margin: 0 4px;';
+    toolbar.appendChild(sep2);
+
+    // Botón de tamaño de tabla
+    const tableSizeBtn = document.createElement('button');
+    tableSizeBtn.title = 'Cambiar ancho de tabla';
+    tableSizeBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 21H3V3"/><path d="M21 15V21H15"/><path d="M15 15l6 6"/><path d="M3 9V3h6"/><path d="M9 9L3 3"/></svg>';
+    tableSizeBtn.style.cssText = `
+      width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      border: none; background: transparent; border-radius: 8px; cursor: pointer;
+      transition: all 0.15s ease; color: #6b7280; position: relative;
+    `;
+    
+    const tableSizeDropdown = document.createElement('div');
+    tableSizeDropdown.style.cssText = `
+      position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+      display: none; flex-direction: column; gap: 2px; padding: 6px;
+      background: white; border: 1px solid #e5e7eb; border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top: 4px; min-width: 140px; z-index: 1000000;
+    `;
+    
+    const tableSizes = [
+      { value: '100%', label: 'Ancho completo (100%)' },
+      { value: '75%', label: 'Tres cuartos (75%)' },
+      { value: '50%', label: 'Mitad (50%)' },
+      { value: '400px', label: 'Pequeña (400px)' },
+      { value: '600px', label: 'Mediana (600px)' },
+      { value: '800px', label: 'Grande (800px)' },
+      { value: 'auto', label: 'Auto' },
+    ];
+    
+    // Opción personalizada
+    const customOption = document.createElement('button');
+    customOption.textContent = '✏️ Personalizado...';
+    customOption.style.cssText = `
+      padding: 6px 10px; border: none; background: transparent; border-radius: 6px;
+      cursor: pointer; text-align: left; font-size: 13px; color: #3b82f6; font-weight: 500;
+    `;
+    customOption.addEventListener('mouseenter', () => { customOption.style.background = '#eff6ff'; });
+    customOption.addEventListener('mouseleave', () => { customOption.style.background = 'transparent'; });
+    customOption.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const currentWidth = table.getAttribute('data-width') || table.style.width || '100%';
+      const newWidth = prompt('Ancho de tabla (ej: 500px, 80%, auto):', currentWidth);
+      if (newWidth !== null && newWidth.trim()) {
+        tableSizeDropdown.style.display = 'none';
+        
+        // Aplicar directamente al DOM
+        table.setAttribute('data-width', newWidth);
+        table.style.width = newWidth;
+        
+        const quill = quillRef.current?.getEditor();
+        if (quill) {
+          // Obtener el HTML y procesarlo
+          let html = quill.root.innerHTML;
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = html;
+          
+          tempDiv.querySelectorAll('table').forEach((t) => {
+            const tableEl = t as HTMLTableElement;
+            const dataWidth = tableEl.getAttribute('data-width');
+            if (dataWidth) {
+              tableEl.style.width = dataWidth;
+            }
+          });
+          
+          setForm(prev => ({ ...prev, content: tempDiv.innerHTML }));
+          
+          setTimeout(() => {
+            applyDataAttributeStyles();
+            updateTableHandlePositions();
+          }, 100);
+        }
+        
+        setToast({ message: `Tabla: ${newWidth}`, type: 'success' });
+      }
+    });
+    tableSizeDropdown.appendChild(customOption);
+    
+    // Separador en dropdown
+    const dropdownSep = document.createElement('div');
+    dropdownSep.style.cssText = 'height: 1px; background: #e5e7eb; margin: 4px 0;';
+    tableSizeDropdown.appendChild(dropdownSep);
+    
+    tableSizes.forEach(({ value, label }) => {
+      const sizeOption = document.createElement('button');
+      sizeOption.textContent = label;
+      sizeOption.style.cssText = `
+        padding: 6px 10px; border: none; background: transparent; border-radius: 6px;
+        cursor: pointer; text-align: left; font-size: 13px; color: #374151; white-space: nowrap;
+      `;
+      sizeOption.addEventListener('mouseenter', () => { sizeOption.style.background = '#f3f4f6'; });
+      sizeOption.addEventListener('mouseleave', () => { sizeOption.style.background = 'transparent'; });
+      sizeOption.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        tableSizeDropdown.style.display = 'none';
+        
+        // Aplicar directamente al DOM
+        table.setAttribute('data-width', value);
+        table.style.width = value;
+        
+        const quill = quillRef.current?.getEditor();
+        if (quill) {
+          // Obtener el HTML y procesarlo para preservar el data-width
+          let html = quill.root.innerHTML;
+          
+          // Crear un contenedor temporal para procesar el HTML
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = html;
+          
+          // Encontrar todas las tablas y aplicar los estilos desde data-width
+          tempDiv.querySelectorAll('table').forEach((t) => {
+            const tableEl = t as HTMLTableElement;
+            const dataWidth = tableEl.getAttribute('data-width');
+            if (dataWidth) {
+              tableEl.style.width = dataWidth;
+            }
+          });
+          
+          // Actualizar el form con el HTML procesado
+          setForm(prev => ({ ...prev, content: tempDiv.innerHTML }));
+          
+          // Re-aplicar estilos al DOM visible
+          setTimeout(() => {
+            applyDataAttributeStyles();
+            updateTableHandlePositions();
+          }, 100);
+        }
+        
+        setToast({ message: `Tabla: ${label}`, type: 'success' });
+      });
+      tableSizeDropdown.appendChild(sizeOption);
+    });
+    
+    tableSizeBtn.addEventListener('mouseenter', () => { tableSizeBtn.style.background = '#f3f4f6'; tableSizeBtn.style.color = '#10b981'; });
+    tableSizeBtn.addEventListener('mouseleave', () => { tableSizeBtn.style.background = 'transparent'; tableSizeBtn.style.color = '#6b7280'; });
+    tableSizeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      tableSizeDropdown.style.display = tableSizeDropdown.style.display === 'none' ? 'flex' : 'none';
+    });
+    tableSizeBtn.appendChild(tableSizeDropdown);
+    toolbar.appendChild(tableSizeBtn);
+
+    // Separador antes de filas/columnas
+    const sepRowCol = document.createElement('div');
+    sepRowCol.style.cssText = 'width: 1px; background: #e5e7eb; margin: 0 4px;';
+    toolbar.appendChild(sepRowCol);
+
+    // ========== BOTONES DE FILAS ==========
+    const rowContainer = document.createElement('div');
+    rowContainer.style.cssText = 'position: relative; display: flex;';
+    
+    const rowBtn = document.createElement('button');
+    rowBtn.title = 'Gestionar filas';
+    rowBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18"/><path d="M3 6h18"/><path d="M3 18h18"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>';
+    rowBtn.style.cssText = `
+      width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      border: none; background: transparent; border-radius: 8px; cursor: pointer;
+      transition: all 0.15s ease; color: #6b7280;
+    `;
+    
+    const rowDropdown = document.createElement('div');
+    rowDropdown.style.cssText = `
+      position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+      display: none; flex-direction: column; gap: 2px; padding: 6px;
+      background: white; border: 1px solid #e5e7eb; border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top: 4px; min-width: 160px; z-index: 1000000;
+    `;
+    
+    const rowActions = [
+      { action: 'addAbove', label: '➕ Agregar fila arriba', color: '#10b981' },
+      { action: 'addBelow', label: '➕ Agregar fila abajo', color: '#10b981' },
+      { action: 'delete', label: '🗑️ Eliminar fila', color: '#ef4444' },
+    ];
+    
+    rowActions.forEach(({ action, label, color }) => {
+      const actionBtn = document.createElement('button');
+      actionBtn.textContent = label;
+      actionBtn.style.cssText = `
+        padding: 8px 12px; border: none; background: transparent; border-radius: 6px;
+        cursor: pointer; text-align: left; font-size: 13px; color: #374151; white-space: nowrap;
+      `;
+      actionBtn.addEventListener('mouseenter', () => { actionBtn.style.background = '#f3f4f6'; actionBtn.style.color = color; });
+      actionBtn.addEventListener('mouseleave', () => { actionBtn.style.background = 'transparent'; actionBtn.style.color = '#374151'; });
+      actionBtn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        rowDropdown.style.display = 'none';
+        
+        // Buscar todas las filas directamente de la tabla
+        const allRows = table.querySelectorAll('tr');
+        if (allRows.length === 0) return;
+        
+        // Encontrar la fila seleccionada o usar la última
+        let targetRow: HTMLTableRowElement | null = null;
+        for (let i = 0; i < allRows.length; i++) {
+          const row = allRows[i] as HTMLTableRowElement;
+          if (row.classList.contains('row-selected') || row.querySelector('.cell-selected')) {
+            targetRow = row;
+            break;
+          }
+        }
+        if (!targetRow) {
+          targetRow = allRows[allRows.length - 1] as HTMLTableRowElement;
+        }
+        
+        // Contar columnas basándose en la primera fila
+        const firstRowCells = allRows[0].querySelectorAll('td, th');
+        const colCount = firstRowCells.length;
+        
+        if (action === 'addAbove' || action === 'addBelow') {
+          // Crear nueva fila copiando la estructura de la fila actual
+          const newRow = document.createElement('tr');
+          for (let i = 0; i < colCount; i++) {
+            const existingCell = targetRow.cells[i];
+            const newCell = document.createElement('td');
+            // Copiar estilos de la celda existente o usar defaults
+            if (existingCell) {
+              const bgColor = existingCell.getAttribute('data-bgcolor') || existingCell.style.backgroundColor;
+              const border = existingCell.getAttribute('data-border') || existingCell.style.border || '1px solid #d1d5db';
+              newCell.style.border = border;
+              newCell.style.padding = '8px 12px';
+              if (bgColor) {
+                newCell.style.backgroundColor = bgColor;
+                newCell.setAttribute('data-bgcolor', bgColor);
+              }
+              if (existingCell.getAttribute('data-border')) {
+                newCell.setAttribute('data-border', existingCell.getAttribute('data-border')!);
+              }
+            } else {
+              newCell.style.cssText = 'border: 1px solid #d1d5db; padding: 8px 12px;';
+            }
+            // Usar un espacio zero-width para que Quill reconozca la celda
+            newCell.innerHTML = '<br>';
+            newRow.appendChild(newCell);
+          }
+          
+          if (action === 'addAbove') {
+            targetRow.parentNode?.insertBefore(newRow, targetRow);
+            setToast({ message: 'Fila agregada arriba', type: 'success' });
+          } else {
+            targetRow.parentNode?.insertBefore(newRow, targetRow.nextSibling);
+            setToast({ message: 'Fila agregada abajo', type: 'success' });
+          }
+        } else if (action === 'delete') {
+          if (allRows.length <= 1) {
+            setToast({ message: 'No se puede eliminar la única fila', type: 'error' });
+            return;
+          }
+          targetRow.remove();
+          setToast({ message: 'Fila eliminada', type: 'success' });
+        }
+        
+        // Forzar sincronización con Quill
+        const quill = quillRef.current?.getEditor();
+        if (quill) {
+          // Obtener el HTML actualizado y forzar actualización
+          const newHtml = quill.root.innerHTML;
+          setForm(prev => ({ ...prev, content: newHtml }));
+          
+          // Re-seleccionar la tabla
+          setTimeout(() => {
+            selectTable(table);
+          }, 50);
+        }
+      });
+      rowDropdown.appendChild(actionBtn);
+    });
+    
+    rowBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      rowDropdown.style.display = rowDropdown.style.display === 'none' ? 'flex' : 'none';
+      // Cerrar otros dropdowns
+      tableSizeDropdown.style.display = 'none';
+      bgDropdown.style.display = 'none';
+      borderDropdown.style.display = 'none';
+    });
+    rowBtn.addEventListener('mouseenter', () => { rowBtn.style.background = '#f3f4f6'; rowBtn.style.color = '#10b981'; });
+    rowBtn.addEventListener('mouseleave', () => { rowBtn.style.background = 'transparent'; rowBtn.style.color = '#6b7280'; });
+    
+    rowContainer.appendChild(rowBtn);
+    rowContainer.appendChild(rowDropdown);
+    toolbar.appendChild(rowContainer);
+
+    // ========== BOTONES DE COLUMNAS ==========
+    const colContainer = document.createElement('div');
+    colContainer.style.cssText = 'position: relative; display: flex;';
+    
+    const colBtn = document.createElement('button');
+    colBtn.title = 'Gestionar columnas';
+    colBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M6 3v18"/><path d="M18 3v18"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>';
+    colBtn.style.cssText = `
+      width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      border: none; background: transparent; border-radius: 8px; cursor: pointer;
+      transition: all 0.15s ease; color: #6b7280;
+    `;
+    
+    const colDropdown = document.createElement('div');
+    colDropdown.style.cssText = `
+      position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+      display: none; flex-direction: column; gap: 2px; padding: 6px;
+      background: white; border: 1px solid #e5e7eb; border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top: 4px; min-width: 180px; z-index: 1000000;
+    `;
+    
+    const colActions = [
+      { action: 'addLeft', label: '➕ Agregar columna izq.', color: '#10b981' },
+      { action: 'addRight', label: '➕ Agregar columna der.', color: '#10b981' },
+      { action: 'delete', label: '🗑️ Eliminar columna', color: '#ef4444' },
+    ];
+    
+    colActions.forEach(({ action, label, color }) => {
+      const actionBtn = document.createElement('button');
+      actionBtn.textContent = label;
+      actionBtn.style.cssText = `
+        padding: 8px 12px; border: none; background: transparent; border-radius: 6px;
+        cursor: pointer; text-align: left; font-size: 13px; color: #374151; white-space: nowrap;
+      `;
+      actionBtn.addEventListener('mouseenter', () => { actionBtn.style.background = '#f3f4f6'; actionBtn.style.color = color; });
+      actionBtn.addEventListener('mouseleave', () => { actionBtn.style.background = 'transparent'; actionBtn.style.color = '#374151'; });
+      actionBtn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        colDropdown.style.display = 'none';
+        
+        const allRows = table.querySelectorAll('tr');
+        if (allRows.length === 0) return;
+        
+        // Encontrar el índice de columna seleccionada
+        let targetColIndex = -1;
+        for (let i = 0; i < allRows.length && targetColIndex === -1; i++) {
+          const cells = allRows[i].querySelectorAll('td, th');
+          for (let j = 0; j < cells.length; j++) {
+            if (cells[j].classList.contains('cell-selected')) {
+              targetColIndex = j;
+              break;
+            }
+          }
+        }
+        if (targetColIndex === -1) {
+          // Usar última columna por defecto
+          const firstRow = allRows[0];
+          targetColIndex = firstRow ? firstRow.querySelectorAll('td, th').length - 1 : 0;
+        }
+        
+        if (action === 'addLeft' || action === 'addRight') {
+          allRows.forEach((row, rowIndex) => {
+            const cells = row.querySelectorAll('td, th');
+            const referenceCell = cells[targetColIndex] as HTMLElement;
+            
+            // Determinar el tipo de celda (td o th)
+            const isHeaderRow = rowIndex === 0 && cells[0]?.tagName === 'TH';
+            const newCell = document.createElement(isHeaderRow ? 'th' : 'td');
+            
+            // Copiar estilos de la celda de referencia
+            if (referenceCell) {
+              const bgColor = referenceCell.getAttribute('data-bgcolor') || referenceCell.style.backgroundColor;
+              const border = referenceCell.getAttribute('data-border') || referenceCell.style.border || '1px solid #d1d5db';
+              newCell.style.border = border;
+              newCell.style.padding = '8px 12px';
+              if (bgColor) {
+                newCell.style.backgroundColor = bgColor;
+                newCell.setAttribute('data-bgcolor', bgColor);
+              }
+              if (referenceCell.getAttribute('data-border')) {
+                newCell.setAttribute('data-border', referenceCell.getAttribute('data-border')!);
+              }
+            } else {
+              newCell.style.cssText = 'border: 1px solid #d1d5db; padding: 8px 12px;';
+            }
+            
+            // Usar <br> para que Quill reconozca la celda como editable
+            newCell.innerHTML = '<br>';
+            
+            if (action === 'addLeft') {
+              if (referenceCell) {
+                row.insertBefore(newCell, referenceCell);
+              } else {
+                row.appendChild(newCell);
+              }
+            } else {
+              // addRight
+              if (referenceCell && referenceCell.nextSibling) {
+                row.insertBefore(newCell, referenceCell.nextSibling);
+              } else {
+                row.appendChild(newCell);
+              }
+            }
+          });
+          setToast({ message: action === 'addLeft' ? 'Columna agregada a la izquierda' : 'Columna agregada a la derecha', type: 'success' });
+        } else if (action === 'delete') {
+          const firstRowCells = allRows[0]?.querySelectorAll('td, th');
+          if (firstRowCells && firstRowCells.length <= 1) {
+            setToast({ message: 'No se puede eliminar la única columna', type: 'error' });
+            return;
+          }
+          allRows.forEach(row => {
+            const cells = row.querySelectorAll('td, th');
+            if (cells[targetColIndex]) {
+              cells[targetColIndex].remove();
+            }
+          });
+          setToast({ message: 'Columna eliminada', type: 'success' });
+        }
+        
+        // Forzar sincronización con Quill
+        const quill = quillRef.current?.getEditor();
+        if (quill) {
+          const newHtml = quill.root.innerHTML;
+          setForm(prev => ({ ...prev, content: newHtml }));
+          
+          // Re-seleccionar la tabla
+          setTimeout(() => {
+            selectTable(table);
+          }, 50);
+        }
+      });
+      colDropdown.appendChild(actionBtn);
+    });
+    
+    colBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      colDropdown.style.display = colDropdown.style.display === 'none' ? 'flex' : 'none';
+      // Cerrar otros dropdowns
+      tableSizeDropdown.style.display = 'none';
+      bgDropdown.style.display = 'none';
+      borderDropdown.style.display = 'none';
+      rowDropdown.style.display = 'none';
+    });
+    colBtn.addEventListener('mouseenter', () => { colBtn.style.background = '#f3f4f6'; colBtn.style.color = '#10b981'; });
+    colBtn.addEventListener('mouseleave', () => { colBtn.style.background = 'transparent'; colBtn.style.color = '#6b7280'; });
+    
+    colContainer.appendChild(colBtn);
+    colContainer.appendChild(colDropdown);
+    toolbar.appendChild(colContainer);
+
+    // Separador antes de eliminar
+    const sep3 = document.createElement('div');
+    sep3.style.cssText = 'width: 1px; background: #e5e7eb; margin: 0 4px;';
+    toolbar.appendChild(sep3);
+
+    // Botón de eliminar tabla
+    const deleteBtn = document.createElement('button');
+    deleteBtn.title = 'Eliminar tabla (Backspace)';
+    deleteBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
+    deleteBtn.style.cssText = `
+      width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      border: none; background: transparent; border-radius: 8px; cursor: pointer;
+      transition: all 0.15s ease; color: #6b7280;
+    `;
+    deleteBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      deselectTable();
+      table.remove();
+      const quill = quillRef.current?.getEditor();
+      if (quill) {
+        setForm(prev => ({ ...prev, content: quill.root.innerHTML }));
+      }
+      setToast({ message: 'Tabla eliminada', type: 'success' });
+    });
+    deleteBtn.addEventListener('mouseenter', () => { deleteBtn.style.background = '#fef2f2'; deleteBtn.style.color = '#ef4444'; });
+    deleteBtn.addEventListener('mouseleave', () => { deleteBtn.style.background = 'transparent'; deleteBtn.style.color = '#6b7280'; });
+    toolbar.appendChild(deleteBtn);
+
+    document.body.appendChild(toolbar);
+    tableToolbarRef.current = toolbar;
+  }, []);
+
+  // Actualizar posición del toolbar de tabla
+  const updateTableToolbarPosition = useCallback((table: HTMLTableElement) => {
+    if (!tableToolbarRef.current) return;
+    const rect = table.getBoundingClientRect();
+    tableToolbarRef.current.style.left = `${rect.left + rect.width / 2}px`;
+    tableToolbarRef.current.style.top = `${rect.top - 55}px`;
+  }, []);
+
+  // Remover toolbar de tabla
+  const removeTableToolbar = useCallback(() => {
+    if (tableToolbarRef.current) {
+      tableToolbarRef.current.remove();
+      tableToolbarRef.current = null;
+    }
+  }, []);
+
+  // Seleccionar tabla
+  const selectTable = useCallback((table: HTMLTableElement | null) => {
+    removeTableResizeHandles();
+    removeTableToolbar();
+    const quillEditor = quillRef.current?.getEditor()?.root;
+    if (quillEditor) {
+      quillEditor.querySelectorAll('table.table-selected').forEach(el => {
+        el.classList.remove('table-selected');
+      });
+    }
+    
+    if (table) {
+      // Deseleccionar imagen si hay una seleccionada
+      deselectImage();
+      table.classList.add('table-selected');
+      selectedTableRef.current = table;
+      createTableResizeHandles(table);
+      createTableToolbar(table);
+    } else {
+      selectedTableRef.current = null;
+    }
+  }, [removeTableResizeHandles, removeTableToolbar, createTableResizeHandles, createTableToolbar, deselectImage]);
+
+  // Deseleccionar tabla
+  const deselectTable = useCallback(() => {
+    removeTableResizeHandles();
+    removeTableToolbar();
+    selectTable(null);
+  }, [selectTable, removeTableResizeHandles, removeTableToolbar]);
+
+  // Guardar referencia a la función para usarla desde el paste handler
+  useEffect(() => {
+    createResizeHandlesFnRef.current = selectImage;
+  }, [selectImage]);
+
+  // Aplicar estilos desde data-attributes cuando el contenido cambia o Quill se inicializa
+  useEffect(() => {
+    const quill = quillRef.current?.getEditor();
+    if (!quill) return;
+
+    // Aplicar estilos iniciales después de un breve delay
+    const initialTimer = setTimeout(() => {
+      applyDataAttributeStyles();
+    }, 200);
+
+    // Escuchar cambios en el editor para re-aplicar estilos
+    const handleTextChange = () => {
+      // Pequeño delay para que Quill termine de renderizar
+      setTimeout(() => {
+        applyDataAttributeStyles();
+      }, 50);
+    };
+
+    quill.on('text-change', handleTextChange);
+
+    return () => {
+      clearTimeout(initialTimer);
+      quill.off('text-change', handleTextChange);
+    };
+  }, [applyDataAttributeStyles, loading]);
+
+  // Manejar click en imágenes y tablas para seleccionarlas
+  useEffect(() => {
+    const quillEditor = quillRef.current?.getEditor()?.root;
+    if (!quillEditor) return;
+
+    const handleElementClick = (e: Event) => {
+      const target = e.target as HTMLElement;
+      
+      if (target.tagName === 'IMG') {
+        e.preventDefault();
+        e.stopPropagation();
+        deselectTable();
+        selectImage(target as HTMLImageElement);
+      } else if (target.tagName === 'TD' || target.tagName === 'TH' || target.tagName === 'TABLE') {
+        // Encontrar la tabla padre
+        const table = target.closest('table') as HTMLTableElement;
+        if (table) {
+          e.preventDefault();
+          e.stopPropagation();
+          deselectImage();
+          selectTable(table);
+        }
+      } else {
+        // Clic fuera, deseleccionar ambos
+        deselectImage();
+        deselectTable();
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        deselectImage();
+        deselectTable();
+      }
+      // Borrar tabla con Backspace o Delete cuando está seleccionada
+      if ((e.key === 'Backspace' || e.key === 'Delete') && selectedTableRef.current && tableResizeHandlesRef.current.length > 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        const table = selectedTableRef.current;
+        deselectTable();
+        table.remove();
+        // Actualizar contenido
+        const quill = quillRef.current?.getEditor();
+        if (quill) {
+          const html = quill.root.innerHTML;
+          setForm(prev => ({ ...prev, content: html }));
+        }
+        setToast({ message: 'Tabla eliminada', type: 'success' });
+      }
+    };
+
+    // Detectar nuevas imágenes y seleccionarlas automáticamente después de pegar
+    const observer = new MutationObserver((mutationsList) => {
+      for (const mutation of mutationsList) {
+        for (const node of Array.from(mutation.addedNodes)) {
+          if (node instanceof HTMLImageElement) {
+            // Seleccionar imagen cuando esté cargada
+            const selectWhenLoaded = () => {
+              if (node.complete && node.naturalWidth > 10) {
+                selectImage(node);
+              } else {
+                node.addEventListener('load', () => selectImage(node), { once: true });
+              }
+            };
+            setTimeout(selectWhenLoaded, 100);
+          }
+        }
+      }
+    });
+
+    observer.observe(quillEditor, {
+      childList: true,
+      subtree: true
+    });
+
+    quillEditor.addEventListener('click', handleElementClick);
+    document.addEventListener('keydown', handleKeyDown);
+    
+    // Actualizar posición de handles al hacer scroll
+    const handleScroll = () => {
+      if (selectedImageRef.current && resizeHandlesRef.current.length > 0) {
+        updateHandlePositions();
+        updateAlignmentToolbarPosition(selectedImageRef.current);
+      }
+      if (selectedTableRef.current && tableResizeHandlesRef.current.length > 0) {
+        updateTableHandlePositions();
+        updateTableToolbarPosition(selectedTableRef.current);
+      }
+    };
+    
+    window.addEventListener('scroll', handleScroll, true);
+    
+    return () => {
+      observer.disconnect();
+      quillEditor.removeEventListener('click', handleElementClick);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [loading, selectImage, deselectImage, selectTable, deselectTable, updateHandlePositions, updateTableHandlePositions, updateAlignmentToolbarPosition, updateTableToolbarPosition]);
+
+  // Guardar
+  const handleSave = async () => {
+    if (!form.title.trim() || !materialId || !sessionId || !topicId) return;
+    setSaving(true);
+    try {
+      // Obtener el HTML más reciente del editor
+      const quill = quillRef.current?.getEditor();
+      const currentContent = quill ? quill.root.innerHTML : form.content;
+      
+      // Procesar el HTML para preservar estilos
+      const processedContent = processContentForSave(currentContent);
+      
+      await upsertReading(parseInt(materialId), parseInt(sessionId), parseInt(topicId), {
+        ...form,
+        content: processedContent
+      });
+      setToast({ message: 'Lectura guardada exitosamente', type: 'success' });
+      setTimeout(() => navigate(`/study-contents/${materialId}`), 1000);
+    } catch (error) {
+      console.error('Error saving reading:', error);
+      setToast({ message: 'Error al guardar la lectura', type: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Eliminar lectura (solo admin)
+  const handleDelete = async () => {
+    if (!materialId || !sessionId || !topicId) return;
+    setDeleting(true);
+    try {
+      await deleteReading(parseInt(materialId), parseInt(sessionId), parseInt(topicId));
+      setToast({ message: 'Lectura eliminada exitosamente', type: 'success' });
+      setShowDeleteModal(false);
+      setTimeout(() => navigate(`/study-contents/${materialId}`), 1000);
+    } catch (error) {
+      console.error('Error deleting reading:', error);
+      setToast({ message: 'Error al eliminar la lectura', type: 'error' });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Auto-hide toast
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  const isFormComplete = form.title.trim() && form.content.trim() && form.content !== '<p><br></p>';
+
+  // Función para procesar el HTML y asegurar que los estilos de tabla/imagen persistan
+  const processContentForSave = useCallback((html: string): string => {
+    // Crear un elemento temporal para procesar el HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    
+    // Procesar tablas - asegurar que width se preserve
+    tempDiv.querySelectorAll('table').forEach(table => {
+      const width = table.style.width || table.getAttribute('width');
+      if (width) {
+        table.setAttribute('width', width);
+        table.setAttribute('data-width', width);
+        // Asegurar style inline
+        table.style.width = width;
+      }
+    });
+    
+    // Procesar celdas - preservar background y border
+    tempDiv.querySelectorAll('td, th').forEach(cell => {
+      const cellEl = cell as HTMLElement;
+      const bgColor = cellEl.style.backgroundColor || cellEl.getAttribute('data-bgcolor');
+      const border = cellEl.style.border || cellEl.getAttribute('data-border');
+      if (bgColor) {
+        cellEl.setAttribute('data-bgcolor', bgColor);
+        cellEl.style.backgroundColor = bgColor;
+      }
+      if (border) {
+        cellEl.setAttribute('data-border', border);
+        cellEl.style.border = border;
+      }
+    });
+    
+    // Procesar imágenes - preservar width y alineación
+    tempDiv.querySelectorAll('img').forEach(img => {
+      const width = img.style.width || img.getAttribute('width');
+      if (width) {
+        img.setAttribute('width', width);
+        img.setAttribute('data-width', width);
+        img.style.width = width;
+      }
+    });
+    
+    return tempDiv.innerHTML;
+  }, []);
+
+  if (loading) {
+    return <LoadingSpinner message="Cargando editor..." fullScreen />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Estilos CSS para tablas e imágenes en el editor */}
+      <style>{`
+        .quill-image-clickable .ql-editor table {
+          border-collapse: collapse;
+          table-layout: auto;
+          margin: 0.5rem 0;
+        }
+        .quill-image-clickable .ql-editor table:not([style*="width"]):not([data-width]) {
+          width: 100%;
+        }
+        .quill-image-clickable .ql-editor tbody {
+          display: table-row-group;
+        }
+        .quill-image-clickable .ql-editor tr {
+          display: table-row;
+        }
+        .quill-image-clickable .ql-editor td,
+        .quill-image-clickable .ql-editor th {
+          border: 1px solid #d1d5db;
+          padding: 8px 12px;
+          min-width: 40px;
+          min-height: 1em;
+          vertical-align: top;
+          display: table-cell;
+        }
+        /* Celdas vacías deben mantener su tamaño */
+        .quill-image-clickable .ql-editor td:empty::after,
+        .quill-image-clickable .ql-editor th:empty::after {
+          content: '';
+          display: inline-block;
+        }
+        .quill-image-clickable .ql-editor td br:only-child,
+        .quill-image-clickable .ql-editor th br:only-child {
+          display: block;
+          content: '';
+          min-height: 1em;
+        }
+        .quill-image-clickable .ql-editor img {
+          max-width: 100%;
+          cursor: pointer;
+        }
+        /* Wrapper de tabla para controlar el ancho */
+        .quill-image-clickable .ql-editor div[data-table-wrapper] {
+          display: block;
+          margin: 1rem 0;
+          overflow-x: auto;
+        }
+        .quill-image-clickable .ql-editor div[data-table-wrapper] table {
+          width: 100% !important;
+          margin: 0 !important;
+        }
+        /* Forzar anchos de wrapper específicos */
+        .quill-image-clickable .ql-editor div[data-width="100%"] { width: 100% !important; }
+        .quill-image-clickable .ql-editor div[data-width="75%"] { width: 75% !important; }
+        .quill-image-clickable .ql-editor div[data-width="50%"] { width: 50% !important; }
+        .quill-image-clickable .ql-editor div[data-width="400px"] { width: 400px !important; }
+        .quill-image-clickable .ql-editor div[data-width="600px"] { width: 600px !important; }
+        .quill-image-clickable .ql-editor div[data-width="800px"] { width: 800px !important; }
+        /* Forzar anchos de tabla directamente */
+        .quill-image-clickable .ql-editor table[style*="width"] { }
+        .quill-image-clickable .ql-editor table[width="100%"],
+        .quill-image-clickable .ql-editor table[data-width="100%"] { width: 100% !important; }
+        .quill-image-clickable .ql-editor table[width="75%"],
+        .quill-image-clickable .ql-editor table[data-width="75%"] { width: 75% !important; }
+        .quill-image-clickable .ql-editor table[width="50%"],
+        .quill-image-clickable .ql-editor table[data-width="50%"] { width: 50% !important; }
+        .quill-image-clickable .ql-editor table[width="400px"],
+        .quill-image-clickable .ql-editor table[data-width="400px"] { width: 400px !important; }
+        .quill-image-clickable .ql-editor table[width="600px"],
+        .quill-image-clickable .ql-editor table[data-width="600px"] { width: 600px !important; }
+        .quill-image-clickable .ql-editor table[width="800px"],
+        .quill-image-clickable .ql-editor table[data-width="800px"] { width: 800px !important; }
+        /* Tabla seleccionada - borde visual */
+        .quill-image-clickable .ql-editor table.table-selected {
+          outline: 2px solid #3b82f6;
+          outline-offset: 2px;
+        }
+        /* Forzar alineación de imagen */
+        .quill-image-clickable .ql-editor img[data-align="left"] {
+          display: block !important;
+          margin-left: 0 !important;
+          margin-right: auto !important;
+        }
+        .quill-image-clickable .ql-editor img[data-align="center"] {
+          display: block !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+        }
+        .quill-image-clickable .ql-editor img[data-align="right"] {
+          display: block !important;
+          margin-left: auto !important;
+          margin-right: 0 !important;
+        }
+        /* Forzar anchos de imagen específicos */
+        .quill-image-clickable .ql-editor img[data-width="25%"],
+        .quill-image-clickable .ql-editor img[width="25%"] { width: 25% !important; height: auto !important; }
+        .quill-image-clickable .ql-editor img[data-width="50%"],
+        .quill-image-clickable .ql-editor img[width="50%"] { width: 50% !important; height: auto !important; }
+        .quill-image-clickable .ql-editor img[data-width="75%"],
+        .quill-image-clickable .ql-editor img[width="75%"] { width: 75% !important; height: auto !important; }
+        .quill-image-clickable .ql-editor img[data-width="100%"],
+        .quill-image-clickable .ql-editor img[width="100%"] { width: 100% !important; height: auto !important; }
+        .quill-image-clickable .ql-editor img[data-width="200px"],
+        .quill-image-clickable .ql-editor img[width="200px"] { width: 200px !important; height: auto !important; }
+        .quill-image-clickable .ql-editor img[data-width="400px"],
+        .quill-image-clickable .ql-editor img[width="400px"] { width: 400px !important; height: auto !important; }
+      `}</style>
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 fluid-px-4 fluid-py-3 rounded-lg shadow-lg flex items-center fluid-gap-2 fluid-text-sm ${
+          toast.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+        }`}>
+          {toast.type === 'success' ? <Check className="w-5 h-5" /> : null}
+          {toast.message}
+        </div>
+      )}
+
+      {/* Header fijo - diseño minimalista moderno con bordes redondeados */}
+      <header className="sticky top-0 z-40 fluid-px-4 fluid-pt-4">
+        <div className="bg-white/95 backdrop-blur-md border border-gray-200 rounded-2xl shadow-sm fluid-px-6">
+          <div className="flex items-center justify-between h-14">
+            {/* Izquierda: Navegación simple */}
+            <div className="flex items-center fluid-gap-6">
+              <button
+                onClick={() => navigate(`/study-contents/${materialId}`)}
+                className="group flex items-center fluid-gap-2 text-gray-500 hover:text-gray-900 transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                <span className="fluid-text-sm font-medium hidden sm:block">Volver</span>
+              </button>
+              
+              <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
+              
+              <div className="flex items-center fluid-gap-3">
+                <FileText className="w-5 h-5 text-blue-600" />
+                <div>
+                  <h1 className="fluid-text-base font-semibold text-gray-900">
+                    {topic?.reading ? 'Editar' : 'Nueva'} Lectura
+                  </h1>
+                  <p className="fluid-text-xs text-gray-400 max-w-[200px] truncate hidden md:block">{topic?.title}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Centro: Estado del formulario (solo en pantallas grandes) */}
+            <div className="hidden lg:flex items-center fluid-gap-3 bg-gray-50 rounded-full fluid-px-4 fluid-py-2">
+              <div className={`w-2 h-2 rounded-full transition-colors ${
+                form.title.trim() ? 'bg-green-500' : 'bg-gray-300'
+              }`}></div>
+              <span className="fluid-text-xs text-gray-500">Título</span>
+              <div className="w-4 h-px bg-gray-300"></div>
+              <div className={`w-2 h-2 rounded-full transition-colors ${
+                form.content.trim() && form.content !== '<p><br></p>' ? 'bg-green-500' : 'bg-gray-300'
+              }`}></div>
+              <span className="fluid-text-xs text-gray-500">Contenido</span>
+              {isFormComplete && (
+                <Check className="w-4 h-4 text-green-500 ml-1" />
+              )}
+            </div>
+
+            {/* Derecha: Acciones */}
+            <div className="flex items-center fluid-gap-2">
+              {/* Toggle vista previa */}
+              <button
+                onClick={() => setShowPreview(!showPreview)}
+                className={`relative fluid-p-2.5 rounded-xl transition-all ${
+                  showPreview 
+                    ? 'bg-blue-50 text-blue-600' 
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                }`}
+                title={showPreview ? 'Ocultar vista previa' : 'Ver vista previa'}
+              >
+                {showPreview ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+              
+              {/* Eliminar */}
+              {isAdmin && hasExistingReading && (
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  disabled={deleting}
+                  className="fluid-p-2.5 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                  title="Eliminar lectura"
+                >
+                  {deleting ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-5 h-5" />
+                  )}
+                </button>
+              )}
+              
+              <div className="w-px h-6 bg-gray-200 mx-1"></div>
+              
+              {/* Guardar */}
+              <button
+                onClick={handleSave}
+                disabled={saving || !isFormComplete}
+                className={`flex items-center fluid-gap-2 fluid-px-5 fluid-py-2.5 rounded-xl font-medium transition-all fluid-text-sm ${
+                  isFormComplete
+                    ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm shadow-blue-600/20'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                {saving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                <span className="hidden sm:block">Guardar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Contenido principal - ancho completo */}
+      <main className="flex-1 w-full fluid-px-6 fluid-py-6">
+        <div className={`grid fluid-gap-6 ${showPreview ? 'lg:grid-cols-2' : 'grid-cols-1 max-w-6xl mx-auto'}`}>
+          {/* Editor */}
+          <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
+            {/* Indicador de progreso */}
+            <div className="fluid-px-8 fluid-py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+              <div className="flex items-center fluid-gap-4">
+                <div className={`flex items-center justify-center fluid-w-10 fluid-h-10 rounded-full fluid-text-sm font-semibold transition-colors ${
+                  form.title.trim() ? 'bg-green-500 text-white shadow-lg shadow-green-500/25' : 'bg-gray-200 text-gray-400'
+                }`}>
+                  {form.title.trim() ? <Check className="fluid-icon-sm" /> : '1'}
+                </div>
+                <div className={`h-1.5 flex-1 rounded-full transition-colors ${
+                  form.title.trim() ? 'bg-green-500' : 'bg-gray-200'
+                }`}></div>
+                <div className={`flex items-center justify-center fluid-w-10 fluid-h-10 rounded-full fluid-text-sm font-semibold transition-colors ${
+                  form.content.trim() && form.content !== '<p><br></p>' ? 'bg-green-500 text-white shadow-lg shadow-green-500/25' : 'bg-gray-200 text-gray-400'
+                }`}>
+                  {form.content.trim() && form.content !== '<p><br></p>' ? <Check className="fluid-icon-sm" /> : '2'}
+                </div>
+                <span className="fluid-text-sm text-gray-600 font-medium fluid-ml-3">Título + Contenido</span>
+              </div>
+            </div>
+
+            {/* Campo título */}
+            <div className="fluid-px-8 fluid-py-6 border-b border-gray-100">
+              <label className="flex items-center fluid-gap-3 fluid-text-sm font-semibold text-gray-700 fluid-mb-3">
+                <span className="fluid-w-7 fluid-h-7 bg-blue-100 rounded-fluid-lg flex items-center justify-center text-blue-600 fluid-text-xs font-bold">1</span>
+                Título de la lectura <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder="Ej: Introducción a los conceptos básicos"
+                className="w-full fluid-px-5 fluid-py-4 border-2 border-gray-200 rounded-fluid-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all fluid-text-lg font-medium"
+              />
+            </div>
+
+            {/* Editor Quill */}
+            <div className="fluid-px-8 fluid-py-6">
+              <label className="flex items-center fluid-gap-3 fluid-text-sm font-semibold text-gray-700 fluid-mb-3">
+                <span className="fluid-w-7 fluid-h-7 bg-blue-100 rounded-fluid-lg flex items-center justify-center text-blue-600 fluid-text-xs font-bold">2</span>
+                Contenido de la lectura <span className="text-red-500">*</span>
+              </label>
+              <p className="fluid-text-sm text-gray-500 fluid-mb-4">
+                Utiliza el editor para dar formato al texto. <strong>Pega imágenes</strong> con Ctrl+V. 
+                <strong> Insertar tablas</strong> con el botón de tabla. 
+                <strong> Haz clic en una imagen</strong> y arrastra los puntos azules para redimensionarla.
+              </p>
+              
+              {isUploadingImage && (
+                <div className="fluid-mb-3 flex items-center fluid-gap-2 fluid-text-sm text-blue-600 bg-blue-50 fluid-px-4 fluid-py-2 rounded-fluid-lg">
+                  <Loader2 className="fluid-icon-sm animate-spin" />
+                  <span>Subiendo imagen...</span>
+                </div>
+              )}
+              
+              <div className={`border-2 rounded-fluid-xl overflow-hidden transition-all quill-image-clickable ${
+                form.content.trim() && form.content !== '<p><br></p>'
+                  ? 'border-green-300 ring-4 ring-green-100' 
+                  : 'border-gray-200 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-100'
+              }`}>
+                <ReactQuill
+                  ref={quillRef}
+                  theme="snow"
+                  value={form.content}
+                  onChange={(content) => setForm({ ...form, content })}
+                  modules={quillModules}
+                  formats={quillFormats}
+                  placeholder="Escribe el contenido de la lectura aquí..."
+                  style={{ minHeight: '500px' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Vista previa */}
+          {showPreview && (
+            <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="fluid-px-8 fluid-py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                <h3 className="font-semibold text-gray-900 flex items-center fluid-gap-3 fluid-text-lg">
+                  <Eye className="fluid-icon-md text-gray-500" />
+                  Vista Previa
+                </h3>
+              </div>
+              <div className="fluid-p-8">
+                {form.title && (
+                  <h2 className="fluid-text-3xl font-bold text-gray-900 fluid-mb-6">{form.title}</h2>
+                )}
+                <div 
+                  className="prose prose-lg max-w-none fluid-text-base"
+                  dangerouslySetInnerHTML={{ 
+                    __html: DOMPurify.sanitize(form.content || '<p class="text-gray-400 italic">El contenido aparecerá aquí...</p>') 
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Modal de confirmación de eliminación */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
+            <div className="fluid-p-6">
+              <div className="flex items-center fluid-gap-4 fluid-mb-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="fluid-text-lg font-semibold text-gray-900">
+                    Eliminar lectura
+                  </h3>
+                  <p className="fluid-text-sm text-gray-500">
+                    Esta acción no se puede deshacer
+                  </p>
+                </div>
+              </div>
+              
+              <p className="fluid-text-sm text-gray-600 fluid-mb-6">
+                ¿Estás seguro de que deseas eliminar la lectura <strong>"{form.title}"</strong>? 
+                Todo el contenido será eliminado permanentemente.
+              </p>
+
+              <div className="flex fluid-gap-3 justify-end">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={deleting}
+                  className="fluid-px-4 fluid-py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors fluid-text-sm font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors fluid-text-sm font-medium disabled:opacity-50"
+                >
+                  {deleting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ReadingEditorPage;

@@ -970,3 +970,82 @@ input[type="password"]::-webkit-password-viewable-toggle-button {
 .quill-image-clickable {
   overflow: visible !important;
 }
+
+/* ===== Tablas en el editor ===== */
+.quill-image-clickable .ql-editor table {
+  border-collapse: collapse !important;
+  margin: 1rem 0;
+  cursor: pointer;
+  transition: outline 0.15s ease;
+}
+
+/* Estilos base para celdas - sin background ni border para permitir override */
+.quill-image-clickable .ql-editor table td,
+.quill-image-clickable .ql-editor table th {
+  padding: 8px 12px;
+  min-width: 50px;
+  border: 1px solid #d1d5db; /* Borde por defecto */
+}
+
+/* ===== Colores de fondo via atributos de datos ===== */
+.quill-image-clickable .ql-editor table td[data-bgcolor="#ffffff"],
+.quill-image-clickable .ql-editor table th[data-bgcolor="#ffffff"] {
+  background-color: #ffffff !important;
+}
+.quill-image-clickable .ql-editor table td[data-bgcolor="#fef3c7"],
+.quill-image-clickable .ql-editor table th[data-bgcolor="#fef3c7"] {
+  background-color: #fef3c7 !important;
+}
+.quill-image-clickable .ql-editor table td[data-bgcolor="#dcfce7"],
+.quill-image-clickable .ql-editor table th[data-bgcolor="#dcfce7"] {
+  background-color: #dcfce7 !important;
+}
+.quill-image-clickable .ql-editor table td[data-bgcolor="#dbeafe"],
+.quill-image-clickable .ql-editor table th[data-bgcolor="#dbeafe"] {
+  background-color: #dbeafe !important;
+}
+.quill-image-clickable .ql-editor table td[data-bgcolor="#fce7f3"],
+.quill-image-clickable .ql-editor table th[data-bgcolor="#fce7f3"] {
+  background-color: #fce7f3 !important;
+}
+.quill-image-clickable .ql-editor table td[data-bgcolor="#f3e8ff"],
+.quill-image-clickable .ql-editor table th[data-bgcolor="#f3e8ff"] {
+  background-color: #f3e8ff !important;
+}
+.quill-image-clickable .ql-editor table td[data-bgcolor="#e5e7eb"],
+.quill-image-clickable .ql-editor table th[data-bgcolor="#e5e7eb"] {
+  background-color: #e5e7eb !important;
+}
+
+/* ===== Estilos de borde via atributos de datos ===== */
+.quill-image-clickable .ql-editor table td[data-border="1px solid #d1d5db"],
+.quill-image-clickable .ql-editor table th[data-border="1px solid #d1d5db"] {
+  border: 1px solid #d1d5db !important;
+}
+.quill-image-clickable .ql-editor table td[data-border="2px solid #9ca3af"],
+.quill-image-clickable .ql-editor table th[data-border="2px solid #9ca3af"] {
+  border: 2px solid #9ca3af !important;
+}
+.quill-image-clickable .ql-editor table td[data-border="3px solid #374151"],
+.quill-image-clickable .ql-editor table th[data-border="3px solid #374151"] {
+  border: 3px solid #374151 !important;
+}
+.quill-image-clickable .ql-editor table td[data-border="2px dashed #6b7280"],
+.quill-image-clickable .ql-editor table th[data-border="2px dashed #6b7280"] {
+  border: 2px dashed #6b7280 !important;
+}
+.quill-image-clickable .ql-editor table td[data-border="none"],
+.quill-image-clickable .ql-editor table th[data-border="none"] {
+  border: none !important;
+}
+
+.quill-image-clickable .ql-editor table:hover {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.quill-image-clickable .ql-editor table.table-selected {
+  outline: 2px solid #3b82f6 !important;
+  outline-offset: 2px;
+}
+
