@@ -46,7 +46,6 @@ import {
   Link as LinkIcon,
   Image as ImageIcon,
   Table as TableIcon,
-  Plus,
   Minus,
   Trash,
   Undo,
@@ -58,6 +57,13 @@ import {
   Heading3,
   Palette,
   Highlighter,
+  ArrowUpToLine,
+  ArrowDownToLine,
+  ArrowLeftToLine,
+  ArrowRightToLine,
+  Combine,
+  SplitSquareHorizontal,
+  Grid3X3,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -343,84 +349,91 @@ const EditorToolbar = ({ editor, onImageUpload, isUploading }: {
 
       {/* Segunda fila: Controles de tabla (solo visible cuando hay tabla seleccionada) */}
       {editor.isActive('table') && (
-        <div className="flex flex-wrap items-center gap-1 p-2 bg-blue-50 border-b border-blue-100">
-          <span className="text-sm font-medium text-blue-700 mr-2">Tabla:</span>
+        <div className="flex flex-wrap items-center gap-1 p-2 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200">
+          <div className="flex items-center gap-1.5 mr-3">
+            <Grid3X3 className="w-4 h-4 text-blue-600" />
+            <span className="text-sm font-semibold text-blue-700">Tabla</span>
+          </div>
           
-          {/* Filas */}
-          <button
-            onClick={() => editor.chain().focus().addRowBefore().run()}
-            className="flex items-center gap-1 px-2 py-1 text-sm rounded bg-white border hover:bg-gray-50"
-            title="Agregar fila arriba"
-          >
-            <Plus className="w-3 h-3" /> Fila ↑
-          </button>
-          <button
-            onClick={() => editor.chain().focus().addRowAfter().run()}
-            className="flex items-center gap-1 px-2 py-1 text-sm rounded bg-white border hover:bg-gray-50"
-            title="Agregar fila abajo"
-          >
-            <Plus className="w-3 h-3" /> Fila ↓
-          </button>
-          <button
-            onClick={() => editor.chain().focus().deleteRow().run()}
-            className="flex items-center gap-1 px-2 py-1 text-sm rounded bg-white border hover:bg-red-50 text-red-600"
-            title="Eliminar fila"
-          >
-            <Minus className="w-3 h-3" /> Fila
-          </button>
+          {/* Grupo: Filas */}
+          <div className="flex items-center bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <span className="px-2 py-1.5 text-xs font-medium text-gray-500 bg-gray-50 border-r">Filas</span>
+            <button
+              onClick={() => editor.chain().focus().addRowBefore().run()}
+              className="flex items-center gap-1 px-2 py-1.5 text-sm hover:bg-blue-50 hover:text-blue-600 transition-colors border-r border-gray-100"
+              title="Agregar fila arriba"
+            >
+              <ArrowUpToLine className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => editor.chain().focus().addRowAfter().run()}
+              className="flex items-center gap-1 px-2 py-1.5 text-sm hover:bg-blue-50 hover:text-blue-600 transition-colors border-r border-gray-100"
+              title="Agregar fila abajo"
+            >
+              <ArrowDownToLine className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => editor.chain().focus().deleteRow().run()}
+              className="flex items-center gap-1 px-2 py-1.5 text-sm hover:bg-red-50 text-red-500 hover:text-red-600 transition-colors"
+              title="Eliminar fila"
+            >
+              <Minus className="w-4 h-4" />
+            </button>
+          </div>
 
-          <div className="w-px h-6 bg-blue-200 mx-2" />
+          {/* Grupo: Columnas */}
+          <div className="flex items-center bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <span className="px-2 py-1.5 text-xs font-medium text-gray-500 bg-gray-50 border-r">Cols</span>
+            <button
+              onClick={() => editor.chain().focus().addColumnBefore().run()}
+              className="flex items-center gap-1 px-2 py-1.5 text-sm hover:bg-blue-50 hover:text-blue-600 transition-colors border-r border-gray-100"
+              title="Agregar columna a la izquierda"
+            >
+              <ArrowLeftToLine className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => editor.chain().focus().addColumnAfter().run()}
+              className="flex items-center gap-1 px-2 py-1.5 text-sm hover:bg-blue-50 hover:text-blue-600 transition-colors border-r border-gray-100"
+              title="Agregar columna a la derecha"
+            >
+              <ArrowRightToLine className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => editor.chain().focus().deleteColumn().run()}
+              className="flex items-center gap-1 px-2 py-1.5 text-sm hover:bg-red-50 text-red-500 hover:text-red-600 transition-colors"
+              title="Eliminar columna"
+            >
+              <Minus className="w-4 h-4" />
+            </button>
+          </div>
 
-          {/* Columnas */}
-          <button
-            onClick={() => editor.chain().focus().addColumnBefore().run()}
-            className="flex items-center gap-1 px-2 py-1 text-sm rounded bg-white border hover:bg-gray-50"
-            title="Agregar columna izquierda"
-          >
-            <Plus className="w-3 h-3" /> Col ←
-          </button>
-          <button
-            onClick={() => editor.chain().focus().addColumnAfter().run()}
-            className="flex items-center gap-1 px-2 py-1 text-sm rounded bg-white border hover:bg-gray-50"
-            title="Agregar columna derecha"
-          >
-            <Plus className="w-3 h-3" /> Col →
-          </button>
-          <button
-            onClick={() => editor.chain().focus().deleteColumn().run()}
-            className="flex items-center gap-1 px-2 py-1 text-sm rounded bg-white border hover:bg-red-50 text-red-600"
-            title="Eliminar columna"
-          >
-            <Minus className="w-3 h-3" /> Col
-          </button>
-
-          <div className="w-px h-6 bg-blue-200 mx-2" />
+          {/* Grupo: Celdas */}
+          <div className="flex items-center bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <span className="px-2 py-1.5 text-xs font-medium text-gray-500 bg-gray-50 border-r">Celdas</span>
+            <button
+              onClick={() => editor.chain().focus().mergeCells().run()}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm hover:bg-purple-50 hover:text-purple-600 transition-colors border-r border-gray-100"
+              title="Combinar celdas seleccionadas"
+            >
+              <Combine className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => editor.chain().focus().splitCell().run()}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm hover:bg-purple-50 hover:text-purple-600 transition-colors"
+              title="Dividir celda"
+            >
+              <SplitSquareHorizontal className="w-4 h-4" />
+            </button>
+          </div>
 
           {/* Eliminar tabla */}
           <button
             onClick={() => editor.chain().focus().deleteTable().run()}
-            className="flex items-center gap-1 px-2 py-1 text-sm rounded bg-red-100 border border-red-200 hover:bg-red-200 text-red-700"
-            title="Eliminar tabla"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-red-50 border border-red-200 hover:bg-red-100 text-red-600 hover:text-red-700 transition-colors shadow-sm ml-auto"
+            title="Eliminar tabla completa"
           >
-            <Trash className="w-3 h-3" /> Eliminar tabla
-          </button>
-
-          <div className="w-px h-6 bg-blue-200 mx-2" />
-
-          {/* Merge/Split */}
-          <button
-            onClick={() => editor.chain().focus().mergeCells().run()}
-            className="flex items-center gap-1 px-2 py-1 text-sm rounded bg-white border hover:bg-gray-50"
-            title="Combinar celdas"
-          >
-            Combinar
-          </button>
-          <button
-            onClick={() => editor.chain().focus().splitCell().run()}
-            className="flex items-center gap-1 px-2 py-1 text-sm rounded bg-white border hover:bg-gray-50"
-            title="Dividir celda"
-          >
-            Dividir
+            <Trash className="w-4 h-4" />
+            <span className="hidden sm:inline">Eliminar</span>
           </button>
         </div>
       )}
