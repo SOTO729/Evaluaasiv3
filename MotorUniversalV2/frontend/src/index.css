@@ -679,6 +679,71 @@ input[type="password"]::-webkit-password-viewable-toggle-button {
   white-space: normal !important;
 }
 
+/* ==================== Estilos de Tablas para Reading Content ==================== */
+.reading-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  table-layout: auto;
+  border: 1px solid #d1d5db;
+}
+
+.reading-content th,
+.reading-content td {
+  border: 1px solid #d1d5db;
+  padding: 8px 12px;
+  min-width: 50px;
+  vertical-align: top;
+  text-align: left;
+}
+
+.reading-content th {
+  background-color: #f3f4f6;
+  font-weight: 600;
+  color: #374151;
+}
+
+.reading-content tr:nth-child(even) td {
+  background-color: #f9fafb;
+}
+
+.reading-content tr:hover td {
+  background-color: #f3f4f6;
+}
+
+/* Wrapper para tablas responsivas */
+.reading-content .tableWrapper,
+.reading-content > div:has(table) {
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+/* Estilos para imágenes alineadas */
+.reading-content img[data-align="left"] {
+  float: left;
+  margin-right: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.reading-content img[data-align="center"] {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.reading-content img[data-align="right"] {
+  float: right;
+  margin-left: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Clearfix para imágenes flotantes */
+.reading-content::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
 /* Estilos para imagen de ejercicio interactivo - debe caber siempre en la pantalla sin cortarse */
 .interactive-exercise-image {
   display: block;
