@@ -1870,13 +1870,13 @@ const StudyContentPreviewPage: React.FC = () => {
                             ) : (
                               <div className="flex flex-col sm:flex-row items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-4 bg-amber-50 text-amber-700 rounded-fluid-lg">
                                 <Target className="fluid-icon-sm" />
-                                <span className="fluid-text-xs text-center">Tu mejor calificación: <strong>{Math.round(savedInteractiveScores[currentTopic.interactive_exercise.id])}%</strong> - Obtén 80% o más para completar</span>
+                                <span className="fluid-text-xs text-center">Tu mejor calificación: <strong>{Math.round(savedInteractiveScores[currentTopic.interactive_exercise.id])}%</strong> - Obtén 100% para completar</span>
                               </div>
                             )
                           ) : (
                             <div className="flex flex-col sm:flex-row items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-4 bg-gray-50 text-gray-500 rounded-fluid-lg">
                               <Gamepad2 className="fluid-icon-sm" />
-                              <span className="fluid-text-xs text-center">Completa el ejercicio con 80% o más para marcarlo como completado</span>
+                              <span className="fluid-text-xs text-center">Completa el ejercicio con 100% para marcarlo como completado</span>
                             </div>
                           )}
                         </div>
