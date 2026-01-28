@@ -32,6 +32,7 @@ import {
   createSchoolCycle,
   deleteSchoolCycle,
   deleteGroup,
+  getGroups,
   Campus,
   SchoolCycle,
   CandidateGroup,
@@ -42,6 +43,7 @@ export default function CampusDetailPage() {
   
   const [campus, setCampus] = useState<Campus | null>(null);
   const [cycles, setCycles] = useState<SchoolCycle[]>([]);
+  const [legacyGroups, setLegacyGroups] = useState<CandidateGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedCycles, setExpandedCycles] = useState<Set<number>>(new Set());
@@ -54,6 +56,7 @@ export default function CampusDetailPage() {
     is_current: false,
   });
   const [isCreatingCycle, setIsCreatingCycle] = useState(false);
+  const [cyclesAvailable, setCyclesAvailable] = useState(true);
 
   useEffect(() => {
     loadData();
@@ -62,19 +65,36 @@ export default function CampusDetailPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [campusData, cyclesData] = await Promise.all([
-        getCampus(Number(campusId)),
-        getSchoolCycles(Number(campusId), { active_only: false }),
-      ]);
-      setCampus(campusData);
-      setCycles(cyclesData.cycles);
       
-      // Expandir el ciclo actual por defecto
-      const currentCycle = cyclesData.cycles.find(c => c.is_current);
-      if (currentCycle) {
-        setExpandedCycles(new Set([currentCycle.id]));
-      } else if (cyclesData.cycles.length > 0) {
-        setExpandedCycles(new Set([cyclesData.cycles[0].id]));
+      // Primero cargar el campus
+      const campusData = await getCampus(Number(campusId));
+      setCampus(campusData);
+      
+      // Intentar cargar ciclos (puede fallar si el backend no tiene el endpoint)
+      try {
+        const cyclesData = await getSchoolCycles(Number(campusId), { active_only: false });
+        setCycles(cyclesData.cycles);
+        setCyclesAvailable(true);
+        
+        // Expandir el ciclo actual por defecto
+        const currentCycle = cyclesData.cycles.find(c => c.is_current);
+        if (currentCycle) {
+          setExpandedCycles(new Set([currentCycle.id]));
+        } else if (cyclesData.cycles.length > 0) {
+          setExpandedCycles(new Set([cyclesData.cycles[0].id]));
+        }
+      } catch {
+        // Si falla, mostrar grupos sin ciclos (compatibilidad hacia atrás)
+        setCyclesAvailable(false);
+        setCycles([]);
+        // Cargar grupos directamente del campus
+        try {
+          const groupsData = await getGroups(Number(campusId));
+          setLegacyGroups(groupsData.groups);
+        } catch {
+          // Si también falla, usar los grupos del campus si están disponibles
+          setLegacyGroups(campusData.groups || []);
+        }
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar el plantel');
@@ -323,41 +343,43 @@ export default function CampusDetailPage() {
         {/* Ciclos Escolares y Grupos - Columna derecha */}
         <div className="lg:col-span-2">
           <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
-            <div className="flex items-center justify-between fluid-mb-5">
-              <h2 className="fluid-text-xl font-semibold text-gray-800 flex items-center fluid-gap-2">
-                <GraduationCap className="fluid-icon-lg text-blue-600" />
-                Ciclos Escolares
-              </h2>
-              <button
-                onClick={() => setShowNewCycleModal(true)}
-                className="inline-flex items-center gap-2 fluid-px-3 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg fluid-text-base font-medium transition-colors"
-              >
-                <Plus className="fluid-icon-sm" />
-                Nuevo Ciclo
-              </button>
-            </div>
+            {cyclesAvailable ? (
+              <>
+                <div className="flex items-center justify-between fluid-mb-5">
+                  <h2 className="fluid-text-xl font-semibold text-gray-800 flex items-center fluid-gap-2">
+                    <GraduationCap className="fluid-icon-lg text-blue-600" />
+                    Ciclos Escolares
+                  </h2>
+                  <button
+                    onClick={() => setShowNewCycleModal(true)}
+                    className="inline-flex items-center gap-2 fluid-px-3 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg fluid-text-base font-medium transition-colors"
+                  >
+                    <Plus className="fluid-icon-sm" />
+                    Nuevo Ciclo
+                  </button>
+                </div>
 
-            {cycles.length === 0 && orphanGroups.length === 0 ? (
-              <div className="text-center fluid-py-10">
-                <GraduationCap className="fluid-icon-2xl text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 fluid-text-base mb-4">
-                  No hay ciclos escolares registrados
-                </p>
-                <button
-                  onClick={() => setShowNewCycleModal(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg fluid-text-base font-medium transition-colors"
-                >
-                  <Plus className="fluid-icon-sm" />
-                  Crear Primer Ciclo
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col fluid-gap-4">
-                {/* Ciclos escolares */}
-                {cycles.map((cycle) => (
-                  <div
-                    key={cycle.id}
-                    className={`border-2 rounded-xl overflow-hidden transition-all ${
+                {cycles.length === 0 && orphanGroups.length === 0 ? (
+                  <div className="text-center fluid-py-10">
+                    <GraduationCap className="fluid-icon-2xl text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 fluid-text-base mb-4">
+                      No hay ciclos escolares registrados
+                    </p>
+                    <button
+                      onClick={() => setShowNewCycleModal(true)}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg fluid-text-base font-medium transition-colors"
+                    >
+                      <Plus className="fluid-icon-sm" />
+                      Crear Primer Ciclo
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col fluid-gap-4">
+                    {/* Ciclos escolares */}
+                    {cycles.map((cycle) => (
+                      <div
+                        key={cycle.id}
+                        className={`border-2 rounded-xl overflow-hidden transition-all ${
                       cycle.is_current
                         ? 'border-blue-300 bg-blue-50/30'
                         : cycle.is_active
@@ -499,6 +521,51 @@ export default function CampusDetailPage() {
                   </div>
                 )}
               </div>
+            )}
+              </>
+            ) : (
+              /* Vista legacy: grupos sin ciclos (cuando el backend no soporta ciclos aún) */
+              <>
+                <div className="flex items-center justify-between fluid-mb-5">
+                  <h2 className="fluid-text-xl font-semibold text-gray-800 flex items-center fluid-gap-2">
+                    <Layers className="fluid-icon-lg text-amber-600" />
+                    Grupos
+                  </h2>
+                  <Link
+                    to={`/partners/campuses/${campusId}/groups/new`}
+                    className="inline-flex items-center gap-2 fluid-px-3 fluid-py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg fluid-text-base font-medium transition-colors"
+                  >
+                    <Plus className="fluid-icon-sm" />
+                    Nuevo Grupo
+                  </Link>
+                </div>
+
+                {legacyGroups.length === 0 ? (
+                  <div className="text-center fluid-py-10">
+                    <Layers className="fluid-icon-2xl text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 fluid-text-base mb-4">
+                      No hay grupos registrados en este plantel
+                    </p>
+                    <Link
+                      to={`/partners/campuses/${campusId}/groups/new`}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg fluid-text-base font-medium transition-colors"
+                    >
+                      <Plus className="fluid-icon-sm" />
+                      Crear Primer Grupo
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {legacyGroups.filter(g => g.is_active).map((group) => (
+                      <GroupCard
+                        key={group.id}
+                        group={group}
+                        onDelete={handleDeleteGroup}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
