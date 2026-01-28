@@ -31,6 +31,7 @@ from app.models.partner import (
     Partner,
     PartnerStatePresence,
     Campus,
+    SchoolCycle,
     CandidateGroup,
     GroupMember,
     GroupExam,

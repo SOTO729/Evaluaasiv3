@@ -2,7 +2,7 @@
  * Formulario para Crear/Editar Grupo de Candidatos
  */
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Save,
@@ -12,6 +12,7 @@ import {
   Users,
   AlertCircle,
   FileText,
+  GraduationCap,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -19,15 +20,22 @@ import {
   getGroup,
   createGroup,
   updateGroup,
+  getSchoolCycles,
   Campus,
+  SchoolCycle,
 } from '../../services/partnersService';
 
 export default function GroupFormPage() {
   const { campusId, groupId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const isEditing = Boolean(groupId);
   
+  // Obtener el ciclo desde la URL si viene desde un ciclo específico
+  const defaultCycleId = searchParams.get('cycle');
+  
   const [campus, setCampus] = useState<Partial<Campus> | null>(null);
+  const [cycles, setCycles] = useState<SchoolCycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +48,7 @@ export default function GroupFormPage() {
     end_date: '',
     max_members: 30,
     is_active: true,
+    school_cycle_id: defaultCycleId ? parseInt(defaultCycleId) : undefined as number | undefined,
   });
 
   useEffect(() => {
@@ -60,6 +69,12 @@ export default function GroupFormPage() {
           is_active: true,
         });
         
+        // Cargar ciclos del campus
+        if (group.campus_id) {
+          const cyclesData = await getSchoolCycles(group.campus_id, { active_only: true });
+          setCycles(cyclesData.cycles);
+        }
+        
         setFormData({
           name: group.name,
           code: group.code || '',
@@ -68,10 +83,23 @@ export default function GroupFormPage() {
           end_date: group.end_date ? group.end_date.split('T')[0] : '',
           max_members: group.max_members || 30,
           is_active: group.is_active,
+          school_cycle_id: group.school_cycle_id || undefined,
         });
       } else if (campusId) {
-        const campusData = await getCampus(Number(campusId));
+        const [campusData, cyclesData] = await Promise.all([
+          getCampus(Number(campusId)),
+          getSchoolCycles(Number(campusId), { active_only: true }),
+        ]);
         setCampus(campusData);
+        setCycles(cyclesData.cycles);
+        
+        // Si viene un ciclo por URL, usarlo
+        if (defaultCycleId) {
+          setFormData(prev => ({
+            ...prev,
+            school_cycle_id: parseInt(defaultCycleId),
+          }));
+        }
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar datos');
@@ -193,6 +221,31 @@ export default function GroupFormPage() {
                 className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 fluid-text-base font-mono"
               />
             </div>
+
+            {/* Ciclo Escolar */}
+            {cycles.length > 0 && (
+              <div>
+                <label className="block fluid-text-base font-medium text-gray-700 fluid-mb-2">
+                  <GraduationCap className="inline h-4 w-4 mr-1" />
+                  Ciclo Escolar
+                </label>
+                <select
+                  value={formData.school_cycle_id || ''}
+                  onChange={(e) => setFormData({ ...formData, school_cycle_id: e.target.value ? parseInt(e.target.value) : undefined })}
+                  className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 fluid-text-base"
+                >
+                  <option value="">Sin ciclo asignado</option>
+                  {cycles.map((cycle) => (
+                    <option key={cycle.id} value={cycle.id}>
+                      {cycle.name} {cycle.is_current ? '(Actual)' : ''} - {cycle.cycle_type === 'annual' ? 'Anual' : 'Semestral'}
+                    </option>
+                  ))}
+                </select>
+                <p className="fluid-text-xs text-gray-500 mt-1">
+                  Asigna este grupo a un ciclo escolar específico
+                </p>
+              </div>
+            )}
 
             <div className="sm:col-span-2">
               <label className="block fluid-text-base font-medium text-gray-700 fluid-mb-2">

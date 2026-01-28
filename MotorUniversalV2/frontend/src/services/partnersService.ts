@@ -34,6 +34,22 @@ export interface PartnerStatePresence {
   created_at: string;
 }
 
+export interface SchoolCycle {
+  id: number;
+  campus_id: number;
+  name: string;
+  cycle_type: 'annual' | 'semester';
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+  is_current: boolean;
+  created_at: string;
+  updated_at: string;
+  groups?: CandidateGroup[];
+  group_count?: number;
+  campus?: Campus;
+}
+
 export interface Campus {
   id: number;
   partner_id: number;
@@ -53,12 +69,15 @@ export interface Campus {
   updated_at: string;
   groups?: CandidateGroup[];
   group_count?: number;
+  cycle_count?: number;
+  school_cycles?: SchoolCycle[];
   partner?: Partner;
 }
 
 export interface CandidateGroup {
   id: number;
   campus_id: number;
+  school_cycle_id?: number;
   name: string;
   code?: string;
   description?: string;
@@ -71,6 +90,7 @@ export interface CandidateGroup {
   members?: GroupMember[];
   member_count?: number;
   campus?: Campus;
+  school_cycle?: SchoolCycle;
 }
 
 export interface GroupMember {
@@ -230,10 +250,48 @@ export async function deleteCampus(campusId: number): Promise<void> {
   await api.delete(`/partners/campuses/${campusId}`);
 }
 
+// ============== CICLOS ESCOLARES ==============
+
+export async function getSchoolCycles(campusId: number, params?: {
+  active_only?: boolean;
+}): Promise<{
+  cycles: SchoolCycle[];
+  total: number;
+}> {
+  const response = await api.get(`/partners/campuses/${campusId}/cycles`, { params });
+  return response.data;
+}
+
+export async function getSchoolCycle(cycleId: number): Promise<SchoolCycle> {
+  const response = await api.get(`/partners/cycles/${cycleId}`);
+  return response.data.cycle;
+}
+
+export async function createSchoolCycle(campusId: number, data: {
+  name: string;
+  cycle_type: 'annual' | 'semester';
+  start_date: string;
+  end_date: string;
+  is_current?: boolean;
+}): Promise<SchoolCycle> {
+  const response = await api.post(`/partners/campuses/${campusId}/cycles`, data);
+  return response.data.cycle;
+}
+
+export async function updateSchoolCycle(cycleId: number, data: Partial<SchoolCycle>): Promise<SchoolCycle> {
+  const response = await api.put(`/partners/cycles/${cycleId}`, data);
+  return response.data.cycle;
+}
+
+export async function deleteSchoolCycle(cycleId: number): Promise<void> {
+  await api.delete(`/partners/cycles/${cycleId}`);
+}
+
 // ============== GRUPOS ==============
 
 export async function getGroups(campusId: number, params?: {
   active_only?: boolean;
+  cycle_id?: number;
 }): Promise<{
   campus_id: number;
   campus_name: string;

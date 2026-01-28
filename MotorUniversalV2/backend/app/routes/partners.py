@@ -8,7 +8,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models import (
     Partner, PartnerStatePresence, Campus, CandidateGroup, GroupMember,
-    User, MEXICAN_STATES
+    User, MEXICAN_STATES, SchoolCycle
 )
 
 bp = Blueprint('partners', __name__, url_prefix='/api/partners')
@@ -389,11 +389,11 @@ def create_campus(partner_id):
 @jwt_required()
 @coordinator_required
 def get_campus(campus_id):
-    """Obtener detalle de un plantel"""
+    """Obtener detalle de un plantel con ciclos escolares"""
     try:
         campus = Campus.query.get_or_404(campus_id)
         return jsonify({
-            'campus': campus.to_dict(include_groups=True, include_partner=True)
+            'campus': campus.to_dict(include_groups=True, include_partner=True, include_cycles=True)
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -446,6 +446,164 @@ def delete_campus(campus_id):
         return jsonify({'error': str(e)}), 500
 
 
+# ============== CICLOS ESCOLARES ==============
+
+@bp.route('/campuses/<int:campus_id>/cycles', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_school_cycles(campus_id):
+    """Listar ciclos escolares de un plantel"""
+    try:
+        campus = Campus.query.get_or_404(campus_id)
+        
+        active_only = request.args.get('active_only', 'true').lower() == 'true'
+        
+        query = campus.school_cycles
+        if active_only:
+            query = query.filter_by(is_active=True)
+        
+        cycles = query.order_by(SchoolCycle.start_date.desc()).all()
+        
+        return jsonify({
+            'cycles': [c.to_dict(include_groups=True) for c in cycles],
+            'total': len(cycles)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/campuses/<int:campus_id>/cycles', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def create_school_cycle(campus_id):
+    """Crear un nuevo ciclo escolar"""
+    try:
+        campus = Campus.query.get_or_404(campus_id)
+        data = request.get_json()
+        
+        # Validaciones
+        if not data.get('name'):
+            return jsonify({'error': 'El nombre del ciclo es requerido'}), 400
+        if not data.get('cycle_type') or data['cycle_type'] not in ['annual', 'semester']:
+            return jsonify({'error': 'El tipo de ciclo debe ser "annual" o "semester"'}), 400
+        if not data.get('start_date') or not data.get('end_date'):
+            return jsonify({'error': 'Las fechas de inicio y fin son requeridas'}), 400
+        
+        from datetime import datetime
+        start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
+        end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
+        
+        if end_date <= start_date:
+            return jsonify({'error': 'La fecha de fin debe ser posterior a la fecha de inicio'}), 400
+        
+        # Si se marca como ciclo actual, desmarcar los demás
+        if data.get('is_current', False):
+            campus.school_cycles.filter_by(is_current=True).update({'is_current': False})
+        
+        cycle = SchoolCycle(
+            campus_id=campus_id,
+            name=data['name'],
+            cycle_type=data['cycle_type'],
+            start_date=start_date,
+            end_date=end_date,
+            is_current=data.get('is_current', False)
+        )
+        
+        db.session.add(cycle)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Ciclo escolar creado exitosamente',
+            'cycle': cycle.to_dict()
+        }), 201
+        
+    except ValueError as ve:
+        return jsonify({'error': f'Formato de fecha inválido: {str(ve)}'}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/cycles/<int:cycle_id>', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_school_cycle(cycle_id):
+    """Obtener detalle de un ciclo escolar"""
+    try:
+        cycle = SchoolCycle.query.get_or_404(cycle_id)
+        return jsonify({
+            'cycle': cycle.to_dict(include_groups=True, include_campus=True)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/cycles/<int:cycle_id>', methods=['PUT'])
+@jwt_required()
+@coordinator_required
+def update_school_cycle(cycle_id):
+    """Actualizar un ciclo escolar"""
+    try:
+        cycle = SchoolCycle.query.get_or_404(cycle_id)
+        data = request.get_json()
+        
+        if 'name' in data:
+            cycle.name = data['name']
+        if 'cycle_type' in data:
+            if data['cycle_type'] not in ['annual', 'semester']:
+                return jsonify({'error': 'El tipo de ciclo debe ser "annual" o "semester"'}), 400
+            cycle.cycle_type = data['cycle_type']
+        
+        if 'start_date' in data:
+            from datetime import datetime
+            cycle.start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
+        if 'end_date' in data:
+            from datetime import datetime
+            cycle.end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
+        
+        if 'is_active' in data:
+            cycle.is_active = data['is_active']
+        
+        # Si se marca como ciclo actual, desmarcar los demás del mismo campus
+        if data.get('is_current', False) and not cycle.is_current:
+            SchoolCycle.query.filter_by(campus_id=cycle.campus_id, is_current=True).update({'is_current': False})
+            cycle.is_current = True
+        elif 'is_current' in data:
+            cycle.is_current = data['is_current']
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Ciclo escolar actualizado exitosamente',
+            'cycle': cycle.to_dict()
+        })
+        
+    except ValueError as ve:
+        return jsonify({'error': f'Formato de fecha inválido: {str(ve)}'}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/cycles/<int:cycle_id>', methods=['DELETE'])
+@jwt_required()
+@coordinator_required
+def delete_school_cycle(cycle_id):
+    """Eliminar un ciclo escolar (soft delete)"""
+    try:
+        cycle = SchoolCycle.query.get_or_404(cycle_id)
+        cycle.is_active = False
+        cycle.is_current = False
+        db.session.commit()
+        
+        return jsonify({'message': 'Ciclo escolar desactivado exitosamente'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
 # ============== GRUPOS ==============
 
 @bp.route('/campuses/<int:campus_id>/groups', methods=['GET'])
@@ -457,18 +615,23 @@ def get_groups(campus_id):
         campus = Campus.query.get_or_404(campus_id)
         
         active_only = request.args.get('active_only', 'true').lower() == 'true'
+        cycle_id = request.args.get('cycle_id', type=int)
         
         query = CandidateGroup.query.filter_by(campus_id=campus_id)
         
         if active_only:
             query = query.filter(CandidateGroup.is_active == True)
         
+        # Filtrar por ciclo escolar si se proporciona
+        if cycle_id:
+            query = query.filter(CandidateGroup.school_cycle_id == cycle_id)
+        
         groups = query.order_by(CandidateGroup.name).all()
         
         return jsonify({
             'campus_id': campus_id,
             'campus_name': campus.name,
-            'groups': [g.to_dict(include_members=True) for g in groups],
+            'groups': [g.to_dict(include_members=True, include_cycle=True) for g in groups],
             'total': len(groups)
         })
         
@@ -488,8 +651,16 @@ def create_group(campus_id):
         if not data.get('name'):
             return jsonify({'error': 'El nombre es requerido'}), 400
         
+        # Validar el ciclo escolar si se proporciona
+        school_cycle_id = data.get('school_cycle_id')
+        if school_cycle_id:
+            cycle = SchoolCycle.query.get(school_cycle_id)
+            if not cycle or cycle.campus_id != campus_id:
+                return jsonify({'error': 'Ciclo escolar no válido para este plantel'}), 400
+        
         group = CandidateGroup(
             campus_id=campus_id,
+            school_cycle_id=school_cycle_id,
             name=data['name'],
             code=data.get('code'),
             description=data.get('description'),
@@ -504,7 +675,7 @@ def create_group(campus_id):
         
         return jsonify({
             'message': 'Grupo creado exitosamente',
-            'group': group.to_dict()
+            'group': group.to_dict(include_cycle=True)
         }), 201
         
     except Exception as e:
@@ -520,7 +691,7 @@ def get_group(group_id):
     try:
         group = CandidateGroup.query.get_or_404(group_id)
         return jsonify({
-            'group': group.to_dict(include_members=True, include_campus=True)
+            'group': group.to_dict(include_members=True, include_campus=True, include_cycle=True)
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -535,6 +706,15 @@ def update_group(group_id):
         group = CandidateGroup.query.get_or_404(group_id)
         data = request.get_json()
         
+        # Validar el ciclo escolar si se proporciona
+        if 'school_cycle_id' in data:
+            school_cycle_id = data['school_cycle_id']
+            if school_cycle_id:
+                cycle = SchoolCycle.query.get(school_cycle_id)
+                if not cycle or cycle.campus_id != group.campus_id:
+                    return jsonify({'error': 'Ciclo escolar no válido para este plantel'}), 400
+            group.school_cycle_id = school_cycle_id
+        
         # Actualizar campos
         for field in ['name', 'code', 'description', 'start_date', 'end_date', 'max_members', 'is_active']:
             if field in data:
@@ -544,7 +724,7 @@ def update_group(group_id):
         
         return jsonify({
             'message': 'Grupo actualizado exitosamente',
-            'group': group.to_dict()
+            'group': group.to_dict(include_cycle=True)
         })
         
     except Exception as e:

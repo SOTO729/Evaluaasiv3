@@ -1,5 +1,5 @@
 /**
- * Detalle de Plantel (Campus) con Grupos
+ * Detalle de Plantel (Campus) con Ciclos Escolares y Grupos
  */
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
@@ -11,6 +11,7 @@ import {
   Mail,
   Plus,
   ChevronRight,
+  ChevronDown,
   Trash2,
   Users,
   Layers,
@@ -19,13 +20,20 @@ import {
   XCircle,
   Building2,
   Calendar,
+  GraduationCap,
+  Clock,
+  CalendarRange,
+  BookOpen,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
   getCampus,
-  getGroups,
+  getSchoolCycles,
+  createSchoolCycle,
+  deleteSchoolCycle,
   deleteGroup,
   Campus,
+  SchoolCycle,
   CandidateGroup,
 } from '../../services/partnersService';
 
@@ -33,9 +41,19 @@ export default function CampusDetailPage() {
   const { campusId } = useParams();
   
   const [campus, setCampus] = useState<Campus | null>(null);
-  const [groups, setGroups] = useState<CandidateGroup[]>([]);
+  const [cycles, setCycles] = useState<SchoolCycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedCycles, setExpandedCycles] = useState<Set<number>>(new Set());
+  const [showNewCycleModal, setShowNewCycleModal] = useState(false);
+  const [newCycleForm, setNewCycleForm] = useState({
+    name: '',
+    cycle_type: 'annual' as 'annual' | 'semester',
+    start_date: '',
+    end_date: '',
+    is_current: false,
+  });
+  const [isCreatingCycle, setIsCreatingCycle] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -44,16 +62,74 @@ export default function CampusDetailPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [campusData, groupsData] = await Promise.all([
+      const [campusData, cyclesData] = await Promise.all([
         getCampus(Number(campusId)),
-        getGroups(Number(campusId), { active_only: false }),
+        getSchoolCycles(Number(campusId), { active_only: false }),
       ]);
       setCampus(campusData);
-      setGroups(groupsData.groups);
+      setCycles(cyclesData.cycles);
+      
+      // Expandir el ciclo actual por defecto
+      const currentCycle = cyclesData.cycles.find(c => c.is_current);
+      if (currentCycle) {
+        setExpandedCycles(new Set([currentCycle.id]));
+      } else if (cyclesData.cycles.length > 0) {
+        setExpandedCycles(new Set([cyclesData.cycles[0].id]));
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar el plantel');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleCycleExpanded = (cycleId: number) => {
+    setExpandedCycles(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(cycleId)) {
+        newSet.delete(cycleId);
+      } else {
+        newSet.add(cycleId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleCreateCycle = async () => {
+    if (!newCycleForm.name || !newCycleForm.start_date || !newCycleForm.end_date) {
+      return;
+    }
+    
+    try {
+      setIsCreatingCycle(true);
+      const newCycle = await createSchoolCycle(Number(campusId), newCycleForm);
+      setCycles(prev => [newCycle, ...prev]);
+      setExpandedCycles(prev => new Set([...prev, newCycle.id]));
+      setShowNewCycleModal(false);
+      setNewCycleForm({
+        name: '',
+        cycle_type: 'annual',
+        start_date: '',
+        end_date: '',
+        is_current: false,
+      });
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al crear el ciclo escolar');
+    } finally {
+      setIsCreatingCycle(false);
+    }
+  };
+
+  const handleDeleteCycle = async (cycleId: number) => {
+    if (!confirm('¿Estás seguro de desactivar este ciclo escolar?')) return;
+    
+    try {
+      await deleteSchoolCycle(cycleId);
+      setCycles(prev => prev.map(c => 
+        c.id === cycleId ? { ...c, is_active: false, is_current: false } : c
+      ));
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al desactivar el ciclo');
     }
   };
 
@@ -62,13 +138,19 @@ export default function CampusDetailPage() {
     
     try {
       await deleteGroup(groupId);
-      setGroups(groups.map(g => 
-        g.id === groupId ? { ...g, is_active: false } : g
-      ));
+      setCycles(prev => prev.map(c => ({
+        ...c,
+        groups: c.groups?.map(g => 
+          g.id === groupId ? { ...g, is_active: false } : g
+        )
+      })));
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al desactivar el grupo');
     }
   };
+
+  // Obtener grupos sin ciclo asignado
+  const orphanGroups = campus?.groups?.filter(g => !g.school_cycle_id) || [];
 
   if (loading) {
     return (
@@ -144,7 +226,7 @@ export default function CampusDetailPage() {
       </div>
 
       <div className="grid lg:grid-cols-3 fluid-gap-6">
-        {/* Información del Campus */}
+        {/* Información del Campus - Columna izquierda */}
         <div className="lg:col-span-1 flex flex-col fluid-gap-5">
           {/* Ubicación */}
           <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
@@ -169,19 +251,13 @@ export default function CampusDetailPage() {
                   <p className="fluid-text-base text-gray-900">{campus.address}</p>
                 </div>
               )}
-              {campus.postal_code && (
-                <div>
-                  <p className="fluid-text-xs text-gray-500">Código Postal</p>
-                  <p className="fluid-text-base text-gray-900">{campus.postal_code}</p>
-                </div>
-              )}
             </div>
           </div>
 
           {/* Contacto */}
           <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
             <h2 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-4">
-              Contacto del Plantel
+              Contacto
             </h2>
             <div className="flex flex-col fluid-gap-3">
               {campus.email && (
@@ -195,163 +271,164 @@ export default function CampusDetailPage() {
               {campus.phone && (
                 <div className="flex items-center fluid-gap-2">
                   <Phone className="fluid-icon-sm text-gray-400" />
-                  <a href={`tel:${campus.phone}`} className="fluid-text-base text-gray-900">
-                    {campus.phone}
-                  </a>
+                  <span className="fluid-text-base text-gray-900">{campus.phone}</span>
+                </div>
+              )}
+              {campus.director_name && (
+                <div className="pt-2 border-t">
+                  <p className="fluid-text-xs text-gray-500 mb-1">Director</p>
+                  <p className="fluid-text-base font-medium text-gray-900">{campus.director_name}</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Director */}
-          {campus.director_name && (
-            <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
-              <h2 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-4 flex items-center gap-2">
-                <Users className="fluid-icon-lg text-purple-600" />
-                Director
-              </h2>
-              <div className="flex flex-col fluid-gap-3">
-                <p className="fluid-text-base font-medium text-gray-900">{campus.director_name}</p>
-                {campus.director_email && (
-                  <div className="flex items-center fluid-gap-2">
-                    <Mail className="fluid-icon-sm text-gray-400" />
-                    <a href={`mailto:${campus.director_email}`} className="fluid-text-base text-blue-600 hover:underline">
-                      {campus.director_email}
-                    </a>
-                  </div>
-                )}
-                {campus.director_phone && (
-                  <div className="flex items-center fluid-gap-2">
-                    <Phone className="fluid-icon-sm text-gray-400" />
-                    <span className="fluid-text-base text-gray-900">{campus.director_phone}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* Estadísticas */}
           <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
             <h2 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-4">
-              Estadísticas
+              Resumen
             </h2>
             <div className="flex flex-col fluid-gap-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center fluid-gap-2">
-                  <Layers className="fluid-icon-sm text-amber-600" />
-                  <span className="fluid-text-base text-gray-600">Grupos activos</span>
+                  <CalendarRange className="fluid-icon-sm text-blue-600" />
+                  <span className="fluid-text-base text-gray-600">Ciclos escolares</span>
                 </div>
                 <span className="fluid-text-lg font-semibold text-gray-900">
-                  {groups.filter(g => g.is_active).length}
+                  {cycles.filter(c => c.is_active).length}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center fluid-gap-2">
+                  <Layers className="fluid-icon-sm text-amber-600" />
+                  <span className="fluid-text-base text-gray-600">Grupos totales</span>
+                </div>
+                <span className="fluid-text-lg font-semibold text-gray-900">
+                  {cycles.reduce((acc, c) => acc + (c.groups?.length || 0), 0) + orphanGroups.length}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center fluid-gap-2">
                   <Users className="fluid-icon-sm text-purple-600" />
-                  <span className="fluid-text-base text-gray-600">Total candidatos</span>
+                  <span className="fluid-text-base text-gray-600">Candidatos totales</span>
                 </div>
                 <span className="fluid-text-lg font-semibold text-gray-900">
-                  {groups.reduce((acc, g) => acc + (g.member_count || 0), 0)}
+                  {cycles.reduce((acc, c) => acc + (c.groups?.reduce((a, g) => a + (g.member_count || 0), 0) || 0), 0)}
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Grupos */}
+        {/* Ciclos Escolares y Grupos - Columna derecha */}
         <div className="lg:col-span-2">
           <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
             <div className="flex items-center justify-between fluid-mb-5">
               <h2 className="fluid-text-xl font-semibold text-gray-800 flex items-center fluid-gap-2">
-                <Layers className="fluid-icon-lg text-amber-600" />
-                Grupos
+                <GraduationCap className="fluid-icon-lg text-blue-600" />
+                Ciclos Escolares
               </h2>
-              <Link
-                to={`/partners/campuses/${campusId}/groups/new`}
-                className="inline-flex items-center gap-2 fluid-px-3 fluid-py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg fluid-text-base font-medium transition-colors"
+              <button
+                onClick={() => setShowNewCycleModal(true)}
+                className="inline-flex items-center gap-2 fluid-px-3 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg fluid-text-base font-medium transition-colors"
               >
                 <Plus className="fluid-icon-sm" />
-                Nuevo Grupo
-              </Link>
+                Nuevo Ciclo
+              </button>
             </div>
 
-            {groups.length === 0 ? (
+            {cycles.length === 0 && orphanGroups.length === 0 ? (
               <div className="text-center fluid-py-10">
-                <Layers className="fluid-icon-2xl text-gray-300 mx-auto mb-4" />
+                <GraduationCap className="fluid-icon-2xl text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500 fluid-text-base mb-4">
-                  No hay grupos registrados en este plantel
+                  No hay ciclos escolares registrados
                 </p>
-                <Link
-                  to={`/partners/campuses/${campusId}/groups/new`}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg fluid-text-base font-medium transition-colors"
+                <button
+                  onClick={() => setShowNewCycleModal(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg fluid-text-base font-medium transition-colors"
                 >
                   <Plus className="fluid-icon-sm" />
-                  Crear Grupo
-                </Link>
+                  Crear Primer Ciclo
+                </button>
               </div>
             ) : (
-              <div className="flex flex-col fluid-gap-3">
-                {groups.map((group) => (
+              <div className="flex flex-col fluid-gap-4">
+                {/* Ciclos escolares */}
+                {cycles.map((cycle) => (
                   <div
-                    key={group.id}
-                    className={`border-2 rounded-xl fluid-p-4 transition-all ${
-                      group.is_active 
-                        ? 'border-gray-200 hover:border-amber-300 hover:shadow-md' 
+                    key={cycle.id}
+                    className={`border-2 rounded-xl overflow-hidden transition-all ${
+                      cycle.is_current
+                        ? 'border-blue-300 bg-blue-50/30'
+                        : cycle.is_active
+                        ? 'border-gray-200'
                         : 'border-gray-100 bg-gray-50 opacity-60'
                     }`}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center fluid-gap-2 mb-2">
-                          <h3 className="font-semibold fluid-text-base text-gray-900">
-                            {group.name}
-                          </h3>
-                          {group.code && (
-                            <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded fluid-text-xs font-mono">
-                              {group.code}
-                            </span>
+                    {/* Header del ciclo */}
+                    <div
+                      className={`flex items-center justify-between fluid-p-4 cursor-pointer ${
+                        cycle.is_current ? 'bg-blue-50' : 'bg-gray-50'
+                      }`}
+                      onClick={() => toggleCycleExpanded(cycle.id)}
+                    >
+                      <div className="flex items-center fluid-gap-3">
+                        <button className="p-1">
+                          {expandedCycles.has(cycle.id) ? (
+                            <ChevronDown className="fluid-icon-lg text-gray-500" />
+                          ) : (
+                            <ChevronRight className="fluid-icon-lg text-gray-500" />
                           )}
-                          {!group.is_active && (
-                            <span className="px-2 py-0.5 bg-red-50 text-red-600 rounded fluid-text-xs">
-                              Inactivo
+                        </button>
+                        <div>
+                          <div className="flex items-center fluid-gap-2">
+                            <h3 className="font-semibold fluid-text-lg text-gray-900">
+                              {cycle.name}
+                            </h3>
+                            <span className={`px-2 py-0.5 rounded fluid-text-xs font-medium ${
+                              cycle.cycle_type === 'annual'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-purple-100 text-purple-700'
+                            }`}>
+                              {cycle.cycle_type === 'annual' ? 'Anual' : 'Semestral'}
                             </span>
-                          )}
-                        </div>
-                        
-                        {group.description && (
-                          <p className="fluid-text-base text-gray-600 mb-2 line-clamp-2">
-                            {group.description}
-                          </p>
-                        )}
-
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 fluid-text-base text-gray-600">
-                          <div className="flex items-center gap-1.5">
-                            <Users className="h-4 w-4 text-purple-500" />
-                            <span className="font-medium">{group.member_count || 0}</span>
-                            <span className="text-gray-500">/ {group.max_members} miembros</span>
+                            {cycle.is_current && (
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded fluid-text-xs font-medium">
+                                Actual
+                              </span>
+                            )}
+                            {!cycle.is_active && (
+                              <span className="px-2 py-0.5 bg-red-50 text-red-600 rounded fluid-text-xs">
+                                Inactivo
+                              </span>
+                            )}
                           </div>
-                          {group.start_date && (
-                            <div className="flex items-center gap-1.5">
-                              <Calendar className="h-4 w-4 text-gray-400" />
+                          <div className="flex items-center fluid-gap-4 fluid-text-sm text-gray-600 mt-1">
+                            <div className="flex items-center fluid-gap-1">
+                              <Calendar className="w-4 h-4" />
                               <span>
-                                {new Date(group.start_date).toLocaleDateString('es-MX')}
-                                {group.end_date && ` - ${new Date(group.end_date).toLocaleDateString('es-MX')}`}
+                                {new Date(cycle.start_date).toLocaleDateString('es-MX')} - {new Date(cycle.end_date).toLocaleDateString('es-MX')}
                               </span>
                             </div>
-                          )}
+                            <div className="flex items-center fluid-gap-1">
+                              <Layers className="w-4 h-4" />
+                              <span>{cycle.groups?.length || 0} grupos</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center fluid-gap-2" onClick={e => e.stopPropagation()}>
                         <Link
-                          to={`/partners/groups/${group.id}`}
-                          className="p-2 hover:bg-amber-50 rounded-lg text-amber-600 transition-colors"
+                          to={`/partners/campuses/${campusId}/groups/new?cycle=${cycle.id}`}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg fluid-text-sm font-medium transition-colors"
                         >
-                          <ChevronRight className="fluid-icon-lg" />
+                          <Plus className="w-4 h-4" />
+                          Grupo
                         </Link>
-                        {group.is_active && (
+                        {cycle.is_active && (
                           <button
-                            onClick={() => handleDeleteGroup(group.id)}
+                            onClick={() => handleDeleteCycle(cycle.id)}
                             className="p-2 hover:bg-red-50 rounded-lg text-red-500 transition-colors"
                           >
                             <Trash2 className="fluid-icon-sm" />
@@ -359,11 +436,264 @@ export default function CampusDetailPage() {
                         )}
                       </div>
                     </div>
+
+                    {/* Grupos del ciclo */}
+                    {expandedCycles.has(cycle.id) && (
+                      <div className="fluid-p-4 border-t">
+                        {(!cycle.groups || cycle.groups.length === 0) ? (
+                          <div className="text-center fluid-py-6 text-gray-500">
+                            <Layers className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                            <p className="fluid-text-sm">No hay grupos en este ciclo</p>
+                            <Link
+                              to={`/partners/campuses/${campusId}/groups/new?cycle=${cycle.id}`}
+                              className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg fluid-text-sm font-medium transition-colors"
+                            >
+                              <Plus className="w-4 h-4" />
+                              Crear Grupo
+                            </Link>
+                          </div>
+                        ) : (
+                          <div className="grid gap-3 md:grid-cols-2">
+                            {cycle.groups.map((group) => (
+                              <GroupCard
+                                key={group.id}
+                                group={group}
+                                onDelete={handleDeleteGroup}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
+
+                {/* Grupos sin ciclo asignado */}
+                {orphanGroups.length > 0 && (
+                  <div className="border-2 border-dashed border-amber-300 rounded-xl overflow-hidden bg-amber-50/30">
+                    <div className="flex items-center justify-between fluid-p-4 bg-amber-50">
+                      <div className="flex items-center fluid-gap-3">
+                        <AlertCircle className="fluid-icon-lg text-amber-600" />
+                        <div>
+                          <h3 className="font-semibold fluid-text-lg text-gray-900">
+                            Grupos sin ciclo asignado
+                          </h3>
+                          <p className="fluid-text-sm text-gray-600">
+                            Estos grupos necesitan ser asignados a un ciclo escolar
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="fluid-p-4 border-t border-amber-200">
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {orphanGroups.map((group) => (
+                          <GroupCard
+                            key={group.id}
+                            group={group}
+                            onDelete={handleDeleteGroup}
+                            showCycleWarning
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Modal para crear ciclo escolar */}
+      {showNewCycleModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="fluid-p-5 border-b">
+              <h3 className="fluid-text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <CalendarRange className="fluid-icon-lg text-blue-600" />
+                Nuevo Ciclo Escolar
+              </h3>
+            </div>
+            
+            <div className="fluid-p-5 space-y-4">
+              <div>
+                <label className="block fluid-text-sm font-medium text-gray-700 mb-1">
+                  Nombre del ciclo *
+                </label>
+                <input
+                  type="text"
+                  value={newCycleForm.name}
+                  onChange={(e) => setNewCycleForm(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Ej: 2026-2027, Semestre 1 2026"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block fluid-text-sm font-medium text-gray-700 mb-1">
+                  Tipo de ciclo *
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      checked={newCycleForm.cycle_type === 'annual'}
+                      onChange={() => setNewCycleForm(prev => ({ ...prev, cycle_type: 'annual' }))}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="flex items-center gap-1">
+                      <BookOpen className="w-4 h-4 text-green-600" />
+                      Anual
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      checked={newCycleForm.cycle_type === 'semester'}
+                      onChange={() => setNewCycleForm(prev => ({ ...prev, cycle_type: 'semester' }))}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-4 h-4 text-purple-600" />
+                      Semestral
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block fluid-text-sm font-medium text-gray-700 mb-1">
+                    Fecha de inicio *
+                  </label>
+                  <input
+                    type="date"
+                    value={newCycleForm.start_date}
+                    onChange={(e) => setNewCycleForm(prev => ({ ...prev, start_date: e.target.value }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block fluid-text-sm font-medium text-gray-700 mb-1">
+                    Fecha de fin *
+                  </label>
+                  <input
+                    type="date"
+                    value={newCycleForm.end_date}
+                    onChange={(e) => setNewCycleForm(prev => ({ ...prev, end_date: e.target.value }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={newCycleForm.is_current}
+                  onChange={(e) => setNewCycleForm(prev => ({ ...prev, is_current: e.target.checked }))}
+                  className="w-4 h-4 text-blue-600 rounded"
+                />
+                <span className="fluid-text-sm text-gray-700">
+                  Marcar como ciclo actual
+                </span>
+              </label>
+            </div>
+
+            <div className="fluid-p-5 border-t flex justify-end gap-3">
+              <button
+                onClick={() => setShowNewCycleModal(false)}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreateCycle}
+                disabled={isCreatingCycle || !newCycleForm.name || !newCycleForm.start_date || !newCycleForm.end_date}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isCreatingCycle ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Creando...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    Crear Ciclo
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Componente para tarjeta de grupo
+function GroupCard({ 
+  group, 
+  onDelete,
+  showCycleWarning = false 
+}: { 
+  group: CandidateGroup; 
+  onDelete: (id: number) => void;
+  showCycleWarning?: boolean;
+}) {
+  return (
+    <div
+      className={`border rounded-lg fluid-p-3 transition-all ${
+        group.is_active 
+          ? 'border-gray-200 hover:border-amber-300 hover:shadow-md bg-white' 
+          : 'border-gray-100 bg-gray-50 opacity-60'
+      }`}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center fluid-gap-2 mb-1">
+            <h4 className="font-semibold fluid-text-sm text-gray-900 truncate">
+              {group.name}
+            </h4>
+            {group.code && (
+              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded fluid-text-xs font-mono">
+                {group.code}
+              </span>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-3 fluid-text-xs text-gray-600">
+            <div className="flex items-center gap-1">
+              <Users className="w-3.5 h-3.5 text-purple-500" />
+              <span>{group.member_count || 0}/{group.max_members}</span>
+            </div>
+            {showCycleWarning && (
+              <span className="text-amber-600 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                Sin ciclo
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 ml-2">
+          <Link
+            to={`/partners/groups/${group.id}`}
+            className="p-1.5 hover:bg-amber-50 rounded text-amber-600 transition-colors"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </Link>
+          {group.is_active && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(group.id);
+              }}
+              className="p-1.5 hover:bg-red-50 rounded text-red-500 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
     </div>

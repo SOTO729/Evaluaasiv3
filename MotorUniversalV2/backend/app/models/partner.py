@@ -155,8 +155,9 @@ class Campus(db.Model):
     
     # Relaciones
     groups = db.relationship('CandidateGroup', backref='campus', lazy='dynamic', cascade='all, delete-orphan')
+    school_cycles = db.relationship('SchoolCycle', backref='campus', lazy='dynamic', cascade='all, delete-orphan')
     
-    def to_dict(self, include_groups=False, include_partner=False):
+    def to_dict(self, include_groups=False, include_partner=False, include_cycles=False):
         data = {
             'id': self.id,
             'partner_id': self.partner_id,
@@ -175,6 +176,7 @@ class Campus(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'group_count': self.groups.count() if self.groups else 0,
+            'cycle_count': self.school_cycles.count() if self.school_cycles else 0,
         }
         
         if include_groups:
@@ -182,17 +184,69 @@ class Campus(db.Model):
             
         if include_partner:
             data['partner'] = self.partner.to_dict() if self.partner else None
+        
+        if include_cycles:
+            data['school_cycles'] = [c.to_dict(include_groups=True) for c in self.school_cycles.order_by(SchoolCycle.start_date.desc()).all()]
+            
+        return data
+
+
+class SchoolCycle(db.Model):
+    """Ciclo escolar de un plantel"""
+    
+    __tablename__ = 'school_cycles'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False)
+    
+    name = db.Column(db.String(100), nullable=False)  # Ej: "2026-2027", "Semestre 1 2026"
+    cycle_type = db.Column(db.String(20), nullable=False)  # 'annual' o 'semester'
+    
+    # Fechas del ciclo
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    is_current = db.Column(db.Boolean, default=False, nullable=False)  # Si es el ciclo actual
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    # Relaciones
+    groups = db.relationship('CandidateGroup', backref='school_cycle', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def to_dict(self, include_groups=False, include_campus=False):
+        data = {
+            'id': self.id,
+            'campus_id': self.campus_id,
+            'name': self.name,
+            'cycle_type': self.cycle_type,
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'end_date': self.end_date.isoformat() if self.end_date else None,
+            'is_active': self.is_active,
+            'is_current': self.is_current,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'group_count': self.groups.count() if self.groups else 0,
+        }
+        
+        if include_groups:
+            data['groups'] = [g.to_dict() for g in self.groups.filter_by(is_active=True).all()]
+            
+        if include_campus:
+            data['campus'] = self.campus.to_dict() if self.campus else None
             
         return data
 
 
 class CandidateGroup(db.Model):
-    """Grupo de candidatos en un plantel"""
+    """Grupo de candidatos en un ciclo escolar"""
     
     __tablename__ = 'candidate_groups'
     
     id = db.Column(db.Integer, primary_key=True)
     campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False)
+    school_cycle_id = db.Column(db.Integer, db.ForeignKey('school_cycles.id', ondelete='SET NULL'), nullable=True)
     
     name = db.Column(db.String(100), nullable=False)  # Ej: "Grupo A", "Turno Matutino", etc.
     code = db.Column(db.String(50))  # Código identificador
@@ -213,10 +267,11 @@ class CandidateGroup(db.Model):
     # Relación con miembros
     members = db.relationship('GroupMember', backref='group', lazy='dynamic', cascade='all, delete-orphan')
     
-    def to_dict(self, include_members=False, include_campus=False):
+    def to_dict(self, include_members=False, include_campus=False, include_cycle=False):
         data = {
             'id': self.id,
             'campus_id': self.campus_id,
+            'school_cycle_id': self.school_cycle_id,
             'name': self.name,
             'code': self.code,
             'description': self.description,
@@ -234,6 +289,9 @@ class CandidateGroup(db.Model):
             
         if include_campus:
             data['campus'] = self.campus.to_dict(include_partner=True) if self.campus else None
+        
+        if include_cycle and self.school_cycle:
+            data['school_cycle'] = self.school_cycle.to_dict()
             
         return data
 
