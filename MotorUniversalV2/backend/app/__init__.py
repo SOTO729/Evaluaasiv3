@@ -239,6 +239,97 @@ def ensure_label_style_column(app):
     except Exception as e:
         db.session.rollback()
         print(f"[AUTO-MIGRATE] Error verificando/agregando pdf_status: {e}")
+    
+    # Verificar y crear tabla school_cycles
+    _ensure_school_cycles_table()
+    
+    # Verificar y agregar columna school_cycle_id en candidate_groups
+    _ensure_school_cycle_id_column()
+
+
+def _ensure_school_cycles_table():
+    """Verificar y crear tabla school_cycles si no existe (SQL Server compatible)"""
+    from sqlalchemy import text
+    try:
+        print("[AUTO-MIGRATE] Verificando tabla school_cycles...")
+        result = db.session.execute(text("""
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_NAME = 'school_cycles'
+        """))
+        exists = result.scalar()
+        print(f"[AUTO-MIGRATE] school_cycles existe: {exists}")
+        
+        if exists == 0:
+            print("[AUTO-MIGRATE] Tabla school_cycles NO existe. Creando para SQL Server...")
+            db.session.execute(text("""
+                CREATE TABLE school_cycles (
+                    id INT IDENTITY(1,1) PRIMARY KEY,
+                    campus_id INT NOT NULL,
+                    name NVARCHAR(100) NOT NULL,
+                    cycle_type NVARCHAR(20) NOT NULL DEFAULT 'annual',
+                    start_date DATE NOT NULL,
+                    end_date DATE NOT NULL,
+                    is_active BIT DEFAULT 1,
+                    is_current BIT DEFAULT 0,
+                    created_at DATETIME2 DEFAULT GETDATE(),
+                    updated_at DATETIME2 DEFAULT GETDATE(),
+                    CONSTRAINT FK_school_cycles_campus FOREIGN KEY (campus_id) 
+                        REFERENCES campuses(id) ON DELETE CASCADE
+                )
+            """))
+            db.session.commit()
+            print("[AUTO-MIGRATE] ✅ Tabla school_cycles creada exitosamente")
+        else:
+            print("[AUTO-MIGRATE] ✅ Tabla school_cycles ya existe")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[AUTO-MIGRATE] ❌ Error creando school_cycles: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+def _ensure_school_cycle_id_column():
+    """Verificar y agregar columna school_cycle_id en candidate_groups (SQL Server compatible)"""
+    from sqlalchemy import text
+    try:
+        print("[AUTO-MIGRATE] Verificando columna school_cycle_id en candidate_groups...")
+        result = db.session.execute(text("""
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_NAME = 'candidate_groups' 
+            AND COLUMN_NAME = 'school_cycle_id'
+        """))
+        exists = result.scalar()
+        print(f"[AUTO-MIGRATE] school_cycle_id existe: {exists}")
+        
+        if exists == 0:
+            print("[AUTO-MIGRATE] Columna school_cycle_id NO existe. Agregando...")
+            db.session.execute(text("""
+                ALTER TABLE candidate_groups 
+                ADD school_cycle_id INT NULL
+            """))
+            db.session.commit()
+            
+            # Agregar constraint FK en paso separado
+            try:
+                db.session.execute(text("""
+                    ALTER TABLE candidate_groups
+                    ADD CONSTRAINT FK_candidate_groups_school_cycle 
+                    FOREIGN KEY (school_cycle_id) REFERENCES school_cycles(id)
+                    ON DELETE SET NULL
+                """))
+                db.session.commit()
+                print("[AUTO-MIGRATE] ✅ FK constraint agregada a school_cycle_id")
+            except Exception as fk_err:
+                print(f"[AUTO-MIGRATE] ⚠️ FK constraint no agregada: {fk_err}")
+            
+            print("[AUTO-MIGRATE] ✅ Columna school_cycle_id agregada a candidate_groups")
+        else:
+            print("[AUTO-MIGRATE] ✅ Columna school_cycle_id ya existe en candidate_groups")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[AUTO-MIGRATE] ❌ Error agregando school_cycle_id: {e}")
+        import traceback
+        traceback.print_exc()
 
 # Force reload at Sat Jan  3 16:25:57 UTC 2026
-# Force deploy Sun Jan  4 21:04:10 UTC 2026
+# Force deploy Tue Jan 28 03:10:00 UTC 2026
