@@ -85,19 +85,22 @@ export default function CampusDetailPage() {
         }
       } catch {
         // Si falla, mostrar grupos sin ciclos (compatibilidad hacia atrás)
+        console.log('📋 Cycles endpoint not available, using legacy groups view');
         setCyclesAvailable(false);
         setCycles([]);
         // Cargar grupos directamente del campus
         try {
           const groupsData = await getGroups(Number(campusId));
           setLegacyGroups(groupsData.groups);
-        } catch {
+        } catch (groupsError) {
           // Si también falla, usar los grupos del campus si están disponibles
+          console.log('📋 Groups endpoint error, using campus groups:', groupsError);
           setLegacyGroups(campusData.groups || []);
         }
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al cargar el plantel');
+      console.error('❌ Error loading campus:', err);
+      setError(err.response?.data?.error || err.message || 'Error al cargar el plantel');
     } finally {
       setLoading(false);
     }
