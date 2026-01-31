@@ -25,7 +25,6 @@ import {
   Target,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import CandidateAssignmentModal from '../../components/partners/CandidateAssignmentModal';
 import {
   getGroup,
   getGroupMembers,
@@ -52,9 +51,6 @@ export default function GroupDetailPage() {
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Modal de asignación de candidatos mejorado
-  const [showAddModal, setShowAddModal] = useState(false);
   
   // Exámenes asignados
   const [assignedExams, setAssignedExams] = useState<GroupExamAssignment[]>([]);
@@ -92,16 +88,6 @@ export default function GroupDetailPage() {
       setError(err.response?.data?.error || 'Error al cargar el grupo');
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Handler para cuando se agregan miembros desde el nuevo modal
-  const handleMembersAdded = async (_count: number) => {
-    // Recargar miembros
-    const membersData = await getGroupMembers(Number(groupId));
-    setMembers(membersData.members);
-    if (group) {
-      setGroup({ ...group, member_count: membersData.members.length });
     }
   };
 
@@ -315,23 +301,29 @@ export default function GroupDetailPage() {
         </div>
         
         <div className="flex flex-wrap fluid-gap-2">
-          <button
-            onClick={() => activeTab === 'members' ? setShowAddModal(true) : setShowExamModal(true)}
-            disabled={!group.is_active}
-            className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium fluid-text-base transition-colors"
-          >
-            {activeTab === 'members' ? (
-              <>
-                <UserPlus className="fluid-icon-sm" />
-                Agregar Candidato
-              </>
-            ) : (
-              <>
-                <Plus className="fluid-icon-sm" />
-                Asignar Examen
-              </>
-            )}
-          </button>
+          {activeTab === 'members' ? (
+            <Link
+              to={group.is_active ? `/partners/groups/${groupId}/assign-candidates` : '#'}
+              onClick={(e) => !group.is_active && e.preventDefault()}
+              className={`inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 rounded-fluid-xl font-medium fluid-text-base transition-colors ${
+                group.is_active
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                  : 'bg-gray-300 cursor-not-allowed text-gray-500'
+              }`}
+            >
+              <UserPlus className="fluid-icon-sm" />
+              Agregar Candidatos
+            </Link>
+          ) : (
+            <button
+              onClick={() => setShowExamModal(true)}
+              disabled={!group.is_active}
+              className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium fluid-text-base transition-colors"
+            >
+              <Plus className="fluid-icon-sm" />
+              Asignar Examen
+            </button>
+          )}
           <Link
             to={`/partners/groups/${groupId}/edit`}
             className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 rounded-fluid-xl font-medium fluid-text-base transition-colors"
@@ -497,14 +489,18 @@ export default function GroupDetailPage() {
                   <p className="text-gray-500 fluid-text-base mb-4">
                     No hay candidatos en este grupo
                   </p>
-                  <button
-                    onClick={() => setShowAddModal(true)}
-                    disabled={!group.is_active}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 text-white rounded-lg fluid-text-base font-medium transition-colors"
+                  <Link
+                    to={group.is_active ? `/partners/groups/${groupId}/assign-candidates` : '#'}
+                    onClick={(e) => !group.is_active && e.preventDefault()}
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg fluid-text-base font-medium transition-colors ${
+                      group.is_active
+                        ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                        : 'bg-gray-300 cursor-not-allowed text-gray-500'
+                    }`}
                   >
                     <UserPlus className="fluid-icon-sm" />
-                    Agregar Candidato
-                  </button>
+                    Agregar Candidatos
+                  </Link>
                 </div>
               ) : (
                 <div className="flex flex-col fluid-gap-3">
@@ -721,17 +717,6 @@ export default function GroupDetailPage() {
           </div>
         )}
       </div>
-
-      {/* Modal mejorado para agregar candidatos */}
-      <CandidateAssignmentModal
-        isOpen={showAddModal}
-        groupId={Number(groupId)}
-        groupName={group?.name || ''}
-        maxMembers={group?.max_members || 30}
-        currentMemberCount={members.length}
-        onClose={() => setShowAddModal(false)}
-        onMembersAdded={handleMembersAdded}
-      />
 
       {/* Modal para asignar exámenes */}
       {showExamModal && (
