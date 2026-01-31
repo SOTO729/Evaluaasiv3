@@ -2,7 +2,7 @@
 Rutas para gestión de Partners, Planteles y Grupos
 Solo accesibles por coordinadores y admins
 """
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, send_file
 from functools import wraps
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
@@ -947,6 +947,7 @@ def search_candidates():
     """Buscar candidatos para agregar a grupos"""
     try:
         search = request.args.get('search', '')
+        search_field = request.args.get('search_field', '')  # Campo específico de búsqueda
         exclude_group_id = request.args.get('exclude_group_id', type=int)
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
@@ -958,15 +959,29 @@ def search_candidates():
         
         if search:
             search_term = f'%{search}%'
-            query = query.filter(
-                db.or_(
-                    User.name.ilike(search_term),
-                    User.first_surname.ilike(search_term),
-                    User.second_surname.ilike(search_term),
-                    User.email.ilike(search_term),
-                    User.curp.ilike(search_term)
+            # Si hay un campo específico, buscar solo en ese campo
+            if search_field and search_field in ['name', 'first_surname', 'second_surname', 'email', 'curp', 'phone']:
+                field_map = {
+                    'name': User.name,
+                    'first_surname': User.first_surname,
+                    'second_surname': User.second_surname,
+                    'email': User.email,
+                    'curp': User.curp,
+                    'phone': User.phone,
+                }
+                query = query.filter(field_map[search_field].ilike(search_term))
+            else:
+                # Búsqueda en todos los campos relevantes
+                query = query.filter(
+                    db.or_(
+                        User.name.ilike(search_term),
+                        User.first_surname.ilike(search_term),
+                        User.second_surname.ilike(search_term),
+                        User.email.ilike(search_term),
+                        User.curp.ilike(search_term),
+                        User.phone.ilike(search_term)
+                    )
                 )
-            )
         
         # Excluir candidatos que ya están en un grupo específico
         if exclude_group_id:
@@ -1000,6 +1015,195 @@ def search_candidates():
         })
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ============== PLANTILLA Y CARGA MASIVA DE ASIGNACIÓN ==============
+
+@bp.route('/groups/members/template', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def download_group_members_template():
+    """Descargar plantilla Excel para asignación masiva de candidatos a grupo"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from io import BytesIO
+    
+    try:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Asignación de Candidatos"
+        
+        # Estilos
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        header_fill = PatternFill(start_color="5B21B6", end_color="5B21B6", fill_type="solid")
+        header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Encabezados
+        headers = [
+            ("Identificador (Email o CURP)", 40),
+            ("Notas (Opcional)", 30),
+        ]
+        
+        for col, (header, width) in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = thin_border
+            ws.column_dimensions[ws.cell(row=1, column=col).column_letter].width = width
+        
+        # Ejemplos
+        examples = [
+            ("candidato@ejemplo.com", "Alumno nuevo"),
+            ("ABCD123456HDFRRR00", ""),
+            ("otro@email.com", "Transferido de otro grupo"),
+        ]
+        
+        example_fill = PatternFill(start_color="F3F4F6", end_color="F3F4F6", fill_type="solid")
+        for row, (identifier, notes) in enumerate(examples, 2):
+            ws.cell(row=row, column=1, value=identifier).fill = example_fill
+            ws.cell(row=row, column=2, value=notes).fill = example_fill
+        
+        # Instrucciones en la hoja 2
+        ws_help = wb.create_sheet(title="Instrucciones")
+        ws_help.column_dimensions['A'].width = 80
+        
+        instructions = [
+            "INSTRUCCIONES PARA ASIGNACIÓN MASIVA DE CANDIDATOS",
+            "",
+            "1. En la columna 'Identificador' ingrese el email o CURP del candidato.",
+            "2. El candidato debe existir previamente en el sistema como usuario activo.",
+            "3. El candidato debe tener el rol 'candidato'.",
+            "4. Las notas son opcionales y se guardan con la membresía.",
+            "5. Si el candidato ya está en el grupo, se omitirá.",
+            "6. Elimine las filas de ejemplo antes de subir el archivo.",
+            "",
+            "IMPORTANTE:",
+            "- Solo se pueden asignar candidatos hasta la capacidad máxima del grupo.",
+            "- Los candidatos deben estar registrados previamente en el sistema.",
+        ]
+        
+        for row, text in enumerate(instructions, 1):
+            cell = ws_help.cell(row=row, column=1, value=text)
+            if row == 1:
+                cell.font = Font(bold=True, size=14)
+            elif text.startswith("IMPORTANTE"):
+                cell.font = Font(bold=True, color="DC2626")
+        
+        # Guardar en memoria
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name='plantilla_asignacion_candidatos.xlsx'
+        )
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/members/upload', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def upload_group_members(group_id):
+    """Procesar archivo Excel para asignar candidatos al grupo"""
+    from openpyxl import load_workbook
+    
+    try:
+        group = CandidateGroup.query.get_or_404(group_id)
+        
+        if 'file' not in request.files:
+            return jsonify({'error': 'No se envió ningún archivo'}), 400
+        
+        file = request.files['file']
+        if not file.filename.endswith(('.xlsx', '.xls')):
+            return jsonify({'error': 'El archivo debe ser Excel (.xlsx o .xls)'}), 400
+        
+        # Cargar el archivo Excel
+        wb = load_workbook(file)
+        ws = wb.active
+        
+        added = []
+        errors = []
+        current_count = GroupMember.query.filter_by(group_id=group_id).count()
+        
+        # Procesar cada fila (saltando el encabezado)
+        for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+            identifier = row[0] if len(row) > 0 else None
+            notes = row[1] if len(row) > 1 else None
+            
+            if not identifier:
+                continue
+            
+            identifier = str(identifier).strip()
+            
+            # Buscar usuario por email o CURP
+            user = User.query.filter(
+                db.or_(
+                    User.email == identifier,
+                    User.curp == identifier.upper()
+                ),
+                User.role == 'candidato',
+                User.is_active == True
+            ).first()
+            
+            if not user:
+                errors.append({
+                    'identifier': identifier,
+                    'error': 'Candidato no encontrado o inactivo'
+                })
+                continue
+            
+            # Verificar capacidad
+            if current_count >= group.max_members:
+                errors.append({
+                    'identifier': identifier,
+                    'error': 'Capacidad máxima del grupo alcanzada'
+                })
+                continue
+            
+            # Verificar si ya es miembro
+            existing = GroupMember.query.filter_by(group_id=group_id, user_id=user.id).first()
+            if existing:
+                errors.append({
+                    'identifier': identifier,
+                    'error': 'Ya es miembro del grupo'
+                })
+                continue
+            
+            # Crear membresía
+            member = GroupMember(
+                group_id=group_id,
+                user_id=user.id,
+                status='active',
+                notes=str(notes) if notes else None
+            )
+            db.session.add(member)
+            added.append(identifier)
+            current_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'{len(added)} candidato(s) asignado(s) al grupo',
+            'added': added,
+            'errors': errors,
+            'total_processed': len(added) + len(errors)
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 

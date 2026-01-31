@@ -25,11 +25,10 @@ import {
   Target,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import CandidateAssignmentModal from '../../components/partners/CandidateAssignmentModal';
 import {
   getGroup,
   getGroupMembers,
-  searchCandidates,
-  addGroupMember,
   updateGroupMember,
   removeGroupMember,
   getGroupExams,
@@ -41,7 +40,6 @@ import {
   resetGroupExamMaterials,
   CandidateGroup,
   GroupMember,
-  CandidateSearchResult,
   GroupExamAssignment,
   AvailableExam,
   GroupExamMaterialItem,
@@ -55,12 +53,8 @@ export default function GroupDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Search candidates modal
+  // Modal de asignación de candidatos mejorado
   const [showAddModal, setShowAddModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<CandidateSearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [addingMember, setAddingMember] = useState<string | null>(null);
   
   // Exámenes asignados
   const [assignedExams, setAssignedExams] = useState<GroupExamAssignment[]>([]);
@@ -101,41 +95,13 @@ export default function GroupDetailPage() {
     }
   };
 
-  const handleSearch = useCallback(async () => {
-    if (searchQuery.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    
-    try {
-      setSearching(true);
-      const results = await searchCandidates({ search: searchQuery, exclude_group_id: Number(groupId) });
-      setSearchResults(results.candidates);
-    } catch (err: any) {
-      console.error('Error searching candidates:', err);
-    } finally {
-      setSearching(false);
-    }
-  }, [searchQuery, groupId]);
-
-  useEffect(() => {
-    const timer = setTimeout(handleSearch, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery, handleSearch]);
-
-  const handleAddMember = async (userId: string) => {
-    try {
-      setAddingMember(userId);
-      const newMember = await addGroupMember(Number(groupId), { user_id: userId });
-      setMembers([...members, newMember]);
-      setSearchResults(searchResults.filter(c => c.id !== userId));
-      if (group) {
-        setGroup({ ...group, member_count: (group.member_count || 0) + 1 });
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al agregar candidato');
-    } finally {
-      setAddingMember(null);
+  // Handler para cuando se agregan miembros desde el nuevo modal
+  const handleMembersAdded = async (_count: number) => {
+    // Recargar miembros
+    const membersData = await getGroupMembers(Number(groupId));
+    setMembers(membersData.members);
+    if (group) {
+      setGroup({ ...group, member_count: membersData.members.length });
     }
   };
 
@@ -756,95 +722,16 @@ export default function GroupDetailPage() {
         )}
       </div>
 
-      {/* Modal para agregar candidatos */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
-            {/* Header del modal */}
-            <div className="flex items-center justify-between fluid-p-5 border-b">
-              <h3 className="fluid-text-lg font-semibold text-gray-800">
-                Agregar Candidato
-              </h3>
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setSearchQuery('');
-                  setSearchResults([]);
-                }}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="h-5 w-5 text-gray-500" />
-              </button>
-            </div>
-
-            {/* Buscador */}
-            <div className="fluid-p-5 border-b">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar por nombre o email..."
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                  autoFocus
-                />
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Escribe al menos 2 caracteres para buscar
-              </p>
-            </div>
-
-            {/* Resultados */}
-            <div className="flex-1 overflow-y-auto fluid-p-5">
-              {searching ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin h-8 w-8 border-3 border-amber-500 border-t-transparent rounded-full" />
-                </div>
-              ) : searchResults.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  {searchQuery.length < 2 
-                    ? 'Ingresa al menos 2 caracteres para buscar' 
-                    : 'No se encontraron candidatos'}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {searchResults.map((candidate) => (
-                    <div
-                      key={candidate.id}
-                      className="flex items-center justify-between p-3 border border-gray-200 rounded-xl hover:border-amber-300 hover:bg-amber-50/30 transition-all"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white font-bold">
-                          {candidate.name?.charAt(0).toUpperCase() || '?'}
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{candidate.full_name}</p>
-                          <p className="text-sm text-gray-500">{candidate.email}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleAddMember(candidate.id)}
-                        disabled={addingMember === candidate.id}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white rounded-lg text-sm font-medium transition-colors"
-                      >
-                        {addingMember === candidate.id ? (
-                          <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                        ) : (
-                          <>
-                            <Plus className="h-4 w-4" />
-                            Agregar
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal mejorado para agregar candidatos */}
+      <CandidateAssignmentModal
+        isOpen={showAddModal}
+        groupId={Number(groupId)}
+        groupName={group?.name || ''}
+        maxMembers={group?.max_members || 30}
+        currentMemberCount={members.length}
+        onClose={() => setShowAddModal(false)}
+        onMembersAdded={handleMembersAdded}
+      />
 
       {/* Modal para asignar exámenes */}
       {showExamModal && (

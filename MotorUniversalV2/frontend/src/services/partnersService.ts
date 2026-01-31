@@ -370,6 +370,7 @@ export async function removeGroupMember(groupId: number, memberId: number): Prom
 
 export async function searchCandidates(params: {
   search?: string;
+  search_field?: string;
   exclude_group_id?: number;
   page?: number;
   per_page?: number;
@@ -380,6 +381,40 @@ export async function searchCandidates(params: {
   current_page: number;
 }> {
   const response = await api.get('/partners/candidates/search', { params });
+  return response.data;
+}
+
+// ============== ASIGNACIÓN MASIVA DE CANDIDATOS ==============
+
+export async function downloadGroupMembersTemplate(): Promise<void> {
+  const response = await api.get('/partners/groups/members/template', {
+    responseType: 'blob'
+  });
+  
+  // Crear link de descarga
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', 'plantilla_asignacion_candidatos.xlsx');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function uploadGroupMembersExcel(groupId: number, file: File): Promise<{
+  added: string[];
+  errors: Array<{ identifier: string; error: string }>;
+  total_processed: number;
+}> {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await api.post(`/partners/groups/${groupId}/members/upload`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
   return response.data;
 }
 
