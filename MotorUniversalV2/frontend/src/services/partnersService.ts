@@ -123,6 +123,13 @@ export interface CandidateSearchResult {
   full_name: string;
   curp?: string;
   phone?: string;
+  created_at?: string;
+  current_group?: {
+    group_id: number;
+    group_name: string;
+    campus_name?: string;
+    state_name?: string;
+  } | null;
 }
 
 export interface DashboardStats {

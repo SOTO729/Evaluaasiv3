@@ -996,6 +996,23 @@ def search_candidates():
         
         candidates = []
         for user in pagination.items:
+            # Obtener información del grupo actual del candidato (si tiene)
+            current_membership = GroupMember.query.filter_by(
+                user_id=user.id,
+                status='active'
+            ).first()
+            
+            group_info = None
+            if current_membership and current_membership.group:
+                group = current_membership.group
+                campus = group.campus
+                group_info = {
+                    'group_id': group.id,
+                    'group_name': group.name,
+                    'campus_name': campus.name if campus else None,
+                    'state_name': campus.state_name if campus else None,
+                }
+            
             candidates.append({
                 'id': user.id,
                 'email': user.email,
@@ -1005,6 +1022,8 @@ def search_candidates():
                 'full_name': f"{user.name} {user.first_surname} {user.second_surname or ''}".strip(),
                 'curp': user.curp,
                 'phone': user.phone,
+                'created_at': user.created_at.isoformat() if user.created_at else None,
+                'current_group': group_info,
             })
         
         return jsonify({

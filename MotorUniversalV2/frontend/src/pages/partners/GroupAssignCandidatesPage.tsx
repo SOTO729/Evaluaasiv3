@@ -22,6 +22,8 @@ import {
   XCircle,
   X,
   Loader2,
+  Calendar,
+  Building2,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -557,6 +559,12 @@ export default function GroupAssignCandidatesPage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">
                     Teléfono
                   </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">
+                    Grupo Actual
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden 2xl:table-cell">
+                    Registrado
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -612,6 +620,39 @@ export default function GroupAssignCandidatesPage() {
                           <div className="flex items-center gap-1">
                             <Phone className="h-3.5 w-3.5 text-gray-400" />
                             {candidate.phone}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm hidden xl:table-cell">
+                        {candidate.current_group ? (
+                          <div className="flex items-center gap-1">
+                            <Building2 className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-gray-900 truncate text-xs font-medium">
+                                {candidate.current_group.group_name}
+                              </p>
+                              <p className="text-gray-500 truncate text-xs">
+                                {candidate.current_group.campus_name}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">Sin grupo</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 hidden 2xl:table-cell">
+                        {candidate.created_at ? (
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                            <span className="text-xs">
+                              {new Date(candidate.created_at).toLocaleDateString('es-MX', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric'
+                              })}
+                            </span>
                           </div>
                         ) : (
                           <span className="text-gray-400">-</span>
