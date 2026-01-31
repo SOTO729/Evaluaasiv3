@@ -237,7 +237,7 @@ export default function GroupFormPage() {
                   <option value="">Sin ciclo asignado</option>
                   {cycles.map((cycle) => (
                     <option key={cycle.id} value={cycle.id}>
-                      {cycle.name} {cycle.is_current ? '(Actual)' : ''} - {cycle.cycle_type === 'annual' ? 'Anual' : 'Semestral'}
+                      {cycle.name} {cycle.is_current ? '(Actual)' : ''}
                     </option>
                   ))}
                 </select>

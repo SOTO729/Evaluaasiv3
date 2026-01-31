@@ -21,9 +21,7 @@ import {
   Building2,
   Calendar,
   GraduationCap,
-  Clock,
   CalendarRange,
-  BookOpen,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -410,12 +408,8 @@ export default function CampusDetailPage() {
                             <h3 className="font-semibold fluid-text-lg text-gray-900">
                               {cycle.name}
                             </h3>
-                            <span className={`px-2 py-0.5 rounded fluid-text-xs font-medium ${
-                              cycle.cycle_type === 'annual'
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-purple-100 text-purple-700'
-                            }`}>
-                              {cycle.cycle_type === 'annual' ? 'Anual' : 'Semestral'}
+                            <span className="px-2 py-0.5 rounded fluid-text-xs font-medium bg-green-100 text-green-700">
+                              Anual
                             </span>
                             {cycle.is_current && (
                               <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded fluid-text-xs font-medium">
@@ -599,37 +593,8 @@ export default function CampusDetailPage() {
                 />
               </div>
 
-              <div>
-                <label className="block fluid-text-sm font-medium text-gray-700 mb-1">
-                  Tipo de ciclo *
-                </label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={newCycleForm.cycle_type === 'annual'}
-                      onChange={() => setNewCycleForm(prev => ({ ...prev, cycle_type: 'annual' }))}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <span className="flex items-center gap-1">
-                      <BookOpen className="w-4 h-4 text-green-600" />
-                      Anual
-                    </span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={newCycleForm.cycle_type === 'semester'}
-                      onChange={() => setNewCycleForm(prev => ({ ...prev, cycle_type: 'semester' }))}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-4 h-4 text-purple-600" />
-                      Semestral
-                    </span>
-                  </label>
-                </div>
-              </div>
+              {/* Tipo de ciclo siempre es anual */}
+              <input type="hidden" value="annual" />
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
