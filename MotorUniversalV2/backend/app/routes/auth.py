@@ -12,6 +12,7 @@ from flask_jwt_extended import (
 from sqlalchemy import func
 from app import db, cache
 from app.models.user import User
+from app.models.partner import GroupMember
 from app.utils.rate_limit import rate_limit_login, rate_limit_register
 from datetime import datetime
 import redis
@@ -243,7 +244,38 @@ def get_current_user():
     if not user:
         return jsonify({'error': 'Usuario no encontrado'}), 404
     
-    return jsonify(user.to_dict(include_private=True)), 200
+    # Obtener datos base del usuario
+    user_data = user.to_dict(include_private=True)
+    
+    # Si es candidato, incluir información del grupo, plantel, ciclo y estado
+    if user.role == 'candidato':
+        # Buscar membresía activa en algún grupo
+        membership = GroupMember.query.filter_by(
+            user_id=user_id, 
+            status='active'
+        ).first()
+        
+        if membership and membership.group:
+            group = membership.group
+            campus = group.campus
+            cycle = group.school_cycle
+            
+            user_data['group_info'] = {
+                'group_id': group.id,
+                'group_name': group.name,
+                'group_code': group.code,
+                'campus_id': campus.id if campus else None,
+                'campus_name': campus.name if campus else None,
+                'state_name': campus.state_name if campus else None,
+                'city': campus.city if campus else None,
+                'school_cycle_id': cycle.id if cycle else None,
+                'school_cycle_name': cycle.name if cycle else None,
+                'joined_at': membership.joined_at.isoformat() if membership.joined_at else None,
+            }
+        else:
+            user_data['group_info'] = None
+    
+    return jsonify(user_data), 200
 
 
 @bp.route('/change-password', methods=['POST'])

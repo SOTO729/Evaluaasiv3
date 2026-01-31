@@ -18,8 +18,25 @@ import {
   IdCard,
   User,
   Clock,
-  ChevronRight
+  ChevronRight,
+  Users,
+  Building2,
+  MapPin,
+  GraduationCap,
 } from 'lucide-react'
+
+interface GroupInfo {
+  group_id: number
+  group_name: string
+  group_code?: string
+  campus_id?: number
+  campus_name?: string
+  state_name?: string
+  city?: string
+  school_cycle_id?: number
+  school_cycle_name?: string
+  joined_at?: string
+}
 
 interface UserProfile {
   id: string
@@ -40,6 +57,7 @@ interface UserProfile {
   campus_id?: number
   subsystem_id?: number
   pending_email?: string
+  group_info?: GroupInfo | null
 }
 
 const ProfilePage = () => {
@@ -515,6 +533,104 @@ const ProfilePage = () => {
               </div>
             </div>
           </div>
+
+          {/* Información del Grupo - Solo para candidatos */}
+          {profile?.role === 'candidato' && (
+            <div className="bg-white rounded-fluid-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden lg:col-span-2">
+              <div className="fluid-px-5 fluid-py-4 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-transparent">
+                <div className="flex items-center fluid-gap-3">
+                  <div className="w-9 h-9 rounded-fluid-md bg-purple-100 flex items-center justify-center">
+                    <GraduationCap className="fluid-icon-sm text-purple-600" />
+                  </div>
+                  <h2 className="fluid-text-base font-semibold text-gray-900">Información Académica</h2>
+                </div>
+              </div>
+              
+              {profile.group_info ? (
+                <div className="fluid-p-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 fluid-gap-5">
+                    {/* Grupo */}
+                    <div className="flex items-start fluid-gap-3">
+                      <div className="w-9 h-9 rounded-fluid-md bg-purple-50 flex items-center justify-center flex-shrink-0">
+                        <Users className="fluid-icon-sm text-purple-500" />
+                      </div>
+                      <div className="min-w-0">
+                        <label className="block fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Grupo</label>
+                        <p className="text-gray-900 fluid-text-sm font-semibold truncate">
+                          {profile.group_info.group_name}
+                        </p>
+                        {profile.group_info.group_code && (
+                          <p className="text-gray-500 fluid-text-xs">{profile.group_info.group_code}</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Plantel */}
+                    <div className="flex items-start fluid-gap-3">
+                      <div className="w-9 h-9 rounded-fluid-md bg-blue-50 flex items-center justify-center flex-shrink-0">
+                        <Building2 className="fluid-icon-sm text-blue-500" />
+                      </div>
+                      <div className="min-w-0">
+                        <label className="block fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Plantel</label>
+                        <p className="text-gray-900 fluid-text-sm font-semibold truncate">
+                          {profile.group_info.campus_name || '-'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* Estado */}
+                    <div className="flex items-start fluid-gap-3">
+                      <div className="w-9 h-9 rounded-fluid-md bg-green-50 flex items-center justify-center flex-shrink-0">
+                        <MapPin className="fluid-icon-sm text-green-500" />
+                      </div>
+                      <div className="min-w-0">
+                        <label className="block fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Ubicación</label>
+                        <p className="text-gray-900 fluid-text-sm font-semibold truncate">
+                          {profile.group_info.state_name || '-'}
+                        </p>
+                        {profile.group_info.city && (
+                          <p className="text-gray-500 fluid-text-xs">{profile.group_info.city}</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Ciclo Escolar */}
+                    <div className="flex items-start fluid-gap-3">
+                      <div className="w-9 h-9 rounded-fluid-md bg-amber-50 flex items-center justify-center flex-shrink-0">
+                        <Calendar className="fluid-icon-sm text-amber-500" />
+                      </div>
+                      <div className="min-w-0">
+                        <label className="block fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Ciclo Escolar</label>
+                        <p className="text-gray-900 fluid-text-sm font-semibold truncate">
+                          {profile.group_info.school_cycle_name || '-'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* Fecha de Ingreso */}
+                    {profile.group_info.joined_at && (
+                      <div className="flex items-start fluid-gap-3">
+                        <div className="w-9 h-9 rounded-fluid-md bg-gray-50 flex items-center justify-center flex-shrink-0">
+                          <Clock className="fluid-icon-sm text-gray-500" />
+                        </div>
+                        <div className="min-w-0">
+                          <label className="block fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Ingreso al Grupo</label>
+                          <p className="text-gray-900 fluid-text-sm font-semibold">
+                            {formatDate(profile.group_info.joined_at)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="fluid-p-5 text-center">
+                  <Users className="fluid-icon-xl text-gray-300 mx-auto mb-2" />
+                  <p className="text-gray-500 fluid-text-sm">No estás asignado a ningún grupo</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
