@@ -1006,11 +1006,20 @@ def search_candidates():
             if current_membership and current_membership.group:
                 group = current_membership.group
                 campus = group.campus
+                cycle = group.school_cycle
+                partner = campus.partner if campus else None
+                
                 group_info = {
                     'group_id': group.id,
                     'group_name': group.name,
+                    'campus_id': campus.id if campus else None,
                     'campus_name': campus.name if campus else None,
                     'state_name': campus.state_name if campus else None,
+                    'city': campus.city if campus else None,
+                    'school_cycle_id': cycle.id if cycle else None,
+                    'school_cycle_name': cycle.name if cycle else None,
+                    'partner_id': partner.id if partner else None,
+                    'partner_name': partner.name if partner else None,
                 }
             
             candidates.append({

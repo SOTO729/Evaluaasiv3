@@ -627,19 +627,28 @@ export default function GroupAssignCandidatesPage() {
                       </td>
                       <td className="px-4 py-3 text-sm hidden xl:table-cell">
                         {candidate.current_group ? (
-                          <div className="flex items-center gap-1">
-                            <Building2 className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
-                            <div className="min-w-0">
-                              <p className="text-gray-900 truncate text-xs font-medium">
+                          <div className="min-w-0 max-w-[250px]">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <Building2 className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+                              <p className="text-gray-900 truncate text-xs font-semibold">
                                 {candidate.current_group.group_name}
                               </p>
-                              <p className="text-gray-500 truncate text-xs">
-                                {candidate.current_group.campus_name}
+                            </div>
+                            <div className="text-xs text-gray-500 space-y-0.5 pl-5">
+                              <p className="truncate" title={candidate.current_group.campus_name}>
+                                📍 {candidate.current_group.campus_name}
+                                {candidate.current_group.state_name && `, ${candidate.current_group.state_name}`}
                               </p>
+                              {candidate.current_group.school_cycle_name && (
+                                <p className="truncate">📅 {candidate.current_group.school_cycle_name}</p>
+                              )}
+                              {candidate.current_group.partner_name && (
+                                <p className="truncate text-purple-600">🏢 {candidate.current_group.partner_name}</p>
+                              )}
                             </div>
                           </div>
                         ) : (
-                          <span className="text-gray-400 text-xs">Sin grupo</span>
+                          <span className="text-gray-400 text-xs italic">Sin grupo asignado</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600 hidden 2xl:table-cell">

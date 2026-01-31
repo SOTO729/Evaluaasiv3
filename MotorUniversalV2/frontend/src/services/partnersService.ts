@@ -127,8 +127,14 @@ export interface CandidateSearchResult {
   current_group?: {
     group_id: number;
     group_name: string;
+    campus_id?: number;
     campus_name?: string;
     state_name?: string;
+    city?: string;
+    school_cycle_id?: number;
+    school_cycle_name?: string;
+    partner_id?: number;
+    partner_name?: string;
   } | null;
 }
 
