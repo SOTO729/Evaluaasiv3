@@ -95,6 +95,8 @@ const CampusDetailPage = lazy(() => import('./pages/partners/CampusDetailPage'))
 const GroupFormPage = lazy(() => import('./pages/partners/GroupFormPage'))
 const GroupDetailPage = lazy(() => import('./pages/partners/GroupDetailPage'))
 const GroupAssignCandidatesPage = lazy(() => import('./pages/partners/GroupAssignCandidatesPage'))
+const GroupAssignExamPage = lazy(() => import('./pages/partners/GroupAssignExamPage'))
+const GroupAssignMaterialsPage = lazy(() => import('./pages/partners/GroupAssignMaterialsPage'))
 
 // User Management (Gestión de Usuarios)
 const UsersListPage = lazy(() => import('./pages/users/UsersListPage'))
@@ -199,6 +201,8 @@ function App() {
               <Route path="/partners/groups/:groupId" element={<GroupDetailPage />} />
               <Route path="/partners/groups/:groupId/edit" element={<GroupFormPage />} />
               <Route path="/partners/groups/:groupId/assign-candidates" element={<GroupAssignCandidatesPage />} />
+              <Route path="/partners/groups/:groupId/assign-exam" element={<GroupAssignExamPage />} />
+              <Route path="/partners/groups/:groupId/assign-materials" element={<GroupAssignMaterialsPage />} />
               
               {/* User Management (Gestión de Usuarios) */}
               <Route path="/user-management" element={<UsersListPage />} />

@@ -38,7 +38,7 @@ const Layout = ({ children }: LayoutProps) => {
   }, [location.pathname])
 
   // Determinar si es una página de contenido completo (sin padding)
-  const isFullContentPage = location.pathname.includes('/preview')
+  const isFullContentPage = location.pathname.includes('/preview') || location.pathname.includes('/assign-candidates')
 
   const handleLogout = async () => {
     try {

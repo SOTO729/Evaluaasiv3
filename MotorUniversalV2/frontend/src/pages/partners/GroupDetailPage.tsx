@@ -1,7 +1,7 @@
 /**
  * Detalle de Grupo con Gestión de Miembros y Exámenes
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -14,8 +14,6 @@ import {
   CheckCircle2,
   XCircle,
   Building2,
-  Calendar,
-  Search,
   X,
   UserPlus,
   Mail,
@@ -31,8 +29,6 @@ import {
   updateGroupMember,
   removeGroupMember,
   getGroupExams,
-  getAvailableExams,
-  assignExamToGroup,
   unassignExamFromGroup,
   getGroupExamMaterials,
   updateGroupExamMaterials,
@@ -40,7 +36,6 @@ import {
   CandidateGroup,
   GroupMember,
   GroupExamAssignment,
-  AvailableExam,
   GroupExamMaterialItem,
 } from '../../services/partnersService';
 
@@ -54,11 +49,6 @@ export default function GroupDetailPage() {
   
   // Exámenes asignados
   const [assignedExams, setAssignedExams] = useState<GroupExamAssignment[]>([]);
-  const [showExamModal, setShowExamModal] = useState(false);
-  const [examSearchQuery, setExamSearchQuery] = useState('');
-  const [availableExams, setAvailableExams] = useState<AvailableExam[]>([]);
-  const [searchingExams, setSearchingExams] = useState(false);
-  const [assigningExam, setAssigningExam] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'members' | 'exams'>('members');
   
   // Modal de materiales personalizados
@@ -113,41 +103,6 @@ export default function GroupDetailPage() {
       ));
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al actualizar estado');
-    }
-  };
-
-  // Funciones para exámenes
-  const handleSearchExams = useCallback(async () => {
-    try {
-      setSearchingExams(true);
-      const results = await getAvailableExams({ search: examSearchQuery || undefined });
-      // Filtrar exámenes ya asignados
-      const assignedIds = assignedExams.map(e => e.exam_id);
-      setAvailableExams(results.exams.filter(e => !assignedIds.includes(e.id)));
-    } catch (err: any) {
-      console.error('Error searching exams:', err);
-    } finally {
-      setSearchingExams(false);
-    }
-  }, [examSearchQuery, assignedExams]);
-
-  useEffect(() => {
-    if (showExamModal) {
-      const timer = setTimeout(handleSearchExams, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [examSearchQuery, showExamModal, handleSearchExams]);
-
-  const handleAssignExam = async (examId: number) => {
-    try {
-      setAssigningExam(examId);
-      const result = await assignExamToGroup(Number(groupId), examId);
-      setAssignedExams([...assignedExams, result.assignment]);
-      setAvailableExams(availableExams.filter(e => e.id !== examId));
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al asignar examen');
-    } finally {
-      setAssigningExam(null);
     }
   };
 
@@ -315,14 +270,30 @@ export default function GroupDetailPage() {
               Agregar Candidatos
             </Link>
           ) : (
-            <button
-              onClick={() => setShowExamModal(true)}
-              disabled={!group.is_active}
-              className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium fluid-text-base transition-colors"
-            >
-              <Plus className="fluid-icon-sm" />
-              Asignar Examen
-            </button>
+            <>
+              <Link
+                to={`/partners/groups/${groupId}/assign-exam`}
+                className={`inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 rounded-fluid-xl font-medium fluid-text-base transition-colors ${
+                  group.is_active
+                    ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                    : 'bg-gray-300 pointer-events-none text-gray-500'
+                }`}
+              >
+                <Plus className="fluid-icon-sm" />
+                Asignar Examen
+              </Link>
+              <Link
+                to={`/partners/groups/${groupId}/assign-materials`}
+                className={`inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 rounded-fluid-xl font-medium fluid-text-base transition-colors ${
+                  group.is_active
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : 'bg-gray-300 pointer-events-none text-gray-500'
+                }`}
+              >
+                <BookOpen className="fluid-icon-sm" />
+                Asignar Material
+              </Link>
+            </>
           )}
           <Link
             to={`/partners/groups/${groupId}/edit`}
@@ -395,20 +366,6 @@ export default function GroupDetailPage() {
               </div>
             )}
 
-            <div className="flex flex-col fluid-gap-3">
-              {group.start_date && (
-                <div className="flex items-center fluid-gap-2">
-                  <Calendar className="fluid-icon-sm text-gray-400" />
-                  <div>
-                    <p className="fluid-text-xs text-gray-500">Período</p>
-                    <p className="fluid-text-base text-gray-900">
-                      {new Date(group.start_date).toLocaleDateString('es-MX')}
-                      {group.end_date && ` - ${new Date(group.end_date).toLocaleDateString('es-MX')}`}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Estadísticas */}
@@ -419,23 +376,10 @@ export default function GroupDetailPage() {
             
             <div className="flex flex-col fluid-gap-3">
               <div className="flex items-center justify-between">
-                <span className="fluid-text-base text-gray-600">Capacidad</span>
+                <span className="fluid-text-base text-gray-600">Total Miembros</span>
                 <span className="fluid-text-lg font-semibold text-gray-900">
-                  {members.length} / {group.max_members}
+                  {members.length}
                 </span>
-              </div>
-              
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div
-                  className={`h-3 rounded-full transition-all ${
-                    members.length >= (group.max_members || 30) 
-                      ? 'bg-red-500' 
-                      : members.length >= (group.max_members || 30) * 0.8 
-                        ? 'bg-amber-500' 
-                        : 'bg-green-500'
-                  }`}
-                  style={{ width: `${Math.min(100, (members.length / (group.max_members || 30)) * 100)}%` }}
-                />
               </div>
 
               <div className="fluid-pt-3 border-t border-gray-200 flex flex-col fluid-gap-2">
@@ -582,14 +526,17 @@ export default function GroupDetailPage() {
                   <p className="text-gray-500 fluid-text-base mb-4">
                     No hay exámenes asignados a este grupo
                   </p>
-                  <button
-                    onClick={() => setShowExamModal(true)}
-                    disabled={!group.is_active}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg fluid-text-base font-medium transition-colors"
+                  <Link
+                    to={`/partners/groups/${groupId}/assign-exam`}
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg fluid-text-base font-medium transition-colors ${
+                      group.is_active
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-gray-300 pointer-events-none text-gray-500'
+                    }`}
                   >
                     <Plus className="fluid-icon-sm" />
                     Asignar Examen
-                  </button>
+                  </Link>
                 </div>
               ) : (
                 <div className="flex flex-col fluid-gap-4">
@@ -600,27 +547,62 @@ export default function GroupDetailPage() {
                     >
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                         <div className="flex-1">
-                          <h3 className="font-semibold fluid-text-base text-gray-900 mb-1">
-                            {assignment.exam?.name || 'Examen'}
-                          </h3>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold fluid-text-base text-gray-900">
+                              {assignment.exam?.name || 'Examen'}
+                            </h3>
+                            {/* Badge de tipo de asignación */}
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                              assignment.assignment_type === 'selected' 
+                                ? 'bg-purple-100 text-purple-700'
+                                : 'bg-blue-100 text-blue-700'
+                            }`}>
+                              {assignment.assignment_type === 'selected' ? (
+                                <>
+                                  <UserPlus className="h-3 w-3" />
+                                  {assignment.assigned_members_count || 0} candidatos
+                                </>
+                              ) : (
+                                <>
+                                  <Users className="h-3 w-3" />
+                                  Todo el grupo
+                                </>
+                              )}
+                            </span>
+                            {/* Badge de tipo de contenido */}
+                            {assignment.exam_content_type && (
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                assignment.exam_content_type === 'questions_only'
+                                  ? 'bg-cyan-100 text-cyan-700'
+                                  : assignment.exam_content_type === 'exercises_only'
+                                  ? 'bg-orange-100 text-orange-700'
+                                  : 'bg-indigo-100 text-indigo-700'
+                              }`}>
+                                {assignment.exam_content_type === 'questions_only' ? 'Preguntas' :
+                                 assignment.exam_content_type === 'exercises_only' ? 'Ejercicios' : 'Mixto'}
+                              </span>
+                            )}
+                          </div>
                           {assignment.exam?.description && (
                             <p className="text-sm text-gray-600 mb-2 line-clamp-2">
                               {assignment.exam.description}
                             </p>
                           )}
                           <div className="flex flex-wrap fluid-gap-2 fluid-text-xs text-gray-500">
-                            {assignment.exam?.duration_minutes && (
-                              <span className="flex items-center gap-1">
-                                <Clock className="fluid-icon-xs" />
-                                {assignment.exam.duration_minutes} min
-                              </span>
-                            )}
-                            {assignment.exam?.passing_score && (
-                              <span className="flex items-center gap-1">
-                                <Target className="fluid-icon-xs" />
-                                Aprobación: {assignment.exam.passing_score}%
-                              </span>
-                            )}
+                            <span className="flex items-center gap-1">
+                              <Clock className="fluid-icon-xs" />
+                              {assignment.time_limit_minutes || assignment.exam?.duration_minutes || 0} min
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Target className="fluid-icon-xs" />
+                              Aprobar: {assignment.passing_score || assignment.exam?.passing_score || 70}%
+                            </span>
+                            <span className="flex items-center gap-1 text-amber-600">
+                              {assignment.max_attempts || 1} intento(s)
+                            </span>
+                            <span className="flex items-center gap-1 text-red-500">
+                              {assignment.max_disconnections ?? 3} desconexiones
+                            </span>
                             {assignment.exam?.standard && (
                               <span className="px-2 py-0.5 bg-gray-100 rounded-lg">
                                 {assignment.exam.standard}
@@ -717,120 +699,6 @@ export default function GroupDetailPage() {
           </div>
         )}
       </div>
-
-      {/* Modal para asignar exámenes */}
-      {showExamModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
-            {/* Header del modal */}
-            <div className="flex items-center justify-between fluid-p-5 border-b">
-              <h3 className="fluid-text-lg font-semibold text-gray-800">
-                Asignar Examen al Grupo
-              </h3>
-              <button
-                onClick={() => {
-                  setShowExamModal(false);
-                  setExamSearchQuery('');
-                  setAvailableExams([]);
-                }}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="h-5 w-5 text-gray-500" />
-              </button>
-            </div>
-
-            {/* Buscador */}
-            <div className="fluid-p-5 border-b">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  value={examSearchQuery}
-                  onChange={(e) => setExamSearchQuery(e.target.value)}
-                  placeholder="Buscar exámenes por nombre..."
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  autoFocus
-                />
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Escribe al menos 2 caracteres para buscar. Solo se muestran exámenes publicados.
-              </p>
-            </div>
-
-            {/* Resultados */}
-            <div className="flex-1 overflow-y-auto fluid-p-5">
-              {searchingExams ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin h-8 w-8 border-3 border-blue-500 border-t-transparent rounded-full" />
-                </div>
-              ) : availableExams.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  {examSearchQuery.length < 2 
-                    ? 'Ingresa al menos 2 caracteres para buscar' 
-                    : 'No se encontraron exámenes disponibles'}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {availableExams.map((exam) => (
-                    <div
-                      key={exam.id}
-                      className="p-4 border border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50/30 transition-all"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900">{exam.name}</h4>
-                          {exam.description && (
-                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{exam.description}</p>
-                          )}
-                          <div className="flex flex-wrap gap-2 mt-2 text-xs text-gray-500">
-                            {exam.duration_minutes && (
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3.5 w-3.5" />
-                                {exam.duration_minutes} min
-                              </span>
-                            )}
-                            {exam.passing_score && (
-                              <span className="flex items-center gap-1">
-                                <Target className="h-3.5 w-3.5" />
-                                {exam.passing_score}%
-                              </span>
-                            )}
-                            {exam.standard && (
-                              <span className="px-2 py-0.5 bg-gray-100 rounded">
-                                {exam.standard}
-                              </span>
-                            )}
-                            {exam.study_materials_count > 0 && (
-                              <span className="flex items-center gap-1 text-green-600">
-                                <BookOpen className="h-3.5 w-3.5" />
-                                {exam.study_materials_count} materiales
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleAssignExam(exam.id)}
-                          disabled={assigningExam === exam.id}
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
-                        >
-                          {assigningExam === exam.id ? (
-                            <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                          ) : (
-                            <>
-                              <Plus className="h-4 w-4" />
-                              Asignar
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal para gestionar materiales del grupo-examen */}
       {showMaterialsModal && (

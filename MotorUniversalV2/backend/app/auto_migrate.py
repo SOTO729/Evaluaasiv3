@@ -255,3 +255,141 @@ def check_and_add_percentage_columns():
     except Exception as e:
         print(f"❌ Error en auto-migración de porcentajes: {e}")
         db.session.rollback()
+
+
+def check_and_add_group_exam_columns():
+    """Verificar y agregar columnas a group_exams y crear tabla group_exam_members"""
+    print("🔍 Verificando esquema de group_exams...")
+    
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        # 1. Agregar columnas a group_exams si no existen
+        if 'group_exams' in tables:
+            existing_columns = [col['name'] for col in inspector.get_columns('group_exams')]
+            
+            # Lista de columnas a agregar
+            columns_to_add = [
+                ('assignment_type', "NVARCHAR(20) DEFAULT 'all' NOT NULL"),
+                ('time_limit_minutes', "INT NULL"),
+                ('passing_score', "INT NULL"),
+                ('max_attempts', "INT DEFAULT 1 NOT NULL"),
+                ('max_disconnections', "INT DEFAULT 3 NOT NULL"),
+                ('exam_content_type', "NVARCHAR(30) DEFAULT 'questions_only' NOT NULL"),
+            ]
+            
+            for col_name, col_definition in columns_to_add:
+                if col_name not in existing_columns:
+                    print(f"  📝 Agregando columna '{col_name}' a 'group_exams'...")
+                    try:
+                        db.session.execute(text(f"""
+                            ALTER TABLE group_exams 
+                            ADD {col_name} {col_definition}
+                        """))
+                        db.session.commit()
+                        print(f"     ✓ Columna '{col_name}' agregada a 'group_exams'")
+                    except Exception as e:
+                        if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+                            print(f"     ⚠️  Columna '{col_name}' ya existe")
+                        else:
+                            print(f"     ⚠️  Error agregando '{col_name}': {e}")
+                            db.session.rollback()
+                else:
+                    print(f"  ✓ Columna '{col_name}' ya existe en 'group_exams'")
+        
+        # 2. Crear tabla group_exam_members si no existe
+        if 'group_exam_members' not in tables:
+            print("  📝 Creando tabla 'group_exam_members'...")
+            try:
+                db.session.execute(text("""
+                    CREATE TABLE group_exam_members (
+                        id INT IDENTITY(1,1) PRIMARY KEY,
+                        group_exam_id INT NOT NULL,
+                        user_id NVARCHAR(36) NOT NULL,
+                        assigned_at DATETIME DEFAULT GETDATE() NOT NULL,
+                        CONSTRAINT fk_gem_group_exam FOREIGN KEY (group_exam_id) 
+                            REFERENCES group_exams(id) ON DELETE CASCADE,
+                        CONSTRAINT fk_gem_user FOREIGN KEY (user_id) 
+                            REFERENCES users(id) ON DELETE CASCADE,
+                        CONSTRAINT uq_gem_group_exam_user UNIQUE (group_exam_id, user_id)
+                    )
+                """))
+                db.session.commit()
+                print("     ✓ Tabla 'group_exam_members' creada exitosamente")
+            except Exception as e:
+                if 'already exists' in str(e).lower():
+                    print("     ⚠️  Tabla 'group_exam_members' ya existe")
+                else:
+                    raise
+        else:
+            print("  ✓ Tabla 'group_exam_members' ya existe")
+        
+        # 3. Crear tabla group_study_materials si no existe
+        if 'group_study_materials' not in tables:
+            print("  📝 Creando tabla 'group_study_materials'...")
+            try:
+                db.session.execute(text("""
+                    CREATE TABLE group_study_materials (
+                        id INT IDENTITY(1,1) PRIMARY KEY,
+                        group_id INT NOT NULL,
+                        study_material_id INT NOT NULL,
+                        assigned_at DATETIME DEFAULT GETDATE() NOT NULL,
+                        assigned_by_id NVARCHAR(36) NULL,
+                        available_from DATETIME NULL,
+                        available_until DATETIME NULL,
+                        assignment_type NVARCHAR(20) DEFAULT 'all' NOT NULL,
+                        is_active BIT DEFAULT 1 NOT NULL,
+                        CONSTRAINT fk_gsm_group FOREIGN KEY (group_id) 
+                            REFERENCES candidate_groups(id) ON DELETE CASCADE,
+                        CONSTRAINT fk_gsm_material FOREIGN KEY (study_material_id) 
+                            REFERENCES study_contents(id) ON DELETE CASCADE,
+                        CONSTRAINT fk_gsm_user FOREIGN KEY (assigned_by_id) 
+                            REFERENCES users(id),
+                        CONSTRAINT uq_group_study_material UNIQUE (group_id, study_material_id)
+                    )
+                """))
+                db.session.commit()
+                print("     ✓ Tabla 'group_study_materials' creada exitosamente")
+            except Exception as e:
+                if 'already exists' in str(e).lower():
+                    print("     ⚠️  Tabla 'group_study_materials' ya existe")
+                else:
+                    print(f"     ⚠️  Error creando tabla: {e}")
+                    db.session.rollback()
+        else:
+            print("  ✓ Tabla 'group_study_materials' ya existe")
+        
+        # 4. Crear tabla group_study_material_members si no existe
+        if 'group_study_material_members' not in tables:
+            print("  📝 Creando tabla 'group_study_material_members'...")
+            try:
+                db.session.execute(text("""
+                    CREATE TABLE group_study_material_members (
+                        id INT IDENTITY(1,1) PRIMARY KEY,
+                        group_study_material_id INT NOT NULL,
+                        user_id NVARCHAR(36) NOT NULL,
+                        assigned_at DATETIME DEFAULT GETDATE() NOT NULL,
+                        CONSTRAINT fk_gsmm_group_material FOREIGN KEY (group_study_material_id) 
+                            REFERENCES group_study_materials(id) ON DELETE CASCADE,
+                        CONSTRAINT fk_gsmm_user FOREIGN KEY (user_id) 
+                            REFERENCES users(id) ON DELETE CASCADE,
+                        CONSTRAINT uq_group_study_material_member UNIQUE (group_study_material_id, user_id)
+                    )
+                """))
+                db.session.commit()
+                print("     ✓ Tabla 'group_study_material_members' creada exitosamente")
+            except Exception as e:
+                if 'already exists' in str(e).lower():
+                    print("     ⚠️  Tabla 'group_study_material_members' ya existe")
+                else:
+                    print(f"     ⚠️  Error creando tabla: {e}")
+                    db.session.rollback()
+        else:
+            print("  ✓ Tabla 'group_study_material_members' ya existe")
+        
+        print("✅ Verificación de esquema group_exams completada")
+                
+    except Exception as e:
+        print(f"❌ Error en auto-migración de group_exams: {e}")
+        db.session.rollback()

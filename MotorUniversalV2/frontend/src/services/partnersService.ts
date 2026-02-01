@@ -83,7 +83,6 @@ export interface CandidateGroup {
   description?: string;
   start_date?: string;
   end_date?: string;
-  max_members: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -122,7 +121,7 @@ export interface CandidateSearchResult {
   second_surname?: string;
   full_name: string;
   curp?: string;
-  phone?: string;
+  gender?: string;
   created_at?: string;
   current_group?: {
     group_id: number;
@@ -343,7 +342,6 @@ export async function getGroupMembers(groupId: number, params?: {
   group_name: string;
   members: GroupMember[];
   total: number;
-  max_members: number;
 }> {
   const response = await api.get(`/partners/groups/${groupId}/members`, { params });
   return response.data;
@@ -415,19 +413,139 @@ export async function downloadGroupMembersTemplate(): Promise<void> {
   window.URL.revokeObjectURL(url);
 }
 
-export async function uploadGroupMembersExcel(groupId: number, file: File): Promise<{
+export async function uploadGroupMembersExcel(
+  groupId: number, 
+  file: File, 
+  mode: 'move' | 'add' = 'add'
+): Promise<{
+  message: string;
   added: string[];
+  moved: Array<{ identifier: string; from_group: string }>;
   errors: Array<{ identifier: string; error: string }>;
   total_processed: number;
+  mode: string;
 }> {
   const formData = new FormData();
   formData.append('file', file);
+  formData.append('mode', mode);
   
   const response = await api.post(`/partners/groups/${groupId}/members/upload`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     }
   });
+  return response.data;
+}
+
+// ============== PREVIEW EXCEL ANTES DE ASIGNAR ==============
+
+export interface ExcelPreviewRow {
+  row: number;
+  identifier: string;
+  notes?: string;
+  status: 'ready' | 'already_member' | 'not_found' | 'capacity_exceeded';
+  error?: string;
+  user?: {
+    id: string;
+    email: string;
+    name: string;
+    first_surname: string;
+    second_surname?: string;
+    full_name: string;
+    curp?: string;
+    gender?: string;
+  };
+}
+
+export interface ExcelPreviewResult {
+  group_name: string;
+  current_members: number;
+  preview: ExcelPreviewRow[];
+  summary: {
+    total: number;
+    ready: number;
+    already_member: number;
+    not_found: number;
+  };
+  can_proceed: boolean;
+}
+
+export async function previewGroupMembersExcel(groupId: number, file: File): Promise<ExcelPreviewResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await api.post(`/partners/groups/${groupId}/members/upload/preview`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+  return response.data;
+}
+
+// ============== MOVER CANDIDATOS ENTRE GRUPOS ==============
+
+export interface MoveMembersResult {
+  message: string;
+  moved: Array<{ user_id: string; name: string; email: string }>;
+  errors: Array<{ user_id: string; name: string; error: string }>;
+  source_group: string;
+  target_group: string;
+}
+
+export async function moveMembersToGroup(
+  sourceGroupId: number,
+  targetGroupId: number,
+  userIds: string[]
+): Promise<MoveMembersResult> {
+  const response = await api.post(`/partners/groups/${sourceGroupId}/members/move`, {
+    target_group_id: targetGroupId,
+    user_ids: userIds
+  });
+  return response.data;
+}
+
+// ============== BÚSQUEDA AVANZADA DE CANDIDATOS ==============
+
+export interface AdvancedSearchParams {
+  search?: string;
+  search_field?: string;
+  page?: number;
+  per_page?: number;
+  has_group?: 'yes' | 'no';
+  group_id?: number;
+  exclude_group_id?: number;
+  partner_id?: number;
+  campus_id?: number;
+  state?: string;
+  gender?: string;
+}
+
+export async function searchCandidatesAdvanced(params: AdvancedSearchParams): Promise<{
+  candidates: CandidateSearchResult[];
+  total: number;
+  pages: number;
+  current_page: number;
+  filters_applied: AdvancedSearchParams;
+}> {
+  const response = await api.get('/partners/candidates/search/advanced', { params });
+  return response.data;
+}
+
+// ============== LISTAR TODOS LOS GRUPOS (PARA SELECTORES) ==============
+
+export interface GroupListItem {
+  id: number;
+  name: string;
+  campus_name?: string;
+  partner_name?: string;
+  current_members: number;
+}
+
+export async function listAllGroups(): Promise<{
+  groups: GroupListItem[];
+  total: number;
+}> {
+  const response = await api.get('/partners/groups/list-all');
   return response.data;
 }
 
@@ -584,6 +702,8 @@ export async function unlinkFromPartner(partnerId: number): Promise<{
 
 // ============== EXÁMENES ASIGNADOS A GRUPOS ==============
 
+export type ExamContentType = 'questions_only' | 'exercises_only' | 'mixed';
+
 export interface GroupExamAssignment {
   id: number;
   group_id: number;
@@ -593,6 +713,14 @@ export interface GroupExamAssignment {
   available_from?: string;
   available_until?: string;
   is_active: boolean;
+  assignment_type?: 'all' | 'selected';
+  assigned_members_count?: number;
+  // Configuración del examen
+  time_limit_minutes?: number | null;
+  passing_score?: number | null;
+  max_attempts?: number;
+  max_disconnections?: number;
+  exam_content_type?: ExamContentType;
   exam?: {
     id: number;
     name: string;
@@ -609,6 +737,32 @@ export interface GroupExamAssignment {
     description?: string;
     cover_image_url?: string;
   }>;
+  assigned_members?: Array<{
+    id: number;
+    user_id: string;
+    assigned_at: string;
+    user?: {
+      id: string;
+      email: string;
+      name: string;
+      first_surname: string;
+      full_name: string;
+    };
+  }>;
+}
+
+export interface ExamAssignmentConfig {
+  exam_id: number;
+  assignment_type: 'all' | 'selected';
+  member_ids?: string[];
+  material_ids?: number[];  // IDs de materiales seleccionados
+  available_from?: string;
+  available_until?: string;
+  time_limit_minutes?: number | null;
+  passing_score?: number | null;
+  max_attempts?: number;
+  max_disconnections?: number;
+  exam_content_type?: ExamContentType;
 }
 
 export interface AvailableExam {
@@ -637,20 +791,15 @@ export async function getGroupExams(groupId: number): Promise<{
 }
 
 /**
- * Asignar un examen a un grupo
+ * Asignar un examen a un grupo con configuración completa
  */
-export async function assignExamToGroup(groupId: number, examId: number, options?: {
-  available_from?: string;
-  available_until?: string;
-}): Promise<{
+export async function assignExamToGroup(groupId: number, config: ExamAssignmentConfig): Promise<{
   message: string;
   assignment: GroupExamAssignment;
   study_materials_count: number;
+  assigned_members_count: number;
 }> {
-  const response = await api.post(`/partners/groups/${groupId}/exams`, {
-    exam_id: examId,
-    ...options
-  });
+  const response = await api.post(`/partners/groups/${groupId}/exams`, config);
   return response.data;
 }
 
@@ -661,6 +810,42 @@ export async function unassignExamFromGroup(groupId: number, examId: number): Pr
   message: string;
 }> {
   const response = await api.delete(`/partners/groups/${groupId}/exams/${examId}`);
+  return response.data;
+}
+
+/**
+ * Obtener miembros asignados a un examen
+ */
+export async function getGroupExamMembers(groupId: number, examId: number): Promise<{
+  assignment_type: 'all' | 'selected';
+  members: Array<{
+    id: number;
+    user_id: number;
+    assigned_at: string;
+    user?: {
+      id: number;
+      first_name: string;
+      last_name: string;
+      email: string;
+    };
+  }>;
+  total_members: number;
+}> {
+  const response = await api.get(`/partners/groups/${groupId}/exams/${examId}/members`);
+  return response.data;
+}
+
+/**
+ * Actualizar miembros asignados a un examen
+ */
+export async function updateGroupExamMembers(groupId: number, examId: number, data: {
+  assignment_type: 'all' | 'selected';
+  member_ids?: string[];
+}): Promise<{
+  message: string;
+  assignment: GroupExamAssignment;
+}> {
+  const response = await api.put(`/partners/groups/${groupId}/exams/${examId}/members`, data);
   return response.data;
 }
 
@@ -678,6 +863,38 @@ export async function getAvailableExams(params?: {
   current_page: number;
 }> {
   const response = await api.get('/partners/exams/available', { params });
+  return response.data;
+}
+
+// ============== MATERIALES DE UN EXAMEN PARA ASIGNACIÓN ==============
+
+export interface ExamMaterialForAssignment {
+  id: number;
+  title: string;
+  description?: string;
+  cover_image_url?: string;
+  is_published: boolean;
+  is_linked: boolean;  // Vinculado directamente al examen
+  is_selected: boolean; // Seleccionado para asignar
+  sessions_count: number;
+  topics_count: number;
+}
+
+export interface ExamMaterialsForAssignmentResponse {
+  exam_id: number;
+  exam_name: string;
+  materials: ExamMaterialForAssignment[];
+  linked_count: number;
+  total_count: number;
+}
+
+/**
+ * Obtener materiales disponibles para asignar con un examen
+ * Retorna primero los materiales ligados al examen (solo publicados),
+ * luego los demás materiales publicados.
+ */
+export async function getExamMaterialsForAssignment(examId: number): Promise<ExamMaterialsForAssignmentResponse> {
+  const response = await api.get(`/partners/exams/${examId}/materials`);
   return response.data;
 }
 
@@ -725,5 +942,99 @@ export async function updateGroupExamMaterials(
  */
 export async function resetGroupExamMaterials(groupExamId: number): Promise<{ message: string; group_exam_id: number }> {
   const response = await api.post(`/partners/group-exams/${groupExamId}/materials/reset`);
+  return response.data;
+}
+
+// ============== MATERIALES DE ESTUDIO SIN EXAMEN ==============
+
+export interface StudyMaterialItem {
+  id: number;
+  title: string;
+  description?: string;
+  image_url?: string;
+  is_published: boolean;
+  sessions_count: number;
+  topics_count: number;
+}
+
+export interface AvailableStudyMaterialsResponse {
+  materials: StudyMaterialItem[];
+  total: number;
+  pages: number;
+  current_page: number;
+}
+
+export interface GroupStudyMaterialAssignment {
+  id: number;
+  group_id: number;
+  study_material_id: number;
+  assigned_at: string;
+  assigned_by_id: string;
+  available_from?: string;
+  available_until?: string;
+  assignment_type: 'all' | 'selected';
+  is_active: boolean;
+  study_material?: StudyMaterialItem;
+  members?: Array<{ id: number; user_id: string; assigned_at: string }>;
+}
+
+export interface GroupStudyMaterialsResponse {
+  group_id: number;
+  group_name: string;
+  assigned_materials: GroupStudyMaterialAssignment[];
+  total: number;
+}
+
+export interface AssignStudyMaterialsConfig {
+  material_ids: number[];
+  assignment_type: 'all' | 'selected';
+  member_ids?: string[];
+  available_from?: string;
+  available_until?: string;
+}
+
+/**
+ * Obtener materiales de estudio publicados disponibles para asignar
+ */
+export async function getAvailableStudyMaterials(params?: {
+  page?: number;
+  per_page?: number;
+  search?: string;
+}): Promise<AvailableStudyMaterialsResponse> {
+  const response = await api.get('/partners/study-materials/available', { params });
+  return response.data;
+}
+
+/**
+ * Obtener materiales de estudio asignados directamente a un grupo (sin examen)
+ */
+export async function getGroupStudyMaterials(groupId: number): Promise<GroupStudyMaterialsResponse> {
+  const response = await api.get(`/partners/groups/${groupId}/study-materials`);
+  return response.data;
+}
+
+/**
+ * Asignar materiales de estudio a un grupo sin necesidad de examen
+ */
+export async function assignStudyMaterialsToGroup(
+  groupId: number,
+  config: AssignStudyMaterialsConfig
+): Promise<{
+  message: string;
+  assignments: GroupStudyMaterialAssignment[];
+  materials_count: number;
+}> {
+  const response = await api.post(`/partners/groups/${groupId}/study-materials`, config);
+  return response.data;
+}
+
+/**
+ * Desasignar un material de estudio del grupo
+ */
+export async function unassignStudyMaterialFromGroup(
+  groupId: number,
+  materialId: number
+): Promise<{ message: string }> {
+  const response = await api.delete(`/partners/groups/${groupId}/study-materials/${materialId}`);
   return response.data;
 }

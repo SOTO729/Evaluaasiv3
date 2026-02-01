@@ -163,23 +163,27 @@ def create_user():
         current_user = g.current_user
         data = request.get_json()
         
-        # Validar campos requeridos (password no es requerido para editores)
+        # Validar campos requeridos básicos
         required_fields = ['email', 'name', 'first_surname', 'role']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({'error': f'El campo {field} es requerido'}), 400
         
-        email = data['email'].strip().lower()
         role = data['role']
         
-        # Para editores, generar contraseña automática si no se proporciona
-        password = data.get('password')
-        if role == 'editor' and not password:
-            import secrets
-            # Generar contraseña segura de 16 caracteres
-            password = secrets.token_urlsafe(12)
-        elif not password:
-            return jsonify({'error': 'El campo password es requerido'}), 400
+        # Para candidatos, todos los campos son obligatorios
+        if role == 'candidato':
+            candidato_required = ['second_surname', 'curp', 'gender']
+            field_names = {'second_surname': 'segundo apellido', 'curp': 'CURP', 'gender': 'género'}
+            for field in candidato_required:
+                if not data.get(field):
+                    return jsonify({'error': f'El campo {field_names[field]} es requerido para candidatos'}), 400
+        
+        email = data['email'].strip().lower()
+        
+        # Generar contraseña automática para TODOS los usuarios
+        import secrets
+        password = secrets.token_urlsafe(12)  # Contraseña segura de 16 caracteres
         
         # Validar email
         if not validate_email(email):
@@ -222,12 +226,16 @@ def create_user():
         
         username = generate_unique_username()
         
+        # Para usuarios tipo editor o candidato, no guardar phone
         # Para usuarios tipo editor, no guardar CURP ni phone
         user_curp = None
         user_phone = None
-        if role != 'editor':
-            user_curp = data.get('curp', '').upper().strip() or None
+        if role not in ['editor', 'candidato']:
+            # Solo admin/coordinator pueden tener teléfono
             user_phone = data.get('phone', '').strip() or None
+        if role != 'editor':
+            # Solo candidatos y otros roles (no editor) pueden tener CURP
+            user_curp = data.get('curp', '').upper().strip() or None
         
         # Crear usuario
         new_user = User(
@@ -281,8 +289,8 @@ def update_user(user_id):
         
         # Campos actualizables
         basic_fields = ['name', 'first_surname', 'second_surname', 'gender']
-        # Solo actualizar phone si el usuario NO es editor
-        if user.role != 'editor':
+        # Solo actualizar phone si el usuario NO es editor ni candidato
+        if user.role not in ['editor', 'candidato']:
             basic_fields.append('phone')
         for field in basic_fields:
             if field in data:
@@ -314,10 +322,12 @@ def update_user(user_id):
                 # Admin no puede crear otros admins
                 if new_role == 'admin' and user.role != 'admin':
                     return jsonify({'error': 'No se puede asignar rol de administrador'}), 403
-                # Si cambia a editor, limpiar CURP y phone
+                # Si cambia a editor o candidato, limpiar phone
+                if new_role in ['editor', 'candidato'] and user.role not in ['editor', 'candidato']:
+                    user.phone = None
+                # Si cambia a editor, también limpiar CURP
                 if new_role == 'editor' and user.role != 'editor':
                     user.curp = None
-                    user.phone = None
                 user.role = new_role
             
             if 'is_active' in data:
@@ -633,8 +643,8 @@ def bulk_upload_candidates():
     - segundo_apellido (opcional)
     - genero (opcional: M, F, O)
     - curp (opcional)
-    - telefono (opcional)
-    - password (opcional, si no se proporciona se genera uno automático)
+    
+    Nota: Las contraseñas se generan automáticamente
     """
     try:
         import io
@@ -680,9 +690,7 @@ def bulk_upload_candidates():
             'primer_apellido': ['primer_apellido', 'primer apellido', 'apellido paterno', 'apellido_paterno', 'first_surname', 'apellido1'],
             'segundo_apellido': ['segundo_apellido', 'segundo apellido', 'apellido materno', 'apellido_materno', 'second_surname', 'apellido2'],
             'genero': ['genero', 'género', 'sexo', 'gender'],
-            'curp': ['curp'],
-            'telefono': ['telefono', 'teléfono', 'phone', 'celular', 'cel'],
-            'password': ['password', 'contraseña', 'clave']
+            'curp': ['curp']
         }
         
         # Encontrar índices de columnas
@@ -742,15 +750,28 @@ def bulk_upload_candidates():
             segundo_apellido = get_cell_value('segundo_apellido')
             genero = get_cell_value('genero')
             curp = get_cell_value('curp')
-            telefono = get_cell_value('telefono')
-            password = get_cell_value('password')
             
-            # Validar campos requeridos
-            if not email or not nombre or not primer_apellido:
+            # Validar campos requeridos (todos son obligatorios para candidatos)
+            missing_fields = []
+            if not email:
+                missing_fields.append('email')
+            if not nombre:
+                missing_fields.append('nombre')
+            if not primer_apellido:
+                missing_fields.append('primer_apellido')
+            if not segundo_apellido:
+                missing_fields.append('segundo_apellido')
+            if not genero:
+                missing_fields.append('genero')
+            if not curp:
+                missing_fields.append('curp')
+            
+            if missing_fields:
+                missing_str = ', '.join(missing_fields)
                 results['errors'].append({
                     'row': row_idx,
                     'email': email or '(vacío)',
-                    'error': 'Campos requeridos vacíos (email, nombre, primer_apellido)'
+                    'error': f'Campos requeridos vacíos: {missing_str}'
                 })
                 continue
             
@@ -775,45 +796,35 @@ def bulk_upload_candidates():
                 })
                 continue
             
-            # Verificar CURP si se proporciona
-            if curp:
-                curp = curp.upper().strip()
-                if len(curp) != 18:
-                    results['errors'].append({
-                        'row': row_idx,
-                        'email': email,
-                        'error': f'CURP inválido: debe tener 18 caracteres'
-                    })
-                    continue
-                if User.query.filter_by(curp=curp).first():
-                    results['skipped'].append({
-                        'row': row_idx,
-                        'email': email,
-                        'reason': f'CURP {curp} ya registrado'
-                    })
-                    continue
+            # Validar y verificar CURP (ahora es obligatorio)
+            curp = curp.upper().strip()
+            if len(curp) != 18:
+                results['errors'].append({
+                    'row': row_idx,
+                    'email': email,
+                    'error': f'CURP inválido: debe tener 18 caracteres (tiene {len(curp)})'
+                })
+                continue
+            if User.query.filter_by(curp=curp).first():
+                results['skipped'].append({
+                    'row': row_idx,
+                    'email': email,
+                    'reason': f'CURP {curp} ya registrado'
+                })
+                continue
             
-            # Normalizar género
-            if genero:
-                genero = genero.upper()[0] if genero else None
-                if genero not in ['M', 'F', 'O']:
-                    genero = None
+            # Normalizar género (ya validado que existe)
+            genero = genero.upper()[0]
+            if genero not in ['M', 'F', 'O']:
+                results['errors'].append({
+                    'row': row_idx,
+                    'email': email,
+                    'error': f'Género inválido: debe ser M, F u O'
+                })
+                continue
             
-            # Generar contraseña si no se proporciona
-            generated_password = None
-            if not password:
-                generated_password = generate_password()
-                password = generated_password
-            else:
-                # Validar contraseña proporcionada
-                is_valid, error_msg = validate_password(password)
-                if not is_valid:
-                    results['errors'].append({
-                        'row': row_idx,
-                        'email': email,
-                        'error': f'Contraseña inválida: {error_msg}'
-                    })
-                    continue
+            # Generar contraseña automáticamente
+            generated_password = generate_password()
             
             # Generar username único EN MAYÚSCULAS
             base_username = email.split('@')[0].upper()
@@ -834,12 +845,11 @@ def bulk_upload_candidates():
                     second_surname=segundo_apellido or None,
                     gender=genero,
                     curp=curp or None,
-                    phone=telefono or None,
                     role='candidato',
                     is_active=True,
                     is_verified=False
                 )
-                new_user.set_password(password)
+                new_user.set_password(generated_password)
                 db.session.add(new_user)
                 
                 results['created'].append({
@@ -847,7 +857,7 @@ def bulk_upload_candidates():
                     'email': email,
                     'name': f"{nombre} {primer_apellido}",
                     'username': username,
-                    'password': generated_password  # Solo si fue generada automáticamente
+                    'password': generated_password  # Contraseña generada automáticamente
                 })
             except Exception as e:
                 results['errors'].append({
@@ -907,16 +917,14 @@ def download_bulk_upload_template():
             bottom=Side(style='thin')
         )
         
-        # Encabezados
+        # Encabezados - TODOS los campos son requeridos para candidatos
         headers = [
             ('email', 'Requerido'),
             ('nombre', 'Requerido'),
             ('primer_apellido', 'Requerido'),
-            ('segundo_apellido', 'Opcional'),
-            ('genero', 'Opcional (M, F, O)'),
-            ('curp', 'Opcional (18 caracteres)'),
-            ('telefono', 'Opcional'),
-            ('password', 'Opcional (se genera automáticamente si está vacío)')
+            ('segundo_apellido', 'Requerido'),
+            ('genero', 'Requerido (M, F, O)'),
+            ('curp', 'Requerido (18 caracteres)')
         ]
         
         for col, (header, _) in enumerate(headers, start=1):
@@ -936,10 +944,10 @@ def download_bulk_upload_template():
             cell.alignment = Alignment(horizontal='center', wrap_text=True)
             cell.border = thin_border
         
-        # Ejemplo de datos
+        # Ejemplo de datos (todos los campos completos)
         example_data = [
-            ('candidato1@email.com', 'Juan', 'García', 'López', 'M', 'GALJ900101HDFRPR01', '5512345678', ''),
-            ('candidato2@email.com', 'María', 'Pérez', 'Sánchez', 'F', '', '5598765432', 'MiPassword123'),
+            ('candidato1@email.com', 'Juan', 'García', 'López', 'M', 'GALJ900101HDFRPR01'),
+            ('candidato2@email.com', 'María', 'Pérez', 'Sánchez', 'F', 'PESM950215MDFRRR02'),
         ]
         
         for row_idx, data in enumerate(example_data, start=3):
@@ -948,7 +956,7 @@ def download_bulk_upload_template():
                 cell.border = thin_border
         
         # Ajustar ancho de columnas
-        column_widths = [30, 15, 18, 18, 15, 25, 15, 35]
+        column_widths = [30, 15, 18, 18, 15, 25]
         for col, width in enumerate(column_widths, start=1):
             ws.column_dimensions[ws.cell(row=1, column=col).column_letter].width = width
         
@@ -961,23 +969,17 @@ def download_bulk_upload_template():
             "2. No modifique los encabezados de las columnas",
             "3. Elimine las filas de ejemplo antes de agregar sus datos",
             "",
-            "CAMPOS REQUERIDOS:",
+            "CAMPOS REQUERIDOS (TODOS SON OBLIGATORIOS):",
             "- email: Correo electrónico único del candidato",
             "- nombre: Nombre(s) del candidato",
             "- primer_apellido: Apellido paterno",
-            "",
-            "CAMPOS OPCIONALES:",
             "- segundo_apellido: Apellido materno",
             "- genero: M (Masculino), F (Femenino), O (Otro)",
             "- curp: CURP del candidato (18 caracteres)",
-            "- telefono: Número de teléfono",
-            "- password: Contraseña (si está vacío, se genera automáticamente)",
             "",
-            "REQUISITOS DE CONTRASEÑA:",
-            "- Mínimo 8 caracteres",
-            "- Al menos una mayúscula",
-            "- Al menos una minúscula",
-            "- Al menos un número",
+            "GENERACIÓN AUTOMÁTICA:",
+            "- Las contraseñas se generan automáticamente para cada usuario",
+            "- Los usernames se generan automáticamente a partir del email",
             "",
             "NOTAS:",
             "- Los emails duplicados serán omitidos",

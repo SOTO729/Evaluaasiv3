@@ -17,7 +17,6 @@ import {
   AlertCircle,
   Users,
   Mail,
-  Phone,
   IdCard,
   Check,
   Loader2,
@@ -37,7 +36,6 @@ interface CandidateAssignmentModalProps {
   isOpen: boolean;
   groupId: number;
   groupName: string;
-  maxMembers: number;
   currentMemberCount: number;
   onClose: () => void;
   onMembersAdded: (count: number) => void;
@@ -53,14 +51,12 @@ const SEARCH_FIELDS = [
   { key: 'second_surname', label: 'Segundo Apellido', icon: Users },
   { key: 'email', label: 'Email', icon: Mail },
   { key: 'curp', label: 'CURP', icon: IdCard },
-  { key: 'phone', label: 'Teléfono', icon: Phone },
 ];
 
 export default function CandidateAssignmentModal({
   isOpen,
   groupId,
   groupName,
-  maxMembers,
   currentMemberCount,
   onClose,
   onMembersAdded,
@@ -132,12 +128,6 @@ export default function CandidateAssignmentModal({
     if (newSelected.has(candidateId)) {
       newSelected.delete(candidateId);
     } else {
-      // Verificar capacidad
-      const remainingCapacity = maxMembers - currentMemberCount;
-      if (newSelected.size >= remainingCapacity) {
-        setError(`Capacidad máxima del grupo (${maxMembers}) alcanzada`);
-        return;
-      }
       newSelected.add(candidateId);
     }
     setSelectedCandidates(newSelected);
@@ -145,11 +135,10 @@ export default function CandidateAssignmentModal({
   };
 
   const handleSelectAll = () => {
-    const remainingCapacity = maxMembers - currentMemberCount;
     const newSelected = new Set(selectedCandidates);
     
     searchResults.forEach((candidate) => {
-      if (newSelected.size < remainingCapacity && !newSelected.has(candidate.id)) {
+      if (!newSelected.has(candidate.id)) {
         newSelected.add(candidate.id);
       }
     });
@@ -278,8 +267,6 @@ export default function CandidateAssignmentModal({
     onClose();
   };
 
-  const remainingCapacity = maxMembers - currentMemberCount;
-
   if (!isOpen) return null;
 
   return (
@@ -296,10 +283,7 @@ export default function CandidateAssignmentModal({
                 Asignar Candidatos
               </h2>
               <p className="fluid-text-sm text-gray-600">
-                {groupName} • Capacidad: {currentMemberCount}/{maxMembers} 
-                {remainingCapacity > 0 && (
-                  <span className="text-green-600 ml-2">({remainingCapacity} disponibles)</span>
-                )}
+                {groupName} • {currentMemberCount} miembros
               </p>
             </div>
           </div>
@@ -404,7 +388,7 @@ export default function CandidateAssignmentModal({
               </div>
 
               <p className="text-xs text-gray-500">
-                Escribe al menos 2 caracteres. Puedes buscar por nombre, apellidos, email, CURP o teléfono.
+                Escribe al menos 2 caracteres. Puedes buscar por nombre, apellidos, email o CURP.
               </p>
 
               {/* Tabla de resultados */}
@@ -447,7 +431,6 @@ export default function CandidateAssignmentModal({
                       <button
                         onClick={handleSelectAll}
                         className="text-xs px-3 py-1.5 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors"
-                        disabled={remainingCapacity === 0}
                       >
                         Seleccionar todos
                       </button>
@@ -477,7 +460,7 @@ export default function CandidateAssignmentModal({
                             CURP
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">
-                            Teléfono
+                            Género
                           </th>
                           <th className="w-24 px-4 py-3"></th>
                         </tr>
@@ -522,7 +505,10 @@ export default function CandidateAssignmentModal({
                                 {candidate.curp || '-'}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-600 hidden xl:table-cell">
-                                {candidate.phone || '-'}
+                                {candidate.gender ? (
+                                  candidate.gender === 'M' ? 'Masculino' :
+                                  candidate.gender === 'F' ? 'Femenino' : 'Otro'
+                                ) : '-'}
                               </td>
                               <td className="px-4 py-3">
                                 <button

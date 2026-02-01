@@ -8,8 +8,6 @@ import {
   Save,
   Layers,
   Building2,
-  Calendar,
-  Users,
   AlertCircle,
   FileText,
   GraduationCap,
@@ -44,9 +42,6 @@ export default function GroupFormPage() {
     name: '',
     code: '',
     description: '',
-    start_date: '',
-    end_date: '',
-    max_members: 30,
     is_active: true,
     school_cycle_id: defaultCycleId ? parseInt(defaultCycleId) : undefined as number | undefined,
   });
@@ -79,9 +74,6 @@ export default function GroupFormPage() {
           name: group.name,
           code: group.code || '',
           description: group.description || '',
-          start_date: group.start_date ? group.start_date.split('T')[0] : '',
-          end_date: group.end_date ? group.end_date.split('T')[0] : '',
-          max_members: group.max_members || 30,
           is_active: group.is_active,
           school_cycle_id: group.school_cycle_id || undefined,
         });
@@ -257,56 +249,6 @@ export default function GroupFormPage() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Descripción del grupo, programa de estudio, etc."
                 rows={3}
-                className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 fluid-text-base"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Fechas y Capacidad */}
-        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-6">
-          <h2 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-5 flex items-center fluid-gap-2">
-            <Calendar className="fluid-icon-lg text-blue-600" />
-            Fechas y Capacidad
-          </h2>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 fluid-gap-5">
-            <div>
-              <label className="block fluid-text-base font-medium text-gray-700 fluid-mb-2">
-                Fecha de Inicio
-              </label>
-              <input
-                type="date"
-                value={formData.start_date}
-                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 fluid-text-base"
-              />
-            </div>
-
-            <div>
-              <label className="block fluid-text-base font-medium text-gray-700 fluid-mb-2">
-                Fecha de Fin
-              </label>
-              <input
-                type="date"
-                value={formData.end_date}
-                onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                min={formData.start_date}
-                className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 fluid-text-base"
-              />
-            </div>
-
-            <div>
-              <label className="block fluid-text-base font-medium text-gray-700 fluid-mb-2">
-                <Users className="inline h-4 w-4 mr-1" />
-                Máximo de Miembros
-              </label>
-              <input
-                type="number"
-                value={formData.max_members}
-                onChange={(e) => setFormData({ ...formData, max_members: parseInt(e.target.value) || 30 })}
-                min={1}
-                max={500}
                 className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 fluid-text-base"
               />
             </div>

@@ -666,7 +666,6 @@ def create_group(campus_id):
             description=data.get('description'),
             start_date=data.get('start_date'),
             end_date=data.get('end_date'),
-            max_members=data.get('max_members', 50),
             is_active=data.get('is_active', True)
         )
         
@@ -680,6 +679,41 @@ def create_group(campus_id):
         
     except Exception as e:
         db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# ======================================================================
+# IMPORTANTE: Esta ruta debe ir ANTES de /groups/<int:group_id>
+# para evitar que Flask intente interpretar 'list-all' como un int
+# ======================================================================
+@bp.route('/groups/list-all', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def list_all_groups():
+    """Listar todos los grupos para selectores (sin paginación, info mínima)"""
+    try:
+        groups = CandidateGroup.query.filter_by(is_active=True).order_by(CandidateGroup.name).all()
+        
+        result = []
+        for group in groups:
+            campus = group.campus
+            partner = campus.partner if campus else None
+            member_count = GroupMember.query.filter_by(group_id=group.id, status='active').count()
+            
+            result.append({
+                'id': group.id,
+                'name': group.name,
+                'campus_name': campus.name if campus else None,
+                'partner_name': partner.name if partner else None,
+                'current_members': member_count
+            })
+        
+        return jsonify({
+            'groups': result,
+            'total': len(result)
+        })
+        
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
@@ -716,7 +750,7 @@ def update_group(group_id):
             group.school_cycle_id = school_cycle_id
         
         # Actualizar campos
-        for field in ['name', 'code', 'description', 'start_date', 'end_date', 'max_members', 'is_active']:
+        for field in ['name', 'code', 'description', 'start_date', 'end_date', 'is_active']:
             if field in data:
                 setattr(group, field, data[field])
         
@@ -772,8 +806,7 @@ def get_group_members(group_id):
             'group_id': group_id,
             'group_name': group.name,
             'members': [m.to_dict(include_user=True) for m in members],
-            'total': len(members),
-            'max_members': group.max_members
+            'total': len(members)
         })
         
     except Exception as e:
@@ -805,11 +838,6 @@ def add_group_member(group_id):
         existing = GroupMember.query.filter_by(group_id=group_id, user_id=user_id).first()
         if existing:
             return jsonify({'error': 'El usuario ya es miembro de este grupo'}), 400
-        
-        # Verificar capacidad
-        current_count = GroupMember.query.filter_by(group_id=group_id).count()
-        if current_count >= group.max_members:
-            return jsonify({'error': 'El grupo ha alcanzado su capacidad máxima'}), 400
         
         member = GroupMember(
             group_id=group_id,
@@ -847,14 +875,7 @@ def add_group_members_bulk(group_id):
         added = []
         errors = []
         
-        current_count = GroupMember.query.filter_by(group_id=group_id).count()
-        
         for user_id in user_ids:
-            # Verificar capacidad
-            if current_count >= group.max_members:
-                errors.append({'user_id': user_id, 'error': 'Capacidad máxima alcanzada'})
-                continue
-            
             user = User.query.get(user_id)
             if not user:
                 errors.append({'user_id': user_id, 'error': 'Usuario no encontrado'})
@@ -876,7 +897,6 @@ def add_group_members_bulk(group_id):
             )
             db.session.add(member)
             added.append(user_id)
-            current_count += 1
         
         db.session.commit()
         
@@ -960,14 +980,13 @@ def search_candidates():
         if search:
             search_term = f'%{search}%'
             # Si hay un campo específico, buscar solo en ese campo
-            if search_field and search_field in ['name', 'first_surname', 'second_surname', 'email', 'curp', 'phone']:
+            if search_field and search_field in ['name', 'first_surname', 'second_surname', 'email', 'curp']:
                 field_map = {
                     'name': User.name,
                     'first_surname': User.first_surname,
                     'second_surname': User.second_surname,
                     'email': User.email,
                     'curp': User.curp,
-                    'phone': User.phone,
                 }
                 query = query.filter(field_map[search_field].ilike(search_term))
             else:
@@ -978,8 +997,7 @@ def search_candidates():
                         User.first_surname.ilike(search_term),
                         User.second_surname.ilike(search_term),
                         User.email.ilike(search_term),
-                        User.curp.ilike(search_term),
-                        User.phone.ilike(search_term)
+                        User.curp.ilike(search_term)
                     )
                 )
         
@@ -1030,7 +1048,7 @@ def search_candidates():
                 'second_surname': user.second_surname,
                 'full_name': f"{user.name} {user.first_surname} {user.second_surname or ''}".strip(),
                 'curp': user.curp,
-                'phone': user.phone,
+                'gender': user.gender,
                 'created_at': user.created_at.isoformat() if user.created_at else None,
                 'current_group': group_info,
             })
@@ -1145,7 +1163,12 @@ def download_group_members_template():
 @jwt_required()
 @coordinator_required
 def upload_group_members(group_id):
-    """Procesar archivo Excel para asignar candidatos al grupo"""
+    """Procesar archivo Excel para asignar candidatos al grupo
+    
+    Parámetros de form-data:
+    - file: Archivo Excel con candidatos
+    - mode: 'move' (mover de grupo anterior) o 'add' (agregar, puede estar en múltiples grupos)
+    """
     from openpyxl import load_workbook
     
     try:
@@ -1158,13 +1181,17 @@ def upload_group_members(group_id):
         if not file.filename.endswith(('.xlsx', '.xls')):
             return jsonify({'error': 'El archivo debe ser Excel (.xlsx o .xls)'}), 400
         
+        # Modo de asignación: 'move' o 'add'
+        mode = request.form.get('mode', 'add')  # Por defecto 'add' para mantener compatibilidad
+        
         # Cargar el archivo Excel
         wb = load_workbook(file)
         ws = wb.active
         
         added = []
+        moved = []
         errors = []
-        current_count = GroupMember.query.filter_by(group_id=group_id).count()
+        current_count = GroupMember.query.filter_by(group_id=group_id, status='active').count()
         
         # Procesar cada fila (saltando el encabezado)
         for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
@@ -1193,24 +1220,40 @@ def upload_group_members(group_id):
                 })
                 continue
             
-            # Verificar capacidad
-            if current_count >= group.max_members:
-                errors.append({
-                    'identifier': identifier,
-                    'error': 'Capacidad máxima del grupo alcanzada'
-                })
-                continue
+            # Verificar si ya es miembro de ESTE grupo
+            existing_in_target = GroupMember.query.filter_by(group_id=group_id, user_id=user.id).first()
+            if existing_in_target:
+                if existing_in_target.status == 'active':
+                    errors.append({
+                        'identifier': identifier,
+                        'error': 'Ya es miembro del grupo destino'
+                    })
+                    continue
+                else:
+                    # Reactivar membresía existente
+                    existing_in_target.status = 'active'
+                    existing_in_target.notes = str(notes) if notes else existing_in_target.notes
+                    added.append(identifier)
+                    current_count += 1
+                    continue
             
-            # Verificar si ya es miembro
-            existing = GroupMember.query.filter_by(group_id=group_id, user_id=user.id).first()
-            if existing:
-                errors.append({
-                    'identifier': identifier,
-                    'error': 'Ya es miembro del grupo'
-                })
-                continue
+            # Verificar si está en otro grupo
+            existing_other = GroupMember.query.filter(
+                GroupMember.user_id == user.id,
+                GroupMember.group_id != group_id,
+                GroupMember.status == 'active'
+            ).first()
             
-            # Crear membresía
+            if existing_other and mode == 'move':
+                # Mover: desactivar membresía anterior
+                previous_group_name = existing_other.group.name if existing_other.group else 'Grupo desconocido'
+                existing_other.status = 'removed'
+                moved.append({
+                    'identifier': identifier,
+                    'from_group': previous_group_name
+                })
+            
+            # Crear nueva membresía
             member = GroupMember(
                 group_id=group_id,
                 user_id=user.id,
@@ -1218,16 +1261,23 @@ def upload_group_members(group_id):
                 notes=str(notes) if notes else None
             )
             db.session.add(member)
-            added.append(identifier)
+            if not (existing_other and mode == 'move'):
+                added.append(identifier)
             current_count += 1
         
         db.session.commit()
         
+        result_message = f'{len(added)} candidato(s) agregado(s)'
+        if moved:
+            result_message += f', {len(moved)} movido(s) de otros grupos'
+        
         return jsonify({
-            'message': f'{len(added)} candidato(s) asignado(s) al grupo',
+            'message': result_message,
             'added': added,
+            'moved': moved,
             'errors': errors,
-            'total_processed': len(added) + len(errors)
+            'total_processed': len(added) + len(moved) + len(errors),
+            'mode': mode
         }), 201
         
     except Exception as e:
@@ -1650,9 +1700,17 @@ def get_group_exams(group_id):
 @jwt_required()
 @coordinator_required
 def assign_exam_to_group(group_id):
-    """Asignar un examen a un grupo (automáticamente incluye materiales de estudio)"""
+    """Asignar un examen a un grupo (automáticamente incluye materiales de estudio)
+    
+    Parámetros:
+    - exam_id: ID del examen
+    - assignment_type: 'all' (todo el grupo) o 'selected' (candidatos específicos)
+    - member_ids: Lista de IDs de usuarios (solo si assignment_type='selected')
+    - available_from, available_until: Período de disponibilidad (opcional)
+    """
     try:
-        from app.models import GroupExam, Exam
+        from app.models import GroupExam, GroupExamMaterial, Exam
+        from app.models.partner import GroupExamMember
         from app.models.study_content import StudyMaterial
         
         group = CandidateGroup.query.get_or_404(group_id)
@@ -1661,6 +1719,12 @@ def assign_exam_to_group(group_id):
         exam_id = data.get('exam_id')
         if not exam_id:
             return jsonify({'error': 'El ID del examen es requerido'}), 400
+        
+        assignment_type = data.get('assignment_type', 'all')
+        member_ids = data.get('member_ids', [])
+        
+        if assignment_type == 'selected' and not member_ids:
+            return jsonify({'error': 'Debes seleccionar al menos un candidato'}), 400
         
         # Verificar que el examen existe
         exam = Exam.query.get(exam_id)
@@ -1677,8 +1741,41 @@ def assign_exam_to_group(group_id):
                 existing.is_active = True
                 existing.assigned_at = db.func.now()
                 existing.assigned_by_id = g.current_user.id
+                existing.assignment_type = assignment_type
                 existing.available_from = data.get('available_from')
                 existing.available_until = data.get('available_until')
+                existing.time_limit_minutes = data.get('time_limit_minutes')
+                existing.passing_score = data.get('passing_score')
+                existing.max_attempts = data.get('max_attempts', 2)
+                existing.max_disconnections = data.get('max_disconnections', 3)
+                existing.exam_content_type = data.get('exam_content_type', 'questions_only')
+                
+                # Si es tipo 'selected', agregar miembros
+                if assignment_type == 'selected':
+                    # Limpiar miembros anteriores
+                    GroupExamMember.query.filter_by(group_exam_id=existing.id).delete()
+                    
+                    for user_id in member_ids:
+                        member = GroupExamMember(
+                            group_exam_id=existing.id,
+                            user_id=user_id
+                        )
+                        db.session.add(member)
+                
+                # Si se enviaron materiales personalizados, guardarlos
+                material_ids = data.get('material_ids')
+                if material_ids is not None:
+                    # Limpiar materiales anteriores
+                    GroupExamMaterial.query.filter_by(group_exam_id=existing.id).delete()
+                    
+                    for material_id in material_ids:
+                        material = GroupExamMaterial(
+                            group_exam_id=existing.id,
+                            study_material_id=material_id,
+                            is_included=True
+                        )
+                        db.session.add(material)
+                
                 db.session.commit()
                 
                 # Obtener materiales asociados
@@ -1686,29 +1783,76 @@ def assign_exam_to_group(group_id):
                 
                 return jsonify({
                     'message': 'Examen reactivado exitosamente',
-                    'assignment': existing.to_dict(include_exam=True, include_materials=True),
-                    'study_materials_count': len(materials)
+                    'assignment': existing.to_dict(include_exam=True, include_materials=True, include_members=True),
+                    'study_materials_count': len(material_ids) if material_ids else len(materials),
+                    'assigned_members_count': len(member_ids) if assignment_type == 'selected' else group.members.count()
                 })
+        
+        # Configuración del examen
+        time_limit_minutes = data.get('time_limit_minutes')
+        passing_score = data.get('passing_score')
+        max_attempts = data.get('max_attempts', 2)
+        max_disconnections = data.get('max_disconnections', 3)
+        exam_content_type = data.get('exam_content_type', 'questions_only')
+        material_ids = data.get('material_ids')
         
         # Crear nueva asignación
         group_exam = GroupExam(
             group_id=group_id,
             exam_id=exam_id,
             assigned_by_id=g.current_user.id,
+            assignment_type=assignment_type,
             available_from=data.get('available_from'),
-            available_until=data.get('available_until')
+            available_until=data.get('available_until'),
+            time_limit_minutes=time_limit_minutes,
+            passing_score=passing_score,
+            max_attempts=max_attempts,
+            max_disconnections=max_disconnections,
+            exam_content_type=exam_content_type
         )
         
         db.session.add(group_exam)
+        db.session.flush()  # Para obtener el ID
+        
+        # Si es tipo 'selected', agregar miembros específicos
+        if assignment_type == 'selected':
+            for user_id in member_ids:
+                member = GroupExamMember(
+                    group_exam_id=group_exam.id,
+                    user_id=user_id
+                )
+                db.session.add(member)
+        
+        # Si se enviaron materiales personalizados, guardarlos
+        if material_ids is not None:
+            for material_id in material_ids:
+                material = GroupExamMaterial(
+                    group_exam_id=group_exam.id,
+                    study_material_id=material_id,
+                    is_included=True
+                )
+                db.session.add(material)
+        
         db.session.commit()
         
         # Obtener materiales asociados al examen
         materials = StudyMaterial.query.filter_by(exam_id=exam_id, is_published=True).all()
+        materials_count = len(material_ids) if material_ids else len(materials)
+        
+        message = 'Examen asignado exitosamente.'
+        if assignment_type == 'all':
+            message += f' Disponible para los {group.members.count()} miembros del grupo.'
+        else:
+            message += f' Disponible para {len(member_ids)} candidato(s) seleccionado(s).'
+        
+        if materials_count > 0:
+            message += f' Con {materials_count} material(es) de estudio.'
         
         return jsonify({
-            'message': 'Examen asignado exitosamente. Los materiales de estudio asociados también están disponibles.',
-            'assignment': group_exam.to_dict(include_exam=True, include_materials=True),
-            'study_materials_count': len(materials)
+            'message': message,
+            'assignment': group_exam.to_dict(include_exam=True, include_materials=True, include_members=True),
+            'study_materials_count': materials_count,
+            'assigned_members_count': len(member_ids) if assignment_type == 'selected' else group.members.count()
         }), 201
         
     except Exception as e:
@@ -1738,6 +1882,318 @@ def unassign_exam_from_group(group_id, exam_id):
         
     except Exception as e:
         db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/exams/<int:exam_id>/members', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_group_exam_members(group_id, exam_id):
+    """Obtener los miembros asignados a un examen específico del grupo"""
+    try:
+        from app.models import GroupExam
+        from app.models.partner import GroupExamMember
+        
+        group_exam = GroupExam.query.filter_by(
+            group_id=group_id, 
+            exam_id=exam_id,
+            is_active=True
+        ).first_or_404()
+        
+        members = [m.to_dict(include_user=True) for m in group_exam.assigned_members]
+        
+        return jsonify({
+            'assignment_type': group_exam.assignment_type,
+            'members': members,
+            'total_members': len(members)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/exams/<int:exam_id>/members', methods=['PUT'])
+@jwt_required()
+@coordinator_required
+def update_group_exam_members(group_id, exam_id):
+    """Actualizar los miembros asignados a un examen del grupo"""
+    try:
+        from app.models import GroupExam
+        from app.models.partner import GroupExamMember
+        
+        group = CandidateGroup.query.get_or_404(group_id)
+        
+        group_exam = GroupExam.query.filter_by(
+            group_id=group_id, 
+            exam_id=exam_id,
+            is_active=True
+        ).first_or_404()
+        
+        data = request.get_json()
+        assignment_type = data.get('assignment_type', group_exam.assignment_type)
+        member_ids = data.get('member_ids', [])
+        
+        if assignment_type == 'selected' and not member_ids:
+            return jsonify({'error': 'Debes seleccionar al menos un candidato'}), 400
+        
+        # Actualizar tipo de asignación
+        group_exam.assignment_type = assignment_type
+        
+        # Limpiar miembros anteriores
+        GroupExamMember.query.filter_by(group_exam_id=group_exam.id).delete()
+        
+        # Si es tipo 'selected', agregar nuevos miembros
+        if assignment_type == 'selected':
+            for user_id in member_ids:
+                member = GroupExamMember(
+                    group_exam_id=group_exam.id,
+                    user_id=user_id
+                )
+                db.session.add(member)
+        
+        db.session.commit()
+        
+        message = 'Asignación actualizada exitosamente.'
+        if assignment_type == 'all':
+            message += f' El examen está disponible para los {group.members.count()} miembros del grupo.'
+        else:
+            message += f' El examen está disponible para {len(member_ids)} candidato(s) seleccionado(s).'
+        
+        return jsonify({
+            'message': message,
+            'assignment': group_exam.to_dict(include_exam=True, include_members=True)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# ============== MATERIALES DE ESTUDIO SIN EXAMEN ==============
+
+@bp.route('/groups/<int:group_id>/study-materials', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_group_study_materials(group_id):
+    """Obtener materiales de estudio asignados directamente al grupo (sin examen)"""
+    try:
+        from app.models import GroupStudyMaterial
+        
+        group = CandidateGroup.query.get_or_404(group_id)
+        
+        assignments = GroupStudyMaterial.query.filter_by(
+            group_id=group_id,
+            is_active=True
+        ).order_by(GroupStudyMaterial.assigned_at.desc()).all()
+        
+        materials_data = [a.to_dict(include_material=True, include_members=True) for a in assignments]
+        
+        return jsonify({
+            'group_id': group_id,
+            'group_name': group.name,
+            'assigned_materials': materials_data,
+            'total': len(materials_data)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/study-materials', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def assign_study_materials_to_group(group_id):
+    """Asignar materiales de estudio directamente a un grupo (sin examen)
+    
+    Parámetros:
+    - material_ids: Lista de IDs de materiales a asignar
+    - assignment_type: 'all' (todo el grupo) o 'selected' (candidatos específicos)
+    - member_ids: Lista de IDs de usuarios (solo si assignment_type='selected')
+    - available_from, available_until: Período de disponibilidad (opcional)
+    """
+    try:
+        from app.models import GroupStudyMaterial, GroupStudyMaterialMember
+        from app.models.study_content import StudyMaterial
+        
+        group = CandidateGroup.query.get_or_404(group_id)
+        data = request.get_json()
+        
+        material_ids = data.get('material_ids', [])
+        if not material_ids:
+            return jsonify({'error': 'Debes seleccionar al menos un material de estudio'}), 400
+        
+        assignment_type = data.get('assignment_type', 'all')
+        member_ids = data.get('member_ids', [])
+        
+        if assignment_type == 'selected' and not member_ids:
+            return jsonify({'error': 'Debes seleccionar al menos un candidato'}), 400
+        
+        # Verificar que los materiales existen y están publicados
+        materials = StudyMaterial.query.filter(
+            StudyMaterial.id.in_(material_ids),
+            StudyMaterial.is_published == True
+        ).all()
+        
+        if len(materials) != len(material_ids):
+            return jsonify({'error': 'Algunos materiales no existen o no están publicados'}), 400
+        
+        # Fechas de disponibilidad
+        available_from = None
+        available_until = None
+        if data.get('available_from'):
+            available_from = datetime.fromisoformat(data['available_from'].replace('Z', '+00:00'))
+        if data.get('available_until'):
+            available_until = datetime.fromisoformat(data['available_until'].replace('Z', '+00:00'))
+        
+        user_id = get_jwt_identity()
+        assignments_created = []
+        
+        for material in materials:
+            # Verificar si ya existe una asignación
+            existing = GroupStudyMaterial.query.filter_by(
+                group_id=group_id,
+                study_material_id=material.id
+            ).first()
+            
+            if existing:
+                # Reactivar si estaba inactivo
+                if not existing.is_active:
+                    existing.is_active = True
+                    existing.assigned_at = datetime.utcnow()
+                    existing.assigned_by_id = user_id
+                    existing.available_from = available_from
+                    existing.available_until = available_until
+                    existing.assignment_type = assignment_type
+                    
+                    # Actualizar miembros si es necesario
+                    if assignment_type == 'selected':
+                        GroupStudyMaterialMember.query.filter_by(group_study_material_id=existing.id).delete()
+                        for mid in member_ids:
+                            member = GroupStudyMaterialMember(
+                                group_study_material_id=existing.id,
+                                user_id=mid
+                            )
+                            db.session.add(member)
+                    
+                    assignments_created.append(existing)
+            else:
+                # Crear nueva asignación
+                assignment = GroupStudyMaterial(
+                    group_id=group_id,
+                    study_material_id=material.id,
+                    assigned_by_id=user_id,
+                    available_from=available_from,
+                    available_until=available_until,
+                    assignment_type=assignment_type,
+                    is_active=True
+                )
+                db.session.add(assignment)
+                db.session.flush()  # Para obtener el ID
+                
+                # Agregar miembros si es asignación selectiva
+                if assignment_type == 'selected':
+                    for mid in member_ids:
+                        member = GroupStudyMaterialMember(
+                            group_study_material_id=assignment.id,
+                            user_id=mid
+                        )
+                        db.session.add(member)
+                
+                assignments_created.append(assignment)
+        
+        db.session.commit()
+        
+        message = f'{len(assignments_created)} material(es) de estudio asignado(s) exitosamente.'
+        if assignment_type == 'all':
+            message += f' Disponible(s) para los {group.members.count()} miembros del grupo.'
+        else:
+            message += f' Disponible(s) para {len(member_ids)} candidato(s) seleccionado(s).'
+        
+        return jsonify({
+            'message': message,
+            'assignments': [a.to_dict(include_material=True) for a in assignments_created],
+            'materials_count': len(assignments_created)
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/study-materials/<int:material_id>', methods=['DELETE'])
+@jwt_required()
+@coordinator_required
+def unassign_study_material_from_group(group_id, material_id):
+    """Desasignar un material de estudio del grupo"""
+    try:
+        from app.models import GroupStudyMaterial
+        
+        assignment = GroupStudyMaterial.query.filter_by(
+            group_id=group_id,
+            study_material_id=material_id
+        ).first_or_404()
+        
+        assignment.is_active = False
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Material de estudio desasignado del grupo'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/study-materials/available', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_available_study_materials():
+    """Obtener materiales de estudio publicados disponibles para asignar"""
+    try:
+        from app.models.study_content import StudyMaterial
+        
+        search = request.args.get('search', '')
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        query = StudyMaterial.query.filter(StudyMaterial.is_published == True)
+        
+        if search:
+            search_term = f'%{search}%'
+            query = query.filter(
+                db.or_(
+                    StudyMaterial.title.ilike(search_term),
+                    StudyMaterial.description.ilike(search_term)
+                )
+            )
+        
+        query = query.order_by(StudyMaterial.title)
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        materials_data = []
+        for mat in pagination.items:
+            sessions_count = mat.sessions.count() if mat.sessions else 0
+            topics_count = sum(s.topics.count() for s in mat.sessions.all()) if mat.sessions else 0
+            
+            materials_data.append({
+                'id': mat.id,
+                'title': mat.title,
+                'description': mat.description,
+                'image_url': mat.image_url,
+                'is_published': mat.is_published,
+                'sessions_count': sessions_count,
+                'topics_count': topics_count,
+            })
+        
+        return jsonify({
+            'materials': materials_data,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'current_page': page
+        })
+        
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
@@ -1771,8 +2227,23 @@ def get_available_exams():
         
         exams_data = []
         for exam in pagination.items:
-            # Contar materiales de estudio asociados
+            # Contar materiales de estudio asociados (legacy exam_id)
             materials_count = StudyMaterial.query.filter_by(exam_id=exam.id, is_published=True).count()
+            
+            # También contar materiales de la relación muchos a muchos
+            try:
+                from sqlalchemy import text
+                result = db.session.execute(text('''
+                    SELECT COUNT(DISTINCT sme.study_material_id) 
+                    FROM study_material_exams sme
+                    JOIN study_contents sc ON sme.study_material_id = sc.id
+                    WHERE sme.exam_id = :exam_id AND sc.is_published = 1
+                '''), {'exam_id': exam.id})
+                linked_count = result.scalar() or 0
+                # Tomar el máximo de ambos (evitar duplicados si están en ambos)
+                materials_count = max(materials_count, linked_count)
+            except Exception:
+                pass
             
             exams_data.append({
                 'id': exam.id,
@@ -1794,6 +2265,125 @@ def get_available_exams():
         })
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/exams/<int:exam_id>/materials', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_exam_materials_for_assignment(exam_id):
+    """Obtener materiales disponibles para asignar con un examen.
+    Retorna primero los materiales ligados al examen (solo los publicados),
+    luego los demás materiales publicados.
+    """
+    try:
+        from app.models.study_content import StudyMaterial
+        from app.models import Exam
+        from sqlalchemy import text
+        
+        print(f"=== get_exam_materials_for_assignment: exam_id={exam_id} ===")
+        
+        exam = Exam.query.get_or_404(exam_id)
+        print(f"Exam found: {exam.name}")
+        
+        # Obtener IDs de materiales vinculados al examen (desde study_material_exams)
+        linked_material_ids = []
+        try:
+            result = db.session.execute(text('''
+                SELECT study_material_id FROM study_material_exams 
+                WHERE exam_id = :exam_id
+            '''), {'exam_id': exam_id})
+            linked_material_ids = [r[0] for r in result.fetchall()]
+            print(f"Linked materials from study_material_exams: {linked_material_ids}")
+        except Exception as e:
+            print(f"Error getting linked materials from study_material_exams: {e}")
+        
+        # También verificar materiales con el campo legacy exam_id
+        try:
+            legacy_materials = StudyMaterial.query.filter_by(exam_id=exam_id).all()
+            print(f"Legacy materials with exam_id={exam_id}: {[m.id for m in legacy_materials]}")
+            for mat in legacy_materials:
+                if mat.id not in linked_material_ids:
+                    linked_material_ids.append(mat.id)
+        except Exception as e:
+            print(f"Error getting legacy materials: {e}")
+        
+        print(f"Total linked material IDs: {linked_material_ids}")
+        
+        materials_data = []
+        linked_set = set(linked_material_ids)
+        
+        # Primero los materiales vinculados al examen (solo mostrar publicados)
+        if linked_material_ids:
+            linked_materials = StudyMaterial.query.filter(
+                StudyMaterial.id.in_(linked_material_ids),
+                StudyMaterial.is_published == True
+            ).order_by(StudyMaterial.title).all()
+            
+            print(f"Linked published materials found: {len(linked_materials)}")
+            
+            for mat in linked_materials:
+                # Calcular conteos
+                sessions_count = mat.sessions.count() if mat.sessions else 0
+                topics_count = sum(s.topics.count() for s in mat.sessions.all()) if mat.sessions else 0
+                
+                materials_data.append({
+                    'id': mat.id,
+                    'title': mat.title,
+                    'description': mat.description,
+                    'cover_image_url': mat.image_url,
+                    'is_published': True,
+                    'is_linked': True,  # Vinculado directamente al examen
+                    'is_selected': True,  # Por defecto seleccionado si está vinculado
+                    'sessions_count': sessions_count,
+                    'topics_count': topics_count,
+                })
+        
+        # Luego los materiales publicados que no están vinculados
+        if linked_material_ids:
+            other_published = StudyMaterial.query.filter(
+                StudyMaterial.is_published == True,
+                ~StudyMaterial.id.in_(linked_material_ids)
+            ).order_by(StudyMaterial.title).all()
+        else:
+            # Si no hay materiales ligados, obtener todos los publicados
+            other_published = StudyMaterial.query.filter(
+                StudyMaterial.is_published == True
+            ).order_by(StudyMaterial.title).all()
+        
+        print(f"Other published materials found: {len(other_published)}")
+        
+        for mat in other_published:
+            # Calcular conteos
+            sessions_count = mat.sessions.count() if mat.sessions else 0
+            topics_count = sum(s.topics.count() for s in mat.sessions.all()) if mat.sessions else 0
+            
+            materials_data.append({
+                'id': mat.id,
+                'title': mat.title,
+                'description': mat.description,
+                'cover_image_url': mat.image_url,
+                'is_published': True,
+                'is_linked': False,  # No vinculado directamente
+                'is_selected': False,  # Por defecto no seleccionado
+                'sessions_count': sessions_count,
+                'topics_count': topics_count,
+            })
+        
+        print(f"Total materials to return: {len(materials_data)}")
+        
+        return jsonify({
+            'exam_id': exam_id,
+            'exam_name': exam.name,
+            'materials': materials_data,
+            'linked_count': len([m for m in materials_data if m['is_linked']]),
+            'total_count': len(materials_data)
+        })
+        
+    except Exception as e:
+        import traceback
+        print(f"Error in get_exam_materials_for_assignment: {e}")
+        print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 
@@ -1937,3 +2527,383 @@ def reset_group_exam_materials(group_exam_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+
+# ============== MOVER CANDIDATOS ENTRE GRUPOS ==============
+
+@bp.route('/groups/<int:source_group_id>/members/move', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def move_members_to_group(source_group_id):
+    """Mover candidatos de un grupo a otro"""
+    try:
+        data = request.get_json()
+        
+        target_group_id = data.get('target_group_id')
+        user_ids = data.get('user_ids', [])
+        
+        if not target_group_id:
+            return jsonify({'error': 'El grupo destino es requerido'}), 400
+        
+        if not user_ids or not isinstance(user_ids, list):
+            return jsonify({'error': 'Debe especificar al menos un candidato para mover'}), 400
+        
+        if source_group_id == target_group_id:
+            return jsonify({'error': 'El grupo origen y destino no pueden ser el mismo'}), 400
+        
+        # Verificar grupos existen
+        source_group = CandidateGroup.query.get_or_404(source_group_id)
+        target_group = CandidateGroup.query.get_or_404(target_group_id)
+        
+        moved = []
+        errors = []
+        
+        for user_id in user_ids:
+            # Verificar que el candidato esté en el grupo origen
+            source_member = GroupMember.query.filter_by(
+                group_id=source_group_id,
+                user_id=user_id,
+                status='active'
+            ).first()
+            
+            if not source_member:
+                user = User.query.get(user_id)
+                errors.append({
+                    'user_id': user_id,
+                    'name': user.name if user else 'Desconocido',
+                    'error': 'No es miembro activo del grupo origen'
+                })
+                continue
+            
+            # Verificar que no esté ya en el grupo destino
+            existing_target = GroupMember.query.filter_by(
+                group_id=target_group_id,
+                user_id=user_id
+            ).first()
+            
+            if existing_target:
+                user = User.query.get(user_id)
+                errors.append({
+                    'user_id': user_id,
+                    'name': user.name if user else 'Desconocido',
+                    'error': 'Ya existe en el grupo destino'
+                })
+                continue
+            
+            # Mover: eliminar del origen y crear en destino
+            user = User.query.get(user_id)
+            
+            # Eliminar del grupo origen
+            db.session.delete(source_member)
+            
+            # Crear en grupo destino
+            new_member = GroupMember(
+                group_id=target_group_id,
+                user_id=user_id,
+                status='active',
+                notes=f'Movido desde {source_group.name}'
+            )
+            db.session.add(new_member)
+            
+            moved.append({
+                'user_id': user_id,
+                'name': f"{user.name} {user.first_surname}" if user else 'Desconocido',
+                'email': user.email if user else ''
+            })
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'{len(moved)} candidato(s) movido(s) exitosamente',
+            'moved': moved,
+            'errors': errors,
+            'source_group': source_group.name,
+            'target_group': target_group.name
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/members/upload/preview', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def preview_group_members_upload(group_id):
+    """Preview del archivo Excel antes de procesar la asignación"""
+    from openpyxl import load_workbook
+    
+    try:
+        group = CandidateGroup.query.get_or_404(group_id)
+        
+        if 'file' not in request.files:
+            return jsonify({'error': 'No se envió ningún archivo'}), 400
+        
+        file = request.files['file']
+        if not file.filename.endswith(('.xlsx', '.xls')):
+            return jsonify({'error': 'El archivo debe ser Excel (.xlsx o .xls)'}), 400
+        
+        # Cargar el archivo Excel
+        wb = load_workbook(file)
+        ws = wb.active
+        
+        preview = []
+        current_count = GroupMember.query.filter_by(group_id=group_id, status='active').count()
+        
+        # Procesar cada fila (saltando el encabezado)
+        for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+            identifier = row[0] if len(row) > 0 else None
+            notes = row[1] if len(row) > 1 else None
+            
+            if not identifier:
+                continue
+            
+            identifier = str(identifier).strip()
+            
+            # Buscar usuario por email o CURP
+            user = User.query.filter(
+                db.or_(
+                    User.email == identifier,
+                    User.curp == identifier.upper()
+                ),
+                User.role == 'candidato',
+                User.is_active == True
+            ).first()
+            
+            status = 'ready'  # ready, already_member, not_found
+            user_info = None
+            error_message = None
+            
+            if not user:
+                status = 'not_found'
+                error_message = 'Candidato no encontrado o inactivo'
+            else:
+                # Verificar si ya es miembro
+                existing = GroupMember.query.filter_by(group_id=group_id, user_id=user.id).first()
+                if existing:
+                    status = 'already_member'
+                    error_message = 'Ya es miembro del grupo'
+                
+                user_info = {
+                    'id': user.id,
+                    'email': user.email,
+                    'name': user.name,
+                    'first_surname': user.first_surname,
+                    'second_surname': user.second_surname,
+                    'full_name': f"{user.name} {user.first_surname} {user.second_surname or ''}".strip(),
+                    'curp': user.curp,
+                    'gender': user.gender
+                }
+            
+            preview.append({
+                'row': row_num,
+                'identifier': identifier,
+                'notes': str(notes) if notes else None,
+                'status': status,
+                'error': error_message,
+                'user': user_info
+            })
+        
+        # Contar por status
+        ready_count = len([p for p in preview if p['status'] == 'ready'])
+        already_member_count = len([p for p in preview if p['status'] == 'already_member'])
+        not_found_count = len([p for p in preview if p['status'] == 'not_found'])
+        
+        return jsonify({
+            'group_name': group.name,
+            'current_members': current_count,
+            'preview': preview,
+            'summary': {
+                'total': len(preview),
+                'ready': ready_count,
+                'already_member': already_member_count,
+                'not_found': not_found_count
+            },
+            'can_proceed': ready_count > 0
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/candidates/search/advanced', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def search_candidates_advanced():
+    """Búsqueda avanzada de candidatos con filtros múltiples"""
+    try:
+        # Parámetros de búsqueda básica
+        search = request.args.get('search', '')
+        search_field = request.args.get('search_field', '')
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        # Filtros avanzados
+        has_group = request.args.get('has_group')  # 'yes', 'no', o vacío para todos
+        group_id = request.args.get('group_id', type=int)  # Candidatos de un grupo específico
+        exclude_group_id = request.args.get('exclude_group_id', type=int)  # Excluir candidatos de un grupo
+        partner_id = request.args.get('partner_id', type=int)  # Candidatos de un partner específico
+        campus_id = request.args.get('campus_id', type=int)  # Candidatos de un campus específico
+        state = request.args.get('state')  # Estado del campus
+        gender = request.args.get('gender')  # M, F, O
+        
+        query = User.query.filter(
+            User.role == 'candidato',
+            User.is_active == True
+        )
+        
+        # Filtro de búsqueda textual
+        if search:
+            search_term = f'%{search}%'
+            if search_field and search_field in ['name', 'first_surname', 'second_surname', 'email', 'curp']:
+                field_map = {
+                    'name': User.name,
+                    'first_surname': User.first_surname,
+                    'second_surname': User.second_surname,
+                    'email': User.email,
+                    'curp': User.curp,
+                }
+                query = query.filter(field_map[search_field].ilike(search_term))
+            else:
+                query = query.filter(
+                    db.or_(
+                        User.name.ilike(search_term),
+                        User.first_surname.ilike(search_term),
+                        User.second_surname.ilike(search_term),
+                        User.email.ilike(search_term),
+                        User.curp.ilike(search_term)
+                    )
+                )
+        
+        # Filtro por género
+        if gender and gender in ['M', 'F', 'O']:
+            query = query.filter(User.gender == gender)
+        
+        # Filtro: tiene grupo / sin grupo
+        if has_group == 'yes':
+            # Candidatos que tienen al menos un grupo activo
+            candidates_with_group = db.session.query(GroupMember.user_id).filter(
+                GroupMember.status == 'active'
+            ).subquery()
+            query = query.filter(User.id.in_(candidates_with_group))
+        elif has_group == 'no':
+            # Candidatos sin grupo activo
+            candidates_with_group = db.session.query(GroupMember.user_id).filter(
+                GroupMember.status == 'active'
+            ).subquery()
+            query = query.filter(~User.id.in_(candidates_with_group))
+        
+        # Filtro: candidatos de un grupo específico
+        if group_id:
+            members_of_group = db.session.query(GroupMember.user_id).filter(
+                GroupMember.group_id == group_id,
+                GroupMember.status == 'active'
+            ).subquery()
+            query = query.filter(User.id.in_(members_of_group))
+        
+        # Filtro: excluir candidatos de un grupo
+        if exclude_group_id:
+            members_of_group = db.session.query(GroupMember.user_id).filter(
+                GroupMember.group_id == exclude_group_id
+            ).subquery()
+            query = query.filter(~User.id.in_(members_of_group))
+        
+        # Filtro por partner
+        if partner_id:
+            # Candidatos que están en grupos de campuses del partner
+            groups_of_partner = db.session.query(CandidateGroup.id).join(Campus).filter(
+                Campus.partner_id == partner_id
+            ).subquery()
+            members_of_partner = db.session.query(GroupMember.user_id).filter(
+                GroupMember.group_id.in_(groups_of_partner),
+                GroupMember.status == 'active'
+            ).subquery()
+            query = query.filter(User.id.in_(members_of_partner))
+        
+        # Filtro por campus
+        if campus_id:
+            groups_of_campus = db.session.query(CandidateGroup.id).filter(
+                CandidateGroup.campus_id == campus_id
+            ).subquery()
+            members_of_campus = db.session.query(GroupMember.user_id).filter(
+                GroupMember.group_id.in_(groups_of_campus),
+                GroupMember.status == 'active'
+            ).subquery()
+            query = query.filter(User.id.in_(members_of_campus))
+        
+        # Filtro por estado
+        if state:
+            groups_of_state = db.session.query(CandidateGroup.id).join(Campus).filter(
+                Campus.state_name == state
+            ).subquery()
+            members_of_state = db.session.query(GroupMember.user_id).filter(
+                GroupMember.group_id.in_(groups_of_state),
+                GroupMember.status == 'active'
+            ).subquery()
+            query = query.filter(User.id.in_(members_of_state))
+        
+        query = query.order_by(User.first_surname, User.name)
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        candidates = []
+        for user in pagination.items:
+            # Obtener información del grupo actual
+            current_membership = GroupMember.query.filter_by(
+                user_id=user.id,
+                status='active'
+            ).first()
+            
+            group_info = None
+            if current_membership and current_membership.group:
+                group = current_membership.group
+                campus = group.campus
+                cycle = group.school_cycle
+                partner = campus.partner if campus else None
+                
+                group_info = {
+                    'group_id': group.id,
+                    'group_name': group.name,
+                    'campus_id': campus.id if campus else None,
+                    'campus_name': campus.name if campus else None,
+                    'state_name': campus.state_name if campus else None,
+                    'city': campus.city if campus else None,
+                    'school_cycle_id': cycle.id if cycle else None,
+                    'school_cycle_name': cycle.name if cycle else None,
+                    'partner_id': partner.id if partner else None,
+                    'partner_name': partner.name if partner else None,
+                }
+            
+            candidates.append({
+                'id': user.id,
+                'email': user.email,
+                'name': user.name,
+                'first_surname': user.first_surname,
+                'second_surname': user.second_surname,
+                'full_name': f"{user.name} {user.first_surname} {user.second_surname or ''}".strip(),
+                'curp': user.curp,
+                'gender': user.gender,
+                'created_at': user.created_at.isoformat() if user.created_at else None,
+                'current_group': group_info,
+            })
+        
+        return jsonify({
+            'candidates': candidates,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'current_page': page,
+            'filters_applied': {
+                'search': search,
+                'search_field': search_field,
+                'has_group': has_group,
+                'group_id': group_id,
+                'exclude_group_id': exclude_group_id,
+                'partner_id': partner_id,
+                'campus_id': campus_id,
+                'state': state,
+                'gender': gender
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+

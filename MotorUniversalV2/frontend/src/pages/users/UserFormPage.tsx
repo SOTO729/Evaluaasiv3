@@ -7,8 +7,6 @@ import {
   Users,
   Save,
   ArrowLeft,
-  Eye,
-  EyeOff,
   AlertCircle,
   CheckCircle,
 } from 'lucide-react';
@@ -35,18 +33,15 @@ export default function UserFormPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [roles, setRoles] = useState<RoleOption[]>([]);
-  const [showPassword, setShowPassword] = useState(false);
   const [existingUsername, setExistingUsername] = useState<string>('');
 
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
     name: '',
     first_surname: '',
     second_surname: '',
     curp: '',
     role: 'candidato',
-    phone: '',
     is_active: true,
     gender: '',
   });
@@ -78,13 +73,11 @@ export default function UserFormPage() {
       setExistingUsername(data.username || '');
       setFormData({
         email: data.email || '',
-        password: '',
         name: data.name || '',
         first_surname: data.first_surname || '',
         second_surname: data.second_surname || '',
         curp: data.curp || '',
         role: data.role || 'candidato',
-        phone: data.phone || '',
         is_active: data.is_active ?? true,
         gender: data.gender || '',
       });
@@ -112,11 +105,6 @@ export default function UserFormPage() {
       setError('El email es requerido');
       return;
     }
-    // Contraseña solo es requerida si NO es editor (para editores se genera automáticamente)
-    if (!isEditing && !formData.password && formData.role !== 'editor') {
-      setError('La contraseña es requerida');
-      return;
-    }
     if (!formData.name.trim()) {
       setError('El nombre es requerido');
       return;
@@ -124,6 +112,26 @@ export default function UserFormPage() {
     if (!formData.first_surname.trim()) {
       setError('El primer apellido es requerido');
       return;
+    }
+    
+    // Para candidatos, todos los campos son obligatorios
+    if (formData.role === 'candidato') {
+      if (!formData.second_surname.trim()) {
+        setError('El segundo apellido es requerido para candidatos');
+        return;
+      }
+      if (!formData.curp.trim()) {
+        setError('El CURP es requerido para candidatos');
+        return;
+      }
+      if (formData.curp.trim().length !== 18) {
+        setError('El CURP debe tener exactamente 18 caracteres');
+        return;
+      }
+      if (!formData.gender) {
+        setError('El género es requerido para candidatos');
+        return;
+      }
     }
 
     try {
@@ -136,7 +144,6 @@ export default function UserFormPage() {
           first_surname: formData.first_surname,
           second_surname: formData.second_surname || undefined,
           curp: formData.curp || undefined,
-          phone: formData.phone || undefined,
           is_active: formData.is_active,
           gender: formData.gender || undefined,
         };
@@ -151,13 +158,11 @@ export default function UserFormPage() {
       } else {
         const createData: CreateUserData = {
           email: formData.email,
-          password: formData.password || undefined, // Para editores será undefined y el backend genera una
           name: formData.name,
           first_surname: formData.first_surname,
           second_surname: formData.second_surname || undefined,
           role: formData.role,
           curp: formData.curp || undefined,
-          phone: formData.phone || undefined,
           gender: formData.gender || undefined,
         };
 
@@ -243,36 +248,10 @@ export default function UserFormPage() {
             />
           </div>
 
-          {!isEditing && formData.role !== 'editor' && (
-            <div>
-              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                Contraseña <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder="••••••••"
-                  className="w-full fluid-px-4 py-2.5 fluid-pr-10 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                >
-                  {showPassword ? <EyeOff className="fluid-icon-sm" /> : <Eye className="fluid-icon-sm" />}
-                </button>
-              </div>
-              <p className="fluid-text-xs text-gray-500 fluid-mt-1">Mínimo 8 caracteres</p>
-            </div>
-          )}
-
-          {!isEditing && formData.role === 'editor' && (
+          {!isEditing && (
             <div className="bg-blue-50 border border-blue-200 rounded-fluid-lg fluid-p-4">
               <p className="fluid-text-sm text-blue-700">
-                <strong>Nota:</strong> Se generará una contraseña automática para este editor.
+                <strong>Nota:</strong> Se generará una contraseña automática para este usuario.
               </p>
             </div>
           )}
@@ -329,7 +308,7 @@ export default function UserFormPage() {
 
           <div>
             <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-              Segundo Apellido
+              Segundo Apellido {formData.role === 'candidato' && <span className="text-red-500">*</span>}
             </label>
             <input
               type="text"
@@ -344,7 +323,7 @@ export default function UserFormPage() {
           {formData.role !== 'editor' && (
             <div>
               <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                CURP
+                CURP {formData.role === 'candidato' && <span className="text-red-500">*</span>}
               </label>
               <input
                 type="text"
@@ -355,28 +334,15 @@ export default function UserFormPage() {
                 maxLength={18}
                 className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
               />
-            </div>
-          )}
-
-          {formData.role !== 'editor' && (
-            <div>
-              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                Teléfono
-              </label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="5512345678"
-                className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              {formData.role === 'candidato' && (
+                <p className="fluid-text-xs text-gray-500 fluid-mt-1">18 caracteres exactos</p>
+              )}
             </div>
           )}
 
           <div>
             <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-              Género
+              Género {formData.role === 'candidato' && <span className="text-red-500">*</span>}
             </label>
             <select
               name="gender"
@@ -384,7 +350,7 @@ export default function UserFormPage() {
               onChange={handleChange}
               className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">No especificado</option>
+              <option value="">Seleccionar...</option>
               <option value="M">Masculino</option>
               <option value="F">Femenino</option>
               <option value="O">Otro</option>

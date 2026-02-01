@@ -700,7 +700,7 @@ function GroupCard({
           <div className="flex items-center gap-3 fluid-text-xs text-gray-600">
             <div className="flex items-center gap-1">
               <Users className="w-3.5 h-3.5 text-purple-500" />
-              <span>{group.member_count || 0}/{group.max_members}</span>
+              <span>{group.member_count || 0} miembros</span>
             </div>
             {showCycleWarning && (
               <span className="text-amber-600 flex items-center gap-1">

@@ -32,13 +32,11 @@ export interface ManagedUser {
 
 export interface CreateUserData {
   email: string;
-  password?: string;
   name: string;
   first_surname: string;
   second_surname?: string;
   gender?: string;
   curp?: string;
-  phone?: string;
   role: string;
   username?: string;
   is_active?: boolean;
@@ -52,7 +50,6 @@ export interface UpdateUserData {
   second_surname?: string;
   gender?: string;
   curp?: string;
-  phone?: string;
   role?: string;
   is_active?: boolean;
   is_verified?: boolean;

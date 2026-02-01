@@ -256,9 +256,6 @@ class CandidateGroup(db.Model):
     start_date = db.Column(db.Date)
     end_date = db.Column(db.Date)
     
-    # Capacidad
-    max_members = db.Column(db.Integer, default=50)
-    
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -277,7 +274,6 @@ class CandidateGroup(db.Model):
             'description': self.description,
             'start_date': self.start_date.isoformat() if self.start_date else None,
             'end_date': self.end_date.isoformat() if self.end_date else None,
-            'max_members': self.max_members,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
@@ -367,6 +363,16 @@ class GroupExam(db.Model):
     available_from = db.Column(db.DateTime, nullable=True)
     available_until = db.Column(db.DateTime, nullable=True)
     
+    # Tipo de asignación: 'all' para todo el grupo, 'selected' para miembros específicos
+    assignment_type = db.Column(db.String(20), default='all', nullable=False)
+    
+    # Configuración del examen
+    time_limit_minutes = db.Column(db.Integer, nullable=True)  # Tiempo límite en minutos (null = sin límite o usar el del examen)
+    passing_score = db.Column(db.Integer, nullable=True)  # Calificación mínima para aprobar (0-100)
+    max_attempts = db.Column(db.Integer, default=1, nullable=False)  # Número de reintentos permitidos
+    max_disconnections = db.Column(db.Integer, default=3, nullable=False)  # Oportunidades de desconexión/dejar de ver pantalla
+    exam_content_type = db.Column(db.String(30), default='questions_only', nullable=False)  # questions_only, exercises_only, mixed
+    
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
     # Índice único para evitar duplicados
@@ -379,7 +385,7 @@ class GroupExam(db.Model):
     exam = db.relationship('Exam', backref=db.backref('group_assignments', lazy='dynamic'))
     assigned_by = db.relationship('User', foreign_keys=[assigned_by_id])
     
-    def to_dict(self, include_exam=False, include_group=False, include_materials=False):
+    def to_dict(self, include_exam=False, include_group=False, include_materials=False, include_members=False):
         data = {
             'id': self.id,
             'group_id': self.group_id,
@@ -388,8 +394,18 @@ class GroupExam(db.Model):
             'assigned_by_id': self.assigned_by_id,
             'available_from': self.available_from.isoformat() if self.available_from else None,
             'available_until': self.available_until.isoformat() if self.available_until else None,
+            'assignment_type': self.assignment_type or 'all',
+            'time_limit_minutes': self.time_limit_minutes,
+            'passing_score': self.passing_score,
+            'max_attempts': self.max_attempts or 1,
+            'max_disconnections': self.max_disconnections or 3,
+            'exam_content_type': self.exam_content_type or 'questions_only',
             'is_active': self.is_active,
         }
+        
+        # Contar miembros asignados si es tipo 'selected'
+        if self.assignment_type == 'selected':
+            data['assigned_members_count'] = self.assigned_members.count() if self.assigned_members else 0
         
         if include_exam and self.exam:
             data['exam'] = {
@@ -405,6 +421,9 @@ class GroupExam(db.Model):
             
         if include_group and self.group:
             data['group'] = self.group.to_dict()
+        
+        if include_members and self.assignment_type == 'selected':
+            data['assigned_members'] = [m.to_dict() for m in self.assigned_members.all()]
             
         if include_materials and self.exam:
             # Obtener materiales de estudio asociados al examen
@@ -502,3 +521,156 @@ class GroupExamMaterial(db.Model):
             'is_included': self.is_included,
             'added_at': self.added_at.isoformat() if self.added_at else None,
         }
+
+
+class GroupExamMember(db.Model):
+    """Miembro específico asignado a un examen de grupo (cuando assignment_type='selected')"""
+    
+    __tablename__ = 'group_exam_members'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    group_exam_id = db.Column(db.Integer, db.ForeignKey('group_exams.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    assigned_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Índice único para evitar duplicados
+    __table_args__ = (
+        db.UniqueConstraint('group_exam_id', 'user_id', name='uq_group_exam_member'),
+    )
+    
+    # Relaciones
+    group_exam = db.relationship('GroupExam', backref=db.backref('assigned_members', lazy='dynamic', cascade='all, delete-orphan'))
+    user = db.relationship('User', backref=db.backref('group_exam_assignments', lazy='dynamic'))
+    
+    def to_dict(self, include_user=True):
+        data = {
+            'id': self.id,
+            'group_exam_id': self.group_exam_id,
+            'user_id': self.user_id,
+            'assigned_at': self.assigned_at.isoformat() if self.assigned_at else None,
+        }
+        
+        if include_user and self.user:
+            data['user'] = {
+                'id': self.user.id,
+                'name': self.user.name,
+                'first_surname': self.user.first_surname,
+                'second_surname': self.user.second_surname,
+                'full_name': self.user.full_name,
+                'email': self.user.email,
+                'curp': self.user.curp,
+            }
+        
+        return data
+
+
+class GroupStudyMaterial(db.Model):
+    """Material de estudio asignado directamente a un grupo (sin examen)"""
+    
+    __tablename__ = 'group_study_materials'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='CASCADE'), nullable=False)
+    study_material_id = db.Column(db.Integer, db.ForeignKey('study_contents.id', ondelete='CASCADE'), nullable=False)
+    
+    # Fecha de asignación
+    assigned_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    assigned_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    
+    # Período de disponibilidad (opcional)
+    available_from = db.Column(db.DateTime, nullable=True)
+    available_until = db.Column(db.DateTime, nullable=True)
+    
+    # Tipo de asignación: 'all' para todo el grupo, 'selected' para miembros específicos
+    assignment_type = db.Column(db.String(20), default='all', nullable=False)
+    
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    
+    # Índice único para evitar duplicados
+    __table_args__ = (
+        db.UniqueConstraint('group_id', 'study_material_id', name='uq_group_study_material'),
+    )
+    
+    # Relaciones
+    group = db.relationship('CandidateGroup', backref=db.backref('assigned_study_materials', lazy='dynamic'))
+    study_material = db.relationship('StudyMaterial', backref=db.backref('group_assignments', lazy='dynamic'))
+    assigned_by = db.relationship('User', foreign_keys=[assigned_by_id])
+    
+    def to_dict(self, include_material=False, include_group=False, include_members=False):
+        data = {
+            'id': self.id,
+            'group_id': self.group_id,
+            'study_material_id': self.study_material_id,
+            'assigned_at': self.assigned_at.isoformat() if self.assigned_at else None,
+            'assigned_by_id': self.assigned_by_id,
+            'available_from': self.available_from.isoformat() if self.available_from else None,
+            'available_until': self.available_until.isoformat() if self.available_until else None,
+            'assignment_type': self.assignment_type or 'all',
+            'is_active': self.is_active,
+        }
+        
+        # Contar miembros asignados si es tipo 'selected'
+        if self.assignment_type == 'selected':
+            data['assigned_members_count'] = self.assigned_members.count() if hasattr(self, 'assigned_members') and self.assigned_members else 0
+        
+        if include_material and self.study_material:
+            data['study_material'] = {
+                'id': self.study_material.id,
+                'title': self.study_material.title,
+                'description': self.study_material.description,
+                'image_url': self.study_material.image_url,
+                'is_published': self.study_material.is_published,
+            }
+        
+        if include_group and self.group:
+            data['group'] = {
+                'id': self.group.id,
+                'name': self.group.name,
+                'code': self.group.code,
+            }
+        
+        if include_members and self.assignment_type == 'selected':
+            data['members'] = [m.to_dict(include_user=True) for m in self.assigned_members.all()] if hasattr(self, 'assigned_members') else []
+        
+        return data
+
+
+class GroupStudyMaterialMember(db.Model):
+    """Miembro específico asignado a un material de estudio de grupo (cuando assignment_type='selected')"""
+    
+    __tablename__ = 'group_study_material_members'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    group_study_material_id = db.Column(db.Integer, db.ForeignKey('group_study_materials.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    assigned_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Índice único para evitar duplicados
+    __table_args__ = (
+        db.UniqueConstraint('group_study_material_id', 'user_id', name='uq_group_study_material_member'),
+    )
+    
+    # Relaciones
+    group_study_material = db.relationship('GroupStudyMaterial', backref=db.backref('assigned_members', lazy='dynamic', cascade='all, delete-orphan'))
+    user = db.relationship('User', backref=db.backref('group_study_material_assignments', lazy='dynamic'))
+    
+    def to_dict(self, include_user=True):
+        data = {
+            'id': self.id,
+            'group_study_material_id': self.group_study_material_id,
+            'user_id': self.user_id,
+            'assigned_at': self.assigned_at.isoformat() if self.assigned_at else None,
+        }
+        
+        if include_user and self.user:
+            data['user'] = {
+                'id': self.user.id,
+                'name': self.user.name,
+                'first_surname': self.user.first_surname,
+                'second_surname': self.user.second_surname,
+                'full_name': self.user.full_name,
+                'email': self.user.email,
+                'curp': self.user.curp,
+            }
+        
+        return data
