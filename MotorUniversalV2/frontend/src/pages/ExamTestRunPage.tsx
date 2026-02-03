@@ -1748,23 +1748,23 @@ const ExamTestRunPage: React.FC = () => {
           </div>
         )}
 
-        {/* Imagen con acciones superpuestas - la tarjeta se ajusta a la imagen */}
+        {/* Imagen con acciones superpuestas - proporcional y contenida en pantalla */}
         <div 
           ref={imageContainerRef}
           className="relative mx-auto border border-gray-200 rounded-fluid-lg overflow-hidden bg-gray-100"
           style={{ 
             width: '100%',
+            maxHeight: 'calc(100vh - 300px)',
             aspectRatio: currentStep.image_width && currentStep.image_height 
               ? `${currentStep.image_width} / ${currentStep.image_height}` 
-              : 'auto'
+              : '16 / 9'
           }}
         >
           {currentStep.image_url ? (
             <img
               src={currentStep.image_url}
               alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
-              className="w-full h-auto object-contain"
-              style={{ minHeight: '300px' }}
+              className="w-full h-full object-contain"
             />
           ) : (
             <div className="flex items-center justify-center h-48 bg-gray-200">
