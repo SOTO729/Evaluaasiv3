@@ -6,6 +6,7 @@ from functools import wraps
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models import User
+from app.models.user import encrypt_password
 import uuid
 import re
 
@@ -850,6 +851,7 @@ def bulk_upload_candidates():
                     is_verified=False
                 )
                 new_user.set_password(generated_password)
+                new_user.encrypted_password = encrypt_password(generated_password)
                 db.session.add(new_user)
                 
                 results['created'].append({

@@ -50,23 +50,62 @@ export interface SchoolCycle {
   campus?: Campus;
 }
 
+// Responsable del plantel (usuario con rol 'responsable')
+export interface CampusResponsable {
+  id: string;
+  username: string;
+  full_name: string;
+  email: string;
+  curp?: string;
+  gender?: string;
+  date_of_birth?: string;
+  can_bulk_create_candidates: boolean;
+  can_manage_groups: boolean;
+  is_active: boolean;
+  created_at?: string;
+  temporary_password?: string;  // Solo se devuelve al crear
+}
+
 export interface Campus {
   id: number;
   partner_id: number;
+  code: string;
   name: string;
-  code?: string;
   state_name: string;
   city?: string;
   address?: string;
   postal_code?: string;
   email?: string;
   phone?: string;
+  website?: string;
   director_name?: string;
   director_email?: string;
   director_phone?: string;
+  // Campos de activación
+  responsable_id?: string;
+  responsable?: CampusResponsable;
+  activation_status: 'pending' | 'configuring' | 'active';
+  activated_at?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  // Campos de configuración
+  office_version?: 'office_2016' | 'office_2019' | 'office_365';
+  enable_tier_basic?: boolean;
+  enable_tier_standard?: boolean;
+  enable_tier_advanced?: boolean;
+  enable_digital_badge?: boolean;
+  enable_partial_evaluations?: boolean;
+  enable_unscheduled_partials?: boolean;
+  enable_virtual_machines?: boolean;
+  enable_online_payments?: boolean;
+  license_start_date?: string;
+  license_end_date?: string;
+  certification_cost?: number;
+  retake_cost?: number;
+  configuration_completed?: boolean;
+  configuration_completed_at?: string;
+  // Relaciones
   groups?: CandidateGroup[];
   group_count?: number;
   cycle_count?: number;
@@ -90,15 +129,39 @@ export interface CandidateGroup {
   member_count?: number;
   campus?: Campus;
   school_cycle?: SchoolCycle;
+  // Configuración
+  use_custom_config?: boolean;
+  config?: GroupConfigOverrides;
+  effective_config?: {
+    office_version: string;
+    enable_tier_basic: boolean;
+    enable_tier_standard: boolean;
+    enable_tier_advanced: boolean;
+    enable_digital_badge: boolean;
+    enable_partial_evaluations: boolean;
+    enable_unscheduled_partials: boolean;
+    enable_virtual_machines: boolean;
+    enable_online_payments: boolean;
+    certification_cost: number;
+    retake_cost: number;
+    license_start_date: string | null;
+    license_end_date: string | null;
+  };
 }
 
 export interface GroupMember {
   id: number;
   group_id: number;
   user_id: string;
-  status: 'active' | 'inactive' | 'completed' | 'withdrawn';
+  status: 'active' | 'suspended';
   notes?: string;
   joined_at: string;
+  // Estado de asignación calculado por el backend
+  assignment_status?: 'exam_and_material' | 'exam_only' | 'material_only' | 'none';
+  has_exam?: boolean;
+  has_material?: boolean;
+  // Estado de certificación calculado por el backend
+  certification_status?: 'certified' | 'in_progress' | 'failed' | 'pending';
   user?: {
     id: string;
     email: string;
@@ -146,6 +209,31 @@ export interface DashboardStats {
   };
   partners_by_state: Array<{ state: string; count: number }>;
   recent_groups: CandidateGroup[];
+}
+
+// Datos para crear un responsable del plantel
+export interface CreateResponsableData {
+  name: string;
+  first_surname: string;
+  second_surname: string;
+  email: string;
+  curp: string;
+  gender: 'M' | 'F' | 'O';
+  date_of_birth: string;  // Formato YYYY-MM-DD
+  can_bulk_create_candidates?: boolean;
+  can_manage_groups?: boolean;
+}
+
+// Datos para actualizar un responsable
+export interface UpdateResponsableData {
+  name?: string;
+  first_surname?: string;
+  second_surname?: string;
+  gender?: string;
+  phone?: string;
+  can_bulk_create_candidates?: boolean;
+  can_manage_groups?: boolean;
+  is_active?: boolean;
 }
 
 // ============== ESTADOS MEXICANOS ==============
@@ -262,6 +350,136 @@ export async function deleteCampus(campusId: number): Promise<void> {
   await api.delete(`/partners/campuses/${campusId}`);
 }
 
+// ============== ACTIVACIÓN DE PLANTEL - RESPONSABLE ==============
+
+export async function getCampusResponsable(campusId: number): Promise<{
+  responsable: CampusResponsable | null;
+  activation_status: string;
+}> {
+  const response = await api.get(`/partners/campuses/${campusId}/responsable`);
+  return response.data;
+}
+
+export async function createCampusResponsable(
+  campusId: number, 
+  data: CreateResponsableData
+): Promise<{
+  message: string;
+  responsable: CampusResponsable;
+  campus: {
+    id: number;
+    name: string;
+    code: string;
+    activation_status: string;
+  };
+}> {
+  const response = await api.post(`/partners/campuses/${campusId}/responsable`, data);
+  return response.data;
+}
+
+export async function updateCampusResponsable(
+  campusId: number,
+  data: UpdateResponsableData
+): Promise<{
+  message: string;
+  responsable: CampusResponsable;
+}> {
+  const response = await api.put(`/partners/campuses/${campusId}/responsable`, data);
+  return response.data;
+}
+
+export async function activateCampus(campusId: number): Promise<{
+  message: string;
+  campus: Campus;
+}> {
+  const response = await api.post(`/partners/campuses/${campusId}/activate`);
+  return response.data;
+}
+
+export async function deactivateCampus(campusId: number): Promise<{
+  message: string;
+  campus: Campus;
+}> {
+  const response = await api.post(`/partners/campuses/${campusId}/deactivate`);
+  return response.data;
+}
+
+// ============== CONFIGURACIÓN DE PLANTEL ==============
+
+export type OfficeVersion = 'office_2016' | 'office_2019' | 'office_365';
+
+export interface CampusConfiguration {
+  // Versión de Office
+  office_version: OfficeVersion;
+  
+  // Niveles de certificación disponibles
+  enable_tier_basic: boolean;      // Constancia de participación (Eduit)
+  enable_tier_standard: boolean;   // Certificado Eduit oficial
+  enable_tier_advanced: boolean;   // Certificado CONOCER
+  enable_digital_badge: boolean;   // Insignia Digital
+  
+  // Evaluaciones parciales
+  enable_partial_evaluations: boolean;  // Habilitar parciales
+  enable_unscheduled_partials: boolean; // Parciales sin agendar (alumno selecciona)
+  
+  // Características adicionales
+  enable_virtual_machines: boolean;  // Máquinas virtuales para exámenes
+  enable_online_payments: boolean;   // Pagos en línea
+  
+  // Vigencia
+  license_start_date: string | null;  // Fecha inicio de licencia
+  license_end_date: string | null;    // Fecha fin de licencia
+  
+  // Costos
+  certification_cost: number;  // Costo por certificación
+  retake_cost: number;         // Costo por retoma
+  
+  // Estado de configuración
+  configuration_completed?: boolean;
+  configuration_completed_at?: string;
+}
+
+export interface ConfigureCampusRequest {
+  office_version?: OfficeVersion;
+  enable_tier_basic?: boolean;
+  enable_tier_standard?: boolean;
+  enable_tier_advanced?: boolean;
+  enable_digital_badge?: boolean;
+  enable_partial_evaluations?: boolean;
+  enable_unscheduled_partials?: boolean;
+  enable_virtual_machines?: boolean;
+  enable_online_payments?: boolean;
+  license_start_date?: string | null;
+  license_end_date?: string | null;
+  certification_cost?: number;
+  retake_cost?: number;
+  complete_configuration?: boolean;  // Marcar configuración como completada
+}
+
+/**
+ * Obtiene la configuración actual de un plantel
+ */
+export async function getCampusConfiguration(campusId: number): Promise<{
+  campus_id: number;
+  campus_name: string;
+  configuration: CampusConfiguration;
+}> {
+  const response = await api.get(`/partners/campuses/${campusId}/config`);
+  return response.data;
+}
+
+/**
+ * Configura un plantel (versión de Office, tiers, parciales, etc.)
+ */
+export async function configureCampus(campusId: number, data: ConfigureCampusRequest): Promise<{
+  message: string;
+  campus: Campus;
+  configuration: CampusConfiguration;
+}> {
+  const response = await api.post(`/partners/campuses/${campusId}/configure`, data);
+  return response.data;
+}
+
 // ============== CICLOS ESCOLARES ==============
 
 export async function getSchoolCycles(campusId: number, params?: {
@@ -331,6 +549,84 @@ export async function updateGroup(groupId: number, data: Partial<CandidateGroup>
 
 export async function deleteGroup(groupId: number): Promise<void> {
   await api.delete(`/partners/groups/${groupId}`);
+}
+
+// ============== CONFIGURACIÓN DE GRUPO ==============
+
+export interface GroupConfigOverrides {
+  office_version_override?: string | null;
+  enable_tier_basic_override?: boolean | null;
+  enable_tier_standard_override?: boolean | null;
+  enable_tier_advanced_override?: boolean | null;
+  enable_digital_badge_override?: boolean | null;
+  enable_partial_evaluations_override?: boolean | null;
+  enable_unscheduled_partials_override?: boolean | null;
+  enable_virtual_machines_override?: boolean | null;
+  enable_online_payments_override?: boolean | null;
+  certification_cost_override?: number | null;
+  retake_cost_override?: number | null;
+  group_start_date?: string | null;
+  group_end_date?: string | null;
+}
+
+export interface GroupConfigResponse {
+  group_id: number;
+  group_name: string;
+  campus_id: number;
+  campus_name: string;
+  use_custom_config: boolean;
+  campus_config: {
+    office_version: string;
+    enable_tier_basic: boolean;
+    enable_tier_standard: boolean;
+    enable_tier_advanced: boolean;
+    enable_digital_badge: boolean;
+    enable_partial_evaluations: boolean;
+    enable_unscheduled_partials: boolean;
+    enable_virtual_machines: boolean;
+    enable_online_payments: boolean;
+    certification_cost: number;
+    retake_cost: number;
+    license_start_date: string | null;
+    license_end_date: string | null;
+  };
+  group_overrides: GroupConfigOverrides;
+  effective_config: {
+    office_version: string;
+    enable_tier_basic: boolean;
+    enable_tier_standard: boolean;
+    enable_tier_advanced: boolean;
+    enable_digital_badge: boolean;
+    enable_partial_evaluations: boolean;
+    enable_unscheduled_partials: boolean;
+    enable_virtual_machines: boolean;
+    enable_online_payments: boolean;
+    certification_cost: number;
+    retake_cost: number;
+    start_date: string | null;
+    end_date: string | null;
+  };
+}
+
+export async function getGroupConfig(groupId: number): Promise<GroupConfigResponse> {
+  const response = await api.get(`/partners/groups/${groupId}/config`);
+  return response.data;
+}
+
+export async function updateGroupConfig(groupId: number, data: GroupConfigOverrides & { use_custom_config?: boolean }): Promise<{
+  message: string;
+  group: CandidateGroup;
+}> {
+  const response = await api.put(`/partners/groups/${groupId}/config`, data);
+  return response.data;
+}
+
+export async function resetGroupConfig(groupId: number): Promise<{
+  message: string;
+  group: CandidateGroup;
+}> {
+  const response = await api.post(`/partners/groups/${groupId}/config/reset`);
+  return response.data;
 }
 
 // ============== MIEMBROS DE GRUPO ==============
@@ -518,6 +814,7 @@ export interface AdvancedSearchParams {
   campus_id?: number;
   state?: string;
   gender?: string;
+  sort_by?: 'name' | 'recent';
 }
 
 export async function searchCandidatesAdvanced(params: AdvancedSearchParams): Promise<{
@@ -763,6 +1060,15 @@ export interface ExamAssignmentConfig {
   max_attempts?: number;
   max_disconnections?: number;
   exam_content_type?: ExamContentType;
+  // Configuración de cantidad - Examen
+  exam_questions_count?: number | null;
+  exam_exercises_count?: number | null;
+  // Configuración de cantidad - Simulador
+  simulator_questions_count?: number | null;
+  simulator_exercises_count?: number | null;
+  // PIN solo para examen
+  security_pin?: string | null;
+  require_security_pin?: boolean;
 }
 
 export interface AvailableExam {
@@ -770,11 +1076,20 @@ export interface AvailableExam {
   name: string;
   version?: string;
   standard?: string;
+  ecm_code?: string;  // Código ECM del estándar de competencia
+  ecm_name?: string;  // Nombre del estándar de competencia
   description?: string;
   duration_minutes: number;
   passing_score: number;
   is_published: boolean;
   study_materials_count: number;
+  total_questions: number;  // Total de preguntas disponibles
+  total_exercises: number;  // Total de ejercicios disponibles
+  exam_questions_count: number;  // Preguntas tipo examen
+  simulator_questions_count: number;  // Preguntas tipo simulador
+  exam_exercises_count: number;  // Ejercicios tipo examen
+  simulator_exercises_count: number;  // Ejercicios tipo simulador
+  is_assigned_to_group?: boolean;  // Ya está asignado al grupo actual
 }
 
 /**
@@ -851,11 +1166,13 @@ export async function updateGroupExamMembers(groupId: number, examId: number, da
 
 /**
  * Obtener exámenes disponibles para asignar
+ * @param group_id - Si se proporciona, incluye is_assigned_to_group para indicar si ya está asignado
  */
 export async function getAvailableExams(params?: {
   search?: string;
   page?: number;
   per_page?: number;
+  group_id?: number;
 }): Promise<{
   exams: AvailableExam[];
   total: number;
@@ -955,6 +1272,13 @@ export interface StudyMaterialItem {
   is_published: boolean;
   sessions_count: number;
   topics_count: number;
+  is_assigned_to_group?: boolean;
+  is_in_assigned_exam?: boolean;
+  assigned_exam_info?: {
+    exam_id: number;
+    exam_name: string;
+    group_exam_id: number;
+  };
 }
 
 export interface AvailableStudyMaterialsResponse {
@@ -1000,6 +1324,7 @@ export async function getAvailableStudyMaterials(params?: {
   page?: number;
   per_page?: number;
   search?: string;
+  group_id?: number;
 }): Promise<AvailableStudyMaterialsResponse> {
   const response = await api.get('/partners/study-materials/available', { params });
   return response.data;
@@ -1036,5 +1361,123 @@ export async function unassignStudyMaterialFromGroup(
   materialId: number
 ): Promise<{ message: string }> {
   const response = await api.delete(`/partners/groups/${groupId}/study-materials/${materialId}`);
+  return response.data;
+}
+
+/**
+ * Exportar miembros del grupo a Excel
+ */
+export async function exportGroupMembersToExcel(groupId: number): Promise<Blob> {
+  const response = await api.get(`/partners/groups/${groupId}/export-members`, {
+    responseType: 'blob'
+  });
+  return response.data;
+}
+
+// ============== GESTIÓN DE MIEMBROS DE ASIGNACIONES ==============
+
+/**
+ * Obtener miembros asignados a un material de estudio específico
+ */
+export async function getStudyMaterialMembers(
+  groupId: number,
+  materialId: number
+): Promise<{
+  assignment_id: number;
+  material_id: number;
+  assignment_type: 'all' | 'selected';
+  assigned_user_ids: string[];
+}> {
+  const response = await api.get(`/partners/groups/${groupId}/study-materials/${materialId}/members`);
+  return response.data;
+}
+
+/**
+ * Actualizar miembros asignados a un material de estudio
+ */
+export async function updateStudyMaterialMembers(
+  groupId: number,
+  materialId: number,
+  userIds: string[]
+): Promise<{
+  message: string;
+  added: string[];
+  removed: string[];
+  total_members: number;
+}> {
+  const response = await api.put(`/partners/groups/${groupId}/study-materials/${materialId}/members`, {
+    user_ids: userIds
+  });
+  return response.data;
+}
+
+/**
+ * Agregar miembros a un material de estudio existente
+ */
+export async function addMembersToStudyMaterial(
+  groupId: number,
+  materialId: number,
+  userIds: string[]
+): Promise<{
+  message: string;
+  added: string[];
+}> {
+  const response = await api.post(`/partners/groups/${groupId}/study-materials/${materialId}/members/add`, {
+    user_ids: userIds
+  });
+  return response.data;
+}
+
+/**
+ * Obtener miembros asignados a un examen específico
+ */
+export async function getExamMembers(
+  groupId: number,
+  examId: number
+): Promise<{
+  assignment_id: number;
+  exam_id: number;
+  assignment_type: 'all' | 'selected';
+  assigned_user_ids: string[];
+  members: any[];
+  total_members: number;
+}> {
+  const response = await api.get(`/partners/groups/${groupId}/exams/${examId}/members`);
+  return response.data;
+}
+
+/**
+ * Actualizar miembros asignados a un examen
+ */
+export async function updateExamMembers(
+  groupId: number,
+  examId: number,
+  assignmentType: 'all' | 'selected',
+  memberIds: string[]
+): Promise<{
+  message: string;
+  assignment: any;
+}> {
+  const response = await api.put(`/partners/groups/${groupId}/exams/${examId}/members`, {
+    assignment_type: assignmentType,
+    member_ids: memberIds
+  });
+  return response.data;
+}
+
+/**
+ * Agregar miembros a un examen existente
+ */
+export async function addMembersToExam(
+  groupId: number,
+  examId: number,
+  userIds: string[]
+): Promise<{
+  message: string;
+  added: string[];
+}> {
+  const response = await api.post(`/partners/groups/${groupId}/exams/${examId}/members/add`, {
+    user_ids: userIds
+  });
   return response.data;
 }

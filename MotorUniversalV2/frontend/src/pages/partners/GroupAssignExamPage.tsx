@@ -31,6 +31,9 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Search,
+  Lock,
+  Hash,
+  Edit3,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -103,6 +106,22 @@ export default function GroupAssignExamPage() {
   const [maxDisconnections, setMaxDisconnections] = useState<number>(3);
   const [examContentType, setExamContentType] = useState<ExamContentType>('mixed');
   
+  // Cantidad de preguntas/ejercicios - EXAMEN
+  const [examQuestionsCount, setExamQuestionsCount] = useState<number | null>(null);
+  const [examExercisesCount, setExamExercisesCount] = useState<number | null>(null);
+  const [useAllExamQuestions, setUseAllExamQuestions] = useState(true);
+  const [useAllExamExercises, setUseAllExamExercises] = useState(true);
+  
+  // Cantidad de preguntas/ejercicios - SIMULADOR
+  const [simulatorQuestionsCount, setSimulatorQuestionsCount] = useState<number | null>(null);
+  const [simulatorExercisesCount, setSimulatorExercisesCount] = useState<number | null>(null);
+  const [useAllSimulatorQuestions, setUseAllSimulatorQuestions] = useState(true);
+  const [useAllSimulatorExercises, setUseAllSimulatorExercises] = useState(true);
+  
+  // PIN de seguridad (solo para examen)
+  const [requireSecurityPin, setRequireSecurityPin] = useState(false);
+  const [securityPin, setSecurityPin] = useState<string>('');
+  
   // Paso 3: Selección de materiales
   const [availableMaterials, setAvailableMaterials] = useState<ExamMaterialForAssignment[]>([]);
   const [selectedMaterialIds, setSelectedMaterialIds] = useState<number[]>([]);
@@ -116,7 +135,10 @@ export default function GroupAssignExamPage() {
   
   // Estado de guardado
   const [saving, setSaving] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  
+  // Modal de examen ya asignado
+  const [showAlreadyAssignedModal, setShowAlreadyAssignedModal] = useState(false);
+  const [attemptedExam, setAttemptedExam] = useState<AvailableExam | null>(null);
 
   useEffect(() => {
     loadData();
@@ -153,7 +175,8 @@ export default function GroupAssignExamPage() {
       const data = await getAvailableExams({ 
         page: examPage, 
         per_page: EXAMS_PER_PAGE,
-        search: examSearchQuery || undefined 
+        search: examSearchQuery || undefined,
+        group_id: Number(groupId) 
       });
       setAvailableExams(data.exams);
       setExamTotalPages(data.pages);
@@ -243,7 +266,8 @@ export default function GroupAssignExamPage() {
     const query = memberSearchQuery.toLowerCase();
     const fullName = m.user?.full_name?.toLowerCase() || '';
     const email = m.user?.email?.toLowerCase() || '';
-    return fullName.includes(query) || email.includes(query);
+    const curp = m.user?.curp?.toLowerCase() || '';
+    return fullName.includes(query) || email.includes(query) || curp.includes(query);
   });
 
   const filteredMaterials = availableMaterials.filter(m => {
@@ -274,24 +298,33 @@ export default function GroupAssignExamPage() {
         max_attempts: maxAttempts,
         max_disconnections: maxDisconnections,
         exam_content_type: examContentType,
+        // Configuración de cantidad - Examen
+        exam_questions_count: useAllExamQuestions ? null : examQuestionsCount,
+        exam_exercises_count: useAllExamExercises ? null : examExercisesCount,
+        // Configuración de cantidad - Simulador
+        simulator_questions_count: useAllSimulatorQuestions ? null : simulatorQuestionsCount,
+        simulator_exercises_count: useAllSimulatorExercises ? null : simulatorExercisesCount,
+        // PIN solo para examen
+        security_pin: requireSecurityPin ? securityPin : null,
+        require_security_pin: requireSecurityPin,
       };
       
-      const result = await assignExamToGroup(Number(groupId), config);
-      setSuccessMessage(result.message);
+      await assignExamToGroup(Number(groupId), config);
       
-      // Redirigir después de 2 segundos
-      setTimeout(() => {
-        navigate(`/partners/groups/${groupId}`);
-      }, 2000);
+      // Redirigir directamente
+      navigate(`/partners/groups/${groupId}`);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al asignar el examen');
-    } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner message="Cargando..." fullScreen />;
+  }
+
+  if (saving) {
+    return <LoadingSpinner message="Asignando examen al grupo..." fullScreen />;
   }
 
   if (!group) {
@@ -357,7 +390,7 @@ export default function GroupAssignExamPage() {
   );
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Header */}
       <div className="mb-6">
         <Link
@@ -388,16 +421,6 @@ export default function GroupAssignExamPage() {
         </div>
       )}
 
-      {successMessage && (
-        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start">
-          <CheckCircle2 className="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-green-700">{successMessage}</p>
-            <p className="text-green-600 text-sm mt-1">Redirigiendo al grupo...</p>
-          </div>
-        </div>
-      )}
-
       {/* Step Indicator */}
       {stepIndicator}
 
@@ -419,8 +442,8 @@ export default function GroupAssignExamPage() {
               {selectedExam ? (
                 <div className="flex-1">
                   <span className="font-medium text-gray-900">{selectedExam.name}</span>
-                  {selectedExam.standard && (
-                    <span className="text-sm text-blue-600 ml-2">({selectedExam.standard})</span>
+                  {(selectedExam.ecm_code || selectedExam.standard) && (
+                    <span className="text-sm text-blue-600 ml-2">({selectedExam.ecm_code || selectedExam.standard})</span>
                   )}
                 </div>
               ) : (
@@ -438,7 +461,7 @@ export default function GroupAssignExamPage() {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <input
                       type="text"
-                      placeholder="Buscar examen por nombre o estándar..."
+                      placeholder="Buscar examen por nombre o código ECM..."
                       value={examSearchQuery}
                       onChange={(e) => handleExamSearchChange(e.target.value)}
                       onClick={(e) => e.stopPropagation()}
@@ -472,20 +495,42 @@ export default function GroupAssignExamPage() {
                         <div
                           key={exam.id}
                           onClick={() => {
+                            if (exam.is_assigned_to_group) {
+                              // Mostrar modal de ya asignado
+                              setAttemptedExam(exam);
+                              setShowAlreadyAssignedModal(true);
+                              return;
+                            }
                             setSelectedExam(exam);
                             setExamDropdownOpen(false);
                           }}
-                          className={`p-4 border-b border-gray-100 last:border-b-0 hover:bg-blue-50 cursor-pointer transition-all ${
-                            selectedExam?.id === exam.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                          className={`p-4 border-b border-gray-100 last:border-b-0 transition-all ${
+                            exam.is_assigned_to_group 
+                              ? 'bg-gray-50 cursor-not-allowed opacity-70' 
+                              : selectedExam?.id === exam.id 
+                                ? 'bg-blue-50 border-l-4 border-l-blue-500 cursor-pointer' 
+                                : 'hover:bg-blue-50 cursor-pointer'
                           }`}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
-                              <h3 className="font-medium text-gray-900">{exam.name}</h3>
-                              {exam.standard && (
-                                <p className="text-sm text-blue-600 mt-0.5">Estándar: {exam.standard}</p>
+                              <div className="flex items-center gap-2">
+                                <h3 className={`font-medium ${exam.is_assigned_to_group ? 'text-gray-500' : 'text-gray-900'}`}>
+                                  {exam.name}
+                                </h3>
+                                {exam.is_assigned_to_group && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                                    <Lock className="w-3 h-3 mr-1" />
+                                    Ya asignado
+                                  </span>
+                                )}
+                              </div>
+                              {(exam.ecm_code || exam.standard) && (
+                                <p className={`text-sm mt-0.5 ${exam.is_assigned_to_group ? 'text-gray-400' : 'text-blue-600'}`}>
+                                  ECM: {exam.ecm_code || exam.standard}
+                                </p>
                               )}
-                              <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                              <div className={`flex items-center gap-4 mt-2 text-sm ${exam.is_assigned_to_group ? 'text-gray-400' : 'text-gray-500'}`}>
                                 <span className="flex items-center">
                                   <Clock className="w-3.5 h-3.5 mr-1" />
                                   {exam.duration_minutes} min
@@ -500,9 +545,11 @@ export default function GroupAssignExamPage() {
                                 </span>
                               </div>
                             </div>
-                            {selectedExam?.id === exam.id && (
+                            {exam.is_assigned_to_group ? (
+                              <Lock className="w-5 h-5 text-orange-500 flex-shrink-0" />
+                            ) : selectedExam?.id === exam.id ? (
                               <CheckCircle2 className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                            )}
+                            ) : null}
                           </div>
                         </div>
                       ))}
@@ -581,24 +628,32 @@ export default function GroupAssignExamPage() {
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-600 font-medium mb-2">Examen seleccionado:</p>
               <h3 className="font-semibold text-gray-900">{selectedExam.name}</h3>
-              {selectedExam.standard && (
-                <p className="text-sm text-gray-600 mt-1">Estándar: {selectedExam.standard}</p>
+              {(selectedExam.ecm_code || selectedExam.standard) && (
+                <p className="text-sm text-gray-600 mt-1">ECM: {selectedExam.ecm_code || selectedExam.standard}</p>
               )}
               {selectedExam.description && (
                 <p className="text-sm text-gray-500 mt-2">{selectedExam.description}</p>
               )}
-              <div className="flex items-center gap-4 mt-3 text-sm text-gray-600">
+              <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-600">
                 <span className="flex items-center">
                   <Clock className="w-4 h-4 mr-1" />
-                  {selectedExam.duration_minutes} minutos
+                  {selectedExam.duration_minutes} min
                 </span>
                 <span className="flex items-center">
                   <Target className="w-4 h-4 mr-1" />
-                  {selectedExam.passing_score}% mínimo
+                  {selectedExam.passing_score}% mín
+                </span>
+                <span className="flex items-center text-blue-600" title="Preguntas: Examen / Simulador">
+                  <FileQuestion className="w-4 h-4 mr-1" />
+                  {selectedExam.exam_questions_count || 0}/{selectedExam.simulator_questions_count || 0} preg
+                </span>
+                <span className="flex items-center text-purple-600" title="Ejercicios: Examen / Simulador">
+                  <Dumbbell className="w-4 h-4 mr-1" />
+                  {selectedExam.exam_exercises_count || 0}/{selectedExam.simulator_exercises_count || 0} ejer
                 </span>
                 <span className="flex items-center">
                   <BookOpen className="w-4 h-4 mr-1" />
-                  {selectedExam.study_materials_count} materiales
+                  {selectedExam.study_materials_count} mat
                 </span>
               </div>
             </div>
@@ -638,8 +693,8 @@ export default function GroupAssignExamPage() {
               <div>
                 <p className="text-sm text-blue-600 font-medium">Examen seleccionado</p>
                 <h3 className="font-semibold text-gray-900 mt-1">{selectedExam.name}</h3>
-                {selectedExam.standard && (
-                  <p className="text-sm text-gray-600">Estándar: {selectedExam.standard}</p>
+                {(selectedExam.ecm_code || selectedExam.standard) && (
+                  <p className="text-sm text-gray-600">ECM: {selectedExam.ecm_code || selectedExam.standard}</p>
                 )}
               </div>
               <button
@@ -660,7 +715,7 @@ export default function GroupAssignExamPage() {
             {/* Tipo de contenido */}
             <div className="mb-8">
               <label className="block text-sm font-medium text-gray-700 mb-3">
-                Tipo de Examen
+                Tipo de Contenido
               </label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {EXAM_CONTENT_TYPES.map((type) => (
@@ -796,6 +851,276 @@ export default function GroupAssignExamPage() {
               </p>
             </div>
 
+            {/* Separador - Cantidad de contenido */}
+            <div className="border-t pt-6 mb-6">
+              <h3 className="text-md font-medium text-gray-900 mb-4 flex items-center gap-2">
+                <Hash className="w-5 h-5 text-purple-500" />
+                Cantidad de Contenido
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Define cuántas preguntas y/o ejercicios incluir para cada modo. La configuración general (tiempo, puntaje, reintentos) aplica para ambos.
+              </p>
+              
+              {/* Sección EXAMEN - Solo si hay contenido de examen */}
+              {((selectedExam.exam_questions_count || 0) > 0 || (selectedExam.exam_exercises_count || 0) > 0) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <h4 className="font-medium text-blue-800 mb-3 flex items-center gap-2">
+                    <FileQuestion className="w-4 h-4" />
+                    Examen
+                  </h4>
+                  
+                  {/* Preguntas de Examen */}
+                  {(examContentType === 'mixed' || examContentType === 'questions_only') && (selectedExam.exam_questions_count || 0) > 0 && (
+                    <div className="mb-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Preguntas
+                        <span className="text-gray-400 font-normal ml-2">
+                          (Disponibles: {selectedExam.exam_questions_count})
+                        </span>
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={useAllExamQuestions}
+                            onChange={(e) => {
+                              setUseAllExamQuestions(e.target.checked);
+                              if (e.target.checked) {
+                                setExamQuestionsCount(null);
+                              } else {
+                                setExamQuestionsCount(selectedExam.exam_questions_count || 0);
+                              }
+                            }}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-600">
+                            Usar todas ({selectedExam.exam_questions_count})
+                          </span>
+                        </label>
+                      </div>
+                      {!useAllExamQuestions && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <input
+                            type="number"
+                            value={examQuestionsCount || ''}
+                            onChange={(e) => setExamQuestionsCount(e.target.value ? Number(e.target.value) : null)}
+                            min={1}
+                            max={selectedExam.exam_questions_count || 0}
+                            className="w-20 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm"
+                          />
+                          <span className="text-sm text-gray-500">de {selectedExam.exam_questions_count}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Ejercicios de Examen */}
+                  {(examContentType === 'mixed' || examContentType === 'exercises_only') && (selectedExam.exam_exercises_count || 0) > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Ejercicios
+                        <span className="text-gray-400 font-normal ml-2">
+                          (Disponibles: {selectedExam.exam_exercises_count})
+                        </span>
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={useAllExamExercises}
+                            onChange={(e) => {
+                              setUseAllExamExercises(e.target.checked);
+                              if (e.target.checked) {
+                                setExamExercisesCount(null);
+                              } else {
+                                setExamExercisesCount(selectedExam.exam_exercises_count || 0);
+                              }
+                            }}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-600">
+                            Usar todos ({selectedExam.exam_exercises_count})
+                          </span>
+                        </label>
+                      </div>
+                      {!useAllExamExercises && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <input
+                            type="number"
+                            value={examExercisesCount || ''}
+                            onChange={(e) => setExamExercisesCount(e.target.value ? Number(e.target.value) : null)}
+                            min={1}
+                            max={selectedExam.exam_exercises_count || 0}
+                            className="w-20 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-sm"
+                          />
+                          <span className="text-sm text-gray-500">de {selectedExam.exam_exercises_count}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Sección SIMULADOR - Solo si hay contenido de simulador */}
+              {((selectedExam.simulator_questions_count || 0) > 0 || (selectedExam.simulator_exercises_count || 0) > 0) && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                  <h4 className="font-medium text-purple-800 mb-3 flex items-center gap-2">
+                    <Layers className="w-4 h-4" />
+                    Simulador
+                  </h4>
+                  
+                  {/* Preguntas de Simulador */}
+                  {(examContentType === 'mixed' || examContentType === 'questions_only') && (selectedExam.simulator_questions_count || 0) > 0 && (
+                    <div className="mb-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Preguntas
+                        <span className="text-gray-400 font-normal ml-2">
+                          (Disponibles: {selectedExam.simulator_questions_count})
+                        </span>
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={useAllSimulatorQuestions}
+                            onChange={(e) => {
+                              setUseAllSimulatorQuestions(e.target.checked);
+                              if (e.target.checked) {
+                                setSimulatorQuestionsCount(null);
+                              } else {
+                                setSimulatorQuestionsCount(selectedExam.simulator_questions_count || 0);
+                              }
+                            }}
+                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-600">
+                            Usar todas ({selectedExam.simulator_questions_count})
+                          </span>
+                        </label>
+                      </div>
+                      {!useAllSimulatorQuestions && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <input
+                            type="number"
+                            value={simulatorQuestionsCount || ''}
+                            onChange={(e) => setSimulatorQuestionsCount(e.target.value ? Number(e.target.value) : null)}
+                            min={1}
+                            max={selectedExam.simulator_questions_count || 0}
+                            className="w-20 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 text-sm"
+                          />
+                          <span className="text-sm text-gray-500">de {selectedExam.simulator_questions_count}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Ejercicios de Simulador */}
+                  {(examContentType === 'mixed' || examContentType === 'exercises_only') && (selectedExam.simulator_exercises_count || 0) > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Ejercicios
+                        <span className="text-gray-400 font-normal ml-2">
+                          (Disponibles: {selectedExam.simulator_exercises_count})
+                        </span>
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={useAllSimulatorExercises}
+                            onChange={(e) => {
+                              setUseAllSimulatorExercises(e.target.checked);
+                              if (e.target.checked) {
+                                setSimulatorExercisesCount(null);
+                              } else {
+                                setSimulatorExercisesCount(selectedExam.simulator_exercises_count || 0);
+                              }
+                            }}
+                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-600">
+                            Usar todos ({selectedExam.simulator_exercises_count})
+                          </span>
+                        </label>
+                      </div>
+                      {!useAllSimulatorExercises && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <input
+                            type="number"
+                            value={simulatorExercisesCount || ''}
+                            onChange={(e) => setSimulatorExercisesCount(e.target.value ? Number(e.target.value) : null)}
+                            min={1}
+                            max={selectedExam.simulator_exercises_count || 0}
+                            className="w-20 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 text-sm"
+                          />
+                          <span className="text-sm text-gray-500">de {selectedExam.simulator_exercises_count}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Mensaje si no hay contenido */}
+              {(selectedExam.exam_questions_count || 0) === 0 && 
+               (selectedExam.exam_exercises_count || 0) === 0 && 
+               (selectedExam.simulator_questions_count || 0) === 0 && 
+               (selectedExam.simulator_exercises_count || 0) === 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-yellow-700 text-sm">
+                    Este examen no tiene contenido de preguntas ni ejercicios configurado.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Separador - PIN de Seguridad (solo para examen) */}
+            {((selectedExam.exam_questions_count || 0) > 0 || (selectedExam.exam_exercises_count || 0) > 0) && (
+            <div className="border-t pt-6 mb-6">
+              <h3 className="text-md font-medium text-gray-900 mb-4 flex items-center gap-2">
+                <Lock className="w-5 h-5 text-red-500" />
+                PIN de Seguridad
+                <span className="text-xs font-normal text-gray-400">(solo para Examen)</span>
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Si se activa, el candidato deberá introducir un PIN para poder iniciar el examen.
+              </p>
+              
+              <div className="flex items-center gap-4 mb-4">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={requireSecurityPin}
+                    onChange={(e) => {
+                      setRequireSecurityPin(e.target.checked);
+                      if (!e.target.checked) {
+                        setSecurityPin('');
+                      }
+                    }}
+                    className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-600">
+                    Requerir PIN de seguridad para iniciar el examen
+                  </span>
+                </label>
+              </div>
+              
+              {requireSecurityPin && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={securityPin}
+                    onChange={(e) => setSecurityPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                    maxLength={6}
+                    placeholder="Ej: 1234"
+                    className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 text-center text-lg tracking-widest font-mono"
+                  />
+                  <span className="text-gray-500 text-sm">PIN de 4-6 dígitos</span>
+                </div>
+              )}
+            </div>
+            )}
+
             {/* Botones de navegación */}
             <div className="flex justify-between pt-4 border-t">
               <button
@@ -824,8 +1149,8 @@ export default function GroupAssignExamPage() {
               <div>
                 <p className="text-sm text-blue-600 font-medium">Examen seleccionado</p>
                 <h3 className="font-semibold text-gray-900 mt-1">{selectedExam.name}</h3>
-                {selectedExam.standard && (
-                  <p className="text-sm text-gray-600">Estándar: {selectedExam.standard}</p>
+                {(selectedExam.ecm_code || selectedExam.standard) && (
+                  <p className="text-sm text-gray-600">ECM: {selectedExam.ecm_code || selectedExam.standard}</p>
                 )}
               </div>
             </div>
@@ -1009,7 +1334,7 @@ export default function GroupAssignExamPage() {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <input
                       type="text"
-                      placeholder="Buscar candidato..."
+                      placeholder="Buscar por nombre, email o CURP..."
                       value={memberSearchQuery}
                       onChange={(e) => setMemberSearchQuery(e.target.value)}
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm"
@@ -1045,6 +1370,9 @@ export default function GroupAssignExamPage() {
                         <div className="flex-1">
                           <p className="font-medium text-sm">{member.user?.full_name}</p>
                           <p className="text-xs text-gray-500">{member.user?.email}</p>
+                          {member.user?.curp && (
+                            <p className="text-xs text-gray-400 font-mono">{member.user.curp}</p>
+                          )}
                         </div>
                       </div>
                     ))
@@ -1092,6 +1420,109 @@ export default function GroupAssignExamPage() {
           </div>
         </div>
       )}
+
+      {/* Modal: Examen ya asignado */}
+      {showAlreadyAssignedModal && attemptedExam && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn"
+          onClick={() => setShowAlreadyAssignedModal(false)}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden animate-slideUp"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header con animación de shake */}
+            <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-6 text-white">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center animate-bounce">
+                  <Lock className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold">Examen ya asignado</h3>
+                  <p className="text-orange-100 text-sm">Este examen ya pertenece al grupo</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Contenido */}
+            <div className="p-6">
+              <div className="flex items-start gap-3 mb-4">
+                <AlertCircle className="w-6 h-6 text-orange-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-gray-700 font-medium">
+                    El examen <span className="text-orange-600">"{attemptedExam.name}"</span> ya está asignado a este grupo.
+                  </p>
+                  <p className="text-gray-500 text-sm mt-2">
+                    Si deseas modificar los candidatos asignados a este examen, 
+                    puedes hacerlo con el botón de editar candidatos.
+                  </p>
+                </div>
+              </div>
+              
+              {/* Info del examen */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">Detalles del examen:</p>
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <span className="flex items-center">
+                    <Clock className="w-4 h-4 mr-1 text-gray-400" />
+                    {attemptedExam.duration_minutes} min
+                  </span>
+                  <span className="flex items-center">
+                    <Target className="w-4 h-4 mr-1 text-gray-400" />
+                    {attemptedExam.passing_score}%
+                  </span>
+                  {(attemptedExam.ecm_code || attemptedExam.standard) && (
+                    <span className="text-blue-600">
+                      ECM: {attemptedExam.ecm_code || attemptedExam.standard}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            {/* Footer con botones de acción */}
+            <div className="bg-gray-50 px-6 py-4 flex flex-wrap justify-end gap-3">
+              <button
+                onClick={() => setShowAlreadyAssignedModal(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              >
+                Entendido
+              </button>
+              <Link
+                to={`/partners/groups/${groupId}/assignments/${attemptedExam.id}/edit-members?type=exam&name=${encodeURIComponent(attemptedExam.name)}`}
+                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center gap-2"
+              >
+                <Edit3 className="w-4 h-4" />
+                Editar candidatos
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Estilos de animación */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { 
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+          }
+          to { 
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.2s ease-out;
+        }
+        .animate-slideUp {
+          animation: slideUp 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }

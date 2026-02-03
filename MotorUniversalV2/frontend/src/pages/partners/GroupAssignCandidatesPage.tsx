@@ -175,9 +175,13 @@ export default function GroupAssignCandidatesPage() {
 
   // Búsqueda de candidatos con filtros avanzados
   const handleSearch = useCallback(async (page: number = 1, perPage: number = pageSize) => {
-    // Siempre hacer búsqueda - mostrar todos los candidatos
+    // Siempre hacer búsqueda - mostrar candidatos
     try {
       setSearching(true);
+      
+      // Si no hay término de búsqueda ni filtros avanzados, mostrar los 10 más recientes
+      const isDefaultView = !searchQuery && filterHasGroup === 'all' && !filterGender && !filterState;
+      
       const results = await searchCandidatesAdvanced({
         search: searchQuery.length >= 2 ? searchQuery : undefined,
         search_field: searchField !== 'all' ? searchField : undefined,
@@ -186,7 +190,8 @@ export default function GroupAssignCandidatesPage() {
         gender: filterGender || undefined,
         state: filterState || undefined,
         page,
-        per_page: perPage,
+        per_page: isDefaultView ? 10 : perPage, // 10 candidatos si es vista por defecto
+        sort_by: isDefaultView ? 'recent' : 'name', // Ordenar por recientes si no hay búsqueda
       });
       setSearchResults(results.candidates);
       setTotalPages(results.pages);
@@ -574,7 +579,7 @@ export default function GroupAssignCandidatesPage() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Buscar candidatos (mínimo 2 caracteres)..."
+                    placeholder="Buscar por nombre, email o CURP (mín. 2 caracteres)..."
                     className="w-full pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 fluid-text-sm"
                   />
                 </div>
@@ -795,12 +800,6 @@ export default function GroupAssignCandidatesPage() {
                 <div className="flex items-center justify-center fluid-py-20">
                   <Loader2 className="fluid-icon-lg animate-spin text-purple-500" />
                 </div>
-              ) : searchQuery.length < 2 && filterHasGroup === 'all' && !filterGender && !filterState ? (
-                <div className="flex flex-col items-center justify-center fluid-py-20 text-gray-500">
-                  <Search className="w-16 h-16 text-gray-300 fluid-mb-4" />
-                  <p className="fluid-text-lg font-medium">Busca candidatos para asignar</p>
-                  <p className="fluid-text-sm">Ingresa al menos 2 caracteres o usa los filtros avanzados</p>
-                </div>
               ) : searchResults.length === 0 ? (
                 <div className="flex flex-col items-center justify-center fluid-py-20 text-gray-500">
                   <Users className="w-16 h-16 text-gray-300 fluid-mb-4" />
@@ -808,7 +807,17 @@ export default function GroupAssignCandidatesPage() {
                   <p className="fluid-text-sm">Intenta con otros criterios de búsqueda</p>
                 </div>
               ) : (
-                <table className="w-full">
+                <>
+                  {/* Mensaje indicando qué está viendo */}
+                  {!searchQuery && filterHasGroup === 'all' && !filterGender && !filterState && (
+                    <div className="bg-blue-50 border-b border-blue-100 px-4 py-2">
+                      <p className="text-sm text-blue-700 flex items-center gap-2">
+                        <Users className="w-4 h-4" />
+                        <span>Mostrando los <strong>10 candidatos más recientes</strong> que aún no pertenecen a este grupo. Usa el buscador para encontrar candidatos específicos.</span>
+                      </p>
+                    </div>
+                  )}
+                  <table className="w-full">
                   <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr>
                       <th className="w-12 fluid-px-4 fluid-py-3 text-left">
@@ -902,6 +911,7 @@ export default function GroupAssignCandidatesPage() {
                     })}
                   </tbody>
                 </table>
+                </>
               )}
             </div>
 

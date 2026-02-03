@@ -2,9 +2,20 @@
 """
 Auto-migración: Agregar columnas faltantes a exercise_actions y study_interactive_exercise_actions si no existen
 Este script se ejecuta automáticamente al iniciar el backend
+Compatible con PostgreSQL y SQL Server
 """
 from app import db
 from sqlalchemy import text, inspect
+
+def get_db_type():
+    """Detectar el tipo de base de datos"""
+    db_url = str(db.engine.url)
+    if 'postgresql' in db_url or 'postgres' in db_url:
+        return 'postgresql'
+    elif 'mssql' in db_url or 'sqlserver' in db_url:
+        return 'mssql'
+    else:
+        return 'sqlite'
 
 def check_and_add_study_interactive_columns():
     """Verificar y agregar columnas faltantes a study_interactive_exercise_actions"""
@@ -261,6 +272,9 @@ def check_and_add_group_exam_columns():
     """Verificar y agregar columnas a group_exams y crear tabla group_exam_members"""
     print("🔍 Verificando esquema de group_exams...")
     
+    db_type = get_db_type()
+    print(f"  📊 Tipo de base de datos detectado: {db_type}")
+    
     try:
         inspector = inspect(db.engine)
         tables = inspector.get_table_names()
@@ -269,24 +283,52 @@ def check_and_add_group_exam_columns():
         if 'group_exams' in tables:
             existing_columns = [col['name'] for col in inspector.get_columns('group_exams')]
             
-            # Lista de columnas a agregar
-            columns_to_add = [
-                ('assignment_type', "NVARCHAR(20) DEFAULT 'all' NOT NULL"),
-                ('time_limit_minutes', "INT NULL"),
-                ('passing_score', "INT NULL"),
-                ('max_attempts', "INT DEFAULT 1 NOT NULL"),
-                ('max_disconnections', "INT DEFAULT 3 NOT NULL"),
-                ('exam_content_type', "NVARCHAR(30) DEFAULT 'questions_only' NOT NULL"),
-            ]
+            # Lista de columnas a agregar (sintaxis compatible con PostgreSQL)
+            if db_type == 'postgresql':
+                columns_to_add = [
+                    ('assignment_type', "VARCHAR(20) DEFAULT 'all' NOT NULL"),
+                    ('time_limit_minutes', "INTEGER NULL"),
+                    ('passing_score', "INTEGER NULL"),
+                    ('max_attempts', "INTEGER DEFAULT 1 NOT NULL"),
+                    ('max_disconnections', "INTEGER DEFAULT 3 NOT NULL"),
+                    ('exam_content_type', "VARCHAR(30) DEFAULT 'questions_only' NOT NULL"),
+                    ('exam_questions_count', "INTEGER NULL"),
+                    ('exam_exercises_count', "INTEGER NULL"),
+                    ('simulator_questions_count', "INTEGER NULL"),
+                    ('simulator_exercises_count', "INTEGER NULL"),
+                    ('security_pin', "VARCHAR(10) NULL"),
+                    ('require_security_pin', "BOOLEAN DEFAULT FALSE NOT NULL"),
+                ]
+            else:
+                columns_to_add = [
+                    ('assignment_type', "NVARCHAR(20) DEFAULT 'all' NOT NULL"),
+                    ('time_limit_minutes', "INT NULL"),
+                    ('passing_score', "INT NULL"),
+                    ('max_attempts', "INT DEFAULT 1 NOT NULL"),
+                    ('max_disconnections', "INT DEFAULT 3 NOT NULL"),
+                    ('exam_content_type', "NVARCHAR(30) DEFAULT 'questions_only' NOT NULL"),
+                    ('exam_questions_count', "INT NULL"),
+                    ('exam_exercises_count', "INT NULL"),
+                    ('simulator_questions_count', "INT NULL"),
+                    ('simulator_exercises_count', "INT NULL"),
+                    ('security_pin', "NVARCHAR(10) NULL"),
+                    ('require_security_pin', "BIT DEFAULT 0 NOT NULL"),
+                ]
             
             for col_name, col_definition in columns_to_add:
                 if col_name not in existing_columns:
                     print(f"  📝 Agregando columna '{col_name}' a 'group_exams'...")
                     try:
-                        db.session.execute(text(f"""
-                            ALTER TABLE group_exams 
-                            ADD {col_name} {col_definition}
-                        """))
+                        if db_type == 'postgresql':
+                            db.session.execute(text(f"""
+                                ALTER TABLE group_exams 
+                                ADD COLUMN IF NOT EXISTS {col_name} {col_definition}
+                            """))
+                        else:
+                            db.session.execute(text(f"""
+                                ALTER TABLE group_exams 
+                                ADD {col_name} {col_definition}
+                            """))
                         db.session.commit()
                         print(f"     ✓ Columna '{col_name}' agregada a 'group_exams'")
                     except Exception as e:
@@ -302,26 +344,42 @@ def check_and_add_group_exam_columns():
         if 'group_exam_members' not in tables:
             print("  📝 Creando tabla 'group_exam_members'...")
             try:
-                db.session.execute(text("""
-                    CREATE TABLE group_exam_members (
-                        id INT IDENTITY(1,1) PRIMARY KEY,
-                        group_exam_id INT NOT NULL,
-                        user_id NVARCHAR(36) NOT NULL,
-                        assigned_at DATETIME DEFAULT GETDATE() NOT NULL,
-                        CONSTRAINT fk_gem_group_exam FOREIGN KEY (group_exam_id) 
-                            REFERENCES group_exams(id) ON DELETE CASCADE,
-                        CONSTRAINT fk_gem_user FOREIGN KEY (user_id) 
-                            REFERENCES users(id) ON DELETE CASCADE,
-                        CONSTRAINT uq_gem_group_exam_user UNIQUE (group_exam_id, user_id)
-                    )
-                """))
+                if db_type == 'postgresql':
+                    db.session.execute(text("""
+                        CREATE TABLE IF NOT EXISTS group_exam_members (
+                            id SERIAL PRIMARY KEY,
+                            group_exam_id INTEGER NOT NULL,
+                            user_id VARCHAR(36) NOT NULL,
+                            assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                            CONSTRAINT fk_gem_group_exam FOREIGN KEY (group_exam_id) 
+                                REFERENCES group_exams(id) ON DELETE CASCADE,
+                            CONSTRAINT fk_gem_user FOREIGN KEY (user_id) 
+                                REFERENCES users(id) ON DELETE CASCADE,
+                            CONSTRAINT uq_gem_group_exam_user UNIQUE (group_exam_id, user_id)
+                        )
+                    """))
+                else:
+                    db.session.execute(text("""
+                        CREATE TABLE group_exam_members (
+                            id INT IDENTITY(1,1) PRIMARY KEY,
+                            group_exam_id INT NOT NULL,
+                            user_id NVARCHAR(36) NOT NULL,
+                            assigned_at DATETIME DEFAULT GETDATE() NOT NULL,
+                            CONSTRAINT fk_gem_group_exam FOREIGN KEY (group_exam_id) 
+                                REFERENCES group_exams(id) ON DELETE CASCADE,
+                            CONSTRAINT fk_gem_user FOREIGN KEY (user_id) 
+                                REFERENCES users(id) ON DELETE CASCADE,
+                            CONSTRAINT uq_gem_group_exam_user UNIQUE (group_exam_id, user_id)
+                        )
+                    """))
                 db.session.commit()
                 print("     ✓ Tabla 'group_exam_members' creada exitosamente")
             except Exception as e:
                 if 'already exists' in str(e).lower():
                     print("     ⚠️  Tabla 'group_exam_members' ya existe")
                 else:
-                    raise
+                    print(f"     ⚠️  Error creando tabla: {e}")
+                    db.session.rollback()
         else:
             print("  ✓ Tabla 'group_exam_members' ya existe")
         
@@ -329,26 +387,48 @@ def check_and_add_group_exam_columns():
         if 'group_study_materials' not in tables:
             print("  📝 Creando tabla 'group_study_materials'...")
             try:
-                db.session.execute(text("""
-                    CREATE TABLE group_study_materials (
-                        id INT IDENTITY(1,1) PRIMARY KEY,
-                        group_id INT NOT NULL,
-                        study_material_id INT NOT NULL,
-                        assigned_at DATETIME DEFAULT GETDATE() NOT NULL,
-                        assigned_by_id NVARCHAR(36) NULL,
-                        available_from DATETIME NULL,
-                        available_until DATETIME NULL,
-                        assignment_type NVARCHAR(20) DEFAULT 'all' NOT NULL,
-                        is_active BIT DEFAULT 1 NOT NULL,
-                        CONSTRAINT fk_gsm_group FOREIGN KEY (group_id) 
-                            REFERENCES candidate_groups(id) ON DELETE CASCADE,
-                        CONSTRAINT fk_gsm_material FOREIGN KEY (study_material_id) 
-                            REFERENCES study_contents(id) ON DELETE CASCADE,
-                        CONSTRAINT fk_gsm_user FOREIGN KEY (assigned_by_id) 
-                            REFERENCES users(id),
-                        CONSTRAINT uq_group_study_material UNIQUE (group_id, study_material_id)
-                    )
-                """))
+                if db_type == 'postgresql':
+                    db.session.execute(text("""
+                        CREATE TABLE IF NOT EXISTS group_study_materials (
+                            id SERIAL PRIMARY KEY,
+                            group_id INTEGER NOT NULL,
+                            study_material_id INTEGER NOT NULL,
+                            assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                            assigned_by_id VARCHAR(36) NULL,
+                            available_from TIMESTAMP NULL,
+                            available_until TIMESTAMP NULL,
+                            assignment_type VARCHAR(20) DEFAULT 'all' NOT NULL,
+                            is_active BOOLEAN DEFAULT TRUE NOT NULL,
+                            CONSTRAINT fk_gsm_group FOREIGN KEY (group_id) 
+                                REFERENCES candidate_groups(id) ON DELETE CASCADE,
+                            CONSTRAINT fk_gsm_material FOREIGN KEY (study_material_id) 
+                                REFERENCES study_contents(id) ON DELETE CASCADE,
+                            CONSTRAINT fk_gsm_user FOREIGN KEY (assigned_by_id) 
+                                REFERENCES users(id),
+                            CONSTRAINT uq_group_study_material UNIQUE (group_id, study_material_id)
+                        )
+                    """))
+                else:
+                    db.session.execute(text("""
+                        CREATE TABLE group_study_materials (
+                            id INT IDENTITY(1,1) PRIMARY KEY,
+                            group_id INT NOT NULL,
+                            study_material_id INT NOT NULL,
+                            assigned_at DATETIME DEFAULT GETDATE() NOT NULL,
+                            assigned_by_id NVARCHAR(36) NULL,
+                            available_from DATETIME NULL,
+                            available_until DATETIME NULL,
+                            assignment_type NVARCHAR(20) DEFAULT 'all' NOT NULL,
+                            is_active BIT DEFAULT 1 NOT NULL,
+                            CONSTRAINT fk_gsm_group FOREIGN KEY (group_id) 
+                                REFERENCES candidate_groups(id) ON DELETE CASCADE,
+                            CONSTRAINT fk_gsm_material FOREIGN KEY (study_material_id) 
+                                REFERENCES study_contents(id) ON DELETE CASCADE,
+                            CONSTRAINT fk_gsm_user FOREIGN KEY (assigned_by_id) 
+                                REFERENCES users(id),
+                            CONSTRAINT uq_group_study_material UNIQUE (group_id, study_material_id)
+                        )
+                    """))
                 db.session.commit()
                 print("     ✓ Tabla 'group_study_materials' creada exitosamente")
             except Exception as e:
@@ -364,19 +444,34 @@ def check_and_add_group_exam_columns():
         if 'group_study_material_members' not in tables:
             print("  📝 Creando tabla 'group_study_material_members'...")
             try:
-                db.session.execute(text("""
-                    CREATE TABLE group_study_material_members (
-                        id INT IDENTITY(1,1) PRIMARY KEY,
-                        group_study_material_id INT NOT NULL,
-                        user_id NVARCHAR(36) NOT NULL,
-                        assigned_at DATETIME DEFAULT GETDATE() NOT NULL,
-                        CONSTRAINT fk_gsmm_group_material FOREIGN KEY (group_study_material_id) 
-                            REFERENCES group_study_materials(id) ON DELETE CASCADE,
-                        CONSTRAINT fk_gsmm_user FOREIGN KEY (user_id) 
-                            REFERENCES users(id) ON DELETE CASCADE,
-                        CONSTRAINT uq_group_study_material_member UNIQUE (group_study_material_id, user_id)
-                    )
-                """))
+                if db_type == 'postgresql':
+                    db.session.execute(text("""
+                        CREATE TABLE IF NOT EXISTS group_study_material_members (
+                            id SERIAL PRIMARY KEY,
+                            group_study_material_id INTEGER NOT NULL,
+                            user_id VARCHAR(36) NOT NULL,
+                            assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                            CONSTRAINT fk_gsmm_group_material FOREIGN KEY (group_study_material_id) 
+                                REFERENCES group_study_materials(id) ON DELETE CASCADE,
+                            CONSTRAINT fk_gsmm_user FOREIGN KEY (user_id) 
+                                REFERENCES users(id) ON DELETE CASCADE,
+                            CONSTRAINT uq_group_study_material_member UNIQUE (group_study_material_id, user_id)
+                        )
+                    """))
+                else:
+                    db.session.execute(text("""
+                        CREATE TABLE group_study_material_members (
+                            id INT IDENTITY(1,1) PRIMARY KEY,
+                            group_study_material_id INT NOT NULL,
+                            user_id NVARCHAR(36) NOT NULL,
+                            assigned_at DATETIME DEFAULT GETDATE() NOT NULL,
+                            CONSTRAINT fk_gsmm_group_material FOREIGN KEY (group_study_material_id) 
+                                REFERENCES group_study_materials(id) ON DELETE CASCADE,
+                            CONSTRAINT fk_gsmm_user FOREIGN KEY (user_id) 
+                                REFERENCES users(id) ON DELETE CASCADE,
+                            CONSTRAINT uq_group_study_material_member UNIQUE (group_study_material_id, user_id)
+                        )
+                    """))
                 db.session.commit()
                 print("     ✓ Tabla 'group_study_material_members' creada exitosamente")
             except Exception as e:
@@ -392,4 +487,103 @@ def check_and_add_group_exam_columns():
                 
     except Exception as e:
         print(f"❌ Error en auto-migración de group_exams: {e}")
+        db.session.rollback()
+
+
+def check_and_add_campus_activation_columns():
+    """Verificar y agregar columnas para activación de planteles y responsables"""
+    print("🔍 Verificando esquema de usuarios y planteles (activación)...")
+    
+    db_type = get_db_type()
+    
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        # ============== USUARIOS - Nuevos campos ==============
+        if 'users' in tables:
+            existing_columns = [col['name'] for col in inspector.get_columns('users')]
+            
+            # Campos nuevos para usuarios
+            user_columns = {
+                'date_of_birth': 'DATE',
+                'can_bulk_create_candidates': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                'can_manage_groups': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+            }
+            
+            for column_name, column_def in user_columns.items():
+                if column_name not in existing_columns:
+                    print(f"  📝 [users] Agregando columna: {column_name}...")
+                    try:
+                        sql = f"ALTER TABLE users ADD {column_name} {column_def}"
+                        db.session.execute(text(sql))
+                        db.session.commit()
+                        print(f"     ✓ Columna {column_name} agregada a users")
+                    except Exception as e:
+                        if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+                            print(f"     ⚠️  Columna {column_name} ya existe")
+                        else:
+                            print(f"     ❌ Error al agregar {column_name}: {e}")
+                            db.session.rollback()
+                else:
+                    print(f"  ✓ Columna {column_name} ya existe en users")
+        
+        # ============== CAMPUSES - Nuevos campos de activación ==============
+        if 'campuses' in tables:
+            existing_columns = [col['name'] for col in inspector.get_columns('campuses')]
+            
+            # Campos nuevos para campuses
+            campus_columns = {
+                'responsable_id': 'NVARCHAR(36)' if db_type == 'mssql' else 'VARCHAR(36)',
+                'activation_status': "NVARCHAR(20) DEFAULT 'pending'" if db_type == 'mssql' else "VARCHAR(20) DEFAULT 'pending'",
+                'activated_at': 'DATETIME' if db_type == 'mssql' else 'TIMESTAMP',
+            }
+            
+            for column_name, column_def in campus_columns.items():
+                if column_name not in existing_columns:
+                    print(f"  📝 [campuses] Agregando columna: {column_name}...")
+                    try:
+                        sql = f"ALTER TABLE campuses ADD {column_name} {column_def}"
+                        db.session.execute(text(sql))
+                        db.session.commit()
+                        print(f"     ✓ Columna {column_name} agregada a campuses")
+                    except Exception as e:
+                        if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+                            print(f"     ⚠️  Columna {column_name} ya existe")
+                        else:
+                            print(f"     ❌ Error al agregar {column_name}: {e}")
+                            db.session.rollback()
+                else:
+                    print(f"  ✓ Columna {column_name} ya existe en campuses")
+            
+            # Agregar foreign key para responsable_id si no existe
+            if 'responsable_id' not in existing_columns:
+                try:
+                    print("  📝 [campuses] Agregando foreign key para responsable_id...")
+                    if db_type == 'mssql':
+                        sql = """
+                            ALTER TABLE campuses 
+                            ADD CONSTRAINT fk_campus_responsable 
+                            FOREIGN KEY (responsable_id) REFERENCES users(id) ON DELETE SET NULL
+                        """
+                    else:
+                        sql = """
+                            ALTER TABLE campuses 
+                            ADD CONSTRAINT fk_campus_responsable 
+                            FOREIGN KEY (responsable_id) REFERENCES users(id) ON DELETE SET NULL
+                        """
+                    db.session.execute(text(sql))
+                    db.session.commit()
+                    print("     ✓ Foreign key fk_campus_responsable agregado")
+                except Exception as e:
+                    if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+                        print("     ⚠️  Foreign key ya existe")
+                    else:
+                        print(f"     ⚠️  Error al agregar foreign key (no crítico): {e}")
+                        db.session.rollback()
+        
+        print("✅ Verificación de esquema activación de planteles completada")
+                
+    except Exception as e:
+        print(f"❌ Error en auto-migración de activación de planteles: {e}")
         db.session.rollback()

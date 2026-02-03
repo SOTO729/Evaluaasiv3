@@ -419,3 +419,89 @@ def add_performance_indexes():
             'status': 'error',
             'message': str(e)
         }), 500
+
+
+@init_bp.route('/create-group-exam-members', methods=['POST'])
+def create_group_exam_members_table():
+    """Endpoint temporal para crear la tabla group_exam_members"""
+    from sqlalchemy import text
+    
+    token = request.headers.get('X-Init-Token') or request.args.get('token')
+    if token != INIT_TOKEN:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    try:
+        # Primero intentar eliminar la tabla si existe
+        try:
+            db.session.execute(text("DROP TABLE IF EXISTS group_exam_members"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        
+        # Crear la tabla - sin FK a users por incompatibilidad de tipos
+        db.session.execute(text("""
+            CREATE TABLE group_exam_members (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                group_exam_id INT NOT NULL,
+                user_id VARCHAR(36) NOT NULL,
+                assigned_at DATETIME DEFAULT GETDATE() NOT NULL,
+                CONSTRAINT fk_gem_group_exam_v3 FOREIGN KEY (group_exam_id) 
+                    REFERENCES group_exams(id) ON DELETE CASCADE,
+                CONSTRAINT uq_gem_group_exam_user_v3 UNIQUE (group_exam_id, user_id)
+            )
+        """))
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Tabla group_exam_members creada exitosamente'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+@init_bp.route('/add-campus-website', methods=['POST'])
+def add_campus_website_column():
+    """Endpoint temporal para agregar columna website a campuses"""
+    from sqlalchemy import text
+    
+    token = request.headers.get('X-Init-Token') or request.args.get('token')
+    if token != INIT_TOKEN:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    try:
+        # Verificar si la columna ya existe
+        result = db.session.execute(text("""
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_NAME = 'campuses' AND COLUMN_NAME = 'website'
+        """))
+        exists = result.scalar() > 0
+        
+        if exists:
+            return jsonify({
+                'status': 'success',
+                'message': 'La columna website ya existe'
+            }), 200
+        
+        # Agregar la columna
+        db.session.execute(text("""
+            ALTER TABLE campuses ADD website NVARCHAR(500) NULL
+        """))
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Columna website agregada exitosamente a la tabla campuses'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500

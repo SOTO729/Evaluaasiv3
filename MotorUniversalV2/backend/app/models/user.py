@@ -70,10 +70,17 @@ class User(db.Model):
     campus_id = db.Column(db.Integer)
     subsystem_id = db.Column(db.Integer)
     
+    # Fecha de nacimiento (requerido para responsables y candidatos)
+    date_of_birth = db.Column(db.Date)
+    
     # Rol y permisos
-    role = db.Column(db.String(20), nullable=False, default='candidato')  # admin, editor, soporte, coordinator, candidato, auxiliar
+    role = db.Column(db.String(20), nullable=False, default='candidato')  # admin, editor, soporte, coordinator, candidato, auxiliar, responsable
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
+    
+    # Permisos específicos para responsables de plantel
+    can_bulk_create_candidates = db.Column(db.Boolean, default=False, nullable=False)  # Puede crear altas masivas de candidatos
+    can_manage_groups = db.Column(db.Boolean, default=False, nullable=False)  # Puede crear grupos y asignar exámenes/materiales
     
     # Opciones de documentos/certificados habilitados para el usuario
     # El reporte de evaluación está habilitado por default para todos
@@ -134,6 +141,8 @@ class User(db.Model):
             'admin': ['*'],  # Todos los permisos
             'editor': ['exams:create', 'exams:read', 'exams:update', 'exams:delete'],
             'soporte': ['users:read', 'vouchers:create', 'vouchers:read'],
+            'coordinator': ['users:read', 'users:create', 'exams:read', 'groups:manage'],
+            'responsable': ['users:read', 'users:create', 'exams:read', 'groups:manage'],  # Permisos base, extendidos por can_bulk_create_candidates y can_manage_groups
             'candidato': ['exams:read', 'evaluations:create'],
             'auxiliar': ['users:read', 'exams:read']
         }
@@ -171,7 +180,10 @@ class User(db.Model):
                 'curp': self.curp,
                 'phone': self.phone,
                 'campus_id': self.campus_id,
-                'subsystem_id': self.subsystem_id
+                'subsystem_id': self.subsystem_id,
+                'date_of_birth': self.date_of_birth.isoformat() if self.date_of_birth else None,
+                'can_bulk_create_candidates': self.can_bulk_create_candidates,
+                'can_manage_groups': self.can_manage_groups
             })
         
         if include_partners:

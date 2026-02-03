@@ -193,49 +193,64 @@ def register_jwt_callbacks(app):
 
 def ensure_label_style_column(app):
     """Verificar y agregar la columna label_style si no existe"""
-    from sqlalchemy import text
+    from sqlalchemy import text, inspect
+    
+    # Detectar tipo de base de datos
+    db_url = str(db.engine.url)
+    is_postgres = 'postgresql' in db_url or 'postgres' in db_url
+    
     try:
-        # Verificar si la columna existe
-        result = db.session.execute(text("""
-            SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-            WHERE TABLE_NAME = 'study_interactive_exercise_actions' 
-            AND COLUMN_NAME = 'label_style'
-        """))
-        exists = result.scalar()
+        # Usar inspector de SQLAlchemy (más portable)
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
         
-        if exists == 0:
-            print("[AUTO-MIGRATE] La columna label_style NO existe. Agregando...")
-            db.session.execute(text("""
-                ALTER TABLE study_interactive_exercise_actions 
-                ADD label_style VARCHAR(20) DEFAULT 'invisible'
-            """))
-            db.session.commit()
-            print("[AUTO-MIGRATE] Columna label_style agregada exitosamente")
-        else:
-            print("[AUTO-MIGRATE] Columna label_style ya existe")
+        if 'study_interactive_exercise_actions' in tables:
+            existing_columns = [col['name'] for col in inspector.get_columns('study_interactive_exercise_actions')]
+            
+            if 'label_style' not in existing_columns:
+                print("[AUTO-MIGRATE] La columna label_style NO existe. Agregando...")
+                if is_postgres:
+                    db.session.execute(text("""
+                        ALTER TABLE study_interactive_exercise_actions 
+                        ADD COLUMN IF NOT EXISTS label_style VARCHAR(20) DEFAULT 'invisible'
+                    """))
+                else:
+                    db.session.execute(text("""
+                        ALTER TABLE study_interactive_exercise_actions 
+                        ADD label_style VARCHAR(20) DEFAULT 'invisible'
+                    """))
+                db.session.commit()
+                print("[AUTO-MIGRATE] Columna label_style agregada exitosamente")
+            else:
+                print("[AUTO-MIGRATE] Columna label_style ya existe")
     except Exception as e:
         db.session.rollback()
         print(f"[AUTO-MIGRATE] Error verificando/agregando label_style: {e}")
     
     # Verificar y agregar columna pdf_status en results
     try:
-        result = db.session.execute(text("""
-            SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-            WHERE TABLE_NAME = 'results' 
-            AND COLUMN_NAME = 'pdf_status'
-        """))
-        exists = result.scalar()
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
         
-        if exists == 0:
-            print("[AUTO-MIGRATE] La columna pdf_status NO existe en results. Agregando...")
-            db.session.execute(text("""
-                ALTER TABLE results 
-                ADD pdf_status VARCHAR(50) DEFAULT 'pending'
-            """))
-            db.session.commit()
-            print("[AUTO-MIGRATE] Columna pdf_status agregada exitosamente a results")
-        else:
-            print("[AUTO-MIGRATE] Columna pdf_status ya existe en results")
+        if 'results' in tables:
+            existing_columns = [col['name'] for col in inspector.get_columns('results')]
+            
+            if 'pdf_status' not in existing_columns:
+                print("[AUTO-MIGRATE] La columna pdf_status NO existe en results. Agregando...")
+                if is_postgres:
+                    db.session.execute(text("""
+                        ALTER TABLE results 
+                        ADD COLUMN IF NOT EXISTS pdf_status VARCHAR(50) DEFAULT 'pending'
+                    """))
+                else:
+                    db.session.execute(text("""
+                        ALTER TABLE results 
+                        ADD pdf_status VARCHAR(50) DEFAULT 'pending'
+                    """))
+                db.session.commit()
+                print("[AUTO-MIGRATE] Columna pdf_status agregada exitosamente a results")
+            else:
+                print("[AUTO-MIGRATE] Columna pdf_status ya existe en results")
     except Exception as e:
         db.session.rollback()
         print(f"[AUTO-MIGRATE] Error verificando/agregando pdf_status: {e}")
@@ -245,38 +260,74 @@ def ensure_label_style_column(app):
     
     # Verificar y agregar columna school_cycle_id en candidate_groups
     _ensure_school_cycle_id_column()
+    
+    # Verificar y agregar columnas para activación de planteles
+    _ensure_campus_activation_columns()
+
+
+def _ensure_campus_activation_columns():
+    """Verificar y agregar columnas para activación de planteles y responsables"""
+    from sqlalchemy import text, inspect
+    from app.auto_migrate import check_and_add_campus_activation_columns
+    
+    try:
+        print("[AUTO-MIGRATE] Ejecutando migración de activación de planteles...")
+        check_and_add_campus_activation_columns()
+    except Exception as e:
+        print(f"[AUTO-MIGRATE] Error en migración de activación de planteles: {e}")
 
 
 def _ensure_school_cycles_table():
-    """Verificar y crear tabla school_cycles si no existe (SQL Server compatible)"""
-    from sqlalchemy import text
+    """Verificar y crear tabla school_cycles si no existe (PostgreSQL y SQL Server compatible)"""
+    from sqlalchemy import text, inspect
+    
+    # Detectar tipo de base de datos
+    db_url = str(db.engine.url)
+    is_postgres = 'postgresql' in db_url or 'postgres' in db_url
+    
     try:
         print("[AUTO-MIGRATE] Verificando tabla school_cycles...")
-        result = db.session.execute(text("""
-            SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES 
-            WHERE TABLE_NAME = 'school_cycles'
-        """))
-        exists = result.scalar()
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        exists = 'school_cycles' in tables
         print(f"[AUTO-MIGRATE] school_cycles existe: {exists}")
         
-        if exists == 0:
-            print("[AUTO-MIGRATE] Tabla school_cycles NO existe. Creando para SQL Server...")
-            db.session.execute(text("""
-                CREATE TABLE school_cycles (
-                    id INT IDENTITY(1,1) PRIMARY KEY,
-                    campus_id INT NOT NULL,
-                    name NVARCHAR(100) NOT NULL,
-                    cycle_type NVARCHAR(20) NOT NULL DEFAULT 'annual',
-                    start_date DATE NOT NULL,
-                    end_date DATE NOT NULL,
-                    is_active BIT DEFAULT 1,
-                    is_current BIT DEFAULT 0,
-                    created_at DATETIME2 DEFAULT GETDATE(),
-                    updated_at DATETIME2 DEFAULT GETDATE(),
-                    CONSTRAINT FK_school_cycles_campus FOREIGN KEY (campus_id) 
-                        REFERENCES campuses(id) ON DELETE CASCADE
-                )
-            """))
+        if not exists:
+            print(f"[AUTO-MIGRATE] Tabla school_cycles NO existe. Creando para {'PostgreSQL' if is_postgres else 'SQL Server'}...")
+            if is_postgres:
+                db.session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS school_cycles (
+                        id SERIAL PRIMARY KEY,
+                        campus_id INTEGER NOT NULL,
+                        name VARCHAR(100) NOT NULL,
+                        cycle_type VARCHAR(20) NOT NULL DEFAULT 'annual',
+                        start_date DATE NOT NULL,
+                        end_date DATE NOT NULL,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        is_current BOOLEAN DEFAULT FALSE,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT FK_school_cycles_campus FOREIGN KEY (campus_id) 
+                            REFERENCES campuses(id) ON DELETE CASCADE
+                    )
+                """))
+            else:
+                db.session.execute(text("""
+                    CREATE TABLE school_cycles (
+                        id INT IDENTITY(1,1) PRIMARY KEY,
+                        campus_id INT NOT NULL,
+                        name NVARCHAR(100) NOT NULL,
+                        cycle_type NVARCHAR(20) NOT NULL DEFAULT 'annual',
+                        start_date DATE NOT NULL,
+                        end_date DATE NOT NULL,
+                        is_active BIT DEFAULT 1,
+                        is_current BIT DEFAULT 0,
+                        created_at DATETIME2 DEFAULT GETDATE(),
+                        updated_at DATETIME2 DEFAULT GETDATE(),
+                        CONSTRAINT FK_school_cycles_campus FOREIGN KEY (campus_id) 
+                            REFERENCES campuses(id) ON DELETE CASCADE
+                    )
+                """))
             db.session.commit()
             print("[AUTO-MIGRATE] ✅ Tabla school_cycles creada exitosamente")
         else:
@@ -284,39 +335,59 @@ def _ensure_school_cycles_table():
     except Exception as e:
         db.session.rollback()
         print(f"[AUTO-MIGRATE] ❌ Error creando school_cycles: {e}")
-        import traceback
-        traceback.print_exc()
 
 
 def _ensure_school_cycle_id_column():
-    """Verificar y agregar columna school_cycle_id en candidate_groups (SQL Server compatible)"""
-    from sqlalchemy import text
+    """Verificar y agregar columna school_cycle_id en candidate_groups (PostgreSQL y SQL Server compatible)"""
+    from sqlalchemy import text, inspect
+    
+    # Detectar tipo de base de datos
+    db_url = str(db.engine.url)
+    is_postgres = 'postgresql' in db_url or 'postgres' in db_url
+    
     try:
         print("[AUTO-MIGRATE] Verificando columna school_cycle_id en candidate_groups...")
-        result = db.session.execute(text("""
-            SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-            WHERE TABLE_NAME = 'candidate_groups' 
-            AND COLUMN_NAME = 'school_cycle_id'
-        """))
-        exists = result.scalar()
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        if 'candidate_groups' not in tables:
+            print("[AUTO-MIGRATE] ⚠️ Tabla candidate_groups no existe, saltando...")
+            return
+            
+        existing_columns = [col['name'] for col in inspector.get_columns('candidate_groups')]
+        exists = 'school_cycle_id' in existing_columns
         print(f"[AUTO-MIGRATE] school_cycle_id existe: {exists}")
         
-        if exists == 0:
+        if not exists:
             print("[AUTO-MIGRATE] Columna school_cycle_id NO existe. Agregando...")
-            db.session.execute(text("""
-                ALTER TABLE candidate_groups 
-                ADD school_cycle_id INT NULL
-            """))
+            if is_postgres:
+                db.session.execute(text("""
+                    ALTER TABLE candidate_groups 
+                    ADD COLUMN IF NOT EXISTS school_cycle_id INTEGER NULL
+                """))
+            else:
+                db.session.execute(text("""
+                    ALTER TABLE candidate_groups 
+                    ADD school_cycle_id INT NULL
+                """))
             db.session.commit()
             
             # Agregar constraint FK en paso separado
             try:
-                db.session.execute(text("""
-                    ALTER TABLE candidate_groups
-                    ADD CONSTRAINT FK_candidate_groups_school_cycle 
-                    FOREIGN KEY (school_cycle_id) REFERENCES school_cycles(id)
-                    ON DELETE SET NULL
-                """))
+                if is_postgres:
+                    db.session.execute(text("""
+                        ALTER TABLE candidate_groups
+                        ADD CONSTRAINT FK_candidate_groups_school_cycle 
+                        FOREIGN KEY (school_cycle_id) REFERENCES school_cycles(id)
+                        ON DELETE SET NULL
+                    """))
+                else:
+                    db.session.execute(text("""
+                        ALTER TABLE candidate_groups
+                        ADD CONSTRAINT FK_candidate_groups_school_cycle 
+                        FOREIGN KEY (school_cycle_id) REFERENCES school_cycles(id)
+                        ON DELETE SET NULL
+                    """))
                 db.session.commit()
                 print("[AUTO-MIGRATE] ✅ FK constraint agregada a school_cycle_id")
             except Exception as fk_err:

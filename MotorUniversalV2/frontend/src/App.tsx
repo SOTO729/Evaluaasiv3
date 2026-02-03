@@ -97,6 +97,8 @@ const GroupDetailPage = lazy(() => import('./pages/partners/GroupDetailPage'))
 const GroupAssignCandidatesPage = lazy(() => import('./pages/partners/GroupAssignCandidatesPage'))
 const GroupAssignExamPage = lazy(() => import('./pages/partners/GroupAssignExamPage'))
 const GroupAssignMaterialsPage = lazy(() => import('./pages/partners/GroupAssignMaterialsPage'))
+const GroupEditAssignmentMembersPage = lazy(() => import('./pages/partners/GroupEditAssignmentMembersPage'))
+const CampusActivationPage = lazy(() => import('./pages/partners/CampusActivationPage'))
 
 // User Management (Gestión de Usuarios)
 const UsersListPage = lazy(() => import('./pages/users/UsersListPage'))
@@ -197,12 +199,14 @@ function App() {
               <Route path="/partners/:partnerId/campuses/new" element={<CampusFormPage />} />
               <Route path="/partners/campuses/:campusId" element={<CampusDetailPage />} />
               <Route path="/partners/campuses/:campusId/edit" element={<CampusFormPage />} />
+              <Route path="/partners/campuses/:campusId/activate" element={<CampusActivationPage />} />
               <Route path="/partners/campuses/:campusId/groups/new" element={<GroupFormPage />} />
               <Route path="/partners/groups/:groupId" element={<GroupDetailPage />} />
               <Route path="/partners/groups/:groupId/edit" element={<GroupFormPage />} />
               <Route path="/partners/groups/:groupId/assign-candidates" element={<GroupAssignCandidatesPage />} />
               <Route path="/partners/groups/:groupId/assign-exam" element={<GroupAssignExamPage />} />
               <Route path="/partners/groups/:groupId/assign-materials" element={<GroupAssignMaterialsPage />} />
+              <Route path="/partners/groups/:groupId/assignments/:assignmentId/edit-members" element={<GroupEditAssignmentMembersPage />} />
               
               {/* User Management (Gestión de Usuarios) */}
               <Route path="/user-management" element={<UsersListPage />} />

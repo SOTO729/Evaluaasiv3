@@ -25,6 +25,9 @@ import {
   Save,
   Layers,
   Calendar,
+  Lock,
+  FileText,
+  Edit3,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -72,9 +75,12 @@ export default function GroupAssignMaterialsPage() {
   const [availableFrom, setAvailableFrom] = useState<string>('');
   const [availableUntil, setAvailableUntil] = useState<string>('');
 
+  // Modal de material ya asignado
+  const [showAlreadyAssignedModal, setShowAlreadyAssignedModal] = useState(false);
+  const [attemptedMaterial, setAttemptedMaterial] = useState<StudyMaterialItem | null>(null);
+
   // Estado de guardado
   const [saving, setSaving] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -111,6 +117,7 @@ export default function GroupAssignMaterialsPage() {
         page: materialPage,
         per_page: MATERIALS_PER_PAGE,
         search: materialSearchQuery || undefined,
+        group_id: Number(groupId),
       });
       setAvailableMaterials(data.materials);
       setMaterialTotalPages(data.pages);
@@ -127,11 +134,25 @@ export default function GroupAssignMaterialsPage() {
     setMaterialPage(1);
   };
 
-  const handleToggleMaterial = (materialId: number) => {
+  const handleToggleMaterial = (material: StudyMaterialItem) => {
+    // Si el material ya está asignado al grupo directamente, mostrar modal
+    if (material.is_assigned_to_group) {
+      setAttemptedMaterial(material);
+      setShowAlreadyAssignedModal(true);
+      return;
+    }
+    
+    // Si el material está en un examen ya asignado al grupo, mostrar modal
+    if (material.is_in_assigned_exam) {
+      setAttemptedMaterial(material);
+      setShowAlreadyAssignedModal(true);
+      return;
+    }
+    
     setSelectedMaterialIds((prev) =>
-      prev.includes(materialId)
-        ? prev.filter((id) => id !== materialId)
-        : [...prev, materialId]
+      prev.includes(material.id)
+        ? prev.filter((id) => id !== material.id)
+        : [...prev, material.id]
     );
   };
 
@@ -156,7 +177,8 @@ export default function GroupAssignMaterialsPage() {
     const query = memberSearchQuery.toLowerCase();
     const fullName = m.user?.full_name?.toLowerCase() || '';
     const email = m.user?.email?.toLowerCase() || '';
-    return fullName.includes(query) || email.includes(query);
+    const curp = m.user?.curp?.toLowerCase() || '';
+    return fullName.includes(query) || email.includes(query) || curp.includes(query);
   });
 
   const handleGoToMemberAssignment = () => {
@@ -195,22 +217,22 @@ export default function GroupAssignMaterialsPage() {
         available_until: useAvailabilityDates && availableUntil ? availableUntil : undefined,
       };
 
-      const result = await assignStudyMaterialsToGroup(Number(groupId), config);
-      setSuccessMessage(result.message);
+      await assignStudyMaterialsToGroup(Number(groupId), config);
 
-      // Redirigir después de 2 segundos
-      setTimeout(() => {
-        navigate(`/partners/groups/${groupId}`);
-      }, 2000);
+      // Redirigir directamente
+      navigate(`/partners/groups/${groupId}`);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al asignar los materiales');
-    } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner message="Cargando..." fullScreen />;
+  }
+
+  if (saving) {
+    return <LoadingSpinner message="Asignando materiales al grupo..." fullScreen />;
   }
 
   if (!group) {
@@ -271,7 +293,7 @@ export default function GroupAssignMaterialsPage() {
   );
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Header */}
       <div className="mb-6">
         <Link
@@ -298,13 +320,6 @@ export default function GroupAssignMaterialsPage() {
         <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
           <AlertCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
           <p className="text-red-700">{error}</p>
-        </div>
-      )}
-
-      {successMessage && (
-        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start">
-          <CheckCircle2 className="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-          <p className="text-green-700">{successMessage}</p>
         </div>
       )}
 
@@ -359,27 +374,41 @@ export default function GroupAssignMaterialsPage() {
                 {availableMaterials.map((material) => (
                   <div
                     key={material.id}
-                    onClick={() => handleToggleMaterial(material.id)}
-                    className={`border rounded-lg p-4 cursor-pointer transition-all ${
-                      selectedMaterialIds.includes(material.id)
-                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    onClick={() => handleToggleMaterial(material)}
+                    className={`border rounded-lg p-4 transition-all ${
+                      material.is_assigned_to_group
+                        ? 'border-orange-300 bg-orange-50/50 cursor-not-allowed opacity-70'
+                        : selectedMaterialIds.includes(material.id)
+                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200 cursor-pointer'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 cursor-pointer'
                     }`}
                   >
                     <div className="flex items-start gap-3">
                       <div
                         className={`w-5 h-5 rounded border flex-shrink-0 mt-1 flex items-center justify-center ${
-                          selectedMaterialIds.includes(material.id)
+                          material.is_assigned_to_group
+                            ? 'bg-orange-400 border-orange-400'
+                            : selectedMaterialIds.includes(material.id)
                             ? 'bg-blue-500 border-blue-500'
                             : 'border-gray-300'
                         }`}
                       >
-                        {selectedMaterialIds.includes(material.id) && (
+                        {material.is_assigned_to_group ? (
+                          <Lock className="w-3 h-3 text-white" />
+                        ) : selectedMaterialIds.includes(material.id) ? (
                           <CheckCircle2 className="w-4 h-4 text-white" />
-                        )}
+                        ) : null}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-gray-900 truncate">{material.title}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-medium text-gray-900 truncate">{material.title}</h3>
+                          {material.is_assigned_to_group && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 text-xs rounded-full flex-shrink-0">
+                              <Lock className="w-3 h-3" />
+                              Ya asignado
+                            </span>
+                          )}
+                        </div>
                         {material.description && (
                           <p className="text-sm text-gray-500 mt-1 line-clamp-2">
                             {material.description}
@@ -546,7 +575,7 @@ export default function GroupAssignMaterialsPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="text"
-                  placeholder="Buscar por nombre o email..."
+                  placeholder="Buscar por nombre, email o CURP..."
                   value={memberSearchQuery}
                   onChange={(e) => setMemberSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -584,6 +613,9 @@ export default function GroupAssignMaterialsPage() {
                           {member.user?.full_name || 'Sin nombre'}
                         </p>
                         <p className="text-sm text-gray-500 truncate">{member.user?.email}</p>
+                        {member.user?.curp && (
+                          <p className="text-xs text-gray-400 font-mono truncate">{member.user.curp}</p>
+                        )}
                       </div>
                     </div>
                   ))
@@ -673,6 +705,163 @@ export default function GroupAssignMaterialsPage() {
           </div>
         </div>
       )}
+
+      {/* Modal: Material ya asignado */}
+      {showAlreadyAssignedModal && attemptedMaterial && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn"
+          onClick={() => setShowAlreadyAssignedModal(false)}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden animate-slideUp"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header con gradiente */}
+            <div className={`p-6 text-white ${attemptedMaterial.is_in_assigned_exam ? 'bg-gradient-to-r from-purple-500 to-indigo-500' : 'bg-gradient-to-r from-orange-500 to-amber-500'}`}>
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center animate-bounce">
+                  <Lock className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold">
+                    {attemptedMaterial.is_in_assigned_exam 
+                      ? 'Material incluido en examen' 
+                      : 'Material ya asignado'}
+                  </h3>
+                  <p className={`text-sm ${attemptedMaterial.is_in_assigned_exam ? 'text-purple-100' : 'text-orange-100'}`}>
+                    {attemptedMaterial.is_in_assigned_exam
+                      ? 'Este material ya está vinculado a un examen del grupo'
+                      : 'Este material ya pertenece al grupo'}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Contenido */}
+            <div className="p-6">
+              <div className="flex items-start gap-3 mb-4">
+                <AlertCircle className={`w-6 h-6 flex-shrink-0 mt-0.5 ${attemptedMaterial.is_in_assigned_exam ? 'text-purple-500' : 'text-orange-500'}`} />
+                <div>
+                  {attemptedMaterial.is_in_assigned_exam ? (
+                    <>
+                      <p className="text-gray-700 font-medium">
+                        El material <span className="text-purple-600">"{attemptedMaterial.title}"</span> ya está 
+                        incluido en el examen <span className="text-indigo-600">"{attemptedMaterial.assigned_exam_info?.exam_name}"</span>.
+                      </p>
+                      <p className="text-gray-500 text-sm mt-2">
+                        No es necesario asignarlo como material adicional. Los candidatos asignados a ese examen 
+                        ya tienen acceso automático a este material.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-gray-700 font-medium">
+                        El material <span className="text-orange-600">"{attemptedMaterial.title}"</span> ya está asignado a este grupo.
+                      </p>
+                      <p className="text-gray-500 text-sm mt-2">
+                        Si deseas modificar los candidatos asignados a este material, 
+                        puedes hacerlo con el botón de editar candidatos.
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+              
+              {/* Info del material/examen */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                {attemptedMaterial.is_in_assigned_exam && attemptedMaterial.assigned_exam_info ? (
+                  <>
+                    <p className="text-sm font-medium text-gray-700 mb-2">Examen vinculado:</p>
+                    <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
+                      <FileText className="w-4 h-4 text-indigo-500" />
+                      <span className="font-medium">{attemptedMaterial.assigned_exam_info.exam_name}</span>
+                    </div>
+                    <div className="border-t pt-3 mt-2">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Material:</p>
+                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                        <span className="flex items-center">
+                          <Layers className="w-4 h-4 mr-1 text-gray-400" />
+                          {attemptedMaterial.sessions_count} sesiones
+                        </span>
+                        <span className="flex items-center">
+                          <BookOpen className="w-4 h-4 mr-1 text-gray-400" />
+                          {attemptedMaterial.topics_count} temas
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium text-gray-700 mb-2">Detalles del material:</p>
+                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <span className="flex items-center">
+                        <Layers className="w-4 h-4 mr-1 text-gray-400" />
+                        {attemptedMaterial.sessions_count} sesiones
+                      </span>
+                      <span className="flex items-center">
+                        <BookOpen className="w-4 h-4 mr-1 text-gray-400" />
+                        {attemptedMaterial.topics_count} temas
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+            
+            {/* Footer con botones de acción */}
+            <div className="bg-gray-50 px-6 py-4 flex flex-wrap justify-end gap-3">
+              <button
+                onClick={() => setShowAlreadyAssignedModal(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              >
+                Entendido
+              </button>
+              
+              {attemptedMaterial.is_in_assigned_exam && attemptedMaterial.assigned_exam_info ? (
+                <Link
+                  to={`/partners/groups/${groupId}/assignments/${attemptedMaterial.assigned_exam_info.exam_id}/edit-members?type=exam&name=${encodeURIComponent(attemptedMaterial.assigned_exam_info.exam_name)}`}
+                  className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors font-medium flex items-center gap-2"
+                >
+                  <Edit3 className="w-4 h-4" />
+                  Editar candidatos del examen
+                </Link>
+              ) : (
+                <Link
+                  to={`/partners/groups/${groupId}/assignments/${attemptedMaterial.id}/edit-members?type=material&name=${encodeURIComponent(attemptedMaterial.title)}`}
+                  className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center gap-2"
+                >
+                  <Edit3 className="w-4 h-4" />
+                  Editar candidatos
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Estilos de animación */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { 
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+          }
+          to { 
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.2s ease-out;
+        }
+        .animate-slideUp {
+          animation: slideUp 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }

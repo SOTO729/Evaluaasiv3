@@ -808,43 +808,43 @@ const ExamEditPage = () => {
   console.log('Categories length:', exam?.categories?.length)
 
   if (isLoading) return <LoadingSpinner message="Cargando examen..." fullScreen />
-  if (error) return <div className="text-center py-12 text-red-600">Error al cargar el examen</div>
-  if (!exam) return <div className="text-center py-12 text-gray-600">Examen no encontrado</div>
+  if (error) return <div className="text-center fluid-py-12 text-red-600 fluid-text-base">Error al cargar el examen</div>
+  if (!exam) return <div className="text-center fluid-py-12 text-gray-600 fluid-text-base">Examen no encontrado</div>
 
   const breadcrumbItems = [
     { label: exam.name, isActive: true },
   ]
 
   return (
-    <div className="w-full fluid-px-6">
+    <div className="w-full max-w-[2800px] mx-auto fluid-px-6 animate-fade-in-up">
       {/* Breadcrumb */}
       <Breadcrumb items={breadcrumbItems} />
 
       {/* Botón volver a lista */}
       <button
         onClick={() => navigate('/exams')}
-        className="fluid-mb-4 text-primary-600 hover:text-primary-700 flex items-center fluid-text-sm font-medium transition-colors"
+        className="fluid-mb-4 text-primary-600 hover:text-primary-700 flex items-center fluid-text-sm font-medium transition-colors group"
       >
-        <svg className="fluid-icon-sm fluid-mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="fluid-icon-sm fluid-mr-2 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
-        Volver a lista
+        Volver a lista de exámenes
       </button>
 
       {/* Header */}
-      <div className="fluid-mb-6">
-        <div className="flex justify-between items-center">
+      <div className="fluid-mb-8">
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center fluid-gap-4">
           <div className="flex items-center fluid-gap-4">
             <h1 className="fluid-text-3xl font-bold text-gray-900">Editar Examen</h1>
-            <span className={`fluid-px-3 fluid-py-1 fluid-text-sm rounded-full ${
+            <span className={`fluid-px-4 fluid-py-1.5 fluid-text-sm font-semibold rounded-full transition-all ${
               exam.is_published 
-                ? 'bg-green-100 text-green-800' 
-                : 'bg-gray-100 text-gray-800'
+                ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border border-green-200' 
+                : 'bg-gradient-to-r from-gray-100 to-slate-100 text-gray-800 border border-gray-200'
             }`}>
-              {exam.is_published ? 'Publicado' : 'Borrador'}
+              {exam.is_published ? '✓ Publicado' : '✎ Borrador'}
             </span>
           </div>
-          <div className="flex items-center fluid-gap-3">
+          <div className="flex flex-wrap items-center fluid-gap-3">
             {/* Botón Probar Examen - solo visible cuando está publicado */}
             {exam.is_published && (
               <button
@@ -950,7 +950,7 @@ const ExamEditPage = () => {
             <div>
               <div className="flex items-center fluid-gap-3 fluid-mb-2">
                 <h2 className="fluid-text-3xl font-bold text-white drop-shadow-lg">{exam.name}</h2>
-                <span className={`fluid-px-4 py-1.5 rounded-full fluid-text-sm font-bold flex items-center fluid-gap-2 shadow-lg ${
+                <span className={`fluid-px-4 fluid-py-1.5 rounded-full fluid-text-sm font-bold flex items-center fluid-gap-2 shadow-lg ${
                   exam.is_published 
                     ? 'bg-emerald-500 text-white' 
                     : 'bg-amber-500 text-white'
@@ -967,12 +967,27 @@ const ExamEditPage = () => {
                   {exam.is_published ? 'Publicado' : 'Borrador'}
                 </span>
               </div>
-              <p className="fluid-text-xl font-mono font-semibold text-white/80">{exam.version}</p>
+              <div className="flex items-center fluid-gap-4 flex-wrap">
+                <p className="fluid-text-xl font-mono font-semibold text-white/80">{exam.version}</p>
+                {exam.competency_standard?.code && (
+                  <span className="fluid-px-3 fluid-py-1 bg-white/20 rounded-fluid-lg fluid-text-sm font-mono text-white/90 backdrop-blur-sm border border-white/10">
+                    ECM: {exam.competency_standard.code}
+                  </span>
+                )}
+                {exam.pause_on_disconnect && (
+                  <span className="fluid-px-3 fluid-py-1 bg-blue-500/30 rounded-fluid-lg fluid-text-xs font-medium text-white/90 backdrop-blur-sm flex items-center fluid-gap-1">
+                    <svg className="fluid-icon-xs" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Pausa al desconectar
+                  </span>
+                )}
+              </div>
             </div>
             <button
               onClick={openEditExamModal}
               disabled={exam.is_published}
-              className={`fluid-px-4 py-2.5 rounded-fluid-xl font-semibold flex items-center fluid-gap-2 transition-all duration-200 ${
+              className={`fluid-px-5 fluid-py-2.5 rounded-fluid-xl font-semibold flex items-center fluid-gap-2 transition-all duration-200 ${
                 exam.is_published
                   ? 'bg-white/20 text-white/50 cursor-not-allowed border border-white/20'
                   : 'bg-white/40 text-white hover:bg-white/50 border border-white/30 hover:border-white/50 hover:-translate-y-0.5 shadow-md hover:shadow-lg backdrop-blur-sm'
@@ -987,97 +1002,167 @@ const ExamEditPage = () => {
           </div>
           
           {/* Estadísticas superpuestas sobre la imagen */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 fluid-gap-3">
-            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-lg fluid-p-4 text-center border border-white/10 hover:bg-white/25 transition-all duration-200">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 fluid-gap-4">
+            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-xl fluid-p-4 text-center border border-white/10 hover:bg-white/30 hover:scale-105 transition-all duration-300 group cursor-default">
               <div className="flex items-center justify-center fluid-mb-2">
-                <svg className="fluid-icon-sm text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon-base text-white/70 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               <p className="fluid-text-2xl font-bold text-white">{exam.duration_minutes || 0}</p>
-              <p className="fluid-text-sm text-white/70">Minutos</p>
+              <p className="fluid-text-sm text-white/70 font-medium">Minutos</p>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-lg fluid-p-4 text-center border border-white/10 hover:bg-white/25 transition-all duration-200">
+            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-xl fluid-p-4 text-center border border-white/10 hover:bg-white/30 hover:scale-105 transition-all duration-300 group cursor-default">
               <div className="flex items-center justify-center fluid-mb-2">
-                <svg className="fluid-icon-sm text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon-base text-white/70 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               <p className="fluid-text-2xl font-bold text-white">{exam.passing_score}%</p>
-              <p className="fluid-text-sm text-white/70">Puntaje Mínimo</p>
+              <p className="fluid-text-sm text-white/70 font-medium">Puntaje Mínimo</p>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-lg fluid-p-4 text-center border border-white/10 hover:bg-white/25 transition-all duration-200">
+            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-xl fluid-p-4 text-center border border-white/10 hover:bg-white/30 hover:scale-105 transition-all duration-300 group cursor-default">
               <div className="flex items-center justify-center fluid-mb-2">
-                <svg className="fluid-icon-sm text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon-base text-white/70 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
               </div>
               <p className="fluid-text-2xl font-bold text-white">{exam.total_categories || 0}</p>
-              <p className="fluid-text-sm text-white/70">Categorías</p>
+              <p className="fluid-text-sm text-white/70 font-medium">Categorías</p>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-lg fluid-p-4 text-center border border-white/10 hover:bg-white/25 transition-all duration-200">
+            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-xl fluid-p-4 text-center border border-white/10 hover:bg-white/30 hover:scale-105 transition-all duration-300 group cursor-default">
               <div className="flex items-center justify-center fluid-mb-2">
-                <svg className="fluid-icon-sm text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon-base text-white/70 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                 </svg>
               </div>
               <p className="fluid-text-2xl font-bold text-white">
                 {exam.categories?.reduce((acc, cat) => acc + (cat.total_topics || 0), 0) || 0}
               </p>
-              <p className="fluid-text-sm text-white/70">Temas</p>
+              <p className="fluid-text-sm text-white/70 font-medium">Temas</p>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-lg fluid-p-4 text-center border border-white/10 hover:bg-white/25 transition-all duration-200">
+            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-xl fluid-p-4 text-center border border-white/10 hover:bg-white/30 hover:scale-105 transition-all duration-300 group cursor-default">
               <div className="flex items-center justify-center fluid-mb-2">
-                <svg className="fluid-icon-sm text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon-base text-white/70 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               <p className="fluid-text-2xl font-bold text-white">{exam.total_questions}</p>
-              <p className="fluid-text-sm text-white/70">Preguntas</p>
+              <p className="fluid-text-sm text-white/70 font-medium">Preguntas</p>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-lg fluid-p-4 text-center border border-white/10 hover:bg-white/25 transition-all duration-200">
+            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-xl fluid-p-4 text-center border border-white/10 hover:bg-white/30 hover:scale-105 transition-all duration-300 group cursor-default">
               <div className="flex items-center justify-center fluid-mb-2">
-                <svg className="fluid-icon-sm text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="fluid-icon-base text-white/70 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                 </svg>
               </div>
               <p className="fluid-text-2xl font-bold text-white">{exam.total_exercises}</p>
-              <p className="fluid-text-sm text-white/70">Ejercicios</p>
+              <p className="fluid-text-sm text-white/70 font-medium">Ejercicios</p>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Tarjetas de información adicional del examen */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 fluid-gap-4 fluid-mb-8">
+        {/* Código ECM */}
+        <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4 hover:shadow-lg hover:border-indigo-200 hover:-translate-y-1 transition-all duration-300">
+          <div className="flex items-center fluid-gap-3 fluid-mb-3">
+            <div className="fluid-p-2 bg-indigo-100 rounded-fluid-lg">
+              <svg className="fluid-icon-base text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+            </div>
+            <span className="fluid-text-sm font-semibold text-gray-600 uppercase tracking-wide">Código ECM</span>
+          </div>
+          <p className="fluid-text-lg font-mono font-bold text-gray-900">{exam.competency_standard?.code || 'No asignado'}</p>
+        </div>
+
+        {/* Pausa al desconectar */}
+        <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4 hover:shadow-lg hover:border-blue-200 hover:-translate-y-1 transition-all duration-300">
+          <div className="flex items-center fluid-gap-3 fluid-mb-3">
+            <div className={`fluid-p-2 rounded-fluid-lg ${exam.pause_on_disconnect ? 'bg-blue-100' : 'bg-gray-100'}`}>
+              <svg className={`fluid-icon-base ${exam.pause_on_disconnect ? 'text-blue-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <span className="fluid-text-sm font-semibold text-gray-600 uppercase tracking-wide">Pausa al Desconectar</span>
+          </div>
+          <div className="flex items-center fluid-gap-2">
+            <span className={`fluid-px-3 fluid-py-1 rounded-full fluid-text-sm font-semibold ${exam.pause_on_disconnect ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+              {exam.pause_on_disconnect ? 'Activado' : 'Desactivado'}
+            </span>
+          </div>
+        </div>
+
+        {/* Fecha de creación */}
+        <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4 hover:shadow-lg hover:border-green-200 hover:-translate-y-1 transition-all duration-300">
+          <div className="flex items-center fluid-gap-3 fluid-mb-3">
+            <div className="fluid-p-2 bg-green-100 rounded-fluid-lg">
+              <svg className="fluid-icon-base text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <span className="fluid-text-sm font-semibold text-gray-600 uppercase tracking-wide">Creado</span>
+          </div>
+          <p className="fluid-text-base font-medium text-gray-900">
+            {exam.created_at ? new Date(exam.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }) : 'No disponible'}
+          </p>
+        </div>
+
+        {/* Última actualización */}
+        <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4 hover:shadow-lg hover:border-purple-200 hover:-translate-y-1 transition-all duration-300">
+          <div className="flex items-center fluid-gap-3 fluid-mb-3">
+            <div className="fluid-p-2 bg-purple-100 rounded-fluid-lg">
+              <svg className="fluid-icon-base text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </div>
+            <span className="fluid-text-sm font-semibold text-gray-600 uppercase tracking-wide">Actualizado</span>
+          </div>
+          <p className="fluid-text-base font-medium text-gray-900">
+            {exam.updated_at ? new Date(exam.updated_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }) : 'No disponible'}
+          </p>
+        </div>
+      </div>
+
       {/* Advertencia de contenido publicado */}
       {exam.is_published && (
-        <div className="bg-amber-50 border border-amber-200 rounded-fluid-lg fluid-p-4 flex items-center fluid-gap-3">
-          <svg className="fluid-icon-sm text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-fluid-xl fluid-p-5 flex items-center fluid-gap-4 fluid-mb-6 animate-fade-in-up">
+          <div className="fluid-p-3 bg-amber-100 rounded-fluid-xl">
+            <svg className="fluid-icon-lg text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
           <div>
-            <p className="text-amber-800 font-medium">Contenido publicado</p>
+            <p className="text-amber-800 font-semibold fluid-text-base">Contenido publicado</p>
             <p className="text-amber-700 fluid-text-sm">Para editar el contenido, primero cambia el examen a borrador.</p>
           </div>
         </div>
       )}
 
       {/* Categorías del Examen */}
-      <div className="card">
-        <div className="flex justify-between items-center fluid-mb-4">
-          <div className="flex items-center fluid-gap-3">
-            <h2 className="fluid-text-xl font-semibold">Categorías del Examen</h2>
-            <span className="fluid-text-sm text-gray-600">
-              {exam.categories?.length || 0} categoría{exam.categories?.length !== 1 ? 's' : ''}
-            </span>
+      <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-6 fluid-mb-8">
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center fluid-gap-4 fluid-mb-6">
+          <div className="flex items-center fluid-gap-4">
+            <div className="fluid-p-3 bg-blue-100 rounded-fluid-xl">
+              <svg className="fluid-icon-lg text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="fluid-text-xl font-bold text-gray-900">Categorías del Examen</h2>
+              <p className="fluid-text-sm text-gray-500">{exam.categories?.length || 0} categoría{exam.categories?.length !== 1 ? 's' : ''} configurada{exam.categories?.length !== 1 ? 's' : ''}</p>
+            </div>
           </div>
           {/* Botón Agregar Categoría - solo en modo borrador */}
           <button
             onClick={() => setShowCreateCategoryModal(true)}
             disabled={exam.is_published}
-            className={`fluid-px-4 py-2.5 rounded-fluid-xl font-medium flex items-center fluid-gap-2 transition-all duration-200 ${
+            className={`fluid-px-5 fluid-py-2.5 rounded-fluid-xl font-semibold flex items-center fluid-gap-2 transition-all duration-200 ${
               exam.is_published
                 ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5'
+                : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5'
             }`}
             title={exam.is_published ? 'Cambie a borrador para agregar categorías' : 'Agregar categoría'}
           >

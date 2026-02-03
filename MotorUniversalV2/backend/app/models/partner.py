@@ -131,7 +131,7 @@ class Campus(db.Model):
     partner_id = db.Column(db.Integer, db.ForeignKey('partners.id', ondelete='CASCADE'), nullable=False)
     
     name = db.Column(db.String(200), nullable=False)
-    code = db.Column(db.String(50))  # Código interno del plantel
+    code = db.Column(db.String(15), unique=True, nullable=False)  # Código único auto-generado
     
     # Ubicación
     state_name = db.Column(db.String(50), nullable=False)  # Estado de México
@@ -142,22 +142,70 @@ class Campus(db.Model):
     # Contacto
     email = db.Column(db.String(255))
     phone = db.Column(db.String(20))
+    website = db.Column(db.String(500))  # Sitio web (opcional)
     
-    # Responsable del plantel
+    # Responsable del plantel (datos de contacto del director - info básica)
     director_name = db.Column(db.String(200))
     director_email = db.Column(db.String(255))
     director_phone = db.Column(db.String(20))
     
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    # Responsable del plantel (usuario del sistema - para activación)
+    responsable_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'))
+    
+    # Estado de activación del plantel
+    # pending: Recién creado, sin responsable
+    # configuring: Tiene responsable pero falta configuración
+    # active: Completamente activado y operativo
+    activation_status = db.Column(db.String(20), default='pending', nullable=False)
+    activated_at = db.Column(db.DateTime)  # Fecha de activación completa
+    
+    # Por defecto inactivo hasta completar el proceso de activación
+    is_active = db.Column(db.Boolean, default=False, nullable=False)
+    
+    # ========== CONFIGURACIÓN DEL PLANTEL ==========
+    
+    # Versión de Office para certificación
+    office_version = db.Column(db.String(20), default='office_365')  # office_2016, office_2019, office_365
+    
+    # Tiers de certificación habilitados
+    enable_tier_basic = db.Column(db.Boolean, default=False)  # Constancia de participación Eduit
+    enable_tier_standard = db.Column(db.Boolean, default=False)  # Certificado Eduit oficial
+    enable_tier_advanced = db.Column(db.Boolean, default=False)  # Certificado CONOCER
+    enable_digital_badge = db.Column(db.Boolean, default=False)  # Insignia digital
+    
+    # Evaluaciones parciales
+    enable_partial_evaluations = db.Column(db.Boolean, default=False)  # Habilitar evaluaciones parciales
+    enable_unscheduled_partials = db.Column(db.Boolean, default=False)  # Parciales sin agendar
+    
+    # Máquinas virtuales
+    enable_virtual_machines = db.Column(db.Boolean, default=False)  # Usar VMs para exámenes
+    
+    # Pagos en línea
+    enable_online_payments = db.Column(db.Boolean, default=False)  # Habilitar pagos en línea
+    
+    # Vigencia del plantel (licencia)
+    license_start_date = db.Column(db.Date)  # Fecha de inicio de vigencia
+    license_end_date = db.Column(db.Date)  # Fecha de fin de vigencia
+    
+    # Costos
+    certification_cost = db.Column(db.Numeric(10, 2), default=0)  # Costo por certificación
+    retake_cost = db.Column(db.Numeric(10, 2), default=0)  # Costo por retoma
+    
+    # Configuración completada
+    configuration_completed = db.Column(db.Boolean, default=False)
+    configuration_completed_at = db.Column(db.DateTime)
+    
+    # ========== FIN CONFIGURACIÓN ==========
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
     # Relaciones
+    responsable = db.relationship('User', foreign_keys=[responsable_id], backref='managed_campuses')
     groups = db.relationship('CandidateGroup', backref='campus', lazy='dynamic', cascade='all, delete-orphan')
     school_cycles = db.relationship('SchoolCycle', backref='campus', lazy='dynamic', cascade='all, delete-orphan')
     
-    def to_dict(self, include_groups=False, include_partner=False, include_cycles=False):
+    def to_dict(self, include_groups=False, include_partner=False, include_cycles=False, include_responsable=False, include_config=False):
         data = {
             'id': self.id,
             'partner_id': self.partner_id,
@@ -169,15 +217,67 @@ class Campus(db.Model):
             'postal_code': self.postal_code,
             'email': self.email,
             'phone': self.phone,
+            'website': self.website,
             'director_name': self.director_name,
             'director_email': self.director_email,
             'director_phone': self.director_phone,
+            'responsable_id': self.responsable_id,
+            'activation_status': self.activation_status,
+            'activated_at': self.activated_at.isoformat() if self.activated_at else None,
             'is_active': self.is_active,
+            'configuration_completed': self.configuration_completed,
+            'configuration_completed_at': self.configuration_completed_at.isoformat() if self.configuration_completed_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'group_count': self.groups.count() if self.groups else 0,
             'cycle_count': self.school_cycles.count() if self.school_cycles else 0,
+            # Campos de configuración siempre incluidos
+            'office_version': self.office_version,
+            'enable_tier_basic': self.enable_tier_basic,
+            'enable_tier_standard': self.enable_tier_standard,
+            'enable_tier_advanced': self.enable_tier_advanced,
+            'enable_digital_badge': self.enable_digital_badge,
+            'enable_partial_evaluations': self.enable_partial_evaluations,
+            'enable_unscheduled_partials': self.enable_unscheduled_partials,
+            'enable_virtual_machines': self.enable_virtual_machines,
+            'enable_online_payments': self.enable_online_payments,
+            'license_start_date': self.license_start_date.isoformat() if self.license_start_date else None,
+            'license_end_date': self.license_end_date.isoformat() if self.license_end_date else None,
+            'certification_cost': float(self.certification_cost) if self.certification_cost else 0,
+            'retake_cost': float(self.retake_cost) if self.retake_cost else 0,
         }
+        
+        # Incluir configuración del plantel
+        if include_config:
+            data['config'] = {
+                'office_version': self.office_version,
+                'enable_tier_basic': self.enable_tier_basic,
+                'enable_tier_standard': self.enable_tier_standard,
+                'enable_tier_advanced': self.enable_tier_advanced,
+                'enable_digital_badge': self.enable_digital_badge,
+                'enable_partial_evaluations': self.enable_partial_evaluations,
+                'enable_unscheduled_partials': self.enable_unscheduled_partials,
+                'enable_virtual_machines': self.enable_virtual_machines,
+                'enable_online_payments': self.enable_online_payments,
+                'license_start_date': self.license_start_date.isoformat() if self.license_start_date else None,
+                'license_end_date': self.license_end_date.isoformat() if self.license_end_date else None,
+                'certification_cost': float(self.certification_cost) if self.certification_cost else 0,
+                'retake_cost': float(self.retake_cost) if self.retake_cost else 0,
+            }
+        
+        if include_responsable and self.responsable:
+            data['responsable'] = {
+                'id': self.responsable.id,
+                'username': self.responsable.username,
+                'full_name': self.responsable.full_name,
+                'email': self.responsable.email,
+                'curp': self.responsable.curp,
+                'gender': self.responsable.gender,
+                'date_of_birth': self.responsable.date_of_birth.isoformat() if self.responsable.date_of_birth else None,
+                'can_bulk_create_candidates': self.responsable.can_bulk_create_candidates,
+                'can_manage_groups': self.responsable.can_manage_groups,
+                'is_active': self.responsable.is_active
+            }
         
         if include_groups:
             data['groups'] = [g.to_dict() for g in self.groups.all()]
@@ -258,13 +358,48 @@ class CandidateGroup(db.Model):
     
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
+    # ========== CONFIGURACIÓN HEREDADA DEL CAMPUS (Overrides) ==========
+    # Si es NULL, se usa la configuración del campus
+    # Si tiene valor, se usa ese valor en lugar del campus
+    
+    use_custom_config = db.Column(db.Boolean, default=False)  # Flag para usar config personalizada
+    
+    # Versión de Office
+    office_version_override = db.Column(db.String(20))
+    
+    # Tiers de certificación
+    enable_tier_basic_override = db.Column(db.Boolean)
+    enable_tier_standard_override = db.Column(db.Boolean)
+    enable_tier_advanced_override = db.Column(db.Boolean)
+    enable_digital_badge_override = db.Column(db.Boolean)
+    
+    # Evaluaciones parciales
+    enable_partial_evaluations_override = db.Column(db.Boolean)
+    enable_unscheduled_partials_override = db.Column(db.Boolean)
+    
+    # Máquinas virtuales
+    enable_virtual_machines_override = db.Column(db.Boolean)
+    
+    # Pagos en línea
+    enable_online_payments_override = db.Column(db.Boolean)
+    
+    # Costos
+    certification_cost_override = db.Column(db.Numeric(10, 2))
+    retake_cost_override = db.Column(db.Numeric(10, 2))
+    
+    # Vigencia específica del grupo
+    group_start_date = db.Column(db.Date)
+    group_end_date = db.Column(db.Date)
+    
+    # ========== FIN CONFIGURACIÓN ==========
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
     # Relación con miembros
     members = db.relationship('GroupMember', backref='group', lazy='dynamic', cascade='all, delete-orphan')
     
-    def to_dict(self, include_members=False, include_campus=False, include_cycle=False):
+    def to_dict(self, include_members=False, include_campus=False, include_cycle=False, include_config=False):
         data = {
             'id': self.id,
             'campus_id': self.campus_id,
@@ -279,6 +414,43 @@ class CandidateGroup(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'member_count': self.members.count() if self.members else 0,
         }
+        
+        if include_config:
+            # Incluir configuración del grupo (overrides)
+            data['use_custom_config'] = self.use_custom_config or False
+            data['config'] = {
+                'office_version_override': self.office_version_override,
+                'enable_tier_basic_override': self.enable_tier_basic_override,
+                'enable_tier_standard_override': self.enable_tier_standard_override,
+                'enable_tier_advanced_override': self.enable_tier_advanced_override,
+                'enable_digital_badge_override': self.enable_digital_badge_override,
+                'enable_partial_evaluations_override': self.enable_partial_evaluations_override,
+                'enable_unscheduled_partials_override': self.enable_unscheduled_partials_override,
+                'enable_virtual_machines_override': self.enable_virtual_machines_override,
+                'enable_online_payments_override': self.enable_online_payments_override,
+                'certification_cost_override': float(self.certification_cost_override) if self.certification_cost_override is not None else None,
+                'retake_cost_override': float(self.retake_cost_override) if self.retake_cost_override is not None else None,
+                'group_start_date': self.group_start_date.isoformat() if self.group_start_date else None,
+                'group_end_date': self.group_end_date.isoformat() if self.group_end_date else None,
+            }
+            
+            # Incluir también la configuración efectiva (combinando grupo y campus)
+            if self.campus:
+                data['effective_config'] = {
+                    'office_version': self.office_version_override if self.office_version_override else self.campus.office_version,
+                    'enable_tier_basic': self.enable_tier_basic_override if self.enable_tier_basic_override is not None else self.campus.enable_tier_basic,
+                    'enable_tier_standard': self.enable_tier_standard_override if self.enable_tier_standard_override is not None else self.campus.enable_tier_standard,
+                    'enable_tier_advanced': self.enable_tier_advanced_override if self.enable_tier_advanced_override is not None else self.campus.enable_tier_advanced,
+                    'enable_digital_badge': self.enable_digital_badge_override if self.enable_digital_badge_override is not None else self.campus.enable_digital_badge,
+                    'enable_partial_evaluations': self.enable_partial_evaluations_override if self.enable_partial_evaluations_override is not None else self.campus.enable_partial_evaluations,
+                    'enable_unscheduled_partials': self.enable_unscheduled_partials_override if self.enable_unscheduled_partials_override is not None else self.campus.enable_unscheduled_partials,
+                    'enable_virtual_machines': self.enable_virtual_machines_override if self.enable_virtual_machines_override is not None else self.campus.enable_virtual_machines,
+                    'enable_online_payments': self.enable_online_payments_override if self.enable_online_payments_override is not None else self.campus.enable_online_payments,
+                    'certification_cost': float(self.certification_cost_override) if self.certification_cost_override is not None else (float(self.campus.certification_cost) if self.campus.certification_cost else 0),
+                    'retake_cost': float(self.retake_cost_override) if self.retake_cost_override is not None else (float(self.campus.retake_cost) if self.campus.retake_cost else 0),
+                    'license_start_date': self.group_start_date.isoformat() if self.group_start_date else (self.campus.license_start_date.isoformat() if self.campus.license_start_date else None),
+                    'license_end_date': self.group_end_date.isoformat() if self.group_end_date else (self.campus.license_end_date.isoformat() if self.campus.license_end_date else None),
+                }
         
         if include_members:
             data['members'] = [m.to_dict(include_user=True) for m in self.members.all()]
@@ -373,6 +545,18 @@ class GroupExam(db.Model):
     max_disconnections = db.Column(db.Integer, default=3, nullable=False)  # Oportunidades de desconexión/dejar de ver pantalla
     exam_content_type = db.Column(db.String(30), default='questions_only', nullable=False)  # questions_only, exercises_only, mixed
     
+    # Configuración de cantidad - EXAMEN
+    exam_questions_count = db.Column(db.Integer, nullable=True)  # Número de preguntas de examen (null = todas)
+    exam_exercises_count = db.Column(db.Integer, nullable=True)  # Número de ejercicios de examen (null = todos)
+    
+    # Configuración de cantidad - SIMULADOR
+    simulator_questions_count = db.Column(db.Integer, nullable=True)  # Número de preguntas de simulador (null = todas)
+    simulator_exercises_count = db.Column(db.Integer, nullable=True)  # Número de ejercicios de simulador (null = todos)
+    
+    # PIN de seguridad (solo para modo examen)
+    security_pin = db.Column(db.String(10), nullable=True)  # PIN de seguridad para iniciar el examen
+    require_security_pin = db.Column(db.Boolean, default=False, nullable=False)  # Requerir PIN para iniciar
+    
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
     # Índice único para evitar duplicados
@@ -400,6 +584,12 @@ class GroupExam(db.Model):
             'max_attempts': self.max_attempts or 1,
             'max_disconnections': self.max_disconnections or 3,
             'exam_content_type': self.exam_content_type or 'questions_only',
+            'exam_questions_count': self.exam_questions_count,
+            'exam_exercises_count': self.exam_exercises_count,
+            'simulator_questions_count': self.simulator_questions_count,
+            'simulator_exercises_count': self.simulator_exercises_count,
+            'security_pin': self.security_pin,
+            'require_security_pin': self.require_security_pin or False,
             'is_active': self.is_active,
         }
         

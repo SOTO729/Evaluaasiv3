@@ -343,14 +343,23 @@ export default function PartnerDetailPage() {
                           <h3 className="font-semibold fluid-text-base text-gray-900">
                             {campus.name}
                           </h3>
-                          {campus.code && (
-                            <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded fluid-text-xs font-mono">
-                              {campus.code}
+                          <span className="font-mono fluid-text-xs text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                            {campus.code}
+                          </span>
+                          {campus.is_active ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 rounded-full fluid-text-xs font-medium border border-green-200">
+                              <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                              Activo
                             </span>
-                          )}
-                          {!campus.is_active && (
-                            <span className="px-2 py-0.5 bg-red-50 text-red-600 rounded fluid-text-xs">
-                              Inactivo
+                          ) : campus.activation_status === 'configuring' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full fluid-text-xs font-medium border border-amber-200">
+                              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span>
+                              Configurando
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-rose-50 text-rose-700 rounded-full fluid-text-xs font-medium border border-rose-200">
+                              <span className="w-1.5 h-1.5 bg-rose-500 rounded-full"></span>
+                              Pendiente Activación
                             </span>
                           )}
                         </div>

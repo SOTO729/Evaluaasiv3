@@ -2,16 +2,22 @@
 Rutas para gestión de Partners, Planteles y Grupos
 Solo accesibles por coordinadores y admins
 """
+from datetime import datetime
+from io import BytesIO
 from flask import Blueprint, request, jsonify, g, send_file
 from functools import wraps
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from app import db
 from app.models import (
     Partner, PartnerStatePresence, Campus, CandidateGroup, GroupMember,
     User, MEXICAN_STATES, SchoolCycle
 )
+from app.models.partner import GroupExam
+from app.models.user import decrypt_password, encrypt_password
 
-bp = Blueprint('partners', __name__, url_prefix='/api/partners')
+bp = Blueprint('partners', __name__)
 
 
 def coordinator_required(f):
@@ -314,6 +320,18 @@ def get_campuses(partner_id):
 @coordinator_required
 def create_campus(partner_id):
     """Crear un nuevo plantel"""
+    import secrets
+    import string
+    
+    def generate_campus_code():
+        """Genera un código único de 15 caracteres alfanuméricos"""
+        alphabet = string.ascii_uppercase + string.digits
+        while True:
+            code = ''.join(secrets.choice(alphabet) for _ in range(15))
+            # Verificar que no exista
+            if not Campus.query.filter_by(code=code).first():
+                return code
+    
     try:
         partner = Partner.query.get_or_404(partner_id)
         data = request.get_json()
@@ -326,6 +344,24 @@ def create_campus(partner_id):
             
         if data['state_name'] not in MEXICAN_STATES:
             return jsonify({'error': 'Estado no válido'}), 400
+            
+        if not data.get('postal_code'):
+            return jsonify({'error': 'El código postal es requerido'}), 400
+            
+        if not data.get('email'):
+            return jsonify({'error': 'El correo de contacto es requerido'}), 400
+            
+        if not data.get('phone'):
+            return jsonify({'error': 'El teléfono de contacto es requerido'}), 400
+            
+        if not data.get('director_name'):
+            return jsonify({'error': 'El nombre del director es requerido'}), 400
+            
+        if not data.get('director_email'):
+            return jsonify({'error': 'El correo del director es requerido'}), 400
+            
+        if not data.get('director_phone'):
+            return jsonify({'error': 'El teléfono del director es requerido'}), 400
         
         state_name = data['state_name']
         state_auto_created = False
@@ -347,20 +383,27 @@ def create_campus(partner_id):
             db.session.add(new_presence)
             state_auto_created = True
         
+        # Generar código único para el plantel
+        campus_code = generate_campus_code()
+        
+        # Los planteles nuevos se crean inactivos por defecto
+        # Se activarán al completar el proceso de activación (asignar responsable, etc.)
         campus = Campus(
             partner_id=partner_id,
             name=data['name'],
-            code=data.get('code'),
+            code=campus_code,
             state_name=state_name,
             city=data.get('city'),
             address=data.get('address'),
             postal_code=data.get('postal_code'),
             email=data.get('email'),
             phone=data.get('phone'),
+            website=data.get('website'),
             director_name=data.get('director_name'),
             director_email=data.get('director_email'),
             director_phone=data.get('director_phone'),
-            is_active=data.get('is_active', True)
+            is_active=False,  # Inactivo hasta completar activación
+            activation_status='pending'  # Estado inicial de activación
         )
         
         db.session.add(campus)
@@ -393,7 +436,7 @@ def get_campus(campus_id):
     try:
         campus = Campus.query.get_or_404(campus_id)
         return jsonify({
-            'campus': campus.to_dict(include_groups=True, include_partner=True, include_cycles=True)
+            'campus': campus.to_dict(include_groups=True, include_partner=True, include_cycles=True, include_responsable=True)
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -412,8 +455,8 @@ def update_campus(campus_id):
             return jsonify({'error': 'Estado no válido'}), 400
         
         # Actualizar campos
-        for field in ['name', 'code', 'state_name', 'city', 'address', 'postal_code',
-                      'email', 'phone', 'director_name', 'director_email', 'director_phone', 'is_active']:
+        for field in ['name', 'state_name', 'city', 'address', 'postal_code',
+                      'email', 'phone', 'website', 'director_name', 'director_email', 'director_phone', 'is_active']:
             if field in data:
                 setattr(campus, field, data[field])
         
@@ -440,6 +483,443 @@ def delete_campus(campus_id):
         db.session.commit()
         
         return jsonify({'message': 'Plantel desactivado exitosamente'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# ============== ACTIVACIÓN DE PLANTEL ==============
+
+@bp.route('/campuses/<int:campus_id>/responsable', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def create_campus_responsable(campus_id):
+    """
+    Crear usuario responsable del plantel (Paso 1 de activación)
+    Este endpoint crea un nuevo usuario con rol 'responsable' y lo asocia al plantel
+    """
+    import random
+    import string
+    import uuid
+    import secrets
+    from datetime import datetime
+    
+    try:
+        campus = Campus.query.get_or_404(campus_id)
+        
+        # Verificar que el plantel no tenga ya un responsable activo
+        if campus.responsable_id:
+            existing_responsable = User.query.get(campus.responsable_id)
+            if existing_responsable and existing_responsable.is_active:
+                return jsonify({
+                    'error': 'El plantel ya tiene un responsable asignado',
+                    'current_responsable': {
+                        'id': existing_responsable.id,
+                        'full_name': existing_responsable.full_name,
+                        'email': existing_responsable.email
+                    }
+                }), 400
+        
+        data = request.get_json()
+        
+        # Validar campos requeridos
+        required_fields = {
+            'name': 'Nombre(s)',
+            'first_surname': 'Apellido paterno',
+            'second_surname': 'Apellido materno',
+            'email': 'Correo electrónico',
+            'curp': 'CURP',
+            'gender': 'Género',
+            'date_of_birth': 'Fecha de nacimiento'
+        }
+        
+        for field, label in required_fields.items():
+            if not data.get(field):
+                return jsonify({'error': f'El campo {label} es requerido'}), 400
+        
+        email = data['email'].strip().lower()
+        curp = data['curp'].upper().strip()
+        
+        # Validar formato de email
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            return jsonify({'error': 'Formato de correo electrónico inválido'}), 400
+        
+        # Validar CURP (18 caracteres alfanuméricos)
+        curp_pattern = r'^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$'
+        if not re.match(curp_pattern, curp):
+            return jsonify({'error': 'Formato de CURP inválido. Debe tener 18 caracteres'}), 400
+        
+        # Validar género
+        if data['gender'] not in ['M', 'F', 'O']:
+            return jsonify({'error': 'Género inválido. Use M (masculino), F (femenino) u O (otro)'}), 400
+        
+        # Validar fecha de nacimiento
+        try:
+            date_of_birth = datetime.strptime(data['date_of_birth'], '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}), 400
+        
+        # Verificar email único
+        if User.query.filter_by(email=email).first():
+            return jsonify({'error': 'Ya existe un usuario con ese correo electrónico'}), 400
+        
+        # Verificar CURP único
+        if User.query.filter_by(curp=curp).first():
+            return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
+        
+        # Generar username único de 10 caracteres (letras y números en mayúsculas)
+        def generate_unique_username():
+            chars = string.ascii_uppercase + string.digits
+            while True:
+                username = ''.join(random.choices(chars, k=10))
+                if not User.query.filter_by(username=username).first():
+                    return username
+        
+        username = generate_unique_username()
+        
+        # Generar contraseña segura
+        password = secrets.token_urlsafe(12)
+        
+        # Obtener permisos configurables (defaults a False)
+        can_bulk_create = data.get('can_bulk_create_candidates', False)
+        can_manage_groups = data.get('can_manage_groups', False)
+        
+        # Crear el usuario responsable
+        new_user = User(
+            id=str(uuid.uuid4()),
+            email=email,
+            username=username,
+            name=data['name'].strip(),
+            first_surname=data['first_surname'].strip(),
+            second_surname=data['second_surname'].strip(),
+            gender=data['gender'],
+            curp=curp,
+            date_of_birth=date_of_birth,
+            role='responsable',
+            campus_id=campus.id,
+            is_active=True,
+            is_verified=True,  # Pre-verificado ya que lo crea un admin/coordinator
+            can_bulk_create_candidates=can_bulk_create,
+            can_manage_groups=can_manage_groups
+        )
+        new_user.set_password(password)
+        new_user.encrypted_password = encrypt_password(password)
+        
+        db.session.add(new_user)
+        
+        # Asociar el responsable al plantel y actualizar estado de activación
+        campus.responsable_id = new_user.id
+        campus.activation_status = 'configuring'  # Avanza al siguiente estado
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Responsable del plantel creado exitosamente',
+            'responsable': {
+                'id': new_user.id,
+                'username': new_user.username,
+                'full_name': new_user.full_name,
+                'email': new_user.email,
+                'curp': new_user.curp,
+                'gender': new_user.gender,
+                'date_of_birth': new_user.date_of_birth.isoformat(),
+                'can_bulk_create_candidates': new_user.can_bulk_create_candidates,
+                'can_manage_groups': new_user.can_manage_groups,
+                'temporary_password': password  # Solo se muestra una vez
+            },
+            'campus': {
+                'id': campus.id,
+                'name': campus.name,
+                'code': campus.code,
+                'activation_status': campus.activation_status
+            }
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/campuses/<int:campus_id>/responsable', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_campus_responsable(campus_id):
+    """Obtener información del responsable del plantel"""
+    try:
+        campus = Campus.query.get_or_404(campus_id)
+        
+        if not campus.responsable_id:
+            return jsonify({
+                'message': 'El plantel no tiene responsable asignado',
+                'responsable': None,
+                'activation_status': campus.activation_status
+            })
+        
+        responsable = User.query.get(campus.responsable_id)
+        if not responsable:
+            return jsonify({
+                'message': 'El responsable asignado no existe',
+                'responsable': None,
+                'activation_status': campus.activation_status
+            })
+        
+        return jsonify({
+            'responsable': {
+                'id': responsable.id,
+                'username': responsable.username,
+                'full_name': responsable.full_name,
+                'email': responsable.email,
+                'curp': responsable.curp,
+                'gender': responsable.gender,
+                'date_of_birth': responsable.date_of_birth.isoformat() if responsable.date_of_birth else None,
+                'can_bulk_create_candidates': responsable.can_bulk_create_candidates,
+                'can_manage_groups': responsable.can_manage_groups,
+                'is_active': responsable.is_active,
+                'created_at': responsable.created_at.isoformat() if responsable.created_at else None
+            },
+            'activation_status': campus.activation_status
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/campuses/<int:campus_id>/responsable', methods=['PUT'])
+@jwt_required()
+@coordinator_required
+def update_campus_responsable(campus_id):
+    """Actualizar datos o permisos del responsable del plantel"""
+    try:
+        campus = Campus.query.get_or_404(campus_id)
+        
+        if not campus.responsable_id:
+            return jsonify({'error': 'El plantel no tiene responsable asignado'}), 404
+        
+        responsable = User.query.get(campus.responsable_id)
+        if not responsable:
+            return jsonify({'error': 'El responsable asignado no existe'}), 404
+        
+        data = request.get_json()
+        
+        # Campos actualizables
+        updatable_fields = ['name', 'first_surname', 'second_surname', 'gender', 'phone']
+        for field in updatable_fields:
+            if field in data:
+                setattr(responsable, field, data[field].strip() if isinstance(data[field], str) else data[field])
+        
+        # Actualizar permisos
+        if 'can_bulk_create_candidates' in data:
+            responsable.can_bulk_create_candidates = bool(data['can_bulk_create_candidates'])
+        if 'can_manage_groups' in data:
+            responsable.can_manage_groups = bool(data['can_manage_groups'])
+        
+        # Actualizar estado activo
+        if 'is_active' in data:
+            responsable.is_active = bool(data['is_active'])
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Responsable actualizado exitosamente',
+            'responsable': {
+                'id': responsable.id,
+                'username': responsable.username,
+                'full_name': responsable.full_name,
+                'email': responsable.email,
+                'curp': responsable.curp,
+                'gender': responsable.gender,
+                'date_of_birth': responsable.date_of_birth.isoformat() if responsable.date_of_birth else None,
+                'can_bulk_create_candidates': responsable.can_bulk_create_candidates,
+                'can_manage_groups': responsable.can_manage_groups,
+                'is_active': responsable.is_active
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/campuses/<int:campus_id>/activate', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def activate_campus(campus_id):
+    """Activar un plantel después de completar el proceso de configuración"""
+    try:
+        campus = Campus.query.get_or_404(campus_id)
+        
+        # Verificar que el plantel tenga un responsable asignado
+        if not campus.responsable_id:
+            return jsonify({
+                'error': 'El plantel debe tener un responsable asignado antes de activarse'
+            }), 400
+        
+        # Verificar que la configuración esté completada
+        if not campus.configuration_completed:
+            return jsonify({
+                'error': 'Debe completar la configuración del plantel antes de activarlo'
+            }), 400
+        
+        # Verificar que el plantel no esté ya activo
+        if campus.is_active:
+            return jsonify({
+                'error': 'El plantel ya está activo'
+            }), 400
+        
+        # Activar el plantel
+        campus.is_active = True
+        campus.activation_status = 'active'
+        campus.activated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Plantel activado exitosamente',
+            'campus': campus.to_dict(include_config=True)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/campuses/<int:campus_id>/configure', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def configure_campus(campus_id):
+    """Configurar un plantel (paso 2 del proceso de activación)"""
+    try:
+        campus = Campus.query.get_or_404(campus_id)
+        
+        # Verificar que el plantel tenga un responsable asignado
+        if not campus.responsable_id:
+            return jsonify({
+                'error': 'El plantel debe tener un responsable asignado antes de configurarse'
+            }), 400
+        
+        data = request.get_json()
+        
+        # Versión de Office
+        if 'office_version' in data:
+            valid_versions = ['office_2016', 'office_2019', 'office_365']
+            if data['office_version'] not in valid_versions:
+                return jsonify({'error': f'Versión de Office inválida. Opciones: {", ".join(valid_versions)}'}), 400
+            campus.office_version = data['office_version']
+        
+        # Tiers de certificación
+        if 'enable_tier_basic' in data:
+            campus.enable_tier_basic = bool(data['enable_tier_basic'])
+        if 'enable_tier_standard' in data:
+            campus.enable_tier_standard = bool(data['enable_tier_standard'])
+        if 'enable_tier_advanced' in data:
+            campus.enable_tier_advanced = bool(data['enable_tier_advanced'])
+        if 'enable_digital_badge' in data:
+            campus.enable_digital_badge = bool(data['enable_digital_badge'])
+        
+        # Evaluaciones parciales
+        if 'enable_partial_evaluations' in data:
+            campus.enable_partial_evaluations = bool(data['enable_partial_evaluations'])
+        if 'enable_unscheduled_partials' in data:
+            campus.enable_unscheduled_partials = bool(data['enable_unscheduled_partials'])
+        
+        # Máquinas virtuales
+        if 'enable_virtual_machines' in data:
+            campus.enable_virtual_machines = bool(data['enable_virtual_machines'])
+        
+        # Pagos en línea
+        if 'enable_online_payments' in data:
+            campus.enable_online_payments = bool(data['enable_online_payments'])
+        
+        # Vigencia del plantel
+        if 'license_start_date' in data:
+            if data['license_start_date']:
+                campus.license_start_date = datetime.strptime(data['license_start_date'], '%Y-%m-%d').date()
+            else:
+                campus.license_start_date = None
+                
+        if 'license_end_date' in data:
+            if data['license_end_date']:
+                campus.license_end_date = datetime.strptime(data['license_end_date'], '%Y-%m-%d').date()
+            else:
+                campus.license_end_date = None
+        
+        # Costos
+        if 'certification_cost' in data:
+            campus.certification_cost = float(data['certification_cost']) if data['certification_cost'] else 0
+        if 'retake_cost' in data:
+            campus.retake_cost = float(data['retake_cost']) if data['retake_cost'] else 0
+        
+        # Marcar configuración como completada si se proporciona el flag
+        if data.get('complete_configuration'):
+            # Validar que se hayan configurado los campos requeridos
+            if not campus.license_start_date:
+                return jsonify({'error': 'Debe establecer la fecha de inicio de vigencia del plantel'}), 400
+            
+            if campus.license_end_date and campus.license_end_date <= campus.license_start_date:
+                return jsonify({'error': 'La fecha de fin debe ser posterior a la fecha de inicio'}), 400
+            
+            # Al menos un tier debe estar habilitado
+            if not (campus.enable_tier_basic or campus.enable_tier_standard or campus.enable_tier_advanced or campus.enable_digital_badge):
+                return jsonify({'error': 'Debe habilitar al menos un tipo de certificación'}), 400
+            
+            campus.configuration_completed = True
+            campus.configuration_completed_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Configuración guardada exitosamente',
+            'campus': campus.to_dict(include_config=True, include_responsable=True)
+        })
+        
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error en formato de datos: {str(e)}'}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/campuses/<int:campus_id>/config', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_campus_config(campus_id):
+    """Obtener la configuración de un plantel"""
+    try:
+        campus = Campus.query.get_or_404(campus_id)
+        
+        return jsonify({
+            'campus': campus.to_dict(include_config=True, include_responsable=True, include_partner=True)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/campuses/<int:campus_id>/deactivate', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def deactivate_campus(campus_id):
+    """Desactivar un plantel (para pruebas - requiere volver a activar)"""
+    try:
+        campus = Campus.query.get_or_404(campus_id)
+        
+        # Desactivar el plantel y resetear configuración
+        campus.is_active = False
+        campus.activation_status = 'pending'
+        campus.activated_at = None
+        campus.configuration_completed = False
+        campus.configuration_completed_at = None
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Plantel desactivado. Debe completar el proceso de activación nuevamente.',
+            'campus': campus.to_dict(include_config=True)
+        })
         
     except Exception as e:
         db.session.rollback()
@@ -480,6 +960,15 @@ def create_school_cycle(campus_id):
     """Crear un nuevo ciclo escolar"""
     try:
         campus = Campus.query.get_or_404(campus_id)
+        
+        # Verificar que el plantel esté activo
+        if not campus.is_active:
+            return jsonify({
+                'error': 'No se pueden crear ciclos escolares en un plantel inactivo',
+                'message': 'El plantel debe completar el proceso de activación antes de crear ciclos escolares',
+                'activation_status': campus.activation_status
+            }), 400
+        
         data = request.get_json()
         
         # Validaciones
@@ -725,7 +1214,7 @@ def get_group(group_id):
     try:
         group = CandidateGroup.query.get_or_404(group_id)
         return jsonify({
-            'group': group.to_dict(include_members=True, include_campus=True, include_cycle=True)
+            'group': group.to_dict(include_members=True, include_campus=True, include_cycle=True, include_config=True)
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -783,14 +1272,189 @@ def delete_group(group_id):
         return jsonify({'error': str(e)}), 500
 
 
+# ============== CONFIGURACIÓN DE GRUPO ==============
+
+@bp.route('/groups/<int:group_id>/config', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_group_config(group_id):
+    """Obtener configuración del grupo con valores heredados del campus"""
+    try:
+        group = CandidateGroup.query.get_or_404(group_id)
+        campus = group.campus
+        
+        if not campus:
+            return jsonify({'error': 'Campus no encontrado'}), 404
+        
+        # Configuración del campus (base)
+        campus_config = {
+            'office_version': campus.office_version,
+            'enable_tier_basic': campus.enable_tier_basic,
+            'enable_tier_standard': campus.enable_tier_standard,
+            'enable_tier_advanced': campus.enable_tier_advanced,
+            'enable_digital_badge': campus.enable_digital_badge,
+            'enable_partial_evaluations': campus.enable_partial_evaluations,
+            'enable_unscheduled_partials': campus.enable_unscheduled_partials,
+            'enable_virtual_machines': campus.enable_virtual_machines,
+            'enable_online_payments': campus.enable_online_payments,
+            'certification_cost': float(campus.certification_cost) if campus.certification_cost else 0,
+            'retake_cost': float(campus.retake_cost) if campus.retake_cost else 0,
+            'license_start_date': campus.license_start_date.isoformat() if campus.license_start_date else None,
+            'license_end_date': campus.license_end_date.isoformat() if campus.license_end_date else None,
+        }
+        
+        # Overrides del grupo
+        group_overrides = {
+            'office_version_override': group.office_version_override,
+            'enable_tier_basic_override': group.enable_tier_basic_override,
+            'enable_tier_standard_override': group.enable_tier_standard_override,
+            'enable_tier_advanced_override': group.enable_tier_advanced_override,
+            'enable_digital_badge_override': group.enable_digital_badge_override,
+            'enable_partial_evaluations_override': group.enable_partial_evaluations_override,
+            'enable_unscheduled_partials_override': group.enable_unscheduled_partials_override,
+            'enable_virtual_machines_override': group.enable_virtual_machines_override,
+            'enable_online_payments_override': group.enable_online_payments_override,
+            'certification_cost_override': float(group.certification_cost_override) if group.certification_cost_override is not None else None,
+            'retake_cost_override': float(group.retake_cost_override) if group.retake_cost_override is not None else None,
+            'group_start_date': group.group_start_date.isoformat() if group.group_start_date else None,
+            'group_end_date': group.group_end_date.isoformat() if group.group_end_date else None,
+        }
+        
+        # Configuración efectiva (combinando campus y grupo)
+        effective_config = {
+            'office_version': group.office_version_override or campus.office_version,
+            'enable_tier_basic': group.enable_tier_basic_override if group.enable_tier_basic_override is not None else campus.enable_tier_basic,
+            'enable_tier_standard': group.enable_tier_standard_override if group.enable_tier_standard_override is not None else campus.enable_tier_standard,
+            'enable_tier_advanced': group.enable_tier_advanced_override if group.enable_tier_advanced_override is not None else campus.enable_tier_advanced,
+            'enable_digital_badge': group.enable_digital_badge_override if group.enable_digital_badge_override is not None else campus.enable_digital_badge,
+            'enable_partial_evaluations': group.enable_partial_evaluations_override if group.enable_partial_evaluations_override is not None else campus.enable_partial_evaluations,
+            'enable_unscheduled_partials': group.enable_unscheduled_partials_override if group.enable_unscheduled_partials_override is not None else campus.enable_unscheduled_partials,
+            'enable_virtual_machines': group.enable_virtual_machines_override if group.enable_virtual_machines_override is not None else campus.enable_virtual_machines,
+            'enable_online_payments': group.enable_online_payments_override if group.enable_online_payments_override is not None else campus.enable_online_payments,
+            'certification_cost': float(group.certification_cost_override) if group.certification_cost_override is not None else (float(campus.certification_cost) if campus.certification_cost else 0),
+            'retake_cost': float(group.retake_cost_override) if group.retake_cost_override is not None else (float(campus.retake_cost) if campus.retake_cost else 0),
+            'start_date': group.group_start_date.isoformat() if group.group_start_date else (campus.license_start_date.isoformat() if campus.license_start_date else None),
+            'end_date': group.group_end_date.isoformat() if group.group_end_date else (campus.license_end_date.isoformat() if campus.license_end_date else None),
+        }
+        
+        return jsonify({
+            'group_id': group.id,
+            'group_name': group.name,
+            'campus_id': campus.id,
+            'campus_name': campus.name,
+            'use_custom_config': group.use_custom_config or False,
+            'campus_config': campus_config,
+            'group_overrides': group_overrides,
+            'effective_config': effective_config,
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/config', methods=['PUT'])
+@jwt_required()
+@coordinator_required
+def update_group_config(group_id):
+    """Actualizar configuración del grupo (overrides)"""
+    try:
+        group = CandidateGroup.query.get_or_404(group_id)
+        data = request.get_json()
+        
+        # Campos booleanos de override
+        bool_fields = [
+            'enable_tier_basic_override',
+            'enable_tier_standard_override',
+            'enable_tier_advanced_override',
+            'enable_digital_badge_override',
+            'enable_partial_evaluations_override',
+            'enable_unscheduled_partials_override',
+            'enable_virtual_machines_override',
+            'enable_online_payments_override',
+        ]
+        
+        for field in bool_fields:
+            if field in data:
+                setattr(group, field, data[field])
+        
+        # Campo de versión de office
+        if 'office_version_override' in data:
+            group.office_version_override = data['office_version_override']
+        
+        # Campos de costos
+        if 'certification_cost_override' in data:
+            group.certification_cost_override = data['certification_cost_override']
+        if 'retake_cost_override' in data:
+            group.retake_cost_override = data['retake_cost_override']
+        
+        # Fechas del grupo
+        if 'group_start_date' in data:
+            group.group_start_date = data['group_start_date'] if data['group_start_date'] else None
+        if 'group_end_date' in data:
+            group.group_end_date = data['group_end_date'] if data['group_end_date'] else None
+        
+        # Flag de configuración personalizada
+        if 'use_custom_config' in data:
+            group.use_custom_config = data['use_custom_config']
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Configuración del grupo actualizada',
+            'group': group.to_dict(include_config=True)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/config/reset', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def reset_group_config(group_id):
+    """Resetear configuración del grupo a valores del campus"""
+    try:
+        group = CandidateGroup.query.get_or_404(group_id)
+        
+        # Limpiar todos los overrides
+        group.use_custom_config = False
+        group.office_version_override = None
+        group.enable_tier_basic_override = None
+        group.enable_tier_standard_override = None
+        group.enable_tier_advanced_override = None
+        group.enable_digital_badge_override = None
+        group.enable_partial_evaluations_override = None
+        group.enable_unscheduled_partials_override = None
+        group.enable_virtual_machines_override = None
+        group.enable_online_payments_override = None
+        group.certification_cost_override = None
+        group.retake_cost_override = None
+        group.group_start_date = None
+        group.group_end_date = None
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Configuración del grupo restablecida a valores del campus',
+            'group': group.to_dict(include_config=True)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
 # ============== MIEMBROS DE GRUPO ==============
 
 @bp.route('/groups/<int:group_id>/members', methods=['GET'])
 @jwt_required()
 @coordinator_required
 def get_group_members(group_id):
-    """Listar miembros de un grupo"""
+    """Listar miembros de un grupo con info de asignaciones"""
     try:
+        from sqlalchemy import text
+        
         group = CandidateGroup.query.get_or_404(group_id)
         
         status_filter = request.args.get('status')
@@ -802,15 +1466,159 @@ def get_group_members(group_id):
         
         members = query.all()
         
+        # Obtener exámenes asignados al grupo
+        group_exams = GroupExam.query.filter_by(group_id=group_id, is_active=True).all()
+        group_exam_ids = [ge.id for ge in group_exams]
+        
+        # Obtener asignaciones de exámenes a usuarios específicos (user_id)
+        exam_user_assignments = {}
+        if group_exam_ids:
+            result = db.session.execute(text("""
+                SELECT gem.user_id, gem.group_exam_id
+                FROM group_exam_members gem
+                WHERE gem.group_exam_id IN :exam_ids
+            """), {'exam_ids': tuple(group_exam_ids) if group_exam_ids else (0,)})
+            for row in result:
+                if row[0] not in exam_user_assignments:
+                    exam_user_assignments[row[0]] = set()
+                exam_user_assignments[row[0]].add(row[1])
+        
+        # Para saber si examen está asignado a todos o a miembros específicos
+        exams_for_all = [ge.id for ge in group_exams if ge.assignment_type == 'all']
+        
+        # Obtener materiales asignados directamente al grupo
+        materials_result = db.session.execute(text("""
+            SELECT gsm.id, gsm.assignment_type
+            FROM group_study_materials gsm
+            WHERE gsm.group_id = :group_id AND gsm.is_active = 1
+        """), {'group_id': group_id})
+        
+        group_materials = []
+        materials_for_all_ids = []
+        for row in materials_result:
+            group_materials.append({'id': row[0], 'assignment_type': row[1]})
+            if row[1] == 'all':
+                materials_for_all_ids.append(row[0])
+        
+        group_material_ids = [m['id'] for m in group_materials]
+        
+        # Obtener asignaciones de materiales a usuarios específicos
+        material_user_assignments = {}
+        if group_material_ids:
+            mat_result = db.session.execute(text("""
+                SELECT gsmm.user_id, gsmm.group_study_material_id
+                FROM group_study_material_members gsmm
+                WHERE gsmm.group_study_material_id IN :mat_ids
+            """), {'mat_ids': tuple(group_material_ids) if group_material_ids else (0,)})
+            for row in mat_result:
+                if row[0] not in material_user_assignments:
+                    material_user_assignments[row[0]] = set()
+                material_user_assignments[row[0]].add(row[1])
+        
+        # Obtener exámenes que tienen materiales incluidos (GroupExamMaterial)
+        exams_with_materials = set()
+        if group_exam_ids:
+            exam_mat_result = db.session.execute(text("""
+                SELECT DISTINCT gem.group_exam_id
+                FROM group_exam_materials gem
+                WHERE gem.group_exam_id IN :exam_ids
+            """), {'exam_ids': tuple(group_exam_ids) if group_exam_ids else (0,)})
+            exams_with_materials = {row[0] for row in exam_mat_result}
+        
+        # Obtener los exam_id reales de los group_exams para buscar resultados
+        group_exam_to_exam_id = {ge.id: ge.exam_id for ge in group_exams}
+        real_exam_ids = [ge.exam_id for ge in group_exams]
+        
+        # Obtener resultados de exámenes para todos los miembros
+        user_ids = [m.user_id for m in members]
+        certification_status_map = {}
+        if user_ids and real_exam_ids:
+            from app.models.result import Result
+            results = Result.query.filter(
+                Result.user_id.in_(user_ids),
+                Result.exam_id.in_(real_exam_ids)
+            ).all()
+            
+            for r in results:
+                if r.user_id not in certification_status_map:
+                    certification_status_map[r.user_id] = {'status': 0, 'result': 0}
+                
+                # Priorizar: aprobado > en proceso > reprobado
+                current = certification_status_map[r.user_id]
+                if r.result == 1 and r.status == 1:  # Aprobado y completado
+                    current['status'] = 1
+                    current['result'] = 1
+                elif r.status == 0 and current['result'] != 1:  # En proceso (solo si no ha aprobado)
+                    current['status'] = 0
+                    current['result'] = 0
+                elif r.status == 1 and r.result == 0 and current['status'] != 0 and current['result'] != 1:  # Reprobado
+                    current['status'] = 1
+                    current['result'] = 0
+        
+        # Construir respuesta con asignaciones
+        members_data = []
+        for m in members:
+            member_dict = m.to_dict(include_user=True)
+            
+            # Determinar si tiene examen asignado (por user_id)
+            user_exam_ids = set()
+            if len(exams_for_all) > 0:
+                user_exam_ids.update(exams_for_all)
+            if m.user_id in exam_user_assignments:
+                user_exam_ids.update(exam_user_assignments[m.user_id])
+            
+            has_exam = len(user_exam_ids) > 0
+            
+            # Verificar si algún examen del usuario tiene materiales incluidos
+            has_material_from_exam = bool(user_exam_ids & exams_with_materials)
+            
+            # Determinar si tiene material asignado directamente (por user_id)
+            has_direct_material = (
+                len(materials_for_all_ids) > 0 or  # Hay materiales para todos
+                m.user_id in material_user_assignments  # Tiene asignación específica por user_id
+            )
+            
+            # El usuario tiene material si tiene material directo O material incluido en examen
+            has_material = has_direct_material or has_material_from_exam
+            
+            # Calcular estado de asignación
+            if has_exam and has_material:
+                assignment_status = 'exam_and_material'
+            elif has_exam:
+                assignment_status = 'exam_only'
+            elif has_material:
+                assignment_status = 'material_only'
+            else:
+                assignment_status = 'none'
+            
+            member_dict['assignment_status'] = assignment_status
+            member_dict['has_exam'] = has_exam
+            member_dict['has_material'] = has_material
+            
+            # Agregar estatus de certificación
+            cert_info = certification_status_map.get(m.user_id, None)
+            if cert_info:
+                if cert_info['result'] == 1 and cert_info['status'] == 1:
+                    member_dict['certification_status'] = 'certified'  # Aprobado/Certificado
+                elif cert_info['status'] == 0:
+                    member_dict['certification_status'] = 'in_progress'  # En proceso
+                else:
+                    member_dict['certification_status'] = 'failed'  # Reprobado
+            else:
+                member_dict['certification_status'] = 'pending'  # Sin intentos
+            
+            members_data.append(member_dict)
+        
         return jsonify({
             'group_id': group_id,
             'group_name': group.name,
-            'members': [m.to_dict(include_user=True) for m in members],
+            'members': members_data,
             'total': len(members)
         })
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import traceback
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
 
 
 @bp.route('/groups/<int:group_id>/members', methods=['POST'])
@@ -921,8 +1729,8 @@ def update_group_member(group_id, member_id):
         data = request.get_json()
         
         if 'status' in data:
-            if data['status'] not in ['active', 'inactive', 'completed', 'withdrawn']:
-                return jsonify({'error': 'Estado no válido'}), 400
+            if data['status'] not in ['active', 'suspended']:
+                return jsonify({'error': 'Estado no válido. Use: active, suspended'}), 400
             member.status = data['status']
             
         if 'notes' in data:
@@ -1749,6 +2557,12 @@ def assign_exam_to_group(group_id):
                 existing.max_attempts = data.get('max_attempts', 2)
                 existing.max_disconnections = data.get('max_disconnections', 3)
                 existing.exam_content_type = data.get('exam_content_type', 'questions_only')
+                existing.exam_questions_count = data.get('exam_questions_count')
+                existing.exam_exercises_count = data.get('exam_exercises_count')
+                existing.simulator_questions_count = data.get('simulator_questions_count')
+                existing.simulator_exercises_count = data.get('simulator_exercises_count')
+                existing.security_pin = data.get('security_pin')
+                existing.require_security_pin = data.get('require_security_pin', False)
                 
                 # Si es tipo 'selected', agregar miembros
                 if assignment_type == 'selected':
@@ -1794,6 +2608,12 @@ def assign_exam_to_group(group_id):
         max_attempts = data.get('max_attempts', 2)
         max_disconnections = data.get('max_disconnections', 3)
         exam_content_type = data.get('exam_content_type', 'questions_only')
+        exam_questions_count = data.get('exam_questions_count')
+        exam_exercises_count = data.get('exam_exercises_count')
+        simulator_questions_count = data.get('simulator_questions_count')
+        simulator_exercises_count = data.get('simulator_exercises_count')
+        security_pin = data.get('security_pin')
+        require_security_pin = data.get('require_security_pin', False)
         material_ids = data.get('material_ids')
         
         # Crear nueva asignación
@@ -1808,7 +2628,13 @@ def assign_exam_to_group(group_id):
             passing_score=passing_score,
             max_attempts=max_attempts,
             max_disconnections=max_disconnections,
-            exam_content_type=exam_content_type
+            exam_content_type=exam_content_type,
+            exam_questions_count=exam_questions_count,
+            exam_exercises_count=exam_exercises_count,
+            simulator_questions_count=simulator_questions_count,
+            simulator_exercises_count=simulator_exercises_count,
+            security_pin=security_pin,
+            require_security_pin=require_security_pin
         )
         
         db.session.add(group_exam)
@@ -1900,12 +2726,22 @@ def get_group_exam_members(group_id, exam_id):
             is_active=True
         ).first_or_404()
         
-        members = [m.to_dict(include_user=True) for m in group_exam.assigned_members]
+        if group_exam.assignment_type == 'all':
+            # Todos los miembros del grupo
+            group_members = GroupMember.query.filter_by(group_id=group_id).all()
+            assigned_user_ids = [m.user_id for m in group_members]
+            members = []  # No hay miembros específicos asignados
+        else:
+            members = [m.to_dict(include_user=True) for m in group_exam.assigned_members]
+            assigned_user_ids = [m.user_id for m in group_exam.assigned_members]
         
         return jsonify({
+            'assignment_id': group_exam.id,
+            'exam_id': exam_id,
             'assignment_type': group_exam.assignment_type,
             'members': members,
-            'total_members': len(members)
+            'assigned_user_ids': assigned_user_ids,
+            'total_members': len(assigned_user_ids)
         })
         
     except Exception as e:
@@ -1962,6 +2798,74 @@ def update_group_exam_members(group_id, exam_id):
         return jsonify({
             'message': message,
             'assignment': group_exam.to_dict(include_exam=True, include_members=True)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/exams/<int:exam_id>/members/add', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def add_members_to_exam(group_id, exam_id):
+    """Agregar miembros a un examen existente sin afectar los actuales
+    
+    Parámetros:
+    - user_ids: Lista de user_ids a agregar
+    """
+    try:
+        from app.models import GroupExam
+        from app.models.partner import GroupExamMember
+        
+        group_exam = GroupExam.query.filter_by(
+            group_id=group_id,
+            exam_id=exam_id,
+            is_active=True
+        ).first_or_404()
+        
+        data = request.get_json()
+        user_ids_to_add = data.get('user_ids', [])
+        
+        if not user_ids_to_add:
+            return jsonify({'error': 'Debes proporcionar user_ids a agregar'}), 400
+        
+        # Cambiar a 'selected' si era 'all'
+        if group_exam.assignment_type == 'all':
+            # Si era 'all', primero agregar todos los miembros actuales
+            group_members = GroupMember.query.filter_by(group_id=group_id).all()
+            for gm in group_members:
+                existing = GroupExamMember.query.filter_by(
+                    group_exam_id=group_exam.id,
+                    user_id=gm.user_id
+                ).first()
+                if not existing:
+                    member = GroupExamMember(
+                        group_exam_id=group_exam.id,
+                        user_id=gm.user_id
+                    )
+                    db.session.add(member)
+            group_exam.assignment_type = 'selected'
+        
+        added = []
+        for user_id in user_ids_to_add:
+            existing = GroupExamMember.query.filter_by(
+                group_exam_id=group_exam.id,
+                user_id=user_id
+            ).first()
+            if not existing:
+                member = GroupExamMember(
+                    group_exam_id=group_exam.id,
+                    user_id=user_id
+                )
+                db.session.add(member)
+                added.append(user_id)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'{len(added)} usuario(s) agregado(s) al examen',
+            'added': added
         })
         
     except Exception as e:
@@ -2145,17 +3049,256 @@ def unassign_study_material_from_group(group_id, material_id):
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/groups/<int:group_id>/study-materials/<int:material_id>/members', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_study_material_members(group_id, material_id):
+    """Obtener los miembros asignados a un material específico del grupo"""
+    try:
+        from app.models import GroupStudyMaterial, GroupStudyMaterialMember
+        
+        assignment = GroupStudyMaterial.query.filter_by(
+            group_id=group_id,
+            study_material_id=material_id,
+            is_active=True
+        ).first()
+        
+        if not assignment:
+            return jsonify({
+                'error': f'No se encontró asignación activa del material {material_id} en el grupo {group_id}'
+            }), 404
+        
+        if assignment.assignment_type == 'all':
+            # Todos los miembros del grupo
+            group_members = GroupMember.query.filter_by(group_id=group_id).all()
+            assigned_user_ids = [m.user_id for m in group_members]
+        else:
+            # Solo los seleccionados
+            assigned_members = GroupStudyMaterialMember.query.filter_by(
+                group_study_material_id=assignment.id
+            ).all()
+            assigned_user_ids = [m.user_id for m in assigned_members]
+        
+        return jsonify({
+            'assignment_id': assignment.id,
+            'material_id': material_id,
+            'assignment_type': assignment.assignment_type,
+            'assigned_user_ids': assigned_user_ids
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/study-materials/<int:material_id>/members', methods=['PUT'])
+@jwt_required()
+@coordinator_required
+def update_study_material_members(group_id, material_id):
+    """Actualizar los miembros asignados a un material específico del grupo
+    
+    Parámetros:
+    - user_ids: Lista de user_ids que deben estar asignados
+    """
+    try:
+        from app.models import GroupStudyMaterial, GroupStudyMaterialMember
+        
+        assignment = GroupStudyMaterial.query.filter_by(
+            group_id=group_id,
+            study_material_id=material_id,
+            is_active=True
+        ).first()
+        
+        if not assignment:
+            return jsonify({
+                'error': f'No se encontró asignación activa del material {material_id} en el grupo {group_id}'
+            }), 404
+        
+        data = request.get_json()
+        new_user_ids = set(data.get('user_ids', []))
+        
+        if not new_user_ids:
+            return jsonify({'error': 'Debes seleccionar al menos un candidato'}), 400
+        
+        # Cambiar a assignment_type 'selected' si era 'all'
+        if assignment.assignment_type == 'all':
+            assignment.assignment_type = 'selected'
+        
+        # Obtener asignaciones actuales
+        current_members = GroupStudyMaterialMember.query.filter_by(
+            group_study_material_id=assignment.id
+        ).all()
+        current_user_ids = {m.user_id for m in current_members}
+        
+        # Usuarios a agregar
+        to_add = new_user_ids - current_user_ids
+        # Usuarios a eliminar
+        to_remove = current_user_ids - new_user_ids
+        
+        # Agregar nuevos
+        for user_id in to_add:
+            member = GroupStudyMaterialMember(
+                group_study_material_id=assignment.id,
+                user_id=user_id
+            )
+            db.session.add(member)
+        
+        # Eliminar los que ya no están
+        for user_id in to_remove:
+            GroupStudyMaterialMember.query.filter_by(
+                group_study_material_id=assignment.id,
+                user_id=user_id
+            ).delete()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Miembros actualizados correctamente',
+            'added': list(to_add),
+            'removed': list(to_remove),
+            'total_members': len(new_user_ids)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/study-materials/<int:material_id>/members/add', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def add_members_to_study_material(group_id, material_id):
+    """Agregar miembros a un material de estudio existente sin afectar los actuales
+    
+    Parámetros:
+    - user_ids: Lista de user_ids a agregar
+    """
+    try:
+        from app.models import GroupStudyMaterial, GroupStudyMaterialMember
+        
+        assignment = GroupStudyMaterial.query.filter_by(
+            group_id=group_id,
+            study_material_id=material_id,
+            is_active=True
+        ).first()
+        
+        if not assignment:
+            return jsonify({
+                'error': f'No se encontró asignación activa del material {material_id} en el grupo {group_id}'
+            }), 404
+        
+        data = request.get_json()
+        user_ids_to_add = data.get('user_ids', [])
+        
+        if not user_ids_to_add:
+            return jsonify({'error': 'Debes proporcionar user_ids a agregar'}), 400
+        
+        # Cambiar a 'selected' si era 'all'
+        if assignment.assignment_type == 'all':
+            # Si era 'all', primero agregar todos los miembros actuales
+            group_members = GroupMember.query.filter_by(group_id=group_id).all()
+            for gm in group_members:
+                existing = GroupStudyMaterialMember.query.filter_by(
+                    group_study_material_id=assignment.id,
+                    user_id=gm.user_id
+                ).first()
+                if not existing:
+                    member = GroupStudyMaterialMember(
+                        group_study_material_id=assignment.id,
+                        user_id=gm.user_id
+                    )
+                    db.session.add(member)
+            assignment.assignment_type = 'selected'
+        
+        added = []
+        for user_id in user_ids_to_add:
+            existing = GroupStudyMaterialMember.query.filter_by(
+                group_study_material_id=assignment.id,
+                user_id=user_id
+            ).first()
+            if not existing:
+                member = GroupStudyMaterialMember(
+                    group_study_material_id=assignment.id,
+                    user_id=user_id
+                )
+                db.session.add(member)
+                added.append(user_id)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'{len(added)} usuario(s) agregado(s) al material',
+            'added': added
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/study-materials/available', methods=['GET'])
 @jwt_required()
 @coordinator_required
 def get_available_study_materials():
     """Obtener materiales de estudio publicados disponibles para asignar"""
     try:
-        from app.models.study_content import StudyMaterial
+        from app.models.study_content import StudyMaterial, study_material_exams
+        from app.models import GroupStudyMaterial, GroupExam
         
         search = request.args.get('search', '')
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
+        group_id = request.args.get('group_id', type=int)
+        
+        # Obtener IDs de materiales ya asignados al grupo directamente
+        assigned_material_ids = set()
+        # Obtener materiales que están en exámenes asignados al grupo
+        materials_in_assigned_exams = {}  # material_id -> exam_info
+        
+        if group_id:
+            # Materiales asignados directamente
+            assigned_materials = GroupStudyMaterial.query.filter_by(
+                group_id=group_id,
+                is_active=True
+            ).all()
+            assigned_material_ids = {gm.study_material_id for gm in assigned_materials}
+            
+            # Obtener exámenes asignados al grupo
+            assigned_exams = GroupExam.query.filter_by(
+                group_id=group_id,
+                is_active=True
+            ).all()
+            
+            # Para cada examen asignado, obtener sus materiales vinculados
+            for group_exam in assigned_exams:
+                exam = group_exam.exam
+                if exam:
+                    # Obtener materiales vinculados a este examen (tabla study_material_exams)
+                    try:
+                        result = db.session.execute(
+                            db.select(study_material_exams.c.study_material_id).where(
+                                study_material_exams.c.exam_id == exam.id
+                            )
+                        )
+                        for row in result:
+                            material_id = row[0]
+                            if material_id not in materials_in_assigned_exams:
+                                materials_in_assigned_exams[material_id] = {
+                                    'exam_id': exam.id,
+                                    'exam_name': exam.name,
+                                    'group_exam_id': group_exam.id
+                                }
+                    except Exception:
+                        pass  # Tabla puede no existir
+                    
+                    # También verificar materiales con relación legacy (exam_id directo)
+                    legacy_materials = StudyMaterial.query.filter_by(exam_id=exam.id).all()
+                    for mat in legacy_materials:
+                        if mat.id not in materials_in_assigned_exams:
+                            materials_in_assigned_exams[mat.id] = {
+                                'exam_id': exam.id,
+                                'exam_name': exam.name,
+                                'group_exam_id': group_exam.id
+                            }
         
         query = StudyMaterial.query.filter(StudyMaterial.is_published == True)
         
@@ -2176,6 +3319,9 @@ def get_available_study_materials():
             sessions_count = mat.sessions.count() if mat.sessions else 0
             topics_count = sum(s.topics.count() for s in mat.sessions.all()) if mat.sessions else 0
             
+            # Verificar si está en un examen asignado
+            exam_info = materials_in_assigned_exams.get(mat.id)
+            
             materials_data.append({
                 'id': mat.id,
                 'title': mat.title,
@@ -2184,6 +3330,9 @@ def get_available_study_materials():
                 'is_published': mat.is_published,
                 'sessions_count': sessions_count,
                 'topics_count': topics_count,
+                'is_assigned_to_group': mat.id in assigned_material_ids,
+                'is_in_assigned_exam': exam_info is not None,
+                'assigned_exam_info': exam_info,
             })
         
         return jsonify({
@@ -2201,24 +3350,44 @@ def get_available_study_materials():
 @jwt_required()
 @coordinator_required
 def get_available_exams():
-    """Obtener exámenes disponibles para asignar a grupos"""
+    """Obtener exámenes disponibles para asignar a grupos
+    
+    Parámetros opcionales:
+    - group_id: Si se proporciona, incluye is_assigned_to_group para indicar si ya está asignado
+    """
     try:
-        from app.models import Exam
+        from app.models import Exam, GroupExam
         from app.models.study_content import StudyMaterial
+        from app.models.competency_standard import CompetencyStandard
+        from sqlalchemy import text
+        from sqlalchemy.orm import joinedload
         
         search = request.args.get('search', '')
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
+        group_id = request.args.get('group_id', type=int)
         
-        query = Exam.query.filter(Exam.is_published == True)
+        # Si se proporciona group_id, obtener exámenes ya asignados a ese grupo
+        assigned_exam_ids = set()
+        if group_id:
+            assigned_exams = GroupExam.query.filter_by(
+                group_id=group_id,
+                is_active=True
+            ).all()
+            assigned_exam_ids = {ge.exam_id for ge in assigned_exams}
+        
+        # Cargar la relación competency_standard para tener el código ECM
+        query = Exam.query.options(joinedload(Exam.competency_standard)).filter(Exam.is_published == True)
         
         if search:
             search_term = f'%{search}%'
-            query = query.filter(
+            # Buscar también por código ECM
+            query = query.outerjoin(CompetencyStandard).filter(
                 db.or_(
                     Exam.name.ilike(search_term),
                     Exam.standard.ilike(search_term),
-                    Exam.description.ilike(search_term)
+                    Exam.description.ilike(search_term),
+                    CompetencyStandard.code.ilike(search_term)
                 )
             )
         
@@ -2232,7 +3401,6 @@ def get_available_exams():
             
             # También contar materiales de la relación muchos a muchos
             try:
-                from sqlalchemy import text
                 result = db.session.execute(text('''
                     SELECT COUNT(DISTINCT sme.study_material_id) 
                     FROM study_material_exams sme
@@ -2245,16 +3413,81 @@ def get_available_exams():
             except Exception:
                 pass
             
+            # Contar preguntas por tipo (exam vs simulator)
+            exam_questions = 0
+            simulator_questions = 0
+            try:
+                questions_result = db.session.execute(text('''
+                    SELECT q.type, COUNT(q.id) as cnt
+                    FROM questions q
+                    JOIN topics t ON q.topic_id = t.id
+                    JOIN categories c ON t.category_id = c.id
+                    WHERE c.exam_id = :exam_id
+                    GROUP BY q.type
+                '''), {'exam_id': exam.id})
+                for row in questions_result.fetchall():
+                    q_type = row[0] or 'exam'
+                    count = row[1] or 0
+                    if q_type == 'simulator':
+                        simulator_questions = count
+                    else:
+                        exam_questions = count
+            except Exception as e:
+                print(f"[DEBUG] Error contando preguntas: {e}")
+            
+            # Contar ejercicios por tipo (exam vs simulator)
+            exam_exercises = 0
+            simulator_exercises = 0
+            try:
+                exercises_result = db.session.execute(text('''
+                    SELECT e.type, COUNT(e.id) as cnt
+                    FROM exercises e
+                    JOIN topics t ON e.topic_id = t.id
+                    JOIN categories c ON t.category_id = c.id
+                    WHERE c.exam_id = :exam_id
+                    GROUP BY e.type
+                '''), {'exam_id': exam.id})
+                for row in exercises_result.fetchall():
+                    e_type = row[0] or 'exam'
+                    count = row[1] or 0
+                    if e_type == 'simulator':
+                        simulator_exercises = count
+                    else:
+                        exam_exercises = count
+            except Exception as e:
+                print(f"[DEBUG] Error contando ejercicios: {e}")
+            
+            total_questions = exam_questions + simulator_questions
+            total_exercises = exam_exercises + simulator_exercises
+            
+            # Obtener código ECM si existe
+            ecm_code = None
+            ecm_name = None
+            if exam.competency_standard:
+                ecm_code = exam.competency_standard.code
+                ecm_name = exam.competency_standard.name
+            
+            print(f"[DEBUG] Exam {exam.id} ({exam.name}): standard='{exam.standard}', ecm_code='{ecm_code}', competency_standard_id={exam.competency_standard_id}")
+            
             exams_data.append({
                 'id': exam.id,
                 'name': exam.name,
                 'version': exam.version,
                 'standard': exam.standard,
+                'ecm_code': ecm_code,
+                'ecm_name': ecm_name,
                 'description': exam.description,
                 'duration_minutes': exam.duration_minutes,
                 'passing_score': exam.passing_score,
                 'is_published': exam.is_published,
-                'study_materials_count': materials_count
+                'study_materials_count': materials_count,
+                'total_questions': total_questions,
+                'total_exercises': total_exercises,
+                'exam_questions_count': exam_questions,
+                'simulator_questions_count': simulator_questions,
+                'exam_exercises_count': exam_exercises,
+                'simulator_exercises_count': simulator_exercises,
+                'is_assigned_to_group': exam.id in assigned_exam_ids,
             })
         
         return jsonify({
@@ -2265,6 +3498,8 @@ def get_available_exams():
         })
         
     except Exception as e:
+        import traceback
+        print(f"[DEBUG] Error en get_available_exams: {traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -2842,7 +4077,12 @@ def search_candidates_advanced():
             ).subquery()
             query = query.filter(User.id.in_(members_of_state))
         
-        query = query.order_by(User.first_surname, User.name)
+        # Ordenamiento: 'recent' ordena por fecha de creación descendente
+        sort_by = request.args.get('sort_by', 'name')
+        if sort_by == 'recent':
+            query = query.order_by(User.created_at.desc())
+        else:
+            query = query.order_by(User.first_surname, User.name)
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         
         candidates = []
@@ -2903,6 +4143,145 @@ def search_candidates_advanced():
                 'gender': gender
             }
         })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/export-members', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def export_group_members(group_id):
+    """
+    Exportar miembros del grupo a Excel
+    Incluye: Grupo, Usuario, Contraseña, Nombre Completo, Email, CURP, Estado, Estatus Certificación
+    """
+    try:
+        from sqlalchemy import text
+        from app.models.result import Result
+        
+        group = CandidateGroup.query.get_or_404(group_id)
+        
+        # Obtener miembros con sus usuarios
+        members = GroupMember.query.filter_by(group_id=group_id).all()
+        
+        # Obtener exámenes del grupo para buscar resultados
+        group_exams = GroupExam.query.filter_by(group_id=group_id, is_active=True).all()
+        real_exam_ids = [ge.exam_id for ge in group_exams]
+        
+        # Obtener resultados de certificación para todos los usuarios
+        user_ids = [m.user_id for m in members if m.user]
+        certification_status_map = {}
+        
+        if user_ids and real_exam_ids:
+            results = Result.query.filter(
+                Result.user_id.in_(user_ids),
+                Result.exam_id.in_(real_exam_ids)
+            ).all()
+            
+            for r in results:
+                if r.user_id not in certification_status_map:
+                    certification_status_map[r.user_id] = {'status': -1, 'result': -1}
+                
+                current = certification_status_map[r.user_id]
+                # Priorizar: aprobado > en proceso > reprobado
+                if r.result == 1 and r.status == 1:
+                    current['status'] = 1
+                    current['result'] = 1
+                elif r.status == 0 and current['result'] != 1:
+                    current['status'] = 0
+                    current['result'] = 0
+                elif r.status == 1 and r.result == 0 and current['status'] != 0 and current['result'] != 1:
+                    current['status'] = 1
+                    current['result'] = 0
+        
+        # Crear workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Miembros del Grupo"
+        
+        # Estilos
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+        header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        header_alignment = Alignment(horizontal="center", vertical="center")
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Headers - ahora incluye CURP y Estatus Certificación
+        headers = ["Grupo", "Usuario", "Contraseña", "Nombre Completo", "Email", "CURP", "Estado", "Estatus Certificación"]
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = thin_border
+        
+        # Datos
+        row_num = 2
+        for member in members:
+            user = member.user
+            if user:
+                # Desencriptar contraseña
+                password = "No disponible"
+                if user.encrypted_password:
+                    try:
+                        decrypted = decrypt_password(user.encrypted_password)
+                        if decrypted:
+                            password = decrypted
+                    except Exception:
+                        password = "Error al desencriptar"
+                
+                # Determinar estatus de certificación
+                cert_info = certification_status_map.get(user.id, None)
+                if cert_info:
+                    if cert_info['result'] == 1 and cert_info['status'] == 1:
+                        cert_status_text = "Certificado"
+                    elif cert_info['status'] == 0:
+                        cert_status_text = "En proceso"
+                    else:
+                        cert_status_text = "No aprobado"
+                else:
+                    cert_status_text = "Pendiente"
+                
+                ws.cell(row=row_num, column=1, value=group.name).border = thin_border
+                ws.cell(row=row_num, column=2, value=user.username).border = thin_border
+                ws.cell(row=row_num, column=3, value=password).border = thin_border
+                ws.cell(row=row_num, column=4, value=user.full_name or f"{user.name or ''} {user.last_name or ''}".strip()).border = thin_border
+                ws.cell(row=row_num, column=5, value=user.email).border = thin_border
+                ws.cell(row=row_num, column=6, value=user.curp or "").border = thin_border
+                ws.cell(row=row_num, column=7, value="Activo" if member.status == 'active' else "Suspendido").border = thin_border
+                ws.cell(row=row_num, column=8, value=cert_status_text).border = thin_border
+                row_num += 1
+        
+        # Ajustar anchos de columna
+        ws.column_dimensions['A'].width = 25
+        ws.column_dimensions['B'].width = 20
+        ws.column_dimensions['C'].width = 20
+        ws.column_dimensions['D'].width = 35
+        ws.column_dimensions['E'].width = 30
+        ws.column_dimensions['F'].width = 22
+        ws.column_dimensions['G'].width = 15
+        ws.column_dimensions['H'].width = 22
+        
+        # Guardar a BytesIO
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        # Nombre del archivo
+        safe_name = group.name.replace(' ', '_').replace('/', '-')[:30]
+        filename = f"Miembros_{safe_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

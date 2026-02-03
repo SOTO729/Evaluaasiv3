@@ -9,6 +9,18 @@ if [ -f "migrate_db.py" ]; then
     python migrate_db.py || echo "⚠️  Migraciones personalizadas fallaron"
 fi
 
+# Crear tablas de materiales de estudio para grupos
+if [ -f "create_group_study_materials.py" ]; then
+    echo "🔄 Creando tablas de materiales de grupo..."
+    python create_group_study_materials.py || echo "⚠️  Creación de tablas fallaron"
+fi
+
+# Agregar campos de configuración de grupo
+if [ -f "add_group_config_fields.py" ]; then
+    echo "🔄 Agregando campos de configuración de grupo..."
+    python add_group_config_fields.py || echo "⚠️  Migración de configuración de grupo falló"
+fi
+
 # Ejecutar migraciones de Flask-Migrate si existen
 if [ -d "migrations" ]; then
     echo "🔄 Ejecutando migraciones de Flask-Migrate..."

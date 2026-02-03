@@ -1,10 +1,381 @@
 """Endpoint temporal de debug"""
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, current_app
 import os
 import subprocess
 import inspect
 
 debug_bp = Blueprint('debug', __name__)
+
+
+@debug_bp.route('/check-partners-routes', methods=['GET'])
+def check_partners_routes():
+    """Verificar rutas de partners registradas"""
+    try:
+        routes = []
+        for rule in current_app.url_map.iter_rules():
+            if hasattr(rule, 'endpoint') and rule.endpoint and rule.endpoint.startswith('partners.'):
+                routes.append({
+                    'route': rule.rule,
+                    'methods': list(rule.methods - {'OPTIONS', 'HEAD'}),
+                    'endpoint': rule.endpoint
+                })
+        
+        # Filtrar rutas de study-materials members
+        sm_members = [r for r in routes if 'study-materials' in r['route'] and 'members' in r['route']]
+        exam_members = [r for r in routes if 'exams' in r['route'] and 'members' in r['route']]
+        
+        return jsonify({
+            'total_partners_routes': len(routes),
+            'study_materials_members_routes': sm_members,
+            'exam_members_routes': exam_members,
+            'all_study_materials_routes': [r for r in routes if 'study-materials' in r['route']]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@debug_bp.route('/create-group-study-tables', methods=['POST', 'GET'])
+def create_group_study_tables():
+    """Crear tablas para materiales de estudio de grupos"""
+    try:
+        from app import db
+        from sqlalchemy import text
+        
+        results = {
+            'tables_checked': [],
+            'tables_created': [],
+            'errors': []
+        }
+        
+        # Verificar tablas existentes
+        result = db.session.execute(text("""
+            SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_TYPE = 'BASE TABLE'
+        """))
+        tables = [row[0].lower() for row in result]
+        results['existing_tables_count'] = len(tables)
+        
+        # 1. Crear tabla group_study_materials
+        if 'group_study_materials' not in tables:
+            try:
+                db.session.execute(text("""
+                    CREATE TABLE group_study_materials (
+                        id INT IDENTITY(1,1) PRIMARY KEY,
+                        group_id INT NOT NULL,
+                        study_material_id INT NOT NULL,
+                        assigned_at DATETIME DEFAULT GETDATE() NOT NULL,
+                        assigned_by_id VARCHAR(36) NULL,
+                        available_from DATETIME NULL,
+                        available_until DATETIME NULL,
+                        assignment_type VARCHAR(20) DEFAULT 'all' NOT NULL,
+                        is_active BIT DEFAULT 1 NOT NULL,
+                        CONSTRAINT fk_gsm_group FOREIGN KEY (group_id) 
+                            REFERENCES candidate_groups(id) ON DELETE CASCADE,
+                        CONSTRAINT fk_gsm_material FOREIGN KEY (study_material_id) 
+                            REFERENCES study_contents(id) ON DELETE CASCADE,
+                        CONSTRAINT uq_group_study_material UNIQUE (group_id, study_material_id)
+                    )
+                """))
+                db.session.commit()
+                results['tables_created'].append('group_study_materials')
+            except Exception as e:
+                if 'already exists' in str(e).lower():
+                    results['tables_checked'].append('group_study_materials (already exists)')
+                else:
+                    results['errors'].append(f"group_study_materials: {str(e)}")
+                    db.session.rollback()
+        else:
+            results['tables_checked'].append('group_study_materials (exists)')
+        
+        # 2. Crear tabla group_study_material_members
+        if 'group_study_material_members' not in tables:
+            try:
+                db.session.execute(text("""
+                    CREATE TABLE group_study_material_members (
+                        id INT IDENTITY(1,1) PRIMARY KEY,
+                        group_study_material_id INT NOT NULL,
+                        user_id VARCHAR(36) NOT NULL,
+                        assigned_at DATETIME DEFAULT GETDATE() NOT NULL,
+                        CONSTRAINT fk_gsmm_material FOREIGN KEY (group_study_material_id) 
+                            REFERENCES group_study_materials(id) ON DELETE CASCADE,
+                        CONSTRAINT uq_group_study_material_member UNIQUE (group_study_material_id, user_id)
+                    )
+                """))
+                db.session.commit()
+                results['tables_created'].append('group_study_material_members')
+            except Exception as e:
+                if 'already exists' in str(e).lower():
+                    results['tables_checked'].append('group_study_material_members (already exists)')
+                else:
+                    results['errors'].append(f"group_study_material_members: {str(e)}")
+                    db.session.rollback()
+        else:
+            results['tables_checked'].append('group_study_material_members (exists)')
+        
+        # Verificar tablas después
+        result = db.session.execute(text("""
+            SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_NAME LIKE '%group_study%'
+        """))
+        results['group_study_tables'] = [row[0] for row in result]
+        results['success'] = len(results['errors']) == 0
+        
+        return jsonify(results)
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+@debug_bp.route('/fix-group-study-material-members', methods=['POST', 'GET'])
+def fix_group_study_material_members():
+    """Corregir la tabla group_study_material_members para usar user_id en lugar de group_member_id"""
+    try:
+        from app import db
+        from sqlalchemy import text
+        
+        results = {'actions': [], 'errors': []}
+        
+        # Verificar columnas actuales
+        columns_result = db.session.execute(text("""
+            SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_NAME = 'group_study_material_members'
+        """))
+        columns = [row[0] for row in columns_result]
+        results['current_columns'] = columns
+        
+        # Si tiene group_member_id pero no user_id, necesitamos migrar
+        if 'group_member_id' in columns and 'user_id' not in columns:
+            try:
+                # Eliminar constraint existente
+                try:
+                    db.session.execute(text("ALTER TABLE group_study_material_members DROP CONSTRAINT uq_material_member"))
+                    results['actions'].append('Dropped constraint uq_material_member')
+                except:
+                    pass
+                
+                try:
+                    db.session.execute(text("ALTER TABLE group_study_material_members DROP CONSTRAINT fk_gsmm_member"))
+                    results['actions'].append('Dropped constraint fk_gsmm_member')
+                except:
+                    pass
+                
+                # Agregar columna user_id
+                db.session.execute(text("ALTER TABLE group_study_material_members ADD user_id VARCHAR(36) NULL"))
+                results['actions'].append('Added column user_id')
+                
+                # Copiar datos de group_member_id a user_id via group_members
+                db.session.execute(text("""
+                    UPDATE gsmm
+                    SET gsmm.user_id = gm.user_id
+                    FROM group_study_material_members gsmm
+                    INNER JOIN group_members gm ON gsmm.group_member_id = gm.id
+                """))
+                results['actions'].append('Migrated data from group_member_id to user_id')
+                
+                # Eliminar columna group_member_id
+                db.session.execute(text("ALTER TABLE group_study_material_members DROP COLUMN group_member_id"))
+                results['actions'].append('Dropped column group_member_id')
+                
+                # Hacer user_id NOT NULL
+                db.session.execute(text("ALTER TABLE group_study_material_members ALTER COLUMN user_id VARCHAR(36) NOT NULL"))
+                results['actions'].append('Made user_id NOT NULL')
+                
+                # Agregar nuevo constraint único
+                db.session.execute(text("""
+                    ALTER TABLE group_study_material_members 
+                    ADD CONSTRAINT uq_group_study_material_member UNIQUE (group_study_material_id, user_id)
+                """))
+                results['actions'].append('Added unique constraint uq_group_study_material_member')
+                
+                db.session.commit()
+                results['success'] = True
+                
+            except Exception as e:
+                db.session.rollback()
+                results['errors'].append(str(e))
+                results['success'] = False
+        
+        elif 'user_id' in columns:
+            results['actions'].append('Table already has user_id column, no migration needed')
+            results['success'] = True
+        else:
+            results['errors'].append('Unexpected table structure')
+            results['success'] = False
+        
+        # Verificar columnas después
+        columns_after = db.session.execute(text("""
+            SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_NAME = 'group_study_material_members'
+        """))
+        results['final_columns'] = [row[0] for row in columns_after]
+        
+        return jsonify(results)
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+@debug_bp.route('/group-assignments/<int:group_id>', methods=['GET'])
+def debug_group_assignments(group_id):
+    """Ver todas las asignaciones de un grupo para debug"""
+    try:
+        from app import db
+        from sqlalchemy import text
+        
+        results = {}
+        
+        # Exámenes del grupo
+        exams_result = db.session.execute(text("""
+            SELECT ge.id, ge.exam_id, ge.assignment_type, ge.is_active
+            FROM group_exams ge
+            WHERE ge.group_id = :group_id
+        """), {'group_id': group_id})
+        results['group_exams'] = [{'id': r[0], 'exam_id': r[1], 'assignment_type': r[2], 'is_active': r[3]} for r in exams_result]
+        
+        # Miembros asignados a exámenes específicos
+        if results['group_exams']:
+            exam_ids = [e['id'] for e in results['group_exams']]
+            members_result = db.session.execute(text("""
+                SELECT gem.group_exam_id, gem.user_id
+                FROM group_exam_members gem
+                WHERE gem.group_exam_id IN :exam_ids
+            """), {'exam_ids': tuple(exam_ids)})
+            results['exam_member_assignments'] = [{'group_exam_id': r[0], 'user_id': r[1]} for r in members_result]
+        else:
+            results['exam_member_assignments'] = []
+        
+        # Materiales del grupo
+        materials_result = db.session.execute(text("""
+            SELECT gsm.id, gsm.study_material_id, gsm.assignment_type, gsm.is_active
+            FROM group_study_materials gsm
+            WHERE gsm.group_id = :group_id
+        """), {'group_id': group_id})
+        results['group_materials'] = [{'id': r[0], 'study_material_id': r[1], 'assignment_type': r[2], 'is_active': r[3]} for r in materials_result]
+        
+        # Miembros asignados a materiales específicos
+        if results['group_materials']:
+            material_ids = [m['id'] for m in results['group_materials']]
+            mat_members_result = db.session.execute(text("""
+                SELECT gsmm.group_study_material_id, gsmm.user_id
+                FROM group_study_material_members gsmm
+                WHERE gsmm.group_study_material_id IN :material_ids
+            """), {'material_ids': tuple(material_ids)})
+            results['material_member_assignments'] = [{'group_study_material_id': r[0], 'user_id': r[1]} for r in mat_members_result]
+        else:
+            results['material_member_assignments'] = []
+        
+        # Miembros del grupo
+        members_result = db.session.execute(text("""
+            SELECT gm.id, gm.user_id, gm.status
+            FROM group_members gm
+            WHERE gm.group_id = :group_id
+        """), {'group_id': group_id})
+        results['group_members'] = [{'id': r[0], 'user_id': r[1], 'status': r[2]} for r in members_result]
+        
+        return jsonify(results)
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+@debug_bp.route('/check-exercises', methods=['GET'])
+def check_exercises():
+    """Verificar ejercicios en la base de datos"""
+    try:
+        from app import db
+        from sqlalchemy import text
+        from flask import request
+        
+        exam_id = request.args.get('exam_id', type=int)
+        
+        # Verificar si la tabla exercises existe y tiene datos
+        result = db.session.execute(text('''
+            SELECT TOP 10 
+                e.id, e.topic_id, e.exercise_number, e.title,
+                t.name as topic_name, t.category_id,
+                c.name as category_name, c.exam_id,
+                ex.name as exam_name
+            FROM exercises e
+            JOIN topics t ON e.topic_id = t.id
+            JOIN categories c ON t.category_id = c.id
+            JOIN exams ex ON c.exam_id = ex.id
+        '''))
+        rows = result.fetchall()
+        
+        exercises_data = []
+        for row in rows:
+            exercises_data.append({
+                'id': row[0],
+                'topic_id': row[1],
+                'exercise_number': row[2],
+                'title': row[3],
+                'topic_name': row[4],
+                'category_id': row[5],
+                'category_name': row[6],
+                'exam_id': row[7],
+                'exam_name': row[8]
+            })
+        
+        # Contar total de ejercicios
+        count_result = db.session.execute(text('SELECT COUNT(*) FROM exercises'))
+        total_count = count_result.scalar()
+        
+        # Contar ejercicios por examen específico si se proporciona
+        exam_exercises_count = None
+        if exam_id:
+            exam_count_result = db.session.execute(text('''
+                SELECT COUNT(e.id) 
+                FROM exercises e
+                JOIN topics t ON e.topic_id = t.id
+                JOIN categories c ON t.category_id = c.id
+                WHERE c.exam_id = :exam_id
+            '''), {'exam_id': exam_id})
+            exam_exercises_count = exam_count_result.scalar()
+        
+        # Contar ejercicios por cada examen publicado
+        exams_result = db.session.execute(text('''
+            SELECT 
+                ex.id, 
+                ex.name,
+                (SELECT COUNT(e.id) 
+                 FROM exercises e
+                 JOIN topics t ON e.topic_id = t.id
+                 JOIN categories c ON t.category_id = c.id
+                 WHERE c.exam_id = ex.id) as exercise_count
+            FROM exams ex
+            WHERE ex.is_published = 1
+        '''))
+        exams_with_counts = []
+        for row in exams_result.fetchall():
+            exams_with_counts.append({
+                'exam_id': row[0],
+                'exam_name': row[1],
+                'exercise_count': row[2]
+            })
+        
+        return jsonify({
+            'total_exercises_in_db': total_count,
+            'requested_exam_id': exam_id,
+            'requested_exam_exercises_count': exam_exercises_count,
+            'exams_with_exercise_counts': exams_with_counts,
+            'sample_exercises': exercises_data
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
 
 @debug_bp.route('/test-conocer-upload', methods=['GET'])
 def test_conocer_upload():
@@ -896,6 +1267,78 @@ def list_users_summary():
         })
         
     except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        })
+
+
+@debug_bp.route('/run-group-config-migration', methods=['POST', 'GET'])
+def run_group_config_migration():
+    """Ejecutar migración de campos de configuración de grupo"""
+    try:
+        from app import db
+        from sqlalchemy import text
+        
+        results = {
+            'columns_added': [],
+            'columns_existing': [],
+            'errors': []
+        }
+        
+        # Lista de columnas a agregar con sus tipos (SQL Server syntax)
+        columns = [
+            ("use_custom_config", "BIT DEFAULT 0"),
+            ("office_version_override", "NVARCHAR(20) NULL"),
+            ("enable_tier_basic_override", "BIT NULL"),
+            ("enable_tier_standard_override", "BIT NULL"),
+            ("enable_tier_advanced_override", "BIT NULL"),
+            ("enable_digital_badge_override", "BIT NULL"),
+            ("enable_partial_evaluations_override", "BIT NULL"),
+            ("enable_unscheduled_partials_override", "BIT NULL"),
+            ("enable_virtual_machines_override", "BIT NULL"),
+            ("enable_online_payments_override", "BIT NULL"),
+            ("certification_cost_override", "DECIMAL(10,2) NULL"),
+            ("retake_cost_override", "DECIMAL(10,2) NULL"),
+            ("group_start_date", "DATE NULL"),
+            ("group_end_date", "DATE NULL"),
+        ]
+        
+        for column_name, column_type in columns:
+            try:
+                # Verificar si la columna ya existe
+                check_sql = text("""
+                    SELECT COLUMN_NAME 
+                    FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE TABLE_NAME = 'candidate_groups' 
+                    AND COLUMN_NAME = :column_name
+                """)
+                result = db.session.execute(check_sql, {'column_name': column_name})
+                
+                if result.fetchone() is None:
+                    # Agregar columna
+                    alter_sql = text(f"ALTER TABLE candidate_groups ADD {column_name} {column_type}")
+                    db.session.execute(alter_sql)
+                    db.session.commit()
+                    results['columns_added'].append(column_name)
+                else:
+                    results['columns_existing'].append(column_name)
+                    
+            except Exception as e:
+                results['errors'].append({
+                    'column': column_name,
+                    'error': str(e)
+                })
+                db.session.rollback()
+        
+        return jsonify({
+            'success': len(results['errors']) == 0,
+            'results': results
+        })
+        
+    except Exception as e:
+        import traceback
         return jsonify({
             'success': False,
             'error': str(e),
