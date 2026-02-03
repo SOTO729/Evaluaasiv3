@@ -1748,13 +1748,13 @@ const ExamTestRunPage: React.FC = () => {
           </div>
         )}
 
-        {/* Imagen con acciones superpuestas - adaptada a la pantalla con fluid */}
+        {/* Imagen con acciones superpuestas - adaptada a la pantalla */}
         <div 
           ref={imageContainerRef}
-          className="relative w-full border border-gray-200 rounded-fluid-lg overflow-hidden bg-gray-100"
+          className="relative mx-auto border border-gray-300 rounded-lg overflow-hidden bg-gray-100"
           style={{ 
-            width: '100%',
-            maxHeight: 'calc(100vh - 280px)',
+            maxWidth: '100%',
+            maxHeight: 'calc(100vh - 340px)',
             aspectRatio: currentStep.image_width && currentStep.image_height 
               ? `${currentStep.image_width} / ${currentStep.image_height}` 
               : 'auto'
@@ -1765,11 +1765,11 @@ const ExamTestRunPage: React.FC = () => {
               src={currentStep.image_url}
               alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
               className="w-full h-full object-contain"
-              style={{ maxHeight: 'calc(100vh - 280px)' }}
+              style={{ maxHeight: 'calc(100vh - 340px)' }}
             />
           ) : (
-            <div className="flex items-center justify-center fluid-h-48 bg-gray-200">
-              <Image className="fluid-icon-xl text-gray-400" />
+            <div className="flex items-center justify-center h-48 bg-gray-200">
+              <Image className="w-12 h-12 text-gray-400" />
             </div>
           )}
 
@@ -2361,7 +2361,7 @@ const ExamTestRunPage: React.FC = () => {
 
       {/* Contenido principal */}
       <div className="pt-[125px] pb-[90px] min-h-screen">
-        <div className="max-w-6xl mx-auto px-2 sm:px-4 lg:fluid-px-6 fluid-py-4 lg:fluid-py-8">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:fluid-px-6 fluid-py-4 lg:fluid-py-8">
           <div className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
             {/* Header del ítem - más simple */}
             <div className="fluid-px-6 fluid-py-4 bg-gray-50 border-b border-gray-100">
