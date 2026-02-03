@@ -1831,7 +1831,7 @@ const ExamTestRunPage: React.FC = () => {
   const isTimeCritical = timeRemaining !== null && timeRemaining <= 30; // Últimos 30 segundos
 
   return (
-    <div className="min-h-screen bg-slate-50 overflow-x-hidden overscroll-contain">
+    <div className="min-h-screen bg-slate-50 overflow-y-auto overflow-x-hidden scroll-smooth">
       {/* Modal de confirmación de salida */}
       {showExitConfirm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4">
