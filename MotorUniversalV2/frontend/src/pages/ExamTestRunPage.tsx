@@ -1748,16 +1748,16 @@ const ExamTestRunPage: React.FC = () => {
           </div>
         )}
 
-        {/* Imagen con acciones superpuestas - proporcional y contenida en pantalla */}
+        {/* Imagen con acciones superpuestas - adaptada a la pantalla */}
         <div 
           ref={imageContainerRef}
-          className="relative mx-auto border border-gray-200 rounded-fluid-lg overflow-hidden bg-gray-100"
+          className="relative mx-auto border border-gray-300 rounded-lg overflow-hidden bg-gray-100"
           style={{ 
-            width: '100%',
-            maxHeight: 'calc(100vh - 300px)',
+            maxWidth: '100%',
+            maxHeight: 'calc(100vh - 340px)',
             aspectRatio: currentStep.image_width && currentStep.image_height 
               ? `${currentStep.image_width} / ${currentStep.image_height}` 
-              : '16 / 9'
+              : 'auto'
           }}
         >
           {currentStep.image_url ? (
@@ -1765,10 +1765,11 @@ const ExamTestRunPage: React.FC = () => {
               src={currentStep.image_url}
               alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
               className="w-full h-full object-contain"
+              style={{ maxHeight: 'calc(100vh - 340px)' }}
             />
           ) : (
             <div className="flex items-center justify-center h-48 bg-gray-200">
-              <Image className="fluid-icon-xl text-gray-400" />
+              <Image className="w-12 h-12 text-gray-400" />
             </div>
           )}
 
@@ -2415,7 +2416,7 @@ const ExamTestRunPage: React.FC = () => {
               {currentItem?.type === 'question' ? (
                 <>
                   <div
-                    className="prose prose-gray max-w-none fluid-mb-6 text-gray-800 leading-relaxed"
+                    className="prose prose-gray max-w-none fluid-mb-6 text-gray-800 leading-relaxed overflow-hidden break-words [&_img]:max-w-full [&_pre]:overflow-x-auto [&_code]:break-all"
                     dangerouslySetInnerHTML={{ __html: (() => {
                       // Para drag_drop, extraer solo las instrucciones del question_text
                       const text = currentItem.question_text || '';
@@ -2438,7 +2439,7 @@ const ExamTestRunPage: React.FC = () => {
                   )}
                   {currentItem?.description && (
                     <div
-                      className="prose prose-sm max-w-none fluid-mb-4 text-gray-600"
+                      className="prose prose-sm max-w-none fluid-mb-4 text-gray-600 overflow-hidden break-words [&_img]:max-w-full [&_pre]:overflow-x-auto [&_code]:break-all"
                     dangerouslySetInnerHTML={{ __html: currentItem.description }}
                   />
                 )}
