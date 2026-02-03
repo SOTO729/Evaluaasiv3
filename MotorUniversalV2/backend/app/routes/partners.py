@@ -892,7 +892,25 @@ def get_campus_config(campus_id):
         campus = Campus.query.get_or_404(campus_id)
         
         return jsonify({
-            'campus': campus.to_dict(include_config=True, include_responsable=True, include_partner=True)
+            'campus_id': campus.id,
+            'campus_name': campus.name,
+            'configuration': {
+                'office_version': campus.office_version or 'office_365',
+                'enable_tier_basic': campus.enable_tier_basic if campus.enable_tier_basic is not None else True,
+                'enable_tier_standard': campus.enable_tier_standard or False,
+                'enable_tier_advanced': campus.enable_tier_advanced or False,
+                'enable_digital_badge': campus.enable_digital_badge or False,
+                'enable_partial_evaluations': campus.enable_partial_evaluations or False,
+                'enable_unscheduled_partials': campus.enable_unscheduled_partials or False,
+                'enable_virtual_machines': campus.enable_virtual_machines or False,
+                'enable_online_payments': campus.enable_online_payments or False,
+                'license_start_date': campus.license_start_date.isoformat() if campus.license_start_date else None,
+                'license_end_date': campus.license_end_date.isoformat() if campus.license_end_date else None,
+                'certification_cost': float(campus.certification_cost) if campus.certification_cost else 0,
+                'retake_cost': float(campus.retake_cost) if campus.retake_cost else 0,
+                'configuration_completed': campus.configuration_completed or False,
+                'configuration_completed_at': campus.configuration_completed_at.isoformat() if campus.configuration_completed_at else None,
+            }
         })
         
     except Exception as e:

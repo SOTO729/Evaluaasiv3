@@ -556,6 +556,51 @@ def check_and_add_campus_activation_columns():
                 else:
                     print(f"  ✓ Columna {column_name} ya existe en campuses")
             
+            # ============== CAMPUSES - Campos de configuración del plantel ==============
+            existing_columns = [col['name'] for col in inspector.get_columns('campuses')]  # Refrescar
+            
+            campus_config_columns = {
+                # Versión de Office
+                'office_version': "NVARCHAR(20) DEFAULT 'office_365'" if db_type == 'mssql' else "VARCHAR(20) DEFAULT 'office_365'",
+                # Tiers de certificación
+                'enable_tier_basic': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                'enable_tier_standard': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                'enable_tier_advanced': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                'enable_digital_badge': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                # Evaluaciones parciales
+                'enable_partial_evaluations': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                'enable_unscheduled_partials': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                # Características adicionales
+                'enable_virtual_machines': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                'enable_online_payments': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                # Vigencia
+                'license_start_date': 'DATE',
+                'license_end_date': 'DATE',
+                # Costos
+                'certification_cost': 'DECIMAL(10,2) DEFAULT 0',
+                'retake_cost': 'DECIMAL(10,2) DEFAULT 0',
+                # Estado de configuración
+                'configuration_completed': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                'configuration_completed_at': 'DATETIME' if db_type == 'mssql' else 'TIMESTAMP',
+            }
+            
+            for column_name, column_def in campus_config_columns.items():
+                if column_name not in existing_columns:
+                    print(f"  📝 [campuses-config] Agregando columna: {column_name}...")
+                    try:
+                        sql = f"ALTER TABLE campuses ADD {column_name} {column_def}"
+                        db.session.execute(text(sql))
+                        db.session.commit()
+                        print(f"     ✓ Columna {column_name} agregada a campuses")
+                    except Exception as e:
+                        if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+                            print(f"     ⚠️  Columna {column_name} ya existe")
+                        else:
+                            print(f"     ❌ Error al agregar {column_name}: {e}")
+                            db.session.rollback()
+                else:
+                    print(f"  ✓ Columna {column_name} ya existe en campuses")
+            
             # Agregar foreign key para responsable_id si no existe
             if 'responsable_id' not in existing_columns:
                 try:
