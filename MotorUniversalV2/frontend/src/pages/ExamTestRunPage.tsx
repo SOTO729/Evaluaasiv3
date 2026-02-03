@@ -1748,13 +1748,13 @@ const ExamTestRunPage: React.FC = () => {
           </div>
         )}
 
-        {/* Imagen con acciones superpuestas - adaptada a la pantalla */}
+        {/* Imagen con acciones superpuestas - adaptada a la pantalla con fluid */}
         <div 
           ref={imageContainerRef}
-          className="relative mx-auto border border-gray-300 rounded-lg overflow-hidden bg-gray-100"
+          className="relative w-full border border-gray-200 rounded-fluid-lg overflow-hidden bg-gray-100"
           style={{ 
-            maxWidth: '100%',
-            maxHeight: 'calc(100vh - 340px)',
+            width: '100%',
+            maxHeight: 'calc(100vh - 280px)',
             aspectRatio: currentStep.image_width && currentStep.image_height 
               ? `${currentStep.image_width} / ${currentStep.image_height}` 
               : 'auto'
@@ -1765,11 +1765,11 @@ const ExamTestRunPage: React.FC = () => {
               src={currentStep.image_url}
               alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
               className="w-full h-full object-contain"
-              style={{ maxHeight: 'calc(100vh - 340px)' }}
+              style={{ maxHeight: 'calc(100vh - 280px)' }}
             />
           ) : (
-            <div className="flex items-center justify-center h-48 bg-gray-200">
-              <Image className="w-12 h-12 text-gray-400" />
+            <div className="flex items-center justify-center fluid-h-48 bg-gray-200">
+              <Image className="fluid-icon-xl text-gray-400" />
             </div>
           )}
 
