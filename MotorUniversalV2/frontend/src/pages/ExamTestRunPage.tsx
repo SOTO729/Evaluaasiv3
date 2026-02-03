@@ -1754,7 +1754,8 @@ const ExamTestRunPage: React.FC = () => {
           className="relative mx-auto border border-gray-300 rounded-lg overflow-hidden bg-gray-100"
           style={{ 
             maxWidth: '100%',
-            maxHeight: 'calc(100vh - 240px)',
+            maxHeight: 'calc(100vh - 180px)',
+            minHeight: '250px',
             aspectRatio: currentStep.image_width && currentStep.image_height 
               ? `${currentStep.image_width} / ${currentStep.image_height}` 
               : 'auto'
@@ -1765,7 +1766,7 @@ const ExamTestRunPage: React.FC = () => {
               src={currentStep.image_url}
               alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
               className="w-full h-full object-contain"
-              style={{ maxHeight: 'calc(100vh - 240px)' }}
+              style={{ maxHeight: 'calc(100vh - 180px)', minHeight: '250px' }}
             />
           ) : (
             <div className="flex items-center justify-center h-48 bg-gray-200">
