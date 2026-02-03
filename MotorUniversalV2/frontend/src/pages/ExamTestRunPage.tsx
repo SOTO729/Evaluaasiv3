@@ -2361,7 +2361,7 @@ const ExamTestRunPage: React.FC = () => {
 
       {/* Contenido principal */}
       <div className="pt-[125px] pb-[90px] min-h-screen">
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:fluid-px-6 fluid-py-4 lg:fluid-py-8">
+        <div className="max-w-[1400px] mx-auto px-2 sm:px-4 lg:fluid-px-6 fluid-py-4 lg:fluid-py-8">
           <div className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
             {/* Header del ítem - más simple */}
             <div className="fluid-px-6 fluid-py-4 bg-gray-50 border-b border-gray-100">
