@@ -1748,14 +1748,12 @@ const ExamTestRunPage: React.FC = () => {
           </div>
         )}
 
-        {/* Imagen con acciones superpuestas - adaptada a la pantalla */}
+        {/* Imagen con acciones superpuestas - la tarjeta se ajusta a la imagen */}
         <div 
           ref={imageContainerRef}
-          className="relative w-full border border-gray-200 rounded-fluid-lg overflow-hidden bg-gray-100"
+          className="relative mx-auto border border-gray-200 rounded-fluid-lg overflow-hidden bg-gray-100"
           style={{ 
             width: '100%',
-            minHeight: 'clamp(200px, 50vh, 400px)',
-            maxHeight: 'clamp(300px, calc(100vh - 280px), 600px)',
             aspectRatio: currentStep.image_width && currentStep.image_height 
               ? `${currentStep.image_width} / ${currentStep.image_height}` 
               : 'auto'
@@ -1765,7 +1763,8 @@ const ExamTestRunPage: React.FC = () => {
             <img
               src={currentStep.image_url}
               alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
-              className="w-full h-full object-contain"
+              className="w-full h-auto object-contain"
+              style={{ minHeight: '300px' }}
             />
           ) : (
             <div className="flex items-center justify-center h-48 bg-gray-200">
