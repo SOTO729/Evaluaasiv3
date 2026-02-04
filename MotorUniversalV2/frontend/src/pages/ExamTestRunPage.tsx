@@ -2150,7 +2150,7 @@ const ExamTestRunPage: React.FC = () => {
                   <User className="fluid-icon-xs lg:fluid-icon-sm text-white" />
                 </div>
                 <span className="text-white/90 font-medium">
-                  @{user?.username || '---'}
+                  {user?.username || '---'}
                 </span>
               </div>
               
