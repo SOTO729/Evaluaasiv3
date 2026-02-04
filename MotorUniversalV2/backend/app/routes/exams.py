@@ -905,6 +905,8 @@ def update_topic(topic_id):
     data = request.get_json()
     user_id = get_jwt_identity()
     
+    print(f"📝 Actualizando tema {topic_id}: {data}")
+    
     if 'name' in data:
         topic.name = data['name']
     if 'description' in data:
@@ -912,11 +914,15 @@ def update_topic(topic_id):
     if 'order' in data:
         topic.order = data['order']
     if 'percentage' in data:
+        old_percentage = topic.percentage
         topic.percentage = data['percentage']
+        print(f"   📊 Porcentaje cambiado: {old_percentage} -> {topic.percentage}")
     
     topic.updated_by = user_id
     
     db.session.commit()
+    
+    print(f"   ✅ Tema actualizado: {topic.to_dict()}")
     
     return jsonify({
         'message': 'Tema actualizado exitosamente',
@@ -2034,7 +2040,21 @@ def validate_exam(exam_id):
                     })
                     continue
                 
-                # 4. Verificar cada tema
+                # 4. Verificar que los porcentajes de temas sumen 100% dentro de cada categoría
+                total_topic_percentage = sum(t.percentage or 0 for t in topics)
+                print(f"  📊 Categoría '{category.name}': {len(topics)} temas, suma de porcentajes = {total_topic_percentage}%")
+                for t in topics:
+                    print(f"      - Tema '{t.name}': {t.percentage or 0}%")
+                
+                if total_topic_percentage != 100:
+                    errors.append({
+                        'type': 'topics',
+                        'category': category.name,
+                        'message': f'Los temas de la categoría "{category.name}" suman {total_topic_percentage}%, deben sumar 100%',
+                        'details': f'Ajusta los porcentajes de los temas en la categoría "{category.name}" para que sumen exactamente 100%'
+                    })
+                
+                # 5. Verificar cada tema
                 for topic in topics:
                     questions = Question.query.filter_by(topic_id=topic.id).all()
                     exercises = Exercise.query.filter_by(topic_id=topic.id).all()
@@ -2047,7 +2067,7 @@ def validate_exam(exam_id):
                         })
                         continue
                     
-                    # 5. Verificar preguntas
+                    # 6. Verificar preguntas
                     for question in questions:
                         # Verificar que la pregunta tenga puntaje asignado
                         if not question.points or question.points <= 0:
@@ -2075,7 +2095,7 @@ def validate_exam(exam_id):
                                     'details': f'Marca al menos una respuesta como correcta para la pregunta #{question.question_number}'
                                 })
                     
-                    # 6. Verificar ejercicios
+                    # 7. Verificar ejercicios
                     for exercise in exercises:
                         # Verificar que el ejercicio tenga porcentaje asignado (su puntaje)
                         if not exercise.percentage or exercise.percentage <= 0:
