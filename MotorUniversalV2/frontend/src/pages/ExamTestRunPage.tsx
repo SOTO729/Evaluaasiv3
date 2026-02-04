@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../services/examService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag, List, ArrowDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag, List, ArrowDown, Maximize2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { clearExamSessionCache, useAuthStore } from '../store/authStore';
 
@@ -87,6 +87,13 @@ const ExamTestRunPage: React.FC = () => {
   // Estado para advertencias de tiempo
   const [timeWarningsShown, setTimeWarningsShown] = useState<Set<number>>(new Set());
   const [showTimeWarning, setShowTimeWarning] = useState<{ minutes: number } | null>(null);
+
+  // Estado para modal de imagen en pantalla completa
+  const [showImageFullscreen, setShowImageFullscreen] = useState(false);
+  const [fullscreenZoom, setFullscreenZoom] = useState(1);
+  const [fullscreenPan, setFullscreenPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
 
   const { data: exam, isLoading } = useQuery({
     queryKey: ['exam', examId],
@@ -276,6 +283,26 @@ const ExamTestRunPage: React.FC = () => {
       }
     }
   }, [timeRemaining, timeWarningsShown]);
+
+  // Cerrar modal de imagen fullscreen con tecla ESC
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showImageFullscreen) {
+        setShowImageFullscreen(false);
+      }
+    };
+    
+    if (showImageFullscreen) {
+      document.addEventListener('keydown', handleKeyDown);
+      // Prevenir scroll del body cuando el modal está abierto
+      document.body.style.overflow = 'hidden';
+    }
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [showImageFullscreen]);
 
   // Seleccionar preguntas y ejercicios aleatorios
   const [selectedItems, setSelectedItems] = useState<TestItem[]>([]);
@@ -1751,7 +1778,7 @@ const ExamTestRunPage: React.FC = () => {
         {/* Imagen con acciones superpuestas - adaptada a la pantalla */}
         <div 
           ref={imageContainerRef}
-          className="relative mx-auto border border-gray-300 rounded-lg overflow-hidden bg-gray-100"
+          className="relative mx-auto border border-gray-300 rounded-lg overflow-hidden bg-gray-100 group"
           style={{ 
             maxWidth: '100%',
             maxHeight: 'calc(100vh - 180px)',
@@ -1762,12 +1789,27 @@ const ExamTestRunPage: React.FC = () => {
           }}
         >
           {currentStep.image_url ? (
-            <img
-              src={currentStep.image_url}
-              alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
-              className="w-full h-full object-contain"
-              style={{ maxHeight: 'calc(100vh - 180px)', minHeight: '250px' }}
-            />
+            <>
+              <img
+                src={currentStep.image_url}
+                alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
+                className="w-full h-full object-contain"
+                style={{ maxHeight: 'calc(100vh - 180px)', minHeight: '250px' }}
+              />
+              {/* Botón de pantalla completa */}
+              <button
+                onClick={() => {
+                  setFullscreenZoom(1);
+                  setFullscreenPan({ x: 0, y: 0 });
+                  setShowImageFullscreen(true);
+                }}
+                className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 flex items-center gap-1.5"
+                title="Ver imagen en pantalla completa"
+              >
+                <Maximize2 className="w-4 h-4" />
+                <span className="text-xs font-medium hidden sm:inline">Ampliar</span>
+              </button>
+            </>
           ) : (
             <div className="flex items-center justify-center h-48 bg-gray-200">
               <Image className="w-12 h-12 text-gray-400" />
@@ -1789,6 +1831,125 @@ const ExamTestRunPage: React.FC = () => {
             />
           ))}
         </div>
+
+        {/* Modal de imagen en pantalla completa */}
+        {showImageFullscreen && currentStep.image_url && (
+          <div 
+            className="fixed inset-0 bg-black/95 z-50 flex flex-col"
+            onClick={() => setShowImageFullscreen(false)}
+          >
+            {/* Barra de herramientas superior */}
+            <div 
+              className="flex items-center justify-between p-4 bg-black/50"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-white/80 text-sm font-medium">
+                  {currentStep.title || `Paso ${currentStepIndex + 1} de ${steps.length}`}
+                </span>
+                <span className="text-white/50 text-xs">
+                  ({Math.round(fullscreenZoom * 100)}%)
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* Controles de zoom */}
+                <button
+                  onClick={() => setFullscreenZoom(z => Math.max(0.5, z - 0.25))}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                  title="Reducir zoom"
+                >
+                  <ZoomOut className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => {
+                    setFullscreenZoom(1);
+                    setFullscreenPan({ x: 0, y: 0 });
+                  }}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                  title="Restablecer zoom"
+                >
+                  <RotateCcw className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setFullscreenZoom(z => Math.min(4, z + 0.25))}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                  title="Aumentar zoom"
+                >
+                  <ZoomIn className="w-5 h-5" />
+                </button>
+                <div className="w-px h-6 bg-white/20 mx-2" />
+                <button
+                  onClick={() => setShowImageFullscreen(false)}
+                  className="p-2 bg-red-500/80 hover:bg-red-500 rounded-lg text-white transition-colors"
+                  title="Cerrar"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Contenedor de imagen con zoom y pan */}
+            <div 
+              className="flex-1 overflow-hidden flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => {
+                if (fullscreenZoom > 1) {
+                  setIsDragging(true);
+                  dragStartRef.current = {
+                    x: e.clientX,
+                    y: e.clientY,
+                    panX: fullscreenPan.x,
+                    panY: fullscreenPan.y
+                  };
+                }
+              }}
+              onMouseMove={(e) => {
+                if (isDragging && fullscreenZoom > 1) {
+                  const dx = e.clientX - dragStartRef.current.x;
+                  const dy = e.clientY - dragStartRef.current.y;
+                  setFullscreenPan({
+                    x: dragStartRef.current.panX + dx,
+                    y: dragStartRef.current.panY + dy
+                  });
+                }
+              }}
+              onMouseUp={() => setIsDragging(false)}
+              onMouseLeave={() => setIsDragging(false)}
+              onWheel={(e) => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                setFullscreenZoom(z => Math.min(4, Math.max(0.5, z + delta)));
+              }}
+              onDoubleClick={() => {
+                if (fullscreenZoom === 1) {
+                  setFullscreenZoom(2);
+                } else {
+                  setFullscreenZoom(1);
+                  setFullscreenPan({ x: 0, y: 0 });
+                }
+              }}
+              style={{ cursor: fullscreenZoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in' }}
+            >
+              <img
+                src={currentStep.image_url}
+                alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
+                className="max-w-full max-h-full object-contain select-none"
+                style={{
+                  transform: `scale(${fullscreenZoom}) translate(${fullscreenPan.x / fullscreenZoom}px, ${fullscreenPan.y / fullscreenZoom}px)`,
+                  transition: isDragging ? 'none' : 'transform 0.2s ease-out'
+                }}
+                draggable={false}
+              />
+            </div>
+
+            {/* Instrucciones de uso */}
+            <div className="p-3 bg-black/50 text-center">
+              <p className="text-white/60 text-xs">
+                🖱️ Rueda del ratón para zoom • Doble clic para alternar zoom • Arrastra para mover • ESC o clic fuera para cerrar
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
