@@ -5147,10 +5147,10 @@ def get_mis_examenes():
                     exam_ids.add(ge.exam_id)
                 elif ge.assignment_type == 'selected':
                     # Verificar si el candidato está asignado específicamente
+                    # La existencia del registro indica asignación
                     member_assignment = GroupExamMember.query.filter_by(
                         group_exam_id=ge.id,
-                        user_id=user_id,
-                        is_assigned=True
+                        user_id=user_id
                     ).first()
                     if member_assignment:
                         exam_ids.add(ge.exam_id)
@@ -5252,10 +5252,10 @@ def get_mis_materiales():
                     has_access = True
                 elif ge.assignment_type == 'selected':
                     from app.models.partner import GroupExamMember
+                    # La existencia del registro indica asignación
                     member_assignment = GroupExamMember.query.filter_by(
                         group_exam_id=ge.id,
-                        user_id=user_id,
-                        is_assigned=True
+                        user_id=user_id
                     ).first()
                     has_access = member_assignment is not None
                 
