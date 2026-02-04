@@ -5131,7 +5131,15 @@ def get_mis_examenes():
             if not memberships:
                 return jsonify({'exams': [], 'total': 0, 'pages': 1, 'current_page': 1})
             
-            group_ids = [m.group_id for m in memberships]
+            # Filtrar solo grupos que existen y están activos
+            group_ids = []
+            for m in memberships:
+                group = CandidateGroup.query.filter_by(id=m.group_id, is_active=True).first()
+                if group:
+                    group_ids.append(m.group_id)
+            
+            if not group_ids:
+                return jsonify({'exams': [], 'total': 0, 'pages': 1, 'current_page': 1})
             
             # Obtener exámenes asignados a esos grupos
             group_exams = GroupExam.query.filter(
@@ -5235,7 +5243,15 @@ def get_mis_materiales():
             if not memberships:
                 return jsonify({'materials': [], 'total': 0, 'pages': 1, 'current_page': 1})
             
-            group_ids = [m.group_id for m in memberships]
+            # Filtrar solo grupos que existen y están activos
+            group_ids = []
+            for m in memberships:
+                group = CandidateGroup.query.filter_by(id=m.group_id, is_active=True).first()
+                if group:
+                    group_ids.append(m.group_id)
+            
+            if not group_ids:
+                return jsonify({'materials': [], 'total': 0, 'pages': 1, 'current_page': 1})
             
             # Obtener exámenes asignados a esos grupos
             group_exams = GroupExam.query.filter(
@@ -5286,6 +5302,134 @@ def get_mis_materiales():
         })
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+# ============== ELIMINACIÓN COMPLETA DE GRUPOS (SOLO ADMIN) ==============
+
+@bp.route('/groups/<int:group_id>/hard-delete', methods=['DELETE'])
+@jwt_required()
+def hard_delete_group(group_id):
+    """
+    Eliminar completamente un grupo y todas sus relaciones.
+    SOLO PARA USUARIOS ADMIN.
+    Elimina:
+    - GroupMember (membresías)
+    - GroupExamMember (asignaciones individuales de exámenes)
+    - GroupExamMaterial (materiales de exámenes)
+    - GroupExam (exámenes asignados al grupo)
+    - GroupStudyMaterialMember (asignaciones individuales de materiales)
+    - GroupStudyMaterial (materiales asignados directamente)
+    - CandidateGroup (el grupo)
+    """
+    from app.models.partner import (
+        GroupMember, GroupExam, GroupExamMember, GroupExamMaterial,
+        GroupStudyMaterial, GroupStudyMaterialMember
+    )
+    
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user or user.role != 'admin':
+            return jsonify({'error': 'Solo los administradores pueden eliminar grupos permanentemente'}), 403
+        
+        group = CandidateGroup.query.get(group_id)
+        
+        if not group:
+            return jsonify({'error': 'Grupo no encontrado'}), 404
+        
+        group_name = group.name
+        
+        # Estadísticas de lo que se va a eliminar
+        stats = {
+            'members': 0,
+            'exam_assignments': 0,
+            'exam_member_assignments': 0,
+            'exam_materials': 0,
+            'study_materials': 0,
+            'study_material_members': 0
+        }
+        
+        # 1. Eliminar asignaciones de miembros a exámenes del grupo (GroupExamMember)
+        group_exams = GroupExam.query.filter_by(group_id=group_id).all()
+        for ge in group_exams:
+            # Eliminar materiales del examen
+            materials_deleted = GroupExamMaterial.query.filter_by(group_exam_id=ge.id).delete()
+            stats['exam_materials'] += materials_deleted
+            
+            # Eliminar asignaciones individuales
+            members_deleted = GroupExamMember.query.filter_by(group_exam_id=ge.id).delete()
+            stats['exam_member_assignments'] += members_deleted
+        
+        # 2. Eliminar exámenes asignados al grupo (GroupExam)
+        stats['exam_assignments'] = GroupExam.query.filter_by(group_id=group_id).delete()
+        
+        # 3. Eliminar asignaciones de materiales de estudio directos
+        group_materials = GroupStudyMaterial.query.filter_by(group_id=group_id).all()
+        for gm in group_materials:
+            # Eliminar asignaciones individuales de materiales
+            deleted = GroupStudyMaterialMember.query.filter_by(group_study_material_id=gm.id).delete()
+            stats['study_material_members'] += deleted
+        
+        stats['study_materials'] = GroupStudyMaterial.query.filter_by(group_id=group_id).delete()
+        
+        # 4. Eliminar membresías (GroupMember)
+        stats['members'] = GroupMember.query.filter_by(group_id=group_id).delete()
+        
+        # 5. Eliminar el grupo
+        db.session.delete(group)
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'Grupo "{group_name}" eliminado permanentemente',
+            'deleted': stats
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/admin/cleanup-orphan-memberships', methods=['POST'])
+@jwt_required()
+def cleanup_orphan_memberships():
+    """
+    Limpia membresías huérfanas (de grupos que ya no existen).
+    SOLO PARA USUARIOS ADMIN.
+    """
+    from app.models.partner import GroupMember
+    
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user or user.role != 'admin':
+            return jsonify({'error': 'Solo los administradores pueden ejecutar esta operación'}), 403
+        
+        # Encontrar membresías huérfanas
+        orphan_memberships = db.session.query(GroupMember).outerjoin(
+            CandidateGroup, GroupMember.group_id == CandidateGroup.id
+        ).filter(CandidateGroup.id == None).all()
+        
+        count = len(orphan_memberships)
+        
+        for m in orphan_memberships:
+            db.session.delete(m)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'Se eliminaron {count} membresías huérfanas',
+            'deleted_count': count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
