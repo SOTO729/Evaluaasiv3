@@ -317,8 +317,8 @@ const ExamTestRunPage: React.FC = () => {
       maxY = Math.max(maxY, y + h);
     });
     
-    // Agregar padding alrededor del área (15% en cada dirección)
-    const padding = 15;
+    // Agregar padding alrededor del área (25% en cada dirección para más contexto)
+    const padding = 25;
     minX = Math.max(0, minX - padding);
     minY = Math.max(0, minY - padding);
     maxX = Math.min(100, maxX + padding);
@@ -330,10 +330,10 @@ const ExamTestRunPage: React.FC = () => {
     const areaWidth = maxX - minX;
     const areaHeight = maxY - minY;
     
-    // El zoom se basa en qué tan pequeña es el área (máximo 2.5x para no exagerar)
+    // El zoom se basa en qué tan pequeña es el área (máximo 1.5x para ser sutil)
     const zoomX = 100 / areaWidth;
     const zoomY = 100 / areaHeight;
-    const zoom = Math.min(Math.max(1, Math.min(zoomX, zoomY) * 0.8), 2.5);
+    const zoom = Math.min(Math.max(1, Math.min(zoomX, zoomY) * 0.7), 1.5);
     
     return { centerX, centerY, zoom };
   };
@@ -524,7 +524,12 @@ const ExamTestRunPage: React.FC = () => {
 
   // Efecto para auto-zoom cuando cambia el paso del ejercicio
   useEffect(() => {
-    if (!autoZoomEnabled) return;
+    if (!autoZoomEnabled) {
+      // Restaurar zoom normal cuando se desactiva el auto-enfoque
+      setExerciseZoom(1);
+      setExercisePan({ x: 0, y: 0 });
+      return;
+    }
     
     const currentItemForZoom = selectedItems[currentItemIndex];
     if (!currentItemForZoom || currentItemForZoom.type !== 'exercise') {
