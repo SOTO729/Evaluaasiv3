@@ -2142,15 +2142,15 @@ const ExamTestRunPage: React.FC = () => {
               </div>
             </div>
             
-            {/* Derecha: Timer, ID y Salir */}
+            {/* Derecha: Timer, Usuario y Salir */}
             <div className="flex items-center fluid-gap-2 sm:fluid-gap-3 flex-shrink-0">
-              {/* ID del usuario */}
+              {/* Username del usuario */}
               <div className="hidden lg:flex items-center fluid-gap-2 fluid-text-xs lg:fluid-text-sm">
                 <div className="w-6 h-6 lg:w-7 lg:h-7 rounded-full bg-white/20 flex items-center justify-center">
                   <User className="fluid-icon-xs lg:fluid-icon-sm text-white" />
                 </div>
                 <span className="text-white/90 font-medium">
-                  {user?.id || '---'}
+                  @{user?.username || '---'}
                 </span>
               </div>
               
