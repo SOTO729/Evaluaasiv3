@@ -49,13 +49,13 @@ const DownloadableEditorPage = lazy(() => import('./pages/study-contents/Downloa
 // Componente que decide qué página de detalle mostrar según el rol
 const StudyContentDetailRouter = () => {
   const { user } = useAuthStore()
-  return user?.role === 'candidato' ? <StudyContentCandidatePage /> : <StudyContentDetailPage />
+  return (user?.role === 'candidato' || user?.role === 'responsable') ? <StudyContentCandidatePage /> : <StudyContentDetailPage />
 }
 
 // Componente que envuelve ExamTestResultsPage en Layout para candidatos
 const ExamTestResultsRouter = () => {
   const { user } = useAuthStore()
-  if (user?.role === 'candidato') {
+  if (user?.role === 'candidato' || user?.role === 'responsable') {
     return (
       <Layout>
         <ExamTestResultsPage />

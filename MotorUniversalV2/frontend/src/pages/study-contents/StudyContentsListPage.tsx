@@ -169,7 +169,7 @@ const StudyContentsListPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const draftsRef = useRef<HTMLDivElement>(null);
   
-  const isCandidate = user?.role === 'candidato';
+  const isCandidate = user?.role === 'candidato' || user?.role === 'responsable';
   const canCreate = user?.role === 'admin' || user?.role === 'editor';
   
   // Debounce del término de búsqueda (300ms)

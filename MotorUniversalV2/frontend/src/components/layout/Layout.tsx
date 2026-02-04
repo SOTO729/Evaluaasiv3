@@ -174,7 +174,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Materiales
                   </Link>
                 )}
-                {user?.role !== 'candidato' && user?.role !== 'coordinator' && (
+                {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && (
                   <Link 
                     to="/standards" 
                     className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -376,7 +376,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {user?.role !== 'candidato' && user?.role !== 'coordinator' && (
+              {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && (
                 <Link 
                   to="/standards" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${

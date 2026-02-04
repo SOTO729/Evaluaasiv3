@@ -50,7 +50,7 @@ const ExamCard = ({
 }) => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const isCandidate = user?.role === 'candidato';
+  const isCandidate = user?.role === 'candidato' || user?.role === 'responsable';
 
   const handleCardClick = () => {
     if (isCandidate) {
@@ -216,7 +216,7 @@ const ExamsListPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 12;
-  const isCandidate = user?.role === 'candidato';
+  const isCandidate = user?.role === 'candidato' || user?.role === 'responsable';
   
   // Debounce del término de búsqueda (300ms)
   const debouncedSearchTerm = useDebounce(searchTerm, 300);

@@ -534,8 +534,8 @@ const ProfilePage = () => {
             </div>
           </div>
 
-          {/* Información del Grupo - Solo para candidatos */}
-          {profile?.role === 'candidato' && (
+          {/* Información del Grupo - Solo para candidatos y responsables */}
+          {(profile?.role === 'candidato' || profile?.role === 'responsable') && (
             <div className="bg-white rounded-fluid-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden lg:col-span-2">
               <div className="fluid-px-5 fluid-py-4 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-transparent">
                 <div className="flex items-center fluid-gap-3">
