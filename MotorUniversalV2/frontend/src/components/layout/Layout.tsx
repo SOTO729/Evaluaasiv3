@@ -14,8 +14,32 @@ const Layout = ({ children }: LayoutProps) => {
   const location = useLocation()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isNavbarVisible, setIsNavbarVisible] = useState(true)
+  const lastScrollY = useRef(0)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
+
+  // Scroll listener para ocultar/mostrar navbar
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY
+      const scrollDiff = currentScrollY - lastScrollY.current
+      
+      // Solo ocultar si scrolleamos hacia abajo más de 10px y estamos más allá de 100px
+      if (scrollDiff > 10 && currentScrollY > 100) {
+        setIsNavbarVisible(false)
+        lastScrollY.current = currentScrollY
+      } 
+      // Mostrar si scrolleamos hacia arriba más de 10px
+      else if (scrollDiff < -10) {
+        setIsNavbarVisible(true)
+        lastScrollY.current = currentScrollY
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   // Cerrar dropdown y menú móvil al hacer clic fuera
   useEffect(() => {
@@ -99,8 +123,12 @@ const Layout = ({ children }: LayoutProps) => {
 
   return (
     <div className={isFullContentPage ? 'h-screen flex flex-col overflow-hidden' : 'min-h-screen bg-gray-50'}>
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b sticky top-0 z-40 flex-shrink-0">
+      {/* Header con animación de scroll */}
+      <header 
+        className={`bg-white shadow-sm border-b fixed top-0 left-0 right-0 z-40 flex-shrink-0 transition-transform duration-300 ${
+          isNavbarVisible ? 'translate-y-0' : '-translate-y-full'
+        }`}
+      >
         <div className="w-full fluid-px-4">
           <div className="flex justify-between items-center fluid-header-height">
             <div className="flex items-center">
@@ -468,8 +496,8 @@ const Layout = ({ children }: LayoutProps) => {
         <ExamInProgressWidget />
       )}
 
-      {/* Main Content */}
-      <main className={isFullContentPage ? 'flex-1 overflow-hidden' : 'max-w-fluid-full mx-auto fluid-px-4 fluid-py-4'}>
+      {/* Main Content - con padding-top para compensar header fixed */}
+      <main className={isFullContentPage ? 'flex-1 overflow-hidden pt-[var(--header-height)]' : 'max-w-fluid-full mx-auto fluid-px-4 fluid-py-4 pt-[var(--header-height)]'}>
         {children || <Outlet />}
       </main>
     </div>

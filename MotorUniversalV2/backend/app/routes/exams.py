@@ -911,6 +911,8 @@ def update_topic(topic_id):
         topic.description = data.get('description')
     if 'order' in data:
         topic.order = data['order']
+    if 'percentage' in data:
+        topic.percentage = data['percentage']
     
     topic.updated_by = user_id
     
@@ -963,131 +965,6 @@ def delete_topic(topic_id):
         db.session.rollback()
         return jsonify({'error': f'Error al eliminar el tema: {str(e)}'}), 500
 
-
-# ============= PORCENTAJES DE TEMA =============
-
-@bp.route('/topics/<int:topic_id>/balance-percentages', methods=['POST'])
-@jwt_required()
-@require_permission('exams:update')
-def balance_topic_percentages(topic_id):
-    """
-    Balancear equitativamente los porcentajes de preguntas y ejercicios de un tema
-    El total siempre debe sumar 100%
-    """
-    from datetime import datetime
-    
-    topic = Topic.query.get(topic_id)
-    if not topic:
-        return jsonify({'error': 'Tema no encontrado'}), 404
-    
-    # Obtener todas las preguntas y ejercicios del tema
-    questions = Question.query.filter_by(topic_id=topic_id).all()
-    exercises = Exercise.query.filter_by(topic_id=topic_id).all()
-    
-    total_items = len(questions) + len(exercises)
-    
-    if total_items == 0:
-        return jsonify({
-            'message': 'No hay preguntas ni ejercicios para balancear',
-            'questions': [],
-            'exercises': []
-        }), 200
-    
-    # Calcular porcentaje equitativo (2 decimales)
-    percentage_per_item = round(100.0 / total_items, 2)
-    
-    # Calcular el residuo para ajustar al primer elemento
-    total_distributed = percentage_per_item * total_items
-    residue = round(100.0 - total_distributed, 2)
-    
-    user_id = get_jwt_identity()
-    first_item = True
-    
-    # Asignar porcentajes a preguntas
-    for question in questions:
-        if first_item:
-            question.percentage = percentage_per_item + residue
-            first_item = False
-        else:
-            question.percentage = percentage_per_item
-        question.updated_by = user_id
-    
-    # Asignar porcentajes a ejercicios
-    for exercise in exercises:
-        if first_item:
-            exercise.percentage = percentage_per_item + residue
-            first_item = False
-        else:
-            exercise.percentage = percentage_per_item
-        exercise.updated_by = user_id
-        exercise.updated_at = datetime.utcnow()
-    
-    db.session.commit()
-    
-    return jsonify({
-        'message': 'Porcentajes balanceados exitosamente',
-        'total_items': total_items,
-        'percentage_per_item': percentage_per_item,
-        'questions': [q.to_dict(include_correct=True) for q in questions],
-        'exercises': [e.to_dict() for e in exercises]
-    }), 200
-
-
-@bp.route('/topics/<int:topic_id>/update-percentages', methods=['PUT'])
-@jwt_required()
-@require_permission('exams:update')
-def update_topic_percentages(topic_id):
-    """
-    Actualizar porcentajes de preguntas y ejercicios de un tema
-    Valida que la suma sea exactamente 100%
-    """
-    from datetime import datetime
-    
-    topic = Topic.query.get(topic_id)
-    if not topic:
-        return jsonify({'error': 'Tema no encontrado'}), 404
-    
-    data = request.get_json()
-    question_percentages = data.get('questions', {})  # {question_id: percentage}
-    exercise_percentages = data.get('exercises', {})  # {exercise_id: percentage}
-    
-    # Calcular suma total
-    total = sum(question_percentages.values()) + sum(exercise_percentages.values())
-    
-    # Validar que sume 100 (con tolerancia de 0.01 por redondeo)
-    if abs(total - 100.0) > 0.01:
-        return jsonify({
-            'error': f'Los porcentajes deben sumar 100%. Suma actual: {total}%'
-        }), 400
-    
-    user_id = get_jwt_identity()
-    
-    # Actualizar preguntas
-    for question_id, percentage in question_percentages.items():
-        question = Question.query.get(question_id)
-        if question and question.topic_id == topic_id:
-            question.percentage = percentage
-            question.updated_by = user_id
-    
-    # Actualizar ejercicios
-    for exercise_id, percentage in exercise_percentages.items():
-        exercise = Exercise.query.get(exercise_id)
-        if exercise and exercise.topic_id == topic_id:
-            exercise.percentage = percentage
-            exercise.updated_by = user_id
-            exercise.updated_at = datetime.utcnow()
-    
-    db.session.commit()
-    
-    # Devolver los datos actualizados
-    questions = Question.query.filter_by(topic_id=topic_id).all()
-    exercises = Exercise.query.filter_by(topic_id=topic_id).all()
-    
-    return jsonify({
-        'message': 'Porcentajes actualizados exitosamente',
-        'questions': [q.to_dict(include_correct=True) for q in questions],
-        'exercises': [e.to_dict() for e in exercises]
-    }), 200
 
 
 # ============= PREGUNTAS =============
@@ -2848,20 +2725,17 @@ def evaluate_exam(exam_id):
                 # Obtener información de categoría y tema del item
                 category_name = item.get('category_name', 'Sin categoría')
                 topic_name = item.get('topic_name', 'Sin tema')
-                item_percentage = item.get('percentage', 0)  # Porcentaje configurado del item
                 
-                # Obtener la pregunta de la BD con respuestas correctas
                 question = Question.query.get(question_id)
                 if question:
                     question_data = question.to_dict(include_answers=True, include_correct=True)
                     result = evaluate_question(question_data, user_answer)
-                    # Agregar categoría, tema y porcentaje al resultado
+                    # Agregar categoría y tema al resultado
                     result['category_name'] = category_name
                     result['topic_name'] = topic_name
-                    result['percentage'] = item_percentage if item_percentage > 0 else question.percentage or 0
                     result['max_score'] = 1  # Una pregunta vale máximo 1 punto
                     question_results.append(result)
-                    print(f"  Pregunta {question_id}: {'✓' if result['is_correct'] else '✗'} (score: {result['score']:.2f}, peso: {result['percentage']}%)")
+                    print(f"  Pregunta {question_id}: {'✓' if result['is_correct'] else '✗'} (score: {result['score']:.2f})")
                 else:
                     # Si no encontramos en BD, usar datos del item
                     item_with_answers = item.copy()
@@ -2870,13 +2744,12 @@ def evaluate_exam(exam_id):
                     if answers_from_db:
                         item_with_answers['answers'] = [a.to_dict(include_correct=True) for a in answers_from_db]
                     result = evaluate_question(item_with_answers, user_answer)
-                    # Agregar categoría, tema y porcentaje al resultado
+                    # Agregar categoría y tema al resultado
                     result['category_name'] = category_name
                     result['topic_name'] = topic_name
-                    result['percentage'] = item_percentage
                     result['max_score'] = 1
                     question_results.append(result)
-                    print(f"  Pregunta {question_id} (sin BD): {'✓' if result['is_correct'] else '✗'} (score: {result['score']:.2f}, peso: {result['percentage']}%)")
+                    print(f"  Pregunta {question_id} (sin BD): {'✓' if result['is_correct'] else '✗'} (score: {result['score']:.2f})")
             
             elif item.get('type') == 'exercise':
                 exercise_id = str(item.get('exercise_id') or item.get('id'))
@@ -2885,26 +2758,21 @@ def evaluate_exam(exam_id):
                 # Obtener información de categoría y tema del item
                 category_name = item.get('category_name', 'Sin categoría')
                 topic_name = item.get('topic_name', 'Sin tema')
-                item_percentage = item.get('percentage', 0)  # Porcentaje configurado del item
                 
                 # Obtener ejercicio de la BD con pasos y acciones
                 exercise = Exercise.query.get(exercise_id)
                 if exercise:
                     exercise_data = exercise.to_dict(include_steps=True)
-                    # Usar porcentaje del item o de la BD
-                    result_percentage = item_percentage if item_percentage > 0 else exercise.percentage or 0
                 else:
                     # Usar datos del item
                     exercise_data = item
-                    result_percentage = item_percentage
                 
                 result = evaluate_exercise(exercise_data, ex_responses)
-                # Agregar categoría, tema y porcentaje al resultado
+                # Agregar categoría y tema al resultado
                 result['category_name'] = category_name
                 result['topic_name'] = topic_name
-                result['percentage'] = result_percentage
                 exercise_results.append(result)
-                print(f"  Ejercicio {exercise_id}: {'✓' if result['is_correct'] else '✗'} ({result['total_score']}/{result['max_score']}, peso: {result['percentage']}%)")
+                print(f"  Ejercicio {exercise_id}: {'✓' if result['is_correct'] else '✗'} ({result['total_score']}/{result['max_score']})")
         
         # Calcular resumen
         total_questions = len(question_results)
@@ -2912,7 +2780,7 @@ def evaluate_exam(exam_id):
         correct_questions = sum(1 for r in question_results if r['is_correct'])
         correct_exercises = sum(1 for r in exercise_results if r['is_correct'])
         
-        # Calcular puntajes simples (sin ponderar)
+        # Calcular puntajes simples - cada pregunta y ejercicio tiene el mismo peso
         question_score = sum(r['score'] for r in question_results) if question_results else 0
         exercise_score = sum(r['total_score'] for r in exercise_results) if exercise_results else 0
         max_exercise_score = sum(r['max_score'] for r in exercise_results) if exercise_results else 0
@@ -2920,42 +2788,20 @@ def evaluate_exam(exam_id):
         total_points = total_questions + max_exercise_score
         earned_points = question_score + exercise_score
         
-        # Calcular si hay porcentajes configurados
-        total_percentage_weight = 0
-        weighted_score = 0
-        
-        # Sumar porcentajes de preguntas
-        for qr in question_results:
-            pct = qr.get('percentage', 0)
-            if pct > 0:
-                total_percentage_weight += pct
-                # Score de pregunta es 0-1, así que multiplicamos por el porcentaje
-                weighted_score += qr.get('score', 0) * pct
-        
-        # Sumar porcentajes de ejercicios
-        for er in exercise_results:
-            pct = er.get('percentage', 0)
-            if pct > 0:
-                total_percentage_weight += pct
-                # Para ejercicios, calculamos el ratio de puntos obtenidos
-                max_sc = er.get('max_score', 1)
-                earned_sc = er.get('total_score', 0)
-                ratio = earned_sc / max_sc if max_sc > 0 else 0
-                weighted_score += ratio * pct
-        
-        # Si hay porcentajes configurados, usar media ponderada
-        # Si no, usar cálculo simple
-        if total_percentage_weight > 0:
-            # Media ponderada: (suma de score*peso) / (suma de pesos) * 100
-            percentage = weighted_score / total_percentage_weight * 100
-            print(f"  📊 Usando media ponderada: {weighted_score:.2f}/{total_percentage_weight:.2f}% = {percentage:.1f}%")
-        else:
-            # Cálculo simple sin ponderación
-            percentage = (earned_points / total_points * 100) if total_points > 0 else 0
-            print(f"  📊 Usando cálculo simple: {earned_points:.2f}/{total_points} = {percentage:.1f}%")
-        
-        # Calcular desglose por categoría y tema
+        # Calcular desglose por categoría y tema para la evaluación ponderada
         evaluation_breakdown = {}
+        
+        # Obtener porcentajes de categorías y temas del examen
+        category_percentages = {}
+        topic_percentages = {}
+        for category in exam.categories:
+            category_percentages[category.name] = category.percentage or 0
+            for topic in category.topics:
+                topic_key = f"{category.name}|{topic.name}"
+                topic_percentages[topic_key] = topic.percentage or 0
+        
+        print(f"  📊 Porcentajes de categorías: {category_percentages}")
+        print(f"  📊 Porcentajes de temas: {topic_percentages}")
         
         # Procesar preguntas
         for qr in question_results:
@@ -2993,13 +2839,48 @@ def evaluate_exam(exam_id):
             evaluation_breakdown[cat_name]['topics'][topic_name]['earned'] += earned
             evaluation_breakdown[cat_name]['topics'][topic_name]['max'] += max_score
         
-        # Calcular porcentajes
+        # Calcular porcentajes por rendimiento (earned/max) para cada categoría y tema
         for cat_name, cat_data in evaluation_breakdown.items():
             if cat_data['max'] > 0:
                 cat_data['percentage'] = round((cat_data['earned'] / cat_data['max']) * 100, 1)
             for topic_name, topic_data in cat_data['topics'].items():
                 if topic_data['max'] > 0:
                     topic_data['percentage'] = round((topic_data['earned'] / topic_data['max']) * 100, 1)
+        
+        # Calcular calificación ponderada usando porcentajes de categorías y temas
+        # Fórmula: Σ (porcentaje_categoría/100) × Σ (porcentaje_tema/100) × (earned/max del tema)
+        weighted_percentage = 0
+        has_weighted_config = False
+        
+        for cat_name, cat_data in evaluation_breakdown.items():
+            cat_weight = category_percentages.get(cat_name, 0) / 100  # Porcentaje de la categoría
+            
+            if cat_weight > 0:
+                has_weighted_config = True
+                cat_contribution = 0
+                
+                for topic_name, topic_data in cat_data['topics'].items():
+                    topic_key = f"{cat_name}|{topic_name}"
+                    topic_weight = topic_percentages.get(topic_key, 0) / 100  # Porcentaje del tema dentro de la categoría
+                    
+                    if topic_weight > 0 and topic_data['max'] > 0:
+                        topic_score = topic_data['earned'] / topic_data['max']  # Rendimiento del tema (0-1)
+                        cat_contribution += topic_weight * topic_score
+                    elif topic_data['max'] > 0:
+                        # Si el tema no tiene porcentaje configurado, usar rendimiento directo
+                        topic_score = topic_data['earned'] / topic_data['max']
+                        cat_contribution += topic_score / len(cat_data['topics'])  # Distribuir equitativamente
+                
+                weighted_percentage += cat_weight * cat_contribution * 100
+        
+        # Si hay configuración ponderada, usar ese resultado; sino usar cálculo simple
+        if has_weighted_config and weighted_percentage > 0:
+            percentage = weighted_percentage
+            print(f"  📊 Cálculo PONDERADO: {percentage:.1f}%")
+        else:
+            # Fallback a cálculo simple si no hay ponderación configurada
+            percentage = (earned_points / total_points * 100) if total_points > 0 else 0
+            print(f"  📊 Cálculo SIMPLE: {earned_points:.2f}/{total_points} = {percentage:.1f}%")
         
         summary = {
             'total_items': len(items),
@@ -3013,13 +2894,11 @@ def evaluate_exam(exam_id):
             'total_points': total_points,
             'earned_points': round(earned_points, 2),
             'percentage': round(percentage, 1),
-            'weighted': total_percentage_weight > 0,  # Indica si se usó ponderación
-            'total_weight': round(total_percentage_weight, 1),  # Suma de pesos usados
+            'weighted': has_weighted_config,
             'evaluation_breakdown': evaluation_breakdown
         }
         
         print(f"Resumen: {correct_questions}/{total_questions} preguntas, {correct_exercises}/{total_exercises} ejercicios, {percentage:.1f}%")
-        print(f"  Ponderado: {'Sí' if total_percentage_weight > 0 else 'No'} (peso total: {total_percentage_weight:.1f}%)")
         print(f"Desglose por categoría: {list(evaluation_breakdown.keys())}")
         # Debug detallado del breakdown
         for cat_name, cat_data in evaluation_breakdown.items():

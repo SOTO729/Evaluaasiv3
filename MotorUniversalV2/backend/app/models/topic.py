@@ -14,6 +14,7 @@ class Topic(db.Model):
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False, index=True)
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
+    percentage = db.Column(db.Float, default=0, nullable=False)  # Peso dentro de la categoría (%)
     order = db.Column(db.Integer, default=0)
     
     # Auditoría
@@ -33,6 +34,7 @@ class Topic(db.Model):
             'category_id': self.category_id,
             'name': self.name,
             'description': self.description,
+            'percentage': self.percentage or 0,
             'order': self.order,
             'total_questions': self.questions.count(),
             'total_exercises': self.exercises.count(),

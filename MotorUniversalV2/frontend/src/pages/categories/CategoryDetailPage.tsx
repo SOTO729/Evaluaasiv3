@@ -17,6 +17,8 @@ const CategoryDetailPage = () => {
   const [formData, setFormData] = useState({
     name: '',
   })
+  const [showTopicPercentageModal, setShowTopicPercentageModal] = useState(false)
+  const [topicPercentageAdjustments, setTopicPercentageAdjustments] = useState<{[key: number]: string}>({})
 
   // Query para obtener el examen (para el breadcrumb)
   const { data: exam } = useQuery({
@@ -42,11 +44,26 @@ const CategoryDetailPage = () => {
 
   const createTopicMutation = useMutation({
     mutationFn: (data: Partial<Topic>) => examService.createTopic(Number(categoryId), data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['topics', categoryId] })
-      queryClient.invalidateQueries({ queryKey: ['category', categoryId] })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['topics', categoryId] })
+      await queryClient.invalidateQueries({ queryKey: ['category', categoryId] })
       setIsCreateModalOpen(false)
       setFormData({ name: '' })
+      // Verificar si los porcentajes suman 100% después de crear
+      const updatedTopics = await examService.getTopics(Number(categoryId))
+      const topicsList = updatedTopics?.topics || []
+      if (topicsList.length > 0) {
+        const sum = topicsList.reduce((acc: number, t: Topic) => acc + (t.percentage || 0), 0)
+        if (sum !== 100) {
+          // Inicializar ajustes con los valores actuales
+          const adjustments: {[key: number]: string} = {}
+          topicsList.forEach((t: Topic) => {
+            adjustments[t.id] = String(t.percentage || 0)
+          })
+          setTopicPercentageAdjustments(adjustments)
+          setShowTopicPercentageModal(true)
+        }
+      }
     },
   })
 
@@ -115,6 +132,52 @@ const CategoryDetailPage = () => {
   const handleEdit = (e: React.MouseEvent, topic: Topic) => {
     e.stopPropagation()
     handleOpenEditModal(topic)
+  }
+
+  // Funciones para gestión de porcentajes de temas
+  const getTopicPercentageSum = () => {
+    return Object.values(topicPercentageAdjustments).reduce((sum, val) => {
+      const num = parseFloat(val) || 0
+      return sum + num
+    }, 0)
+  }
+
+  const openTopicPercentageModal = () => {
+    const adjustments: {[key: number]: string} = {}
+    topics.forEach((topic) => {
+      adjustments[topic.id] = String(topic.percentage || 0)
+    })
+    setTopicPercentageAdjustments(adjustments)
+    setShowTopicPercentageModal(true)
+  }
+
+  const handleDistributeTopicPercentagesEqually = () => {
+    const topicCount = topics.length
+    if (topicCount === 0) return
+    
+    const basePercentage = Math.floor(100 / topicCount)
+    const remainder = 100 - (basePercentage * topicCount)
+    
+    const adjustments: {[key: number]: string} = {}
+    topics.forEach((topic, index) => {
+      const extra = index < remainder ? 1 : 0
+      adjustments[topic.id] = String(basePercentage + extra)
+    })
+    setTopicPercentageAdjustments(adjustments)
+  }
+
+  const handleSaveTopicPercentages = async () => {
+    try {
+      const updatePromises = Object.entries(topicPercentageAdjustments).map(([topicId, percentage]) => 
+        examService.updateTopic(Number(topicId), { percentage: parseFloat(percentage) || 0 })
+      )
+      await Promise.all(updatePromises)
+      await queryClient.invalidateQueries({ queryKey: ['topics', categoryId] })
+      await queryClient.invalidateQueries({ queryKey: ['category', categoryId] })
+      setShowTopicPercentageModal(false)
+    } catch (error) {
+      console.error('Error al guardar porcentajes:', error)
+    }
   }
 
   if (isLoading) return <LoadingSpinner message="Cargando categoría..." fullScreen />
@@ -213,15 +276,29 @@ const CategoryDetailPage = () => {
               <h2 className="fluid-text-xl font-bold text-gray-900">Temas de la Categoría</h2>
               <p className="fluid-text-sm text-gray-500 fluid-mt-1">Gestiona los temas y su contenido</p>
             </div>
-            <button 
-              onClick={handleOpenCreateModal}
-              className="inline-flex items-center fluid-px-4 fluid-py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 hover:from-green-600 hover:to-emerald-700 transform hover:-translate-y-0.5 transition-all duration-200"
-            >
-              <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Crear Tema
-            </button>
+            <div className="flex fluid-gap-2">
+              {topics.length > 0 && (
+                <button 
+                  onClick={openTopicPercentageModal}
+                  className="inline-flex items-center fluid-px-4 fluid-py-2 bg-gradient-to-r from-amber-500 to-yellow-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/30 hover:from-amber-600 hover:to-yellow-700 transform hover:-translate-y-0.5 transition-all duration-200"
+                >
+                  <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                  </svg>
+                  Ajustar Porcentajes
+                </button>
+              )}
+              <button 
+                onClick={handleOpenCreateModal}
+                className="inline-flex items-center fluid-px-4 fluid-py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-green-500/25 hover:shadow-xl hover:shadow-green-500/30 hover:from-green-600 hover:to-emerald-700 transform hover:-translate-y-0.5 transition-all duration-200"
+              >
+                <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Crear Tema
+              </button>
+            </div>
           </div>
 
           {isLoadingTopics ? (
@@ -256,6 +333,9 @@ const CategoryDetailPage = () => {
                       </th>
                       <th scope="col" className="fluid-px-6 fluid-py-4 text-left fluid-text-xs font-bold text-gray-600 uppercase tracking-wider bg-gray-100">
                         Nombre del Tema
+                      </th>
+                      <th scope="col" className="fluid-px-6 fluid-py-4 text-center fluid-text-xs font-bold text-gray-600 uppercase tracking-wider w-28 bg-gray-100">
+                        Porcentaje
                       </th>
                       <th scope="col" className="fluid-px-6 fluid-py-4 text-center fluid-text-xs font-bold text-gray-600 uppercase tracking-wider w-32 bg-gray-100">
                         Preguntas
@@ -292,6 +372,14 @@ const CategoryDetailPage = () => {
                             <div className="fluid-text-xs text-gray-500">Haz clic para ver contenido</div>
                           </div>
                         </div>
+                      </td>
+                      <td className="fluid-px-6 fluid-py-4 whitespace-nowrap text-center">
+                        <span className="inline-flex items-center fluid-px-3 fluid-py-1 rounded-fluid-lg fluid-text-xs font-semibold bg-amber-100 text-amber-700">
+                          <svg className="fluid-icon-xs fluid-mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                          </svg>
+                          {topic.percentage || 0}%
+                        </span>
                       </td>
                       <td className="fluid-px-6 fluid-py-4 whitespace-nowrap text-center">
                         <span className="inline-flex items-center fluid-px-3 fluid-py-1 rounded-fluid-lg fluid-text-xs font-semibold bg-blue-100 text-blue-700">
@@ -456,6 +544,115 @@ const CategoryDetailPage = () => {
                   disabled={deleteTopicMutation.isPending}
                 >
                   {deleteTopicMutation.isPending ? 'Eliminando...' : 'Sí, eliminar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Ajuste de Porcentajes de Temas */}
+      {showTopicPercentageModal && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4"
+          onClick={() => setShowTopicPercentageModal(false)}
+        >
+          <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-amber-500 to-yellow-600 fluid-px-6 fluid-py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0 fluid-icon-lg rounded-fluid-xl bg-white/20 flex items-center justify-center fluid-mr-3">
+                    <svg className="fluid-icon text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="fluid-text-xl font-bold text-white">
+                      Ajustar Porcentajes de Temas
+                    </h3>
+                    <p className="text-amber-100 fluid-text-sm">
+                      Define el peso de cada tema en la categoría
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="fluid-p-6">
+              {/* Advertencia */}
+              <div className={`rounded-fluid-xl fluid-p-4 fluid-mb-4 ${getTopicPercentageSum() === 100 ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'}`}>
+                <div className="flex items-center">
+                  <svg className={`fluid-icon-sm fluid-mr-2 ${getTopicPercentageSum() === 100 ? 'text-green-600' : 'text-amber-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {getTopicPercentageSum() === 100 ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    )}
+                  </svg>
+                  <span className={`fluid-text-sm font-medium ${getTopicPercentageSum() === 100 ? 'text-green-700' : 'text-amber-700'}`}>
+                    Total: {getTopicPercentageSum()}% {getTopicPercentageSum() !== 100 && '(debe sumar 100%)'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Botón distribuir equitativamente */}
+              <button
+                onClick={handleDistributeTopicPercentagesEqually}
+                className="w-full fluid-mb-4 fluid-px-4 fluid-py-2 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/30 hover:from-violet-600 hover:to-purple-700 transition-all duration-200 flex items-center justify-center"
+              >
+                <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Distribuir Equitativamente
+              </button>
+
+              {/* Lista de temas con inputs */}
+              <div className="max-h-[300px] overflow-y-auto fluid-space-y-3">
+                {topics.map((topic) => (
+                  <div key={topic.id} className="flex items-center justify-between bg-gray-50 rounded-fluid-xl fluid-p-3 hover:bg-gray-100 transition-colors">
+                    <div className="flex items-center fluid-gap-3">
+                      <div className="fluid-icon-lg rounded-fluid-lg bg-gradient-to-br from-green-100 to-emerald-200 flex items-center justify-center">
+                        <svg className="fluid-icon-sm text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <span className="font-medium text-gray-900 fluid-text-sm">{topic.name}</span>
+                    </div>
+                    <div className="flex items-center fluid-gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={topicPercentageAdjustments[topic.id] || '0'}
+                        onChange={(e) => setTopicPercentageAdjustments(prev => ({
+                          ...prev,
+                          [topic.id]: e.target.value
+                        }))}
+                        className="w-20 fluid-px-3 fluid-py-2 border border-gray-200 rounded-fluid-lg text-center font-semibold focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                      />
+                      <span className="text-gray-500 font-medium">%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex fluid-gap-3 justify-end fluid-mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowTopicPercentageModal(false)}
+                  className="fluid-px-5 fluid-py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-fluid-xl font-medium transition-all duration-200"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveTopicPercentages}
+                  disabled={getTopicPercentageSum() !== 100}
+                  className="fluid-px-5 fluid-py-2 bg-gradient-to-r from-amber-500 to-yellow-600 text-white rounded-fluid-xl font-medium shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/30 hover:from-amber-600 hover:to-yellow-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Guardar Cambios
                 </button>
               </div>
             </div>

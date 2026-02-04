@@ -74,6 +74,7 @@ export interface Topic {
   category_id: number
   name: string
   description?: string
+  percentage: number
   order: number
   total_questions: number
   total_exercises: number

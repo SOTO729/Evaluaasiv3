@@ -14,7 +14,6 @@ interface TestItem {
   category_name: string;
   topic_name: string;
   item_mode: 'exam' | 'simulator'; // Modo: examen o simulador
-  percentage?: number; // Porcentaje de peso para la calificación ponderada
   // Para preguntas
   question_id?: number;
   question_text?: string;
@@ -339,7 +338,7 @@ const ExamTestRunPage: React.FC = () => {
       }
       
       const allQuestions: TestItem[] = [];
-      const allExerciseRefs: { topicId: number; exerciseId: string; category_name: string; topic_name: string; item_mode: 'exam' | 'simulator'; percentage: number }[] = [];
+      const allExerciseRefs: { topicId: number; exerciseId: string; category_name: string; topic_name: string; item_mode: 'exam' | 'simulator' }[] = [];
       
       exam.categories?.forEach((category: any) => {
         category.topics?.forEach((topic: any) => {
@@ -357,8 +356,7 @@ const ExamTestRunPage: React.FC = () => {
                 question_id: question.id,
                 question_text: question.question_text,
                 question_type: question.question_type?.name || question.question_type,
-                options: question.answers || question.options,
-                percentage: question.percentage || 0  // Incluir porcentaje configurado
+                options: question.answers || question.options
               });
             }
           });
@@ -373,8 +371,7 @@ const ExamTestRunPage: React.FC = () => {
                 exerciseId: exercise.id,
                 category_name: category.name,
                 topic_name: topic.name,
-                item_mode: exerciseMode,
-                percentage: exercise.percentage || 0  // Incluir porcentaje configurado
+                item_mode: exerciseMode
               });
             }
           });
@@ -405,8 +402,7 @@ const ExamTestRunPage: React.FC = () => {
               exercise_id: exercise.id,
               title: exercise.title,
               description: exercise.exercise_text,
-              steps: exercise.steps || [],
-              percentage: ref.percentage  // Incluir porcentaje configurado
+              steps: exercise.steps || []
             } as TestItem;
           } catch (error) {
             console.error('Error loading exercise:', error);
