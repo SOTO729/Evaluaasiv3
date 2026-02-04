@@ -5142,10 +5142,10 @@ def get_mis_examenes():
             # Filtrar por asignación específica si es individual
             exam_ids = set()
             for ge in group_exams:
-                if ge.assignment_type == 'all':
+                if ge.assignment_type == 'all' or ge.assignment_type is None:
                     # Asignado a todos los miembros del grupo
                     exam_ids.add(ge.exam_id)
-                elif ge.assignment_type == 'individual':
+                elif ge.assignment_type == 'selected':
                     # Verificar si el candidato está asignado específicamente
                     member_assignment = GroupExamMember.query.filter_by(
                         group_exam_id=ge.id,
@@ -5248,9 +5248,9 @@ def get_mis_materiales():
             for ge in group_exams:
                 # Verificar si el candidato tiene acceso al examen
                 has_access = False
-                if ge.assignment_type == 'all':
+                if ge.assignment_type == 'all' or ge.assignment_type is None:
                     has_access = True
-                elif ge.assignment_type == 'individual':
+                elif ge.assignment_type == 'selected':
                     from app.models.partner import GroupExamMember
                     member_assignment = GroupExamMember.query.filter_by(
                         group_exam_id=ge.id,
