@@ -41,6 +41,11 @@ export interface CreateUserData {
   username?: string;
   is_active?: boolean;
   is_verified?: boolean;
+  // Campos adicionales para responsables
+  date_of_birth?: string;
+  campus_id?: number;
+  can_bulk_create_candidates?: boolean;
+  can_manage_groups?: boolean;
 }
 
 export interface UpdateUserData {
@@ -186,6 +191,28 @@ export async function getAvailableRoles(): Promise<{
   return response.data;
 }
 
+// ============== PLANTELES DISPONIBLES (para responsables) ==============
+
+export interface AvailableCampus {
+  id: number;
+  name: string;
+  code: string;
+  partner_id: number;
+  partner_name: string;
+  state_name?: string;
+  city?: string;
+  has_responsable: boolean;
+  activation_status: string;
+}
+
+export async function getAvailableCampuses(): Promise<{
+  campuses: AvailableCampus[];
+  total: number;
+}> {
+  const response = await api.get('/user-management/available-campuses');
+  return response.data;
+}
+
 // ============== HELPERS ==============
 
 export const ROLE_LABELS: Record<string, string> = {
@@ -193,6 +220,7 @@ export const ROLE_LABELS: Record<string, string> = {
   editor: 'Editor',
   soporte: 'Soporte',
   coordinator: 'Coordinador',
+  responsable: 'Responsable',
   candidato: 'Candidato',
   auxiliar: 'Auxiliar'
 };
@@ -202,6 +230,7 @@ export const ROLE_COLORS: Record<string, string> = {
   editor: 'bg-purple-100 text-purple-800',
   soporte: 'bg-blue-100 text-blue-800',
   coordinator: 'bg-amber-100 text-amber-800',
+  responsable: 'bg-indigo-100 text-indigo-800',
   candidato: 'bg-green-100 text-green-800',
   auxiliar: 'bg-gray-100 text-gray-800'
 };

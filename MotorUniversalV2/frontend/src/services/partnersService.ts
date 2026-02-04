@@ -231,6 +231,7 @@ export interface CreateResponsableData {
   date_of_birth: string;  // Formato YYYY-MM-DD
   can_bulk_create_candidates?: boolean;
   can_manage_groups?: boolean;
+  replace_existing?: boolean;  // Si es true, reemplaza el responsable actual
 }
 
 // Datos para actualizar un responsable
@@ -399,6 +400,52 @@ export async function updateCampusResponsable(
   responsable: CampusResponsable;
 }> {
   const response = await api.put(`/partners/campuses/${campusId}/responsable`, data);
+  return response.data;
+}
+
+// Responsable disponible para asignar
+export interface AvailableResponsable {
+  id: string;
+  full_name: string;
+  email: string;
+  curp?: string;
+  gender?: string;
+  date_of_birth?: string;
+  username: string;
+  can_bulk_create_candidates: boolean;
+  can_manage_groups: boolean;
+  is_current: boolean;  // Si ya está asignado al plantel actual
+  campus_id?: number;
+}
+
+export async function getAvailableResponsables(campusId: number): Promise<{
+  available_responsables: AvailableResponsable[];
+  total: number;
+  campus_id: number;
+  partner_id: number;
+}> {
+  const response = await api.get(`/partners/campuses/${campusId}/available-responsables`);
+  return response.data;
+}
+
+export async function assignExistingResponsable(
+  campusId: number,
+  data: {
+    responsable_id: string;
+    can_bulk_create_candidates?: boolean;
+    can_manage_groups?: boolean;
+  }
+): Promise<{
+  message: string;
+  responsable: CampusResponsable;
+  campus: {
+    id: number;
+    name: string;
+    code: string;
+    activation_status: string;
+  };
+}> {
+  const response = await api.post(`/partners/campuses/${campusId}/assign-responsable`, data);
   return response.data;
 }
 

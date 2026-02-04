@@ -13,12 +13,12 @@ import re
 bp = Blueprint('user_management', __name__, url_prefix='/api/user-management')
 
 # Roles disponibles en el sistema (sin alumno)
-AVAILABLE_ROLES = ['admin', 'editor', 'soporte', 'coordinator', 'candidato', 'auxiliar']
+AVAILABLE_ROLES = ['admin', 'editor', 'soporte', 'coordinator', 'responsable', 'candidato', 'auxiliar']
 
 # Roles que puede crear cada tipo de usuario
 ROLE_CREATE_PERMISSIONS = {
-    'admin': ['editor', 'soporte', 'coordinator', 'candidato', 'auxiliar'],  # Todo menos admin
-    'coordinator': ['candidato']  # Solo candidatos
+    'admin': ['editor', 'soporte', 'coordinator', 'responsable', 'candidato', 'auxiliar'],  # Todo menos admin
+    'coordinator': ['responsable', 'candidato']  # Responsables y candidatos
 }
 
 
@@ -161,6 +161,8 @@ def get_user_detail(user_id):
 def create_user():
     """Crear un nuevo usuario"""
     try:
+        from app.models.partner import Campus
+        
         current_user = g.current_user
         data = request.get_json()
         
@@ -179,6 +181,36 @@ def create_user():
             for field in candidato_required:
                 if not data.get(field):
                     return jsonify({'error': f'El campo {field_names[field]} es requerido para candidatos'}), 400
+        
+        # Para responsables, campos adicionales son obligatorios
+        if role == 'responsable':
+            responsable_required = ['second_surname', 'curp', 'gender', 'date_of_birth', 'campus_id']
+            field_names = {
+                'second_surname': 'segundo apellido',
+                'curp': 'CURP',
+                'gender': 'género',
+                'date_of_birth': 'fecha de nacimiento',
+                'campus_id': 'plantel'
+            }
+            for field in responsable_required:
+                if not data.get(field):
+                    return jsonify({'error': f'El campo {field_names[field]} es requerido para responsables'}), 400
+            
+            # Validar que el campus exista
+            campus = Campus.query.get(data['campus_id'])
+            if not campus:
+                return jsonify({'error': 'El plantel especificado no existe'}), 404
+            
+            # Validar fecha de nacimiento
+            from datetime import datetime as dt
+            try:
+                date_of_birth = dt.strptime(data['date_of_birth'], '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'error': 'Formato de fecha de nacimiento inválido. Use YYYY-MM-DD'}), 400
+            
+            # Validar género
+            if data['gender'] not in ['M', 'F', 'O']:
+                return jsonify({'error': 'Género inválido. Use M (masculino), F (femenino) u O (otro)'}), 400
         
         email = data['email'].strip().lower()
         
@@ -231,12 +263,21 @@ def create_user():
         # Para usuarios tipo editor, no guardar CURP ni phone
         user_curp = None
         user_phone = None
+        user_date_of_birth = None
+        user_campus_id = None
+        
         if role not in ['editor', 'candidato']:
-            # Solo admin/coordinator pueden tener teléfono
+            # Solo admin/coordinator/responsable pueden tener teléfono
             user_phone = data.get('phone', '').strip() or None
         if role != 'editor':
-            # Solo candidatos y otros roles (no editor) pueden tener CURP
+            # Solo candidatos, responsables y otros roles (no editor) pueden tener CURP
             user_curp = data.get('curp', '').upper().strip() or None
+        
+        # Para responsables, campos adicionales
+        if role == 'responsable':
+            from datetime import datetime as dt
+            user_date_of_birth = dt.strptime(data['date_of_birth'], '%Y-%m-%d').date()
+            user_campus_id = data['campus_id']
         
         # Crear usuario
         new_user = User(
@@ -250,18 +291,27 @@ def create_user():
             curp=user_curp,
             phone=user_phone,
             role=role,
+            campus_id=user_campus_id,
+            date_of_birth=user_date_of_birth,
             is_active=data.get('is_active', True),
-            is_verified=data.get('is_verified', False)
+            is_verified=True if role == 'responsable' else data.get('is_verified', False),
+            can_bulk_create_candidates=data.get('can_bulk_create_candidates', False) if role == 'responsable' else False,
+            can_manage_groups=data.get('can_manage_groups', False) if role == 'responsable' else False
         )
         new_user.set_password(password)  # Usar la variable password (puede ser generada automáticamente)
         
         db.session.add(new_user)
         db.session.commit()
         
-        return jsonify({
+        # Si es responsable, incluir la contraseña temporal en la respuesta
+        response_data = {
             'message': 'Usuario creado exitosamente',
             'user': new_user.to_dict(include_private=True)
-        }), 201
+        }
+        if role == 'responsable':
+            response_data['temporary_password'] = password
+        
+        return jsonify(response_data), 201
         
     except Exception as e:
         db.session.rollback()
@@ -609,6 +659,7 @@ def get_available_roles():
             'editor': 'Editor - Gestión de exámenes y contenidos',
             'soporte': 'Soporte - Atención a usuarios y vouchers',
             'coordinator': 'Coordinador - Gestión de partners y candidatos',
+            'responsable': 'Responsable - Administra un plantel y sus candidatos',
             'candidato': 'Candidato - Usuario que presenta evaluaciones',
             'auxiliar': 'Auxiliar - Acceso de solo lectura'
         }
@@ -622,6 +673,43 @@ def get_available_roles():
                 {'value': role, 'label': role.capitalize(), 'description': role_descriptions.get(role, '')}
                 for role in AVAILABLE_ROLES
             ] if current_user.role == 'admin' else None
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ============== PLANTELES PARA RESPONSABLES ==============
+
+@bp.route('/available-campuses', methods=['GET'])
+@jwt_required()
+@management_required
+def get_available_campuses():
+    """
+    Obtener lista de planteles disponibles para asignar responsables.
+    Muestra planteles que no tienen responsable asignado o están inactivos.
+    """
+    try:
+        from app.models.partner import Campus, Partner
+        
+        # Obtener planteles sin responsable activo
+        campuses = Campus.query.join(Partner).filter(
+            Campus.is_active == False  # Solo planteles pendientes de activación
+        ).order_by(Partner.name, Campus.name).all()
+        
+        return jsonify({
+            'campuses': [{
+                'id': c.id,
+                'name': c.name,
+                'code': c.code,
+                'partner_id': c.partner_id,
+                'partner_name': c.partner.name,
+                'state_name': c.state_name,
+                'city': c.city,
+                'has_responsable': c.responsable_id is not None,
+                'activation_status': c.activation_status
+            } for c in campuses],
+            'total': len(campuses)
         })
         
     except Exception as e:

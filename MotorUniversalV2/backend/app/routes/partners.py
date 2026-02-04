@@ -576,6 +576,7 @@ def create_campus_responsable(campus_id):
     """
     Crear usuario responsable del plantel (Paso 1 de activación)
     Este endpoint crea un nuevo usuario con rol 'responsable' y lo asocia al plantel
+    Si ya existe un responsable y se pasa replace_existing=true, permite actualizar o reemplazar
     """
     import random
     import string
@@ -585,21 +586,29 @@ def create_campus_responsable(campus_id):
     
     try:
         campus = Campus.query.get_or_404(campus_id)
+        data = request.get_json()
+        
+        # Verificar si se quiere reemplazar/editar el responsable existente
+        replace_existing = data.get('replace_existing', False)
+        
+        # Guardar el ID del responsable actual para verificaciones posteriores
+        current_responsable_id = campus.responsable_id
+        current_responsable = None
         
         # Verificar que el plantel no tenga ya un responsable activo
-        if campus.responsable_id:
-            existing_responsable = User.query.get(campus.responsable_id)
-            if existing_responsable and existing_responsable.is_active:
-                return jsonify({
-                    'error': 'El plantel ya tiene un responsable asignado',
-                    'current_responsable': {
-                        'id': existing_responsable.id,
-                        'full_name': existing_responsable.full_name,
-                        'email': existing_responsable.email
-                    }
-                }), 400
-        
-        data = request.get_json()
+        if current_responsable_id:
+            current_responsable = User.query.get(current_responsable_id)
+            if current_responsable and current_responsable.is_active:
+                if not replace_existing:
+                    return jsonify({
+                        'error': 'El plantel ya tiene un responsable asignado',
+                        'current_responsable': {
+                            'id': current_responsable.id,
+                            'full_name': current_responsable.full_name,
+                            'email': current_responsable.email
+                        }
+                    }), 400
+                # Si replace_existing=true, continuamos sin desvincular aún
         
         # Validar campos requeridos
         required_fields = {
@@ -640,13 +649,54 @@ def create_campus_responsable(campus_id):
         except ValueError:
             return jsonify({'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}), 400
         
-        # Verificar email único
-        if User.query.filter_by(email=email).first():
-            return jsonify({'error': 'Ya existe un usuario con ese correo electrónico'}), 400
+        # Verificar email único (excepto si es el responsable actual que estamos actualizando)
+        existing_email_user = User.query.filter_by(email=email).first()
+        if existing_email_user:
+            # Si replace_existing=true y el usuario con ese email es el responsable actual, actualizarlo
+            if replace_existing and current_responsable_id and existing_email_user.id == current_responsable_id:
+                # Actualizar el responsable existente en lugar de crear uno nuevo
+                existing_email_user.name = data['name'].strip()
+                existing_email_user.first_surname = data['first_surname'].strip()
+                existing_email_user.second_surname = data['second_surname'].strip()
+                existing_email_user.gender = data['gender']
+                existing_email_user.curp = curp
+                existing_email_user.date_of_birth = date_of_birth
+                existing_email_user.can_bulk_create_candidates = data.get('can_bulk_create_candidates', False)
+                existing_email_user.can_manage_groups = data.get('can_manage_groups', False)
+                existing_email_user.campus_id = campus.id
+                
+                db.session.commit()
+                
+                return jsonify({
+                    'message': 'Responsable del plantel actualizado exitosamente',
+                    'responsable': {
+                        'id': existing_email_user.id,
+                        'username': existing_email_user.username,
+                        'full_name': existing_email_user.full_name,
+                        'email': existing_email_user.email,
+                        'curp': existing_email_user.curp,
+                        'gender': existing_email_user.gender,
+                        'date_of_birth': existing_email_user.date_of_birth.isoformat(),
+                        'can_bulk_create_candidates': existing_email_user.can_bulk_create_candidates,
+                        'can_manage_groups': existing_email_user.can_manage_groups
+                        # No incluimos temporary_password porque no cambia
+                    },
+                    'campus': {
+                        'id': campus.id,
+                        'activation_status': campus.activation_status
+                    }
+                }), 200
+            else:
+                return jsonify({'error': 'Ya existe un usuario con ese correo electrónico'}), 400
         
-        # Verificar CURP único
-        if User.query.filter_by(curp=curp).first():
-            return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
+        # Verificar CURP único (excepto si es el responsable actual)
+        existing_curp_user = User.query.filter_by(curp=curp).first()
+        if existing_curp_user:
+            if replace_existing and current_responsable_id and existing_curp_user.id == current_responsable_id:
+                # Ya manejado arriba, no debería llegar aquí si el email es el mismo
+                pass
+            else:
+                return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
         
         # Generar username único de 10 caracteres (letras y números en mayúsculas)
         def generate_unique_username():
@@ -664,6 +714,11 @@ def create_campus_responsable(campus_id):
         # Obtener permisos configurables (defaults a False)
         can_bulk_create = data.get('can_bulk_create_candidates', False)
         can_manage_groups = data.get('can_manage_groups', False)
+        
+        # Si hay un responsable anterior y estamos creando uno nuevo, desvincularlo
+        if replace_existing and current_responsable:
+            current_responsable.campus_id = None
+            db.session.add(current_responsable)
         
         # Crear el usuario responsable
         new_user = User(
@@ -813,6 +868,157 @@ def update_campus_responsable(campus_id):
                 'can_bulk_create_candidates': responsable.can_bulk_create_candidates,
                 'can_manage_groups': responsable.can_manage_groups,
                 'is_active': responsable.is_active
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/campuses/<int:campus_id>/available-responsables', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_available_responsables(campus_id):
+    """
+    Obtener lista de responsables disponibles que pueden ser asignados a este plantel.
+    Solo muestra responsables del mismo partner que no estén asignados a otro plantel activo.
+    """
+    try:
+        campus = Campus.query.get_or_404(campus_id)
+        
+        # Obtener todos los planteles del mismo partner
+        partner_campus_ids = [c.id for c in Campus.query.filter_by(partner_id=campus.partner_id).all()]
+        
+        # Buscar usuarios con rol 'responsable' que pertenezcan a algún plantel del partner
+        # y que no estén asignados actualmente a ningún plantel activo
+        responsables = User.query.filter(
+            User.role == 'responsable',
+            User.is_active == True,
+            User.campus_id.in_(partner_campus_ids)
+        ).all()
+        
+        available = []
+        for resp in responsables:
+            # Verificar si está asignado a un plantel activo (diferente al actual)
+            assigned_campus = Campus.query.filter(
+                Campus.responsable_id == resp.id,
+                Campus.id != campus_id,
+                Campus.is_active == True
+            ).first()
+            
+            # También verificar si está asignado al plantel actual
+            is_current = campus.responsable_id == resp.id
+            
+            if not assigned_campus:
+                available.append({
+                    'id': resp.id,
+                    'full_name': resp.full_name,
+                    'email': resp.email,
+                    'curp': resp.curp,
+                    'gender': resp.gender,
+                    'date_of_birth': resp.date_of_birth.isoformat() if resp.date_of_birth else None,
+                    'username': resp.username,
+                    'can_bulk_create_candidates': resp.can_bulk_create_candidates,
+                    'can_manage_groups': resp.can_manage_groups,
+                    'is_current': is_current,
+                    'campus_id': resp.campus_id
+                })
+        
+        return jsonify({
+            'available_responsables': available,
+            'total': len(available),
+            'campus_id': campus_id,
+            'partner_id': campus.partner_id
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/campuses/<int:campus_id>/assign-responsable', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def assign_existing_responsable(campus_id):
+    """
+    Asignar un responsable existente a un plantel.
+    El responsable debe pertenecer al mismo partner y no estar asignado a otro plantel activo.
+    """
+    try:
+        campus = Campus.query.get_or_404(campus_id)
+        data = request.get_json()
+        
+        responsable_id = data.get('responsable_id')
+        if not responsable_id:
+            return jsonify({'error': 'El ID del responsable es requerido'}), 400
+        
+        responsable = User.query.get(responsable_id)
+        if not responsable:
+            return jsonify({'error': 'Responsable no encontrado'}), 404
+        
+        if responsable.role != 'responsable':
+            return jsonify({'error': 'El usuario seleccionado no es un responsable'}), 400
+        
+        if not responsable.is_active:
+            return jsonify({'error': 'El responsable no está activo'}), 400
+        
+        # Verificar que el responsable pertenezca a un plantel del mismo partner
+        resp_campus = Campus.query.get(responsable.campus_id) if responsable.campus_id else None
+        if not resp_campus or resp_campus.partner_id != campus.partner_id:
+            return jsonify({'error': 'El responsable debe pertenecer al mismo partner'}), 400
+        
+        # Verificar que no esté asignado a otro plantel activo
+        assigned_campus = Campus.query.filter(
+            Campus.responsable_id == responsable_id,
+            Campus.id != campus_id,
+            Campus.is_active == True
+        ).first()
+        
+        if assigned_campus:
+            return jsonify({
+                'error': f'El responsable ya está asignado al plantel activo: {assigned_campus.name}'
+            }), 400
+        
+        # Si el plantel ya tiene otro responsable, liberarlo
+        if campus.responsable_id and campus.responsable_id != responsable_id:
+            # El responsable anterior mantiene su rol pero queda sin plantel asignado
+            pass  # No hacemos nada con el anterior, solo lo reemplazamos
+        
+        # Asignar el responsable al plantel
+        campus.responsable_id = responsable_id
+        responsable.campus_id = campus.id  # Actualizar el campus_id del responsable
+        
+        # Actualizar permisos si se envían
+        if 'can_bulk_create_candidates' in data:
+            responsable.can_bulk_create_candidates = bool(data['can_bulk_create_candidates'])
+        if 'can_manage_groups' in data:
+            responsable.can_manage_groups = bool(data['can_manage_groups'])
+        
+        # Avanzar el estado de activación
+        if campus.activation_status == 'pending':
+            campus.activation_status = 'configuring'
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Responsable asignado exitosamente',
+            'responsable': {
+                'id': responsable.id,
+                'username': responsable.username,
+                'full_name': responsable.full_name,
+                'email': responsable.email,
+                'curp': responsable.curp,
+                'gender': responsable.gender,
+                'date_of_birth': responsable.date_of_birth.isoformat() if responsable.date_of_birth else None,
+                'can_bulk_create_candidates': responsable.can_bulk_create_candidates,
+                'can_manage_groups': responsable.can_manage_groups,
+                'is_active': responsable.is_active
+            },
+            'campus': {
+                'id': campus.id,
+                'name': campus.name,
+                'code': campus.code,
+                'activation_status': campus.activation_status
             }
         })
         

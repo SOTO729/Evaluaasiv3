@@ -31,6 +31,8 @@ import {
   BadgeCheck,
   Sparkles,
   Clock,
+  UserPlus,
+  UserCheck,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -41,6 +43,9 @@ import {
   createCampusResponsable,
   configureCampus,
   ConfigureCampusRequest,
+  getAvailableResponsables,
+  assignExistingResponsable,
+  AvailableResponsable,
 } from '../../services/partnersService';
 
 interface ActivationStep {
@@ -65,6 +70,13 @@ export default function CampusActivationPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [createdResponsable, setCreatedResponsable] = useState<CampusResponsable | null>(null);
+  
+  // Estado para asignar responsable existente
+  const [assignMode, setAssignMode] = useState<'create' | 'existing'>('create');
+  const [availableResponsables, setAvailableResponsables] = useState<AvailableResponsable[]>([]);
+  const [loadingResponsables, setLoadingResponsables] = useState(false);
+  const [selectedResponsableId, setSelectedResponsableId] = useState<string | null>(null);
+  const [assignPerms, setAssignPerms] = useState({ can_bulk_create_candidates: false, can_manage_groups: false });
   
   const [formData, setFormData] = useState<CreateResponsableData>({
     name: '',
@@ -106,6 +118,13 @@ export default function CampusActivationPage() {
     loadCampus();
   }, [campusId]);
 
+  // Cargar responsables disponibles cuando se cambia al modo existente
+  useEffect(() => {
+    if (assignMode === 'existing' && campusId) {
+      loadAvailableResponsables();
+    }
+  }, [assignMode, campusId]);
+
   const loadCampus = async () => {
     try {
       setLoading(true);
@@ -120,6 +139,54 @@ export default function CampusActivationPage() {
       setError(err.response?.data?.error || 'Error al cargar el plantel');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAvailableResponsables = async () => {
+    try {
+      setLoadingResponsables(true);
+      const result = await getAvailableResponsables(Number(campusId));
+      setAvailableResponsables(result.available_responsables);
+    } catch (err: any) {
+      console.error('Error loading available responsables:', err);
+      setFormError('Error al cargar los responsables disponibles');
+    } finally {
+      setLoadingResponsables(false);
+    }
+  };
+
+  const handleAssignExistingResponsable = async () => {
+    if (!selectedResponsableId) {
+      setFormError('Debe seleccionar un responsable');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setFormError(null);
+      
+      const result = await assignExistingResponsable(Number(campusId), {
+        responsable_id: selectedResponsableId,
+        can_bulk_create_candidates: assignPerms.can_bulk_create_candidates,
+        can_manage_groups: assignPerms.can_manage_groups,
+      });
+
+      // Actualizar el estado del campus
+      setCampus(prev => prev ? {
+        ...prev,
+        responsable_id: result.responsable.id,
+        responsable: result.responsable,
+        activation_status: 'configuring'
+      } : null);
+      
+      // Mostrar éxito (sin contraseña temporal porque es usuario existente)
+      setCreatedResponsable({ ...result.responsable, temporary_password: undefined });
+      
+    } catch (err: any) {
+      console.error('Error assigning responsable:', err);
+      setFormError(err.response?.data?.error || 'Error al asignar el responsable');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -175,7 +242,13 @@ export default function CampusActivationPage() {
       setIsSubmitting(true);
       setFormError(null);
       
-      const result = await createCampusResponsable(Number(campusId), formData);
+      // Si el campus ya tiene un responsable, pasar replace_existing: true
+      const dataToSend = {
+        ...formData,
+        replace_existing: campus?.responsable_id ? true : false
+      };
+      
+      const result = await createCampusResponsable(Number(campusId), dataToSend);
       
       setCreatedResponsable(result.responsable);
       setCampus(prev => prev ? {
@@ -206,6 +279,28 @@ export default function CampusActivationPage() {
       responsable: responsable,
       activation_status: 'configuring'
     } : null);
+  };
+
+  // Función para volver a editar el responsable
+  const handleEditResponsable = () => {
+    // Resetear el responsable creado para mostrar el formulario nuevamente
+    setCreatedResponsable(null);
+    // Si hay un responsable existente en el campus, pre-llenar el formulario
+    if (campus?.responsable) {
+      setFormData({
+        name: campus.responsable.full_name?.split(' ')[0] || '',
+        first_surname: campus.responsable.full_name?.split(' ')[1] || '',
+        second_surname: campus.responsable.full_name?.split(' ').slice(2).join(' ') || '',
+        email: campus.responsable.email || '',
+        curp: '',
+        gender: 'M',
+        date_of_birth: '',
+        can_bulk_create_candidates: campus.responsable.can_bulk_create_candidates || false,
+        can_manage_groups: campus.responsable.can_manage_groups || false
+      });
+    }
+    // Navegar al paso 1
+    setActiveStep(1);
   };
 
   // Manejar cambios en la configuración
@@ -457,7 +552,7 @@ export default function CampusActivationPage() {
 
         {/* Contenido Principal */}
         <div className="lg:col-span-3 fluid-space-y-6">
-          {/* Paso 1: Crear Responsable - Formulario Inline */}
+          {/* Paso 1: Crear/Asignar Responsable */}
           {currentStep === 1 && !createdResponsable && (
             <div className="bg-white fluid-rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
               {/* Header */}
@@ -467,21 +562,180 @@ export default function CampusActivationPage() {
                     <UserCog className="fluid-w-5 fluid-h-5" />
                   </div>
                   <div>
-                    <h2 className="font-semibold fluid-text-base">Paso 1: Crear Responsable del Plantel</h2>
-                    <p className="text-blue-100 fluid-text-sm">Complete los datos del responsable que administrará este plantel</p>
+                    <h2 className="font-semibold fluid-text-base">Paso 1: Asignar Responsable del Plantel</h2>
+                    <p className="text-blue-100 fluid-text-sm">Cree un nuevo responsable o asigne uno existente del mismo partner</p>
                   </div>
                 </div>
               </div>
 
-              <form onSubmit={handleSubmitResponsable} className="fluid-p-6 fluid-space-y-6">
-                {/* Error message */}
-                {formError && (
-                  <div className="bg-red-50 border border-red-200 fluid-rounded-xl fluid-p-4 flex items-center fluid-gap-3">
-                    <AlertCircle className="fluid-w-5 fluid-h-5 text-red-600 flex-shrink-0" />
-                    <p className="fluid-text-sm text-red-700">{formError}</p>
-                  </div>
-                )}
+              {/* Pestañas para elegir modo */}
+              <div className="border-b border-gray-200">
+                <div className="flex">
+                  <button
+                    type="button"
+                    onClick={() => setAssignMode('create')}
+                    className={`flex-1 fluid-py-3 fluid-px-4 fluid-text-sm font-medium transition-all flex items-center justify-center fluid-gap-2 ${
+                      assignMode === 'create'
+                        ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <UserPlus className="fluid-w-4 fluid-h-4" />
+                    Crear Nuevo Responsable
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAssignMode('existing')}
+                    className={`flex-1 fluid-py-3 fluid-px-4 fluid-text-sm font-medium transition-all flex items-center justify-center fluid-gap-2 ${
+                      assignMode === 'existing'
+                        ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <UserCheck className="fluid-w-4 fluid-h-4" />
+                    Asignar Responsable Existente
+                  </button>
+                </div>
+              </div>
 
+              {/* Error message */}
+              {formError && (
+                <div className="fluid-mx-6 fluid-mt-4 bg-red-50 border border-red-200 fluid-rounded-xl fluid-p-4 flex items-center fluid-gap-3">
+                  <AlertCircle className="fluid-w-5 fluid-h-5 text-red-600 flex-shrink-0" />
+                  <p className="fluid-text-sm text-red-700">{formError}</p>
+                </div>
+              )}
+
+              {/* Modo: Asignar Responsable Existente */}
+              {assignMode === 'existing' && (
+                <div className="fluid-p-6 fluid-space-y-6">
+                  {loadingResponsables ? (
+                    <div className="flex items-center justify-center fluid-py-12">
+                      <div className="fluid-w-8 fluid-h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+                      <span className="fluid-ml-3 text-gray-500">Cargando responsables disponibles...</span>
+                    </div>
+                  ) : availableResponsables.length === 0 ? (
+                    <div className="text-center fluid-py-12">
+                      <Users className="fluid-w-12 fluid-h-12 text-gray-300 mx-auto fluid-mb-4" />
+                      <p className="text-gray-500 fluid-text-base font-medium">No hay responsables disponibles</p>
+                      <p className="text-gray-400 fluid-text-sm fluid-mt-2">
+                        No hay usuarios con rol "responsable" disponibles para este partner.
+                        <br />
+                        Cree uno nuevo usando la pestaña "Crear Nuevo Responsable".
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <h3 className="fluid-text-sm font-semibold text-gray-700 fluid-mb-4 flex items-center fluid-gap-2">
+                          <Users className="fluid-w-4 fluid-h-4" />
+                          Seleccione un responsable ({availableResponsables.length} disponibles)
+                        </h3>
+                        
+                        <div className="fluid-space-y-3 max-h-[400px] overflow-y-auto">
+                          {availableResponsables.map((resp) => (
+                            <label
+                              key={resp.id}
+                              className={`flex items-center fluid-gap-4 fluid-p-4 border fluid-rounded-xl cursor-pointer transition-all ${
+                                selectedResponsableId === resp.id
+                                  ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                                  : 'border-gray-200 hover:bg-gray-50'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="selectedResponsable"
+                                value={resp.id}
+                                checked={selectedResponsableId === resp.id}
+                                onChange={() => setSelectedResponsableId(resp.id)}
+                                className="fluid-w-5 fluid-h-5 text-blue-600"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900">{resp.full_name}</p>
+                                <p className="fluid-text-sm text-gray-500">{resp.email}</p>
+                                {resp.curp && (
+                                  <p className="fluid-text-xs text-gray-400 font-mono fluid-mt-1">{resp.curp}</p>
+                                )}
+                              </div>
+                              {resp.is_current && (
+                                <span className="fluid-text-xs bg-green-100 text-green-700 fluid-px-2 fluid-py-1 fluid-rounded-full font-medium">
+                                  Actual
+                                </span>
+                              )}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Permisos para responsable existente */}
+                      <div>
+                        <h3 className="fluid-text-sm font-semibold text-gray-700 fluid-mb-4 flex items-center fluid-gap-2">
+                          <Shield className="fluid-w-4 fluid-h-4" />
+                          Permisos del Responsable
+                        </h3>
+                        
+                        <div className="fluid-space-y-3">
+                          <label className="flex items-start fluid-gap-3 fluid-p-3 border border-gray-200 fluid-rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={assignPerms.can_bulk_create_candidates}
+                              onChange={(e) => setAssignPerms(prev => ({ ...prev, can_bulk_create_candidates: e.target.checked }))}
+                              className="fluid-w-5 fluid-h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5"
+                            />
+                            <div>
+                              <span className="font-medium text-gray-800">Altas masivas de candidatos</span>
+                              <p className="fluid-text-sm text-gray-500">
+                                Puede crear múltiples usuarios candidato a través de importación de archivos
+                              </p>
+                            </div>
+                          </label>
+                          
+                          <label className="flex items-start fluid-gap-3 fluid-p-3 border border-gray-200 fluid-rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={assignPerms.can_manage_groups}
+                              onChange={(e) => setAssignPerms(prev => ({ ...prev, can_manage_groups: e.target.checked }))}
+                              className="fluid-w-5 fluid-h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5"
+                            />
+                            <div>
+                              <span className="font-medium text-gray-800">Gestión de grupos</span>
+                              <p className="fluid-text-sm text-gray-500">
+                                Puede crear grupos de alumnos y asignar exámenes o materiales de estudio
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Botón de asignar */}
+                      <div className="fluid-pt-4 border-t">
+                        <button
+                          type="button"
+                          onClick={handleAssignExistingResponsable}
+                          disabled={isSubmitting || !selectedResponsableId}
+                          className="w-full fluid-py-3 bg-blue-600 hover:bg-blue-700 text-white fluid-rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center fluid-gap-2"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <div className="fluid-w-5 fluid-h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              Asignando responsable...
+                            </>
+                          ) : (
+                            <>
+                              <UserCheck className="fluid-w-5 fluid-h-5" />
+                              Asignar Responsable Seleccionado
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Modo: Crear Nuevo Responsable */}
+              {assignMode === 'create' && (
+              <form onSubmit={handleSubmitResponsable} className="fluid-p-6 fluid-space-y-6">
                 {/* Datos personales */}
                 <div>
                   <h3 className="fluid-text-sm font-semibold text-gray-700 fluid-mb-4 flex items-center fluid-gap-2">
@@ -664,6 +918,7 @@ export default function CampusActivationPage() {
                   </button>
                 </div>
               </form>
+              )}
             </div>
           )}
 
@@ -677,8 +932,12 @@ export default function CampusActivationPage() {
                     <CheckCircle2 className="fluid-w-5 fluid-h-5" />
                   </div>
                   <div>
-                    <h2 className="font-semibold fluid-text-base">¡Responsable Creado Exitosamente!</h2>
-                    <p className="text-green-100 text-sm">Guarda las credenciales de acceso</p>
+                    <h2 className="font-semibold fluid-text-base">
+                      {createdResponsable.temporary_password ? '¡Responsable Creado Exitosamente!' : '¡Responsable Asignado Exitosamente!'}
+                    </h2>
+                    <p className="text-green-100 text-sm">
+                      {createdResponsable.temporary_password ? 'Guarda las credenciales de acceso' : 'El responsable ya tiene credenciales existentes'}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -695,7 +954,8 @@ export default function CampusActivationPage() {
                   </div>
                 </div>
 
-                {/* Credenciales */}
+                {/* Credenciales - Solo si hay contraseña temporal */}
+                {createdResponsable.temporary_password && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 space-y-4">
                   <div className="flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -730,42 +990,59 @@ export default function CampusActivationPage() {
                     </div>
 
                     {/* Contraseña */}
-                    {createdResponsable.temporary_password && (
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-xs text-gray-500 uppercase font-medium">Contraseña Temporal</p>
-                          <p className="font-mono text-lg font-bold text-gray-800">
-                            {showPassword ? createdResponsable.temporary_password : '••••••••'}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="p-2 hover:bg-white rounded-lg transition-colors"
-                            title={showPassword ? 'Ocultar' : 'Mostrar'}
-                          >
-                            {showPassword ? (
-                              <EyeOff className="w-5 h-5 text-gray-400" />
-                            ) : (
-                              <Eye className="w-5 h-5 text-gray-400" />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => copyToClipboard(createdResponsable.temporary_password || '', 'password')}
-                            className="p-2 hover:bg-white rounded-lg transition-colors"
-                            title="Copiar"
-                          >
-                            {copiedField === 'password' ? (
-                              <CheckCircle2 className="w-5 h-5 text-green-600" />
-                            ) : (
-                              <Copy className="w-5 h-5 text-gray-400" />
-                            )}
-                          </button>
-                        </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase font-medium">Contraseña Temporal</p>
+                        <p className="font-mono text-lg font-bold text-gray-800">
+                          {showPassword ? createdResponsable.temporary_password : '••••••••'}
+                        </p>
                       </div>
-                    )}
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="p-2 hover:bg-white rounded-lg transition-colors"
+                          title={showPassword ? 'Ocultar' : 'Mostrar'}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="w-5 h-5 text-gray-400" />
+                          ) : (
+                            <Eye className="w-5 h-5 text-gray-400" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => copyToClipboard(createdResponsable.temporary_password || '', 'password')}
+                          className="p-2 hover:bg-white rounded-lg transition-colors"
+                          title="Copiar"
+                        >
+                          {copiedField === 'password' ? (
+                            <CheckCircle2 className="w-5 h-5 text-green-600" />
+                          ) : (
+                            <Copy className="w-5 h-5 text-gray-400" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
+                )}
+
+                {/* Mensaje para responsable existente */}
+                {!createdResponsable.temporary_password && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
+                  <div className="flex items-start gap-3">
+                    <UserCheck className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-blue-800">Responsable existente asignado</p>
+                      <p className="text-sm text-blue-700 mt-1">
+                        Este responsable ya tiene credenciales de acceso. Si necesita recuperar su contraseña, contacte al administrador.
+                      </p>
+                      <p className="text-sm text-blue-600 mt-2 font-mono">
+                        Usuario: {createdResponsable.username}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                )}
 
                 {/* Botón para continuar */}
                 <button
@@ -791,6 +1068,14 @@ export default function CampusActivationPage() {
                     <CheckCircle2 className="w-5 h-5 text-green-600" />
                     Responsable Asignado
                   </h2>
+                  <button
+                    type="button"
+                    onClick={handleEditResponsable}
+                    className="text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                  >
+                    <UserCog className="w-4 h-4" />
+                    Cambiar responsable
+                  </button>
                 </div>
 
                 <div className="bg-gray-50 rounded-xl p-4 flex items-center gap-4">
@@ -1201,6 +1486,14 @@ export default function CampusActivationPage() {
                     <CheckCircle2 className="w-5 h-5 text-green-600" />
                     Responsable Asignado
                   </h2>
+                  <button
+                    type="button"
+                    onClick={handleEditResponsable}
+                    className="text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                  >
+                    <UserCog className="w-4 h-4" />
+                    Cambiar responsable
+                  </button>
                 </div>
 
                 <div className="bg-gray-50 rounded-xl p-4 flex items-center gap-4">
