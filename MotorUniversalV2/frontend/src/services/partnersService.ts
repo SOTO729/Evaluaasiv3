@@ -80,9 +80,16 @@ export interface Campus {
   email?: string;
   phone?: string;
   website?: string;
+  // Director del plantel (datos completos como candidato)
   director_name?: string;
+  director_first_surname?: string;
+  director_second_surname?: string;
   director_email?: string;
   director_phone?: string;
+  director_curp?: string;
+  director_gender?: string;
+  director_date_of_birth?: string;
+  director_full_name?: string;  // Nombre completo calculado
   // Campos de activación
   responsable_id?: string;
   responsable?: CampusResponsable;

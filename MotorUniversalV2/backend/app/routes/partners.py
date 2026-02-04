@@ -372,12 +372,42 @@ def create_campus(partner_id):
             
         if not data.get('director_name'):
             return jsonify({'error': 'El nombre del director es requerido'}), 400
+        
+        if not data.get('director_first_surname'):
+            return jsonify({'error': 'El primer apellido del director es requerido'}), 400
+        
+        if not data.get('director_second_surname'):
+            return jsonify({'error': 'El segundo apellido del director es requerido'}), 400
             
         if not data.get('director_email'):
             return jsonify({'error': 'El correo del director es requerido'}), 400
             
         if not data.get('director_phone'):
             return jsonify({'error': 'El teléfono del director es requerido'}), 400
+        
+        if not data.get('director_curp'):
+            return jsonify({'error': 'El CURP del director es requerido'}), 400
+        
+        # Validar CURP del director (18 caracteres)
+        director_curp = data['director_curp'].upper().strip()
+        if len(director_curp) != 18:
+            return jsonify({'error': 'El CURP del director debe tener 18 caracteres'}), 400
+        
+        if not data.get('director_gender'):
+            return jsonify({'error': 'El género del director es requerido'}), 400
+        
+        if data['director_gender'] not in ['M', 'F', 'O']:
+            return jsonify({'error': 'Género del director inválido. Use M, F u O'}), 400
+        
+        if not data.get('director_date_of_birth'):
+            return jsonify({'error': 'La fecha de nacimiento del director es requerida'}), 400
+        
+        # Validar formato de fecha de nacimiento
+        from datetime import datetime as dt
+        try:
+            director_dob = dt.strptime(data['director_date_of_birth'], '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'error': 'Formato de fecha de nacimiento inválido. Use YYYY-MM-DD'}), 400
         
         state_auto_created = False
         
@@ -415,9 +445,15 @@ def create_campus(partner_id):
             email=data.get('email'),
             phone=data.get('phone'),
             website=data.get('website'),
+            # Director del plantel (datos completos)
             director_name=data.get('director_name'),
+            director_first_surname=data.get('director_first_surname'),
+            director_second_surname=data.get('director_second_surname'),
             director_email=data.get('director_email'),
             director_phone=data.get('director_phone'),
+            director_curp=director_curp,
+            director_gender=data.get('director_gender'),
+            director_date_of_birth=director_dob,
             is_active=False,  # Inactivo hasta completar activación
             activation_status='pending'  # Estado inicial de activación
         )
@@ -476,9 +512,29 @@ def update_campus(campus_id):
         if 'country' in data and data['country'] != 'México' and 'state_name' not in data:
             data['state_name'] = None
         
-        # Actualizar campos
+        # Validar y procesar campos del director si se envían
+        if 'director_curp' in data and data['director_curp']:
+            data['director_curp'] = data['director_curp'].upper().strip()
+            if len(data['director_curp']) != 18:
+                return jsonify({'error': 'El CURP del director debe tener 18 caracteres'}), 400
+        
+        if 'director_gender' in data and data['director_gender']:
+            if data['director_gender'] not in ['M', 'F', 'O']:
+                return jsonify({'error': 'Género del director inválido. Use M, F u O'}), 400
+        
+        if 'director_date_of_birth' in data and data['director_date_of_birth']:
+            from datetime import datetime as dt
+            try:
+                data['director_date_of_birth'] = dt.strptime(data['director_date_of_birth'], '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'error': 'Formato de fecha de nacimiento inválido. Use YYYY-MM-DD'}), 400
+        
+        # Actualizar campos (incluyendo los nuevos del director)
         for field in ['name', 'country', 'state_name', 'city', 'address', 'postal_code',
-                      'email', 'phone', 'website', 'director_name', 'director_email', 'director_phone', 'is_active']:
+                      'email', 'phone', 'website', 
+                      'director_name', 'director_first_surname', 'director_second_surname',
+                      'director_email', 'director_phone', 'director_curp', 'director_gender', 
+                      'director_date_of_birth', 'is_active']:
             if field in data:
                 setattr(campus, field, data[field])
         

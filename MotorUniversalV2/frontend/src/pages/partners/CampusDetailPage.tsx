@@ -321,9 +321,18 @@ export default function CampusDetailPage() {
               </div>
             )}
             {campus.director_name && (
-              <div className="flex items-center fluid-gap-3 fluid-p-3 bg-gray-50 rounded-fluid-xl hover:bg-purple-50 transition-colors group">
-                <UserCog className="fluid-icon-base text-gray-400 group-hover:text-purple-500 transition-colors flex-shrink-0" />
-                <span className="fluid-text-sm text-gray-900">{campus.director_name}</span>
+              <div className="fluid-p-3 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-fluid-xl border border-purple-100">
+                <div className="flex items-center fluid-gap-2 fluid-mb-2">
+                  <UserCog className="fluid-icon-base text-purple-500" />
+                  <span className="fluid-text-xs font-bold text-purple-700 uppercase">Director</span>
+                </div>
+                <p className="fluid-text-sm font-semibold text-gray-900">{campus.director_full_name || campus.director_name}</p>
+                {campus.director_email && (
+                  <p className="fluid-text-xs text-gray-500 fluid-mt-1">{campus.director_email}</p>
+                )}
+                {campus.director_curp && (
+                  <p className="fluid-text-xs text-gray-400 fluid-mt-0.5 font-mono">{campus.director_curp}</p>
+                )}
               </div>
             )}
             {campus.created_at && (

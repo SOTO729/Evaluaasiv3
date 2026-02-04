@@ -71,9 +71,15 @@ export default function CampusFormPage() {
     city: '',
     address: '',
     website: '',
+    // Director del plantel (datos completos como candidato)
     director_name: '',
+    director_first_surname: '',
+    director_second_surname: '',
     director_email: '',
     director_phone: '',
+    director_curp: '',
+    director_gender: '',
+    director_date_of_birth: '',
     is_active: true,
   });
 
@@ -128,9 +134,15 @@ export default function CampusFormPage() {
           city: campus.city || '',
           address: campus.address || '',
           website: campus.website || '',
+          // Director del plantel (datos completos)
           director_name: campus.director_name || '',
+          director_first_surname: campus.director_first_surname || '',
+          director_second_surname: campus.director_second_surname || '',
           director_email: campus.director_email || '',
           director_phone: campus.director_phone || '',
+          director_curp: campus.director_curp || '',
+          director_gender: campus.director_gender || '',
+          director_date_of_birth: campus.director_date_of_birth || '',
           is_active: campus.is_active,
         });
         
@@ -196,8 +208,34 @@ export default function CampusFormPage() {
       setError('El correo de contacto es requerido');
       return;
     }
+    
+    // Validaciones del director
     if (!formData.director_name.trim()) {
       setError('El nombre del director es requerido');
+      return;
+    }
+    if (!formData.director_first_surname.trim()) {
+      setError('El primer apellido del director es requerido');
+      return;
+    }
+    if (!formData.director_second_surname.trim()) {
+      setError('El segundo apellido del director es requerido');
+      return;
+    }
+    if (!formData.director_curp.trim()) {
+      setError('El CURP del director es requerido');
+      return;
+    }
+    if (formData.director_curp.trim().length !== 18) {
+      setError('El CURP del director debe tener 18 caracteres');
+      return;
+    }
+    if (!formData.director_gender) {
+      setError('El género del director es requerido');
+      return;
+    }
+    if (!formData.director_date_of_birth) {
+      setError('La fecha de nacimiento del director es requerida');
       return;
     }
     if (!formData.director_email.trim()) {
@@ -609,30 +647,118 @@ export default function CampusFormPage() {
             </div>
             <div>
               <h2 className="fluid-text-xl font-bold text-gray-800">Director del Plantel</h2>
-              <p className="fluid-text-sm text-gray-500">Responsable académico del plantel</p>
+              <p className="fluid-text-sm text-gray-500">Datos completos del responsable académico</p>
             </div>
             <span className="ml-auto fluid-px-3 fluid-py-1 bg-red-100 text-red-600 rounded-full fluid-text-xs font-medium">
-              * Obligatorio
+              * Todos los campos son obligatorios
             </span>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 fluid-gap-5">
-            {/* Nombre del Director */}
+          {/* Fila 1: Nombre(s), Primer Apellido, Segundo Apellido */}
+          <div className="grid grid-cols-1 md:grid-cols-3 fluid-gap-5 fluid-mb-5">
+            {/* Nombre(s) del Director */}
             <div>
               <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                 <User className="fluid-icon-sm text-gray-400" />
-                Nombre Completo <span className="text-red-500">*</span>
+                Nombre(s) <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.director_name}
                 onChange={(e) => setFormData({ ...formData, director_name: e.target.value })}
                 className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400"
-                placeholder="Nombre completo del director"
+                placeholder="Juan Carlos"
                 required
               />
             </div>
 
+            {/* Primer Apellido */}
+            <div>
+              <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                Primer Apellido <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.director_first_surname}
+                onChange={(e) => setFormData({ ...formData, director_first_surname: e.target.value })}
+                className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400"
+                placeholder="González"
+                required
+              />
+            </div>
+
+            {/* Segundo Apellido */}
+            <div>
+              <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                Segundo Apellido <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.director_second_surname}
+                onChange={(e) => setFormData({ ...formData, director_second_surname: e.target.value })}
+                className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400"
+                placeholder="Martínez"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Fila 2: CURP, Género, Fecha de Nacimiento */}
+          <div className="grid grid-cols-1 md:grid-cols-3 fluid-gap-5 fluid-mb-5">
+            {/* CURP del Director */}
+            <div>
+              <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                <FileText className="fluid-icon-sm text-gray-400" />
+                CURP <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.director_curp}
+                onChange={(e) => setFormData({ ...formData, director_curp: e.target.value.toUpperCase() })}
+                className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400 uppercase"
+                placeholder="XXXX000000XXXXXX00"
+                maxLength={18}
+                required
+              />
+              <p className="fluid-text-xs text-gray-500 fluid-mt-1">18 caracteres exactos</p>
+            </div>
+
+            {/* Género del Director */}
+            <div>
+              <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                Género <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.director_gender}
+                onChange={(e) => setFormData({ ...formData, director_gender: e.target.value })}
+                className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400"
+                required
+              >
+                <option value="">Seleccionar...</option>
+                <option value="M">Masculino</option>
+                <option value="F">Femenino</option>
+                <option value="O">Otro</option>
+              </select>
+            </div>
+
+            {/* Fecha de Nacimiento del Director */}
+            <div>
+              <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                <Calendar className="fluid-icon-sm text-gray-400" />
+                Fecha de Nacimiento <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={formData.director_date_of_birth}
+                onChange={(e) => setFormData({ ...formData, director_date_of_birth: e.target.value })}
+                className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Fila 3: Email y Teléfono */}
+          <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-5">
             {/* Correo del Director */}
             <div>
               <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">

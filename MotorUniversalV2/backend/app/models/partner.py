@@ -162,10 +162,15 @@ class Campus(db.Model):
     phone = db.Column(db.String(20))
     website = db.Column(db.String(500))  # Sitio web (opcional)
     
-    # Responsable del plantel (datos de contacto del director - info básica)
-    director_name = db.Column(db.String(200))
+    # Director del plantel (datos completos como candidato)
+    director_name = db.Column(db.String(200))  # Nombre(s)
+    director_first_surname = db.Column(db.String(100))  # Primer apellido
+    director_second_surname = db.Column(db.String(100))  # Segundo apellido
     director_email = db.Column(db.String(255))
     director_phone = db.Column(db.String(20))
+    director_curp = db.Column(db.String(18))  # CURP
+    director_gender = db.Column(db.String(1))  # M, F, O
+    director_date_of_birth = db.Column(db.Date)  # Fecha de nacimiento
     
     # Responsable del plantel (usuario del sistema - para activación)
     responsable_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'))
@@ -237,9 +242,16 @@ class Campus(db.Model):
             'email': self.email,
             'phone': self.phone,
             'website': self.website,
+            # Director del plantel (datos completos)
             'director_name': self.director_name,
+            'director_first_surname': self.director_first_surname,
+            'director_second_surname': self.director_second_surname,
             'director_email': self.director_email,
             'director_phone': self.director_phone,
+            'director_curp': self.director_curp,
+            'director_gender': self.director_gender,
+            'director_date_of_birth': self.director_date_of_birth.isoformat() if self.director_date_of_birth else None,
+            'director_full_name': ' '.join(filter(None, [self.director_name, self.director_first_surname, self.director_second_surname])) if self.director_name else None,
             'responsable_id': self.responsable_id,
             'activation_status': self.activation_status,
             'activated_at': self.activated_at.isoformat() if self.activated_at else None,
