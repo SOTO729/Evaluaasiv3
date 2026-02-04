@@ -22,6 +22,7 @@ import {
   Clock,
   FileText,
   Hash,
+  Info,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -242,19 +243,25 @@ export default function PartnerDetailPage() {
             </div>
           </div>
 
-          {/* Estados con presencia */}
+          {/* Estados con presencia (derivados de planteles) */}
           <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-6 hover:shadow-lg hover:border-emerald-200 transition-all duration-300">
-            <h2 className="fluid-text-lg font-bold text-gray-800 fluid-mb-5 flex items-center fluid-gap-3">
+            <h2 className="fluid-text-lg font-bold text-gray-800 fluid-mb-4 flex items-center fluid-gap-3">
               <div className="fluid-p-2 bg-emerald-100 rounded-fluid-lg">
                 <MapPin className="fluid-icon-base text-emerald-600" />
               </div>
               Presencia por Estado
             </h2>
+            <div className="flex items-start fluid-gap-2 fluid-mb-4 fluid-p-3 bg-blue-50 rounded-fluid-xl border border-blue-100">
+              <Info className="fluid-icon-sm text-blue-500 flex-shrink-0 mt-0.5" />
+              <p className="fluid-text-xs text-blue-700">
+                Los estados se obtienen automáticamente de los planteles registrados.
+              </p>
+            </div>
             {partner.states && partner.states.length > 0 ? (
               <div className="flex flex-wrap fluid-gap-2">
                 {partner.states.map((state) => (
                   <button
-                    key={state.id}
+                    key={state.state_name}
                     onClick={() => setSelectedState(selectedState === state.state_name ? '' : state.state_name)}
                     className={`fluid-px-4 fluid-py-2 rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 ${
                       selectedState === state.state_name
@@ -269,7 +276,8 @@ export default function PartnerDetailPage() {
             ) : (
               <div className="text-center fluid-py-6">
                 <MapPin className="fluid-icon-xl text-gray-300 mx-auto fluid-mb-2" />
-                <p className="fluid-text-base text-gray-500">No hay estados registrados</p>
+                <p className="fluid-text-base text-gray-500">Sin presencia en estados</p>
+                <p className="fluid-text-xs text-gray-400 fluid-mt-1">Agregue planteles para registrar presencia</p>
               </div>
             )}
           </div>

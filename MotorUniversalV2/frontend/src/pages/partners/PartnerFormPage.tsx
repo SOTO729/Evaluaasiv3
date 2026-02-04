@@ -8,7 +8,6 @@ import {
   Save,
   ArrowLeft,
   AlertCircle,
-  Plus,
   X,
   MapPin,
   Mail,
@@ -19,15 +18,13 @@ import {
   Image,
   CheckCircle2,
   XCircle,
+  Info,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
   getPartner,
   createPartner,
   updatePartner,
-  getMexicanStates,
-  addPartnerState,
-  removePartnerState,
   PartnerStatePresence,
 } from '../../services/partnersService';
 
@@ -40,9 +37,7 @@ export default function PartnerFormPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [mexicanStates, setMexicanStates] = useState<string[]>([]);
   const [partnerStates, setPartnerStates] = useState<PartnerStatePresence[]>([]);
-  const [selectedState, setSelectedState] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -57,20 +52,10 @@ export default function PartnerFormPage() {
   });
 
   useEffect(() => {
-    loadMexicanStates();
     if (isEditing) {
       loadPartner();
     }
   }, [partnerId]);
-
-  const loadMexicanStates = async () => {
-    try {
-      const states = await getMexicanStates();
-      setMexicanStates(states);
-    } catch (err) {
-      console.error('Error loading states:', err);
-    }
-  };
 
   const loadPartner = async () => {
     try {
@@ -122,35 +107,6 @@ export default function PartnerFormPage() {
       setSaving(false);
     }
   };
-
-  const handleAddState = async () => {
-    if (!selectedState || !isEditing) return;
-
-    try {
-      const presence = await addPartnerState(Number(partnerId), {
-        state_name: selectedState,
-      });
-      setPartnerStates([...partnerStates, presence]);
-      setSelectedState('');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al agregar estado');
-    }
-  };
-
-  const handleRemoveState = async (presenceId: number) => {
-    if (!isEditing) return;
-
-    try {
-      await removePartnerState(Number(partnerId), presenceId);
-      setPartnerStates(partnerStates.filter(s => s.id !== presenceId));
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al eliminar estado');
-    }
-  };
-
-  const availableStates = mexicanStates.filter(
-    state => !partnerStates.some(ps => ps.state_name === state)
-  );
 
   if (loading) {
     return (
@@ -407,10 +363,10 @@ export default function PartnerFormPage() {
             </button>
           </div>
 
-          {/* Estados (solo en edición) */}
+          {/* Estados (solo en edición - derivados de los planteles) */}
           {isEditing && (
             <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-6 hover:shadow-lg transition-all duration-300">
-              <h2 className="fluid-text-lg font-bold text-gray-800 fluid-mb-5 flex items-center fluid-gap-3">
+              <h2 className="fluid-text-lg font-bold text-gray-800 fluid-mb-4 flex items-center fluid-gap-3">
                 <div className="fluid-p-2 bg-emerald-100 rounded-fluid-lg">
                   <MapPin className="fluid-icon-base text-emerald-600" />
                 </div>
@@ -420,53 +376,32 @@ export default function PartnerFormPage() {
                 </span>
               </h2>
 
-              {/* Agregar estado */}
-              <div className="flex fluid-gap-3 fluid-mb-5">
-                <select
-                  value={selectedState}
-                  onChange={(e) => setSelectedState(e.target.value)}
-                  className="flex-1 fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 fluid-text-base transition-all hover:border-emerald-300"
-                >
-                  <option value="">Seleccionar estado...</option>
-                  {availableStates.map((state) => (
-                    <option key={state} value={state}>{state}</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={handleAddState}
-                  disabled={!selectedState}
-                  className="fluid-px-4 fluid-py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-bold fluid-text-sm transition-all duration-300 hover:scale-105 shadow-md disabled:shadow-none"
-                >
-                  <Plus className="fluid-icon-base" />
-                </button>
+              {/* Nota informativa */}
+              <div className="flex items-start fluid-gap-2 fluid-mb-4 fluid-p-3 bg-blue-50 rounded-fluid-xl border border-blue-100">
+                <Info className="fluid-icon-sm text-blue-500 flex-shrink-0 mt-0.5" />
+                <p className="fluid-text-xs text-blue-700">
+                  Los estados se obtienen automáticamente de los planteles registrados.
+                </p>
               </div>
 
-              {/* Lista de estados */}
+              {/* Lista de estados (solo lectura) */}
               {partnerStates.length > 0 ? (
                 <div className="flex flex-wrap fluid-gap-2 max-h-[250px] overflow-y-auto">
-                  {partnerStates.map((presence) => (
+                  {partnerStates.map((presence, index) => (
                     <div
-                      key={presence.id}
-                      className="inline-flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 bg-emerald-50 text-emerald-700 rounded-fluid-xl fluid-text-sm font-medium border border-emerald-200 hover:bg-emerald-100 transition-colors group"
+                      key={presence.state_name || index}
+                      className="inline-flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 bg-emerald-50 text-emerald-700 rounded-fluid-xl fluid-text-sm font-medium border border-emerald-200"
                     >
                       <MapPin className="fluid-icon-sm" />
                       <span>{presence.state_name}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveState(presence.id)}
-                        className="fluid-p-1 hover:bg-emerald-200 rounded-full transition-colors opacity-60 group-hover:opacity-100"
-                      >
-                        <X className="fluid-icon-xs" />
-                      </button>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="text-center fluid-py-6 bg-gray-50 rounded-fluid-xl border border-gray-100">
                   <MapPin className="fluid-icon-xl text-gray-300 mx-auto fluid-mb-2" />
-                  <p className="fluid-text-sm text-gray-500">No hay estados registrados</p>
-                  <p className="fluid-text-xs text-gray-400 fluid-mt-1">Agrega los estados donde el partner tiene presencia</p>
+                  <p className="fluid-text-sm text-gray-500">Sin presencia en estados</p>
+                  <p className="fluid-text-xs text-gray-400 fluid-mt-1">Agregue planteles para registrar presencia automáticamente</p>
                 </div>
               )}
             </div>

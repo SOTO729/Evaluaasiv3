@@ -77,7 +77,13 @@ class Partner(db.Model):
         }
         
         if include_states:
-            data['states'] = [sp.to_dict() for sp in self.state_presences.all()]
+            # Obtener estados únicos desde los campus del partner
+            campus_states = db.session.query(Campus.state_name).filter(
+                Campus.partner_id == self.id
+            ).distinct().all()
+            unique_states = sorted(set([s[0] for s in campus_states if s[0]]))
+            data['states'] = [{'state_name': state, 'from_campuses': True} for state in unique_states]
+            data['state_count'] = len(unique_states)
             
         if include_campuses:
             data['campuses'] = [c.to_dict() for c in self.campuses.all()]
