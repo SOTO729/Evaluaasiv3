@@ -3027,12 +3027,18 @@ def save_exam_result(exam_id):
             questions_order=questions_order
         )
         
-        # Generar código de certificado con formato ZC + 10 caracteres alfanuméricos
+        # Generar códigos de verificación únicos
         import string
         import random
         chars = string.ascii_uppercase + string.digits
-        random_part = ''.join(random.choices(chars, k=10))
-        result.certificate_code = f"ZC{random_part}"
+        
+        # Código para Reporte de Evaluación: ZC + 10 caracteres
+        zc_random = ''.join(random.choices(chars, k=10))
+        result.certificate_code = f"ZC{zc_random}"
+        
+        # Código para Certificado Eduit: EC + 10 caracteres
+        ec_random = ''.join(random.choices(chars, k=10))
+        result.eduit_certificate_code = f"EC{ec_random}"
         
         result.end_date = db.func.now()
         
@@ -3638,19 +3644,62 @@ def generate_result_pdf(result_id):
             c.line(margin, y, page_width - margin, y)
             y -= 15
         
+        # === QR DE VERIFICACIÓN ===
+        # Generar QR con el código de verificación
+        verification_code = result.certificate_code
+        if verification_code:
+            import qrcode
+            from io import BytesIO as QRBuffer
+            
+            # URL de verificación (usando URL de Azure temporalmente)
+            verify_url = f"https://thankful-stone-07fbe5410.6.azurestaticapps.net/verify/{verification_code}"
+            
+            # Crear QR
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_M,
+                box_size=3,
+                border=1,
+            )
+            qr.add_data(verify_url)
+            qr.make(fit=True)
+            
+            # Crear QR con fondo transparente
+            qr_img = qr.make_image(fill_color="black", back_color="transparent").convert('RGBA')
+            
+            # Guardar QR en buffer
+            qr_buffer = QRBuffer()
+            qr_img.save(qr_buffer, format='PNG')
+            qr_buffer.seek(0)
+            
+            # Dibujar QR en el PDF (esquina inferior izquierda)
+            from reportlab.lib.utils import ImageReader
+            qr_image = ImageReader(qr_buffer)
+            qr_size = 60
+            qr_x = margin  # Lado izquierdo
+            qr_y = 25
+            c.drawImage(qr_image, qr_x, qr_y, width=qr_size, height=qr_size, mask='auto')
+            
+            # Código de verificación debajo del QR
+            c.setFillColor(gray_color)
+            c.setFont('Helvetica', 6)
+            c.drawCentredString(qr_x + qr_size/2, qr_y - 8, verification_code)
+            c.setFont('Helvetica', 5)
+            c.drawCentredString(qr_x + qr_size/2, qr_y - 14, 'Escanea para verificar')
+        
         # === PIE DE PÁGINA ===
         y = 50
         c.setStrokeColor(primary_color)
         c.setLineWidth(0.3)
-        c.line(margin, y, page_width - margin, y)
+        c.line(margin + 70, y, page_width - margin, y)  # Línea más corta para no chocar con QR (ahora del lado izquierdo)
         y -= 10
         
         c.setFillColor(primary_color)
         c.setFont('Helvetica', 7)
-        c.drawCentredString(page_width / 2, y, 'Este documento es un reporte oficial de evaluación generado por el sistema Evaluaasi.')
+        c.drawString(margin + 75, y, 'Este documento es un reporte oficial de evaluación generado por el sistema Evaluaasi.')
         y -= 8
         c.setFillColor(gray_color)
-        c.drawCentredString(page_width / 2, y, f'ID de resultado: {result.id}')
+        c.drawString(margin, y, f'ID de resultado: {result.id}')
         
         c.save()
         
@@ -3801,6 +3850,48 @@ def generate_certificate_pdf(result_id):
         
         # CERTIFICADO en (center_x, 300), max 18pt
         draw_fitted_text(c, cert_name, center_x, 300, max_width, 'Helvetica-Bold', 18)
+        
+        # === QR DE VERIFICACIÓN PARA CERTIFICADO EDUIT ===
+        verification_code = result.eduit_certificate_code
+        if verification_code:
+            import qrcode
+            from io import BytesIO as QRBuffer
+            from reportlab.lib.utils import ImageReader
+            
+            # URL de verificación (usando URL de Azure temporalmente)
+            verify_url = f"https://thankful-stone-07fbe5410.6.azurestaticapps.net/verify/{verification_code}"
+            
+            # Crear QR
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_M,
+                box_size=3,
+                border=1,
+            )
+            qr.add_data(verify_url)
+            qr.make(fit=True)
+            
+            # Crear QR con fondo transparente
+            qr_img = qr.make_image(fill_color="black", back_color="transparent").convert('RGBA')
+            
+            # Guardar QR en buffer
+            qr_buffer = QRBuffer()
+            qr_img.save(qr_buffer, format='PNG')
+            qr_buffer.seek(0)
+            
+            # Dibujar QR en el PDF (esquina inferior izquierda)
+            qr_image = ImageReader(qr_buffer)
+            qr_size = 50
+            qr_x = 30  # Lado izquierdo
+            qr_y = 25
+            c.drawImage(qr_image, qr_x, qr_y, width=qr_size, height=qr_size, mask='auto')
+            
+            # Código de verificación debajo del QR
+            c.setFillColor(HexColor('#666666'))
+            c.setFont('Helvetica', 5)
+            c.drawCentredString(qr_x + qr_size/2, qr_y - 6, verification_code)
+            c.setFont('Helvetica', 4)
+            c.drawCentredString(qr_x + qr_size/2, qr_y - 11, 'Escanea para verificar')
         
         c.save()
         

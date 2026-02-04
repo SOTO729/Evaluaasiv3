@@ -87,6 +87,13 @@ def create_app(config_name='development'):
         print(f"[INIT] ❌ Error importando partners_bp: {e}")
         raise
     
+    try:
+        from app.routes.verify import bp as verify_bp
+        print("[INIT] ✅ verify_bp importado")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando verify_bp: {e}")
+        raise
+    
     print("[INIT] Registrando blueprints...")
     app.register_blueprint(auth.bp, url_prefix='/api/auth')
     print("[INIT] ✅ auth registrado")
@@ -110,6 +117,8 @@ def create_app(config_name='development'):
     print("[INIT] ✅ standards registrado")
     app.register_blueprint(partners_bp, url_prefix='/api/partners')
     print("[INIT] ✅ partners registrado")
+    app.register_blueprint(verify_bp, url_prefix='/api/verify')
+    print("[INIT] ✅ verify registrado (rutas públicas)")
     
     # Importar y registrar user_management
     from app.routes.user_management import bp as user_management_bp
@@ -263,6 +272,20 @@ def ensure_label_style_column(app):
     
     # Verificar y agregar columnas para activación de planteles
     _ensure_campus_activation_columns()
+    
+    # Verificar y agregar columna eduit_certificate_code en results
+    _ensure_eduit_certificate_code_column()
+
+
+def _ensure_eduit_certificate_code_column():
+    """Verificar y agregar columna eduit_certificate_code en results"""
+    from app.auto_migrate import check_and_add_eduit_certificate_code
+    
+    try:
+        print("[AUTO-MIGRATE] Ejecutando migración de eduit_certificate_code...")
+        check_and_add_eduit_certificate_code()
+    except Exception as e:
+        print(f"[AUTO-MIGRATE] Error en migración de eduit_certificate_code: {e}")
 
 
 def _ensure_campus_activation_columns():

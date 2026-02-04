@@ -643,3 +643,61 @@ def check_and_add_campus_activation_columns():
     except Exception as e:
         print(f"❌ Error en auto-migración de activación de planteles: {e}")
         db.session.rollback()
+
+
+def check_and_add_eduit_certificate_code():
+    """Verificar y agregar columna eduit_certificate_code a results"""
+    print("🔍 Verificando columna eduit_certificate_code en results...")
+    
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        if 'results' not in tables:
+            print("  ⚠️  Tabla results no existe, saltando...")
+            return
+        
+        existing_columns = [col['name'] for col in inspector.get_columns('results')]
+        
+        if 'eduit_certificate_code' not in existing_columns:
+            print("  📝 Agregando columna eduit_certificate_code...")
+            try:
+                db_type = get_db_type()
+                if db_type == 'mssql':
+                    sql = "ALTER TABLE results ADD eduit_certificate_code VARCHAR(100)"
+                else:
+                    sql = "ALTER TABLE results ADD COLUMN eduit_certificate_code VARCHAR(100)"
+                db.session.execute(text(sql))
+                db.session.commit()
+                print("  ✓ Columna eduit_certificate_code agregada a results")
+                
+                # Agregar unique constraint
+                try:
+                    if db_type == 'mssql':
+                        sql = "CREATE UNIQUE INDEX uq_results_eduit_certificate_code ON results(eduit_certificate_code) WHERE eduit_certificate_code IS NOT NULL"
+                    else:
+                        sql = "CREATE UNIQUE INDEX uq_results_eduit_certificate_code ON results(eduit_certificate_code)"
+                    db.session.execute(text(sql))
+                    db.session.commit()
+                    print("  ✓ Unique index agregado a eduit_certificate_code")
+                except Exception as e:
+                    if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+                        print("  ⚠️  Unique index ya existe")
+                    else:
+                        print(f"  ⚠️  Error al agregar unique index: {e}")
+                        db.session.rollback()
+                        
+            except Exception as e:
+                if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+                    print("  ⚠️  Columna eduit_certificate_code ya existe")
+                else:
+                    print(f"  ❌ Error al agregar eduit_certificate_code: {e}")
+                    db.session.rollback()
+        else:
+            print("  ✓ Columna eduit_certificate_code ya existe en results")
+        
+        print("✅ Verificación de eduit_certificate_code completada")
+                
+    except Exception as e:
+        print(f"❌ Error en auto-migración de eduit_certificate_code: {e}")
+        db.session.rollback()

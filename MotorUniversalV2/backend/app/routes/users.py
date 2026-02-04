@@ -456,8 +456,64 @@ def get_dashboard():
             import traceback
             traceback.print_exc()
         
+        # ========== OBTENER DOCUMENT_OPTIONS DEL GRUPO DEL CANDIDATO ==========
+        # Para candidatos, los certificados habilitados se determinan por el grupo
+        document_options = {
+            'evaluation_report': True,  # El reporte siempre está habilitado
+            'certificate': False,
+            'conocer_certificate': False,
+            'digital_badge': False
+        }
+        
+        if current_user.role == 'candidato':
+            try:
+                from app.models.partner import GroupMember, CandidateGroup
+                
+                # Buscar membresía activa del candidato
+                membership = GroupMember.query.filter_by(
+                    user_id=str(user_id),
+                    status='active'
+                ).first()
+                
+                if membership:
+                    # Buscar grupo (sin filtrar por is_active para obtener configuración)
+                    group = CandidateGroup.query.get(membership.group_id)
+                    
+                    if group:
+                        # Obtener configuración efectiva (grupo override o campus)
+                        campus = group.campus
+                        
+                        # enable_tier_basic = Constancia de Evaluación (Reporte) - siempre true por ahora
+                        # enable_tier_standard = Certificado Eduit (certificate)
+                        # enable_tier_advanced = Certificado CONOCER
+                        # enable_digital_badge = Insignia digital
+                        
+                        # Tier Standard -> Certificado Eduit
+                        if group.enable_tier_standard_override is not None:
+                            document_options['certificate'] = group.enable_tier_standard_override
+                        elif campus and campus.enable_tier_standard is not None:
+                            document_options['certificate'] = campus.enable_tier_standard
+                        
+                        # Tier Advanced -> Certificado CONOCER
+                        if group.enable_tier_advanced_override is not None:
+                            document_options['conocer_certificate'] = group.enable_tier_advanced_override
+                        elif campus and campus.enable_tier_advanced is not None:
+                            document_options['conocer_certificate'] = campus.enable_tier_advanced
+                        
+                        # Digital Badge
+                        if group.enable_digital_badge_override is not None:
+                            document_options['digital_badge'] = group.enable_digital_badge_override
+                        elif campus and campus.enable_digital_badge is not None:
+                            document_options['digital_badge'] = campus.enable_digital_badge
+            except Exception as e:
+                pass  # Mantener defaults si hay error
+        
+        # Construir respuesta del usuario con document_options actualizados
+        user_data = current_user.to_dict()
+        user_data['document_options'] = document_options
+        
         return jsonify({
-            'user': current_user.to_dict(),
+            'user': user_data,
             'stats': {
                 'total_exams': total_exams,
                 'completed_exams': completed_exams,

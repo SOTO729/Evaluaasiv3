@@ -14,6 +14,7 @@ const LandingPage = lazy(() => import('./pages/landing/LandingPage'))
 const PrivacyPolicyPage = lazy(() => import('./pages/landing/PrivacyPolicyPage'))
 const PrivacyPolicyFullPage = lazy(() => import('./pages/landing/PrivacyPolicyFullPage'))
 const TermsOfServicePage = lazy(() => import('./pages/landing/TermsOfServicePage'))
+const VerifyPage = lazy(() => import('./pages/verify/VerifyPage'))
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
 const HomePage = lazy(() => import('./pages/HomePage'))
@@ -127,6 +128,9 @@ function App() {
           <Route path="/privacidad" element={<PrivacyPolicyPage />} />
           <Route path="/politica-privacidad" element={<PrivacyPolicyFullPage />} />
           <Route path="/terminos" element={<TermsOfServicePage />} />
+          
+          {/* Certificate Verification - Public */}
+          <Route path="/verify/:code" element={<VerifyPage />} />
           
           {/* Public routes */}
           <Route path="/login" element={

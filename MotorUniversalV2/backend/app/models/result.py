@@ -39,7 +39,8 @@ class Result(db.Model):
     
     # Certificado
     certificate_url = db.Column(db.String(500))  # URL del certificado en Azure Blob
-    certificate_code = db.Column(db.String(100), unique=True)  # Código único del certificado
+    certificate_code = db.Column(db.String(100), unique=True)  # Código único del reporte de evaluación (ZC...)
+    eduit_certificate_code = db.Column(db.String(100), unique=True)  # Código único del certificado Eduit (EC...)
     report_url = db.Column(db.String(500))  # URL del reporte PDF en Azure Blob
     pdf_status = db.Column(db.String(50), default='pending')  # pending, processing, completed, error
     
@@ -79,6 +80,7 @@ class Result(db.Model):
             'end_date': (self.end_date.isoformat() + 'Z') if self.end_date else None,
             'duration_seconds': self.duration_seconds,
             'certificate_code': self.certificate_code,
+            'eduit_certificate_code': self.eduit_certificate_code,
             'certificate_url': self.certificate_url,
             'report_url': self.report_url,
             'pdf_status': self.pdf_status
