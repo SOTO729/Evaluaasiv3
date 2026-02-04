@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, ReactNode } from 'react'
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '../../store/authStore'
 import { authService } from '../../services/authService'
+import { getMiPlantel } from '../../services/partnersService'
 import ExamInProgressWidget from '../ExamInProgressWidget'
 
 interface LayoutProps {
@@ -16,6 +18,16 @@ const Layout = ({ children }: LayoutProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
+
+  // Obtener información del plantel para usuarios responsables
+  const { data: plantelData } = useQuery({
+    queryKey: ['mi-plantel'],
+    queryFn: getMiPlantel,
+    enabled: user?.role === 'responsable',
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  })
+
+  const campusName = plantelData?.campus?.name
 
   // Cerrar dropdown y menú móvil al hacer clic fuera
   useEffect(() => {
@@ -126,6 +138,15 @@ const Layout = ({ children }: LayoutProps) => {
                 <span className="hidden sm:block fluid-text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">Evaluaasi</span>
               </Link>
               
+              {/* Nombre del plantel para responsables */}
+              {user?.role === 'responsable' && campusName && (
+                <div className="hidden md:flex items-center fluid-ml-4 fluid-pl-4 border-l border-gray-200">
+                  <span className="fluid-text-sm font-medium text-gray-600">
+                    <span className="text-gray-400">Plantel:</span>{' '}
+                    <span className="text-primary-600 font-semibold">{campusName}</span>
+                  </span>
+                </div>
+              )}
               {/* Navegación desktop */}
               <nav className="hidden lg:flex fluid-ml-8 fluid-gap-5">
                 <Link 
