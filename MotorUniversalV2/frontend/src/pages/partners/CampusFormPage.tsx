@@ -56,6 +56,7 @@ export default function CampusFormPage() {
   const [mexicanStates, setMexicanStates] = useState<string[]>([]);
   const [countries, setCountries] = useState<string[]>([]);
   const [partnerName, setPartnerName] = useState('');
+  const [partnerCountry, setPartnerCountry] = useState('México');
   const [actualPartnerId, setActualPartnerId] = useState<number | null>(null);
   const [configChanged, setConfigChanged] = useState(false);
 
@@ -153,12 +154,14 @@ export default function CampusFormPage() {
         // Ahora cargar el partner
         const partner = await getPartner(partnerId);
         setPartnerName(partner.name);
+        setPartnerCountry(partner.country || 'México');
       } else {
         // Si estamos creando, usar el partnerId de la URL
         partnerId = Number(urlPartnerId);
         setActualPartnerId(partnerId);
         const partner = await getPartner(partnerId);
         setPartnerName(partner.name);
+        setPartnerCountry(partner.country || 'México');
         // Heredar el país del partner al crear un nuevo campus
         setFormData(prev => ({ ...prev, country: partner.country || 'México' }));
       }
@@ -440,26 +443,34 @@ export default function CampusFormPage() {
               />
             </div>
 
-            {/* País */}
+            {/* País - Heredado del partner, solo editable si el partner es de México */}
             <div>
               <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                 <Globe className="fluid-icon-sm text-gray-400" />
                 País <span className="text-red-500">*</span>
               </label>
-              <select
-                value={formData.country}
-                onChange={(e) => setFormData({ ...formData, country: e.target.value, state_name: e.target.value === 'México' ? formData.state_name : '' })}
-                className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400"
-                required
-              >
-                {countries.map((country) => (
-                  <option key={country} value={country}>{country}</option>
-                ))}
-              </select>
+              {partnerCountry === 'México' ? (
+                <select
+                  value={formData.country}
+                  onChange={(e) => setFormData({ ...formData, country: e.target.value, state_name: e.target.value === 'México' ? formData.state_name : '' })}
+                  className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400"
+                  required
+                >
+                  {countries.map((country) => (
+                    <option key={country} value={country}>{country}</option>
+                  ))}
+                </select>
+              ) : (
+                <div className="w-full fluid-px-4 fluid-py-3 bg-gray-100 border border-gray-300 rounded-fluid-xl fluid-text-base text-gray-700 flex items-center fluid-gap-2">
+                  <Globe className="fluid-icon-sm text-blue-500" />
+                  <span className="font-medium">{partnerCountry}</span>
+                  <span className="fluid-text-xs text-gray-500 ml-auto">(heredado del partner)</span>
+                </div>
+              )}
             </div>
 
             {/* Estado (solo para México) */}
-            {formData.country === 'México' && (
+            {formData.country === 'México' && partnerCountry === 'México' && (
               <div>
                 <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                   <MapPinned className="fluid-icon-sm text-gray-400" />
