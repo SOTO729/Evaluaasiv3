@@ -1673,6 +1673,7 @@ export async function getMiPlantelExams(): Promise<{
 
 /**
  * Obtener exámenes asignados al candidato/responsable
+ * Fallback: si el endpoint no existe (404), usa el endpoint original
  */
 export async function getMisExamenes(): Promise<{
   exams: any[];
@@ -1680,12 +1681,23 @@ export async function getMisExamenes(): Promise<{
   pages: number;
   current_page: number;
 }> {
-  const response = await api.get('/partners/mis-examenes');
-  return response.data;
+  try {
+    const response = await api.get('/partners/mis-examenes');
+    return response.data;
+  } catch (error: any) {
+    // Fallback al endpoint original si el nuevo no existe
+    if (error?.response?.status === 404) {
+      console.warn('Endpoint /partners/mis-examenes no disponible, usando fallback');
+      const response = await api.get('/partners/mi-plantel/exams');
+      return response.data;
+    }
+    throw error;
+  }
 }
 
 /**
  * Obtener materiales asignados al candidato/responsable
+ * Fallback: si el endpoint no existe (404), usa el endpoint original
  */
 export async function getMisMateriales(): Promise<{
   materials: any[];
@@ -1693,6 +1705,16 @@ export async function getMisMateriales(): Promise<{
   pages: number;
   current_page: number;
 }> {
-  const response = await api.get('/partners/mis-materiales');
-  return response.data;
+  try {
+    const response = await api.get('/partners/mis-materiales');
+    return response.data;
+  } catch (error: any) {
+    // Fallback al endpoint original si el nuevo no existe
+    if (error?.response?.status === 404) {
+      console.warn('Endpoint /partners/mis-materiales no disponible, usando fallback');
+      const response = await api.get('/study-contents?published_only=true');
+      return response.data;
+    }
+    throw error;
+  }
 }
