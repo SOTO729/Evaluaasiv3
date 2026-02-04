@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { examService } from '../../services/examService'
+import { getMisExamenes } from '../../services/partnersService'
 import { useAuthStore } from '../../store/authStore'
 import { OptimizedImage } from '../../components/ui/OptimizedImage'
 
@@ -221,11 +222,25 @@ const ExamsListPage = () => {
   // Debounce del término de búsqueda (300ms)
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   
-  const { data, isLoading, refetch } = useQuery({
-    queryKey: ['exams', currentPage, debouncedSearchTerm],
-    queryFn: () => examService.getExams(currentPage, ITEMS_PER_PAGE, debouncedSearchTerm),
+  // Query para candidatos/responsables - exámenes asignados
+  const { data: assignedData, isLoading: isLoadingAssigned } = useQuery({
+    queryKey: ['mis-examenes'],
+    queryFn: getMisExamenes,
+    enabled: isCandidate,
     staleTime: 30000,
   })
+  
+  // Query para admins/editores - todos los exámenes
+  const { data: allData, isLoading: isLoadingAll, refetch } = useQuery({
+    queryKey: ['exams', currentPage, debouncedSearchTerm],
+    queryFn: () => examService.getExams(currentPage, ITEMS_PER_PAGE, debouncedSearchTerm),
+    enabled: !isCandidate,
+    staleTime: 30000,
+  })
+  
+  // Usar los datos correspondientes según el rol
+  const data = isCandidate ? assignedData : allData;
+  const isLoading = isCandidate ? isLoadingAssigned : isLoadingAll;
 
   // Reset page when debounced search changes
   useEffect(() => {

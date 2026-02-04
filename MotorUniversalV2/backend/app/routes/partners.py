@@ -5079,3 +5079,213 @@ def get_mi_plantel_exams():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+# =====================================================
+# ENDPOINTS PARA CANDIDATOS - Exámenes y Materiales Asignados
+# =====================================================
+
+@bp.route('/mis-examenes', methods=['GET'])
+@jwt_required()
+def get_mis_examenes():
+    """Obtener exámenes asignados al candidato basándose en sus grupos"""
+    from app.models import Exam
+    from app.models.partner import GroupExam, GroupMember, GroupExamMember
+    
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        # Solo para candidatos y responsables
+        if user.role not in ['candidato', 'responsable']:
+            return jsonify({'error': 'Acceso no autorizado'}), 403
+        
+        # Si es responsable, obtener exámenes del plantel
+        if user.role == 'responsable':
+            if not user.campus_id:
+                return jsonify({'exams': [], 'total': 0, 'pages': 1, 'current_page': 1})
+            
+            campus = Campus.query.get(user.campus_id)
+            if not campus:
+                return jsonify({'exams': [], 'total': 0, 'pages': 1, 'current_page': 1})
+            
+            # Obtener grupos del plantel
+            groups = CandidateGroup.query.filter_by(campus_id=campus.id, is_active=True).all()
+            group_ids = [g.id for g in groups]
+            
+            # Obtener exámenes asignados a los grupos
+            exam_ids = db.session.query(GroupExam.exam_id).filter(
+                GroupExam.group_id.in_(group_ids),
+                GroupExam.is_active == True
+            ).distinct().all()
+            exam_ids = [e[0] for e in exam_ids]
+        else:
+            # Para candidatos: obtener grupos donde es miembro activo
+            memberships = GroupMember.query.filter_by(
+                user_id=user_id,
+                status='active'
+            ).all()
+            
+            if not memberships:
+                return jsonify({'exams': [], 'total': 0, 'pages': 1, 'current_page': 1})
+            
+            group_ids = [m.group_id for m in memberships]
+            
+            # Obtener exámenes asignados a esos grupos
+            group_exams = GroupExam.query.filter(
+                GroupExam.group_id.in_(group_ids),
+                GroupExam.is_active == True
+            ).all()
+            
+            # Filtrar por asignación específica si es individual
+            exam_ids = set()
+            for ge in group_exams:
+                if ge.assignment_type == 'all':
+                    # Asignado a todos los miembros del grupo
+                    exam_ids.add(ge.exam_id)
+                elif ge.assignment_type == 'individual':
+                    # Verificar si el candidato está asignado específicamente
+                    member_assignment = GroupExamMember.query.filter_by(
+                        group_exam_id=ge.id,
+                        user_id=user_id,
+                        is_assigned=True
+                    ).first()
+                    if member_assignment:
+                        exam_ids.add(ge.exam_id)
+            
+            exam_ids = list(exam_ids)
+        
+        if not exam_ids:
+            return jsonify({'exams': [], 'total': 0, 'pages': 1, 'current_page': 1})
+        
+        # Obtener los exámenes publicados
+        exams = Exam.query.filter(
+            Exam.id.in_(exam_ids),
+            Exam.is_published == True
+        ).order_by(Exam.updated_at.desc()).all()
+        
+        return jsonify({
+            'exams': [exam.to_dict() for exam in exams],
+            'total': len(exams),
+            'pages': 1,
+            'current_page': 1
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mis-materiales', methods=['GET'])
+@jwt_required()
+def get_mis_materiales():
+    """Obtener materiales de estudio asignados al candidato basándose en sus grupos"""
+    from app.models.study_content import StudyMaterial
+    from app.models.partner import GroupExam, GroupMember, GroupExamMaterial
+    
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        # Solo para candidatos y responsables
+        if user.role not in ['candidato', 'responsable']:
+            return jsonify({'error': 'Acceso no autorizado'}), 403
+        
+        # Si es responsable, obtener materiales del plantel
+        if user.role == 'responsable':
+            if not user.campus_id:
+                return jsonify({'materials': [], 'total': 0, 'pages': 1, 'current_page': 1})
+            
+            campus = Campus.query.get(user.campus_id)
+            if not campus:
+                return jsonify({'materials': [], 'total': 0, 'pages': 1, 'current_page': 1})
+            
+            # Obtener grupos del plantel
+            groups = CandidateGroup.query.filter_by(campus_id=campus.id, is_active=True).all()
+            group_ids = [g.id for g in groups]
+            
+            # Obtener exámenes asignados a los grupos
+            group_exams = GroupExam.query.filter(
+                GroupExam.group_id.in_(group_ids),
+                GroupExam.is_active == True
+            ).all()
+            
+            # Obtener materiales de esos exámenes
+            material_ids = set()
+            for ge in group_exams:
+                materials = GroupExamMaterial.query.filter_by(
+                    group_exam_id=ge.id,
+                    is_included=True
+                ).all()
+                for m in materials:
+                    material_ids.add(m.study_material_id)
+        else:
+            # Para candidatos: obtener grupos donde es miembro activo
+            memberships = GroupMember.query.filter_by(
+                user_id=user_id,
+                status='active'
+            ).all()
+            
+            if not memberships:
+                return jsonify({'materials': [], 'total': 0, 'pages': 1, 'current_page': 1})
+            
+            group_ids = [m.group_id for m in memberships]
+            
+            # Obtener exámenes asignados a esos grupos
+            group_exams = GroupExam.query.filter(
+                GroupExam.group_id.in_(group_ids),
+                GroupExam.is_active == True
+            ).all()
+            
+            # Obtener materiales de esos exámenes
+            material_ids = set()
+            for ge in group_exams:
+                # Verificar si el candidato tiene acceso al examen
+                has_access = False
+                if ge.assignment_type == 'all':
+                    has_access = True
+                elif ge.assignment_type == 'individual':
+                    from app.models.partner import GroupExamMember
+                    member_assignment = GroupExamMember.query.filter_by(
+                        group_exam_id=ge.id,
+                        user_id=user_id,
+                        is_assigned=True
+                    ).first()
+                    has_access = member_assignment is not None
+                
+                if has_access:
+                    materials = GroupExamMaterial.query.filter_by(
+                        group_exam_id=ge.id,
+                        is_included=True
+                    ).all()
+                    for m in materials:
+                        material_ids.add(m.study_material_id)
+        
+        material_ids = list(material_ids)
+        
+        if not material_ids:
+            return jsonify({'materials': [], 'total': 0, 'pages': 1, 'current_page': 1})
+        
+        # Obtener los materiales publicados
+        materials = StudyMaterial.query.filter(
+            StudyMaterial.id.in_(material_ids),
+            StudyMaterial.is_published == True
+        ).order_by(StudyMaterial.updated_at.desc()).all()
+        
+        return jsonify({
+            'materials': [m.to_dict() for m in materials],
+            'total': len(materials),
+            'pages': 1,
+            'current_page': 1
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500

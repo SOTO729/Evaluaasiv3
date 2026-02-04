@@ -1670,3 +1670,29 @@ export async function getMiPlantelExams(): Promise<{
   const response = await api.get('/partners/mi-plantel/exams');
   return response.data;
 }
+
+/**
+ * Obtener exámenes asignados al candidato/responsable
+ */
+export async function getMisExamenes(): Promise<{
+  exams: any[];
+  total: number;
+  pages: number;
+  current_page: number;
+}> {
+  const response = await api.get('/partners/mis-examenes');
+  return response.data;
+}
+
+/**
+ * Obtener materiales asignados al candidato/responsable
+ */
+export async function getMisMateriales(): Promise<{
+  materials: any[];
+  total: number;
+  pages: number;
+  current_page: number;
+}> {
+  const response = await api.get('/partners/mis-materiales');
+  return response.data;
+}

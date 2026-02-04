@@ -10,6 +10,7 @@ import {
   StudyMaterial, 
   MaterialsResponse 
 } from '../../services/studyContentService';
+import { getMisMateriales } from '../../services/partnersService';
 import { useAuthStore } from '../../store/authStore';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
 import { 
@@ -194,10 +195,35 @@ const StudyContentsListPage = () => {
   const fetchMaterials = async () => {
     setLoading(true);
     try {
-      const response: MaterialsResponse = await getMaterials(currentPage, 10, debouncedSearchTerm, isCandidate);
-      setMaterials(response.materials);
-      setTotalPages(response.pages);
-      setTotal(response.total);
+      if (isCandidate) {
+        // Para candidatos y responsables, usar getMisMateriales que filtra por asignación
+        const response = await getMisMateriales();
+        const assignedMaterials = response.materials || [];
+        // Filtrar por término de búsqueda si existe
+        let filteredMaterials = assignedMaterials;
+        if (debouncedSearchTerm) {
+          const searchLower = debouncedSearchTerm.toLowerCase();
+          filteredMaterials = assignedMaterials.filter((m: StudyMaterial) => 
+            m.title.toLowerCase().includes(searchLower) || 
+            (m.description && m.description.toLowerCase().includes(searchLower))
+          );
+        }
+        // Paginar manualmente
+        const pageSize = 10;
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const paginatedMaterials = filteredMaterials.slice(startIndex, endIndex);
+        
+        setMaterials(paginatedMaterials);
+        setTotalPages(Math.ceil(filteredMaterials.length / pageSize) || 1);
+        setTotal(filteredMaterials.length);
+      } else {
+        // Para admin y editor, usar getMaterials normal
+        const response: MaterialsResponse = await getMaterials(currentPage, 10, debouncedSearchTerm, false);
+        setMaterials(response.materials);
+        setTotalPages(response.pages);
+        setTotal(response.total);
+      }
     } catch (error) {
       console.error('Error al cargar materiales:', error);
     } finally {
