@@ -1770,7 +1770,7 @@ const ExamTestRunPage: React.FC = () => {
         {/* Imagen con acciones superpuestas */}
         <div 
           ref={imageContainerRef}
-          className="relative w-[90%] mx-auto rounded-fluid-lg"
+          className="relative w-[85%] mx-auto rounded-fluid-lg"
         >
           {currentStep.image_url ? (
             <>
