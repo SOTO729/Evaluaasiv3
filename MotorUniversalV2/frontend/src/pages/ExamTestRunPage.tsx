@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../services/examService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag, List, ArrowDown, Maximize2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag, List, ArrowDown, Maximize2, ZoomIn, ZoomOut, RotateCcw, Focus, Move } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { clearExamSessionCache, useAuthStore } from '../store/authStore';
 
@@ -94,6 +94,13 @@ const ExamTestRunPage: React.FC = () => {
   const [fullscreenPan, setFullscreenPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+
+  // Estado para zoom y pan en vista normal (auto-zoom)
+  const [exerciseZoom, setExerciseZoom] = useState(1);
+  const [exercisePan, setExercisePan] = useState({ x: 0, y: 0 });
+  const [autoZoomEnabled, setAutoZoomEnabled] = useState(true);
+  const [isExerciseDragging, setIsExerciseDragging] = useState(false);
+  const exerciseDragStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
 
   const { data: exam, isLoading } = useQuery({
     queryKey: ['exam', examId],
@@ -304,6 +311,62 @@ const ExamTestRunPage: React.FC = () => {
     };
   }, [showImageFullscreen]);
 
+  // Función para calcular el área de enfoque basada en acciones correctas
+  const calculateFocusArea = (actions: any[]) => {
+    if (!actions || actions.length === 0) return null;
+    
+    // Filtrar solo acciones correctas (botones correctos y text_inputs correctos)
+    const correctActions = actions.filter((action: any) => {
+      if (action.action_type === 'button') {
+        return action.correct_answer && 
+          ['true', '1', 'correct', 'yes', 'si', 'sí'].includes(String(action.correct_answer).toLowerCase().trim());
+      }
+      if (action.action_type === 'text_input' || action.action_type === 'textbox') {
+        return action.correct_answer && 
+          action.correct_answer !== 'wrong' && 
+          String(action.correct_answer).trim() !== '';
+      }
+      return false;
+    });
+    
+    if (correctActions.length === 0) return null;
+    
+    // Calcular el bounding box de todas las acciones correctas
+    let minX = 100, minY = 100, maxX = 0, maxY = 0;
+    
+    correctActions.forEach((action: any) => {
+      const x = action.position_x || 0;
+      const y = action.position_y || 0;
+      const w = action.width || 5;
+      const h = action.height || 5;
+      
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + w);
+      maxY = Math.max(maxY, y + h);
+    });
+    
+    // Agregar padding alrededor del área (15% en cada dirección)
+    const padding = 15;
+    minX = Math.max(0, minX - padding);
+    minY = Math.max(0, minY - padding);
+    maxX = Math.min(100, maxX + padding);
+    maxY = Math.min(100, maxY + padding);
+    
+    // Calcular centro y zoom necesario
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    const areaWidth = maxX - minX;
+    const areaHeight = maxY - minY;
+    
+    // El zoom se basa en qué tan pequeña es el área (máximo 2.5x para no exagerar)
+    const zoomX = 100 / areaWidth;
+    const zoomY = 100 / areaHeight;
+    const zoom = Math.min(Math.max(1, Math.min(zoomX, zoomY) * 0.8), 2.5);
+    
+    return { centerX, centerY, zoom };
+  };
+
   // Seleccionar preguntas y ejercicios aleatorios
   const [selectedItems, setSelectedItems] = useState<TestItem[]>([]);
   const [loadingExercises, setLoadingExercises] = useState(false);
@@ -487,6 +550,42 @@ const ExamTestRunPage: React.FC = () => {
       window.removeEventListener('beforeunload', saveSession);
     };
   }, [timeRemaining, examId, examSessionKey, exam?.duration_minutes, exam?.name, pauseOnDisconnect, answers, exerciseResponses, currentItemIndex, selectedItems, orderingInteracted, actionErrors, stepCompleted, currentStepIndex, flaggedQuestions]);
+
+  // Efecto para auto-zoom cuando cambia el paso del ejercicio
+  useEffect(() => {
+    if (!autoZoomEnabled) return;
+    
+    const currentItemForZoom = selectedItems[currentItemIndex];
+    if (!currentItemForZoom || currentItemForZoom.type !== 'exercise') {
+      // Reset zoom si no es ejercicio
+      setExerciseZoom(1);
+      setExercisePan({ x: 0, y: 0 });
+      return;
+    }
+    
+    const steps = currentItemForZoom.steps || [];
+    const currentStep = steps[currentStepIndex];
+    
+    if (!currentStep || !currentStep.actions) {
+      setExerciseZoom(1);
+      setExercisePan({ x: 0, y: 0 });
+      return;
+    }
+    
+    const focusArea = calculateFocusArea(currentStep.actions);
+    
+    if (focusArea) {
+      // Aplicar zoom y centrar en el área de acciones
+      setExerciseZoom(focusArea.zoom);
+      // Pan se calcula para centrar el área (en porcentajes convertidos a pixeles)
+      const panX = (50 - focusArea.centerX) * focusArea.zoom;
+      const panY = (50 - focusArea.centerY) * focusArea.zoom;
+      setExercisePan({ x: panX, y: panY });
+    } else {
+      setExerciseZoom(1);
+      setExercisePan({ x: 0, y: 0 });
+    }
+  }, [currentStepIndex, currentItemIndex, selectedItems, autoZoomEnabled]);
 
   const currentItem = selectedItems[currentItemIndex];
 
@@ -1775,27 +1874,140 @@ const ExamTestRunPage: React.FC = () => {
           </div>
         )}
 
-        {/* Imagen con acciones superpuestas - adaptada a la pantalla */}
+        {/* Controles de zoom en vista normal */}
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <button
+            onClick={() => setAutoZoomEnabled(!autoZoomEnabled)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              autoZoomEnabled 
+                ? 'bg-primary-100 text-primary-700 border border-primary-300' 
+                : 'bg-gray-100 text-gray-600 border border-gray-300'
+            }`}
+            title={autoZoomEnabled ? 'Desactivar auto-enfoque' : 'Activar auto-enfoque'}
+          >
+            <Focus className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Auto-enfoque</span>
+            <span className={`w-2 h-2 rounded-full ${autoZoomEnabled ? 'bg-green-500' : 'bg-gray-400'}`} />
+          </button>
+          
+          {exerciseZoom !== 1 && (
+            <>
+              <div className="w-px h-5 bg-gray-300" />
+              <span className="text-xs text-gray-500">{Math.round(exerciseZoom * 100)}%</span>
+              <button
+                onClick={() => {
+                  setExerciseZoom(1);
+                  setExercisePan({ x: 0, y: 0 });
+                }}
+                className="flex items-center gap-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs text-gray-600 transition-colors"
+                title="Restablecer vista"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
+            </>
+          )}
+          
+          <div className="w-px h-5 bg-gray-300" />
+          <button
+            onClick={() => setExerciseZoom(z => Math.max(1, z - 0.25))}
+            className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 transition-colors disabled:opacity-40"
+            disabled={exerciseZoom <= 1}
+            title="Reducir zoom"
+          >
+            <ZoomOut className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => setExerciseZoom(z => Math.min(3, z + 0.25))}
+            className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 transition-colors disabled:opacity-40"
+            disabled={exerciseZoom >= 3}
+            title="Aumentar zoom"
+          >
+            <ZoomIn className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Imagen con acciones superpuestas - con zoom y pan */}
         <div 
           ref={imageContainerRef}
           className="relative mx-auto border border-gray-300 rounded-lg overflow-hidden bg-gray-100 group"
           style={{ 
             maxWidth: '100%',
-            maxHeight: 'calc(100vh - 180px)',
+            maxHeight: 'calc(100vh - 220px)',
             minHeight: '250px',
             aspectRatio: currentStep.image_width && currentStep.image_height 
               ? `${currentStep.image_width} / ${currentStep.image_height}` 
-              : 'auto'
+              : 'auto',
+            cursor: exerciseZoom > 1 ? (isExerciseDragging ? 'grabbing' : 'grab') : 'default'
+          }}
+          onMouseDown={(e) => {
+            if (exerciseZoom > 1) {
+              e.preventDefault();
+              setIsExerciseDragging(true);
+              exerciseDragStartRef.current = {
+                x: e.clientX,
+                y: e.clientY,
+                panX: exercisePan.x,
+                panY: exercisePan.y
+              };
+            }
+          }}
+          onMouseMove={(e) => {
+            if (isExerciseDragging && exerciseZoom > 1) {
+              const dx = e.clientX - exerciseDragStartRef.current.x;
+              const dy = e.clientY - exerciseDragStartRef.current.y;
+              setExercisePan({
+                x: exerciseDragStartRef.current.panX + dx / exerciseZoom,
+                y: exerciseDragStartRef.current.panY + dy / exerciseZoom
+              });
+            }
+          }}
+          onMouseUp={() => setIsExerciseDragging(false)}
+          onMouseLeave={() => setIsExerciseDragging(false)}
+          onWheel={(e) => {
+            if (e.ctrlKey || e.metaKey) {
+              e.preventDefault();
+              const delta = e.deltaY > 0 ? -0.15 : 0.15;
+              setExerciseZoom(z => Math.min(3, Math.max(1, z + delta)));
+              setAutoZoomEnabled(false); // Desactivar auto-zoom si el usuario hace zoom manual
+            }
           }}
         >
           {currentStep.image_url ? (
             <>
-              <img
-                src={currentStep.image_url}
-                alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
-                className="w-full h-full object-contain"
-                style={{ maxHeight: 'calc(100vh - 180px)', minHeight: '250px' }}
-              />
+              {/* Contenedor con transformación de zoom y pan */}
+              <div
+                className="w-full h-full"
+                style={{
+                  transform: `scale(${exerciseZoom}) translate(${exercisePan.x}px, ${exercisePan.y}px)`,
+                  transformOrigin: 'center center',
+                  transition: isExerciseDragging ? 'none' : 'transform 0.3s ease-out'
+                }}
+              >
+                <img
+                  src={currentStep.image_url}
+                  alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
+                  className="w-full h-full object-contain"
+                  style={{ maxHeight: 'calc(100vh - 220px)', minHeight: '250px' }}
+                  draggable={false}
+                />
+                
+                {/* Acciones superpuestas sobre la imagen (dentro del contenedor con zoom) */}
+                {currentStep.actions?.map((action: any) => (
+                  <ExerciseAction
+                    key={action.id}
+                    action={action}
+                    exerciseId={currentItem.exercise_id!}
+                    stepIndex={currentStepIndex}
+                    isStepCompleted={isStepDone}
+                    currentValue={exerciseResponses[currentItem.exercise_id!]?.[`${action.step_id}_${action.id}`]}
+                    onButtonClick={handleButtonClick}
+                    onWrongActionClick={handleWrongActionClick}
+                    onTextSubmit={handleTextboxSubmit}
+                  />
+                ))}
+              </div>
+              
               {/* Botón de pantalla completa */}
               <button
                 onClick={() => {
@@ -1809,27 +2021,20 @@ const ExamTestRunPage: React.FC = () => {
                 <Maximize2 className="w-4 h-4" />
                 <span className="text-xs font-medium hidden sm:inline">Ampliar</span>
               </button>
+              
+              {/* Indicador de zoom manual */}
+              {exerciseZoom > 1 && (
+                <div className="absolute bottom-2 left-2 bg-black/60 text-white px-2 py-1 rounded text-xs flex items-center gap-1.5 z-10">
+                  <Move className="w-3 h-3" />
+                  <span>Arrastra para mover</span>
+                </div>
+              )}
             </>
           ) : (
             <div className="flex items-center justify-center h-48 bg-gray-200">
               <Image className="w-12 h-12 text-gray-400" />
             </div>
           )}
-
-          {/* Acciones superpuestas sobre la imagen */}
-          {currentStep.actions?.map((action: any) => (
-            <ExerciseAction
-              key={action.id}
-              action={action}
-              exerciseId={currentItem.exercise_id!}
-              stepIndex={currentStepIndex}
-              isStepCompleted={isStepDone}
-              currentValue={exerciseResponses[currentItem.exercise_id!]?.[`${action.step_id}_${action.id}`]}
-              onButtonClick={handleButtonClick}
-              onWrongActionClick={handleWrongActionClick}
-              onTextSubmit={handleTextboxSubmit}
-            />
-          ))}
         </div>
 
         {/* Modal de imagen en pantalla completa */}
