@@ -4588,3 +4588,494 @@ def export_group_members(group_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+# ============== ENDPOINTS PARA RESPONSABLE DE PLANTEL ==============
+
+def responsable_required(f):
+    """Decorador que requiere rol de responsable"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'No autorizado'}), 401
+        if user.role != 'responsable':
+            return jsonify({'error': 'Acceso denegado. Se requiere rol de responsable'}), 403
+        if not user.campus_id:
+            return jsonify({'error': 'No tienes un plantel asignado'}), 403
+        g.current_user = user
+        return f(*args, **kwargs)
+    return decorated
+
+
+@bp.route('/mi-plantel', methods=['GET'])
+@jwt_required()
+@responsable_required
+def get_mi_plantel():
+    """Obtener información del plantel del responsable"""
+    try:
+        user = g.current_user
+        campus = Campus.query.get(user.campus_id)
+        
+        if not campus:
+            return jsonify({'error': 'No se encontró el plantel asignado'}), 404
+        
+        # Verificar que el usuario es el responsable asignado
+        if campus.responsable_id != user.id:
+            return jsonify({'error': 'No eres el responsable de este plantel'}), 403
+        
+        return jsonify({
+            'campus': campus.to_dict(include_partner=True, include_responsable=True, include_config=True)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/stats', methods=['GET'])
+@jwt_required()
+@responsable_required
+def get_mi_plantel_stats():
+    """Obtener estadísticas del plantel del responsable"""
+    from app.models import Result, Exam, StudyMaterial
+    from app.models.student_progress import StudentContentProgress
+    from sqlalchemy import func
+    
+    try:
+        user = g.current_user
+        campus = Campus.query.get(user.campus_id)
+        
+        if not campus:
+            return jsonify({'error': 'No se encontró el plantel asignado'}), 404
+        
+        # Obtener todos los grupos del plantel
+        groups = CandidateGroup.query.filter_by(campus_id=campus.id, is_active=True).all()
+        group_ids = [g.id for g in groups]
+        
+        # Obtener todos los candidatos del plantel (miembros de grupos)
+        candidate_ids = db.session.query(GroupMember.user_id).filter(
+            GroupMember.group_id.in_(group_ids),
+            GroupMember.status == 'active'
+        ).distinct().all()
+        candidate_ids = [c[0] for c in candidate_ids]
+        
+        total_candidates = len(candidate_ids)
+        total_groups = len(groups)
+        
+        # Estadísticas de exámenes
+        if candidate_ids:
+            # Total de evaluaciones completadas
+            total_evaluations = Result.query.filter(
+                Result.user_id.in_(candidate_ids),
+                Result.status == 1  # Completado
+            ).count()
+            
+            # Evaluaciones aprobadas
+            passed_evaluations = Result.query.filter(
+                Result.user_id.in_(candidate_ids),
+                Result.status == 1,
+                Result.result == 1  # Aprobado
+            ).count()
+            
+            # Evaluaciones reprobadas
+            failed_evaluations = Result.query.filter(
+                Result.user_id.in_(candidate_ids),
+                Result.status == 1,
+                Result.result == 0  # Reprobado
+            ).count()
+            
+            # Promedio de calificaciones
+            avg_score = db.session.query(func.avg(Result.score)).filter(
+                Result.user_id.in_(candidate_ids),
+                Result.status == 1
+            ).scalar() or 0
+            
+            # Progreso en materiales de estudio
+            total_progress_records = StudentContentProgress.query.filter(
+                StudentContentProgress.user_id.in_(candidate_ids)
+            ).count()
+            
+            completed_progress = StudentContentProgress.query.filter(
+                StudentContentProgress.user_id.in_(candidate_ids),
+                StudentContentProgress.is_completed == True
+            ).count()
+            
+            # Candidatos con al menos una evaluación
+            candidates_with_eval = db.session.query(Result.user_id).filter(
+                Result.user_id.in_(candidate_ids),
+                Result.status == 1
+            ).distinct().count()
+            
+            # Candidatos con certificado (aprobado)
+            candidates_certified = db.session.query(Result.user_id).filter(
+                Result.user_id.in_(candidate_ids),
+                Result.status == 1,
+                Result.result == 1
+            ).distinct().count()
+        else:
+            total_evaluations = 0
+            passed_evaluations = 0
+            failed_evaluations = 0
+            avg_score = 0
+            total_progress_records = 0
+            completed_progress = 0
+            candidates_with_eval = 0
+            candidates_certified = 0
+        
+        # Calcular tasa de aprobación
+        approval_rate = (passed_evaluations / total_evaluations * 100) if total_evaluations > 0 else 0
+        
+        # Calcular tasa de progreso en materiales
+        material_completion_rate = (completed_progress / total_progress_records * 100) if total_progress_records > 0 else 0
+        
+        return jsonify({
+            'campus': {
+                'id': campus.id,
+                'name': campus.name,
+                'code': campus.code
+            },
+            'stats': {
+                'total_groups': total_groups,
+                'total_candidates': total_candidates,
+                'candidates_with_evaluations': candidates_with_eval,
+                'candidates_certified': candidates_certified,
+                'total_evaluations': total_evaluations,
+                'passed_evaluations': passed_evaluations,
+                'failed_evaluations': failed_evaluations,
+                'approval_rate': round(approval_rate, 1),
+                'average_score': round(float(avg_score), 1),
+                'material_completion_rate': round(material_completion_rate, 1),
+                'total_material_progress': total_progress_records,
+                'completed_material_progress': completed_progress
+            }
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/evaluations', methods=['GET'])
+@jwt_required()
+@responsable_required
+def get_mi_plantel_evaluations():
+    """Obtener lista de evaluaciones del plantel del responsable"""
+    from app.models import Result, Exam
+    
+    try:
+        user = g.current_user
+        campus = Campus.query.get(user.campus_id)
+        
+        if not campus:
+            return jsonify({'error': 'No se encontró el plantel asignado'}), 404
+        
+        # Parámetros de paginación y filtrado
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        exam_id = request.args.get('exam_id', type=int)
+        result_status = request.args.get('result', type=int)  # 0=reprobado, 1=aprobado
+        search = request.args.get('search', '')
+        
+        # Obtener todos los grupos del plantel
+        groups = CandidateGroup.query.filter_by(campus_id=campus.id).all()
+        group_ids = [g.id for g in groups]
+        
+        # Obtener todos los candidatos del plantel
+        candidate_ids = db.session.query(GroupMember.user_id).filter(
+            GroupMember.group_id.in_(group_ids)
+        ).distinct().all()
+        candidate_ids = [c[0] for c in candidate_ids]
+        
+        if not candidate_ids:
+            return jsonify({
+                'evaluations': [],
+                'total': 0,
+                'page': page,
+                'per_page': per_page,
+                'pages': 0
+            })
+        
+        # Query base de resultados
+        query = Result.query.filter(
+            Result.user_id.in_(candidate_ids),
+            Result.status == 1  # Solo completados
+        )
+        
+        # Filtros
+        if exam_id:
+            query = query.filter(Result.exam_id == exam_id)
+        
+        if result_status is not None:
+            query = query.filter(Result.result == result_status)
+        
+        # Ordenar por fecha más reciente
+        query = query.order_by(Result.end_date.desc())
+        
+        # Paginación
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        evaluations = []
+        for result in pagination.items:
+            # Obtener datos del usuario
+            candidate = User.query.get(result.user_id)
+            
+            # Obtener datos del examen
+            exam = Exam.query.get(result.exam_id)
+            
+            # Obtener grupo del candidato
+            member = GroupMember.query.filter(
+                GroupMember.user_id == result.user_id,
+                GroupMember.group_id.in_(group_ids)
+            ).first()
+            group = CandidateGroup.query.get(member.group_id) if member else None
+            
+            evaluations.append({
+                'id': result.id,
+                'candidate': {
+                    'id': candidate.id,
+                    'full_name': candidate.full_name,
+                    'username': candidate.username,
+                    'email': candidate.email,
+                    'curp': candidate.curp
+                } if candidate else None,
+                'exam': {
+                    'id': exam.id,
+                    'name': exam.name,
+                    'version': exam.version
+                } if exam else None,
+                'group': {
+                    'id': group.id,
+                    'name': group.name
+                } if group else None,
+                'score': result.score,
+                'result': result.result,
+                'result_text': 'Aprobado' if result.result == 1 else 'Reprobado',
+                'start_date': result.start_date.isoformat() if result.start_date else None,
+                'end_date': result.end_date.isoformat() if result.end_date else None,
+                'duration_seconds': result.duration_seconds,
+                'certificate_url': result.certificate_url,
+                'report_url': result.report_url
+            })
+        
+        return jsonify({
+            'evaluations': evaluations,
+            'total': pagination.total,
+            'page': page,
+            'per_page': per_page,
+            'pages': pagination.pages
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/evaluations/export', methods=['GET'])
+@jwt_required()
+@responsable_required
+def export_mi_plantel_evaluations():
+    """Exportar evaluaciones del plantel a Excel"""
+    from app.models import Result, Exam
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    
+    try:
+        user = g.current_user
+        campus = Campus.query.get(user.campus_id)
+        
+        if not campus:
+            return jsonify({'error': 'No se encontró el plantel asignado'}), 404
+        
+        # Filtros opcionales
+        exam_id = request.args.get('exam_id', type=int)
+        result_status = request.args.get('result', type=int)
+        
+        # Obtener todos los grupos del plantel
+        groups = CandidateGroup.query.filter_by(campus_id=campus.id).all()
+        group_ids = [g.id for g in groups]
+        
+        # Obtener todos los candidatos del plantel
+        candidate_ids = db.session.query(GroupMember.user_id).filter(
+            GroupMember.group_id.in_(group_ids)
+        ).distinct().all()
+        candidate_ids = [c[0] for c in candidate_ids]
+        
+        if not candidate_ids:
+            return jsonify({'error': 'No hay candidatos en el plantel'}), 404
+        
+        # Query de resultados
+        query = Result.query.filter(
+            Result.user_id.in_(candidate_ids),
+            Result.status == 1
+        )
+        
+        if exam_id:
+            query = query.filter(Result.exam_id == exam_id)
+        
+        if result_status is not None:
+            query = query.filter(Result.result == result_status)
+        
+        results = query.order_by(Result.end_date.desc()).all()
+        
+        # Crear workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Evaluaciones"
+        
+        # Estilos
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="0066CC", end_color="0066CC", fill_type="solid")
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        center_align = Alignment(horizontal='center')
+        
+        # Título
+        ws.merge_cells('A1:I1')
+        ws['A1'] = f"Reporte de Evaluaciones - {campus.name}"
+        ws['A1'].font = Font(bold=True, size=14)
+        ws['A1'].alignment = Alignment(horizontal='center')
+        
+        # Fecha de generación
+        ws.merge_cells('A2:I2')
+        ws['A2'] = f"Generado el: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+        ws['A2'].alignment = Alignment(horizontal='center')
+        
+        # Encabezados
+        headers = ['Grupo', 'Candidato', 'CURP', 'Email', 'Examen', 'Calificación', 'Resultado', 'Fecha', 'Duración']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=4, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.border = thin_border
+            cell.alignment = center_align
+        
+        # Datos
+        row_num = 5
+        for result in results:
+            candidate = User.query.get(result.user_id)
+            exam = Exam.query.get(result.exam_id)
+            
+            member = GroupMember.query.filter(
+                GroupMember.user_id == result.user_id,
+                GroupMember.group_id.in_(group_ids)
+            ).first()
+            group = CandidateGroup.query.get(member.group_id) if member else None
+            
+            # Calcular duración en formato legible
+            duration_str = ""
+            if result.duration_seconds:
+                mins = result.duration_seconds // 60
+                secs = result.duration_seconds % 60
+                duration_str = f"{mins}m {secs}s"
+            
+            ws.cell(row=row_num, column=1, value=group.name if group else "Sin grupo").border = thin_border
+            ws.cell(row=row_num, column=2, value=candidate.full_name if candidate else "").border = thin_border
+            ws.cell(row=row_num, column=3, value=candidate.curp if candidate else "").border = thin_border
+            ws.cell(row=row_num, column=4, value=candidate.email if candidate else "").border = thin_border
+            ws.cell(row=row_num, column=5, value=exam.name if exam else "").border = thin_border
+            ws.cell(row=row_num, column=6, value=result.score).border = thin_border
+            ws.cell(row=row_num, column=7, value="Aprobado" if result.result == 1 else "Reprobado").border = thin_border
+            ws.cell(row=row_num, column=8, value=result.end_date.strftime('%d/%m/%Y %H:%M') if result.end_date else "").border = thin_border
+            ws.cell(row=row_num, column=9, value=duration_str).border = thin_border
+            
+            row_num += 1
+        
+        # Ajustar anchos
+        ws.column_dimensions['A'].width = 20
+        ws.column_dimensions['B'].width = 30
+        ws.column_dimensions['C'].width = 22
+        ws.column_dimensions['D'].width = 30
+        ws.column_dimensions['E'].width = 25
+        ws.column_dimensions['F'].width = 12
+        ws.column_dimensions['G'].width = 12
+        ws.column_dimensions['H'].width = 18
+        ws.column_dimensions['I'].width = 12
+        
+        # Guardar a BytesIO
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        filename = f"Evaluaciones_{campus.code}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/groups', methods=['GET'])
+@jwt_required()
+@responsable_required
+def get_mi_plantel_groups():
+    """Obtener grupos del plantel del responsable"""
+    try:
+        user = g.current_user
+        campus = Campus.query.get(user.campus_id)
+        
+        if not campus:
+            return jsonify({'error': 'No se encontró el plantel asignado'}), 404
+        
+        groups = CandidateGroup.query.filter_by(campus_id=campus.id, is_active=True).all()
+        
+        return jsonify({
+            'groups': [g.to_dict(include_members=False) for g in groups]
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/exams', methods=['GET'])
+@jwt_required()
+@responsable_required
+def get_mi_plantel_exams():
+    """Obtener exámenes asignados al plantel"""
+    from app.models import Exam
+    from app.models.partner import GroupExam
+    
+    try:
+        user = g.current_user
+        campus = Campus.query.get(user.campus_id)
+        
+        if not campus:
+            return jsonify({'error': 'No se encontró el plantel asignado'}), 404
+        
+        # Obtener grupos del plantel
+        groups = CandidateGroup.query.filter_by(campus_id=campus.id, is_active=True).all()
+        group_ids = [g.id for g in groups]
+        
+        # Obtener exámenes asignados a los grupos
+        exam_ids = db.session.query(GroupExam.exam_id).filter(
+            GroupExam.group_id.in_(group_ids),
+            GroupExam.is_active == True
+        ).distinct().all()
+        exam_ids = [e[0] for e in exam_ids]
+        
+        exams = Exam.query.filter(Exam.id.in_(exam_ids)).all() if exam_ids else []
+        
+        return jsonify({
+            'exams': [{
+                'id': exam.id,
+                'name': exam.name,
+                'version': exam.version,
+                'description': exam.description
+            } for exam in exams]
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+

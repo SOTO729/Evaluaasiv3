@@ -1542,3 +1542,131 @@ export async function addMembersToExam(
   });
   return response.data;
 }
+
+
+// ============== RESPONSABLE DE PLANTEL ==============
+
+export interface MiPlantelStats {
+  campus: {
+    id: number;
+    name: string;
+    code: string;
+  };
+  stats: {
+    total_groups: number;
+    total_candidates: number;
+    candidates_with_evaluations: number;
+    candidates_certified: number;
+    total_evaluations: number;
+    passed_evaluations: number;
+    failed_evaluations: number;
+    approval_rate: number;
+    average_score: number;
+    material_completion_rate: number;
+    total_material_progress: number;
+    completed_material_progress: number;
+  };
+}
+
+export interface PlantelEvaluation {
+  id: string;
+  candidate: {
+    id: string;
+    full_name: string;
+    username: string;
+    email: string;
+    curp?: string;
+  } | null;
+  exam: {
+    id: number;
+    name: string;
+    version: string;
+  } | null;
+  group: {
+    id: number;
+    name: string;
+  } | null;
+  score: number;
+  result: number;
+  result_text: string;
+  start_date: string | null;
+  end_date: string | null;
+  duration_seconds: number | null;
+  certificate_url: string | null;
+  report_url: string | null;
+}
+
+export interface PlantelEvaluationsResponse {
+  evaluations: PlantelEvaluation[];
+  total: number;
+  page: number;
+  per_page: number;
+  pages: number;
+}
+
+/**
+ * Obtener información del plantel del responsable
+ */
+export async function getMiPlantel(): Promise<{ campus: Campus }> {
+  const response = await api.get('/partners/mi-plantel');
+  return response.data;
+}
+
+/**
+ * Obtener estadísticas del plantel del responsable
+ */
+export async function getMiPlantelStats(): Promise<MiPlantelStats> {
+  const response = await api.get('/partners/mi-plantel/stats');
+  return response.data;
+}
+
+/**
+ * Obtener evaluaciones del plantel con paginación y filtros
+ */
+export async function getMiPlantelEvaluations(params?: {
+  page?: number;
+  per_page?: number;
+  exam_id?: number;
+  result?: number;
+  search?: string;
+}): Promise<PlantelEvaluationsResponse> {
+  const response = await api.get('/partners/mi-plantel/evaluations', { params });
+  return response.data;
+}
+
+/**
+ * Exportar evaluaciones del plantel a Excel
+ */
+export async function exportMiPlantelEvaluations(params?: {
+  exam_id?: number;
+  result?: number;
+}): Promise<Blob> {
+  const response = await api.get('/partners/mi-plantel/evaluations/export', {
+    params,
+    responseType: 'blob'
+  });
+  return response.data;
+}
+
+/**
+ * Obtener grupos del plantel del responsable
+ */
+export async function getMiPlantelGroups(): Promise<{ groups: CandidateGroup[] }> {
+  const response = await api.get('/partners/mi-plantel/groups');
+  return response.data;
+}
+
+/**
+ * Obtener exámenes asignados al plantel
+ */
+export async function getMiPlantelExams(): Promise<{
+  exams: {
+    id: number;
+    name: string;
+    version: string;
+    description?: string;
+  }[];
+}> {
+  const response = await api.get('/partners/mi-plantel/exams');
+  return response.data;
+}

@@ -100,6 +100,10 @@ const GroupAssignMaterialsPage = lazy(() => import('./pages/partners/GroupAssign
 const GroupEditAssignmentMembersPage = lazy(() => import('./pages/partners/GroupEditAssignmentMembersPage'))
 const CampusActivationPage = lazy(() => import('./pages/partners/CampusActivationPage'))
 
+// Responsable de Plantel
+const MiPlantelPage = lazy(() => import('./pages/responsable/MiPlantelPage'))
+const MiPlantelReportesPage = lazy(() => import('./pages/responsable/MiPlantelReportesPage'))
+
 // User Management (Gestión de Usuarios)
 const UsersListPage = lazy(() => import('./pages/users/UsersListPage'))
 const UserFormPage = lazy(() => import('./pages/users/UserFormPage'))
@@ -207,6 +211,10 @@ function App() {
               <Route path="/partners/groups/:groupId/assign-exam" element={<GroupAssignExamPage />} />
               <Route path="/partners/groups/:groupId/assign-materials" element={<GroupAssignMaterialsPage />} />
               <Route path="/partners/groups/:groupId/assignments/:assignmentId/edit-members" element={<GroupEditAssignmentMembersPage />} />
+              
+              {/* Responsable de Plantel */}
+              <Route path="/mi-plantel" element={<MiPlantelPage />} />
+              <Route path="/mi-plantel/reportes" element={<MiPlantelReportesPage />} />
               
               {/* User Management (Gestión de Usuarios) */}
               <Route path="/user-management" element={<UsersListPage />} />

@@ -72,6 +72,8 @@ const Layout = ({ children }: LayoutProps) => {
         return 'bg-green-100 text-green-800'
       case 'coordinator':
         return 'bg-amber-100 text-amber-800'
+      case 'responsable':
+        return 'bg-purple-100 text-purple-800'
       default:
         return 'bg-gray-100 text-gray-800'
     }
@@ -88,6 +90,8 @@ const Layout = ({ children }: LayoutProps) => {
         return 'Candidato'
       case 'coordinator':
         return 'Coordinador'
+      case 'responsable':
+        return 'Responsable'
       default:
         return role
     }
@@ -192,6 +196,18 @@ const Layout = ({ children }: LayoutProps) => {
                     }`}
                   >
                     Partners
+                  </Link>
+                )}
+                {user?.role === 'responsable' && (
+                  <Link 
+                    to="/mi-plantel" 
+                    className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/mi-plantel') 
+                        ? 'text-primary-600 font-semibold bg-primary-50' 
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Mi Plantel
                   </Link>
                 )}
                 {(user?.role === 'admin' || user?.role === 'coordinator') && (
@@ -391,6 +407,23 @@ const Layout = ({ children }: LayoutProps) => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
                     Partners
+                  </div>
+                </Link>
+              )}
+              {user?.role === 'responsable' && (
+                <Link 
+                  to="/mi-plantel" 
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
+                    location.pathname.startsWith('/mi-plantel') 
+                      ? 'bg-primary-50 text-primary-600 font-medium' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    Mi Plantel
                   </div>
                 </Link>
               )}
