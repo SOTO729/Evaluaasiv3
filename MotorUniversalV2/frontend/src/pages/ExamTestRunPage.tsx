@@ -1770,7 +1770,7 @@ const ExamTestRunPage: React.FC = () => {
         {/* Imagen con acciones superpuestas */}
         <div 
           ref={imageContainerRef}
-          className="relative w-full max-w-3xl mx-auto rounded-fluid-lg"
+          className="relative w-[90%] mx-auto rounded-fluid-lg"
         >
           {currentStep.image_url ? (
             <>
@@ -1779,7 +1779,7 @@ const ExamTestRunPage: React.FC = () => {
                 <img
                   src={currentStep.image_url}
                   alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
-                  className="w-full h-auto max-h-[65vh] object-contain mx-auto"
+                  className="w-full h-auto"
                   draggable={false}
                 />
                 
@@ -2407,7 +2407,7 @@ const ExamTestRunPage: React.FC = () => {
           ? 'pt-[48px] sm:pt-[56px] lg:pt-[68px]' 
           : 'pt-[88px] sm:pt-[100px] lg:pt-[116px]'
       }`}>
-        <div className="max-w-[1000px] mx-auto fluid-px-2 sm:fluid-px-4 lg:fluid-px-6 fluid-py-2 sm:fluid-py-4 lg:fluid-py-8">
+        <div className="max-w-[1400px] mx-auto fluid-px-2 sm:fluid-px-4 lg:fluid-px-6 fluid-py-2 sm:fluid-py-4 lg:fluid-py-8">
           <div className="bg-white rounded-fluid-md sm:rounded-fluid-lg lg:rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
             {/* Header del ítem - más simple */}
             <div className="fluid-px-3 sm:fluid-px-4 lg:fluid-px-6 fluid-py-2 sm:fluid-py-3 lg:fluid-py-4 bg-gray-50 border-b border-gray-100">
@@ -2473,7 +2473,7 @@ const ExamTestRunPage: React.FC = () => {
               {currentItem?.type === 'question' ? (
                 <>
                   <div
-                    className="prose prose-gray prose-sm sm:prose-base max-w-none fluid-mb-4 sm:fluid-mb-6 text-gray-800 leading-relaxed overflow-hidden break-words [&_img]:max-w-full [&_img]:max-h-[50vh] [&_img]:w-auto [&_img]:h-auto [&_img]:object-contain [&_img]:mx-auto [&_img]:rounded-lg [&_pre]:overflow-x-auto [&_code]:break-all"
+                    className="prose prose-gray prose-sm sm:prose-base max-w-none fluid-mb-4 sm:fluid-mb-6 text-gray-800 leading-relaxed overflow-hidden break-words [&_img]:max-w-full [&_pre]:overflow-x-auto [&_code]:break-all"
                     dangerouslySetInnerHTML={{ __html: (() => {
                       // Para drag_drop, extraer solo las instrucciones del question_text
                       const text = currentItem.question_text || '';
@@ -2496,7 +2496,7 @@ const ExamTestRunPage: React.FC = () => {
                   )}
                   {currentItem?.description && (
                     <div
-                      className="prose prose-sm max-w-none fluid-mb-3 sm:fluid-mb-4 text-gray-600 overflow-hidden break-words [&_img]:max-w-full [&_img]:max-h-[40vh] [&_img]:w-auto [&_img]:h-auto [&_img]:object-contain [&_img]:mx-auto [&_img]:rounded-lg [&_pre]:overflow-x-auto [&_code]:break-all"
+                      className="prose prose-sm max-w-none fluid-mb-3 sm:fluid-mb-4 text-gray-600 overflow-hidden break-words [&_img]:max-w-full [&_pre]:overflow-x-auto [&_code]:break-all"
                     dangerouslySetInnerHTML={{ __html: currentItem.description }}
                   />
                 )}
