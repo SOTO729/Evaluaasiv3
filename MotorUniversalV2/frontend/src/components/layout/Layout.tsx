@@ -141,10 +141,7 @@ const Layout = ({ children }: LayoutProps) => {
               {/* Nombre del plantel para responsables */}
               {user?.role === 'responsable' && campusName && (
                 <div className="hidden md:flex items-center fluid-ml-4 fluid-pl-4 border-l border-gray-200">
-                  <span className="fluid-text-sm font-medium text-gray-600">
-                    <span className="text-gray-400">Plantel:</span>{' '}
-                    <span className="text-primary-600 font-semibold">{campusName}</span>
-                  </span>
+                  <span className="fluid-text-sm font-semibold text-primary-600">{campusName}</span>
                 </div>
               )}
               {/* Navegación desktop */}
