@@ -178,8 +178,14 @@ const CategoryDetailPage = () => {
       for (const [topicId, percentage] of Object.entries(topicPercentageAdjustments)) {
         const percentageValue = parseFloat(percentage) || 0
         console.log(`  Actualizando tema ${topicId} con porcentaje ${percentageValue}`)
-        const result = await examService.updateTopic(Number(topicId), { percentage: percentageValue })
-        console.log(`  Resultado:`, result)
+        try {
+          const result = await examService.updateTopic(Number(topicId), { percentage: percentageValue })
+          console.log(`  Resultado para tema ${topicId}:`, JSON.stringify(result, null, 2))
+          console.log(`  Porcentaje devuelto: ${result?.topic?.percentage}`)
+        } catch (updateError) {
+          console.error(`  Error actualizando tema ${topicId}:`, updateError)
+          throw updateError
+        }
       }
       
       // Forzar refetch de los datos

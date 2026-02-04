@@ -261,6 +261,17 @@ def check_and_add_percentage_columns():
             else:
                 print("  ✓ Columna 'percentage' ya existe en 'exercises'")
         
+        # Agregar percentage a topics
+        if 'topics' in tables:
+            existing_columns = [col['name'] for col in inspector.get_columns('topics')]
+            if 'percentage' not in existing_columns:
+                print("  📝 Agregando columna 'percentage' a 'topics'...")
+                db.session.execute(text("ALTER TABLE topics ADD percentage FLOAT DEFAULT 0"))
+                db.session.commit()
+                print("     ✓ Columna 'percentage' agregada a 'topics'")
+            else:
+                print("  ✓ Columna 'percentage' ya existe en 'topics'")
+        
         print("✅ Verificación de columnas de porcentaje completada")
                 
     except Exception as e:
