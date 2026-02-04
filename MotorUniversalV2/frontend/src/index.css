@@ -57,6 +57,7 @@ input[type="password"]::-webkit-password-viewable-toggle-button {
   --space-24: clamp(3rem, 2.4rem + 2.4vw, 12rem);
   
   /* Tamaños de iconos fluidos */
+  --icon-2xs: clamp(0.5rem, 0.4rem + 0.2vw, 0.875rem);
   --icon-xs: clamp(0.75rem, 0.6rem + 0.3vw, 1.25rem);
   --icon-sm: clamp(1rem, 0.8rem + 0.4vw, 1.75rem);
   --icon-base: clamp(1.25rem, 1rem + 0.5vw, 2rem);
@@ -124,7 +125,7 @@ input[type="password"]::-webkit-password-viewable-toggle-button {
     min-height: 100vh;
     height: auto;
     overflow-x: hidden;
-    overflow-y: visible;
+    overflow-y: auto;
   }
   
   /* Contenedores con scroll - mejoras para ratón y touch */
@@ -134,6 +135,13 @@ input[type="password"]::-webkit-password-viewable-toggle-button {
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
     scroll-behavior: auto;
+    /* Asegurar que el scroll con rueda del mouse funcione */
+    touch-action: pan-y;
+  }
+  
+  /* Fix para que el scroll funcione en toda la página */
+  html, body, #root {
+    touch-action: manipulation;
   }
   
   /* Scrollbars más sutiles en desktop */
@@ -338,6 +346,7 @@ input[type="password"]::-webkit-password-viewable-toggle-button {
   .fluid-gap-8 { gap: var(--space-8); }
   
   /* Iconos fluidos */
+  .fluid-icon-2xs { width: var(--icon-2xs); height: var(--icon-2xs); }
   .fluid-icon-xs { width: var(--icon-xs); height: var(--icon-xs); }
   .fluid-icon-sm { width: var(--icon-sm); height: var(--icon-sm); }
   .fluid-icon-md { width: var(--icon-base); height: var(--icon-base); }

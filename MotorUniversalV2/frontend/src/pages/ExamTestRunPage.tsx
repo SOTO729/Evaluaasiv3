@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../services/examService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag, List, ArrowDown, Focus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag, List, ArrowDown } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { clearExamSessionCache, useAuthStore } from '../store/authStore';
 
@@ -74,6 +74,10 @@ const ExamTestRunPage: React.FC = () => {
   // Estado para marcar preguntas como pendientes (para volver después)
   const [flaggedQuestions, setFlaggedQuestions] = useState<Set<number>>(new Set());
   
+  // Estado para ocultar/mostrar barra de navegación al hacer scroll
+  const [isNavHidden, setIsNavHidden] = useState(false);
+  const lastScrollY = useRef(0);
+  
   // Estado para modal de ejercicio completado
   const [showExerciseCompleted, setShowExerciseCompleted] = useState(false);
   
@@ -87,11 +91,6 @@ const ExamTestRunPage: React.FC = () => {
   // Estado para advertencias de tiempo
   const [timeWarningsShown, setTimeWarningsShown] = useState<Set<number>>(new Set());
   const [showTimeWarning, setShowTimeWarning] = useState<{ minutes: number } | null>(null);
-
-  // Estado para auto-zoom en ejercicios (sin controles manuales)
-  const [exerciseZoom, setExerciseZoom] = useState(1);
-  const [exercisePan, setExercisePan] = useState({ x: 0, y: 0 });
-  const [autoZoomEnabled, setAutoZoomEnabled] = useState(true);
 
   const { data: exam, isLoading } = useQuery({
     queryKey: ['exam', examId],
@@ -144,6 +143,39 @@ const ExamTestRunPage: React.FC = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [pauseOnDisconnect]);
+
+  // Efecto para ocultar/mostrar barra de navegación al hacer scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const scrollDiff = currentScrollY - lastScrollY.current;
+      
+      // Punto de activación: cuando el usuario empieza a scrollear el contenido
+      // (aproximadamente cuando la tarjeta comienza a tocar la barra de navegación)
+      const triggerPoint = 24; // Pequeño offset después del inicio
+      
+      // Solo actuar si hay movimiento significativo
+      if (Math.abs(scrollDiff) > 10) {
+        if (scrollDiff > 0 && currentScrollY > triggerPoint) {
+          // Scrolling hacia abajo y pasamos el punto de la tarjeta - ocultar nav
+          setIsNavHidden(true);
+        } else if (scrollDiff < 0) {
+          // Scrolling hacia arriba - mostrar nav
+          setIsNavHidden(false);
+        }
+        lastScrollY.current = currentScrollY;
+      }
+      
+      // Siempre mostrar nav si estamos en el top
+      if (currentScrollY <= triggerPoint) {
+        setIsNavHidden(false);
+        lastScrollY.current = currentScrollY;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Estado para controlar si ya se restauró la sesión
   const [sessionRestored, setSessionRestored] = useState(false);
@@ -281,62 +313,6 @@ const ExamTestRunPage: React.FC = () => {
       }
     }
   }, [timeRemaining, timeWarningsShown]);
-
-  // Función para calcular el área de enfoque basada en acciones correctas
-  const calculateFocusArea = (actions: any[]) => {
-    if (!actions || actions.length === 0) return null;
-    
-    // Filtrar solo acciones correctas (botones correctos y text_inputs correctos)
-    const correctActions = actions.filter((action: any) => {
-      if (action.action_type === 'button') {
-        return action.correct_answer && 
-          ['true', '1', 'correct', 'yes', 'si', 'sí'].includes(String(action.correct_answer).toLowerCase().trim());
-      }
-      if (action.action_type === 'text_input' || action.action_type === 'textbox') {
-        return action.correct_answer && 
-          action.correct_answer !== 'wrong' && 
-          String(action.correct_answer).trim() !== '';
-      }
-      return false;
-    });
-    
-    if (correctActions.length === 0) return null;
-    
-    // Calcular el bounding box de todas las acciones correctas
-    let minX = 100, minY = 100, maxX = 0, maxY = 0;
-    
-    correctActions.forEach((action: any) => {
-      const x = action.position_x || 0;
-      const y = action.position_y || 0;
-      const w = action.width || 5;
-      const h = action.height || 5;
-      
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x + w);
-      maxY = Math.max(maxY, y + h);
-    });
-    
-    // Agregar padding alrededor del área (25% en cada dirección para más contexto)
-    const padding = 25;
-    minX = Math.max(0, minX - padding);
-    minY = Math.max(0, minY - padding);
-    maxX = Math.min(100, maxX + padding);
-    maxY = Math.min(100, maxY + padding);
-    
-    // Calcular centro y zoom necesario
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-    const areaWidth = maxX - minX;
-    const areaHeight = maxY - minY;
-    
-    // El zoom se basa en qué tan pequeña es el área (máximo 1.5x para ser sutil)
-    const zoomX = 100 / areaWidth;
-    const zoomY = 100 / areaHeight;
-    const zoom = Math.min(Math.max(1, Math.min(zoomX, zoomY) * 0.7), 1.5);
-    
-    return { centerX, centerY, zoom };
-  };
 
   // Seleccionar preguntas y ejercicios aleatorios
   const [selectedItems, setSelectedItems] = useState<TestItem[]>([]);
@@ -521,47 +497,6 @@ const ExamTestRunPage: React.FC = () => {
       window.removeEventListener('beforeunload', saveSession);
     };
   }, [timeRemaining, examId, examSessionKey, exam?.duration_minutes, exam?.name, pauseOnDisconnect, answers, exerciseResponses, currentItemIndex, selectedItems, orderingInteracted, actionErrors, stepCompleted, currentStepIndex, flaggedQuestions]);
-
-  // Efecto para auto-zoom cuando cambia el paso del ejercicio
-  useEffect(() => {
-    if (!autoZoomEnabled) {
-      // Restaurar zoom normal cuando se desactiva el auto-enfoque
-      setExerciseZoom(1);
-      setExercisePan({ x: 0, y: 0 });
-      return;
-    }
-    
-    const currentItemForZoom = selectedItems[currentItemIndex];
-    if (!currentItemForZoom || currentItemForZoom.type !== 'exercise') {
-      // Reset zoom si no es ejercicio
-      setExerciseZoom(1);
-      setExercisePan({ x: 0, y: 0 });
-      return;
-    }
-    
-    const steps = currentItemForZoom.steps || [];
-    const currentStep = steps[currentStepIndex];
-    
-    if (!currentStep || !currentStep.actions) {
-      setExerciseZoom(1);
-      setExercisePan({ x: 0, y: 0 });
-      return;
-    }
-    
-    const focusArea = calculateFocusArea(currentStep.actions);
-    
-    if (focusArea) {
-      // Aplicar zoom y centrar en el área de acciones
-      setExerciseZoom(focusArea.zoom);
-      // Pan se calcula para centrar el área (en porcentajes convertidos a pixeles)
-      const panX = (50 - focusArea.centerX) * focusArea.zoom;
-      const panY = (50 - focusArea.centerY) * focusArea.zoom;
-      setExercisePan({ x: panX, y: panY });
-    } else {
-      setExerciseZoom(1);
-      setExercisePan({ x: 0, y: 0 });
-    }
-  }, [currentStepIndex, currentItemIndex, selectedItems, autoZoomEnabled]);
 
   const currentItem = selectedItems[currentItemIndex];
 
@@ -1146,8 +1081,8 @@ const ExamTestRunPage: React.FC = () => {
     switch (currentItem.question_type) {
       case 'true_false':
         return (
-          <div className="flex flex-col fluid-gap-3 w-full">
-            <label className={`group flex items-center fluid-gap-4 fluid-p-4 border rounded-fluid-md cursor-pointer transition-all w-full ${
+          <div className="flex flex-col fluid-gap-2 sm:fluid-gap-3 w-full">
+            <label className={`group flex items-center fluid-gap-3 sm:fluid-gap-4 fluid-p-3 sm:fluid-p-4 border rounded-fluid-md cursor-pointer transition-all w-full ${
               currentAnswer === true 
                 ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' 
                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
@@ -1160,17 +1095,17 @@ const ExamTestRunPage: React.FC = () => {
                 onChange={() => handleAnswerChange(currentItem.question_id!, true)}
                 className="hidden"
               />
-              <div className={`w-6 h-6 rounded-full flex-shrink-0 transition-all border-2 ${
+              <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex-shrink-0 transition-all border-2 ${
                 currentAnswer === true 
                   ? 'border-primary-500 bg-primary-500' 
                   : 'border-gray-300 bg-white group-hover:border-gray-400'
               }`}>
               </div>
-              <span className="font-medium text-gray-700">
+              <span className="font-medium text-gray-700 fluid-text-sm sm:fluid-text-base">
                 Verdadero
               </span>
             </label>
-            <label className={`group flex items-center fluid-gap-4 fluid-p-4 border rounded-fluid-md cursor-pointer transition-all w-full ${
+            <label className={`group flex items-center fluid-gap-3 sm:fluid-gap-4 fluid-p-3 sm:fluid-p-4 border rounded-fluid-md cursor-pointer transition-all w-full ${
               currentAnswer === false 
                 ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' 
                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
@@ -1183,13 +1118,13 @@ const ExamTestRunPage: React.FC = () => {
                 onChange={() => handleAnswerChange(currentItem.question_id!, false)}
                 className="hidden"
               />
-              <div className={`w-6 h-6 rounded-full flex-shrink-0 transition-all border-2 ${
+              <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex-shrink-0 transition-all border-2 ${
                 currentAnswer === false 
                   ? 'border-primary-500 bg-primary-500' 
                   : 'border-gray-300 bg-white group-hover:border-gray-400'
               }`}>
               </div>
-              <span className="font-medium text-gray-700">
+              <span className="font-medium text-gray-700 fluid-text-sm sm:fluid-text-base">
                 Falso
               </span>
             </label>
@@ -1202,13 +1137,13 @@ const ExamTestRunPage: React.FC = () => {
             {currentItem.options?.map((option: any, index: number) => (
               <label
                 key={option.id}
-                className={`group flex items-center fluid-p-3 border rounded-fluid-md cursor-pointer transition-all ${
+                className={`group flex items-center fluid-p-2 sm:fluid-p-3 border rounded-fluid-md cursor-pointer transition-all ${
                   currentAnswer === option.id 
                     ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' 
                     : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
-                <div className={`flex items-center justify-center w-7 h-7 rounded-full font-medium fluid-text-sm flex-shrink-0 transition-all ${
+                <div className={`flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full font-medium fluid-text-xs sm:fluid-text-sm flex-shrink-0 transition-all ${
                   currentAnswer === option.id 
                     ? 'bg-primary-500 text-white' 
                     : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'
@@ -1224,7 +1159,7 @@ const ExamTestRunPage: React.FC = () => {
                   className="hidden"
                 />
                 <div
-                  className="fluid-ml-3 fluid-text-sm text-gray-700 prose prose-sm max-w-none flex-1"
+                  className="fluid-ml-2 sm:fluid-ml-3 fluid-text-xs sm:fluid-text-sm text-gray-700 prose prose-sm max-w-none flex-1"
                   dangerouslySetInnerHTML={{ __html: option.answer_text }}
                 />
               </label>
@@ -1235,7 +1170,7 @@ const ExamTestRunPage: React.FC = () => {
       case 'multiple_select':
         return (
           <div className="flex flex-col fluid-gap-2">
-            <p className="fluid-text-xs text-gray-500 fluid-mb-3 flex items-center fluid-gap-2">
+            <p className="fluid-text-2xs sm:fluid-text-xs text-gray-500 fluid-mb-2 sm:fluid-mb-3 flex items-center fluid-gap-1 sm:fluid-gap-2">
               <span className="w-4 h-4 rounded bg-primary-100 text-primary-600 flex items-center justify-center text-[10px]">✓</span>
               Selecciona todas las opciones correctas
             </p>
@@ -1246,13 +1181,13 @@ const ExamTestRunPage: React.FC = () => {
               return (
                 <label
                   key={option.id}
-                  className={`group flex items-center fluid-p-3 border rounded-fluid-md cursor-pointer transition-all ${
+                  className={`group flex items-center fluid-p-2 sm:fluid-p-3 border rounded-fluid-md cursor-pointer transition-all ${
                     isChecked 
                       ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' 
                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  <div className={`flex items-center justify-center w-5 h-5 rounded flex-shrink-0 transition-all text-[11px] font-bold ${
+                  <div className={`flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 rounded flex-shrink-0 transition-all text-[9px] sm:text-[11px] font-bold ${
                     isChecked 
                       ? 'bg-primary-500 text-white' 
                       : 'border-2 border-gray-300 group-hover:border-gray-400'
@@ -1271,7 +1206,7 @@ const ExamTestRunPage: React.FC = () => {
                     className="hidden"
                   />
                   <div
-                    className="fluid-ml-3 fluid-text-sm text-gray-700 prose prose-sm max-w-none flex-1"
+                    className="fluid-ml-2 sm:fluid-ml-3 fluid-text-xs sm:fluid-text-sm text-gray-700 prose prose-sm max-w-none flex-1"
                     dangerouslySetInnerHTML={{ __html: option.answer_text }}
                   />
                 </label>
@@ -1336,8 +1271,8 @@ const ExamTestRunPage: React.FC = () => {
 
         return (
           <div className="flex flex-col fluid-gap-2">
-            <p className="fluid-text-xs text-gray-500 fluid-mb-3 flex items-center fluid-gap-2">
-              <GripVertical className="fluid-icon-sm text-gray-400" />
+            <p className="fluid-text-2xs sm:fluid-text-xs text-gray-500 fluid-mb-2 sm:fluid-mb-3 flex items-center fluid-gap-1 sm:fluid-gap-2">
+              <GripVertical className="fluid-icon-xs sm:fluid-icon-sm text-gray-400" />
               Arrastra para ordenar correctamente
             </p>
             {orderedOptions.map((option: any, index: number) => (
@@ -1348,7 +1283,7 @@ const ExamTestRunPage: React.FC = () => {
                 style={{
                   transition: 'all 0.15s ease'
                 }}
-                className={`group flex items-center fluid-p-3 border-2 rounded-fluid-lg cursor-grab active:cursor-grabbing select-none ${
+                className={`group flex items-center fluid-p-2 sm:fluid-p-3 border-2 rounded-fluid-md sm:rounded-fluid-lg cursor-grab active:cursor-grabbing select-none ${
                   draggedIndex === index 
                     ? 'border-primary-500 bg-primary-100 border-dashed opacity-50' 
                     : draggedIndex !== null
@@ -1356,20 +1291,20 @@ const ExamTestRunPage: React.FC = () => {
                     : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
                 }`}
               >
-                <div className={`flex items-center justify-center w-7 h-7 rounded-fluid-md font-bold fluid-text-sm flex-shrink-0 transition-all ${
+                <div className={`flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-fluid-md font-bold fluid-text-xs sm:fluid-text-sm flex-shrink-0 transition-all ${
                   draggedIndex === index 
                     ? 'bg-primary-300 text-white' 
                     : 'bg-gray-100 text-gray-600'
                 }`}>
                   {index + 1}
                 </div>
-                <GripVertical className={`fluid-icon-sm flex-shrink-0 fluid-mx-2 transition-colors ${
+                <GripVertical className={`fluid-icon-xs sm:fluid-icon-sm flex-shrink-0 fluid-mx-1 sm:fluid-mx-2 transition-colors ${
                   draggedIndex === index 
                     ? 'text-primary-300' 
                     : 'text-gray-300 group-hover:text-gray-500'
                 }`} />
                 <div
-                  className={`text-sm prose prose-sm max-w-none flex-1 ${
+                  className={`fluid-text-xs sm:fluid-text-sm prose prose-sm max-w-none flex-1 ${
                     draggedIndex === index ? 'text-gray-400' : 'text-gray-700'
                   }`}
                   dangerouslySetInnerHTML={{ __html: option.answer_text }}
@@ -1561,20 +1496,20 @@ const ExamTestRunPage: React.FC = () => {
         };
 
         return (
-          <div className="flex flex-col fluid-gap-4">
-            <p className="fluid-text-sm text-gray-600 fluid-mb-3 flex items-center fluid-gap-2 bg-indigo-50 fluid-p-3 rounded-fluid-md">
-              <GripVertical className="fluid-icon-sm text-indigo-500" />
+          <div className="flex flex-col fluid-gap-3 sm:fluid-gap-4">
+            <p className="fluid-text-xs sm:fluid-text-sm text-gray-600 fluid-mb-2 sm:fluid-mb-3 flex items-center fluid-gap-1 sm:fluid-gap-2 bg-indigo-50 fluid-p-2 sm:fluid-p-3 rounded-fluid-md">
+              <GripVertical className="fluid-icon-xs sm:fluid-icon-sm text-indigo-500" />
               <span><strong>Arrastra</strong> cada opción al espacio en blanco correspondiente</span>
             </p>
             
             {/* Texto con blanks */}
-            <div className="fluid-p-5 bg-white rounded-fluid-lg border border-gray-200 shadow-sm text-gray-800 leading-relaxed fluid-text-lg">
+            <div className="fluid-p-3 sm:fluid-p-4 lg:fluid-p-5 bg-white rounded-fluid-md sm:rounded-fluid-lg border border-gray-200 shadow-sm text-gray-800 leading-relaxed fluid-text-sm sm:fluid-text-base lg:fluid-text-lg">
               {renderTextWithBlanks()}
             </div>
             
             {/* Opciones disponibles */}
             <div 
-              className="fluid-p-4 bg-gray-50 rounded-fluid-lg border-2 border-dashed border-gray-300 min-h-[80px] transition-all"
+              className="fluid-p-3 sm:fluid-p-4 bg-gray-50 rounded-fluid-md sm:rounded-fluid-lg border-2 border-dashed border-gray-300 min-h-[60px] sm:min-h-[80px] transition-all"
               onDragOver={(e) => {
                 e.preventDefault();
                 e.currentTarget.classList.add('ring-2', 'ring-gray-400', 'bg-gray-100');
@@ -1584,27 +1519,27 @@ const ExamTestRunPage: React.FC = () => {
               }}
               onDrop={handleDropOnAvailable}
             >
-              <p className="fluid-text-sm font-semibold text-gray-700 fluid-mb-3 flex items-center fluid-gap-2">
-                <List className="fluid-icon-sm text-gray-500" />
+              <p className="fluid-text-xs sm:fluid-text-sm font-semibold text-gray-700 fluid-mb-2 sm:fluid-mb-3 flex items-center fluid-gap-1 sm:fluid-gap-2">
+                <List className="fluid-icon-xs sm:fluid-icon-sm text-gray-500" />
                 Opciones disponibles
               </p>
-              <div className="flex flex-wrap fluid-gap-2">
+              <div className="flex flex-wrap fluid-gap-1 sm:fluid-gap-2">
                 {availableOptions.map((option: any) => (
                   <div
                     key={option.id}
                     draggable
                     onDragStart={(e) => handleFillDragStart(e, option.id)}
                     onDragEnd={handleFillDragEnd}
-                    className="fluid-px-4 fluid-py-2 bg-white border-2 border-gray-300 text-gray-800 rounded-fluid-md cursor-grab active:cursor-grabbing hover:bg-gray-50 hover:border-gray-400 transition-all fluid-text-sm font-medium shadow-sm select-none"
+                    className="fluid-px-2 sm:fluid-px-3 lg:fluid-px-4 fluid-py-1 sm:fluid-py-2 bg-white border-2 border-gray-300 text-gray-800 rounded-fluid-md cursor-grab active:cursor-grabbing hover:bg-gray-50 hover:border-gray-400 transition-all fluid-text-xs sm:fluid-text-sm font-medium shadow-sm select-none"
                   >
-                    <span className="flex items-center fluid-gap-2">
-                      <GripVertical className="fluid-icon-sm text-gray-400" />
+                    <span className="flex items-center fluid-gap-1 sm:fluid-gap-2">
+                      <GripVertical className="fluid-icon-xs sm:fluid-icon-sm text-gray-400" />
                       {option.answer_text}
                     </span>
                   </div>
                 ))}
                 {availableOptions.length === 0 && (
-                  <p className="text-green-600 fluid-text-sm italic flex items-center fluid-gap-1">
+                  <p className="text-green-600 fluid-text-xs sm:fluid-text-sm italic flex items-center fluid-gap-1">
                     ✓ Todas las opciones han sido asignadas
                   </p>
                 )}
@@ -1697,15 +1632,15 @@ const ExamTestRunPage: React.FC = () => {
         ];
 
         return (
-          <div className="flex flex-col fluid-gap-4">
-            <p className="fluid-text-sm text-gray-600 fluid-mb-3 flex items-center fluid-gap-2 bg-indigo-50 fluid-p-3 rounded-fluid-md">
-              <GripVertical className="fluid-icon-sm text-indigo-500" />
+          <div className="flex flex-col fluid-gap-3 sm:fluid-gap-4">
+            <p className="fluid-text-xs sm:fluid-text-sm text-gray-600 fluid-mb-2 sm:fluid-mb-3 flex items-center fluid-gap-1 sm:fluid-gap-2 bg-indigo-50 fluid-p-2 sm:fluid-p-3 rounded-fluid-md">
+              <GripVertical className="fluid-icon-xs sm:fluid-icon-sm text-indigo-500" />
               <span><strong>Arrastra</strong> cada elemento a la columna donde corresponde</span>
             </p>
             
             {/* Elementos sin clasificar - Área de origen */}
             <div 
-              className="fluid-p-4 bg-gray-50 rounded-fluid-lg border-2 border-dashed border-gray-300 min-h-[80px] transition-all"
+              className="fluid-p-3 sm:fluid-p-4 bg-gray-50 rounded-fluid-md sm:rounded-fluid-lg border-2 border-dashed border-gray-300 min-h-[60px] sm:min-h-[80px] transition-all"
               onDragOver={(e) => {
                 e.preventDefault();
                 e.currentTarget.classList.add('ring-2', 'ring-gray-400', 'bg-gray-100');
@@ -1715,27 +1650,27 @@ const ExamTestRunPage: React.FC = () => {
               }}
               onDrop={handleDropOnUnclassified}
             >
-              <p className="fluid-text-sm font-semibold text-gray-700 fluid-mb-3 flex items-center fluid-gap-2">
-                <List className="fluid-icon-sm text-gray-500" />
+              <p className="fluid-text-xs sm:fluid-text-sm font-semibold text-gray-700 fluid-mb-2 sm:fluid-mb-3 flex items-center fluid-gap-1 sm:fluid-gap-2">
+                <List className="fluid-icon-xs sm:fluid-icon-sm text-gray-500" />
                 Elementos por clasificar
               </p>
-              <div className="flex flex-wrap fluid-gap-2">
+              <div className="flex flex-wrap fluid-gap-1 sm:fluid-gap-2">
                 {unclassifiedItems.map((option: any) => (
                   <div
                     key={option.id}
                     draggable
                     onDragStart={(e) => handleColDragStart(e, option.id)}
                     onDragEnd={handleColDragEnd}
-                    className="fluid-px-4 fluid-py-2 bg-white border-2 border-gray-300 text-gray-800 rounded-fluid-md cursor-grab active:cursor-grabbing hover:bg-gray-50 hover:border-gray-400 transition-all fluid-text-sm font-medium shadow-sm select-none"
+                    className="fluid-px-2 sm:fluid-px-3 lg:fluid-px-4 fluid-py-1 sm:fluid-py-2 bg-white border-2 border-gray-300 text-gray-800 rounded-fluid-md cursor-grab active:cursor-grabbing hover:bg-gray-50 hover:border-gray-400 transition-all fluid-text-xs sm:fluid-text-sm font-medium shadow-sm select-none"
                   >
-                    <span className="flex items-center fluid-gap-2">
-                      <GripVertical className="fluid-icon-sm text-gray-400" />
+                    <span className="flex items-center fluid-gap-1 sm:fluid-gap-2">
+                      <GripVertical className="fluid-icon-xs sm:fluid-icon-sm text-gray-400" />
                       {option.answer_text}
                     </span>
                   </div>
                 ))}
                 {unclassifiedItems.length === 0 && (
-                  <p className="text-green-600 fluid-text-sm italic flex items-center fluid-gap-1">
+                  <p className="text-green-600 fluid-text-xs sm:fluid-text-sm italic flex items-center fluid-gap-1">
                     ✓ Todos los elementos han sido clasificados
                   </p>
                 )}
@@ -1744,8 +1679,8 @@ const ExamTestRunPage: React.FC = () => {
             
             {/* Columnas de destino */}
             <div 
-              className="grid fluid-gap-4" 
-              style={{ gridTemplateColumns: `repeat(${Math.min(columns.length, 3)}, minmax(0, 1fr))` }}
+              className="grid fluid-gap-2 sm:fluid-gap-3 lg:fluid-gap-4" 
+              style={{ gridTemplateColumns: `repeat(${Math.min(columns.length, 2)}, minmax(0, 1fr))` }}
             >
               {columns.map((columnId, idx) => {
                 const color = COLUMN_COLORS[idx % COLUMN_COLORS.length];
@@ -1820,9 +1755,9 @@ const ExamTestRunPage: React.FC = () => {
     
     if (steps.length === 0) {
       return (
-        <div className="text-center fluid-py-6">
-          <Image className="fluid-icon-xl mx-auto text-gray-300 fluid-mb-3" />
-          <p className="text-gray-500 fluid-text-sm">Este ejercicio no tiene pasos configurados</p>
+        <div className="text-center fluid-py-4 sm:fluid-py-6">
+          <Image className="fluid-icon-lg sm:fluid-icon-xl mx-auto text-gray-300 fluid-mb-2 sm:fluid-mb-3" />
+          <p className="text-gray-500 fluid-text-xs sm:fluid-text-sm">Este ejercicio no tiene pasos configurados</p>
         </div>
       );
     }
@@ -1831,75 +1766,20 @@ const ExamTestRunPage: React.FC = () => {
     const isStepDone = stepCompleted[`${currentItem.exercise_id}_${currentStepIndex}`];
 
     return (
-      <div className="flex flex-col fluid-gap-4">
-        {/* Indicador de pasos */}
-        {steps.length > 1 && (
-          <div className="flex items-center justify-center fluid-gap-1 fluid-mb-2">
-            {steps.map((_: any, idx: number) => (
-              <div
-                key={idx}
-                className={`h-1.5 rounded-full transition-all ${
-                  idx === currentStepIndex 
-                    ? 'w-6 bg-primary-500' 
-                    : idx < currentStepIndex 
-                    ? 'w-3 bg-green-400' 
-                    : 'w-3 bg-gray-300'
-                }`}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Control simple de auto-enfoque */}
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <button
-            onClick={() => setAutoZoomEnabled(!autoZoomEnabled)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              autoZoomEnabled 
-                ? 'bg-primary-100 text-primary-700 border border-primary-300' 
-                : 'bg-gray-100 text-gray-600 border border-gray-300'
-            }`}
-            title={autoZoomEnabled ? 'Desactivar auto-enfoque' : 'Activar auto-enfoque'}
-          >
-            <Focus className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Auto-enfoque</span>
-            <span className={`w-2 h-2 rounded-full ${autoZoomEnabled ? 'bg-green-500' : 'bg-gray-400'}`} />
-          </button>
-          
-          {exerciseZoom !== 1 && (
-            <span className="text-xs text-gray-500">({Math.round(exerciseZoom * 100)}%)</span>
-          )}
-        </div>
-
-        {/* Imagen con acciones superpuestas - con auto-zoom pasivo */}
+      <div className="flex flex-col w-full items-center">
+        {/* Imagen con acciones superpuestas */}
         <div 
           ref={imageContainerRef}
-          className="relative mx-auto border border-gray-300 rounded-lg overflow-hidden bg-gray-100"
-          style={{ 
-            maxWidth: '100%',
-            maxHeight: 'calc(100vh - 200px)',
-            minHeight: '250px',
-            aspectRatio: currentStep.image_width && currentStep.image_height 
-              ? `${currentStep.image_width} / ${currentStep.image_height}` 
-              : 'auto'
-          }}
+          className="relative w-full max-w-3xl mx-auto rounded-fluid-lg"
         >
           {currentStep.image_url ? (
             <>
-              {/* Contenedor con transformación de zoom automático */}
-              <div
-                className="w-full h-full relative"
-                style={{
-                  transform: `scale(${exerciseZoom}) translate(${exercisePan.x}px, ${exercisePan.y}px)`,
-                  transformOrigin: 'center center',
-                  transition: 'transform 0.4s ease-out'
-                }}
-              >
+              {/* Contenedor de imagen */}
+              <div className="relative w-full">
                 <img
                   src={currentStep.image_url}
                   alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
-                  className="w-full h-full object-contain"
-                  style={{ maxHeight: 'calc(100vh - 200px)', minHeight: '250px' }}
+                  className="w-full h-auto max-h-[65vh] object-contain mx-auto"
                   draggable={false}
                 />
                 
@@ -1932,7 +1812,7 @@ const ExamTestRunPage: React.FC = () => {
   if (isLoading || loadingExercises) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 flex flex-col justify-center items-center">
-        <div className="bg-white rounded-fluid-xl shadow-xl fluid-p-8 max-w-md w-full fluid-mx-4">
+        <div className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-xl fluid-p-6 sm:fluid-p-8 max-w-xs sm:max-w-md w-full fluid-mx-3 sm:fluid-mx-4">
           <LoadingSpinner message={loadingExercises ? 'Cargando ejercicios...' : 'Cargando examen...'} />
         </div>
       </div>
@@ -1942,9 +1822,9 @@ const ExamTestRunPage: React.FC = () => {
   if (!exam) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 flex justify-center items-center">
-        <div className="bg-white rounded-fluid-xl shadow-xl fluid-p-8 text-center">
-          <AlertCircle className="fluid-icon-2xl mx-auto text-red-400 fluid-mb-4" />
-          <p className="text-gray-600 font-medium">Examen no encontrado</p>
+        <div className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-xl fluid-p-6 sm:fluid-p-8 text-center fluid-mx-3 sm:fluid-mx-4">
+          <AlertCircle className="fluid-icon-xl sm:fluid-icon-2xl mx-auto text-red-400 fluid-mb-3 sm:fluid-mb-4" />
+          <p className="text-gray-600 font-medium fluid-text-sm sm:fluid-text-base">Examen no encontrado</p>
         </div>
       </div>
     );
@@ -1953,9 +1833,9 @@ const ExamTestRunPage: React.FC = () => {
   if (selectedItems.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 flex justify-center items-center">
-        <div className="bg-white rounded-fluid-xl shadow-xl fluid-p-8 max-w-md w-full fluid-mx-4">
+        <div className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-xl fluid-p-6 sm:fluid-p-8 max-w-xs sm:max-w-md w-full fluid-mx-3 sm:fluid-mx-4">
           <LoadingSpinner />
-          <p className="text-gray-600 text-center fluid-mt-4">Preparando preguntas...</p>
+          <p className="text-gray-600 text-center fluid-mt-3 sm:fluid-mt-4 fluid-text-sm sm:fluid-text-base">Preparando preguntas...</p>
         </div>
       </div>
     );
@@ -1968,23 +1848,23 @@ const ExamTestRunPage: React.FC = () => {
   const isTimeCritical = timeRemaining !== null && timeRemaining <= 30; // Últimos 30 segundos
 
   return (
-    <div className="min-h-screen bg-slate-50 overflow-y-auto overflow-x-hidden scroll-smooth">
+    <div className="min-h-screen bg-slate-50">
       {/* Modal de confirmación de salida */}
       {showExitConfirm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4">
-          <div className="bg-white rounded-fluid-xl shadow-2xl max-w-sm w-full overflow-hidden">
-            <div className="fluid-p-6 text-center">
-              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto fluid-mb-4">
-                <AlertCircle className="fluid-icon text-amber-600" />
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-3 sm:fluid-p-4">
+          <div className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-2xl max-w-xs sm:max-w-sm w-full overflow-hidden">
+            <div className="fluid-p-4 sm:fluid-p-6 text-center">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto fluid-mb-3 sm:fluid-mb-4">
+                <AlertCircle className="fluid-icon-sm sm:fluid-icon text-amber-600" />
               </div>
-              <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-2">¿Salir del examen?</h3>
-              <p className="fluid-text-sm text-gray-500 fluid-mb-6">
+              <h3 className="fluid-text-base sm:fluid-text-lg font-semibold text-gray-900 fluid-mb-2">¿Salir del examen?</h3>
+              <p className="fluid-text-xs sm:fluid-text-sm text-gray-500 fluid-mb-4 sm:fluid-mb-6">
                 Tu progreso será guardado y podrás continuar después.
               </p>
-              <div className="flex fluid-gap-3">
+              <div className="flex fluid-gap-2 sm:fluid-gap-3">
                 <button
                   onClick={() => setShowExitConfirm(false)}
-                  className="flex-1 fluid-px-4 fluid-py-3 fluid-text-sm font-medium text-gray-700 bg-gray-100 rounded-fluid-md hover:bg-gray-200 transition-colors"
+                  className="flex-1 fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 fluid-text-xs sm:fluid-text-sm font-medium text-gray-700 bg-gray-100 rounded-fluid-md hover:bg-gray-200 transition-colors"
                 >
                   Continuar
                 </button>
@@ -2011,7 +1891,7 @@ const ExamTestRunPage: React.FC = () => {
                     localStorage.setItem(examSessionKey, JSON.stringify(sessionData));
                     navigate('/exams');
                   }}
-                  className="flex-1 fluid-px-4 fluid-py-3 fluid-text-sm font-medium text-white bg-amber-500 rounded-fluid-md hover:bg-amber-600 transition-colors"
+                  className="flex-1 fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 fluid-text-xs sm:fluid-text-sm font-medium text-white bg-amber-500 rounded-fluid-md hover:bg-amber-600 transition-colors"
                 >
                   Salir
                 </button>
@@ -2024,10 +1904,10 @@ const ExamTestRunPage: React.FC = () => {
       {/* Notificación de advertencia de tiempo - tipo toast lateral */}
       {showTimeWarning && (
         <div 
-          className="fixed top-20 right-4 z-[100] animate-slide-in-right"
+          className="fixed top-16 sm:top-20 right-2 sm:right-4 z-[100] animate-slide-in-right"
         >
           <div 
-            className={`flex items-center fluid-gap-3 fluid-px-4 fluid-py-3 rounded-fluid-md shadow-lg border backdrop-blur-sm ${
+            className={`flex items-center fluid-gap-2 sm:fluid-gap-3 fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 rounded-fluid-md shadow-lg border backdrop-blur-sm ${
               showTimeWarning.minutes === 1 
                 ? 'bg-red-50 border-red-200 text-red-800' 
                 : showTimeWarning.minutes === 5
@@ -2035,14 +1915,14 @@ const ExamTestRunPage: React.FC = () => {
                   : 'bg-amber-50 border-amber-200 text-amber-800'
             }`}
           >
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+            <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
               showTimeWarning.minutes === 1 
                 ? 'bg-red-100' 
                 : showTimeWarning.minutes === 5
                   ? 'bg-orange-100'
                   : 'bg-amber-100'
             }`}>
-              <Clock className={`fluid-icon-sm ${
+              <Clock className={`fluid-icon-xs sm:fluid-icon-sm ${
                 showTimeWarning.minutes === 1 
                   ? 'text-red-600' 
                   : showTimeWarning.minutes === 5
@@ -2051,12 +1931,12 @@ const ExamTestRunPage: React.FC = () => {
               }`} />
             </div>
             <div className="flex flex-col">
-              <span className="font-semibold fluid-text-sm">
+              <span className="font-semibold fluid-text-xs sm:fluid-text-sm">
                 {showTimeWarning.minutes === 1 
                   ? '¡Último minuto!' 
                   : `Quedan ${showTimeWarning.minutes} minutos`}
               </span>
-              <span className={`fluid-text-xs ${
+              <span className={`fluid-text-2xs sm:fluid-text-xs ${
                 showTimeWarning.minutes === 1 
                   ? 'text-red-600' 
                   : showTimeWarning.minutes === 5
@@ -2069,7 +1949,7 @@ const ExamTestRunPage: React.FC = () => {
               </span>
             </div>
             <button 
-              className={`fluid-ml-2 fluid-p-2 rounded-fluid-sm transition-colors ${
+              className={`fluid-ml-1 sm:fluid-ml-2 fluid-p-1 sm:fluid-p-2 rounded-fluid-sm transition-colors ${
                 showTimeWarning.minutes === 1 
                   ? 'hover:bg-red-100 text-red-400 hover:text-red-600' 
                   : showTimeWarning.minutes === 5
@@ -2078,7 +1958,7 @@ const ExamTestRunPage: React.FC = () => {
               }`}
               onClick={() => setShowTimeWarning(null)}
             >
-              <X className="fluid-icon-sm" />
+              <X className="fluid-icon-xs sm:fluid-icon-sm" />
             </button>
           </div>
         </div>
@@ -2087,19 +1967,19 @@ const ExamTestRunPage: React.FC = () => {
       {/* Modal de ejercicio completado - notificación tipo toast */}
       {showExerciseCompleted && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center fluid-p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center fluid-p-3 sm:fluid-p-4"
           onClick={() => setShowExerciseCompleted(false)}
         >
           <div 
-            className="bg-emerald-600 text-white rounded-fluid-xl shadow-2xl fluid-px-6 fluid-py-4 flex items-center fluid-gap-3 animate-bounce-in"
+            className="bg-emerald-600 text-white rounded-fluid-lg sm:rounded-fluid-xl shadow-2xl fluid-px-4 sm:fluid-px-6 fluid-py-3 sm:fluid-py-4 flex items-center fluid-gap-2 sm:fluid-gap-3 animate-bounce-in"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-              <CheckCircle className="fluid-icon" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 rounded-full flex items-center justify-center">
+              <CheckCircle className="fluid-icon-sm sm:fluid-icon" />
             </div>
             <div>
-              <h3 className="font-semibold">¡Ejercicio completado!</h3>
-              <p className="fluid-text-sm text-emerald-100">Has terminado todos los pasos</p>
+              <h3 className="font-semibold fluid-text-sm sm:fluid-text-base">¡Ejercicio completado!</h3>
+              <p className="fluid-text-xs sm:fluid-text-sm text-emerald-100">Has terminado todos los pasos</p>
             </div>
           </div>
         </div>
@@ -2107,26 +1987,26 @@ const ExamTestRunPage: React.FC = () => {
 
       {/* Modal de error para campo incorrecto */}
       {showErrorModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] fluid-p-4" onClick={() => setShowErrorModal(null)}>
-          <div className="bg-white rounded-fluid-xl shadow-2xl max-w-lg w-full fluid-mx-4 max-h-[85vh] flex flex-col animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] fluid-p-3 sm:fluid-p-4" onClick={() => setShowErrorModal(null)}>
+          <div className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-2xl max-w-sm sm:max-w-lg w-full fluid-mx-3 sm:fluid-mx-4 max-h-[85vh] flex flex-col animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
             {/* Header fijo */}
-            <div className="flex items-center fluid-gap-4 fluid-p-6 pb-4 border-b border-gray-100">
-              <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                <X className="fluid-icon text-red-600" />
+            <div className="flex items-center fluid-gap-3 sm:fluid-gap-4 fluid-p-4 sm:fluid-p-6 pb-3 sm:pb-4 border-b border-gray-100">
+              <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <X className="fluid-icon-sm sm:fluid-icon text-red-600" />
               </div>
-              <h3 className="fluid-text-lg font-semibold text-gray-900">Respuesta incorrecta</h3>
+              <h3 className="fluid-text-base sm:fluid-text-lg font-semibold text-gray-900">Respuesta incorrecta</h3>
             </div>
             
             {/* Contenido con scroll */}
-            <div className="flex-1 overflow-y-auto fluid-p-6 pt-4">
+            <div className="flex-1 overflow-y-auto fluid-p-4 sm:fluid-p-6 pt-3 sm:pt-4">
               <div 
-                className="text-gray-600 prose prose-sm max-w-none [&>p]:my-2 [&>ul]:my-2 [&>ol]:my-2 [&>h1]:text-lg [&>h2]:text-base [&>h3]:text-sm"
+                className="text-gray-600 prose prose-sm max-w-none [&>p]:my-2 [&>ul]:my-2 [&>ol]:my-2 [&>h1]:text-lg [&>h2]:text-base [&>h3]:text-sm fluid-text-xs sm:fluid-text-sm"
                 dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(showErrorModal.message) }}
               />
             </div>
             
             {/* Footer fijo */}
-            <div className="fluid-p-6 pt-4 border-t border-gray-100">
+            <div className="fluid-p-4 sm:fluid-p-6 pt-3 sm:pt-4 border-t border-gray-100">
               {(() => {
                 // max_attempts son oportunidades ADICIONALES después del primer error 
                 const currentExercise = currentItem;
@@ -2139,7 +2019,7 @@ const ExamTestRunPage: React.FC = () => {
                 const remaining = additionalAttempts - usedAttempts + 1;
                 
                 return (
-                  <p className="fluid-text-xs text-amber-600 fluid-mb-3 text-center">
+                  <p className="fluid-text-2xs sm:fluid-text-xs text-amber-600 fluid-mb-2 sm:fluid-mb-3 text-center">
                     {remaining > 0 
                       ? `Te ${remaining === 1 ? 'queda' : 'quedan'} ${remaining} ${remaining === 1 ? 'oportunidad' : 'oportunidades'}`
                       : 'No te quedan más oportunidades'
@@ -2149,7 +2029,7 @@ const ExamTestRunPage: React.FC = () => {
               })()}
               <button
                 onClick={() => setShowErrorModal(null)}
-                className={`w-full fluid-px-4 fluid-py-3 text-white rounded-fluid-md font-medium transition-colors ${currentMode === 'simulator' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}
+                className={`w-full fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 text-white rounded-fluid-md font-medium transition-colors fluid-text-xs sm:fluid-text-sm ${currentMode === 'simulator' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}
               >
                 Intentar de nuevo
               </button>
@@ -2161,7 +2041,7 @@ const ExamTestRunPage: React.FC = () => {
       {/* Modal de avance por error (next_step o next_exercise) */}
       {showSkippedModal && (
         <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4" 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] fluid-p-3 sm:fluid-p-4" 
           onClick={() => {
             setShowSkippedModal(null);
             if (showSkippedModal.type === 'next_exercise') {
@@ -2170,19 +2050,19 @@ const ExamTestRunPage: React.FC = () => {
             }
           }}
         >
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-2xl max-w-sm sm:max-w-lg w-full fluid-mx-3 sm:fluid-mx-4 animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
-            <div className="flex items-center gap-4 p-6 pb-4 border-b border-gray-100">
-              <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-amber-100 to-orange-100 rounded-full flex items-center justify-center">
-                <svg className="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center fluid-gap-3 sm:fluid-gap-4 fluid-p-4 sm:fluid-p-6 pb-3 sm:pb-4 border-b border-gray-100">
+              <div className="flex-shrink-0 w-10 h-10 sm:w-14 sm:h-14 bg-gradient-to-br from-amber-100 to-orange-100 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 sm:w-7 sm:h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="fluid-text-base sm:fluid-text-lg font-semibold text-gray-900">
                   {showSkippedModal.type === 'next_exercise' ? 'Ejercicio terminado' : 'Pasando al siguiente paso'}
                 </h3>
-                <p className="text-sm text-gray-500 mt-0.5">
+                <p className="fluid-text-xs sm:fluid-text-sm text-gray-500 mt-0.5">
                   {showSkippedModal.type === 'next_exercise' 
                     ? 'Se ha terminado este ejercicio debido a un error'
                     : 'Se te ha pasado al siguiente paso debido a un error'
@@ -2192,16 +2072,16 @@ const ExamTestRunPage: React.FC = () => {
             </div>
             
             {/* Contenido */}
-            <div className="p-6">
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                <div className="flex items-start gap-3">
+            <div className="fluid-p-4 sm:fluid-p-6">
+              <div className="bg-amber-50 border border-amber-200 rounded-fluid-md sm:rounded-fluid-lg fluid-p-3 sm:fluid-p-4">
+                <div className="flex items-start fluid-gap-2 sm:fluid-gap-3">
                   <div className="flex-shrink-0">
-                    <svg className="w-5 h-5 text-amber-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
                   </div>
                   <div 
-                    className="text-amber-800 prose prose-sm max-w-none [&>p]:my-1"
+                    className="text-amber-800 prose prose-sm max-w-none [&>p]:my-1 fluid-text-xs sm:fluid-text-sm"
                     dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(showSkippedModal.message) }}
                   />
                 </div>
@@ -2209,7 +2089,7 @@ const ExamTestRunPage: React.FC = () => {
             </div>
             
             {/* Footer */}
-            <div className="p-6 pt-0">
+            <div className="fluid-p-4 sm:fluid-p-6 pt-0">
               <button
                 onClick={() => {
                   setShowSkippedModal(null);
@@ -2218,7 +2098,7 @@ const ExamTestRunPage: React.FC = () => {
                     setTimeout(() => setShowExerciseCompleted(false), 5000);
                   }
                 }}
-                className={`w-full px-4 py-3 text-white rounded-lg font-medium transition-colors ${
+                className={`w-full fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 text-white rounded-fluid-md sm:rounded-fluid-lg font-medium transition-colors fluid-text-xs sm:fluid-text-sm ${
                   currentMode === 'simulator' 
                     ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600' 
                     : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700'
@@ -2232,15 +2112,15 @@ const ExamTestRunPage: React.FC = () => {
       )}
 
       {/* Header minimalista - FIJO */}
-      <div className="fixed top-0 left-0 right-0 z-40 shadow-md bg-blue-600">
-        <div className="w-full fluid-px-6 fluid-py-3">
-          <div className="flex items-center justify-between">
+      <div className={`fixed top-0 left-0 right-0 z-40 bg-blue-600 transition-all duration-300 ease-out`}>
+        <div className="w-full fluid-px-3 sm:fluid-px-4 lg:fluid-px-6 h-10 sm:h-12 lg:h-14 flex items-center">
+          <div className="flex items-center justify-between w-full">
             {/* Izquierda: Título */}
-            <div className="flex items-center fluid-gap-3 min-w-0 flex-1">
-              <div className="min-w-0 flex items-center fluid-gap-3">
-                <h1 className="fluid-text-2xl font-bold text-white truncate max-w-[360px] lg:max-w-none drop-shadow-sm">{exam.name}</h1>
+            <div className="flex items-center fluid-gap-2 sm:fluid-gap-3 min-w-0 flex-1">
+              <div className="min-w-0 flex items-center fluid-gap-2 sm:fluid-gap-3">
+                <h1 className="fluid-text-base sm:fluid-text-lg lg:fluid-text-2xl font-bold text-white truncate max-w-[150px] xs:max-w-[200px] sm:max-w-[280px] lg:max-w-none drop-shadow-sm">{exam.name}</h1>
                 {/* Badge Examen/Simulador en navbar */}
-                <span className={`hidden sm:inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-sm text-[10px] font-semibold uppercase tracking-wide ${
+                <span className={`hidden sm:inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-sm fluid-text-2xs font-semibold uppercase tracking-wide ${
                   currentMode === 'simulator' 
                     ? 'bg-yellow-300 text-yellow-900' 
                     : 'bg-emerald-400 text-emerald-900'
@@ -2249,13 +2129,13 @@ const ExamTestRunPage: React.FC = () => {
                 </span>
                 {/* Indicador de pausa por desconexión */}
                 {isPaused && (
-                  <span className="inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-sm text-[10px] font-semibold uppercase tracking-wide bg-amber-400 text-amber-900 animate-pulse">
+                  <span className="inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-sm fluid-text-2xs font-semibold uppercase tracking-wide bg-amber-400 text-amber-900 animate-pulse">
                     ⏸ Pausado
                   </span>
                 )}
                 {/* Indicador de sin conexión */}
                 {!isOnline && (
-                  <span className="inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-sm text-[10px] font-semibold uppercase tracking-wide bg-red-400 text-red-900">
+                  <span className="inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-sm fluid-text-2xs font-semibold uppercase tracking-wide bg-red-400 text-red-900">
                     📶 Sin conexión
                   </span>
                 )}
@@ -2263,11 +2143,11 @@ const ExamTestRunPage: React.FC = () => {
             </div>
             
             {/* Derecha: Timer, ID y Salir */}
-            <div className="flex items-center fluid-gap-3 flex-shrink-0">
+            <div className="flex items-center fluid-gap-2 sm:fluid-gap-3 flex-shrink-0">
               {/* ID del usuario */}
-              <div className="hidden lg:flex items-center fluid-gap-2 fluid-text-sm">
-                <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
-                  <User className="fluid-icon-sm text-white" />
+              <div className="hidden lg:flex items-center fluid-gap-2 fluid-text-xs lg:fluid-text-sm">
+                <div className="w-6 h-6 lg:w-7 lg:h-7 rounded-full bg-white/20 flex items-center justify-center">
+                  <User className="fluid-icon-xs lg:fluid-icon-sm text-white" />
                 </div>
                 <span className="text-white/90 font-medium">
                   {user?.id || '---'}
@@ -2275,14 +2155,14 @@ const ExamTestRunPage: React.FC = () => {
               </div>
               
               {/* Timer */}
-              <div className={`flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 rounded-fluid-md font-mono fluid-text-sm transition-all ${
+              <div className={`flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-md font-mono fluid-text-xs sm:fluid-text-sm transition-all ${
                 isTimeCritical 
                   ? 'bg-red-500 text-white animate-pulse' 
                   : isTimeWarning 
                   ? 'bg-amber-400 text-amber-900' 
                   : 'bg-white/20 text-white'
               }`}>
-                <Clock className="fluid-icon-sm" />
+                <Clock className="fluid-icon-xs sm:fluid-icon-sm" />
                 <span className="font-medium">
                   {String(displayMinutes).padStart(2, '0')}:{String(displaySeconds).padStart(2, '0')}
                 </span>
@@ -2291,11 +2171,11 @@ const ExamTestRunPage: React.FC = () => {
               {/* Botón Salir */}
               <button
                 onClick={() => setShowExitConfirm(true)}
-                className="flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 text-white/90 hover:text-white bg-white/10 hover:bg-red-500/80 rounded-fluid-md transition-colors fluid-text-sm font-medium"
+                className="flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 text-white/90 hover:text-white bg-white/10 hover:bg-red-500/80 rounded-fluid-md transition-colors fluid-text-xs sm:fluid-text-sm font-medium"
                 title="Salir del examen"
               >
-                <LogOut className="fluid-icon-sm" />
-                <span className="hidden md:inline">Salir</span>
+                <LogOut className="fluid-icon-xs sm:fluid-icon-sm" />
+                <span className="hidden sm:inline">Salir</span>
               </button>
             </div>
           </div>
@@ -2310,23 +2190,27 @@ const ExamTestRunPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Navegación de ítems - FIJO debajo del header */}
-      <div className="fixed top-[65px] left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-100">
-        <div className="w-full fluid-px-6 fluid-py-2">
-          <div className="flex items-center justify-between fluid-gap-2">
+      {/* Navegación de ítems - FIJO debajo del header con animación */}
+      <div className={`fixed left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm transition-all duration-300 ease-out ${
+        isNavHidden 
+          ? 'top-[44px] sm:top-[52px] lg:top-[60px] -translate-y-full opacity-0 pointer-events-none' 
+          : 'top-[44px] sm:top-[52px] lg:top-[60px] translate-y-0 opacity-100'
+      }`}>
+        <div className="w-full fluid-px-2 sm:fluid-px-4 lg:fluid-px-6 h-10 sm:h-11 lg:h-12 flex items-center">
+          <div className="flex items-center justify-between fluid-gap-1 sm:fluid-gap-2 w-full">
             {/* Izquierda: Navegación de pregunta + botón marcar */}
-            <div className="flex items-center fluid-gap-2">
+            <div className="flex items-center fluid-gap-1 sm:fluid-gap-2">
               <button
                 onClick={() => setShowNavPanel(!showNavPanel)}
-                className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-gray-100 hover:bg-gray-200 rounded-fluid-md transition-all min-w-[120px]"
+                className="flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 lg:fluid-px-4 fluid-py-1 sm:fluid-py-2 bg-gray-100 hover:bg-gray-200 rounded-fluid-md transition-all min-w-[80px] sm:min-w-[100px] lg:min-w-[120px]"
               >
-                <span className="flex items-center justify-center w-8 h-8 text-white rounded-full fluid-text-sm font-bold bg-blue-600">
+                <span className="flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white rounded-full fluid-text-xs sm:fluid-text-sm font-bold bg-blue-600">
                   {currentItemIndex + 1}
                 </span>
-                <span className="fluid-text-sm text-gray-600">
+                <span className="fluid-text-xs sm:fluid-text-sm text-gray-600">
                   de <span className="font-semibold text-gray-900">{selectedItems.length}</span>
                 </span>
-                <ChevronRight className={`fluid-icon-sm text-gray-400 transition-transform ${showNavPanel ? 'rotate-90' : ''}`} />
+                <ChevronRight className={`fluid-icon-xs sm:fluid-icon-sm text-gray-400 transition-transform ${showNavPanel ? 'rotate-90' : ''}`} />
               </button>
 
               {/* Botón de marcar pregunta (junto a navegación) */}
@@ -2342,48 +2226,65 @@ const ExamTestRunPage: React.FC = () => {
                     return newSet;
                   });
                 }}
-                className={`flex items-center justify-center fluid-px-3 fluid-py-2 h-[38px] rounded-fluid-md transition-colors ${
+                className={`flex items-center justify-center fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 h-[30px] sm:h-[34px] lg:h-[38px] rounded-fluid-md transition-colors ${
                   flaggedQuestions.has(currentItemIndex)
                     ? 'bg-orange-500 text-white hover:bg-orange-600'
                     : 'bg-gray-100 text-gray-500 hover:bg-orange-100 hover:text-orange-600'
                 }`}
                 title={flaggedQuestions.has(currentItemIndex) ? 'Quitar marca de revisión' : 'Marcar para revisar esta pregunta después'}
               >
-                <Flag className="w-4 h-4" />
+                <Flag className="fluid-icon-xs sm:fluid-icon-sm" />
               </button>
             </div>
             
             {/* Derecha: Botones de navegación */}
-            <div className="flex items-center fluid-gap-2">
+            <div className="flex items-center fluid-gap-1 sm:fluid-gap-2">
               <button
                 onClick={handlePrevious}
                 disabled={currentItemIndex === 0}
-                className="flex items-center fluid-gap-1 fluid-px-3 fluid-py-2 fluid-text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-fluid-md"
+                className="flex items-center fluid-gap-1 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 fluid-text-xs sm:fluid-text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-fluid-md"
               >
-                <ChevronLeft className="fluid-icon-sm" />
-                <span className="hidden md:inline">Anterior</span>
+                <ChevronLeft className="fluid-icon-xs sm:fluid-icon-sm" />
+                <span className="hidden sm:inline">Anterior</span>
               </button>
               
               {currentItemIndex === selectedItems.length - 1 ? (
                 <button
                   onClick={() => setShowConfirmSubmit(true)}
-                  className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 fluid-text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors rounded-fluid-md"
+                  className="flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 lg:fluid-px-4 fluid-py-1 sm:fluid-py-2 fluid-text-xs sm:fluid-text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors rounded-fluid-md"
                 >
-                  <span>Entregar Examen</span>
+                  <span className="hidden sm:inline">Entregar</span>
+                  <span className="sm:hidden">Enviar</span>
                 </button>
               ) : (
                 <button
                   onClick={handleNext}
-                  className="flex items-center fluid-gap-1 fluid-px-3 fluid-py-2 fluid-text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors rounded-fluid-md"
+                  className="flex items-center fluid-gap-1 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 fluid-text-xs sm:fluid-text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors rounded-fluid-md"
                 >
-                  <span className="hidden md:inline">Siguiente</span>
-                  <ChevronRight className="fluid-icon-sm" />
+                  <span className="hidden sm:inline">Siguiente</span>
+                  <ChevronRight className="fluid-icon-xs sm:fluid-icon-sm" />
                 </button>
               )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Botón flotante para mostrar nav cuando está oculta */}
+      <button
+        onClick={() => setIsNavHidden(false)}
+        className={`fixed top-[48px] sm:top-[56px] lg:top-[64px] left-1/2 -translate-x-1/2 z-35 flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-b-lg shadow-md transition-all duration-300 ${
+          isNavHidden && !showNavPanel
+            ? 'opacity-100 translate-y-0' 
+            : 'opacity-0 -translate-y-2 pointer-events-none'
+        }`}
+      >
+        <span className="flex items-center justify-center w-5 h-5 bg-white/20 rounded-full text-[10px] font-bold">
+          {currentItemIndex + 1}
+        </span>
+        <span>/{selectedItems.length}</span>
+        <ChevronRight className="w-3 h-3 rotate-90" />
+      </button>
       
       {/* Panel desplegable de navegación */}
       {showNavPanel && (
@@ -2394,23 +2295,27 @@ const ExamTestRunPage: React.FC = () => {
             onClick={() => setShowNavPanel(false)}
           />
           
-          {/* Panel */}
-          <div className="fixed top-[105px] left-1/2 -translate-x-1/2 z-50 w-[90vw] max-w-md bg-white rounded-fluid-xl shadow-2xl border border-gray-200 overflow-hidden">
-            <div className="fluid-px-4 fluid-py-3 bg-gray-50 border-b border-gray-100">
+          {/* Panel - se posiciona debajo de la nav bar */}
+          <div className={`fixed left-1/2 -translate-x-1/2 z-50 w-[95vw] sm:w-[90vw] max-w-md bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-2xl border border-gray-200 overflow-hidden transition-all duration-300 ${
+            isNavHidden 
+              ? 'top-[48px] sm:top-[56px] lg:top-[64px]' 
+              : 'top-[86px] sm:top-[98px] lg:top-[110px]'
+          }`}>
+            <div className="fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 bg-gray-50 border-b border-gray-100">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-gray-900">Navegación del examen</h3>
+                <h3 className="font-semibold text-gray-900 fluid-text-sm sm:fluid-text-base">Navegación del examen</h3>
                 <button 
                   onClick={() => setShowNavPanel(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 fluid-p-1"
                 >
                   ✕
                 </button>
               </div>
-              <p className="fluid-text-xs text-gray-500 fluid-mt-1">Selecciona una pregunta para ir directamente</p>
+              <p className="fluid-text-2xs sm:fluid-text-xs text-gray-500 fluid-mt-1">Selecciona una pregunta para ir directamente</p>
             </div>
             
-            <div className="fluid-p-4 max-h-[50vh] overflow-y-auto">
-              <div className="grid grid-cols-6 fluid-gap-2">
+            <div className="fluid-p-3 sm:fluid-p-4 max-h-[45vh] sm:max-h-[50vh] overflow-y-auto">
+              <div className="grid grid-cols-5 sm:grid-cols-6 fluid-gap-1 sm:fluid-gap-2">
                 {selectedItems.map((item, idx) => {
                   const isAnswered = item.type === 'question' 
                     ? (item.question_type === 'ordering' 
@@ -2432,7 +2337,7 @@ const ExamTestRunPage: React.FC = () => {
                           setCurrentStepIndex(0);
                           setShowNavPanel(false);
                         }}
-                        className={`w-10 h-10 rounded-fluid-md flex items-center justify-center fluid-text-sm font-medium transition-all ${
+                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-fluid-md flex items-center justify-center fluid-text-xs sm:fluid-text-sm font-medium transition-all ${
                           isCurrent
                             ? (currentMode === 'simulator' ? 'bg-amber-500 text-white ring-2 ring-amber-300 scale-105' : 'bg-blue-600 text-white ring-2 ring-blue-300 scale-105')
                             : isFlagged
@@ -2458,14 +2363,14 @@ const ExamTestRunPage: React.FC = () => {
                             return newSet;
                           });
                         }}
-                        className={`absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center transition-all ${
+                        className={`absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 rounded-full flex items-center justify-center transition-all ${
                           isFlagged 
                             ? 'bg-orange-600 text-white' 
                             : 'bg-gray-300 text-gray-500 hover:bg-orange-400 hover:text-white'
                         }`}
                         title={isFlagged ? 'Quitar marca' : 'Marcar para revisar'}
                       >
-                        <Flag className="fluid-icon-xs" />
+                        <Flag className="fluid-icon-2xs sm:fluid-icon-xs" />
                       </button>
                     </div>
                   );
@@ -2474,21 +2379,21 @@ const ExamTestRunPage: React.FC = () => {
             </div>
             
             {/* Leyenda */}
-            <div className="fluid-px-4 fluid-py-3 bg-gray-50 border-t border-gray-100 flex flex-wrap items-center justify-center fluid-gap-3 fluid-text-xs">
-              <div className="flex items-center fluid-gap-2">
-                <div className={`w-4 h-4 rounded-fluid-sm ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-blue-600'}`}></div>
+            <div className="fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 bg-gray-50 border-t border-gray-100 flex flex-wrap items-center justify-center fluid-gap-2 sm:fluid-gap-3 fluid-text-2xs sm:fluid-text-xs">
+              <div className="flex items-center fluid-gap-1 sm:fluid-gap-2">
+                <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-fluid-sm ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-blue-600'}`}></div>
                 <span className="text-gray-600">Actual</span>
               </div>
-              <div className="flex items-center fluid-gap-2">
-                <div className="w-4 h-4 rounded-fluid-sm bg-emerald-500"></div>
+              <div className="flex items-center fluid-gap-1 sm:fluid-gap-2">
+                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-fluid-sm bg-emerald-500"></div>
                 <span className="text-gray-600">Respondida</span>
               </div>
-              <div className="flex items-center fluid-gap-2">
-                <div className="w-4 h-4 rounded-fluid-sm bg-orange-500"></div>
+              <div className="flex items-center fluid-gap-1 sm:fluid-gap-2">
+                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-fluid-sm bg-orange-500"></div>
                 <span className="text-gray-600">Marcada</span>
               </div>
-              <div className="flex items-center fluid-gap-2">
-                <div className="w-4 h-4 rounded-fluid-sm bg-gray-200"></div>
+              <div className="flex items-center fluid-gap-1 sm:fluid-gap-2">
+                <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-fluid-sm bg-gray-200"></div>
                 <span className="text-gray-600">Sin responder</span>
               </div>
             </div>
@@ -2496,16 +2401,20 @@ const ExamTestRunPage: React.FC = () => {
         </>
       )}
 
-      {/* Contenido principal */}
-      <div className="pt-[125px] pb-[90px] min-h-screen">
-        <div className="max-w-[1400px] mx-auto px-2 sm:px-4 lg:fluid-px-6 fluid-py-4 lg:fluid-py-8">
-          <div className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
+      {/* Contenido principal - con transición suave cuando se oculta nav */}
+      <div className={`pb-[60px] sm:pb-[70px] lg:pb-[90px] min-h-screen transition-[padding] duration-300 ease-out ${
+        isNavHidden 
+          ? 'pt-[48px] sm:pt-[56px] lg:pt-[68px]' 
+          : 'pt-[88px] sm:pt-[100px] lg:pt-[116px]'
+      }`}>
+        <div className="max-w-[1000px] mx-auto fluid-px-2 sm:fluid-px-4 lg:fluid-px-6 fluid-py-2 sm:fluid-py-4 lg:fluid-py-8">
+          <div className="bg-white rounded-fluid-md sm:rounded-fluid-lg lg:rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
             {/* Header del ítem - más simple */}
-            <div className="fluid-px-6 fluid-py-4 bg-gray-50 border-b border-gray-100">
+            <div className="fluid-px-3 sm:fluid-px-4 lg:fluid-px-6 fluid-py-2 sm:fluid-py-3 lg:fluid-py-4 bg-gray-50 border-b border-gray-100">
               <div className="flex items-center justify-between fluid-gap-2">
-                <div className="flex items-center fluid-gap-2 flex-wrap">
+                <div className="flex items-center fluid-gap-1 sm:fluid-gap-2 flex-wrap">
                   {/* Badge Examen/Simulador */}
-                  <span className={`inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-sm text-[10px] font-semibold uppercase tracking-wide ${
+                  <span className={`inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-sm fluid-text-2xs sm:fluid-text-xs font-semibold uppercase tracking-wide ${
                     currentMode === 'simulator' 
                       ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' 
                       : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
@@ -2513,47 +2422,58 @@ const ExamTestRunPage: React.FC = () => {
                     {currentMode === 'simulator' ? 'Simulador' : 'Examen'}
                   </span>
                   {/* Tipo de pregunta/ejercicio */}
-                  <span className={`inline-flex items-center fluid-px-3 fluid-py-1 rounded-fluid-sm fluid-text-xs font-medium ${
+                  <span className={`inline-flex items-center fluid-px-2 sm:fluid-px-3 fluid-py-1 rounded-fluid-sm fluid-text-2xs sm:fluid-text-xs font-medium ${
                     currentItem?.type === 'question' 
                       ? (currentMode === 'simulator' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700')
                       : 'bg-purple-100 text-purple-700'
                   }`}>
                     {currentItem?.type === 'question' ? (
                       <>
-                        {currentItem.question_type === 'true_false' && 'Verdadero / Falso'}
-                        {currentItem.question_type === 'multiple_choice' && 'Selección Única'}
-                        {currentItem.question_type === 'multiple_select' && 'Selección Múltiple'}
-                        {currentItem.question_type === 'ordering' && 'Ordenamiento'}
+                        {currentItem.question_type === 'true_false' && 'V / F'}
+                        {currentItem.question_type === 'multiple_choice' && <><span className="hidden sm:inline">Selección Única</span><span className="sm:hidden">S. Única</span></>}
+                        {currentItem.question_type === 'multiple_select' && <><span className="hidden sm:inline">Selección Múltiple</span><span className="sm:hidden">S. Múlt.</span></>}
+                        {currentItem.question_type === 'ordering' && 'Ordenar'}
+                        {currentItem.question_type === 'drag_drop' && 'Arrastrar'}
+                        {currentItem.question_type === 'column_grouping' && 'Clasificar'}
                       </>
                     ) : (
-                      'Ejercicio Práctico'
+                      <><span className="hidden sm:inline">Ejercicio Práctico</span><span className="sm:hidden">Ejercicio</span></>
                     )}
                   </span>
                 </div>
               
-                {/* Indicador de estado - solo para ejercicios */}
+                {/* Indicador de estado y pasos - solo para ejercicios */}
                 {currentItem?.type === 'exercise' && (
-                  <span className={`inline-flex items-center fluid-px-2 fluid-py-1 fluid-text-xs font-medium rounded-fluid-sm ${
-                    isExerciseCompleted(currentItem)
-                      ? 'text-emerald-700 bg-emerald-100'
-                      : 'text-amber-700 bg-amber-100'
-                  }`}>
-                    {isExerciseCompleted(currentItem) ? (
-                      <><CheckCircle className="fluid-icon-xs fluid-mr-1" />Completado</>
-                    ) : (
-                      'Pendiente'
+                  <div className="flex items-center fluid-gap-1 sm:fluid-gap-2">
+                    {/* Indicador de pasos sutil */}
+                    {currentItem.steps && currentItem.steps.length > 1 && (
+                      <span className="inline-flex items-center fluid-px-2 fluid-py-1 fluid-text-2xs sm:fluid-text-xs font-medium text-gray-500 bg-gray-100 rounded-fluid-sm">
+                        <span className="hidden sm:inline">Paso</span> {currentStepIndex + 1}/{currentItem.steps.length}
+                      </span>
                     )}
-                  </span>
+                    {/* Estado */}
+                    <span className={`inline-flex items-center fluid-px-2 fluid-py-1 fluid-text-2xs sm:fluid-text-xs font-medium rounded-fluid-sm ${
+                      isExerciseCompleted(currentItem)
+                        ? 'text-emerald-700 bg-emerald-100'
+                        : 'text-amber-700 bg-amber-100'
+                    }`}>
+                      {isExerciseCompleted(currentItem) ? (
+                        <><CheckCircle className="fluid-icon-2xs sm:fluid-icon-xs fluid-mr-1" /><span className="hidden sm:inline">Completado</span><span className="sm:hidden">OK</span></>
+                      ) : (
+                        <><span className="hidden sm:inline">Pendiente</span><span className="sm:hidden">...</span></>
+                      )}
+                    </span>
+                  </div>
                 )}
               </div>
             </div>
           
             {/* Contenido */}
-            <div className="p-3 sm:fluid-p-4 lg:fluid-p-6">
+            <div className="fluid-p-3 sm:fluid-p-4 lg:fluid-p-6">
               {currentItem?.type === 'question' ? (
                 <>
                   <div
-                    className="prose prose-gray max-w-none fluid-mb-6 text-gray-800 leading-relaxed overflow-hidden break-words [&_img]:max-w-full [&_pre]:overflow-x-auto [&_code]:break-all"
+                    className="prose prose-gray prose-sm sm:prose-base max-w-none fluid-mb-4 sm:fluid-mb-6 text-gray-800 leading-relaxed overflow-hidden break-words [&_img]:max-w-full [&_img]:max-h-[50vh] [&_img]:w-auto [&_img]:h-auto [&_img]:object-contain [&_img]:mx-auto [&_img]:rounded-lg [&_pre]:overflow-x-auto [&_code]:break-all"
                     dangerouslySetInnerHTML={{ __html: (() => {
                       // Para drag_drop, extraer solo las instrucciones del question_text
                       const text = currentItem.question_text || '';
@@ -2565,18 +2485,18 @@ const ExamTestRunPage: React.FC = () => {
                       return text;
                     })() }}
                   />
-                  <div className="mt-4">
+                  <div className="fluid-mt-3 sm:fluid-mt-4">
                     {renderQuestionInput()}
                   </div>
                 </>
               ) : (
                 <>
                   {currentItem?.title && (
-                    <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-2">{currentItem.title}</h2>
+                    <h2 className="fluid-text-base sm:fluid-text-lg font-semibold text-gray-900 fluid-mb-2">{currentItem.title}</h2>
                   )}
                   {currentItem?.description && (
                     <div
-                      className="prose prose-sm max-w-none fluid-mb-4 text-gray-600 overflow-hidden break-words [&_img]:max-w-full [&_pre]:overflow-x-auto [&_code]:break-all"
+                      className="prose prose-sm max-w-none fluid-mb-3 sm:fluid-mb-4 text-gray-600 overflow-hidden break-words [&_img]:max-w-full [&_img]:max-h-[40vh] [&_img]:w-auto [&_img]:h-auto [&_img]:object-contain [&_img]:mx-auto [&_img]:rounded-lg [&_pre]:overflow-x-auto [&_code]:break-all"
                     dangerouslySetInnerHTML={{ __html: currentItem.description }}
                   />
                 )}
@@ -2590,20 +2510,20 @@ const ExamTestRunPage: React.FC = () => {
 
       {/* Modal de confirmación - Simplificado */}
       {showConfirmSubmit && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4">
-          <div className="bg-white rounded-fluid-xl shadow-xl max-w-sm w-full overflow-hidden">
-            <div className="fluid-p-6 text-center">
-              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto fluid-mb-4">
-                <CheckCircle className="fluid-icon text-emerald-600" />
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-3 sm:fluid-p-4">
+          <div className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-xl max-w-xs sm:max-w-sm w-full overflow-hidden">
+            <div className="fluid-p-4 sm:fluid-p-6 text-center">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto fluid-mb-3 sm:fluid-mb-4">
+                <CheckCircle className="fluid-icon-sm sm:fluid-icon text-emerald-600" />
               </div>
-              <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-2">
+              <h3 className="fluid-text-base sm:fluid-text-lg font-semibold text-gray-900 fluid-mb-2">
                 ¿Finalizar examen?
               </h3>
-              <p className="fluid-text-sm text-gray-500 fluid-mb-2">
+              <p className="fluid-text-xs sm:fluid-text-sm text-gray-500 fluid-mb-2">
                 Has completado <span className="font-semibold text-gray-900">{getAnsweredCount()}</span> de <span className="font-semibold text-gray-900">{selectedItems.length}</span> ítems.
               </p>
               {getAnsweredCount() < selectedItems.length && (
-                <p className="fluid-text-xs text-amber-600 bg-amber-50 fluid-px-3 fluid-py-2 rounded-fluid-sm inline-block fluid-mb-4">
+                <p className="fluid-text-2xs sm:fluid-text-xs text-amber-600 bg-amber-50 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-sm inline-block fluid-mb-3 sm:fluid-mb-4">
                   {selectedItems.length - getAnsweredCount()} sin completar
                 </p>
               )}
@@ -2613,18 +2533,18 @@ const ExamTestRunPage: React.FC = () => {
               <button
                 onClick={() => setShowConfirmSubmit(false)}
                 disabled={isSubmitting}
-                className="flex-1 fluid-px-4 fluid-py-3 fluid-text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 border-r border-gray-100"
+                className="flex-1 fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 fluid-text-xs sm:fluid-text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 border-r border-gray-100"
               >
                 Continuar
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="flex-1 fluid-px-4 fluid-py-3 fluid-text-sm font-medium text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50 flex items-center justify-center"
+                className="flex-1 fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 fluid-text-xs sm:fluid-text-sm font-medium text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50 flex items-center justify-center"
               >
                 {isSubmitting ? (
                   <>
-                    <svg className="animate-spin fluid-mr-2 h-4 w-4 text-emerald-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin fluid-mr-1 sm:fluid-mr-2 h-3 w-3 sm:h-4 sm:w-4 text-emerald-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
