@@ -182,10 +182,20 @@ const CategoryDetailPage = () => {
         console.log(`  Resultado:`, result)
       }
       
-      // Refrescar datos
-      await queryClient.invalidateQueries({ queryKey: ['topics', categoryId] })
-      await queryClient.invalidateQueries({ queryKey: ['category', categoryId] })
-      await queryClient.refetchQueries({ queryKey: ['topics', categoryId] })
+      // Forzar refetch de los datos
+      console.log('Refrescando datos de temas...')
+      
+      // Invalidar todas las queries relacionadas
+      await queryClient.invalidateQueries({ queryKey: ['topics'] })
+      await queryClient.invalidateQueries({ queryKey: ['category'] })
+      
+      // Forzar refetch inmediato
+      const newTopicsData = await queryClient.fetchQuery({
+        queryKey: ['topics', categoryId],
+        queryFn: () => examService.getTopics(Number(categoryId)),
+        staleTime: 0,
+      })
+      console.log('Nuevos datos de temas:', newTopicsData)
       
       setPercentageSaveMessage({ type: 'success', text: '¡Porcentajes guardados correctamente!' })
       

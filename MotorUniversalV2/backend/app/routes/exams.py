@@ -915,14 +915,19 @@ def update_topic(topic_id):
         topic.order = data['order']
     if 'percentage' in data:
         old_percentage = topic.percentage
-        topic.percentage = data['percentage']
+        topic.percentage = float(data['percentage'])  # Asegurar que es float
         print(f"   📊 Porcentaje cambiado: {old_percentage} -> {topic.percentage}")
     
     topic.updated_by = user_id
     
+    # Forzar flush y commit
+    db.session.flush()
     db.session.commit()
     
-    print(f"   ✅ Tema actualizado: {topic.to_dict()}")
+    # Refrescar el objeto desde la base de datos
+    db.session.refresh(topic)
+    
+    print(f"   ✅ Tema actualizado (después de refresh): {topic.to_dict()}")
     
     return jsonify({
         'message': 'Tema actualizado exitosamente',
