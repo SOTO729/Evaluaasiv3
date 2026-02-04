@@ -37,6 +37,7 @@ import {
   createCampus,
   updateCampus,
   getMexicanStates,
+  getCountries,
   getPartner,
   configureCampus,
   OfficeVersion,
@@ -53,6 +54,7 @@ export default function CampusFormPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [mexicanStates, setMexicanStates] = useState<string[]>([]);
+  const [countries, setCountries] = useState<string[]>([]);
   const [partnerName, setPartnerName] = useState('');
   const [actualPartnerId, setActualPartnerId] = useState<number | null>(null);
   const [configChanged, setConfigChanged] = useState(false);
@@ -60,6 +62,7 @@ export default function CampusFormPage() {
   // Datos básicos del plantel
   const [formData, setFormData] = useState({
     name: '',
+    country: 'México',
     state_name: '',
     postal_code: '',
     email: '',
@@ -98,9 +101,13 @@ export default function CampusFormPage() {
     try {
       setLoading(true);
       
-      // Cargar los estados mexicanos
-      const states = await getMexicanStates();
+      // Cargar los estados mexicanos y países
+      const [states, countriesList] = await Promise.all([
+        getMexicanStates(),
+        getCountries()
+      ]);
       setMexicanStates(states);
+      setCountries(countriesList);
 
       let partnerId: number;
 
@@ -112,6 +119,7 @@ export default function CampusFormPage() {
         
         setFormData({
           name: campus.name || '',
+          country: campus.country || 'México',
           state_name: campus.state_name || '',
           postal_code: campus.postal_code || '',
           email: campus.email || '',
@@ -151,6 +159,8 @@ export default function CampusFormPage() {
         setActualPartnerId(partnerId);
         const partner = await getPartner(partnerId);
         setPartnerName(partner.name);
+        // Heredar el país del partner al crear un nuevo campus
+        setFormData(prev => ({ ...prev, country: partner.country || 'México' }));
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar datos');
@@ -166,8 +176,9 @@ export default function CampusFormPage() {
       setError('El nombre es requerido');
       return;
     }
-    if (!formData.state_name) {
-      setError('El estado es requerido');
+    // El estado solo es requerido para México
+    if (formData.country === 'México' && !formData.state_name) {
+      setError('El estado es requerido para México');
       return;
     }
     if (!formData.postal_code.trim()) {
@@ -429,24 +440,44 @@ export default function CampusFormPage() {
               />
             </div>
 
-            {/* Estado */}
+            {/* País */}
             <div>
               <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
-                <MapPinned className="fluid-icon-sm text-gray-400" />
-                Estado <span className="text-red-500">*</span>
+                <Globe className="fluid-icon-sm text-gray-400" />
+                País <span className="text-red-500">*</span>
               </label>
               <select
-                value={formData.state_name}
-                onChange={(e) => setFormData({ ...formData, state_name: e.target.value })}
+                value={formData.country}
+                onChange={(e) => setFormData({ ...formData, country: e.target.value, state_name: e.target.value === 'México' ? formData.state_name : '' })}
                 className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400"
                 required
               >
-                <option value="">Seleccionar estado...</option>
-                {mexicanStates.map((state) => (
-                  <option key={state} value={state}>{state}</option>
+                {countries.map((country) => (
+                  <option key={country} value={country}>{country}</option>
                 ))}
               </select>
             </div>
+
+            {/* Estado (solo para México) */}
+            {formData.country === 'México' && (
+              <div>
+                <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                  <MapPinned className="fluid-icon-sm text-gray-400" />
+                  Estado <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.state_name}
+                  onChange={(e) => setFormData({ ...formData, state_name: e.target.value })}
+                  className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400"
+                  required
+                >
+                  <option value="">Seleccionar estado...</option>
+                  {mexicanStates.map((state) => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Código Postal */}
             <div>

@@ -15,6 +15,13 @@ MEXICAN_STATES = [
     'Sonora', 'Tabasco', 'Tamaulipas', 'Tlaxcala', 'Veracruz', 'Yucatán', 'Zacatecas'
 ]
 
+# Países disponibles
+AVAILABLE_COUNTRIES = [
+    'México', 'Estados Unidos', 'Canadá', 'España', 'Argentina', 'Chile',
+    'Colombia', 'Perú', 'Brasil', 'Ecuador', 'Venezuela', 'Guatemala',
+    'Costa Rica', 'Panamá', 'República Dominicana', 'Puerto Rico', 'Otro'
+]
+
 
 # Tabla de asociación para relación muchos-a-muchos entre User y Partner
 user_partners = db.Table('user_partners',
@@ -33,6 +40,9 @@ class Partner(db.Model):
     name = db.Column(db.String(200), nullable=False)
     legal_name = db.Column(db.String(300))  # Razón social
     rfc = db.Column(db.String(13), unique=True)
+    
+    # País de origen
+    country = db.Column(db.String(100), default='México', nullable=False)
     
     # Contacto
     email = db.Column(db.String(255))
@@ -66,6 +76,7 @@ class Partner(db.Model):
             'name': self.name,
             'legal_name': self.legal_name,
             'rfc': self.rfc,
+            'country': self.country or 'México',
             'email': self.email,
             'phone': self.phone,
             'website': self.website,
@@ -140,7 +151,8 @@ class Campus(db.Model):
     code = db.Column(db.String(15), unique=True, nullable=False)  # Código único auto-generado
     
     # Ubicación
-    state_name = db.Column(db.String(50), nullable=False)  # Estado de México
+    country = db.Column(db.String(100), default='México', nullable=False)  # País
+    state_name = db.Column(db.String(50))  # Estado (solo para México, opcional para otros países)
     city = db.Column(db.String(100))
     address = db.Column(db.String(500))
     postal_code = db.Column(db.String(10))
@@ -217,6 +229,7 @@ class Campus(db.Model):
             'partner_id': self.partner_id,
             'name': self.name,
             'code': self.code,
+            'country': self.country or 'México',
             'state_name': self.state_name,
             'city': self.city,
             'address': self.address,

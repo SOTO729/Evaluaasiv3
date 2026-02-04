@@ -10,6 +10,7 @@ export interface Partner {
   name: string;
   legal_name?: string;
   rfc?: string;
+  country?: string;
   email?: string;
   phone?: string;
   website?: string;
@@ -71,7 +72,8 @@ export interface Campus {
   partner_id: number;
   code: string;
   name: string;
-  state_name: string;
+  country?: string;
+  state_name?: string;
   city?: string;
   address?: string;
   postal_code?: string;
@@ -241,6 +243,11 @@ export interface UpdateResponsableData {
 export async function getMexicanStates(): Promise<string[]> {
   const response = await api.get('/partners/mexican-states');
   return response.data.states;
+}
+
+export async function getCountries(): Promise<string[]> {
+  const response = await api.get('/partners/countries');
+  return response.data.countries;
 }
 
 // ============== PARTNERS ==============

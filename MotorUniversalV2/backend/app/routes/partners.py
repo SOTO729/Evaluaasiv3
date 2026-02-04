@@ -44,6 +44,14 @@ def get_mexican_states():
     return jsonify({'states': MEXICAN_STATES})
 
 
+@bp.route('/countries', methods=['GET'])
+@jwt_required()
+def get_countries():
+    """Obtener lista de países disponibles"""
+    from app.models.partner import AVAILABLE_COUNTRIES
+    return jsonify({'countries': AVAILABLE_COUNTRIES})
+
+
 # ============== PARTNERS ==============
 
 @bp.route('', methods=['GET'])
@@ -122,6 +130,7 @@ def create_partner():
             name=data['name'],
             legal_name=data.get('legal_name'),
             rfc=data.get('rfc'),
+            country=data.get('country', 'México'),
             email=data.get('email'),
             phone=data.get('phone'),
             website=data.get('website'),
@@ -159,7 +168,7 @@ def update_partner(partner_id):
                 return jsonify({'error': 'Ya existe un partner con ese RFC'}), 400
         
         # Actualizar campos
-        for field in ['name', 'legal_name', 'rfc', 'email', 'phone', 'website', 'logo_url', 'notes', 'is_active']:
+        for field in ['name', 'legal_name', 'rfc', 'country', 'email', 'phone', 'website', 'logo_url', 'notes', 'is_active']:
             if field in data:
                 setattr(partner, field, data[field])
         
@@ -338,12 +347,19 @@ def create_campus(partner_id):
         
         if not data.get('name'):
             return jsonify({'error': 'El nombre es requerido'}), 400
-            
-        if not data.get('state_name'):
-            return jsonify({'error': 'El estado es requerido'}), 400
-            
-        if data['state_name'] not in MEXICAN_STATES:
-            return jsonify({'error': 'Estado no válido'}), 400
+        
+        # El país por defecto es México
+        country = data.get('country', 'México')
+        
+        # Si el país es México, el estado es requerido
+        if country == 'México':
+            if not data.get('state_name'):
+                return jsonify({'error': 'El estado es requerido para México'}), 400
+            if data['state_name'] not in MEXICAN_STATES:
+                return jsonify({'error': 'Estado no válido'}), 400
+        
+        # El state_name puede ser None para países que no son México
+        state_name = data.get('state_name') if country == 'México' else data.get('state_name', '')
             
         if not data.get('postal_code'):
             return jsonify({'error': 'El código postal es requerido'}), 400
@@ -363,7 +379,6 @@ def create_campus(partner_id):
         if not data.get('director_phone'):
             return jsonify({'error': 'El teléfono del director es requerido'}), 400
         
-        state_name = data['state_name']
         state_auto_created = False
         
         # Verificar si el partner ya tiene presencia en ese estado
@@ -392,7 +407,8 @@ def create_campus(partner_id):
             partner_id=partner_id,
             name=data['name'],
             code=campus_code,
-            state_name=state_name,
+            country=country,
+            state_name=state_name if state_name else None,
             city=data.get('city'),
             address=data.get('address'),
             postal_code=data.get('postal_code'),
@@ -451,11 +467,17 @@ def update_campus(campus_id):
         campus = Campus.query.get_or_404(campus_id)
         data = request.get_json()
         
-        if data.get('state_name') and data['state_name'] not in MEXICAN_STATES:
+        # Validar estado solo si el país es México
+        country = data.get('country', campus.country or 'México')
+        if country == 'México' and data.get('state_name') and data['state_name'] not in MEXICAN_STATES:
             return jsonify({'error': 'Estado no válido'}), 400
         
+        # Si cambia a un país que no es México, el state_name puede quedar vacío
+        if 'country' in data and data['country'] != 'México' and 'state_name' not in data:
+            data['state_name'] = None
+        
         # Actualizar campos
-        for field in ['name', 'state_name', 'city', 'address', 'postal_code',
+        for field in ['name', 'country', 'state_name', 'city', 'address', 'postal_code',
                       'email', 'phone', 'website', 'director_name', 'director_email', 'director_phone', 'is_active']:
             if field in data:
                 setattr(campus, field, data[field])

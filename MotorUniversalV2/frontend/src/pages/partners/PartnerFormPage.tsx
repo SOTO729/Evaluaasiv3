@@ -25,6 +25,7 @@ import {
   getPartner,
   createPartner,
   updatePartner,
+  getCountries,
   PartnerStatePresence,
 } from '../../services/partnersService';
 
@@ -38,11 +39,13 @@ export default function PartnerFormPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [partnerStates, setPartnerStates] = useState<PartnerStatePresence[]>([]);
+  const [countries, setCountries] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     name: '',
     legal_name: '',
     rfc: '',
+    country: 'México',
     email: '',
     phone: '',
     website: '',
@@ -52,10 +55,22 @@ export default function PartnerFormPage() {
   });
 
   useEffect(() => {
+    loadCountries();
     if (isEditing) {
       loadPartner();
     }
   }, [partnerId]);
+
+  const loadCountries = async () => {
+    try {
+      const countriesList = await getCountries();
+      setCountries(countriesList);
+    } catch (err) {
+      console.error('Error loading countries:', err);
+      // Fallback con países predeterminados
+      setCountries(['México', 'Estados Unidos', 'Canadá', 'España', 'Argentina', 'Chile', 'Colombia', 'Otro']);
+    }
+  };
 
   const loadPartner = async () => {
     try {
@@ -65,6 +80,7 @@ export default function PartnerFormPage() {
         name: partner.name || '',
         legal_name: partner.legal_name || '',
         rfc: partner.rfc || '',
+        country: partner.country || 'México',
         email: partner.email || '',
         phone: partner.phone || '',
         website: partner.website || '',
@@ -226,8 +242,24 @@ export default function PartnerFormPage() {
 
               <div>
                 <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2 flex items-center fluid-gap-2">
+                  <Globe className="fluid-icon-sm text-gray-400" />
+                  País
+                </label>
+                <select
+                  value={formData.country}
+                  onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                  className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all hover:border-blue-300"
+                >
+                  {countries.map((country) => (
+                    <option key={country} value={country}>{country}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2 flex items-center fluid-gap-2">
                   <Hash className="fluid-icon-sm text-gray-400" />
-                  RFC
+                  {formData.country === 'México' ? 'RFC' : 'ID Fiscal'}
                 </label>
                 <input
                   type="text"
@@ -363,8 +395,8 @@ export default function PartnerFormPage() {
             </button>
           </div>
 
-          {/* Estados (solo en edición - derivados de los planteles) */}
-          {isEditing && (
+          {/* Estados (solo en edición y para México - derivados de los planteles) */}
+          {isEditing && formData.country === 'México' && (
             <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-6 hover:shadow-lg transition-all duration-300">
               <h2 className="fluid-text-lg font-bold text-gray-800 fluid-mb-4 flex items-center fluid-gap-3">
                 <div className="fluid-p-2 bg-emerald-100 rounded-fluid-lg">
@@ -380,7 +412,7 @@ export default function PartnerFormPage() {
               <div className="flex items-start fluid-gap-2 fluid-mb-4 fluid-p-3 bg-blue-50 rounded-fluid-xl border border-blue-100">
                 <Info className="fluid-icon-sm text-blue-500 flex-shrink-0 mt-0.5" />
                 <p className="fluid-text-xs text-blue-700">
-                  Los estados se obtienen automáticamente de los planteles registrados.
+                  Los estados se obtienen automáticamente de los planteles registrados en México.
                 </p>
               </div>
 

@@ -198,11 +198,19 @@ export default function PartnerDetailPage() {
               Información de Contacto
             </h2>
             <div className="fluid-space-y-4">
+              {/* País */}
+              <div className="flex items-center fluid-gap-3 fluid-p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-fluid-xl border border-blue-100">
+                <Globe className="fluid-icon-base text-blue-500" />
+                <div>
+                  <p className="fluid-text-xs text-gray-500 font-medium uppercase tracking-wide">País</p>
+                  <p className="fluid-text-base font-semibold text-gray-900">{partner.country || 'México'}</p>
+                </div>
+              </div>
               {partner.rfc && (
                 <div className="flex items-center fluid-gap-3 fluid-p-3 bg-gray-50 rounded-fluid-xl hover:bg-gray-100 transition-colors">
                   <Hash className="fluid-icon-base text-gray-400" />
                   <div>
-                    <p className="fluid-text-xs text-gray-500 font-medium uppercase tracking-wide">RFC</p>
+                    <p className="fluid-text-xs text-gray-500 font-medium uppercase tracking-wide">{partner.country === 'México' ? 'RFC' : 'ID Fiscal'}</p>
                     <p className="fluid-text-base font-mono font-semibold text-gray-900">{partner.rfc}</p>
                   </div>
                 </div>
@@ -243,44 +251,46 @@ export default function PartnerDetailPage() {
             </div>
           </div>
 
-          {/* Estados con presencia (derivados de planteles) */}
-          <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-6 hover:shadow-lg hover:border-emerald-200 transition-all duration-300">
-            <h2 className="fluid-text-lg font-bold text-gray-800 fluid-mb-4 flex items-center fluid-gap-3">
-              <div className="fluid-p-2 bg-emerald-100 rounded-fluid-lg">
-                <MapPin className="fluid-icon-base text-emerald-600" />
+          {/* Estados con presencia (solo para México - derivados de planteles) */}
+          {(partner.country === 'México' || !partner.country) && (
+            <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-6 hover:shadow-lg hover:border-emerald-200 transition-all duration-300">
+              <h2 className="fluid-text-lg font-bold text-gray-800 fluid-mb-4 flex items-center fluid-gap-3">
+                <div className="fluid-p-2 bg-emerald-100 rounded-fluid-lg">
+                  <MapPin className="fluid-icon-base text-emerald-600" />
+                </div>
+                Presencia por Estado
+              </h2>
+              <div className="flex items-start fluid-gap-2 fluid-mb-4 fluid-p-3 bg-blue-50 rounded-fluid-xl border border-blue-100">
+                <Info className="fluid-icon-sm text-blue-500 flex-shrink-0 mt-0.5" />
+                <p className="fluid-text-xs text-blue-700">
+                  Los estados se obtienen automáticamente de los planteles registrados en México.
+                </p>
               </div>
-              Presencia por Estado
-            </h2>
-            <div className="flex items-start fluid-gap-2 fluid-mb-4 fluid-p-3 bg-blue-50 rounded-fluid-xl border border-blue-100">
-              <Info className="fluid-icon-sm text-blue-500 flex-shrink-0 mt-0.5" />
-              <p className="fluid-text-xs text-blue-700">
-                Los estados se obtienen automáticamente de los planteles registrados.
-              </p>
+              {partner.states && partner.states.length > 0 ? (
+                <div className="flex flex-wrap fluid-gap-2">
+                  {partner.states.map((state) => (
+                    <button
+                      key={state.state_name}
+                      onClick={() => setSelectedState(selectedState === state.state_name ? '' : state.state_name)}
+                      className={`fluid-px-4 fluid-py-2 rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 ${
+                        selectedState === state.state_name
+                          ? 'bg-emerald-600 text-white shadow-lg scale-105'
+                          : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                      }`}
+                    >
+                      {state.state_name}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center fluid-py-6">
+                  <MapPin className="fluid-icon-xl text-gray-300 mx-auto fluid-mb-2" />
+                  <p className="fluid-text-base text-gray-500">Sin presencia en estados</p>
+                  <p className="fluid-text-xs text-gray-400 fluid-mt-1">Agregue planteles para registrar presencia</p>
+                </div>
+              )}
             </div>
-            {partner.states && partner.states.length > 0 ? (
-              <div className="flex flex-wrap fluid-gap-2">
-                {partner.states.map((state) => (
-                  <button
-                    key={state.state_name}
-                    onClick={() => setSelectedState(selectedState === state.state_name ? '' : state.state_name)}
-                    className={`fluid-px-4 fluid-py-2 rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 ${
-                      selectedState === state.state_name
-                        ? 'bg-emerald-600 text-white shadow-lg scale-105'
-                        : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
-                    }`}
-                  >
-                    {state.state_name}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center fluid-py-6">
-                <MapPin className="fluid-icon-xl text-gray-300 mx-auto fluid-mb-2" />
-                <p className="fluid-text-base text-gray-500">Sin presencia en estados</p>
-                <p className="fluid-text-xs text-gray-400 fluid-mt-1">Agregue planteles para registrar presencia</p>
-              </div>
-            )}
-          </div>
+          )}
 
           {/* Estadísticas */}
           <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-6 hover:shadow-lg hover:border-purple-200 transition-all duration-300">
