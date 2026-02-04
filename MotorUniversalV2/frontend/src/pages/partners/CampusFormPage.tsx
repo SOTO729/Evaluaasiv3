@@ -38,7 +38,6 @@ import {
   updateCampus,
   getMexicanStates,
   getPartner,
-  getCampusConfiguration,
   configureCampus,
   OfficeVersion,
 } from '../../services/partnersService';
@@ -126,27 +125,22 @@ export default function CampusFormPage() {
           is_active: campus.is_active,
         });
         
-        // Cargar configuración del plantel
-        try {
-          const configResponse = await getCampusConfiguration(Number(campusId));
-          setConfigData({
-            office_version: configResponse.configuration.office_version || 'office_365',
-            enable_tier_basic: configResponse.configuration.enable_tier_basic ?? true,
-            enable_tier_standard: configResponse.configuration.enable_tier_standard ?? false,
-            enable_tier_advanced: configResponse.configuration.enable_tier_advanced ?? false,
-            enable_digital_badge: configResponse.configuration.enable_digital_badge ?? false,
-            enable_partial_evaluations: configResponse.configuration.enable_partial_evaluations ?? false,
-            enable_unscheduled_partials: configResponse.configuration.enable_unscheduled_partials ?? false,
-            enable_virtual_machines: configResponse.configuration.enable_virtual_machines ?? false,
-            enable_online_payments: configResponse.configuration.enable_online_payments ?? false,
-            license_start_date: configResponse.configuration.license_start_date || '',
-            license_end_date: configResponse.configuration.license_end_date || '',
-            certification_cost: configResponse.configuration.certification_cost || 0,
-            retake_cost: configResponse.configuration.retake_cost || 0,
-          });
-        } catch (configErr) {
-          console.log('No hay configuración guardada aún');
-        }
+        // Cargar configuración directamente del objeto campus (ya viene incluida)
+        setConfigData({
+          office_version: (campus.office_version as OfficeVersion) || 'office_365',
+          enable_tier_basic: campus.enable_tier_basic ?? true,
+          enable_tier_standard: campus.enable_tier_standard ?? false,
+          enable_tier_advanced: campus.enable_tier_advanced ?? false,
+          enable_digital_badge: campus.enable_digital_badge ?? false,
+          enable_partial_evaluations: campus.enable_partial_evaluations ?? false,
+          enable_unscheduled_partials: campus.enable_unscheduled_partials ?? false,
+          enable_virtual_machines: campus.enable_virtual_machines ?? false,
+          enable_online_payments: campus.enable_online_payments ?? false,
+          license_start_date: campus.license_start_date || '',
+          license_end_date: campus.license_end_date || '',
+          certification_cost: campus.certification_cost || 0,
+          retake_cost: campus.retake_cost || 0,
+        });
         
         // Ahora cargar el partner
         const partner = await getPartner(partnerId);

@@ -1,6 +1,6 @@
 /**
- * Detalle de Plantel (Campus) - Vista Mejorada
- * Con listas scrolleables, configuración visible y mejor UX
+ * Detalle de Plantel (Campus) - Diseño Mejorado con Fluid
+ * Con header con gradiente, listas scrolleables y mejor UX
  */
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
@@ -190,10 +190,15 @@ export default function CampusDetailPage() {
   if (error || !campus) {
     return (
       <div className="fluid-p-6 max-w-[2800px] mx-auto">
-        <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-5 flex items-center fluid-gap-3">
-          <AlertCircle className="fluid-icon-lg text-red-600" />
-          <p className="text-red-700 fluid-text-base">{error || 'Plantel no encontrado'}</p>
-          <Link to="/partners" className="ml-auto text-red-700 underline">Volver</Link>
+        <div className="bg-red-50 border border-red-200 rounded-fluid-2xl fluid-p-6 flex items-center fluid-gap-4">
+          <AlertCircle className="fluid-icon-xl text-red-600 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="fluid-text-lg font-semibold text-red-800">Error</p>
+            <p className="fluid-text-base text-red-700">{error || 'Plantel no encontrado'}</p>
+          </div>
+          <Link to="/partners" className="fluid-px-4 fluid-py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-fluid-xl fluid-text-base font-medium transition-colors">
+            Volver
+          </Link>
         </div>
       </div>
     );
@@ -210,163 +215,240 @@ export default function CampusDetailPage() {
 
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4 fluid-mb-6">
-        <div className="flex items-center fluid-gap-4">
-          <Link to={`/partners/${campus.partner_id}`} className="fluid-p-2 hover:bg-gray-100 rounded-fluid-xl transition-colors">
-            <ArrowLeft className="fluid-icon-lg text-gray-600" />
+      {/* Header con Gradiente */}
+      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 shadow-lg">
+        <div className="flex items-center fluid-gap-5 flex-wrap">
+          <Link
+            to={`/partners/${campus.partner_id}`}
+            className="fluid-p-3 bg-white/20 hover:bg-white/30 rounded-fluid-xl transition-all duration-300 hover:scale-105"
+          >
+            <ArrowLeft className="fluid-icon-lg text-white" />
           </Link>
-          <div>
-            <div className="flex items-center fluid-gap-2 fluid-text-sm text-gray-500 fluid-mb-1">
+          
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center fluid-gap-2 fluid-text-sm text-white/80 fluid-mb-1">
               <Building2 className="fluid-icon-sm" />
-              <Link to={`/partners/${campus.partner_id}`} className="hover:text-blue-600">{campus.partner?.name}</Link>
+              <Link to={`/partners/${campus.partner_id}`} className="hover:text-white transition-colors">{campus.partner?.name}</Link>
             </div>
             <div className="flex items-center fluid-gap-3 flex-wrap">
-              <h1 className="fluid-text-2xl font-bold text-gray-800">{campus.name}</h1>
-              <span className="fluid-text-xs font-mono font-semibold text-blue-700 bg-blue-50 fluid-px-2 fluid-py-1 rounded-full border border-blue-200">{campus.code}</span>
+              <h1 className="fluid-text-3xl font-bold text-white flex items-center fluid-gap-3">
+                <MapPin className="fluid-icon-xl" />
+                {campus.name}
+              </h1>
+              <span className="fluid-text-sm font-mono font-semibold text-blue-100 bg-white/20 fluid-px-3 fluid-py-1 rounded-full border border-white/30">{campus.code}</span>
               {campus.is_active ? (
-                <span className="inline-flex items-center gap-1 fluid-text-xs font-medium text-green-700 bg-green-50 fluid-px-2 fluid-py-1 rounded-full">
-                  <CheckCircle2 className="fluid-icon-xs" />Activo
+                <span className="inline-flex items-center fluid-gap-1 fluid-text-sm font-medium text-green-100 bg-green-500/30 fluid-px-3 fluid-py-1 rounded-full border border-green-400/50">
+                  <CheckCircle2 className="fluid-icon-sm" />Activo
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 fluid-text-xs font-medium text-amber-700 bg-amber-50 fluid-px-2 fluid-py-1 rounded-full">
-                  <Zap className="fluid-icon-xs" />Pendiente
+                <span className="inline-flex items-center fluid-gap-1 fluid-text-sm font-medium text-amber-100 bg-amber-500/30 fluid-px-3 fluid-py-1 rounded-full border border-amber-400/50">
+                  <Zap className="fluid-icon-sm" />Pendiente
                 </span>
               )}
             </div>
           </div>
-        </div>
-        <div className="flex items-center fluid-gap-3">
-          <Link to={`/partners/campuses/${campusId}/edit`} className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-lg font-medium fluid-text-sm transition-colors">
-            <Edit className="fluid-icon-sm" />Editar
-          </Link>
-          {campus.is_active && (
-            <button onClick={handleDeactivateCampus} className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-fluid-lg font-medium fluid-text-sm transition-colors">
-              <AlertCircle className="fluid-icon-sm" />Desactivar
-            </button>
-          )}
+          
+          <div className="flex items-center fluid-gap-3">
+            <Link
+              to={`/partners/campuses/${campusId}/edit`}
+              className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-3 bg-white hover:bg-gray-100 text-blue-600 rounded-fluid-xl font-semibold fluid-text-base transition-all duration-300 hover:scale-105 shadow-lg"
+            >
+              <Edit className="fluid-icon-base" />
+              Editar
+            </Link>
+            {campus.is_active && (
+              <button
+                onClick={handleDeactivateCampus}
+                className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-3 bg-white/20 hover:bg-white/30 text-white rounded-fluid-xl font-medium fluid-text-base transition-all duration-300"
+              >
+                <AlertCircle className="fluid-icon-base" />
+                Desactivar
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
+      {/* Banner de Activación Pendiente */}
       {!campus.is_active && (
-        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-fluid-2xl border border-amber-200 fluid-p-6 fluid-mb-6">
-          <div className="flex items-start fluid-gap-4 fluid-mb-6">
-            <div className="fluid-p-3 bg-amber-100 rounded-fluid-xl"><Zap className="fluid-icon-xl text-amber-600" /></div>
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-fluid-2xl border border-amber-200 fluid-p-6 fluid-mb-6 shadow-sm">
+          <div className="flex items-start fluid-gap-5 fluid-mb-5">
+            <div className="fluid-p-3 bg-amber-100 rounded-fluid-xl">
+              <Zap className="fluid-icon-xl text-amber-600" />
+            </div>
             <div>
               <h2 className="fluid-text-xl font-bold text-gray-900 fluid-mb-1">Plantel Pendiente de Activación</h2>
               <p className="fluid-text-base text-gray-600">Completa el proceso de activación para gestionar ciclos escolares, grupos y exámenes.</p>
             </div>
           </div>
-          <Link to={`/partners/campuses/${campus.id}/activate`} className="inline-flex items-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-fluid-xl font-semibold fluid-text-base transition-all shadow-lg">
+          <Link
+            to={`/partners/campuses/${campus.id}/activate`}
+            className="inline-flex items-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-fluid-xl font-semibold fluid-text-base transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+          >
             <Zap className="fluid-icon-lg" />Iniciar Activación
           </Link>
         </div>
       )}
 
-      {/* SECCIÓN SUPERIOR: Información, Configuración, Responsable */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 fluid-gap-6 fluid-mb-8">
+      {/* SECCIÓN SUPERIOR: Información, Configuración, Costos, Responsable */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 fluid-gap-6 fluid-mb-6">
         {/* Información del plantel */}
-        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5 hover:shadow-lg hover:border-blue-200 hover:-translate-y-1 transition-all duration-300 group">
-          <h3 className="fluid-text-sm font-semibold text-gray-600 uppercase tracking-wide fluid-mb-4 flex items-center fluid-gap-2 group-hover:text-blue-600 transition-colors">
-            <Building2 className="fluid-icon-sm text-blue-600" />Información
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5 hover:shadow-lg hover:border-blue-200 transition-all duration-300">
+          <h3 className="fluid-text-sm font-bold text-gray-700 uppercase tracking-wide fluid-mb-4 flex items-center fluid-gap-2">
+            <div className="fluid-p-2 bg-blue-100 rounded-fluid-lg">
+              <Building2 className="fluid-icon-sm text-blue-600" />
+            </div>
+            Información
           </h3>
           <div className="fluid-space-y-3">
-            <div className="flex items-start fluid-gap-3 fluid-p-2 rounded-fluid-lg hover:bg-gray-50 transition-colors">
-              <MapPin className="fluid-icon-sm text-gray-400 fluid-mt-0.5 flex-shrink-0" />
+            <div className="flex items-start fluid-gap-3 fluid-p-3 bg-gray-50 rounded-fluid-xl hover:bg-gray-100 transition-colors">
+              <MapPin className="fluid-icon-base text-gray-400 fluid-mt-0.5 flex-shrink-0" />
               <div className="min-w-0">
-                <p className="fluid-text-sm font-medium text-gray-900">{campus.state_name}{campus.city ? `, ${campus.city}` : ''}</p>
+                <p className="fluid-text-sm font-semibold text-gray-900">{campus.state_name}{campus.city ? `, ${campus.city}` : ''}</p>
                 {campus.address && <p className="fluid-text-xs text-gray-500 truncate fluid-mt-0.5">{campus.address}</p>}
               </div>
             </div>
             {campus.email && (
-              <div className="flex items-center fluid-gap-3 fluid-p-2 rounded-fluid-lg hover:bg-gray-50 transition-colors">
-                <Mail className="fluid-icon-sm text-gray-400 flex-shrink-0" />
+              <div className="flex items-center fluid-gap-3 fluid-p-3 bg-gray-50 rounded-fluid-xl hover:bg-blue-50 transition-colors group">
+                <Mail className="fluid-icon-base text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
                 <a href={`mailto:${campus.email}`} className="fluid-text-sm text-blue-600 hover:underline truncate">{campus.email}</a>
               </div>
             )}
             {campus.phone && (
-              <div className="flex items-center fluid-gap-3 fluid-p-2 rounded-fluid-lg hover:bg-gray-50 transition-colors">
-                <Phone className="fluid-icon-sm text-gray-400 flex-shrink-0" />
-                <span className="fluid-text-sm text-gray-900">{campus.phone}</span>
+              <div className="flex items-center fluid-gap-3 fluid-p-3 bg-gray-50 rounded-fluid-xl hover:bg-green-50 transition-colors group">
+                <Phone className="fluid-icon-base text-gray-400 group-hover:text-green-500 transition-colors flex-shrink-0" />
+                <span className="fluid-text-sm font-medium text-gray-900">{campus.phone}</span>
               </div>
             )}
             {campus.director_name && (
-              <div className="flex items-center fluid-gap-3 fluid-p-2 rounded-fluid-lg hover:bg-gray-50 transition-colors">
-                <UserCog className="fluid-icon-sm text-gray-400 flex-shrink-0" />
+              <div className="flex items-center fluid-gap-3 fluid-p-3 bg-gray-50 rounded-fluid-xl hover:bg-purple-50 transition-colors group">
+                <UserCog className="fluid-icon-base text-gray-400 group-hover:text-purple-500 transition-colors flex-shrink-0" />
                 <span className="fluid-text-sm text-gray-900">{campus.director_name}</span>
               </div>
             )}
             {campus.created_at && (
-              <div className="flex items-center fluid-gap-3 fluid-p-2 fluid-mt-2 border-t border-gray-100">
-                <Clock className="fluid-icon-sm text-gray-400 flex-shrink-0" />
-                <span className="fluid-text-xs text-gray-500">Creado: {new Date(campus.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+              <div className="flex items-center fluid-gap-3 fluid-p-3 border-t border-gray-100 fluid-mt-2">
+                <Clock className="fluid-icon-base text-gray-400 flex-shrink-0" />
+                <div>
+                  <p className="fluid-text-xs text-gray-500">Creado</p>
+                  <p className="fluid-text-xs font-medium text-gray-700">{new Date(campus.created_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                </div>
               </div>
             )}
           </div>
         </div>
 
         {/* Configuración - Niveles y Funcionalidades */}
-        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5 hover:shadow-lg hover:border-gray-300 hover:-translate-y-1 transition-all duration-300 group">
-          <h3 className="fluid-text-sm font-semibold text-gray-600 uppercase tracking-wide fluid-mb-4 flex items-center fluid-gap-2 group-hover:text-gray-800 transition-colors">
-            <Settings className="fluid-icon-sm text-gray-600" />Configuración
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5 hover:shadow-lg hover:border-gray-300 transition-all duration-300">
+          <h3 className="fluid-text-sm font-bold text-gray-700 uppercase tracking-wide fluid-mb-4 flex items-center fluid-gap-2">
+            <div className="fluid-p-2 bg-gray-100 rounded-fluid-lg">
+              <Settings className="fluid-icon-sm text-gray-600" />
+            </div>
+            Configuración
           </h3>
           <div className="fluid-space-y-4">
+            {/* Versión de Office */}
             <div className="flex items-center fluid-gap-3 fluid-p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-fluid-xl border border-blue-100">
               <Monitor className="fluid-icon-base text-blue-600" />
-              <span className="fluid-text-sm font-semibold text-gray-900">{formatOfficeVersion(campus.office_version)}</span>
+              <span className="fluid-text-sm font-bold text-gray-900">{formatOfficeVersion(campus.office_version)}</span>
             </div>
-            <div className="grid grid-cols-2 fluid-gap-2">
-              <div className={`flex items-center fluid-gap-2 fluid-p-2 rounded-fluid-lg transition-all duration-200 hover:scale-105 ${campus.enable_tier_basic !== false ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
-                <Award className="fluid-icon-sm" /><span className="fluid-text-xs font-medium">Constancia</span>
-              </div>
-              <div className={`flex items-center fluid-gap-2 fluid-p-2 rounded-fluid-lg transition-all duration-200 hover:scale-105 ${campus.enable_tier_standard ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
-                <Award className="fluid-icon-sm" /><span className="fluid-text-xs font-medium">Eduit</span>
-              </div>
-              <div className={`flex items-center fluid-gap-2 fluid-p-2 rounded-fluid-lg transition-all duration-200 hover:scale-105 ${campus.enable_tier_advanced ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
-                <Shield className="fluid-icon-sm" /><span className="fluid-text-xs font-medium">CONOCER</span>
-              </div>
-              <div className={`flex items-center fluid-gap-2 fluid-p-2 rounded-fluid-lg transition-all duration-200 hover:scale-105 ${campus.enable_digital_badge ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
-                <Zap className="fluid-icon-sm" /><span className="fluid-text-xs font-medium">Insignia</span>
+            
+            {/* Niveles de Certificación */}
+            <div>
+              <p className="fluid-text-xs font-bold text-gray-500 uppercase tracking-wide fluid-mb-2">Niveles de Certificación</p>
+              <div className="grid grid-cols-2 fluid-gap-2">
+                <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${campus.enable_tier_basic !== false ? 'bg-green-100 text-green-800 border-2 border-green-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
+                  <div className="flex items-center fluid-gap-2">
+                    <Award className="fluid-icon-sm" />
+                    <span className="fluid-text-xs font-semibold">Constancia</span>
+                  </div>
+                  {campus.enable_tier_basic !== false && <CheckCircle2 className="fluid-icon-sm text-green-600" />}
+                </div>
+                <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${campus.enable_tier_standard ? 'bg-green-100 text-green-800 border-2 border-green-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
+                  <div className="flex items-center fluid-gap-2">
+                    <Award className="fluid-icon-sm" />
+                    <span className="fluid-text-xs font-semibold">Eduit</span>
+                  </div>
+                  {campus.enable_tier_standard && <CheckCircle2 className="fluid-icon-sm text-green-600" />}
+                </div>
+                <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${campus.enable_tier_advanced ? 'bg-green-100 text-green-800 border-2 border-green-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
+                  <div className="flex items-center fluid-gap-2">
+                    <Shield className="fluid-icon-sm" />
+                    <span className="fluid-text-xs font-semibold">CONOCER</span>
+                  </div>
+                  {campus.enable_tier_advanced && <CheckCircle2 className="fluid-icon-sm text-green-600" />}
+                </div>
+                <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${campus.enable_digital_badge ? 'bg-green-100 text-green-800 border-2 border-green-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
+                  <div className="flex items-center fluid-gap-2">
+                    <Zap className="fluid-icon-sm" />
+                    <span className="fluid-text-xs font-semibold">Insignia</span>
+                  </div>
+                  {campus.enable_digital_badge && <CheckCircle2 className="fluid-icon-sm text-green-600" />}
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 fluid-gap-2">
-              <div className={`flex items-center fluid-gap-2 fluid-p-2 rounded-fluid-lg transition-all duration-200 hover:scale-105 ${campus.enable_partial_evaluations ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
-                <FileText className="fluid-icon-sm" /><span className="fluid-text-xs font-medium">Parciales</span>
-              </div>
-              <div className={`flex items-center fluid-gap-2 fluid-p-2 rounded-fluid-lg transition-all duration-200 hover:scale-105 ${campus.enable_virtual_machines ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
-                <Globe className="fluid-icon-sm" /><span className="fluid-text-xs font-medium">VMs</span>
-              </div>
-              <div className={`flex items-center fluid-gap-2 fluid-p-2 rounded-fluid-lg transition-all duration-200 hover:scale-105 ${campus.enable_unscheduled_partials ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
-                <Calendar className="fluid-icon-sm" /><span className="fluid-text-xs font-medium">Sin Agendar</span>
-              </div>
-              <div className={`flex items-center fluid-gap-2 fluid-p-2 rounded-fluid-lg transition-all duration-200 hover:scale-105 ${campus.enable_online_payments ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
-                <CreditCard className="fluid-icon-sm" /><span className="fluid-text-xs font-medium">Pagos</span>
+            
+            {/* Funcionalidades */}
+            <div>
+              <p className="fluid-text-xs font-bold text-gray-500 uppercase tracking-wide fluid-mb-2">Funcionalidades</p>
+              <div className="grid grid-cols-2 fluid-gap-2">
+                <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${campus.enable_partial_evaluations ? 'bg-green-100 text-green-800 border-2 border-green-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
+                  <div className="flex items-center fluid-gap-2">
+                    <FileText className="fluid-icon-sm" />
+                    <span className="fluid-text-xs font-semibold">Parciales</span>
+                  </div>
+                  {campus.enable_partial_evaluations && <CheckCircle2 className="fluid-icon-sm text-green-600" />}
+                </div>
+                <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${campus.enable_virtual_machines ? 'bg-green-100 text-green-800 border-2 border-green-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
+                  <div className="flex items-center fluid-gap-2">
+                    <Globe className="fluid-icon-sm" />
+                    <span className="fluid-text-xs font-semibold">VMs</span>
+                  </div>
+                  {campus.enable_virtual_machines && <CheckCircle2 className="fluid-icon-sm text-green-600" />}
+                </div>
+                <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${campus.enable_unscheduled_partials ? 'bg-green-100 text-green-800 border-2 border-green-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
+                  <div className="flex items-center fluid-gap-2">
+                    <Calendar className="fluid-icon-sm" />
+                    <span className="fluid-text-xs font-semibold">Sin Agendar</span>
+                  </div>
+                  {campus.enable_unscheduled_partials && <CheckCircle2 className="fluid-icon-sm text-green-600" />}
+                </div>
+                <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${campus.enable_online_payments ? 'bg-green-100 text-green-800 border-2 border-green-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
+                  <div className="flex items-center fluid-gap-2">
+                    <CreditCard className="fluid-icon-sm" />
+                    <span className="fluid-text-xs font-semibold">Pagos</span>
+                  </div>
+                  {campus.enable_online_payments && <CheckCircle2 className="fluid-icon-sm text-green-600" />}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Costos y Vigencia */}
-        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5 hover:shadow-lg hover:border-green-200 hover:-translate-y-1 transition-all duration-300 group">
-          <h3 className="fluid-text-sm font-semibold text-gray-600 uppercase tracking-wide fluid-mb-4 flex items-center fluid-gap-2 group-hover:text-green-600 transition-colors">
-            <DollarSign className="fluid-icon-sm text-green-600" />Costos y Vigencia
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5 hover:shadow-lg hover:border-green-200 transition-all duration-300">
+          <h3 className="fluid-text-sm font-bold text-gray-700 uppercase tracking-wide fluid-mb-4 flex items-center fluid-gap-2">
+            <div className="fluid-p-2 bg-green-100 rounded-fluid-lg">
+              <DollarSign className="fluid-icon-sm text-green-600" />
+            </div>
+            Costos y Vigencia
           </h3>
           <div className="fluid-space-y-4">
             <div className="grid grid-cols-2 fluid-gap-3">
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-fluid-xl fluid-p-3 text-center border border-green-100 hover:shadow-md transition-all duration-200">
-                <p className="fluid-text-xl font-bold text-green-700">${campus.certification_cost || 0}</p>
-                <p className="fluid-text-xs text-green-600 font-medium">Certificación</p>
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-fluid-xl fluid-p-4 text-center border border-green-100 hover:shadow-md transition-all duration-200">
+                <p className="fluid-text-2xl font-bold text-green-700">${campus.certification_cost || 0}</p>
+                <p className="fluid-text-xs text-green-600 font-semibold fluid-mt-1">Certificación</p>
               </div>
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-fluid-xl fluid-p-3 text-center border border-blue-100 hover:shadow-md transition-all duration-200">
-                <p className="fluid-text-xl font-bold text-blue-700">${campus.retake_cost || 0}</p>
-                <p className="fluid-text-xs text-blue-600 font-medium">Retoma</p>
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-fluid-xl fluid-p-4 text-center border border-blue-100 hover:shadow-md transition-all duration-200">
+                <p className="fluid-text-2xl font-bold text-blue-700">${campus.retake_cost || 0}</p>
+                <p className="fluid-text-xs text-blue-600 font-semibold fluid-mt-1">Retoma</p>
               </div>
             </div>
             {(campus.license_start_date || campus.license_end_date) ? (
               <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-fluid-xl fluid-p-4 border border-purple-100">
                 <div className="flex items-center fluid-gap-2 fluid-mb-2">
-                  <CalendarRange className="fluid-icon-sm text-purple-600" />
-                  <span className="fluid-text-sm font-semibold text-purple-700">Vigencia</span>
+                  <CalendarRange className="fluid-icon-base text-purple-600" />
+                  <span className="fluid-text-sm font-bold text-purple-700">Vigencia</span>
                 </div>
                 <p className="fluid-text-sm text-purple-900 font-medium">
                   {campus.license_start_date ? new Date(campus.license_start_date).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'} - {campus.license_end_date ? new Date(campus.license_end_date).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
@@ -375,26 +457,29 @@ export default function CampusDetailPage() {
             ) : (
               <div className="bg-gray-50 rounded-fluid-xl fluid-p-4 text-center border border-gray-100">
                 <CalendarRange className="fluid-icon-lg text-gray-300 mx-auto" />
-                <p className="fluid-text-xs text-gray-400 fluid-mt-2">Sin vigencia configurada</p>
+                <p className="fluid-text-xs text-gray-400 fluid-mt-2 font-medium">Sin vigencia configurada</p>
               </div>
             )}
             <div className="grid grid-cols-2 fluid-gap-3 fluid-pt-3 border-t border-gray-100">
-              <div className="text-center fluid-p-2 bg-blue-50/50 rounded-fluid-lg hover:bg-blue-50 transition-colors">
+              <div className="text-center fluid-p-3 bg-blue-50/50 rounded-fluid-xl hover:bg-blue-50 transition-colors border border-blue-100/50">
                 <p className="fluid-text-2xl font-bold text-blue-700">{cycles.filter(c => c.is_active).length}</p>
-                <p className="fluid-text-xs text-gray-600 font-medium">Ciclos Activos</p>
+                <p className="fluid-text-xs text-gray-600 font-semibold">Ciclos Activos</p>
               </div>
-              <div className="text-center fluid-p-2 bg-amber-50/50 rounded-fluid-lg hover:bg-amber-50 transition-colors">
+              <div className="text-center fluid-p-3 bg-amber-50/50 rounded-fluid-xl hover:bg-amber-50 transition-colors border border-amber-100/50">
                 <p className="fluid-text-2xl font-bold text-amber-700">{cycles.reduce((acc, c) => acc + (c.groups?.length || 0), 0) + orphanGroups.length}</p>
-                <p className="fluid-text-xs text-gray-600 font-medium">Grupos Totales</p>
+                <p className="fluid-text-xs text-gray-600 font-semibold">Grupos Totales</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Responsable */}
-        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5 hover:shadow-lg hover:border-indigo-200 hover:-translate-y-1 transition-all duration-300 group">
-          <h3 className="fluid-text-sm font-semibold text-gray-600 uppercase tracking-wide fluid-mb-4 flex items-center fluid-gap-2 group-hover:text-indigo-600 transition-colors">
-            <Shield className="fluid-icon-sm text-indigo-600" />Responsable
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5 hover:shadow-lg hover:border-indigo-200 transition-all duration-300">
+          <h3 className="fluid-text-sm font-bold text-gray-700 uppercase tracking-wide fluid-mb-4 flex items-center fluid-gap-2">
+            <div className="fluid-p-2 bg-indigo-100 rounded-fluid-lg">
+              <Shield className="fluid-icon-sm text-indigo-600" />
+            </div>
+            Responsable
           </h3>
           {campus.responsable ? (
             <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-fluid-xl fluid-p-4 border border-indigo-100">
@@ -403,29 +488,29 @@ export default function CampusDetailPage() {
                   <UserCog className="fluid-icon-base text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="fluid-text-sm font-semibold text-gray-900 truncate">{campus.responsable.full_name}</p>
+                  <p className="fluid-text-sm font-bold text-gray-900 truncate">{campus.responsable.full_name}</p>
                   <p className="fluid-text-xs text-gray-500 truncate fluid-mt-0.5">{campus.responsable.email}</p>
                 </div>
               </div>
               <div className="flex flex-wrap fluid-gap-2">
-                {campus.responsable.can_manage_groups && <span className="fluid-text-xs bg-indigo-100 text-indigo-700 fluid-px-3 fluid-py-1 rounded-full font-medium">Grupos</span>}
-                {campus.responsable.can_bulk_create_candidates && <span className="fluid-text-xs bg-indigo-100 text-indigo-700 fluid-px-3 fluid-py-1 rounded-full font-medium">Altas masivas</span>}
+                {campus.responsable.can_manage_groups && <span className="fluid-text-xs bg-indigo-100 text-indigo-700 fluid-px-3 fluid-py-1 rounded-full font-semibold border border-indigo-200">Grupos</span>}
+                {campus.responsable.can_bulk_create_candidates && <span className="fluid-text-xs bg-indigo-100 text-indigo-700 fluid-px-3 fluid-py-1 rounded-full font-semibold border border-indigo-200">Altas masivas</span>}
               </div>
             </div>
           ) : (
             <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-fluid-xl fluid-p-5 text-center border border-amber-200">
               <AlertCircle className="fluid-icon-xl text-amber-400 mx-auto fluid-mb-3" />
-              <p className="fluid-text-sm font-semibold text-amber-800">Sin responsable asignado</p>
-              <Link to={`/partners/campuses/${campus.id}/activate`} className="inline-flex items-center fluid-gap-2 fluid-text-sm text-indigo-600 hover:text-indigo-700 fluid-mt-3 font-medium hover:underline">
+              <p className="fluid-text-sm font-bold text-amber-800">Sin responsable asignado</p>
+              <Link to={`/partners/campuses/${campus.id}/activate`} className="inline-flex items-center fluid-gap-2 fluid-text-sm text-indigo-600 hover:text-indigo-700 fluid-mt-3 font-semibold hover:underline">
                 <Plus className="fluid-icon-sm" />Asignar responsable
               </Link>
             </div>
           )}
           {campus.activated_at && (
             <div className="fluid-mt-4 fluid-pt-4 border-t border-gray-100">
-              <div className="flex items-center fluid-gap-3 fluid-p-2 bg-green-50 rounded-fluid-lg">
-                <CheckCircle2 className="fluid-icon-sm text-green-500" />
-                <span className="fluid-text-xs text-green-700 font-medium">Activado: {new Date(campus.activated_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+              <div className="flex items-center fluid-gap-3 fluid-p-3 bg-green-50 rounded-fluid-xl border border-green-100">
+                <CheckCircle2 className="fluid-icon-base text-green-500" />
+                <span className="fluid-text-xs text-green-700 font-semibold">Activado: {new Date(campus.activated_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
               </div>
             </div>
           )}
@@ -437,40 +522,60 @@ export default function CampusDetailPage() {
         {/* Ciclos Escolares */}
         {campus.is_active && cyclesAvailable ? (
           <>
-            <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="fluid-p-4 border-b border-gray-200 flex items-center justify-between">
-                <h3 className="fluid-text-base font-semibold text-gray-800 flex items-center fluid-gap-2">
-                  <GraduationCap className="fluid-icon-base text-blue-600" />Ciclos Escolares
+            <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300">
+              <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex items-center justify-between">
+                <h3 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-3">
+                  <div className="fluid-p-2 bg-blue-100 rounded-fluid-lg">
+                    <GraduationCap className="fluid-icon-base text-blue-600" />
+                  </div>
+                  Ciclos Escolares
+                  <span className="fluid-text-sm font-medium text-gray-400 bg-gray-100 fluid-px-2 fluid-py-1 rounded-full">{cycles.length}</span>
                 </h3>
-                <button onClick={() => setShowNewCycleModal(true)} className="inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-lg fluid-text-sm font-medium transition-colors">
+                <button
+                  onClick={() => setShowNewCycleModal(true)}
+                  className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 hover:scale-105 shadow-md"
+                >
                   <Plus className="fluid-icon-sm" />Nuevo
                 </button>
               </div>
-              <div className="max-h-[300px] overflow-y-auto">
+              <div className="max-h-[350px] overflow-y-auto">
                 {cycles.length === 0 ? (
-                  <div className="fluid-p-6 text-center">
-                    <GraduationCap className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-2" />
-                    <p className="fluid-text-sm text-gray-500">No hay ciclos escolares</p>
+                  <div className="fluid-p-8 text-center">
+                    <GraduationCap className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-3" />
+                    <p className="fluid-text-base font-medium text-gray-500">No hay ciclos escolares</p>
+                    <p className="fluid-text-sm text-gray-400 fluid-mt-1">Crea un ciclo para organizar tus grupos</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-100">
                     {cycles.map((cycle) => (
-                      <div key={cycle.id} onClick={() => setSelectedCycleId(cycle.id)} className={`fluid-p-3 cursor-pointer transition-all ${selectedCycleId === cycle.id ? 'bg-blue-50 border-l-4 border-blue-500' : 'hover:bg-gray-50 border-l-4 border-transparent'} ${!cycle.is_active ? 'opacity-50' : ''}`}>
+                      <div
+                        key={cycle.id}
+                        onClick={() => setSelectedCycleId(cycle.id)}
+                        className={`fluid-p-4 cursor-pointer transition-all duration-200 ${selectedCycleId === cycle.id ? 'bg-blue-50 border-l-4 border-blue-500' : 'hover:bg-gray-50 border-l-4 border-transparent'} ${!cycle.is_active ? 'opacity-50' : ''}`}
+                      >
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center fluid-gap-2">
-                              <span className="fluid-text-sm font-medium text-gray-900 truncate">{cycle.name}</span>
-                              {cycle.is_current && <span className="fluid-text-xs bg-blue-100 text-blue-700 fluid-px-1.5 fluid-py-0.5 rounded">Actual</span>}
-                              {!cycle.is_active && <span className="fluid-text-xs bg-red-100 text-red-600 fluid-px-1.5 fluid-py-0.5 rounded">Inactivo</span>}
+                            <div className="flex items-center fluid-gap-2 flex-wrap">
+                              <span className="fluid-text-base font-semibold text-gray-900 truncate">{cycle.name}</span>
+                              {cycle.is_current && <span className="fluid-text-xs bg-blue-100 text-blue-700 fluid-px-2 fluid-py-0.5 rounded-full font-semibold border border-blue-200">Actual</span>}
+                              {!cycle.is_active && <span className="fluid-text-xs bg-red-100 text-red-600 fluid-px-2 fluid-py-0.5 rounded-full font-semibold border border-red-200">Inactivo</span>}
                             </div>
-                            <div className="flex items-center fluid-gap-3 fluid-text-xs text-gray-500 fluid-mt-1">
-                              <span>{new Date(cycle.start_date).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' })} - {new Date(cycle.end_date).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' })}</span>
-                              <span className="flex items-center fluid-gap-1"><Layers className="fluid-icon-xs" />{cycle.groups?.length || 0}</span>
+                            <div className="flex items-center fluid-gap-4 fluid-text-sm text-gray-500 fluid-mt-1">
+                              <span className="flex items-center fluid-gap-1">
+                                <Calendar className="fluid-icon-xs" />
+                                {new Date(cycle.start_date).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' })} - {new Date(cycle.end_date).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' })}
+                              </span>
+                              <span className="flex items-center fluid-gap-1 font-medium">
+                                <Layers className="fluid-icon-xs text-amber-500" />{cycle.groups?.length || 0} grupos
+                              </span>
                             </div>
                           </div>
                           {cycle.is_active && (
-                            <button onClick={(e) => { e.stopPropagation(); handleDeleteCycle(cycle.id); }} className="fluid-p-1.5 hover:bg-red-50 rounded-fluid-lg text-gray-400 hover:text-red-500 transition-colors">
-                              <Trash2 className="fluid-icon-sm" />
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteCycle(cycle.id); }}
+                              className="fluid-p-2 hover:bg-red-50 rounded-fluid-xl text-gray-400 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 className="fluid-icon-base" />
                             </button>
                           )}
                         </div>
@@ -482,28 +587,38 @@ export default function CampusDetailPage() {
             </div>
 
             {/* Grupos del ciclo seleccionado */}
-            <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="fluid-p-4 border-b border-gray-200 flex items-center justify-between">
-                <h3 className="fluid-text-base font-semibold text-gray-800 flex items-center fluid-gap-2">
-                  <Layers className="fluid-icon-base text-amber-600" />{selectedCycle ? `Grupos de ${selectedCycle.name}` : 'Grupos'}
+            <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300">
+              <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex items-center justify-between">
+                <h3 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-3">
+                  <div className="fluid-p-2 bg-amber-100 rounded-fluid-lg">
+                    <Layers className="fluid-icon-base text-amber-600" />
+                  </div>
+                  {selectedCycle ? `Grupos de ${selectedCycle.name}` : 'Grupos'}
                 </h3>
                 {selectedCycle && (
-                  <Link to={`/partners/campuses/${campusId}/groups/new?cycle=${selectedCycle.id}`} className="inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-fluid-lg fluid-text-sm font-medium transition-colors">
+                  <Link
+                    to={`/partners/campuses/${campusId}/groups/new?cycle=${selectedCycle.id}`}
+                    className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 hover:scale-105 shadow-md"
+                  >
                     <Plus className="fluid-icon-sm" />Nuevo
                   </Link>
                 )}
               </div>
-              <div className="max-h-[300px] overflow-y-auto">
+              <div className="max-h-[350px] overflow-y-auto">
                 {!selectedCycle ? (
-                  <div className="fluid-p-6 text-center">
-                    <Layers className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-2" />
-                    <p className="fluid-text-sm text-gray-500">Selecciona un ciclo escolar</p>
+                  <div className="fluid-p-8 text-center">
+                    <Layers className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-3" />
+                    <p className="fluid-text-base font-medium text-gray-500">Selecciona un ciclo escolar</p>
+                    <p className="fluid-text-sm text-gray-400 fluid-mt-1">Para ver sus grupos</p>
                   </div>
                 ) : (!selectedCycle.groups || selectedCycle.groups.length === 0) ? (
-                  <div className="fluid-p-6 text-center">
-                    <Layers className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-2" />
-                    <p className="fluid-text-sm text-gray-500">No hay grupos en este ciclo</p>
-                    <Link to={`/partners/campuses/${campusId}/groups/new?cycle=${selectedCycle.id}`} className="inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-fluid-lg fluid-text-sm font-medium transition-colors fluid-mt-3">
+                  <div className="fluid-p-8 text-center">
+                    <Layers className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-3" />
+                    <p className="fluid-text-base font-medium text-gray-500">No hay grupos en este ciclo</p>
+                    <Link
+                      to={`/partners/campuses/${campusId}/groups/new?cycle=${selectedCycle.id}`}
+                      className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-fluid-xl fluid-text-sm font-semibold transition-all fluid-mt-4 shadow-md"
+                    >
                       <Plus className="fluid-icon-sm" />Crear Grupo
                     </Link>
                   </div>
@@ -513,22 +628,24 @@ export default function CampusDetailPage() {
                       <div key={group.id} className={`fluid-p-4 transition-all hover:bg-gray-50 ${!group.is_active ? 'opacity-50' : ''}`}>
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center fluid-gap-2">
-                              <span className="fluid-text-sm font-medium text-gray-900">{group.name}</span>
-                              {group.code && <span className="fluid-text-xs font-mono bg-gray-100 text-gray-600 fluid-px-1.5 fluid-py-0.5 rounded">{group.code}</span>}
-                              {!group.is_active && <span className="fluid-text-xs bg-red-100 text-red-600 fluid-px-1.5 fluid-py-0.5 rounded">Inactivo</span>}
+                            <div className="flex items-center fluid-gap-2 flex-wrap">
+                              <span className="fluid-text-base font-semibold text-gray-900">{group.name}</span>
+                              {group.code && <span className="fluid-text-xs font-mono bg-gray-100 text-gray-600 fluid-px-2 fluid-py-0.5 rounded-full font-semibold border border-gray-200">{group.code}</span>}
+                              {!group.is_active && <span className="fluid-text-xs bg-red-100 text-red-600 fluid-px-2 fluid-py-0.5 rounded-full font-semibold border border-red-200">Inactivo</span>}
                             </div>
-                            <div className="flex items-center fluid-gap-3 fluid-text-xs text-gray-500 fluid-mt-1">
-                              <span className="flex items-center fluid-gap-1"><Users className="fluid-icon-xs text-purple-500" />{group.member_count || 0} miembros</span>
+                            <div className="flex items-center fluid-gap-3 fluid-text-sm text-gray-500 fluid-mt-1">
+                              <span className="flex items-center fluid-gap-1 font-medium">
+                                <Users className="fluid-icon-xs text-purple-500" />{group.member_count || 0} miembros
+                              </span>
                             </div>
                           </div>
-                          <div className="flex items-center fluid-gap-1">
-                            <Link to={`/partners/groups/${group.id}`} className="fluid-p-2 hover:bg-amber-50 rounded-fluid-lg text-amber-600">
-                              <ChevronRight className="fluid-icon-base" />
+                          <div className="flex items-center fluid-gap-2">
+                            <Link to={`/partners/groups/${group.id}`} className="fluid-p-2 hover:bg-amber-50 rounded-fluid-xl text-amber-600 transition-colors">
+                              <ChevronRight className="fluid-icon-lg" />
                             </Link>
                             {group.is_active && (
-                              <button onClick={() => handleDeleteGroup(group.id)} className="fluid-p-2 hover:bg-red-50 rounded-fluid-lg text-gray-400 hover:text-red-500 transition-colors">
-                                <Trash2 className="fluid-icon-sm" />
+                              <button onClick={() => handleDeleteGroup(group.id)} className="fluid-p-2 hover:bg-red-50 rounded-fluid-xl text-gray-400 hover:text-red-500 transition-colors">
+                                <Trash2 className="fluid-icon-base" />
                               </button>
                             )}
                           </div>
@@ -540,15 +657,15 @@ export default function CampusDetailPage() {
               </div>
               {orphanGroups.length > 0 && (
                 <div className="border-t border-amber-200 bg-amber-50 fluid-p-4">
-                  <div className="flex items-center fluid-gap-2 fluid-mb-2">
-                    <AlertCircle className="fluid-icon-sm text-amber-600" />
-                    <span className="fluid-text-sm font-semibold text-amber-800">{orphanGroups.length} grupo(s) sin ciclo</span>
+                  <div className="flex items-center fluid-gap-2 fluid-mb-3">
+                    <AlertCircle className="fluid-icon-base text-amber-600" />
+                    <span className="fluid-text-sm font-bold text-amber-800">{orphanGroups.length} grupo(s) sin ciclo</span>
                   </div>
-                  <div className="fluid-space-y-1 max-h-[100px] overflow-y-auto">
+                  <div className="fluid-space-y-2 max-h-[120px] overflow-y-auto">
                     {orphanGroups.map((group) => (
-                      <div key={group.id} className="flex items-center justify-between bg-white rounded-fluid-lg fluid-p-2">
-                        <span className="fluid-text-sm text-gray-800">{group.name}</span>
-                        <Link to={`/partners/groups/${group.id}/edit`} className="fluid-text-xs text-blue-600 hover:underline">Asignar</Link>
+                      <div key={group.id} className="flex items-center justify-between bg-white rounded-fluid-xl fluid-p-3 border border-amber-200">
+                        <span className="fluid-text-sm font-medium text-gray-800">{group.name}</span>
+                        <Link to={`/partners/groups/${group.id}/edit`} className="fluid-text-xs text-blue-600 hover:underline font-semibold">Asignar</Link>
                       </div>
                     ))}
                   </div>
@@ -557,33 +674,39 @@ export default function CampusDetailPage() {
             </div>
           </>
         ) : campus.is_active ? (
-          <div className="lg:col-span-2 bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-4">
-            <div className="flex items-center justify-between fluid-mb-4">
-              <h3 className="fluid-text-base font-semibold text-gray-800 flex items-center fluid-gap-2">
-                <Layers className="fluid-icon-base text-amber-600" />Grupos
+          <div className="lg:col-span-2 bg-white rounded-fluid-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300">
+            <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex items-center justify-between">
+              <h3 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-3">
+                <div className="fluid-p-2 bg-amber-100 rounded-fluid-lg">
+                  <Layers className="fluid-icon-base text-amber-600" />
+                </div>
+                Grupos
               </h3>
-              <Link to={`/partners/campuses/${campusId}/groups/new`} className="inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-fluid-lg fluid-text-sm font-medium transition-colors">
+              <Link
+                to={`/partners/campuses/${campusId}/groups/new`}
+                className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 hover:scale-105 shadow-md"
+              >
                 <Plus className="fluid-icon-sm" />Nuevo Grupo
               </Link>
             </div>
             <div className="max-h-[400px] overflow-y-auto">
               {legacyGroups.length === 0 ? (
-                <div className="fluid-p-6 text-center">
-                  <Layers className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-2" />
-                  <p className="fluid-text-sm text-gray-500">No hay grupos registrados</p>
+                <div className="fluid-p-8 text-center">
+                  <Layers className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-3" />
+                  <p className="fluid-text-base font-medium text-gray-500">No hay grupos registrados</p>
                 </div>
               ) : (
-                <div className="fluid-space-y-2">
+                <div className="divide-y divide-gray-100">
                   {legacyGroups.filter(g => g.is_active).map((group) => (
-                    <div key={group.id} className="flex items-center justify-between fluid-p-3 bg-gray-50 rounded-fluid-lg hover:bg-gray-100 transition-colors">
+                    <div key={group.id} className="flex items-center justify-between fluid-p-4 hover:bg-gray-50 transition-colors">
                       <div>
-                        <span className="fluid-text-sm font-medium text-gray-900">{group.name}</span>
-                        <div className="fluid-text-xs text-gray-500 flex items-center fluid-gap-1">
+                        <span className="fluid-text-base font-semibold text-gray-900">{group.name}</span>
+                        <div className="fluid-text-sm text-gray-500 flex items-center fluid-gap-1 fluid-mt-1">
                           <Users className="fluid-icon-xs" />{group.member_count || 0} miembros
                         </div>
                       </div>
-                      <Link to={`/partners/groups/${group.id}`} className="fluid-p-2 hover:bg-amber-50 rounded-fluid-lg text-amber-600">
-                        <ChevronRight className="fluid-icon-base" />
+                      <Link to={`/partners/groups/${group.id}`} className="fluid-p-2 hover:bg-amber-50 rounded-fluid-xl text-amber-600 transition-colors">
+                        <ChevronRight className="fluid-icon-lg" />
                       </Link>
                     </div>
                   ))}
@@ -593,6 +716,7 @@ export default function CampusDetailPage() {
           </div>
         ) : null}
       </div>
+
       {/* Modal para crear ciclo escolar */}
       {showNewCycleModal && campus.is_active && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 fluid-p-4" onClick={handleModalBackdropClick}>
@@ -608,24 +732,59 @@ export default function CampusDetailPage() {
             </div>
             <div className="fluid-p-6 fluid-space-y-5">
               <div>
-                <label className="block fluid-text-sm font-semibold text-gray-700 fluid-mb-2">Nombre del ciclo *</label>
-                <input type="text" value={newCycleForm.name} onChange={(e) => setNewCycleForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Ej: 2026-2027" className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all hover:border-blue-300" autoFocus />
+                <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2">Nombre del ciclo *</label>
+                <input
+                  type="text"
+                  value={newCycleForm.name}
+                  onChange={(e) => setNewCycleForm(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Ej: 2026-2027"
+                  className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all hover:border-blue-300"
+                  autoFocus
+                />
               </div>
               <div className="grid grid-cols-2 fluid-gap-5">
                 <div>
-                  <label className="block fluid-text-sm font-semibold text-gray-700 fluid-mb-2">Fecha inicio *</label>
-                  <input type="date" value={newCycleForm.start_date} onChange={(e) => setNewCycleForm(prev => ({ ...prev, start_date: e.target.value }))} className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all hover:border-blue-300" />
+                  <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2">Fecha inicio *</label>
+                  <input
+                    type="date"
+                    value={newCycleForm.start_date}
+                    onChange={(e) => setNewCycleForm(prev => ({ ...prev, start_date: e.target.value }))}
+                    className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all hover:border-blue-300"
+                  />
                 </div>
                 <div>
-                  <label className="block fluid-text-sm font-semibold text-gray-700 fluid-mb-2">Fecha fin *</label>
-                  <input type="date" value={newCycleForm.end_date} onChange={(e) => setNewCycleForm(prev => ({ ...prev, end_date: e.target.value }))} className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all hover:border-blue-300" />
+                  <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2">Fecha fin *</label>
+                  <input
+                    type="date"
+                    value={newCycleForm.end_date}
+                    onChange={(e) => setNewCycleForm(prev => ({ ...prev, end_date: e.target.value }))}
+                    className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all hover:border-blue-300"
+                  />
                 </div>
               </div>
             </div>
             <div className="fluid-p-6 border-t border-gray-200 flex justify-end fluid-gap-4 bg-gray-50">
-              <button onClick={() => setShowNewCycleModal(false)} className="fluid-px-6 fluid-py-2.5 text-gray-700 hover:bg-gray-200 rounded-fluid-xl transition-all fluid-text-sm font-semibold hover:shadow-md">Cancelar</button>
-              <button onClick={handleCreateCycle} disabled={isCreatingCycle || !newCycleForm.name || !newCycleForm.start_date || !newCycleForm.end_date} className="fluid-px-6 fluid-py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-fluid-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 fluid-text-sm font-semibold shadow-lg hover:shadow-xl hover:-translate-y-0.5">
-                {isCreatingCycle ? (<><div className="fluid-w-4 fluid-h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Creando...</>) : (<><Plus className="fluid-icon-sm" />Crear Ciclo</>)}
+              <button
+                onClick={() => setShowNewCycleModal(false)}
+                className="fluid-px-6 fluid-py-3 text-gray-700 hover:bg-gray-200 rounded-fluid-xl transition-all fluid-text-sm font-bold hover:shadow-md"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreateCycle}
+                disabled={isCreatingCycle || !newCycleForm.name || !newCycleForm.start_date || !newCycleForm.end_date}
+                className="fluid-px-6 fluid-py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-fluid-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 fluid-text-sm font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+              >
+                {isCreatingCycle ? (
+                  <>
+                    <div className="fluid-w-4 fluid-h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Creando...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="fluid-icon-sm" />Crear Ciclo
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -641,13 +800,21 @@ export default function CampusDetailPage() {
                 <CheckCircle2 className="fluid-icon-2xl text-white" />
               </div>
               <h3 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-3">¡Ciclo Escolar Creado!</h3>
-              <p className="fluid-text-base text-gray-600 fluid-mb-2">El ciclo escolar <span className="font-semibold text-blue-600">"{createdCycleName}"</span> ha sido creado exitosamente.</p>
+              <p className="fluid-text-base text-gray-600 fluid-mb-2">
+                El ciclo escolar <span className="font-bold text-blue-600">"{createdCycleName}"</span> ha sido creado exitosamente.
+              </p>
               <p className="fluid-text-sm text-gray-500 fluid-mb-6">Ya puedes agregar grupos a este ciclo escolar.</p>
               <div className="flex flex-col fluid-gap-3">
-                <Link to={`/partners/campuses/${campusId}/groups/new?cycle=${selectedCycleId}`} className="fluid-px-6 fluid-py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-fluid-xl transition-all fluid-text-sm font-semibold shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center fluid-gap-2">
+                <Link
+                  to={`/partners/campuses/${campusId}/groups/new?cycle=${selectedCycleId}`}
+                  className="fluid-px-6 fluid-py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-fluid-xl transition-all fluid-text-sm font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center fluid-gap-2"
+                >
                   <Plus className="fluid-icon-sm" />Crear Primer Grupo
                 </Link>
-                <button onClick={() => setShowCycleSuccessModal(false)} className="fluid-px-6 fluid-py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-fluid-xl transition-all fluid-text-sm font-semibold">
+                <button
+                  onClick={() => setShowCycleSuccessModal(false)}
+                  className="fluid-px-6 fluid-py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-fluid-xl transition-all fluid-text-sm font-bold"
+                >
                   Continuar sin crear grupo
                 </button>
               </div>
