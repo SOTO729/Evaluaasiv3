@@ -604,11 +604,10 @@ def upload_standard_logo(standard_id):
     """
     Subir logo para un estándar de competencia
     
-    El logo se convierte automáticamente a WebP para optimización.
+    Acepta formatos: PNG, JPG, JPEG, WebP
     
     Acepta:
         - multipart/form-data con archivo 'logo'
-        - application/json con campo 'logo' en base64
     
     Returns:
         - logo_url: URL del logo subido
@@ -627,25 +626,22 @@ def upload_standard_logo(standard_id):
         return jsonify({'error': 'Estándar no encontrado'}), 404
     
     try:
-        logo_data = None
-        
-        # Verificar si viene como archivo o como base64
-        if request.files and 'logo' in request.files:
-            logo_data = request.files['logo']
-        elif request.is_json:
-            data = request.get_json()
-            if data and 'logo' in data:
-                logo_data = data['logo']
-        
-        if not logo_data:
+        # Verificar que viene como archivo
+        if not request.files or 'logo' not in request.files:
             return jsonify({'error': 'No se recibió ningún archivo de logo'}), 400
         
-        # Subir imagen convertida a WebP
-        logo_url = azure_storage.upload_image_as_webp(
-            logo_data, 
-            folder='ecm-logos',
-            quality=85
-        )
+        logo_file = request.files['logo']
+        
+        # Validar extensión
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'webp'}
+        filename = logo_file.filename.lower() if logo_file.filename else ''
+        ext = filename.rsplit('.', 1)[1] if '.' in filename else ''
+        
+        if ext not in allowed_extensions:
+            return jsonify({'error': 'Solo se permiten imágenes PNG, JPG o WebP'}), 400
+        
+        # Subir imagen sin conversión
+        logo_url = azure_storage.upload_file(logo_file, folder='ecm-logos')
         
         if not logo_url:
             return jsonify({'error': 'Error al subir el logo a Azure Storage'}), 500
