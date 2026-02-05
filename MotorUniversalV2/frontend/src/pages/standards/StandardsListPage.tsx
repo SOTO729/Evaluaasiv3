@@ -18,6 +18,7 @@ import {
   XCircle,
   AlertCircle,
   CheckCircle2,
+  Tag,
   ChevronRight
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -193,6 +194,15 @@ export default function StandardsListPage() {
           </p>
         </div>
         <div className="flex flex-wrap fluid-gap-3">
+          {canCreate && (
+            <Link
+              to="/standards/brands"
+              className="inline-flex items-center justify-center fluid-gap-2 fluid-px-5 fluid-py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-fluid-lg font-medium fluid-text-sm transition-colors"
+            >
+              <Tag className="fluid-icon-sm" />
+              <span className="hidden sm:inline">Marcas</span>
+            </Link>
+          )}
           {isAdmin && (
             <Link
               to="/standards/deletion-requests"

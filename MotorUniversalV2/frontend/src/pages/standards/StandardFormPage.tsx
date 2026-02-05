@@ -128,6 +128,7 @@ export default function StandardFormPage() {
   
   // Estado para el modal de validación
   const [showValidationModal, setShowValidationModal] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   // Estado para marcas
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loadingBrands, setLoadingBrands] = useState(false);
@@ -161,12 +162,9 @@ export default function StandardFormPage() {
     } catch (err) {
       console.error('Error al cargar marcas:', err);
     } finally {
-        brand_id: standard.brand_id,
       setLoadingBrands(false);
     }
-  }validity_years: 5,
-    certifying_body: 'CONOCER',
-  });
+  };
 
   useEffect(() => {
     if (isEditing) {

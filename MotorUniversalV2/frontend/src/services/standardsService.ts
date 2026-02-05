@@ -186,6 +186,8 @@ export const reviewDeletionRequest = async (
     response,
   });
   return res.data;
+};
+
 // ===== BRANDS ENDPOINTS =====
 
 /**
@@ -253,6 +255,36 @@ export const deleteBrand = async (id: number): Promise<{ message: string }> => {
 };
 
 /**
+ * Subir logo para una marca (se convierte a WebP automáticamente)
+ */
+export const uploadBrandLogo = async (id: number, file: File): Promise<{
+  message: string;
+  logo_url: string;
+  brand: Brand;
+}> => {
+  const formData = new FormData();
+  formData.append('logo', file);
+  
+  const response = await api.post(`/competency-standards/brands/${id}/logo`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+/**
+ * Eliminar logo de una marca
+ */
+export const deleteBrandLogo = async (id: number): Promise<{
+  message: string;
+  brand: Brand;
+}> => {
+  const response = await api.delete(`/competency-standards/brands/${id}/logo`);
+  return response.data;
+};
+
+/**
  * Subir logo para un estándar (se convierte a WebP automáticamente)
  */
 export const uploadStandardLogo = async (id: number, file: File): Promise<{
@@ -298,6 +330,8 @@ export default {
   createBrand,
   updateBrand,
   deleteBrand,
+  uploadBrandLogo,
+  deleteBrandLogo,
   // Logo
   uploadStandardLogo,
   deleteStandardLogo,

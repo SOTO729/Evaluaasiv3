@@ -85,6 +85,8 @@ const StandardsListPage = lazy(() => import('./pages/standards/StandardsListPage
 const StandardFormPage = lazy(() => import('./pages/standards/StandardFormPage'))
 const StandardDetailPage = lazy(() => import('./pages/standards/StandardDetailPage'))
 const DeletionRequestsPage = lazy(() => import('./pages/standards/DeletionRequestsPage'))
+const BrandsListPage = lazy(() => import('./pages/standards/BrandsListPage'))
+const BrandFormPage = lazy(() => import('./pages/standards/BrandFormPage'))
 
 // Partners (Coordinador)
 const PartnersDashboardPage = lazy(() => import('./pages/partners/PartnersDashboardPage'))
@@ -189,6 +191,9 @@ function App() {
               {/* Standards (ECM) - Restringido para coordinador */}
               <Route path="/standards" element={<RestrictedForCoordinator><StandardsListPage /></RestrictedForCoordinator>} />
               <Route path="/standards/new" element={<RestrictedForCoordinator><StandardFormPage /></RestrictedForCoordinator>} />
+              <Route path="/standards/brands" element={<RestrictedForCoordinator><BrandsListPage /></RestrictedForCoordinator>} />
+              <Route path="/standards/brands/new" element={<RestrictedForCoordinator><BrandFormPage /></RestrictedForCoordinator>} />
+              <Route path="/standards/brands/:id/edit" element={<RestrictedForCoordinator><BrandFormPage /></RestrictedForCoordinator>} />
               <Route path="/standards/:id" element={<RestrictedForCoordinator><StandardDetailPage /></RestrictedForCoordinator>} />
               <Route path="/standards/:id/edit" element={<RestrictedForCoordinator><StandardFormPage /></RestrictedForCoordinator>} />
               <Route path="/standards/deletion-requests" element={<RestrictedForCoordinator><DeletionRequestsPage /></RestrictedForCoordinator>} />
