@@ -137,6 +137,7 @@ export default function StandardFormPage() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null);
   
   const [formData, setFormData] = useState<CreateStandardDTO>({
     code: '',
@@ -276,9 +277,12 @@ export default function StandardFormPage() {
     };
     reader.readAsDataURL(file);
     
-    // Si está editando, subir inmediatamente
+    // Si está editando, subir inmediatamente. Si está creando, guardar para después
     if (isEditing && id) {
       handleLogoUpload(file);
+    } else {
+      // Guardar archivo para subir después de crear el estándar
+      setPendingLogoFile(file);
     }
   };
   
@@ -399,8 +403,20 @@ export default function StandardFormPage() {
         setToast({ message: '¡Estándar actualizado exitosamente!', type: 'success' });
         setTimeout(() => navigate('/standards'), 1500);
       } else {
-        await createStandard(formData);
-        setToast({ message: '¡Estándar de Competencia creado exitosamente! Ya puedes crear exámenes basados en él.', type: 'success' });
+        const newStandard = await createStandard(formData);
+        
+        // Si hay un logo pendiente, subirlo
+        if (pendingLogoFile && newStandard.standard?.id) {
+          try {
+            await uploadStandardLogo(newStandard.standard.id, pendingLogoFile);
+            setToast({ message: '¡Estándar de Competencia creado con logo exitosamente!', type: 'success' });
+          } catch (logoErr) {
+            console.error('Error al subir logo:', logoErr);
+            setToast({ message: '¡Estándar creado! El logo no pudo subirse, puedes agregarlo editando el estándar.', type: 'success' });
+          }
+        } else {
+          setToast({ message: '¡Estándar de Competencia creado exitosamente! Ya puedes crear exámenes basados en él.', type: 'success' });
+        }
         setTimeout(() => navigate('/standards'), 2000);
       }
     } catch (err: any) {
@@ -726,85 +742,109 @@ export default function StandardFormPage() {
               </div>
             </div>
 
-            {/* Logo del Estándar - Solo visible al editar */}
-            {isEditing && (
-              <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-100 fluid-p-6">
-                <div className="flex items-center fluid-mb-6">
-                  <div className="w-10 h-10 rounded-fluid-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center fluid-mr-3 shadow-sm">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <h2 className="fluid-text-lg font-semibold text-gray-900">Logo del Estándar</h2>
+            {/* Logo del Estándar */}
+            <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-100 fluid-p-6">
+              <div className="flex items-center fluid-mb-6">
+                <div className="w-10 h-10 rounded-fluid-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center fluid-mr-3 shadow-sm">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
                 </div>
-                <p className="text-gray-500 fluid-text-sm fluid-mb-4">
-                  Sube un logo para identificar visualmente este estándar. Se convertirá automáticamente a WebP para optimización.
-                </p>
+                <h2 className="fluid-text-lg font-semibold text-gray-900">Logo del Estándar</h2>
+                <span className="fluid-ml-2 fluid-text-xs text-gray-400">(opcional)</span>
+              </div>
+              <p className="text-gray-500 fluid-text-sm fluid-mb-4">
+                {isEditing 
+                  ? 'Sube un logo para identificar visualmente este estándar.'
+                  : 'Selecciona un logo para este estándar. Se subirá al guardar.'}
+              </p>
                 
-                <div className="flex items-start fluid-gap-6">
-                  {/* Preview del logo */}
-                  <div className="flex-shrink-0">
-                    {logoPreview ? (
-                      <div className="relative group">
-                        <img
-                          src={logoPreview}
-                          alt="Logo del estándar"
-                          className="w-32 h-32 object-contain rounded-fluid-lg border-2 border-gray-200 bg-gray-50"
-                        />
-                        {uploadingLogo && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-fluid-lg">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="w-32 h-32 rounded-fluid-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
-                        <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Controles */}
-                  <div className="flex flex-col fluid-gap-3">
-                    <label className="relative">
-                      <input
-                        type="file"
-                        accept="image/png,image/jpeg,image/jpg,image/webp"
-                        onChange={handleLogoSelect}
-                        disabled={uploadingLogo}
-                        className="sr-only"
+              <div className="flex items-start fluid-gap-6">
+                {/* Preview del logo */}
+                <div className="flex-shrink-0">
+                  {logoPreview ? (
+                    <div className="relative group">
+                      <img
+                        src={logoPreview}
+                        alt="Logo del estándar"
+                        className="w-32 h-32 object-contain rounded-fluid-lg border-2 border-gray-200 bg-gray-50"
                       />
-                      <span className={`btn btn-secondary cursor-pointer inline-flex items-center ${uploadingLogo ? 'opacity-50' : ''}`}>
-                        <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                        </svg>
-                        {logoPreview ? 'Cambiar Logo' : 'Subir Logo'}
-                      </span>
-                    </label>
-                    
-                    {logoUrl && (
-                      <button
-                        type="button"
-                        onClick={handleLogoDelete}
-                        disabled={uploadingLogo}
-                        className="btn btn-secondary text-red-600 hover:text-red-700 hover:bg-red-50 inline-flex items-center"
-                      >
-                        <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Eliminar Logo
-                      </button>
-                    )}
-                    
-                    <p className="text-gray-500 fluid-text-xs">
-                      Formatos: PNG, JPG, WebP. Máximo 5MB.
-                    </p>
-                  </div>
+                      {uploadingLogo && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-fluid-lg">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                        </div>
+                      )}
+                      {!isEditing && pendingLogoFile && (
+                        <div className="absolute -top-2 -right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">
+                          Pendiente
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="w-32 h-32 rounded-fluid-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
+                      <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Controles */}
+                <div className="flex flex-col fluid-gap-3">
+                  <label className="relative">
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      onChange={handleLogoSelect}
+                      disabled={uploadingLogo}
+                      className="sr-only"
+                    />
+                    <span className={`btn btn-secondary cursor-pointer inline-flex items-center ${uploadingLogo ? 'opacity-50' : ''}`}>
+                      <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                      {logoPreview ? 'Cambiar Logo' : 'Seleccionar Logo'}
+                    </span>
+                  </label>
+                  
+                  {/* Botón eliminar - solo visible si hay logo guardado (editando) */}
+                  {isEditing && logoUrl && (
+                    <button
+                      type="button"
+                      onClick={handleLogoDelete}
+                      disabled={uploadingLogo}
+                      className="btn btn-secondary text-red-600 hover:text-red-700 hover:bg-red-50 inline-flex items-center"
+                    >
+                      <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Eliminar Logo
+                    </button>
+                  )}
+                  
+                  {/* Botón quitar selección - solo visible si hay logo pendiente (creando) */}
+                  {!isEditing && pendingLogoFile && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingLogoFile(null);
+                        setLogoPreview(null);
+                      }}
+                      className="btn btn-secondary text-red-600 hover:text-red-700 hover:bg-red-50 inline-flex items-center"
+                    >
+                      <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      Quitar Logo
+                    </button>
+                  )}
+                  
+                  <p className="text-gray-500 fluid-text-xs">
+                    Formatos: PNG, JPG, WebP. Máximo 5MB.
+                  </p>
                 </div>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Botones de acción */}
