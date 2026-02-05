@@ -488,12 +488,15 @@ def create_brand():
         return jsonify({'error': 'Ya existe una marca con ese nombre'}), 400
     
     try:
+        # Calcular display_order automáticamente (máximo actual + 1)
+        max_order = db.session.query(db.func.max(Brand.display_order)).scalar() or 0
+        
         brand = Brand(
             name=data['name'],
             logo_url=data.get('logo_url'),
             description=data.get('description'),
-            display_order=data.get('display_order', 0),
-            is_active=data.get('is_active', True),
+            display_order=max_order + 1,
+            is_active=True,
             created_by=current_user_id
         )
         

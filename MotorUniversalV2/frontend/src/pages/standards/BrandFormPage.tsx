@@ -65,8 +65,6 @@ const Toast = ({ message, type, onClose }: ToastProps) => {
 interface BrandFormData {
   name: string;
   description: string;
-  display_order: number;
-  is_active: boolean;
 }
 
 export default function BrandFormPage() {
@@ -92,8 +90,6 @@ export default function BrandFormPage() {
   const [formData, setFormData] = useState<BrandFormData>({
     name: '',
     description: '',
-    display_order: 0,
-    is_active: true,
   });
 
   useEffect(() => {
@@ -110,8 +106,6 @@ export default function BrandFormPage() {
       setFormData({
         name: brand.name,
         description: brand.description || '',
-        display_order: brand.display_order,
-        is_active: brand.is_active,
       });
       if (brand.logo_url) {
         setLogoUrl(brand.logo_url);
@@ -140,16 +134,9 @@ export default function BrandFormPage() {
 
   // Manejar cambios en el formulario
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
+    const { name, value } = e.target;
     
-    if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({ ...prev, [name]: checked }));
-    } else if (name === 'display_order') {
-      setFormData(prev => ({ ...prev, [name]: parseInt(value) || 0 }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
+    setFormData(prev => ({ ...prev, [name]: value }));
     
     // Validar en tiempo real
     if (name === 'name') {
@@ -253,7 +240,6 @@ export default function BrandFormPage() {
         const result = await createBrand({
           name: formData.name,
           description: formData.description || undefined,
-          display_order: formData.display_order,
         });
         
         // Si hay logo pendiente, subirlo ahora
@@ -442,44 +428,6 @@ export default function BrandFormPage() {
               className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
             />
           </div>
-          
-          {/* Orden de visualización */}
-          <div className="fluid-mb-4">
-            <label htmlFor="display_order" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
-              Orden de visualización
-            </label>
-            <input
-              type="number"
-              id="display_order"
-              name="display_order"
-              value={formData.display_order}
-              onChange={handleChange}
-              min="0"
-              className="w-40 fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            />
-            <p className="fluid-mt-1 fluid-text-sm text-gray-500">
-              Las marcas se ordenan de menor a mayor
-            </p>
-          </div>
-          
-          {/* Estado activo (solo en edición) */}
-          {isEditing && (
-            <div className="fluid-mb-4">
-              <label className="flex items-center fluid-gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  name="is_active"
-                  checked={formData.is_active}
-                  onChange={handleChange}
-                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <span className="font-medium text-gray-700">Marca activa</span>
-              </label>
-              <p className="fluid-text-sm text-gray-500 fluid-ml-8 fluid-mt-1">
-                Las marcas inactivas no aparecen en los selectores
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Botones de acción */}

@@ -15,9 +15,7 @@ import {
   Search,
   Edit,
   Trash2,
-  XCircle,
   AlertCircle,
-  CheckCircle2,
   Image,
   ArrowLeft,
 } from 'lucide-react';
@@ -119,17 +117,6 @@ const BrandCard = ({
             <h3 className="font-semibold fluid-text-lg text-gray-900 truncate">
               {brand.name}
             </h3>
-            {brand.is_active ? (
-              <span className="inline-flex items-center fluid-gap-1 fluid-text-xs font-medium text-green-700 bg-green-50 fluid-px-2 fluid-py-1 rounded-fluid-md">
-                <CheckCircle2 className="w-3 h-3" />
-                Activa
-              </span>
-            ) : (
-              <span className="inline-flex items-center fluid-gap-1 fluid-text-xs font-medium text-gray-600 bg-gray-100 fluid-px-2 fluid-py-1 rounded-fluid-md">
-                <XCircle className="w-3 h-3" />
-                Inactiva
-              </span>
-            )}
           </div>
           
           {brand.description && (
@@ -139,7 +126,6 @@ const BrandCard = ({
           )}
           
           <div className="flex items-center fluid-gap-4 text-gray-500 fluid-text-sm">
-            <span>Orden: {brand.display_order}</span>
             {brand.standards_count !== undefined && (
               <span>{brand.standards_count} estándares</span>
             )}
@@ -176,7 +162,6 @@ export default function BrandsListPage() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showInactive, setShowInactive] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; brand: Brand | null; isLoading: boolean }>({
     isOpen: false,
@@ -192,13 +177,12 @@ export default function BrandsListPage() {
 
   useEffect(() => {
     loadBrands();
-  }, [showInactive]);
+  }, []);
 
   const loadBrands = async () => {
     try {
       setLoading(true);
       const response = await getBrands({
-        active_only: !showInactive,
         include_stats: true,
       });
       setBrands(response.brands);
@@ -279,17 +263,6 @@ export default function BrandsListPage() {
               className="w-full fluid-pl-10 fluid-pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             />
           </div>
-          
-          {/* Toggle inactivas */}
-          <label className="flex items-center fluid-gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={showInactive}
-              onChange={(e) => setShowInactive(e.target.checked)}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <span className="text-gray-700 fluid-text-sm">Mostrar inactivas</span>
-          </label>
         </div>
       </div>
 
