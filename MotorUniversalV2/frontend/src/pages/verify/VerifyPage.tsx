@@ -203,13 +203,13 @@ const VerifyPage = () => {
                 <Shield className="w-6 h-6 text-purple-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Certificación</p>
+                <p className="text-sm text-gray-500">
+                  Certificación
+                  {data.certification?.ecm_code && (
+                    <span className="font-mono bg-gray-100 px-2 py-0.5 rounded ml-2 text-gray-700">{data.certification.ecm_code}</span>
+                  )}
+                </p>
                 <p className="font-semibold text-gray-900">{data.certification?.exam_name}</p>
-                {data.certification?.ecm_code && (
-                  <p className="text-sm text-gray-600 mt-1">
-                    <span className="font-mono bg-gray-100 px-2 py-0.5 rounded">{data.certification.ecm_code}</span>
-                  </p>
-                )}
               </div>
             </div>
 
