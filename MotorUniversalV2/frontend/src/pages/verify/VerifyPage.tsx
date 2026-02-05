@@ -15,6 +15,9 @@ interface VerificationData {
     exam_name: string
     ecm_code: string | null
     ecm_name: string | null
+    ecm_logo_url: string | null
+    brand_logo_url: string | null
+    brand_name: string | null
     completion_date: string | null
     score: number | null
     result: string
@@ -118,14 +121,26 @@ const VerifyPage = () => {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <img 
-            src="/images/evaluaasi-icon.png" 
-            alt="Evaluaasi" 
-            className="h-16 mx-auto mb-4"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none'
-            }}
-          />
+          {/* Logo de la marca del ECM */}
+          {data.certification?.brand_logo_url ? (
+            <img 
+              src={data.certification.brand_logo_url} 
+              alt={data.certification.brand_name || 'Marca'} 
+              className="h-16 mx-auto mb-4 object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+          ) : (
+            <img 
+              src="/images/evaluaasi-icon.png" 
+              alt="Evaluaasi" 
+              className="h-16 mx-auto mb-4"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+          )}
           <h1 className="text-3xl font-bold text-gray-900">Verificación de Documento</h1>
           <p className="text-gray-600 mt-2">Sistema de Evaluación y Certificación</p>
         </div>
@@ -171,7 +186,20 @@ const VerifyPage = () => {
 
             {/* Certificación */}
             <div className="flex items-start gap-3">
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
+              {/* Logo del ECM o ícono por defecto */}
+              {data.certification?.ecm_logo_url ? (
+                <img 
+                  src={data.certification.ecm_logo_url} 
+                  alt={data.certification.ecm_code || 'ECM'} 
+                  className="w-12 h-12 rounded-xl flex-shrink-0 object-contain bg-gray-50 p-1"
+                  onError={(e) => {
+                    // Si falla, mostrar ícono por defecto
+                    e.currentTarget.style.display = 'none'
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                  }}
+                />
+              ) : null}
+              <div className={`w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 ${data.certification?.ecm_logo_url ? 'hidden' : ''}`}>
                 <Shield className="w-6 h-6 text-purple-600" />
               </div>
               <div>

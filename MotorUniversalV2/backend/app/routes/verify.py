@@ -83,6 +83,9 @@ def verify_certificate(code):
     # Obtener ECM (Estándar de Competencia)
     ecm_code = None
     ecm_name = None
+    ecm_logo_url = None
+    brand_logo_url = None
+    brand_name = None
     
     # Primero intentar desde el resultado directo
     if result.competency_standard_id:
@@ -90,6 +93,10 @@ def verify_certificate(code):
         if standard:
             ecm_code = standard.code
             ecm_name = standard.name
+            ecm_logo_url = standard.logo_url
+            if standard.brand:
+                brand_logo_url = standard.brand.logo_url
+                brand_name = standard.brand.name
     
     # Si no hay ECM en el resultado, intentar desde el examen
     if not ecm_code and exam and exam.competency_standard_id:
@@ -97,6 +104,10 @@ def verify_certificate(code):
         if standard:
             ecm_code = standard.code
             ecm_name = standard.name
+            ecm_logo_url = standard.logo_url
+            if standard.brand:
+                brand_logo_url = standard.brand.logo_url
+                brand_name = standard.brand.name
     
     # Si aún no hay ECM, intentar desde el grupo del usuario
     if not ecm_code and user:
@@ -116,6 +127,10 @@ def verify_certificate(code):
                     if standard:
                         ecm_code = standard.code
                         ecm_name = standard.name
+                        ecm_logo_url = standard.logo_url
+                        if standard.brand:
+                            brand_logo_url = standard.brand.logo_url
+                            brand_name = standard.brand.name
                         break
     
     # Formatear fecha de completación en español
@@ -143,6 +158,9 @@ def verify_certificate(code):
             'exam_name': exam_name,
             'ecm_code': ecm_code,
             'ecm_name': ecm_name,
+            'ecm_logo_url': ecm_logo_url,
+            'brand_logo_url': brand_logo_url,
+            'brand_name': brand_name,
             'completion_date': completion_date,
             'score': result.score if document_type == 'evaluation_report' else None,
             'result': 'Aprobado' if result.result == 1 else 'No Aprobado'
