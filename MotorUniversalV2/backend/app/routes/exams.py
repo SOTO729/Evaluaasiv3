@@ -2074,14 +2074,6 @@ def validate_exam(exam_id):
                     
                     # 6. Verificar preguntas
                     for question in questions:
-                        # Verificar que la pregunta tenga puntaje asignado
-                        if not question.points or question.points <= 0:
-                            errors.append({
-                                'type': 'question',
-                                'message': f'La pregunta #{question.question_number} en "{topic.name}" no tiene puntaje asignado',
-                                'details': f'Asigna un puntaje mayor a 0 para la pregunta #{question.question_number}'
-                            })
-                        
                         answers = Answer.query.filter_by(question_id=question.id).all()
                         
                         if not answers:
@@ -2102,14 +2094,6 @@ def validate_exam(exam_id):
                     
                     # 7. Verificar ejercicios
                     for exercise in exercises:
-                        # Verificar que el ejercicio tenga porcentaje asignado (su puntaje)
-                        if not exercise.percentage or exercise.percentage <= 0:
-                            errors.append({
-                                'type': 'exercise',
-                                'message': f'El ejercicio "{exercise.title or f"#{exercise.exercise_number}"}" en "{topic.name}" no tiene puntaje/porcentaje asignado',
-                                'details': f'Asigna un porcentaje mayor a 0 para el ejercicio'
-                            })
-                        
                         steps = ExerciseStep.query.filter_by(exercise_id=exercise.id).all()
                         
                         if not steps:
