@@ -38,7 +38,7 @@ class Config:
     
     # CORS - Incluir orígenes de producción
     CORS_ORIGINS = os.getenv('CORS_ORIGINS', 
-        'http://localhost:5173,http://localhost:5174,https://thankful-stone-07fbe5410.6.azurestaticapps.net'
+        'http://localhost:5173,http://localhost:5174,https://app.evaluaasi.com,https://thankful-stone-07fbe5410.6.azurestaticapps.net'
     ).split(',')
     CORS_SUPPORTS_CREDENTIALS = True
     

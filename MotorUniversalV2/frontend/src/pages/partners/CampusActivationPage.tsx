@@ -46,6 +46,9 @@ import {
   getAvailableResponsables,
   assignExistingResponsable,
   AvailableResponsable,
+  getAvailableCompetencyStandards,
+  AvailableCompetencyStandard,
+  getCampusCompetencyStandards,
 } from '../../services/partnersService';
 
 interface ActivationStep {
@@ -108,11 +111,17 @@ export default function CampusActivationPage() {
     license_end_date: null,
     certification_cost: 0,
     retake_cost: 0,
+    competency_standard_ids: [],
   });
   
   // Estado para campos de costo (strings para mejor UX)
   const [certificationCostInput, setCertificationCostInput] = useState('0');
   const [retakeCostInput, setRetakeCostInput] = useState('0');
+  
+  // Estado para ECM (Estándares de Competencia)
+  const [availableEcm, setAvailableEcm] = useState<AvailableCompetencyStandard[]>([]);
+  const [loadingEcm, setLoadingEcm] = useState(false);
+  const [selectedEcmIds, setSelectedEcmIds] = useState<number[]>([]);
 
   useEffect(() => {
     loadCampus();
@@ -124,6 +133,37 @@ export default function CampusActivationPage() {
       loadAvailableResponsables();
     }
   }, [assignMode, campusId]);
+
+  // Cargar ECM disponibles cuando el campus tiene responsable y entramos al paso 2
+  useEffect(() => {
+    if (campus?.responsable_id) {
+      loadAvailableEcm();
+      loadCampusEcm();
+    }
+  }, [campus?.responsable_id, campusId]);
+
+  const loadAvailableEcm = async () => {
+    try {
+      setLoadingEcm(true);
+      const result = await getAvailableCompetencyStandards();
+      setAvailableEcm(result.competency_standards);
+    } catch (err: any) {
+      console.error('Error loading available ECM:', err);
+    } finally {
+      setLoadingEcm(false);
+    }
+  };
+
+  const loadCampusEcm = async () => {
+    try {
+      const result = await getCampusCompetencyStandards(Number(campusId));
+      const ids = result.competency_standards.map(s => s.competency_standard_id);
+      setSelectedEcmIds(ids);
+      setConfigData(prev => ({ ...prev, competency_standard_ids: ids }));
+    } catch (err: any) {
+      console.error('Error loading campus ECM:', err);
+    }
+  };
 
   const loadCampus = async () => {
     try {
@@ -362,6 +402,11 @@ export default function CampusActivationPage() {
       return 'Debe seleccionar al menos un nivel de certificación';
     }
     
+    // Debe seleccionar al menos un ECM
+    if (!selectedEcmIds || selectedEcmIds.length === 0) {
+      return 'Debe seleccionar al menos un Estándar de Competencia (ECM)';
+    }
+    
     // Fecha de inicio es requerida
     if (!configData.license_start_date) {
       return 'La fecha de inicio de vigencia es requerida';
@@ -375,6 +420,17 @@ export default function CampusActivationPage() {
     }
     
     return null;
+  };
+
+  // Toggle ECM seleccionado
+  const toggleEcmSelection = (ecmId: number) => {
+    setSelectedEcmIds(prev => {
+      const newIds = prev.includes(ecmId) 
+        ? prev.filter(id => id !== ecmId)
+        : [...prev, ecmId];
+      setConfigData(prevConfig => ({ ...prevConfig, competency_standard_ids: newIds }));
+      return newIds;
+    });
   };
 
   // Enviar configuración
@@ -1268,6 +1324,74 @@ export default function CampusActivationPage() {
                     </div>
                   </div>
 
+                  {/* Estándares de Competencia (ECM) */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                      <GraduationCap className="w-4 h-4" />
+                      Estándares de Competencia (ECM)
+                      <span className="text-red-500">*</span>
+                    </h3>
+                    <p className="text-xs text-gray-500 mb-4">
+                      Selecciona los estándares de competencia que podrán certificarse en este plantel. 
+                      Esto determinará qué exámenes estarán disponibles.
+                    </p>
+                    
+                    {loadingEcm ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                        <span className="ml-2 text-gray-500 text-sm">Cargando ECM disponibles...</span>
+                      </div>
+                    ) : availableEcm.length === 0 ? (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                        <p className="text-yellow-700 text-sm">
+                          No hay estándares de competencia disponibles. Contacte al administrador para crear ECM.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-80 overflow-y-auto">
+                        {availableEcm.map((ecm) => (
+                          <label
+                            key={ecm.id}
+                            className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                              selectedEcmIds.includes(ecm.id) 
+                                ? 'border-indigo-500 bg-indigo-50' 
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedEcmIds.includes(ecm.id)}
+                              onChange={() => toggleEcmSelection(ecm.id)}
+                              className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 mt-0.5"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                                  {ecm.code}
+                                </span>
+                                {ecm.brand && (
+                                  <span className="text-xs text-gray-500">{ecm.brand}</span>
+                                )}
+                              </div>
+                              <p className="text-sm font-medium text-gray-800 mt-1 truncate">
+                                {ecm.name}
+                              </p>
+                              {ecm.sector && (
+                                <p className="text-xs text-gray-500 truncate">{ecm.sector}</p>
+                              )}
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {selectedEcmIds.length > 0 && (
+                      <p className="text-xs text-indigo-600 mt-3 font-medium">
+                        {selectedEcmIds.length} ECM seleccionado{selectedEcmIds.length > 1 ? 's' : ''}
+                      </p>
+                    )}
+                  </div>
+
                   {/* Evaluaciones Parciales */}
                   <div>
                     <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
@@ -1577,6 +1701,28 @@ export default function CampusActivationPage() {
                     </div>
                   )}
                 </div>
+
+                {/* ECM Asignados */}
+                {selectedEcmIds.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-gray-500 text-xs mb-2">Estándares de Competencia (ECM) asignados</p>
+                    <div className="flex flex-wrap gap-2">
+                      {availableEcm
+                        .filter(ecm => selectedEcmIds.includes(ecm.id))
+                        .map(ecm => (
+                          <span 
+                            key={ecm.id} 
+                            className="inline-flex items-center gap-1 text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg"
+                          >
+                            <span className="font-mono font-medium">{ecm.code}</span>
+                            <span className="text-indigo-500">-</span>
+                            <span className="max-w-32 truncate">{ecm.name}</span>
+                          </span>
+                        ))
+                      }
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Activar Plantel */}

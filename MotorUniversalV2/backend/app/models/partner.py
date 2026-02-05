@@ -227,8 +227,10 @@ class Campus(db.Model):
     responsable = db.relationship('User', foreign_keys=[responsable_id], backref='managed_campuses')
     groups = db.relationship('CandidateGroup', backref='campus', lazy='dynamic', cascade='all, delete-orphan')
     school_cycles = db.relationship('SchoolCycle', backref='campus', lazy='dynamic', cascade='all, delete-orphan')
+    # Relación muchos-a-muchos con estándares de competencia (ECM)
+    competency_standards = db.relationship('CampusCompetencyStandard', backref='campus', lazy='dynamic', cascade='all, delete-orphan')
     
-    def to_dict(self, include_groups=False, include_partner=False, include_cycles=False, include_responsable=False, include_config=False):
+    def to_dict(self, include_groups=False, include_partner=False, include_cycles=False, include_responsable=False, include_config=False, include_ecms=False):
         data = {
             'id': self.id,
             'partner_id': self.partner_id,
@@ -318,8 +320,72 @@ class Campus(db.Model):
         
         if include_cycles:
             data['school_cycles'] = [c.to_dict(include_groups=True) for c in self.school_cycles.order_by(SchoolCycle.start_date.desc()).all()]
+        
+        if include_ecms:
+            data['competency_standards'] = self.get_competency_standards_list()
+            data['competency_standard_ids'] = self.get_competency_standard_ids()
             
         return data
+    
+    def get_competency_standard_ids(self):
+        """Obtener lista de IDs de estándares de competencia asignados"""
+        return [cs.competency_standard_id for cs in self.competency_standards.all()]
+    
+    def get_competency_standards_list(self):
+        """Obtener lista de estándares de competencia con info básica"""
+        from app.models.competency_standard import CompetencyStandard
+        result = []
+        for cs in self.competency_standards.all():
+            standard = CompetencyStandard.query.get(cs.competency_standard_id)
+            if standard:
+                result.append({
+                    'id': standard.id,
+                    'code': standard.code,
+                    'name': standard.name,
+                    'brand': standard.brand,
+                    'assigned_at': cs.created_at.isoformat() if cs.created_at else None
+                })
+        return result
+
+
+class CampusCompetencyStandard(db.Model):
+    """
+    Relación muchos-a-muchos entre Campus y CompetencyStandard (ECM).
+    Define qué estándares de competencia puede ofrecer cada plantel.
+    """
+    
+    __tablename__ = 'campus_competency_standards'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False)
+    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id', ondelete='CASCADE'), nullable=False)
+    
+    # Metadatos
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_by = db.Column(db.String(36), db.ForeignKey('users.id'))
+    
+    # Índice único para evitar duplicados
+    __table_args__ = (
+        db.UniqueConstraint('campus_id', 'competency_standard_id', name='uq_campus_competency_standard'),
+    )
+    
+    def to_dict(self):
+        from app.models.competency_standard import CompetencyStandard
+        standard = CompetencyStandard.query.get(self.competency_standard_id)
+        return {
+            'id': self.id,
+            'campus_id': self.campus_id,
+            'competency_standard_id': self.competency_standard_id,
+            'competency_standard': {
+                'id': standard.id,
+                'code': standard.code,
+                'name': standard.name,
+                'brand': standard.brand
+            } if standard else None,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
 
 
 class SchoolCycle(db.Model):

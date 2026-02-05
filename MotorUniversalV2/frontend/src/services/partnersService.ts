@@ -514,6 +514,7 @@ export interface ConfigureCampusRequest {
   license_end_date?: string | null;
   certification_cost?: number;
   retake_cost?: number;
+  competency_standard_ids?: number[];  // IDs de ECM asignados al plantel
   complete_configuration?: boolean;  // Marcar configuración como completada
 }
 
@@ -1717,4 +1718,70 @@ export async function getMisMateriales(): Promise<{
     }
     throw error;
   }
+}
+
+
+// ============== ECM DE PLANTEL (Estándares de Competencia) ==============
+
+export interface CampusCompetencyStandard {
+  id: number;
+  competency_standard_id: number;
+  code: string;
+  name: string;
+  brand: string | null;
+  is_active: boolean;
+  assigned_at: string | null;
+}
+
+export interface AvailableCompetencyStandard {
+  id: number;
+  code: string;
+  name: string;
+  brand: string | null;
+  brand_logo_url: string | null;
+  logo_url: string | null;
+  sector: string | null;
+  level: number | null;
+}
+
+/**
+ * Obtener los ECM asignados a un plantel
+ */
+export async function getCampusCompetencyStandards(campusId: number): Promise<{
+  campus_id: number;
+  campus_name: string;
+  competency_standards: CampusCompetencyStandard[];
+  total: number;
+}> {
+  const response = await api.get(`/partners/campuses/${campusId}/competency-standards`);
+  return response.data;
+}
+
+/**
+ * Actualizar los ECM asignados a un plantel (reemplaza todos)
+ */
+export async function updateCampusCompetencyStandards(
+  campusId: number, 
+  competencyStandardIds: number[]
+): Promise<{
+  message: string;
+  campus_id: number;
+  competency_standards: CampusCompetencyStandard[];
+  total: number;
+}> {
+  const response = await api.put(`/partners/campuses/${campusId}/competency-standards`, {
+    competency_standard_ids: competencyStandardIds
+  });
+  return response.data;
+}
+
+/**
+ * Obtener lista de todos los ECM activos disponibles para asignar
+ */
+export async function getAvailableCompetencyStandards(): Promise<{
+  competency_standards: AvailableCompetencyStandard[];
+  total: number;
+}> {
+  const response = await api.get('/partners/competency-standards/available');
+  return response.data;
 }

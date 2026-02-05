@@ -1136,8 +1136,36 @@ def configure_campus(campus_id):
         if 'retake_cost' in data:
             campus.retake_cost = float(data['retake_cost']) if data['retake_cost'] else 0
         
+        # ECM (Estándares de Competencia) asignados al plantel
+        if 'competency_standard_ids' in data:
+            from app.models.partner import CampusCompetencyStandard
+            from app.models.competency_standard import CompetencyStandard
+            
+            standard_ids = data['competency_standard_ids']
+            if not isinstance(standard_ids, list):
+                return jsonify({'error': 'competency_standard_ids debe ser una lista'}), 400
+            
+            # Validar que todos los IDs existan y estén activos
+            for std_id in standard_ids:
+                standard = CompetencyStandard.query.get(std_id)
+                if not standard:
+                    return jsonify({'error': f'Estándar de competencia con ID {std_id} no encontrado'}), 404
+                if not standard.is_active:
+                    return jsonify({'error': f'El estándar {standard.code} no está activo'}), 400
+            
+            # Eliminar asignaciones existentes y crear nuevas
+            CampusCompetencyStandard.query.filter_by(campus_id=campus_id).delete()
+            for std_id in standard_ids:
+                new_assignment = CampusCompetencyStandard(
+                    campus_id=campus_id,
+                    competency_standard_id=std_id
+                )
+                db.session.add(new_assignment)
+        
         # Marcar configuración como completada si se proporciona el flag
         if data.get('complete_configuration'):
+            from app.models.partner import CampusCompetencyStandard
+            
             # Validar que se hayan configurado los campos requeridos
             if not campus.license_start_date:
                 return jsonify({'error': 'Debe establecer la fecha de inicio de vigencia del plantel'}), 400
@@ -1148,6 +1176,11 @@ def configure_campus(campus_id):
             # Al menos un tier debe estar habilitado
             if not (campus.enable_tier_basic or campus.enable_tier_standard or campus.enable_tier_advanced or campus.enable_digital_badge):
                 return jsonify({'error': 'Debe habilitar al menos un tipo de certificación'}), 400
+            
+            # Al menos un ECM debe estar asignado
+            ecm_count = CampusCompetencyStandard.query.filter_by(campus_id=campus_id).count()
+            if ecm_count == 0:
+                return jsonify({'error': 'Debe asignar al menos un Estándar de Competencia (ECM) al plantel'}), 400
             
             campus.configuration_completed = True
             campus.configuration_completed_at = datetime.utcnow()
@@ -1225,6 +1258,145 @@ def deactivate_campus(campus_id):
         
     except Exception as e:
         db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# ============== ECM DEL PLANTEL (Estándares de Competencia) ==============
+
+@bp.route('/campuses/<int:campus_id>/competency-standards', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_campus_competency_standards(campus_id):
+    """Obtener los ECM asignados a un plantel"""
+    try:
+        from app.models.partner import CampusCompetencyStandard
+        from app.models.competency_standard import CompetencyStandard
+        
+        campus = Campus.query.get_or_404(campus_id)
+        
+        # Obtener los ECM asignados al plantel
+        campus_standards = CampusCompetencyStandard.query.filter_by(campus_id=campus_id).all()
+        
+        standards_data = []
+        for cs in campus_standards:
+            standard = CompetencyStandard.query.get(cs.competency_standard_id)
+            if standard:
+                standards_data.append({
+                    'id': cs.id,
+                    'competency_standard_id': standard.id,
+                    'code': standard.code,
+                    'name': standard.name,
+                    'brand': standard.brand,
+                    'is_active': standard.is_active,
+                    'assigned_at': cs.created_at.isoformat() if cs.created_at else None
+                })
+        
+        return jsonify({
+            'campus_id': campus_id,
+            'campus_name': campus.name,
+            'competency_standards': standards_data,
+            'total': len(standards_data)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/campuses/<int:campus_id>/competency-standards', methods=['PUT'])
+@jwt_required()
+@coordinator_required
+def update_campus_competency_standards(campus_id):
+    """Actualizar los ECM asignados a un plantel (reemplaza todos)"""
+    try:
+        from app.models.partner import CampusCompetencyStandard
+        from app.models.competency_standard import CompetencyStandard
+        
+        campus = Campus.query.get_or_404(campus_id)
+        data = request.get_json()
+        
+        # Lista de IDs de competency_standards a asignar
+        standard_ids = data.get('competency_standard_ids', [])
+        
+        if not isinstance(standard_ids, list):
+            return jsonify({'error': 'competency_standard_ids debe ser una lista'}), 400
+        
+        # Validar que todos los IDs existan
+        for std_id in standard_ids:
+            standard = CompetencyStandard.query.get(std_id)
+            if not standard:
+                return jsonify({'error': f'Estándar de competencia con ID {std_id} no encontrado'}), 404
+            if not standard.is_active:
+                return jsonify({'error': f'El estándar {standard.code} no está activo'}), 400
+        
+        # Eliminar asignaciones existentes
+        CampusCompetencyStandard.query.filter_by(campus_id=campus_id).delete()
+        
+        # Crear nuevas asignaciones
+        for std_id in standard_ids:
+            new_assignment = CampusCompetencyStandard(
+                campus_id=campus_id,
+                competency_standard_id=std_id
+            )
+            db.session.add(new_assignment)
+        
+        db.session.commit()
+        
+        # Obtener datos actualizados
+        campus_standards = CampusCompetencyStandard.query.filter_by(campus_id=campus_id).all()
+        standards_data = []
+        for cs in campus_standards:
+            standard = CompetencyStandard.query.get(cs.competency_standard_id)
+            if standard:
+                standards_data.append({
+                    'id': cs.id,
+                    'competency_standard_id': standard.id,
+                    'code': standard.code,
+                    'name': standard.name,
+                    'brand': standard.brand,
+                    'is_active': standard.is_active,
+                    'assigned_at': cs.created_at.isoformat() if cs.created_at else None
+                })
+        
+        return jsonify({
+            'message': f'{len(standard_ids)} estándar(es) de competencia asignado(s) al plantel',
+            'campus_id': campus_id,
+            'competency_standards': standards_data,
+            'total': len(standards_data)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/competency-standards/available', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_available_competency_standards():
+    """Obtener lista de todos los ECM activos disponibles para asignar"""
+    try:
+        from app.models.competency_standard import CompetencyStandard
+        
+        standards = CompetencyStandard.query.filter_by(is_active=True).order_by(CompetencyStandard.code).all()
+        
+        return jsonify({
+            'competency_standards': [
+                {
+                    'id': s.id,
+                    'code': s.code,
+                    'name': s.name,
+                    'brand': s.brand,
+                    'brand_logo_url': s.brand_logo_url,
+                    'logo_url': s.logo_url,
+                    'sector': s.sector,
+                    'level': s.level
+                }
+                for s in standards
+            ],
+            'total': len(standards)
+        })
+        
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
@@ -3656,11 +3828,15 @@ def get_available_exams():
     
     Parámetros opcionales:
     - group_id: Si se proporciona, incluye is_assigned_to_group para indicar si ya está asignado
+                Además, filtra exámenes por los ECM asignados al campus del grupo
+    - campus_id: Si se proporciona (sin group_id), filtra exámenes por ECM del campus
+    - filter_by_campus_ecm: Si es 'false', no filtra por ECM del campus (default: true)
     """
     try:
         from app.models import Exam, GroupExam
         from app.models.study_content import StudyMaterial
         from app.models.competency_standard import CompetencyStandard
+        from app.models.partner import CampusCompetencyStandard
         from sqlalchemy import text
         from sqlalchemy.orm import joinedload
         
@@ -3668,18 +3844,37 @@ def get_available_exams():
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
         group_id = request.args.get('group_id', type=int)
+        campus_id = request.args.get('campus_id', type=int)
+        filter_by_campus_ecm = request.args.get('filter_by_campus_ecm', 'true').lower() != 'false'
         
         # Si se proporciona group_id, obtener exámenes ya asignados a ese grupo
         assigned_exam_ids = set()
+        campus_ecm_ids = None
+        
         if group_id:
+            # Obtener el grupo para saber su campus
+            group = CandidateGroup.query.get(group_id)
+            if group:
+                campus_id = group.campus_id
+                
             assigned_exams = GroupExam.query.filter_by(
                 group_id=group_id,
                 is_active=True
             ).all()
             assigned_exam_ids = {ge.exam_id for ge in assigned_exams}
         
+        # Obtener ECMs del campus para filtrar exámenes
+        if campus_id and filter_by_campus_ecm:
+            campus_ecm_relations = CampusCompetencyStandard.query.filter_by(campus_id=campus_id).all()
+            if campus_ecm_relations:
+                campus_ecm_ids = {rel.competency_standard_id for rel in campus_ecm_relations}
+        
         # Cargar la relación competency_standard para tener el código ECM
         query = Exam.query.options(joinedload(Exam.competency_standard)).filter(Exam.is_published == True)
+        
+        # Filtrar por ECM del campus si corresponde
+        if campus_ecm_ids is not None:
+            query = query.filter(Exam.competency_standard_id.in_(campus_ecm_ids))
         
         if search:
             search_term = f'%{search}%'
@@ -3792,12 +3987,21 @@ def get_available_exams():
                 'is_assigned_to_group': exam.id in assigned_exam_ids,
             })
         
-        return jsonify({
+        response_data = {
             'exams': exams_data,
             'total': pagination.total,
             'pages': pagination.pages,
             'current_page': page
-        })
+        }
+        
+        # Agregar info de filtrado por ECM si corresponde
+        if campus_ecm_ids is not None:
+            response_data['filtered_by_campus_ecm'] = True
+            response_data['campus_ecm_count'] = len(campus_ecm_ids)
+        else:
+            response_data['filtered_by_campus_ecm'] = False
+        
+        return jsonify(response_data)
         
     except Exception as e:
         import traceback

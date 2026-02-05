@@ -701,3 +701,66 @@ def check_and_add_eduit_certificate_code():
     except Exception as e:
         print(f"❌ Error en auto-migración de eduit_certificate_code: {e}")
         db.session.rollback()
+
+
+def check_and_create_campus_competency_standards_table():
+    """Verificar y crear tabla campus_competency_standards si no existe"""
+    print("🔍 Verificando tabla campus_competency_standards...")
+    
+    db_type = get_db_type()
+    
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        if 'campus_competency_standards' not in tables:
+            print("  📝 Creando tabla campus_competency_standards...")
+            
+            if db_type == 'mssql':
+                sql = """
+                CREATE TABLE campus_competency_standards (
+                    id INT IDENTITY(1,1) PRIMARY KEY,
+                    campus_id INT NOT NULL,
+                    competency_standard_id INT NOT NULL,
+                    is_active BIT DEFAULT 1 NOT NULL,
+                    created_at DATETIME2 DEFAULT GETDATE() NOT NULL,
+                    created_by NVARCHAR(36),
+                    CONSTRAINT fk_ccs_campus FOREIGN KEY (campus_id) REFERENCES campuses(id) ON DELETE CASCADE,
+                    CONSTRAINT fk_ccs_standard FOREIGN KEY (competency_standard_id) REFERENCES competency_standards(id) ON DELETE CASCADE,
+                    CONSTRAINT uq_campus_competency_standard UNIQUE (campus_id, competency_standard_id)
+                )
+                """
+            else:
+                sql = """
+                CREATE TABLE campus_competency_standards (
+                    id SERIAL PRIMARY KEY,
+                    campus_id INTEGER NOT NULL REFERENCES campuses(id) ON DELETE CASCADE,
+                    competency_standard_id INTEGER NOT NULL REFERENCES competency_standards(id) ON DELETE CASCADE,
+                    is_active BOOLEAN DEFAULT TRUE NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    created_by VARCHAR(36) REFERENCES users(id),
+                    UNIQUE (campus_id, competency_standard_id)
+                )
+                """
+            
+            db.session.execute(text(sql))
+            db.session.commit()
+            print("  ✓ Tabla campus_competency_standards creada exitosamente")
+            
+            # Crear índices
+            try:
+                db.session.execute(text("CREATE INDEX idx_ccs_campus ON campus_competency_standards(campus_id)"))
+                db.session.execute(text("CREATE INDEX idx_ccs_standard ON campus_competency_standards(competency_standard_id)"))
+                db.session.commit()
+                print("  ✓ Índices creados para campus_competency_standards")
+            except Exception as e:
+                print(f"  ⚠️  Error creando índices (pueden ya existir): {e}")
+                db.session.rollback()
+        else:
+            print("  ✓ Tabla campus_competency_standards ya existe")
+        
+        print("✅ Verificación de campus_competency_standards completada")
+                
+    except Exception as e:
+        print(f"❌ Error en auto-migración de campus_competency_standards: {e}")
+        db.session.rollback()
