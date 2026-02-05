@@ -342,7 +342,7 @@ class Campus(db.Model):
                     'id': standard.id,
                     'code': standard.code,
                     'name': standard.name,
-                    'brand': standard.brand,
+                    'sector': standard.sector,
                     'assigned_at': cs.created_at.isoformat() if cs.created_at else None
                 })
         return result
@@ -381,7 +381,7 @@ class CampusCompetencyStandard(db.Model):
                 'id': standard.id,
                 'code': standard.code,
                 'name': standard.name,
-                'brand': standard.brand
+                'sector': standard.sector
             } if standard else None,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None

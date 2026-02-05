@@ -1286,7 +1286,7 @@ def get_campus_competency_standards(campus_id):
                     'competency_standard_id': standard.id,
                     'code': standard.code,
                     'name': standard.name,
-                    'brand': standard.brand,
+                    'sector': standard.sector,
                     'is_active': standard.is_active,
                     'assigned_at': cs.created_at.isoformat() if cs.created_at else None
                 })
@@ -1352,7 +1352,7 @@ def update_campus_competency_standards(campus_id):
                     'competency_standard_id': standard.id,
                     'code': standard.code,
                     'name': standard.name,
-                    'brand': standard.brand,
+                    'sector': standard.sector,
                     'is_active': standard.is_active,
                     'assigned_at': cs.created_at.isoformat() if cs.created_at else None
                 })
@@ -1385,9 +1385,6 @@ def get_available_competency_standards():
                     'id': s.id,
                     'code': s.code,
                     'name': s.name,
-                    'brand': s.brand,
-                    'brand_logo_url': s.brand_logo_url,
-                    'logo_url': s.logo_url,
                     'sector': s.sector,
                     'level': s.level
                 }
