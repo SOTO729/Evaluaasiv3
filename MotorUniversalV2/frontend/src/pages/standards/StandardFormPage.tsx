@@ -432,334 +432,389 @@ export default function StandardFormPage() {
         />
       )}
       
-      <div className="max-w-3xl mx-auto fluid-p-6">
-        <div className="fluid-mb-8">
+      <div className="fluid-p-6 max-w-[1920px] mx-auto">
+        {/* Back button */}
+        <div className="fluid-mb-4">
           <button
             onClick={() => navigate('/standards')}
-            className="inline-flex items-center fluid-text-sm text-gray-500 hover:text-gray-700"
+            className="inline-flex items-center fluid-gap-2 fluid-text-sm text-gray-600 hover:text-primary-600 transition-colors group"
           >
-            <svg className="fluid-mr-2 fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="fluid-icon-sm group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             Volver a estándares
           </button>
-          <h1 className="fluid-mt-4 fluid-text-3xl font-bold text-gray-900">
-            {isEditing ? 'Editar Estándar' : 'Nuevo Estándar de Competencia'}
-          </h1>
-          <p className="fluid-mt-1 fluid-text-sm text-gray-500">
-            {isEditing
-              ? 'Actualiza la información del estándar de competencia.'
-              : 'Define un nuevo ECM para crear exámenes basados en él.'}
-          </p>
+        </div>
+
+        {/* Header con gradiente */}
+        <div className="relative rounded-fluid-xl overflow-hidden fluid-mb-6 shadow-lg bg-gradient-to-r from-primary-600 via-primary-700 to-primary-800">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAzMHYySDE0di0yaDIyek0zNiAyNnYySDY0di0yaC0yeiIvPjwvZz48L2c+PC9zdmc+')] opacity-30"></div>
+          <div className="relative fluid-px-8 fluid-py-10">
+            <div className="flex items-center fluid-gap-4">
+              <div className="w-16 h-16 rounded-fluid-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="fluid-text-3xl font-bold text-white">
+                  {isEditing ? 'Editar Estándar de Competencia' : 'Nuevo Estándar de Competencia'}
+                </h1>
+                <p className="fluid-text-base text-white/80 fluid-mt-1">
+                  {isEditing
+                    ? 'Actualiza la información del estándar de competencia (ECM).'
+                    : 'Define un nuevo ECM para crear exámenes y materiales de estudio basados en él.'}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {error && (
-          <div className="fluid-mb-6 bg-red-50 border border-red-200 rounded-fluid-md fluid-p-4">
+          <div className="fluid-mb-6 bg-red-50 border border-red-200 rounded-fluid-lg fluid-p-4 flex items-center fluid-gap-3">
+            <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             <p className="fluid-text-sm text-red-600">{error}</p>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="flex flex-col fluid-gap-6">
-          {/* Información General */}
-          <div className="card">
-            <h2 className="fluid-text-xl font-semibold fluid-mb-4">Información General</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
-              {/* Código */}
-              <div>
-                <label htmlFor="code" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                  Código del Estándar <span className="text-red-600">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="code"
-                  id="code"
-                  disabled={isEditing}
-                  value={formData.code}
-                  onChange={handleChange}
-                  onBlur={(e) => validateCode(e.target.value)}
-                  placeholder="Ej: EC0217"
-                  className={`input ${codeError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''} ${isEditing ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                />
-                {codeError && (
-                  <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{codeError}</p>
-                )}
-                {!codeError && formData.code.trim() && formData.code.length >= 3 && (
-                  <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Código válido</p>
-                )}
-                {!codeError && !formData.code.trim() && (
-                  <p className="text-gray-500 fluid-text-xs fluid-mt-1">Código único del estándar (no se puede modificar después)</p>
-                )}
+          {/* Grid de dos columnas para los cards principales */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 fluid-gap-6">
+            {/* Información General */}
+            <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-100 fluid-p-6">
+              <div className="flex items-center fluid-mb-6">
+                <div className="w-10 h-10 rounded-fluid-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center fluid-mr-3 shadow-sm">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h2 className="fluid-text-lg font-semibold text-gray-900">Información General</h2>
               </div>
-
-              {/* Nombre */}
-              <div>
-                <label htmlFor="name" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                  Nombre del Estándar <span className="text-red-600">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  id="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  onBlur={(e) => validateName(e.target.value)}
-                  placeholder="Ej: Impartición de cursos de formación del capital humano"
-                  className={`input ${nameError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
-                />
-                {nameError && (
-                  <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{nameError}</p>
-                )}
-                {!nameError && formData.name.trim() && formData.name.length >= 5 && (
-                  <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Nombre válido</p>
-                )}
-            {/* Marca (ocupando todo el ancho) */}
-            <div className="fluid-mb-4">
-              <label htmlFor="brand_id" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                Marca
-              </label>
-              <select
-                name="brand_id"
-                id="brand_id"
-                value={formData.brand_id || ''}
-                onChange={(e) => {
-                  const value = e.target.value ? Number(e.target.value) : undefined;
-                  setFormData({ ...formData, brand_id: value });
-                }}
-                className="input"
-                disabled={loadingBrands}
-              >
-                <option value="">-- Sin marca específica --</option>
-                {brands.map((brand) => (
-                  <option key={brand.id} value={brand.id}>
-                    {brand.name}
-                  </option>
-                ))}
-              </select>
-              <p className="text-gray-500 fluid-text-xs fluid-mt-1">
-                Opcional. Indica si el ECM pertenece a una marca específica (Microsoft, Huawei, etc.)
-              </p>
-            </div>
-            
-              </div>
-
-              {/* Descripción - Ancho completo */}
-              <div className="md:col-span-2">
-                <label htmlFor="description" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                  Descripción
-                </label>
-                <textarea
-                  name="description"
-                  id="description"
-                  rows={3}
-                  value={formData.description}
-                  onChange={handleChange}
-                  placeholder="Describe el propósito y alcance del estándar..."
-                  className="input"
-                />
-                <p className="text-gray-500 fluid-text-xs fluid-mt-1">Opcional. Describe brevemente qué competencias evalúa este estándar.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Clasificación */}
-          <div className="card">
-            <h2 className="fluid-text-xl font-semibold fluid-mb-4">Clasificación</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
-              {/* Sector */}
-              <div>
-                <label htmlFor="sector" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                  Sector Productivo <span className="text-red-600">*</span>
-                </label>
-                <select
-                  name="sector"
-                  id="sector"
-                  value={formData.sector}
-                  onChange={handleChange}
-                  onBlur={(e) => validateSector(e.target.value)}
-                  className={`input ${sectorError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
-                >
-                  <option value="">-- Selecciona un sector --</option>
-                  {SECTORES_PRODUCTIVOS.map((sector) => (
-                    <option key={sector} value={sector}>
-                      {sector}
-                    </option>
-                  ))}
-                </select>
-                {sectorError && (
-                  <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{sectorError}</p>
-                )}
-                {!sectorError && formData.sector && (
-                  <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Sector seleccionado</p>
-                )}
-              </div>
-
-              {/* Nivel */}
-              <div>
-                <label htmlFor="level" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                  Nivel de Competencia <span className="text-red-600">*</span>
-                </label>
-                <select
-                  name="level"
-                  id="level"
-                  value={formData.level || ''}
-                  onChange={handleChange}
-                  onBlur={() => validateLevel(formData.level)}
-                  className={`input ${levelError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
-                >
-                  <option value="">-- Selecciona un nivel --</option>
-                  <option value="1">Nivel 1 - Competencias simples</option>
-                  <option value="2">Nivel 2 - Competencias básicas</option>
-                  <option value="3">Nivel 3 - Competencias intermedias</option>
-                  <option value="4">Nivel 4 - Competencias avanzadas</option>
-                  <option value="5">Nivel 5 - Competencias expertas</option>
-                </select>
-                {levelError && (
-                  <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{levelError}</p>
-                )}
-                {!levelError && formData.level && (
-                  <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Nivel seleccionado</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Vigencia y Certificación */}
-          <div className="card">
-            <h2 className="fluid-text-xl font-semibold fluid-mb-4">Vigencia y Certificación</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
-              {/* Años de vigencia */}
-              <div>
-                <label htmlFor="validity_years" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                  Vigencia del Certificado
-                </label>
-                <select
-                  name="validity_years"
-                  id="validity_years"
-                  value={formData.validity_years ?? 5}
-                  onChange={handleChange}
-                  className="input"
-                >
-                  {OPCIONES_VIGENCIA.map((opcion) => (
-                    <option key={opcion.value} value={opcion.value}>
-                      {opcion.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-gray-500 fluid-text-xs fluid-mt-1">Tiempo de validez del certificado una vez obtenido</p>
-              </div>
-
-              {/* Centro Evaluador */}
-              <div>
-                <label htmlFor="certifying_body" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                  Centro Evaluador <span className="text-red-600">*</span>
-                </label>
-                <select
-                  name="certifying_body"
-                  id="certifying_body"
-                  value={formData.certifying_body}
-                  onChange={handleChange}
-                  onBlur={(e) => validateCertifyingBody(e.target.value)}
-                  className={`input ${certifyingBodyError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
-                >
-                  <option value="">-- Selecciona un centro --</option>
-                  {CENTROS_EVALUADORES.map((centro) => (
-                    <option key={centro} value={centro}>
-                      {centro}
-                    </option>
-                  ))}
-                </select>
-                {certifyingBodyError && (
-                  <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{certifyingBodyError}</p>
-                )}
-                {!certifyingBodyError && formData.certifying_body && (
-                  <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Centro seleccionado</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Logo del Estándar - Solo visible al editar */}
-          {isEditing && (
-            <div className="card">
-              <h2 className="fluid-text-xl font-semibold fluid-mb-4">Logo del Estándar</h2>
-              <p className="text-gray-500 fluid-text-sm fluid-mb-4">
-                Sube un logo para identificar visualmente este estándar. Se convertirá automáticamente a WebP para optimización.
-              </p>
               
-              <div className="flex items-start fluid-gap-6">
-                {/* Preview del logo */}
-                <div className="flex-shrink-0">
-                  {logoPreview ? (
-                    <div className="relative group">
-                      <img
-                        src={logoPreview}
-                        alt="Logo del estándar"
-                        className="w-32 h-32 object-contain rounded-fluid-lg border-2 border-gray-200 bg-gray-50"
-                      />
-                      {uploadingLogo && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-fluid-lg">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="w-32 h-32 rounded-fluid-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
-                      <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
+              <div className="flex flex-col fluid-gap-4">
+                {/* Código */}
+                <div>
+                  <label htmlFor="code" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                    Código del Estándar <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="code"
+                    id="code"
+                    disabled={isEditing}
+                    value={formData.code}
+                    onChange={handleChange}
+                    onBlur={(e) => validateCode(e.target.value)}
+                    placeholder="Ej: EC0217"
+                    className={`input ${codeError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''} ${isEditing ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  />
+                  {codeError && (
+                    <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{codeError}</p>
+                  )}
+                  {!codeError && formData.code.trim() && formData.code.length >= 3 && (
+                    <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Código válido</p>
+                  )}
+                  {!codeError && !formData.code.trim() && (
+                    <p className="text-gray-500 fluid-text-xs fluid-mt-1">Código único del estándar (no se puede modificar después)</p>
                   )}
                 </div>
-                
-                {/* Controles */}
-                <div className="flex flex-col fluid-gap-3">
-                  <label className="relative">
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/jpg,image/webp"
-                      onChange={handleLogoSelect}
-                      disabled={uploadingLogo}
-                      className="sr-only"
-                    />
-                    <span className={`btn btn-secondary cursor-pointer inline-flex items-center ${uploadingLogo ? 'opacity-50' : ''}`}>
-                      <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                      </svg>
-                      {logoPreview ? 'Cambiar Logo' : 'Subir Logo'}
-                    </span>
+
+                {/* Nombre */}
+                <div>
+                  <label htmlFor="name" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                    Nombre del Estándar <span className="text-red-600">*</span>
                   </label>
-                  
-                  {logoUrl && (
-                    <button
-                      type="button"
-                      onClick={handleLogoDelete}
-                      disabled={uploadingLogo}
-                      className="btn btn-secondary text-red-600 hover:text-red-700 hover:bg-red-50 inline-flex items-center"
-                    >
-                      <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Eliminar Logo
-                    </button>
+                  <input
+                    type="text"
+                    name="name"
+                    id="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    onBlur={(e) => validateName(e.target.value)}
+                    placeholder="Ej: Impartición de cursos de formación del capital humano"
+                    className={`input ${nameError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                  />
+                  {nameError && (
+                    <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{nameError}</p>
                   )}
-                  
-                  <p className="text-gray-500 fluid-text-xs">
-                    Formatos: PNG, JPG, WebP. Máximo 5MB.
+                  {!nameError && formData.name.trim() && formData.name.length >= 5 && (
+                    <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Nombre válido</p>
+                  )}
+                </div>
+
+                {/* Marca */}
+                <div>
+                  <label htmlFor="brand_id" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                    Marca
+                  </label>
+                  <select
+                    name="brand_id"
+                    id="brand_id"
+                    value={formData.brand_id || ''}
+                    onChange={(e) => {
+                      const value = e.target.value ? Number(e.target.value) : undefined;
+                      setFormData({ ...formData, brand_id: value });
+                    }}
+                    className="input"
+                    disabled={loadingBrands}
+                  >
+                    <option value="">-- Sin marca específica --</option>
+                    {brands.map((brand) => (
+                      <option key={brand.id} value={brand.id}>
+                        {brand.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-gray-500 fluid-text-xs fluid-mt-1">
+                    Opcional. Indica si el ECM pertenece a una marca específica (Microsoft, Huawei, etc.)
                   </p>
                 </div>
+
+                {/* Descripción */}
+                <div>
+                  <label htmlFor="description" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                    Descripción
+                  </label>
+                  <textarea
+                    name="description"
+                    id="description"
+                    rows={3}
+                    value={formData.description}
+                    onChange={handleChange}
+                    placeholder="Describe el propósito y alcance del estándar..."
+                    className="input"
+                  />
+                  <p className="text-gray-500 fluid-text-xs fluid-mt-1">Opcional. Describe brevemente qué competencias evalúa este estándar.</p>
+                </div>
               </div>
             </div>
-          )}
 
-          {/* Botones */}
-          <div className="flex justify-end fluid-gap-3 fluid-pt-4">
+            {/* Clasificación */}
+            <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-100 fluid-p-6">
+              <div className="flex items-center fluid-mb-6">
+                <div className="w-10 h-10 rounded-fluid-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center fluid-mr-3 shadow-sm">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                  </svg>
+                </div>
+                <h2 className="fluid-text-lg font-semibold text-gray-900">Clasificación</h2>
+              </div>
+              
+              <div className="flex flex-col fluid-gap-4">
+                {/* Sector */}
+                <div>
+                  <label htmlFor="sector" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                    Sector Productivo <span className="text-red-600">*</span>
+                  </label>
+                  <select
+                    name="sector"
+                    id="sector"
+                    value={formData.sector}
+                    onChange={handleChange}
+                    onBlur={(e) => validateSector(e.target.value)}
+                    className={`input ${sectorError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                  >
+                    <option value="">-- Selecciona un sector --</option>
+                    {SECTORES_PRODUCTIVOS.map((sector) => (
+                      <option key={sector} value={sector}>
+                        {sector}
+                      </option>
+                    ))}
+                  </select>
+                  {sectorError && (
+                    <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{sectorError}</p>
+                  )}
+                  {!sectorError && formData.sector && (
+                    <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Sector seleccionado</p>
+                  )}
+                </div>
+
+                {/* Nivel */}
+                <div>
+                  <label htmlFor="level" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                    Nivel de Competencia <span className="text-red-600">*</span>
+                  </label>
+                  <select
+                    name="level"
+                    id="level"
+                    value={formData.level || ''}
+                    onChange={handleChange}
+                    onBlur={() => validateLevel(formData.level)}
+                    className={`input ${levelError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                  >
+                    <option value="">-- Selecciona un nivel --</option>
+                    <option value="1">Nivel 1 - Competencias simples</option>
+                    <option value="2">Nivel 2 - Competencias básicas</option>
+                    <option value="3">Nivel 3 - Competencias intermedias</option>
+                    <option value="4">Nivel 4 - Competencias avanzadas</option>
+                    <option value="5">Nivel 5 - Competencias expertas</option>
+                  </select>
+                  {levelError && (
+                    <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{levelError}</p>
+                  )}
+                  {!levelError && formData.level && (
+                    <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Nivel seleccionado</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Segunda fila: Vigencia y Logo */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 fluid-gap-6">
+
+            {/* Vigencia y Certificación */}
+            <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-100 fluid-p-6">
+              <div className="flex items-center fluid-mb-6">
+                <div className="w-10 h-10 rounded-fluid-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center fluid-mr-3 shadow-sm">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                  </svg>
+                </div>
+                <h2 className="fluid-text-lg font-semibold text-gray-900">Vigencia y Certificación</h2>
+              </div>
+              
+              <div className="flex flex-col fluid-gap-4">
+                {/* Años de vigencia */}
+                <div>
+                  <label htmlFor="validity_years" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                    Vigencia del Certificado
+                  </label>
+                  <select
+                    name="validity_years"
+                    id="validity_years"
+                    value={formData.validity_years ?? 5}
+                    onChange={handleChange}
+                    className="input"
+                  >
+                    {OPCIONES_VIGENCIA.map((opcion) => (
+                      <option key={opcion.value} value={opcion.value}>
+                        {opcion.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-gray-500 fluid-text-xs fluid-mt-1">Tiempo de validez del certificado una vez obtenido</p>
+                </div>
+
+                {/* Centro Evaluador */}
+                <div>
+                  <label htmlFor="certifying_body" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                    Centro Evaluador <span className="text-red-600">*</span>
+                  </label>
+                  <select
+                    name="certifying_body"
+                    id="certifying_body"
+                    value={formData.certifying_body}
+                    onChange={handleChange}
+                    onBlur={(e) => validateCertifyingBody(e.target.value)}
+                    className={`input ${certifyingBodyError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                  >
+                    <option value="">-- Selecciona un centro --</option>
+                    {CENTROS_EVALUADORES.map((centro) => (
+                      <option key={centro} value={centro}>
+                        {centro}
+                      </option>
+                    ))}
+                  </select>
+                  {certifyingBodyError && (
+                    <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{certifyingBodyError}</p>
+                  )}
+                  {!certifyingBodyError && formData.certifying_body && (
+                    <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Centro seleccionado</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Logo del Estándar - Solo visible al editar */}
+            {isEditing && (
+              <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-100 fluid-p-6">
+                <div className="flex items-center fluid-mb-6">
+                  <div className="w-10 h-10 rounded-fluid-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center fluid-mr-3 shadow-sm">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h2 className="fluid-text-lg font-semibold text-gray-900">Logo del Estándar</h2>
+                </div>
+                <p className="text-gray-500 fluid-text-sm fluid-mb-4">
+                  Sube un logo para identificar visualmente este estándar. Se convertirá automáticamente a WebP para optimización.
+                </p>
+                
+                <div className="flex items-start fluid-gap-6">
+                  {/* Preview del logo */}
+                  <div className="flex-shrink-0">
+                    {logoPreview ? (
+                      <div className="relative group">
+                        <img
+                          src={logoPreview}
+                          alt="Logo del estándar"
+                          className="w-32 h-32 object-contain rounded-fluid-lg border-2 border-gray-200 bg-gray-50"
+                        />
+                        {uploadingLogo && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-fluid-lg">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="w-32 h-32 rounded-fluid-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
+                        <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Controles */}
+                  <div className="flex flex-col fluid-gap-3">
+                    <label className="relative">
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp"
+                        onChange={handleLogoSelect}
+                        disabled={uploadingLogo}
+                        className="sr-only"
+                      />
+                      <span className={`btn btn-secondary cursor-pointer inline-flex items-center ${uploadingLogo ? 'opacity-50' : ''}`}>
+                        <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        {logoPreview ? 'Cambiar Logo' : 'Subir Logo'}
+                      </span>
+                    </label>
+                    
+                    {logoUrl && (
+                      <button
+                        type="button"
+                        onClick={handleLogoDelete}
+                        disabled={uploadingLogo}
+                        className="btn btn-secondary text-red-600 hover:text-red-700 hover:bg-red-50 inline-flex items-center"
+                      >
+                        <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Eliminar Logo
+                      </button>
+                    )}
+                    
+                    <p className="text-gray-500 fluid-text-xs">
+                      Formatos: PNG, JPG, WebP. Máximo 5MB.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Botones de acción */}
+          <div className="flex justify-end fluid-gap-4 fluid-pt-6 border-t border-gray-200">
             <button
               type="button"
               onClick={() => navigate('/standards')}
-              className="btn btn-secondary"
+              className="fluid-px-6 fluid-py-3 bg-white border border-gray-300 text-gray-700 font-medium rounded-fluid-xl hover:bg-gray-50 transition-all duration-200 shadow-sm"
               disabled={saving}
             >
               Cancelar
@@ -767,9 +822,24 @@ export default function StandardFormPage() {
             <button
               type="submit"
               disabled={saving}
-              className="btn btn-primary"
+              className="fluid-px-8 fluid-py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-fluid-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             >
-              {saving ? 'Guardando...' : isEditing ? 'Guardar Cambios' : 'Crear Estándar'}
+              {saving ? (
+                <>
+                  <svg className="animate-spin -ml-1 fluid-mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <svg className="fluid-icon-sm fluid-mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  {isEditing ? 'Guardar Cambios' : 'Crear Estándar'}
+                </>
+              )}
             </button>
           </div>
         </form>
