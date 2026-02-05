@@ -191,7 +191,7 @@ const VerifyPage = () => {
                 <img 
                   src={data.certification.ecm_logo_url} 
                   alt={data.certification.ecm_code || 'ECM'} 
-                  className="w-14 h-14 min-w-[56px] rounded-xl flex-shrink-0 object-contain bg-gray-50 p-1"
+                  className="w-12 h-12 rounded-xl flex-shrink-0 object-contain bg-gray-50 p-1"
                   onError={(e) => {
                     // Si falla, mostrar ícono por defecto
                     e.currentTarget.style.display = 'none'
@@ -199,8 +199,8 @@ const VerifyPage = () => {
                   }}
                 />
               ) : null}
-              <div className={`w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 ${data.certification?.ecm_logo_url ? 'hidden' : ''}`}>
-                <Shield className="w-7 h-7 text-purple-600" />
+              <div className={`w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 ${data.certification?.ecm_logo_url ? 'hidden' : ''}`}>
+                <Shield className="w-6 h-6 text-purple-600" />
               </div>
               <div>
                 <p className="text-sm text-gray-500">Certificación</p>
