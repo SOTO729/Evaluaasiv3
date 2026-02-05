@@ -12,6 +12,8 @@ export interface CompetencyStandard {
   level?: number;
   validity_years: number;
   certifying_body: string;
+  brand_id?: number;
+  brand?: Brand | null;
   logo_url?: string;
   is_active: boolean;
   created_by: string;
@@ -24,6 +26,16 @@ export interface CompetencyStandard {
     name: string;
     version: string;
   } | null;
+}
+
+export interface Brand {
+  id: number;
+  name: string;
+  logo_url?: string;
+  description?: string;
+  is_active: boolean;
+  display_order: number;
+  standards_count?: number;
 }
 
 export interface DeletionRequest {
@@ -48,6 +60,7 @@ export interface CreateStandardDTO {
   level?: number;
   validity_years?: number;
   certifying_body?: string;
+  brand_id?: number;
 }
 
 export interface UpdateStandardDTO {
@@ -57,6 +70,7 @@ export interface UpdateStandardDTO {
   level?: number;
   validity_years?: number;
   certifying_body?: string;
+  brand_id?: number;
   is_active?: boolean;
 }
 
@@ -172,6 +186,70 @@ export const reviewDeletionRequest = async (
     response,
   });
   return res.data;
+// ===== BRANDS ENDPOINTS =====
+
+/**
+ * Obtener lista de marcas
+ */
+export const getBrands = async (params?: {
+  active_only?: boolean;
+  include_stats?: boolean;
+}): Promise<{ brands: Brand[]; total: number }> => {
+  const searchParams = new URLSearchParams();
+  
+  if (params?.active_only !== undefined) {
+    searchParams.append('active_only', String(params.active_only));
+  }
+  if (params?.include_stats !== undefined) {
+    searchParams.append('include_stats', String(params.include_stats));
+  }
+  
+  const query = searchParams.toString();
+  const response = await api.get(`/competency-standards/brands${query ? `?${query}` : ''}`);
+  return response.data;
+};
+
+/**
+ * Obtener una marca por ID
+ */
+export const getBrand = async (id: number): Promise<{ brand: Brand }> => {
+  const response = await api.get(`/competency-standards/brands/${id}`);
+  return response.data;
+};
+
+/**
+ * Crear una nueva marca
+ */
+export const createBrand = async (data: {
+  name: string;
+  logo_url?: string;
+  description?: string;
+  display_order?: number;
+}): Promise<{ message: string; brand: Brand }> => {
+  const response = await api.post('/competency-standards/brands', data);
+  return response.data;
+};
+
+/**
+ * Actualizar una marca
+ */
+export const updateBrand = async (id: number, data: {
+  name?: string;
+  logo_url?: string;
+  description?: string;
+  display_order?: number;
+  is_active?: boolean;
+}): Promise<{ message: string; brand: Brand }> => {
+  const response = await api.put(`/competency-standards/brands/${id}`, data);
+  return response.data;
+};
+
+/**
+ * Eliminar una marca (soft delete)
+ */
+export const deleteBrand = async (id: number): Promise<{ message: string }> => {
+  const response = await api.delete(`/competency-standards/brands/${id}`);
+  return response.data;
 };
 
 /**
@@ -214,4 +292,13 @@ export default {
   getStandardExams,
   getDeletionRequests,
   reviewDeletionRequest,
+  // Brands
+  getBrands,
+  getBrand,
+  createBrand,
+  updateBrand,
+  deleteBrand,
+  // Logo
+  uploadStandardLogo,
+  deleteStandardLogo,
 };

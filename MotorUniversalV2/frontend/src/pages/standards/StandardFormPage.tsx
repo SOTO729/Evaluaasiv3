@@ -10,6 +10,8 @@ import {
   uploadStandardLogo,
   deleteStandardLogo,
   CreateStandardDTO,
+  getBrands,
+  Brand,
 } from '../../services/standardsService';
 
 // Lista de sectores productivos CONOCER
@@ -126,7 +128,9 @@ export default function StandardFormPage() {
   
   // Estado para el modal de validación
   const [showValidationModal, setShowValidationModal] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  // Estado para marcas
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [loadingBrands, setLoadingBrands] = useState(false);
   
   // Estados para logo
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -140,6 +144,27 @@ export default function StandardFormPage() {
     sector: '',
     level: undefined,
     validity_years: 5,
+    certifying_body: 'CONOCER',
+    brand_id: undefined,
+  });
+
+  // Cargar marcas al montar el componente
+  useEffect(() => {
+    loadBrands();
+  }, []);
+
+  const loadBrands = async () => {
+    try {
+      setLoadingBrands(true);
+      const response = await getBrands({ active_only: true });
+      setBrands(response.brands);
+    } catch (err) {
+      console.error('Error al cargar marcas:', err);
+    } finally {
+        brand_id: standard.brand_id,
+      setLoadingBrands(false);
+    }
+  }validity_years: 5,
     certifying_body: 'CONOCER',
   });
 
@@ -488,6 +513,34 @@ export default function StandardFormPage() {
                 {!nameError && formData.name.trim() && formData.name.length >= 5 && (
                   <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Nombre válido</p>
                 )}
+            {/* Marca (ocupando todo el ancho) */}
+            <div className="fluid-mb-4">
+              <label htmlFor="brand_id" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                Marca
+              </label>
+              <select
+                name="brand_id"
+                id="brand_id"
+                value={formData.brand_id || ''}
+                onChange={(e) => {
+                  const value = e.target.value ? Number(e.target.value) : undefined;
+                  setFormData({ ...formData, brand_id: value });
+                }}
+                className="input"
+                disabled={loadingBrands}
+              >
+                <option value="">-- Sin marca específica --</option>
+                {brands.map((brand) => (
+                  <option key={brand.id} value={brand.id}>
+                    {brand.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-gray-500 fluid-text-xs fluid-mt-1">
+                Opcional. Indica si el ECM pertenece a una marca específica (Microsoft, Huawei, etc.)
+              </p>
+            </div>
+            
               </div>
 
               {/* Descripción - Ancho completo */}

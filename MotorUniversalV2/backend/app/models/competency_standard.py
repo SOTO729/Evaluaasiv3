@@ -29,6 +29,9 @@ class CompetencyStandard(db.Model):
     # Organismo certificador
     certifying_body = db.Column(db.String(255), default='CONOCER')
     
+    # Marca (Microsoft, Huawei, Abierto, etc.)
+    brand_id = db.Column(db.Integer, db.ForeignKey('brands.id'), nullable=True)
+    
     # Logo del estándar (URL de imagen en WebP)
     logo_url = db.Column(db.String(500))
     
@@ -72,6 +75,8 @@ class CompetencyStandard(db.Model):
             'level': self.level,
             'validity_years': self.validity_years,
             'certifying_body': self.certifying_body,
+            'brand_id': self.brand_id,
+            'brand': self.brand.to_dict() if self.brand else None,
             'logo_url': self.logo_url,
             'is_active': self.is_active,
             'created_by': self.created_by,
