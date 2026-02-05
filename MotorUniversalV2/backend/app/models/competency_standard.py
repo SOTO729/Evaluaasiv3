@@ -29,6 +29,12 @@ class CompetencyStandard(db.Model):
     # Organismo certificador
     certifying_body = db.Column(db.String(255), default='CONOCER')
     
+    # Marca (Microsoft, Huawei, Abierto, etc.)
+    brand_id = db.Column(db.Integer, db.ForeignKey('brands.id'), nullable=True)
+    
+    # Logo del ECM
+    logo_url = db.Column(db.String(500))  # URL del logo del estándar
+    
     # Estado
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     

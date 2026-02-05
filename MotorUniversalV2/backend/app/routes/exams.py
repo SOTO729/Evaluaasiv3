@@ -3651,8 +3651,8 @@ def generate_result_pdf(result_id):
             import qrcode
             from io import BytesIO as QRBuffer
             
-            # URL de verificación (usando URL de Azure temporalmente)
-            verify_url = f"https://thankful-stone-07fbe5410.6.azurestaticapps.net/verify/{verification_code}"
+            # URL de verificación
+            verify_url = f"https://evaluaasi.com/verify/{verification_code}"
             
             # Crear QR
             qr = qrcode.QRCode(
@@ -3858,8 +3858,8 @@ def generate_certificate_pdf(result_id):
             from io import BytesIO as QRBuffer
             from reportlab.lib.utils import ImageReader
             
-            # URL de verificación (usando URL de Azure temporalmente)
-            verify_url = f"https://thankful-stone-07fbe5410.6.azurestaticapps.net/verify/{verification_code}"
+            # URL de verificación
+            verify_url = f"https://evaluaasi.com/verify/{verification_code}"
             
             # Crear QR
             qr = qrcode.QRCode(
