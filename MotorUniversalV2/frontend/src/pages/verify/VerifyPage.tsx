@@ -126,7 +126,7 @@ const VerifyPage = () => {
             <img 
               src={data.certification.brand_logo_url} 
               alt={data.certification.brand_name || 'Marca'} 
-              className="h-16 mx-auto mb-4 object-contain"
+              className="h-20 min-w-[80px] max-w-[200px] mx-auto mb-4 object-contain"
               onError={(e) => {
                 e.currentTarget.style.display = 'none'
               }}
@@ -135,7 +135,7 @@ const VerifyPage = () => {
             <img 
               src="/images/evaluaasi-icon.png" 
               alt="Evaluaasi" 
-              className="h-16 mx-auto mb-4"
+              className="h-20 mx-auto mb-4"
               onError={(e) => {
                 e.currentTarget.style.display = 'none'
               }}
@@ -191,7 +191,7 @@ const VerifyPage = () => {
                 <img 
                   src={data.certification.ecm_logo_url} 
                   alt={data.certification.ecm_code || 'ECM'} 
-                  className="w-12 h-12 rounded-xl flex-shrink-0 object-contain bg-gray-50 p-1"
+                  className="w-14 h-14 min-w-[56px] rounded-xl flex-shrink-0 object-contain bg-gray-50 p-1"
                   onError={(e) => {
                     // Si falla, mostrar ícono por defecto
                     e.currentTarget.style.display = 'none'
@@ -199,16 +199,15 @@ const VerifyPage = () => {
                   }}
                 />
               ) : null}
-              <div className={`w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 ${data.certification?.ecm_logo_url ? 'hidden' : ''}`}>
-                <Shield className="w-6 h-6 text-purple-600" />
+              <div className={`w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 ${data.certification?.ecm_logo_url ? 'hidden' : ''}`}>
+                <Shield className="w-7 h-7 text-purple-600" />
               </div>
               <div>
                 <p className="text-sm text-gray-500">Certificación</p>
                 <p className="font-semibold text-gray-900">{data.certification?.exam_name}</p>
                 {data.certification?.ecm_code && (
                   <p className="text-sm text-gray-600 mt-1">
-                    ECM: <span className="font-mono bg-gray-100 px-2 py-0.5 rounded">{data.certification.ecm_code}</span>
-                    {data.certification.ecm_name && ` - ${data.certification.ecm_name}`}
+                    <span className="font-mono bg-gray-100 px-2 py-0.5 rounded">{data.certification.ecm_code}</span>
                   </p>
                 )}
               </div>
