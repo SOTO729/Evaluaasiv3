@@ -30,6 +30,8 @@ import {
   Power,
   Home,
   Hash,
+  FileCheck,
+  Loader2,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -41,6 +43,9 @@ import {
   getPartner,
   configureCampus,
   OfficeVersion,
+  getAvailableCompetencyStandards,
+  getCampusCompetencyStandards,
+  AvailableCompetencyStandard,
 } from '../../services/partnersService';
 
 export default function CampusFormPage() {
@@ -59,6 +64,11 @@ export default function CampusFormPage() {
   const [partnerCountry, setPartnerCountry] = useState('México');
   const [actualPartnerId, setActualPartnerId] = useState<number | null>(null);
   const [configChanged, setConfigChanged] = useState(false);
+  
+  // ECM (Estándares de Competencia)
+  const [availableEcm, setAvailableEcm] = useState<AvailableCompetencyStandard[]>([]);
+  const [selectedEcmIds, setSelectedEcmIds] = useState<number[]>([]);
+  const [loadingEcm, setLoadingEcm] = useState(false);
 
   // Datos básicos del plantel
   const [formData, setFormData] = useState({
@@ -163,6 +173,9 @@ export default function CampusFormPage() {
           retake_cost: campus.retake_cost || 0,
         });
         
+        // Cargar ECMs disponibles y asignados
+        await loadEcmData(Number(campusId));
+        
         // Ahora cargar el partner
         const partner = await getPartner(partnerId);
         setPartnerName(partner.name);
@@ -182,6 +195,41 @@ export default function CampusFormPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadEcmData = async (campusId: number) => {
+    try {
+      setLoadingEcm(true);
+      
+      // Cargar ECMs disponibles y asignados en paralelo
+      const [availableResponse, assignedResponse] = await Promise.all([
+        getAvailableCompetencyStandards(),
+        getCampusCompetencyStandards(campusId)
+      ]);
+      
+      setAvailableEcm(availableResponse.competency_standards);
+      
+      // Extraer los IDs de los ECM ya asignados
+      const assignedIds = assignedResponse.competency_standards.map(
+        (cs: any) => cs.competency_standard_id
+      );
+      setSelectedEcmIds(assignedIds);
+    } catch (err) {
+      console.error('Error al cargar ECMs:', err);
+    } finally {
+      setLoadingEcm(false);
+    }
+  };
+
+  const toggleEcmSelection = (ecmId: number) => {
+    setSelectedEcmIds(prev => {
+      if (prev.includes(ecmId)) {
+        return prev.filter(id => id !== ecmId);
+      } else {
+        return [...prev, ecmId];
+      }
+    });
+    setConfigChanged(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -296,6 +344,7 @@ export default function CampusFormPage() {
         license_end_date: configData.license_end_date || null,
         certification_cost: configData.certification_cost,
         retake_cost: configData.retake_cost,
+        competency_standard_ids: selectedEcmIds,
       });
       
       setSuccessMessage('Configuración guardada exitosamente');
@@ -1058,6 +1107,79 @@ export default function CampusFormPage() {
                       />
                     </div>
                   </div>
+                </div>
+
+                {/* Sección: Estándares de Competencia (ECM) */}
+                <div className="bg-white fluid-p-5 rounded-fluid-xl border border-gray-200 hover:shadow-lg transition-all duration-300">
+                  <h3 className="fluid-text-base font-bold text-gray-800 uppercase tracking-wide fluid-mb-5 flex items-center fluid-gap-2 pb-3 border-b border-gray-200">
+                    <FileCheck className="fluid-icon-base text-emerald-600" />
+                    Estándares de Competencia (ECM)
+                    <span className="ml-auto fluid-text-xs font-normal normal-case text-gray-500">
+                      {selectedEcmIds.length} seleccionado(s)
+                    </span>
+                  </h3>
+                  
+                  {loadingEcm ? (
+                    <div className="flex items-center justify-center fluid-py-8">
+                      <Loader2 className="fluid-icon-lg text-emerald-600 animate-spin" />
+                      <span className="ml-2 text-gray-500">Cargando ECMs...</span>
+                    </div>
+                  ) : availableEcm.length === 0 ? (
+                    <div className="text-center fluid-py-8 text-gray-500">
+                      <FileCheck className="fluid-icon-xl mx-auto mb-2 text-gray-300" />
+                      <p>No hay estándares de competencia disponibles</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 fluid-gap-3">
+                      {availableEcm.map((ecm) => {
+                        const isSelected = selectedEcmIds.includes(ecm.id);
+                        return (
+                          <button
+                            key={ecm.id}
+                            type="button"
+                            onClick={() => toggleEcmSelection(ecm.id)}
+                            className={`flex items-start fluid-gap-3 fluid-p-4 rounded-fluid-xl border-2 transition-all duration-300 text-left ${
+                              isSelected
+                                ? 'border-emerald-500 bg-emerald-50 shadow-md'
+                                : 'border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-white'
+                            }`}
+                          >
+                            <div className={`fluid-p-2 rounded-fluid-lg flex-shrink-0 transition-all duration-300 ${
+                              isSelected
+                                ? 'bg-emerald-500 text-white'
+                                : 'bg-gray-200 text-gray-400'
+                            }`}>
+                              <FileCheck className="fluid-icon-base" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className={`font-semibold fluid-text-sm truncate ${
+                                isSelected ? 'text-emerald-700' : 'text-gray-700'
+                              }`}>
+                                {ecm.code}
+                              </div>
+                              <div className="fluid-text-xs text-gray-500 line-clamp-2">
+                                {ecm.name}
+                              </div>
+                              {ecm.sector && (
+                                <div className="fluid-text-xs text-gray-400 mt-1">
+                                  {ecm.sector}
+                                </div>
+                              )}
+                            </div>
+                            {isSelected && (
+                              <div className="flex-shrink-0">
+                                <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+                                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                </div>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
