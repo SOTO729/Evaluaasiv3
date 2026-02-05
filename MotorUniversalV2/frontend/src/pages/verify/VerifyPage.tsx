@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { CheckCircle, XCircle, AlertCircle, Award, User, Calendar, BookOpen, Shield, ArrowLeft } from 'lucide-react'
+import { useParams } from 'react-router-dom'
+import { CheckCircle, XCircle, AlertCircle, Award, User, Calendar, BookOpen, Shield } from 'lucide-react'
 
 interface VerificationData {
   valid: boolean
@@ -78,13 +78,6 @@ const VerifyPage = () => {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Error de Verificación</h1>
           <p className="text-gray-600 mb-6">{error}</p>
-          <Link 
-            to="/"
-            className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Ir al inicio
-          </Link>
         </div>
       </div>
     )
@@ -103,13 +96,6 @@ const VerifyPage = () => {
             <p className="text-sm text-gray-500">Código consultado:</p>
             <code className="text-lg font-mono text-gray-800">{code}</code>
           </div>
-          <Link 
-            to="/"
-            className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Ir al inicio
-          </Link>
         </div>
       </div>
     )
@@ -262,17 +248,6 @@ const VerifyPage = () => {
               minute: '2-digit'
             })}</p>
           </div>
-        </div>
-
-        {/* Link al inicio */}
-        <div className="text-center mt-6">
-          <Link 
-            to="/"
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-800 font-medium"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Ir al inicio de Evaluaasi
-          </Link>
         </div>
       </div>
     </div>
