@@ -744,6 +744,7 @@ def upload_brand_logo(brand_id):
         - logo_url: URL del logo subido
     """
     from app.utils.azure_storage import azure_storage
+    from app.models.brand import Brand
     
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
@@ -809,6 +810,7 @@ def delete_brand_logo(brand_id):
     Eliminar logo de una marca
     """
     from app.utils.azure_storage import azure_storage
+    from app.models.brand import Brand
     
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
