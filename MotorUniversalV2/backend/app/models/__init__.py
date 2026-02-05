@@ -27,6 +27,7 @@ from app.models.student_progress import (
 )
 from app.models.conocer_certificate import ConocerCertificate
 from app.models.competency_standard import CompetencyStandard, DeletionRequest
+from app.models.brand import Brand
 from app.models.partner import (
     Partner,
     PartnerStatePresence,
@@ -68,6 +69,7 @@ __all__ = [
     'ConocerCertificate',
     'CompetencyStandard',
     'DeletionRequest',
+    'Brand',
     'Partner',
     'PartnerStatePresence',
     'Campus',
