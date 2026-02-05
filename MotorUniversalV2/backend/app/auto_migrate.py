@@ -764,3 +764,116 @@ def check_and_create_campus_competency_standards_table():
     except Exception as e:
         print(f"❌ Error en auto-migración de campus_competency_standards: {e}")
         db.session.rollback()
+
+
+def check_and_create_brands_table():
+    """Verificar y crear tabla brands + agregar brand_id a competency_standards"""
+    print("🔍 Verificando tabla brands y columna brand_id en competency_standards...")
+    
+    db_type = get_db_type()
+    
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        # 1. Crear tabla brands si no existe
+        if 'brands' not in tables:
+            print("  📝 Creando tabla brands...")
+            
+            if db_type == 'mssql':
+                sql = """
+                CREATE TABLE brands (
+                    id INT IDENTITY(1,1) PRIMARY KEY,
+                    name NVARCHAR(100) NOT NULL UNIQUE,
+                    logo_url NVARCHAR(500),
+                    description NVARCHAR(MAX),
+                    is_active BIT DEFAULT 1 NOT NULL,
+                    display_order INT DEFAULT 0,
+                    created_by NVARCHAR(36),
+                    created_at DATETIME2 DEFAULT GETDATE() NOT NULL,
+                    updated_by NVARCHAR(36),
+                    updated_at DATETIME2 DEFAULT GETDATE()
+                )
+                """
+            else:
+                sql = """
+                CREATE TABLE brands (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL UNIQUE,
+                    logo_url VARCHAR(500),
+                    description TEXT,
+                    is_active BOOLEAN DEFAULT TRUE NOT NULL,
+                    display_order INTEGER DEFAULT 0,
+                    created_by VARCHAR(36) REFERENCES users(id),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    updated_by VARCHAR(36) REFERENCES users(id),
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            
+            db.session.execute(text(sql))
+            db.session.commit()
+            print("  ✓ Tabla brands creada exitosamente")
+            
+            # Insertar marcas predeterminadas
+            print("  📝 Insertando marcas predeterminadas...")
+            brands_data = [
+                ('Microsoft', 'Certificaciones oficiales de Microsoft', 1),
+                ('Huawei', 'Certificaciones oficiales de Huawei', 2),
+                ('Abierto', 'Estándares de competencia abiertos/genéricos', 3),
+            ]
+            for name, description, order in brands_data:
+                try:
+                    if db_type == 'mssql':
+                        insert_sql = f"INSERT INTO brands (name, description, display_order) VALUES ('{name}', '{description}', {order})"
+                    else:
+                        insert_sql = f"INSERT INTO brands (name, description, display_order) VALUES ('{name}', '{description}', {order})"
+                    db.session.execute(text(insert_sql))
+                except Exception as e:
+                    print(f"  ⚠️  Marca {name} ya existe o error: {e}")
+                    db.session.rollback()
+            db.session.commit()
+            print("  ✓ Marcas predeterminadas insertadas: Microsoft, Huawei, Abierto")
+        else:
+            print("  ✓ Tabla brands ya existe")
+        
+        # 2. Agregar brand_id a competency_standards si no existe
+        if 'competency_standards' in tables:
+            existing_columns = [col['name'] for col in inspector.get_columns('competency_standards')]
+            
+            if 'brand_id' not in existing_columns:
+                print("  📝 Agregando columna brand_id a competency_standards...")
+                try:
+                    if db_type == 'mssql':
+                        sql = "ALTER TABLE competency_standards ADD brand_id INT"
+                    else:
+                        sql = "ALTER TABLE competency_standards ADD COLUMN brand_id INTEGER REFERENCES brands(id)"
+                    db.session.execute(text(sql))
+                    db.session.commit()
+                    print("  ✓ Columna brand_id agregada a competency_standards")
+                    
+                    # Agregar FK para MSSQL
+                    if db_type == 'mssql':
+                        try:
+                            db.session.execute(text(
+                                "ALTER TABLE competency_standards ADD CONSTRAINT fk_cs_brand FOREIGN KEY (brand_id) REFERENCES brands(id)"
+                            ))
+                            db.session.commit()
+                            print("  ✓ Foreign key agregada para brand_id")
+                        except Exception as e:
+                            print(f"  ⚠️  Error agregando FK (puede ya existir): {e}")
+                            db.session.rollback()
+                except Exception as e:
+                    if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+                        print("  ⚠️  Columna brand_id ya existe")
+                    else:
+                        print(f"  ❌ Error agregando brand_id: {e}")
+                        db.session.rollback()
+            else:
+                print("  ✓ Columna brand_id ya existe en competency_standards")
+        
+        print("✅ Verificación de brands completada")
+                
+    except Exception as e:
+        print(f"❌ Error en auto-migración de brands: {e}")
+        db.session.rollback()

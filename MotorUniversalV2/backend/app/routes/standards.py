@@ -72,6 +72,7 @@ def create_standard():
         - level: Nivel de competencia 1-5 (optional)
         - validity_years: Años de vigencia (default: 5)
         - certifying_body: Organismo certificador (default: CONOCER)
+        - brand_id: ID de la marca (Microsoft, Huawei, Abierto) (optional)
     """
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
@@ -105,6 +106,7 @@ def create_standard():
             level=data.get('level'),
             validity_years=data.get('validity_years', 5),
             certifying_body=data.get('certifying_body', 'CONOCER'),
+            brand_id=data.get('brand_id'),
             is_active=True,
             created_by=current_user_id
         )
@@ -168,6 +170,8 @@ def update_standard(standard_id):
             standard.validity_years = data['validity_years']
         if 'certifying_body' in data:
             standard.certifying_body = data['certifying_body']
+        if 'brand_id' in data:
+            standard.brand_id = data['brand_id']
         if 'is_active' in data and current_user.role == 'admin':
             standard.is_active = data['is_active']
         
@@ -417,3 +421,173 @@ def review_deletion_request(request_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al procesar la solicitud: {str(e)}'}), 500
+
+
+# ============== ENDPOINTS DE MARCAS (BRANDS) ==============
+
+@standards_bp.route('/brands', methods=['GET'])
+@jwt_required()
+def get_brands():
+    """
+    Obtener lista de marcas disponibles para ECM
+    
+    Query params:
+        - active_only: Solo marcas activas (default: true)
+        - include_stats: Incluir conteo de ECMs (default: false)
+    """
+    from app.models.brand import Brand
+    
+    active_only = request.args.get('active_only', 'true').lower() == 'true'
+    include_stats = request.args.get('include_stats', 'false').lower() == 'true'
+    
+    query = Brand.query
+    
+    if active_only:
+        query = query.filter_by(is_active=True)
+    
+    brands = query.order_by(Brand.display_order, Brand.name).all()
+    
+    return jsonify({
+        'brands': [b.to_dict(include_stats=include_stats) for b in brands],
+        'total': len(brands)
+    })
+
+
+@standards_bp.route('/brands/<int:brand_id>', methods=['GET'])
+@jwt_required()
+def get_brand(brand_id):
+    """Obtener detalle de una marca"""
+    from app.models.brand import Brand
+    
+    brand = Brand.query.get_or_404(brand_id)
+    return jsonify({
+        'brand': brand.to_dict(include_stats=True)
+    })
+
+
+@standards_bp.route('/brands', methods=['POST'])
+@jwt_required()
+def create_brand():
+    """Crear una nueva marca (solo admin)"""
+    from app.models.brand import Brand
+    
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    
+    if not user or user.role not in ['admin', 'coordinador']:
+        return jsonify({'error': 'No tienes permisos para crear marcas'}), 403
+    
+    data = request.get_json()
+    
+    if not data.get('name'):
+        return jsonify({'error': 'El nombre de la marca es requerido'}), 400
+    
+    # Verificar nombre único
+    existing = Brand.query.filter_by(name=data['name']).first()
+    if existing:
+        return jsonify({'error': 'Ya existe una marca con ese nombre'}), 400
+    
+    try:
+        brand = Brand(
+            name=data['name'],
+            logo_url=data.get('logo_url'),
+            description=data.get('description'),
+            display_order=data.get('display_order', 0),
+            is_active=data.get('is_active', True),
+            created_by=current_user_id
+        )
+        
+        db.session.add(brand)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Marca creada exitosamente',
+            'brand': brand.to_dict()
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al crear la marca: {str(e)}'}), 500
+
+
+@standards_bp.route('/brands/<int:brand_id>', methods=['PUT'])
+@jwt_required()
+def update_brand(brand_id):
+    """Actualizar una marca existente (solo admin)"""
+    from app.models.brand import Brand
+    
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    
+    if not user or user.role not in ['admin', 'coordinador']:
+        return jsonify({'error': 'No tienes permisos para editar marcas'}), 403
+    
+    brand = Brand.query.get_or_404(brand_id)
+    data = request.get_json()
+    
+    # Verificar nombre único si cambia
+    if data.get('name') and data['name'] != brand.name:
+        existing = Brand.query.filter_by(name=data['name']).first()
+        if existing:
+            return jsonify({'error': 'Ya existe una marca con ese nombre'}), 400
+    
+    try:
+        if 'name' in data:
+            brand.name = data['name']
+        if 'logo_url' in data:
+            brand.logo_url = data['logo_url']
+        if 'description' in data:
+            brand.description = data['description']
+        if 'display_order' in data:
+            brand.display_order = data['display_order']
+        if 'is_active' in data:
+            brand.is_active = data['is_active']
+        
+        brand.updated_by = current_user_id
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Marca actualizada exitosamente',
+            'brand': brand.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al actualizar la marca: {str(e)}'}), 500
+
+
+@standards_bp.route('/brands/<int:brand_id>', methods=['DELETE'])
+@jwt_required()
+def delete_brand(brand_id):
+    """Eliminar una marca (solo admin, soft delete)"""
+    from app.models.brand import Brand
+    
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Solo administradores pueden eliminar marcas'}), 403
+    
+    brand = Brand.query.get_or_404(brand_id)
+    
+    # Verificar si tiene estándares asociados
+    standards_count = brand.get_standards_count()
+    if standards_count > 0:
+        return jsonify({
+            'error': f'No se puede eliminar: la marca tiene {standards_count} estándares asociados'
+        }), 409
+    
+    try:
+        # Soft delete
+        brand.is_active = False
+        brand.updated_by = current_user_id
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Marca desactivada exitosamente'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al eliminar la marca: {str(e)}'}), 500

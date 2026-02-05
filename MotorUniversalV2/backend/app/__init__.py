@@ -278,6 +278,9 @@ def ensure_label_style_column(app):
     
     # Verificar y crear tabla campus_competency_standards
     _ensure_campus_competency_standards_table()
+    
+    # Verificar y crear tabla brands + brand_id en competency_standards
+    _ensure_brands_table()
 
 
 def _ensure_campus_competency_standards_table():
@@ -289,6 +292,17 @@ def _ensure_campus_competency_standards_table():
         check_and_create_campus_competency_standards_table()
     except Exception as e:
         print(f"[AUTO-MIGRATE] Error en migración de campus_competency_standards: {e}")
+
+
+def _ensure_brands_table():
+    """Verificar y crear tabla brands + brand_id en competency_standards"""
+    from app.auto_migrate import check_and_create_brands_table
+    
+    try:
+        print("[AUTO-MIGRATE] Ejecutando migración de brands...")
+        check_and_create_brands_table()
+    except Exception as e:
+        print(f"[AUTO-MIGRATE] Error en migración de brands: {e}")
 
 
 def _ensure_eduit_certificate_code_column():
