@@ -764,3 +764,39 @@ def check_and_create_campus_competency_standards_table():
     except Exception as e:
         print(f"❌ Error en auto-migración de campus_competency_standards: {e}")
         db.session.rollback()
+
+
+def check_and_add_competency_standard_logo_column():
+    """Verificar y agregar columna logo_url a competency_standards si no existe"""
+    print("🔍 Verificando columna logo_url en competency_standards...")
+    
+    db_type = get_db_type()
+    
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        if 'competency_standards' not in tables:
+            print("  ⚠️  Tabla competency_standards no existe, saltando...")
+            return
+        
+        existing_columns = [col['name'] for col in inspector.get_columns('competency_standards')]
+        
+        if 'logo_url' not in existing_columns:
+            print("  📝 Agregando columna logo_url...")
+            if db_type == 'mssql':
+                sql = "ALTER TABLE competency_standards ADD logo_url NVARCHAR(500) NULL"
+            else:
+                sql = "ALTER TABLE competency_standards ADD COLUMN logo_url VARCHAR(500)"
+            
+            db.session.execute(text(sql))
+            db.session.commit()
+            print("  ✓ Columna logo_url agregada exitosamente")
+        else:
+            print("  ✓ Columna logo_url ya existe")
+        
+        print("✅ Verificación de logo_url en competency_standards completada")
+                
+    except Exception as e:
+        print(f"❌ Error en auto-migración de logo_url: {e}")
+        db.session.rollback()

@@ -29,6 +29,9 @@ class CompetencyStandard(db.Model):
     # Organismo certificador
     certifying_body = db.Column(db.String(255), default='CONOCER')
     
+    # Logo del estándar (URL de imagen en WebP)
+    logo_url = db.Column(db.String(500))
+    
     # Estado
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
@@ -69,6 +72,7 @@ class CompetencyStandard(db.Model):
             'level': self.level,
             'validity_years': self.validity_years,
             'certifying_body': self.certifying_body,
+            'logo_url': self.logo_url,
             'is_active': self.is_active,
             'created_by': self.created_by,
             'created_at': self.created_at.isoformat() if self.created_at else None,

@@ -65,6 +65,17 @@ const StandardRow = ({
       className="bg-white border-2 border-gray-200 rounded-fluid-xl fluid-p-5 hover:border-blue-500 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group"
     >
       <div className="flex flex-col sm:flex-row sm:items-center fluid-gap-4">
+        {/* Logo del estándar */}
+        {standard.logo_url && (
+          <div className="flex-shrink-0">
+            <img
+              src={standard.logo_url}
+              alt={`Logo ${standard.code}`}
+              className="w-16 h-16 object-contain rounded-fluid-lg border border-gray-200 bg-gray-50"
+            />
+          </div>
+        )}
+        
         {/* Info principal */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center fluid-gap-3 fluid-mb-2 flex-wrap">

@@ -417,3 +417,132 @@ def review_deletion_request(request_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al procesar la solicitud: {str(e)}'}), 500
+
+
+@standards_bp.route('/<int:standard_id>/logo', methods=['POST'])
+@jwt_required()
+def upload_standard_logo(standard_id):
+    """
+    Subir logo para un estándar de competencia
+    
+    El logo se convierte automáticamente a WebP para optimización.
+    
+    Acepta:
+        - multipart/form-data con archivo 'logo'
+        - application/json con campo 'logo' en base64
+    
+    Returns:
+        - logo_url: URL del logo subido
+    """
+    from app.utils.azure_storage import azure_storage
+    
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    if not current_user or current_user.role not in ['admin', 'editor']:
+        return jsonify({'error': 'No tiene permisos para subir logos'}), 403
+    
+    standard = CompetencyStandard.query.get(standard_id)
+    
+    if not standard:
+        return jsonify({'error': 'Estándar no encontrado'}), 404
+    
+    try:
+        logo_data = None
+        
+        # Verificar si viene como archivo o como base64
+        if request.files and 'logo' in request.files:
+            logo_data = request.files['logo']
+        elif request.is_json:
+            data = request.get_json()
+            if data and 'logo' in data:
+                logo_data = data['logo']
+        
+        if not logo_data:
+            return jsonify({'error': 'No se recibió ningún archivo de logo'}), 400
+        
+        # Subir imagen convertida a WebP
+        logo_url = azure_storage.upload_image_as_webp(
+            logo_data, 
+            folder='ecm-logos',
+            quality=85
+        )
+        
+        if not logo_url:
+            return jsonify({'error': 'Error al subir el logo a Azure Storage'}), 500
+        
+        # Si hay logo anterior, intentar eliminarlo
+        if standard.logo_url:
+            try:
+                azure_storage.delete_file(standard.logo_url)
+            except:
+                pass  # No es crítico si falla
+        
+        # Actualizar estándar con nuevo logo
+        standard.logo_url = logo_url
+        standard.updated_by = current_user_id
+        standard.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        # Invalidar caché
+        invalidate_standards_cache()
+        
+        return jsonify({
+            'message': 'Logo subido exitosamente',
+            'logo_url': logo_url,
+            'standard': standard.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al subir logo: {str(e)}'}), 500
+
+
+@standards_bp.route('/<int:standard_id>/logo', methods=['DELETE'])
+@jwt_required()
+def delete_standard_logo(standard_id):
+    """
+    Eliminar logo de un estándar de competencia
+    """
+    from app.utils.azure_storage import azure_storage
+    
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    if not current_user or current_user.role not in ['admin', 'editor']:
+        return jsonify({'error': 'No tiene permisos para eliminar logos'}), 403
+    
+    standard = CompetencyStandard.query.get(standard_id)
+    
+    if not standard:
+        return jsonify({'error': 'Estándar no encontrado'}), 404
+    
+    if not standard.logo_url:
+        return jsonify({'message': 'El estándar no tiene logo'}), 200
+    
+    try:
+        # Intentar eliminar de Azure Storage
+        try:
+            azure_storage.delete_file(standard.logo_url)
+        except:
+            pass  # No es crítico si falla
+        
+        # Quitar logo del estándar
+        standard.logo_url = None
+        standard.updated_by = current_user_id
+        standard.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        # Invalidar caché
+        invalidate_standards_cache()
+        
+        return jsonify({
+            'message': 'Logo eliminado exitosamente',
+            'standard': standard.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al eliminar logo: {str(e)}'}), 500

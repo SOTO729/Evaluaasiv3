@@ -543,6 +543,86 @@ class AzureStorageService:
             print(f"Error generating upload SAS: {str(e)}")
             return None
 
+    def upload_image_as_webp(self, file_data, folder='ecm-logos', quality=85):
+        """
+        Subir imagen convertida a WebP para optimización
+        
+        Args:
+            file_data: FileStorage de Flask, bytes, o base64 string
+            folder: Carpeta en el contenedor
+            quality: Calidad de compresión WebP (1-100)
+        
+        Returns:
+            str: URL del archivo subido o None si falla
+        """
+        from PIL import Image
+        import io
+        import base64
+        
+        if not self.blob_service_client:
+            print("Azure Blob Storage no configurado")
+            return None
+        
+        try:
+            # Obtener bytes de la imagen
+            if hasattr(file_data, 'read'):
+                # Es un FileStorage
+                image_bytes = file_data.read()
+            elif isinstance(file_data, str) and ('base64' in file_data or ',' in file_data):
+                # Es base64
+                if ',' in file_data:
+                    _, data = file_data.split(',', 1)
+                else:
+                    data = file_data
+                image_bytes = base64.b64decode(data)
+            elif isinstance(file_data, bytes):
+                image_bytes = file_data
+            else:
+                print("Formato de imagen no soportado")
+                return None
+            
+            # Abrir imagen con PIL
+            image = Image.open(io.BytesIO(image_bytes))
+            
+            # Convertir a RGB si tiene canal alpha (para WebP con fondo)
+            if image.mode in ('RGBA', 'LA', 'P'):
+                # Crear fondo blanco para transparencias
+                background = Image.new('RGB', image.size, (255, 255, 255))
+                if image.mode == 'P':
+                    image = image.convert('RGBA')
+                background.paste(image, mask=image.split()[-1] if image.mode == 'RGBA' else None)
+                image = background
+            elif image.mode != 'RGB':
+                image = image.convert('RGB')
+            
+            # Convertir a WebP
+            webp_buffer = io.BytesIO()
+            image.save(webp_buffer, format='WEBP', quality=quality, optimize=True)
+            webp_bytes = webp_buffer.getvalue()
+            
+            # Generar nombre único
+            unique_filename = f"{uuid.uuid4().hex}.webp"
+            blob_name = f"{folder}/{unique_filename}"
+            
+            # Subir archivo
+            blob_client = self.blob_service_client.get_blob_client(
+                container=self.container_name,
+                blob=blob_name
+            )
+            
+            blob_client.upload_blob(
+                webp_bytes,
+                overwrite=True,
+                content_settings=ContentSettings(content_type='image/webp')
+            )
+            
+            print(f"Imagen WebP subida exitosamente: {blob_client.url}")
+            return blob_client.url
+        
+        except Exception as e:
+            print(f"Error uploading WebP image to Azure: {str(e)}")
+            return None
+
 
 # Instancia global
 azure_storage = AzureStorageService()

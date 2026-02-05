@@ -12,6 +12,7 @@ export interface CompetencyStandard {
   level?: number;
   validity_years: number;
   certifying_body: string;
+  logo_url?: string;
   is_active: boolean;
   created_by: string;
   created_at: string;
@@ -171,6 +172,36 @@ export const reviewDeletionRequest = async (
     response,
   });
   return res.data;
+};
+
+/**
+ * Subir logo para un estándar (se convierte a WebP automáticamente)
+ */
+export const uploadStandardLogo = async (id: number, file: File): Promise<{
+  message: string;
+  logo_url: string;
+  standard: CompetencyStandard;
+}> => {
+  const formData = new FormData();
+  formData.append('logo', file);
+  
+  const response = await api.post(`/competency-standards/${id}/logo`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+/**
+ * Eliminar logo de un estándar
+ */
+export const deleteStandardLogo = async (id: number): Promise<{
+  message: string;
+  standard: CompetencyStandard;
+}> => {
+  const response = await api.delete(`/competency-standards/${id}/logo`);
+  return response.data;
 };
 
 export default {

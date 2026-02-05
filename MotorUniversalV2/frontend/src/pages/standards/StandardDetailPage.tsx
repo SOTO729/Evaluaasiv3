@@ -121,21 +121,31 @@ export default function StandardDetailPage() {
       <div className="bg-white shadow rounded-fluid-lg overflow-hidden">
         <div className="fluid-px-6 fluid-py-5 bg-gradient-to-r from-primary-600 to-primary-700">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-4">
-            <div className="text-white">
-              <div className="flex flex-wrap items-center fluid-gap-3">
-                <h1 className="fluid-text-2xl font-bold">{standard.code}</h1>
-                {standard.level && (
-                  <span className={`inline-flex items-center fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium ${getLevelBadgeColor(standard.level)}`}>
-                    Nivel {standard.level}
-                  </span>
-                )}
-                {!standard.is_active && (
-                  <span className="inline-flex items-center fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium bg-gray-200 text-gray-800">
-                    Inactivo
-                  </span>
-                )}
+            <div className="flex items-center fluid-gap-4">
+              {/* Logo del estándar */}
+              {standard.logo_url && (
+                <img
+                  src={standard.logo_url}
+                  alt={`Logo ${standard.code}`}
+                  className="w-20 h-20 object-contain rounded-fluid-lg bg-white p-1 shadow-md"
+                />
+              )}
+              <div className="text-white">
+                <div className="flex flex-wrap items-center fluid-gap-3">
+                  <h1 className="fluid-text-2xl font-bold">{standard.code}</h1>
+                  {standard.level && (
+                    <span className={`inline-flex items-center fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium ${getLevelBadgeColor(standard.level)}`}>
+                      Nivel {standard.level}
+                    </span>
+                  )}
+                  {!standard.is_active && (
+                    <span className="inline-flex items-center fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium bg-gray-200 text-gray-800">
+                      Inactivo
+                    </span>
+                  )}
+                </div>
+                <p className="fluid-mt-1 fluid-text-lg text-primary-100">{standard.name}</p>
               </div>
-              <p className="fluid-mt-1 fluid-text-lg text-primary-100">{standard.name}</p>
             </div>
             {(isAdmin || (isEditor && standard.created_by === user?.id)) && (
               <div className="flex flex-col sm:flex-row fluid-gap-2">
