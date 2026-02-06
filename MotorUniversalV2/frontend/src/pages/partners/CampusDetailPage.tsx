@@ -85,7 +85,6 @@ export default function CampusDetailPage() {
   const [showCycleDeleteSuccessModal, setShowCycleDeleteSuccessModal] = useState(false);
   const [cycleDeleteStats, setCycleDeleteStats] = useState<CyclePermanentDeleteStats | null>(null);
   const [deletedCycleName, setDeletedCycleName] = useState('');
-  const [cycleDeleteAction, setCycleDeleteAction] = useState<'deactivate' | 'permanent'>('deactivate');
   
   // Función para generar el nombre del ciclo basado en las fechas
   const generateCycleName = (startDate: string, endDate: string): string => {
@@ -224,10 +223,9 @@ export default function CampusDetailPage() {
     }
   };
 
-  // Abrir modal de confirmación para desactivar ciclo
+  // Abrir modal de confirmación para desactivar/eliminar ciclo
   const openCycleDeleteModal = (cycle: SchoolCycle) => {
     setCycleToDelete(cycle);
-    setCycleDeleteAction('deactivate');
     setShowCycleDeleteModal(true);
   };
 
@@ -744,10 +742,20 @@ export default function CampusDetailPage() {
                               </span>
                             </div>
                           </div>
-                          {cycle.is_active && (
+                          {/* Mostrar botón desactivar para ciclos activos, o eliminar para inactivos (solo admin) */}
+                          {cycle.is_active ? (
                             <button
                               onClick={(e) => { e.stopPropagation(); openCycleDeleteModal(cycle); }}
-                              className="fluid-p-2 hover:bg-red-50 rounded-fluid-xl text-gray-400 hover:text-red-500 transition-colors"
+                              className="fluid-p-2 hover:bg-amber-50 rounded-fluid-xl text-gray-400 hover:text-amber-600 transition-colors"
+                              title="Desactivar ciclo"
+                            >
+                              <Trash2 className="fluid-icon-base" />
+                            </button>
+                          ) : isAdmin && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openCycleDeleteModal(cycle); }}
+                              className="fluid-p-2 hover:bg-red-50 rounded-fluid-xl text-gray-400 hover:text-red-600 transition-colors"
+                              title="Eliminar permanentemente"
                             >
                               <Trash2 className="fluid-icon-base" />
                             </button>
@@ -1003,54 +1011,46 @@ export default function CampusDetailPage() {
             className="bg-white rounded-fluid-2xl w-full max-w-lg shadow-2xl animate-scale-in"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="fluid-p-6 border-b border-amber-100 bg-amber-50 rounded-t-fluid-2xl">
+            {/* Cabecera diferente según estado del ciclo */}
+            <div className={`fluid-p-6 border-b rounded-t-fluid-2xl ${cycleToDelete.is_active ? 'border-amber-100 bg-amber-50' : 'border-red-100 bg-red-50'}`}>
               <div className="flex items-center fluid-gap-3">
-                <div className="fluid-p-3 bg-amber-100 rounded-fluid-xl">
-                  <AlertTriangle className="fluid-icon-xl text-amber-600" />
+                <div className={`fluid-p-3 rounded-fluid-xl ${cycleToDelete.is_active ? 'bg-amber-100' : 'bg-red-100'}`}>
+                  <AlertTriangle className={`fluid-icon-xl ${cycleToDelete.is_active ? 'text-amber-600' : 'text-red-600'}`} />
                 </div>
                 <div>
-                  <h3 className="fluid-text-xl font-bold text-amber-900">Gestionar Ciclo Escolar</h3>
-                  <p className="fluid-text-base font-medium text-amber-800">"{cycleToDelete.name}"</p>
+                  <h3 className={`fluid-text-xl font-bold ${cycleToDelete.is_active ? 'text-amber-900' : 'text-red-900'}`}>
+                    {cycleToDelete.is_active ? 'Desactivar Ciclo Escolar' : 'Eliminar Ciclo Escolar'}
+                  </h3>
+                  <p className={`fluid-text-base font-medium ${cycleToDelete.is_active ? 'text-amber-800' : 'text-red-800'}`}>"{cycleToDelete.name}"</p>
                 </div>
               </div>
             </div>
             
-            <div className="fluid-p-6 fluid-space-y-4">
-              {/* Opción Desactivar */}
-              <button
-                onClick={() => setCycleDeleteAction('deactivate')}
-                className={`w-full fluid-p-4 rounded-fluid-xl border-2 transition-all text-left ${cycleDeleteAction === 'deactivate' ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-amber-300'}`}
-              >
-                <div className="flex items-start fluid-gap-3">
-                  <div className={`fluid-w-5 fluid-h-5 rounded-full border-2 flex items-center justify-center fluid-mt-0.5 ${cycleDeleteAction === 'deactivate' ? 'border-amber-500 bg-amber-500' : 'border-gray-300'}`}>
-                    {cycleDeleteAction === 'deactivate' && <div className="fluid-w-2 fluid-h-2 bg-white rounded-full" />}
+            <div className="fluid-p-6">
+              {cycleToDelete.is_active ? (
+                /* Mensaje para desactivar ciclo activo */
+                <div className="bg-amber-50 border border-amber-200 rounded-fluid-xl fluid-p-4">
+                  <p className="fluid-text-base text-amber-800 font-medium fluid-mb-2">¿Deseas desactivar este ciclo?</p>
+                  <p className="fluid-text-sm text-amber-700">El ciclo y sus grupos permanecerán en el sistema pero no estarán activos. Podrás reactivarlos después si es necesario.</p>
+                </div>
+              ) : (
+                /* Mensaje para eliminar ciclo inactivo */
+                <div className="space-y-4">
+                  <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-4">
+                    <p className="fluid-text-base text-red-800 font-bold fluid-mb-2">⚠️ Esta acción NO se puede deshacer</p>
+                    <p className="fluid-text-sm text-red-700 fluid-mb-3">Se eliminarán permanentemente:</p>
+                    <ul className="fluid-text-sm text-red-700 space-y-1 list-disc list-inside">
+                      <li>El ciclo escolar</li>
+                      <li>Todos los grupos del ciclo</li>
+                      <li>Las membresías de candidatos en los grupos</li>
+                      <li>Las asignaciones de exámenes a grupos</li>
+                      <li>Las asignaciones de materiales de estudio</li>
+                    </ul>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-gray-900 fluid-text-base">Desactivar ciclo</p>
-                    <p className="fluid-text-sm text-gray-600 fluid-mt-1">El ciclo y sus grupos permanecerán en el sistema pero no estarán activos. Podrás reactivarlos después.</p>
+                  <div className="bg-green-50 border border-green-200 rounded-fluid-xl fluid-p-4">
+                    <p className="fluid-text-sm text-green-800 font-medium">✓ Se conservan: los usuarios, los resultados de exámenes y las certificaciones/vouchers asignados.</p>
                   </div>
                 </div>
-              </button>
-
-              {/* Opción Eliminar Permanente (Solo Admin) */}
-              {isAdmin && (
-                <button
-                  onClick={() => setCycleDeleteAction('permanent')}
-                  className={`w-full fluid-p-4 rounded-fluid-xl border-2 transition-all text-left ${cycleDeleteAction === 'permanent' ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-red-300'}`}
-                >
-                  <div className="flex items-start fluid-gap-3">
-                    <div className={`fluid-w-5 fluid-h-5 rounded-full border-2 flex items-center justify-center fluid-mt-0.5 ${cycleDeleteAction === 'permanent' ? 'border-red-500 bg-red-500' : 'border-gray-300'}`}>
-                      {cycleDeleteAction === 'permanent' && <div className="fluid-w-2 fluid-h-2 bg-white rounded-full" />}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-red-700 fluid-text-base flex items-center fluid-gap-2">
-                        <Shield className="fluid-icon-sm" />
-                        Eliminar permanentemente
-                      </p>
-                      <p className="fluid-text-sm text-red-600 fluid-mt-1">Esta acción NO se puede deshacer. Se eliminarán el ciclo, todos sus grupos, asignaciones de exámenes y materiales. Los resultados de exámenes se conservan.</p>
-                    </div>
-                  </div>
-                </button>
               )}
             </div>
 
@@ -1063,19 +1063,19 @@ export default function CampusDetailPage() {
                 Cancelar
               </button>
               <button
-                onClick={cycleDeleteAction === 'permanent' ? handlePermanentDeleteCycle : handleDeactivateCycle}
+                onClick={cycleToDelete.is_active ? handleDeactivateCycle : handlePermanentDeleteCycle}
                 disabled={isDeletingCycle}
-                className={`fluid-px-6 fluid-py-3 rounded-fluid-xl transition-all fluid-text-sm font-bold flex items-center fluid-gap-2 disabled:opacity-50 shadow-lg hover:shadow-xl hover:-translate-y-0.5 ${cycleDeleteAction === 'permanent' ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white' : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'}`}
+                className={`fluid-px-6 fluid-py-3 rounded-fluid-xl transition-all fluid-text-sm font-bold flex items-center fluid-gap-2 disabled:opacity-50 shadow-lg hover:shadow-xl hover:-translate-y-0.5 ${cycleToDelete.is_active ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white' : 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white'}`}
               >
                 {isDeletingCycle ? (
                   <>
                     <div className="fluid-w-4 fluid-h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    {cycleDeleteAction === 'permanent' ? 'Eliminando...' : 'Desactivando...'}
+                    {cycleToDelete.is_active ? 'Desactivando...' : 'Eliminando...'}
                   </>
                 ) : (
                   <>
                     <Trash2 className="fluid-icon-sm" />
-                    {cycleDeleteAction === 'permanent' ? 'Eliminar Permanentemente' : 'Desactivar Ciclo'}
+                    {cycleToDelete.is_active ? 'Desactivar Ciclo' : 'Eliminar Permanentemente'}
                   </>
                 )}
               </button>
