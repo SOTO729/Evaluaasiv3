@@ -7,9 +7,21 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ allowedRoles, excludedRoles }: ProtectedRouteProps = {}) => {
-  const { isAuthenticated, user } = useAuthStore()
+  const { isAuthenticated, user, accessToken } = useAuthStore()
 
-  if (!isAuthenticated) {
+  // Verificación de seguridad: debe tener isAuthenticated Y un token válido
+  // Esto previene la manipulación de localStorage donde un atacante
+  // podría establecer isAuthenticated=true sin un token real
+  if (!isAuthenticated || !accessToken) {
+    console.log('🚫 Acceso denegado: No autenticado o sin token')
+    return <Navigate to="/login" replace />
+  }
+
+  // Verificar que el token tenga un formato válido (JWT básico)
+  // Un JWT tiene 3 partes separadas por puntos: header.payload.signature
+  const tokenParts = accessToken.split('.')
+  if (tokenParts.length !== 3) {
+    console.log('🚫 Acceso denegado: Formato de token inválido')
     return <Navigate to="/login" replace />
   }
 

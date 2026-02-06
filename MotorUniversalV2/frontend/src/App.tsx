@@ -5,6 +5,7 @@ import LoadingSpinner from './components/LoadingSpinner'
 import InactivityWatcher from './components/InactivityWatcher'
 import SystemReadyGuard from './components/SystemReadyGuard'
 import GlobalNotifications from './components/ui/GlobalNotifications'
+import AuthProvider from './components/auth/AuthProvider'
 
 // Eager imports (necesarios inmediatamente)
 import Layout from './components/layout/Layout'
@@ -118,11 +119,12 @@ function App() {
 
   return (
     <SystemReadyGuard>
-      <GlobalNotifications />
-      <BrowserRouter>
-        <InactivityWatcher timeoutMinutes={15}>
-          <Suspense fallback={<LoadingSpinner message="Cargando..." fullScreen />}>
-            <Routes>
+      <AuthProvider>
+        <GlobalNotifications />
+        <BrowserRouter>
+          <InactivityWatcher timeoutMinutes={15}>
+            <Suspense fallback={<LoadingSpinner message="Cargando..." fullScreen />}>
+              <Routes>
             {/* Landing Page - Public */}
             <Route path="/" element={
               isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />
@@ -241,6 +243,7 @@ function App() {
         </Suspense>
         </InactivityWatcher>
       </BrowserRouter>
+      </AuthProvider>
     </SystemReadyGuard>
   )
 }
