@@ -1112,3 +1112,256 @@ def download_bulk_upload_template():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ============== EXPORTAR USUARIOS CON CONTRASEÑAS (SOLO ADMIN) ==============
+
+@bp.route('/users/export-credentials', methods=['POST'])
+@jwt_required()
+@admin_required
+def export_user_credentials():
+    """
+    Exportar usuarios seleccionados con sus contraseñas en Excel (SOLO ADMIN)
+    Recibe una lista de IDs de usuarios a exportar
+    """
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from flask import send_file
+        import io
+        
+        data = request.get_json()
+        user_ids = data.get('user_ids', [])
+        
+        if not user_ids:
+            return jsonify({'error': 'Debes seleccionar al menos un usuario'}), 400
+        
+        # Obtener usuarios
+        users = User.query.filter(User.id.in_(user_ids)).all()
+        
+        if not users:
+            return jsonify({'error': 'No se encontraron usuarios'}), 404
+        
+        # Crear Excel
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Credenciales"
+        
+        # Estilos
+        header_fill = PatternFill(start_color='1F4E79', end_color='1F4E79', fill_type='solid')
+        header_font = Font(color='FFFFFF', bold=True, size=11)
+        cell_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Encabezados
+        headers = ['Nombre Completo', 'Email', 'Usuario', 'Contraseña', 'CURP', 'Rol', 'Estado', 'Plantel', 'Fecha Creación']
+        for col, header in enumerate(headers, start=1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = cell_border
+        
+        # Datos de usuarios
+        from app.models.partner import Campus
+        
+        for row, user in enumerate(users, start=2):
+            # Obtener plantel si existe
+            campus_name = ''
+            if user.campus_id:
+                campus = Campus.query.get(user.campus_id)
+                if campus:
+                    campus_name = campus.name
+            
+            # Obtener contraseña desencriptada
+            password = user.get_decrypted_password() or '(no disponible)'
+            
+            row_data = [
+                user.full_name,
+                user.email or '-',
+                user.username,
+                password,
+                user.curp or '-',
+                user.role,
+                'Activo' if user.is_active else 'Inactivo',
+                campus_name or '-',
+                user.created_at.strftime('%d/%m/%Y %H:%M') if user.created_at else '-'
+            ]
+            
+            for col, value in enumerate(row_data, start=1):
+                cell = ws.cell(row=row, column=col, value=value)
+                cell.border = cell_border
+                cell.alignment = Alignment(vertical='center')
+        
+        # Ajustar anchos de columna
+        column_widths = [30, 35, 20, 20, 20, 15, 12, 30, 18]
+        for col, width in enumerate(column_widths, start=1):
+            ws.column_dimensions[chr(64 + col)].width = width
+        
+        # Congelar primera fila
+        ws.freeze_panes = 'A2'
+        
+        # Guardar en memoria
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'credenciales_usuarios_{len(users)}.xlsx'
+        )
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/users/export-filtered', methods=['POST'])
+@jwt_required()
+@admin_required  
+def export_filtered_users():
+    """
+    Exportar usuarios con filtros aplicados (sin límite de paginación) con sus contraseñas
+    Útil para exportar usuarios que cumplan con ciertos criterios
+    """
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from flask import send_file
+        import io
+        from datetime import datetime
+        
+        data = request.get_json()
+        
+        # Filtros opcionales
+        search = data.get('search', '')
+        role_filter = data.get('role', '')
+        active_filter = data.get('is_active', None)
+        campus_id = data.get('campus_id', None)
+        created_from = data.get('created_from')  # Fecha formato YYYY-MM-DD
+        created_to = data.get('created_to')  # Fecha formato YYYY-MM-DD
+        
+        query = User.query
+        
+        # Aplicar filtros
+        if role_filter:
+            roles = [r.strip() for r in role_filter.split(',') if r.strip()]
+            if len(roles) == 1:
+                query = query.filter(User.role == roles[0])
+            elif len(roles) > 1:
+                query = query.filter(User.role.in_(roles))
+                
+        if active_filter is not None:
+            query = query.filter(User.is_active == active_filter)
+        
+        if campus_id:
+            query = query.filter(User.campus_id == campus_id)
+        
+        if created_from:
+            try:
+                from_date = datetime.strptime(created_from, '%Y-%m-%d')
+                query = query.filter(User.created_at >= from_date)
+            except ValueError:
+                pass
+        
+        if created_to:
+            try:
+                to_date = datetime.strptime(created_to, '%Y-%m-%d')
+                # Incluir todo el día
+                to_date = to_date.replace(hour=23, minute=59, second=59)
+                query = query.filter(User.created_at <= to_date)
+            except ValueError:
+                pass
+        
+        if search:
+            search_term = f'%{search}%'
+            query = query.filter(
+                db.or_(
+                    User.name.ilike(search_term),
+                    User.first_surname.ilike(search_term),
+                    User.email.ilike(search_term),
+                    User.curp.ilike(search_term),
+                    User.username.ilike(search_term)
+                )
+            )
+        
+        users = query.order_by(User.created_at.desc()).all()
+        
+        if not users:
+            return jsonify({'error': 'No se encontraron usuarios con los filtros aplicados'}), 404
+        
+        # Crear Excel (mismo formato que export_user_credentials)
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Credenciales"
+        
+        header_fill = PatternFill(start_color='1F4E79', end_color='1F4E79', fill_type='solid')
+        header_font = Font(color='FFFFFF', bold=True, size=11)
+        cell_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        headers = ['Nombre Completo', 'Email', 'Usuario', 'Contraseña', 'CURP', 'Rol', 'Estado', 'Plantel', 'Fecha Creación']
+        for col, header in enumerate(headers, start=1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = cell_border
+        
+        from app.models.partner import Campus
+        
+        for row, user in enumerate(users, start=2):
+            campus_name = ''
+            if user.campus_id:
+                campus = Campus.query.get(user.campus_id)
+                if campus:
+                    campus_name = campus.name
+            
+            password = user.get_decrypted_password() or '(no disponible)'
+            
+            row_data = [
+                user.full_name,
+                user.email or '-',
+                user.username,
+                password,
+                user.curp or '-',
+                user.role,
+                'Activo' if user.is_active else 'Inactivo',
+                campus_name or '-',
+                user.created_at.strftime('%d/%m/%Y %H:%M') if user.created_at else '-'
+            ]
+            
+            for col, value in enumerate(row_data, start=1):
+                cell = ws.cell(row=row, column=col, value=value)
+                cell.border = cell_border
+                cell.alignment = Alignment(vertical='center')
+        
+        column_widths = [30, 35, 20, 20, 20, 15, 12, 30, 18]
+        for col, width in enumerate(column_widths, start=1):
+            ws.column_dimensions[chr(64 + col)].width = width
+        
+        ws.freeze_panes = 'A2'
+        
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'credenciales_usuarios_{len(users)}.xlsx'
+        )
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+

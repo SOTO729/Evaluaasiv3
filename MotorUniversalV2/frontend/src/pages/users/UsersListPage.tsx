@@ -19,6 +19,11 @@ import {
   Briefcase,
   GraduationCap,
   Upload,
+  Download,
+  Calendar,
+  CheckSquare,
+  Square,
+  FileSpreadsheet,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import BulkUploadModal from '../../components/users/BulkUploadModal';
@@ -27,6 +32,8 @@ import {
   getUserStats,
   toggleUserActive,
   getAvailableRoles,
+  exportSelectedUsersCredentials,
+  exportFilteredUsersCredentials,
   ManagedUser,
   UserStats,
   RoleOption,
@@ -74,6 +81,16 @@ export default function UsersListPage() {
   
   // Modal de carga masiva
   const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
+  
+  // Filtros avanzados de fecha
+  const [createdFrom, setCreatedFrom] = useState('');
+  const [createdTo, setCreatedTo] = useState('');
+  
+  // Selección de usuarios para exportar
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [isExporting, setIsExporting] = useState(false);
+  
+  const isAdmin = currentUser?.role === 'admin';
   
   // Roles filtrados según el tab activo
   const filteredRoles = useMemo(() => {
@@ -165,14 +182,82 @@ export default function UsersListPage() {
     setSearch('');
     setRoleFilter('');
     setActiveFilter('');
+    setCreatedFrom('');
+    setCreatedTo('');
+    setSelectedUsers(new Set());
     setPage(1);
     setSearchParams(prev => {
       prev.delete('search');
       prev.delete('role');
       prev.delete('is_active');
+      prev.delete('created_from');
+      prev.delete('created_to');
       // Mantener el tab actual
       return prev;
     });
+  };
+  
+  // Funciones de selección de usuarios
+  const toggleSelectUser = (userId: string) => {
+    setSelectedUsers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(userId)) {
+        newSet.delete(userId);
+      } else {
+        newSet.add(userId);
+      }
+      return newSet;
+    });
+  };
+  
+  const toggleSelectAll = () => {
+    if (selectedUsers.size === users.length) {
+      setSelectedUsers(new Set());
+    } else {
+      setSelectedUsers(new Set(users.map(u => u.id)));
+    }
+  };
+  
+  const isAllSelected = users.length > 0 && selectedUsers.size === users.length;
+  const isSomeSelected = selectedUsers.size > 0 && selectedUsers.size < users.length;
+  
+  // Exportar usuarios seleccionados
+  const handleExportSelected = async () => {
+    if (selectedUsers.size === 0) {
+      setError('Selecciona al menos un usuario para exportar');
+      return;
+    }
+    
+    try {
+      setIsExporting(true);
+      await exportSelectedUsersCredentials(Array.from(selectedUsers));
+    } catch (err: any) {
+      setError(err.message || 'Error al exportar usuarios');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+  
+  // Exportar usuarios con filtros actuales
+  const handleExportFiltered = async () => {
+    try {
+      setIsExporting(true);
+      
+      const tabConfig = TAB_CONFIG[activeTab];
+      const rolesToFilter = roleFilter || (tabConfig.roles ? tabConfig.roles.join(',') : undefined);
+      
+      await exportFilteredUsersCredentials({
+        search: search || undefined,
+        role: rolesToFilter,
+        is_active: activeFilter ? activeFilter === 'true' : undefined,
+        created_from: createdFrom || undefined,
+        created_to: createdTo || undefined,
+      });
+    } catch (err: any) {
+      setError(err.message || 'Error al exportar usuarios');
+    } finally {
+      setIsExporting(false);
+    }
   };
   
   // Conteo de usuarios por categoría (desde stats)
@@ -406,7 +491,33 @@ export default function UsersListPage() {
               </select>
             </div>
             
-            {(roleFilter || activeFilter || search) && (
+            <div className="w-full sm:w-auto">
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                <Calendar className="fluid-icon-xs inline fluid-mr-1" />
+                Fecha Creación Desde
+              </label>
+              <input
+                type="date"
+                value={createdFrom}
+                onChange={(e) => { setCreatedFrom(e.target.value); setPage(1); }}
+                className="w-full sm:w-44 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            
+            <div className="w-full sm:w-auto">
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                <Calendar className="fluid-icon-xs inline fluid-mr-1" />
+                Fecha Creación Hasta
+              </label>
+              <input
+                type="date"
+                value={createdTo}
+                onChange={(e) => { setCreatedTo(e.target.value); setPage(1); }}
+                className="w-full sm:w-44 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            
+            {(roleFilter || activeFilter || search || createdFrom || createdTo) && (
               <button
                 onClick={clearFilters}
                 className="self-end fluid-px-4 fluid-py-2 fluid-text-sm text-gray-600 hover:text-gray-800"
@@ -414,6 +525,51 @@ export default function UsersListPage() {
                 Limpiar filtros
               </button>
             )}
+          </div>
+        )}
+        
+        {/* Barra de acciones de selección - Solo Admin */}
+        {isAdmin && (
+          <div className="fluid-mt-4 fluid-pt-4 border-t border-gray-200 flex flex-wrap items-center justify-between fluid-gap-4">
+            <div className="flex items-center fluid-gap-3">
+              <span className="fluid-text-sm text-gray-600">
+                {selectedUsers.size > 0 ? (
+                  <span className="font-semibold text-blue-600">{selectedUsers.size} usuarios seleccionados</span>
+                ) : (
+                  'Selecciona usuarios para exportar'
+                )}
+              </span>
+            </div>
+            
+            <div className="flex items-center fluid-gap-3">
+              <button
+                onClick={handleExportSelected}
+                disabled={selectedUsers.size === 0 || isExporting}
+                className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-fluid-lg font-medium fluid-text-sm transition-colors"
+              >
+                {isExporting ? (
+                  <>
+                    <div className="fluid-w-4 fluid-h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Exportando...
+                  </>
+                ) : (
+                  <>
+                    <Download className="fluid-icon-sm" />
+                    Exportar Seleccionados ({selectedUsers.size})
+                  </>
+                )}
+              </button>
+              
+              <button
+                onClick={handleExportFiltered}
+                disabled={isExporting}
+                className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-fluid-lg font-medium fluid-text-sm transition-colors"
+                title="Exporta todos los usuarios que cumplan con los filtros actuales"
+              >
+                <FileSpreadsheet className="fluid-icon-sm" />
+                Exportar Filtrados
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -432,6 +588,24 @@ export default function UsersListPage() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
+                {/* Checkbox de selección - Solo Admin */}
+                {isAdmin && (
+                  <th className="fluid-px-4 fluid-py-3 text-center fluid-text-xs font-semibold text-gray-600 w-12">
+                    <button
+                      onClick={toggleSelectAll}
+                      className="fluid-p-1 hover:bg-gray-200 rounded transition-colors"
+                      title={isAllSelected ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                    >
+                      {isAllSelected ? (
+                        <CheckSquare className="fluid-icon-sm text-blue-600" />
+                      ) : isSomeSelected ? (
+                        <div className="fluid-w-4 fluid-h-4 border-2 border-blue-600 bg-blue-100 rounded" />
+                      ) : (
+                        <Square className="fluid-icon-sm text-gray-400" />
+                      )}
+                    </button>
+                  </th>
+                )}
                 <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">Usuario</th>
                 <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">Email</th>
                 <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">Rol</th>
@@ -442,7 +616,22 @@ export default function UsersListPage() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {users.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={user.id} className={`hover:bg-gray-50 transition-colors ${selectedUsers.has(user.id) ? 'bg-blue-50' : ''}`}>
+                  {/* Checkbox de selección - Solo Admin */}
+                  {isAdmin && (
+                    <td className="fluid-px-4 fluid-py-3 text-center">
+                      <button
+                        onClick={() => toggleSelectUser(user.id)}
+                        className="fluid-p-1 hover:bg-gray-200 rounded transition-colors"
+                      >
+                        {selectedUsers.has(user.id) ? (
+                          <CheckSquare className="fluid-icon-sm text-blue-600" />
+                        ) : (
+                          <Square className="fluid-icon-sm text-gray-400" />
+                        )}
+                      </button>
+                    </td>
+                  )}
                   <td className="fluid-px-4 fluid-py-3">
                     <div>
                       <p className="font-medium text-gray-900 fluid-text-sm">{user.full_name}</p>

@@ -306,3 +306,82 @@ export async function downloadBulkUploadTemplate(): Promise<void> {
     throw error;
   }
 }
+
+// ============== EXPORTAR USUARIOS CON CREDENCIALES ==============
+
+export interface ExportFilters {
+  search?: string;
+  role?: string;
+  is_active?: boolean;
+  campus_id?: number;
+  created_from?: string;  // YYYY-MM-DD
+  created_to?: string;    // YYYY-MM-DD
+}
+
+/**
+ * Exportar usuarios seleccionados con sus credenciales (contraseñas)
+ * Solo disponible para administradores
+ */
+export async function exportSelectedUsersCredentials(userIds: string[]): Promise<void> {
+  try {
+    const response = await api.post('/user-management/users/export-credentials', 
+      { user_ids: userIds },
+      { responseType: 'blob' }
+    );
+    
+    // Verificar si la respuesta es un error JSON
+    if (response.data.type === 'application/json') {
+      const text = await response.data.text();
+      const error = JSON.parse(text);
+      throw new Error(error.error || 'Error al exportar usuarios');
+    }
+    
+    // Descargar archivo
+    const url = window.URL.createObjectURL(response.data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `credenciales_usuarios_${userIds.length}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+  } catch (error) {
+    console.error('Error exporting users:', error);
+    throw error;
+  }
+}
+
+/**
+ * Exportar usuarios filtrados con sus credenciales (contraseñas)
+ * Solo disponible para administradores
+ */
+export async function exportFilteredUsersCredentials(filters: ExportFilters): Promise<void> {
+  try {
+    const response = await api.post('/user-management/users/export-filtered', 
+      filters,
+      { responseType: 'blob' }
+    );
+    
+    // Verificar si la respuesta es un error JSON
+    if (response.data.type === 'application/json') {
+      const text = await response.data.text();
+      const error = JSON.parse(text);
+      throw new Error(error.error || 'Error al exportar usuarios');
+    }
+    
+    // Descargar archivo
+    const url = window.URL.createObjectURL(response.data);
+    const a = document.createElement('a');
+    a.href = url;
+    const timestamp = new Date().toISOString().split('T')[0];
+    a.download = `credenciales_usuarios_${timestamp}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+  } catch (error) {
+    console.error('Error exporting filtered users:', error);
+    throw error;
+  }
+}
+
