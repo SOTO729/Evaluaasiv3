@@ -736,11 +736,11 @@ def bulk_upload_candidates():
     Carga masiva de candidatos desde archivo Excel
     
     Formato esperado del Excel (columnas):
-    - email (opcional - sin email no puede recibir insignia digital)
-    - nombre (requerido)  
+    - nombre (requerido)
     - primer_apellido (requerido)
     - segundo_apellido (requerido)
     - genero (requerido: M, F, O)
+    - email (opcional - sin email no puede recibir insignia digital)
     - curp (opcional - sin CURP no puede recibir certificado CONOCER)
     
     Nota: Las contraseñas se generan automáticamente
@@ -1016,13 +1016,13 @@ def download_bulk_upload_template():
             bottom=Side(style='thin')
         )
         
-        # Encabezados - email y curp son opcionales
+        # Encabezados - obligatorios a la izquierda, opcionales a la derecha
         headers = [
-            ('email', 'Opcional (sin email no recibe insignia)'),
             ('nombre', 'Requerido'),
             ('primer_apellido', 'Requerido'),
             ('segundo_apellido', 'Requerido'),
             ('genero', 'Requerido (M, F, O)'),
+            ('email', 'Opcional (sin email no recibe insignia)'),
             ('curp', 'Opcional (sin CURP no recibe cert. CONOCER)')
         ]
         
@@ -1043,10 +1043,10 @@ def download_bulk_upload_template():
             cell.alignment = Alignment(horizontal='center', wrap_text=True)
             cell.border = thin_border
         
-        # Ejemplo de datos (email y curp son opcionales)
+        # Ejemplo de datos (obligatorios primero, opcionales al final)
         example_data = [
-            ('candidato1@email.com', 'Juan', 'García', 'López', 'M', 'GALJ900101HDFRPR01'),
-            ('', 'María', 'Pérez', 'Sánchez', 'F', ''),  # Sin email ni CURP
+            ('Juan', 'García', 'López', 'M', 'candidato1@email.com', 'GALJ900101HDFRPR01'),
+            ('María', 'Pérez', 'Sánchez', 'F', '', ''),  # Sin email ni CURP
         ]
         
         for row_idx, data in enumerate(example_data, start=3):
@@ -1055,7 +1055,7 @@ def download_bulk_upload_template():
                 cell.border = thin_border
         
         # Ajustar ancho de columnas
-        column_widths = [30, 15, 18, 18, 15, 25]
+        column_widths = [15, 18, 18, 18, 30, 25]
         for col, width in enumerate(column_widths, start=1):
             ws.column_dimensions[ws.cell(row=1, column=col).column_letter].width = width
         
