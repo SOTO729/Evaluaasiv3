@@ -1808,6 +1808,45 @@ def get_group_config(group_id):
             'end_date': group.group_end_date.isoformat() if group.group_end_date else (campus.license_end_date.isoformat() if campus.license_end_date else None),
         }
         
+        # Obtener conteo de candidatos sin CURP/email para advertencias
+        # Solo si el grupo tiene habilitados conocer_certificate o digital_badge
+        members_without_curp = []
+        members_without_email = []
+        
+        conocer_enabled = effective_config.get('enable_tier_advanced', False)
+        badge_enabled = effective_config.get('enable_digital_badge', False)
+        
+        if conocer_enabled or badge_enabled:
+            # Obtener miembros del grupo con sus usuarios
+            members = GroupMember.query.filter_by(group_id=group_id, status='active').all()
+            for member in members:
+                if member.user:
+                    if conocer_enabled and not member.user.curp:
+                        members_without_curp.append({
+                            'id': member.user_id,
+                            'name': member.user.full_name if hasattr(member.user, 'full_name') else f"{member.user.name} {member.user.first_surname}"
+                        })
+                    if badge_enabled and not member.user.email:
+                        members_without_email.append({
+                            'id': member.user_id,
+                            'name': member.user.full_name if hasattr(member.user, 'full_name') else f"{member.user.name} {member.user.first_surname}"
+                        })
+        
+        # Advertencias para el responsable
+        warnings = []
+        if conocer_enabled and members_without_curp:
+            warnings.append({
+                'type': 'curp_required_for_conocer',
+                'message': f'{len(members_without_curp)} candidato(s) sin CURP no podrán recibir certificado CONOCER',
+                'affected_members': members_without_curp
+            })
+        if badge_enabled and members_without_email:
+            warnings.append({
+                'type': 'email_required_for_badge',
+                'message': f'{len(members_without_email)} candidato(s) sin email no podrán recibir insignia digital',
+                'affected_members': members_without_email
+            })
+        
         return jsonify({
             'group_id': group.id,
             'group_name': group.name,
@@ -1817,6 +1856,7 @@ def get_group_config(group_id):
             'campus_config': campus_config,
             'group_overrides': group_overrides,
             'effective_config': effective_config,
+            'warnings': warnings
         })
         
     except Exception as e:

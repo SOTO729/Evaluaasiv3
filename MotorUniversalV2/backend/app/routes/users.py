@@ -458,12 +458,18 @@ def get_dashboard():
         
         # ========== OBTENER DOCUMENT_OPTIONS DEL GRUPO DEL CANDIDATO ==========
         # Para candidatos, los certificados habilitados se determinan por el grupo
+        # PERO también depende de si el candidato tiene CURP (conocer) y email (badge)
         document_options = {
             'evaluation_report': True,  # El reporte siempre está habilitado
             'certificate': False,
             'conocer_certificate': False,
             'digital_badge': False
         }
+        
+        # Validar que el candidato tenga los datos requeridos para cada tipo de certificado
+        # Estos flags indican si el candidato PODRÍA recibir el certificado (si el grupo lo tiene habilitado)
+        can_receive_conocer = bool(current_user.curp)  # Requiere CURP
+        can_receive_badge = bool(current_user.email)   # Requiere email
         
         if current_user.role == 'candidato':
             try:
@@ -488,29 +494,43 @@ def get_dashboard():
                         # enable_tier_advanced = Certificado CONOCER
                         # enable_digital_badge = Insignia digital
                         
-                        # Tier Standard -> Certificado Eduit
+                        # Tier Standard -> Certificado Eduit (siempre disponible)
                         if group.enable_tier_standard_override is not None:
                             document_options['certificate'] = group.enable_tier_standard_override
                         elif campus and campus.enable_tier_standard is not None:
                             document_options['certificate'] = campus.enable_tier_standard
                         
-                        # Tier Advanced -> Certificado CONOCER
+                        # Tier Advanced -> Certificado CONOCER (requiere CURP)
+                        conocer_enabled = False
                         if group.enable_tier_advanced_override is not None:
-                            document_options['conocer_certificate'] = group.enable_tier_advanced_override
+                            conocer_enabled = group.enable_tier_advanced_override
                         elif campus and campus.enable_tier_advanced is not None:
-                            document_options['conocer_certificate'] = campus.enable_tier_advanced
+                            conocer_enabled = campus.enable_tier_advanced
+                        # Solo habilitado si el candidato tiene CURP
+                        document_options['conocer_certificate'] = conocer_enabled and can_receive_conocer
                         
-                        # Digital Badge
+                        # Digital Badge (requiere email)
+                        badge_enabled = False
                         if group.enable_digital_badge_override is not None:
-                            document_options['digital_badge'] = group.enable_digital_badge_override
+                            badge_enabled = group.enable_digital_badge_override
                         elif campus and campus.enable_digital_badge is not None:
-                            document_options['digital_badge'] = campus.enable_digital_badge
+                            badge_enabled = campus.enable_digital_badge
+                        # Solo habilitado si el candidato tiene email
+                        document_options['digital_badge'] = badge_enabled and can_receive_badge
             except Exception as e:
                 pass  # Mantener defaults si hay error
+        
+        # Agregar información sobre requisitos faltantes al response
+        document_requirements_missing = []
+        if not can_receive_conocer:
+            document_requirements_missing.append('curp_required_for_conocer')
+        if not can_receive_badge:
+            document_requirements_missing.append('email_required_for_badge')
         
         # Construir respuesta del usuario con document_options actualizados
         user_data = current_user.to_dict()
         user_data['document_options'] = document_options
+        user_data['document_requirements_missing'] = document_requirements_missing
         
         return jsonify({
             'user': user_data,

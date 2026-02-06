@@ -166,18 +166,25 @@ def create_user():
         current_user = g.current_user
         data = request.get_json()
         
-        # Validar campos requeridos básicos
-        required_fields = ['email', 'name', 'first_surname', 'role']
+        # Validar campos requeridos básicos (name, first_surname, role)
+        required_fields = ['name', 'first_surname', 'role']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({'error': f'El campo {field} es requerido'}), 400
         
         role = data['role']
         
-        # Para candidatos, todos los campos son obligatorios
+        # Email es requerido para todos EXCEPTO candidatos (opcional para candidatos)
+        if role != 'candidato' and not data.get('email'):
+            return jsonify({'error': 'El campo email es requerido'}), 400
+        
+        # Para candidatos: CURP y email son opcionales
+        # - Sin email: no puede recibir insignia digital
+        # - Sin CURP: no puede recibir certificado CONOCER
         if role == 'candidato':
-            candidato_required = ['second_surname', 'curp', 'gender']
-            field_names = {'second_surname': 'segundo apellido', 'curp': 'CURP', 'gender': 'género'}
+            # Solo second_surname y gender son obligatorios para candidatos
+            candidato_required = ['second_surname', 'gender']
+            field_names = {'second_surname': 'segundo apellido', 'gender': 'género'}
             for field in candidato_required:
                 if not data.get(field):
                     return jsonify({'error': f'El campo {field_names[field]} es requerido para candidatos'}), 400
@@ -212,19 +219,22 @@ def create_user():
             if data['gender'] not in ['M', 'F', 'O']:
                 return jsonify({'error': 'Género inválido. Use M (masculino), F (femenino) u O (otro)'}), 400
         
-        email = data['email'].strip().lower()
+        # Email es opcional para candidatos
+        email = None
+        if data.get('email'):
+            email = data['email'].strip().lower()
+            
+            # Validar formato email
+            if not validate_email(email):
+                return jsonify({'error': 'Formato de email inválido'}), 400
+            
+            # Verificar email único (solo si se proporciona)
+            if User.query.filter_by(email=email).first():
+                return jsonify({'error': 'Ya existe un usuario con ese email'}), 400
         
         # Generar contraseña automática para TODOS los usuarios
         import secrets
         password = secrets.token_urlsafe(12)  # Contraseña segura de 16 caracteres
-        
-        # Validar email
-        if not validate_email(email):
-            return jsonify({'error': 'Formato de email inválido'}), 400
-        
-        # Verificar email único
-        if User.query.filter_by(email=email).first():
-            return jsonify({'error': 'Ya existe un usuario con ese email'}), 400
         
         # Validar contraseña
         is_valid, error_msg = validate_password(password)

@@ -913,3 +913,124 @@ def check_and_add_competency_standard_logo_column():
     except Exception as e:
         print(f"❌ Error en auto-migración de logo_url: {e}")
         db.session.rollback()
+
+
+def check_and_make_email_nullable():
+    """
+    Hacer la columna email nullable en users y quitar unique constraint.
+    Esto permite tener candidatos sin email (regla de negocio: email opcional para candidatos,
+    pero requerido para insignias digitales).
+    """
+    print("🔍 Verificando constraint de email en users...")
+    
+    db_type = get_db_type()
+    
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        if 'users' not in tables:
+            print("  ⚠️  Tabla users no existe, saltando...")
+            return
+        
+        # Verificar si email es nullable actualmente
+        columns = inspector.get_columns('users')
+        email_col = next((c for c in columns if c['name'] == 'email'), None)
+        
+        if not email_col:
+            print("  ⚠️  Columna email no existe, saltando...")
+            return
+        
+        # Verificar unique constraints
+        unique_constraints = inspector.get_unique_constraints('users')
+        email_unique = any(c for c in unique_constraints if 'email' in c.get('column_names', []))
+        
+        # También verificar índices únicos
+        indexes = inspector.get_indexes('users')
+        email_unique_index = any(i for i in indexes if i.get('unique') and 'email' in i.get('column_names', []))
+        
+        changes_made = False
+        
+        # Quitar unique constraint si existe
+        if email_unique or email_unique_index:
+            print("  📝 Quitando unique constraint de email...")
+            if db_type == 'mssql':
+                # SQL Server: buscar y eliminar constraints
+                # Primero eliminar default constraint si existe
+                try:
+                    db.session.execute(text("""
+                        DECLARE @constraint_name NVARCHAR(255)
+                        SELECT @constraint_name = name FROM sys.indexes 
+                        WHERE object_id = OBJECT_ID('users') AND is_unique = 1 
+                        AND name LIKE '%email%'
+                        IF @constraint_name IS NOT NULL
+                            EXEC('ALTER TABLE users DROP CONSTRAINT [' + @constraint_name + ']')
+                    """))
+                    db.session.commit()
+                except Exception as e:
+                    print(f"  ⚠️  No se pudo quitar constraint por índice: {e}")
+                    db.session.rollback()
+                
+                # También eliminar unique constraint si es diferente
+                try:
+                    db.session.execute(text("""
+                        DECLARE @constraint_name NVARCHAR(255)
+                        SELECT @constraint_name = name FROM sys.key_constraints 
+                        WHERE parent_object_id = OBJECT_ID('users') AND type = 'UQ'
+                        AND name LIKE '%email%'
+                        IF @constraint_name IS NOT NULL
+                            EXEC('ALTER TABLE users DROP CONSTRAINT [' + @constraint_name + ']')
+                    """))
+                    db.session.commit()
+                except Exception as e:
+                    print(f"  ⚠️  No se pudo quitar unique constraint: {e}")
+                    db.session.rollback()
+            else:
+                # PostgreSQL/SQLite
+                try:
+                    db.session.execute(text("DROP INDEX IF EXISTS ix_users_email"))
+                    db.session.commit()
+                except Exception as e:
+                    print(f"  ⚠️  No se pudo quitar índice: {e}")
+                    db.session.rollback()
+            
+            changes_made = True
+        
+        # Hacer nullable si no lo es
+        if email_col.get('nullable') == False:
+            print("  📝 Haciendo columna email nullable...")
+            if db_type == 'mssql':
+                db.session.execute(text("ALTER TABLE users ALTER COLUMN email NVARCHAR(255) NULL"))
+            else:
+                db.session.execute(text("ALTER TABLE users ALTER COLUMN email DROP NOT NULL"))
+            db.session.commit()
+            changes_made = True
+        
+        # Recrear índice no-único para performance
+        if changes_made:
+            print("  📝 Recreando índice no-único para email...")
+            try:
+                if db_type == 'mssql':
+                    db.session.execute(text("""
+                        IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'ix_users_email_nonunique' AND object_id = OBJECT_ID('users'))
+                            CREATE INDEX ix_users_email_nonunique ON users(email)
+                    """))
+                else:
+                    db.session.execute(text("CREATE INDEX IF NOT EXISTS ix_users_email_nonunique ON users(email)"))
+                db.session.commit()
+            except Exception as e:
+                print(f"  ⚠️  No se pudo crear índice: {e}")
+                db.session.rollback()
+        
+        if changes_made:
+            print("  ✓ Email ahora es nullable y sin unique constraint")
+        else:
+            print("  ✓ Email ya está configurado correctamente")
+        
+        print("✅ Verificación de email en users completada")
+                
+    except Exception as e:
+        print(f"❌ Error en auto-migración de email: {e}")
+        import traceback
+        traceback.print_exc()
+        db.session.rollback()

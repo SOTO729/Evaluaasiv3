@@ -284,6 +284,20 @@ def ensure_label_style_column(app):
     
     # Verificar y agregar columna logo_url en competency_standards
     _ensure_competency_standard_logo_column()
+    
+    # Hacer email nullable para candidatos sin email
+    _ensure_email_nullable()
+
+
+def _ensure_email_nullable():
+    """Hacer email nullable en users para permitir candidatos sin email"""
+    from app.auto_migrate import check_and_make_email_nullable
+    
+    try:
+        print("[AUTO-MIGRATE] Ejecutando migración de email nullable...")
+        check_and_make_email_nullable()
+    except Exception as e:
+        print(f"[AUTO-MIGRATE] Error en migración de email nullable: {e}")
 
 
 def _ensure_campus_competency_standards_table():

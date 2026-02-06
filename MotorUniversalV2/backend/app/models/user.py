@@ -53,7 +53,8 @@ class User(db.Model):
     __tablename__ = 'users'
     
     id = db.Column(db.String(36), primary_key=True)
-    email = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    # Email: nullable para candidatos sin email (unicidad manejada a nivel aplicación)
+    email = db.Column(db.String(255), nullable=True, index=True)
     username = db.Column(db.String(100), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     encrypted_password = db.Column(db.String(500))  # Contraseña encriptada (reversible) para que admin pueda verla

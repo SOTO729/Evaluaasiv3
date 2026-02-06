@@ -31,7 +31,7 @@ export interface ManagedUser {
 }
 
 export interface CreateUserData {
-  email: string;
+  email?: string;  // Opcional para candidatos (requerido para otros roles)
   name: string;
   first_surname: string;
   second_surname?: string;

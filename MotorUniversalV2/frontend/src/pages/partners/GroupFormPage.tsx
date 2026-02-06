@@ -530,6 +530,23 @@ export default function GroupFormPage() {
                   </div>
                 </div>
 
+                {/* Advertencias de candidatos sin CURP o Email */}
+                {groupConfig.warnings && groupConfig.warnings.length > 0 && (
+                  <div className="fluid-space-y-4 fluid-mb-6">
+                    {groupConfig.warnings.map((warning, idx) => (
+                      <div key={idx} className="flex items-start fluid-gap-3 fluid-p-4 bg-amber-50 rounded-fluid-xl border border-amber-200">
+                        <AlertCircle className="fluid-icon-lg text-amber-500 flex-shrink-0 fluid-mt-1" />
+                        <div className="fluid-text-sm text-amber-700">
+                          <p className="font-medium fluid-mb-2">{warning.message}</p>
+                          <p className="fluid-text-xs text-amber-600">
+                            Candidatos afectados: {warning.affected_members.map(m => `${m.name} ${m.first_surname}`).join(', ')}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {loadingConfig ? (
                   <div className="py-8 text-center">
                     <div className="animate-spin h-8 w-8 border-2 border-purple-500 border-t-transparent rounded-full mx-auto" />

@@ -149,8 +149,14 @@ export default function UserFormPage() {
     setError(null);
     setSuccess(null);
 
-    if (!formData.email.trim()) {
+    // Email es requerido para todos excepto candidatos
+    if (formData.role !== 'candidato' && !formData.email.trim()) {
       setError('El email es requerido');
+      return;
+    }
+    // Si se proporciona email, validar formato
+    if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      setError('El formato del email es inválido');
       return;
     }
     if (!formData.name.trim()) {
@@ -162,17 +168,16 @@ export default function UserFormPage() {
       return;
     }
     
-    // Para candidatos, todos los campos son obligatorios
+    // Para candidatos: CURP y email son opcionales
+    // - Sin email: no puede recibir insignia digital
+    // - Sin CURP: no puede recibir certificado CONOCER
     if (formData.role === 'candidato') {
       if (!formData.second_surname.trim()) {
         setError('El segundo apellido es requerido para candidatos');
         return;
       }
-      if (!formData.curp.trim()) {
-        setError('El CURP es requerido para candidatos');
-        return;
-      }
-      if (formData.curp.trim().length !== 18) {
+      // CURP es opcional, pero si se proporciona debe tener 18 caracteres
+      if (formData.curp.trim() && formData.curp.trim().length !== 18) {
         setError('El CURP debe tener exactamente 18 caracteres');
         return;
       }
@@ -412,7 +417,8 @@ export default function UserFormPage() {
 
           <div>
             <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-              Email <span className="text-red-500">*</span>
+              Email {formData.role !== 'candidato' && <span className="text-red-500">*</span>}
+              {formData.role === 'candidato' && <span className="text-gray-400 text-xs ml-1">(opcional)</span>}
             </label>
             <input
               type="email"
@@ -422,6 +428,11 @@ export default function UserFormPage() {
               placeholder="usuario@email.com"
               className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
+            {formData.role === 'candidato' && (
+              <p className="fluid-text-xs text-amber-600 fluid-mt-1">
+                Sin email no podrá recibir insignia digital
+              </p>
+            )}
           </div>
 
           {!isEditing && (
@@ -499,7 +510,8 @@ export default function UserFormPage() {
           {formData.role !== 'editor' && (
             <div>
               <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                CURP {(formData.role === 'candidato' || formData.role === 'responsable') && <span className="text-red-500">*</span>}
+                CURP {formData.role === 'responsable' && <span className="text-red-500">*</span>}
+                {formData.role === 'candidato' && <span className="text-gray-400 text-xs ml-1">(opcional)</span>}
               </label>
               <input
                 type="text"
@@ -510,8 +522,13 @@ export default function UserFormPage() {
                 maxLength={18}
                 className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
               />
-              {(formData.role === 'candidato' || formData.role === 'responsable') && (
+              {formData.role === 'responsable' && (
                 <p className="fluid-text-xs text-gray-500 fluid-mt-1">18 caracteres exactos</p>
+              )}
+              {formData.role === 'candidato' && (
+                <p className="fluid-text-xs text-amber-600 fluid-mt-1">
+                  Sin CURP no podrá recibir certificado CONOCER
+                </p>
               )}
             </div>
           )}

@@ -631,6 +631,16 @@ export interface GroupConfigOverrides {
   group_end_date?: string | null;
 }
 
+export interface GroupConfigWarning {
+  type: 'missing_curp' | 'missing_email';
+  message: string;
+  affected_members: Array<{
+    user_id: number;
+    name: string;
+    first_surname: string;
+  }>;
+}
+
 export interface GroupConfigResponse {
   group_id: number;
   group_name: string;
@@ -668,6 +678,7 @@ export interface GroupConfigResponse {
     start_date: string | null;
     end_date: string | null;
   };
+  warnings?: GroupConfigWarning[];
 }
 
 export async function getGroupConfig(groupId: number): Promise<GroupConfigResponse> {
