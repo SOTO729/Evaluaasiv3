@@ -736,12 +736,12 @@ def bulk_upload_candidates():
     Carga masiva de candidatos desde archivo Excel
     
     Formato esperado del Excel (columnas):
-    - email (requerido)
+    - email (opcional - sin email no puede recibir insignia digital)
     - nombre (requerido)  
     - primer_apellido (requerido)
-    - segundo_apellido (opcional)
-    - genero (opcional: M, F, O)
-    - curp (opcional)
+    - segundo_apellido (requerido)
+    - genero (requerido: M, F, O)
+    - curp (opcional - sin CURP no puede recibir certificado CONOCER)
     
     Nota: Las contraseñas se generan automáticamente
     """
@@ -800,13 +800,13 @@ def bulk_upload_candidates():
                     column_indices[field] = i
                     break
         
-        # Verificar columnas requeridas
-        required_columns = ['email', 'nombre', 'primer_apellido']
+        # Verificar columnas requeridas (email y curp son opcionales)
+        required_columns = ['nombre', 'primer_apellido']
         missing_columns = [col for col in required_columns if col not in column_indices]
         if missing_columns:
             return jsonify({
                 'error': f'Faltan columnas requeridas: {", ".join(missing_columns)}',
-                'hint': 'Las columnas requeridas son: email, nombre, primer_apellido'
+                'hint': 'Las columnas requeridas son: nombre, primer_apellido, segundo_apellido, genero'
             }), 400
         
         # Función para generar contraseña aleatoria
@@ -850,10 +850,8 @@ def bulk_upload_candidates():
             genero = get_cell_value('genero')
             curp = get_cell_value('curp')
             
-            # Validar campos requeridos (todos son obligatorios para candidatos)
+            # Validar campos requeridos (email y curp son opcionales)
             missing_fields = []
-            if not email:
-                missing_fields.append('email')
             if not nombre:
                 missing_fields.append('nombre')
             if not primer_apellido:
@@ -862,8 +860,6 @@ def bulk_upload_candidates():
                 missing_fields.append('segundo_apellido')
             if not genero:
                 missing_fields.append('genero')
-            if not curp:
-                missing_fields.append('curp')
             
             if missing_fields:
                 missing_str = ', '.join(missing_fields)
@@ -874,43 +870,42 @@ def bulk_upload_candidates():
                 })
                 continue
             
-            # Normalizar email
-            email = email.lower().strip()
+            # Si hay email, validar formato y unicidad
+            if email:
+                email = email.lower().strip()
+                if not validate_email(email):
+                    results['errors'].append({
+                        'row': row_idx,
+                        'email': email,
+                        'error': 'Formato de email inválido'
+                    })
+                    continue
+                # Verificar si el email ya existe
+                if User.query.filter_by(email=email).first():
+                    results['skipped'].append({
+                        'row': row_idx,
+                        'email': email,
+                        'reason': 'Email ya registrado'
+                    })
+                    continue
             
-            # Validar formato de email
-            if not validate_email(email):
-                results['errors'].append({
-                    'row': row_idx,
-                    'email': email,
-                    'error': 'Formato de email inválido'
-                })
-                continue
-            
-            # Verificar si el email ya existe
-            if User.query.filter_by(email=email).first():
-                results['skipped'].append({
-                    'row': row_idx,
-                    'email': email,
-                    'reason': 'Email ya registrado'
-                })
-                continue
-            
-            # Validar y verificar CURP (ahora es obligatorio)
-            curp = curp.upper().strip()
-            if len(curp) != 18:
-                results['errors'].append({
-                    'row': row_idx,
-                    'email': email,
-                    'error': f'CURP inválido: debe tener 18 caracteres (tiene {len(curp)})'
-                })
-                continue
-            if User.query.filter_by(curp=curp).first():
-                results['skipped'].append({
-                    'row': row_idx,
-                    'email': email,
-                    'reason': f'CURP {curp} ya registrado'
-                })
-                continue
+            # Validar y verificar CURP (opcional - sin CURP no puede recibir certificado CONOCER)
+            if curp:
+                curp = curp.upper().strip()
+                if len(curp) != 18:
+                    results['errors'].append({
+                        'row': row_idx,
+                        'email': email or '(sin email)',
+                        'error': f'CURP inválido: debe tener 18 caracteres (tiene {len(curp)})'
+                    })
+                    continue
+                if User.query.filter_by(curp=curp).first():
+                    results['skipped'].append({
+                        'row': row_idx,
+                        'email': email or '(sin email)',
+                        'reason': f'CURP {curp} ya registrado'
+                    })
+                    continue
             
             # Normalizar género (ya validado que existe)
             genero = genero.upper()[0]
@@ -926,7 +921,11 @@ def bulk_upload_candidates():
             generated_password = generate_password()
             
             # Generar username único EN MAYÚSCULAS
-            base_username = email.split('@')[0].upper()
+            # Si hay email, usar parte antes del @; si no, usar nombre+apellido
+            if email:
+                base_username = email.split('@')[0].upper()
+            else:
+                base_username = f"{nombre[:3]}{primer_apellido[:3]}".upper()
             username = base_username
             counter = 1
             while User.query.filter_by(username=username).first():
@@ -937,7 +936,7 @@ def bulk_upload_candidates():
             try:
                 new_user = User(
                     id=str(uuid.uuid4()),
-                    email=email,
+                    email=email if email else None,
                     username=username,
                     name=nombre,
                     first_surname=primer_apellido,
@@ -1017,14 +1016,14 @@ def download_bulk_upload_template():
             bottom=Side(style='thin')
         )
         
-        # Encabezados - TODOS los campos son requeridos para candidatos
+        # Encabezados - email y curp son opcionales
         headers = [
-            ('email', 'Requerido'),
+            ('email', 'Opcional (sin email no recibe insignia)'),
             ('nombre', 'Requerido'),
             ('primer_apellido', 'Requerido'),
             ('segundo_apellido', 'Requerido'),
             ('genero', 'Requerido (M, F, O)'),
-            ('curp', 'Requerido (18 caracteres)')
+            ('curp', 'Opcional (sin CURP no recibe cert. CONOCER)')
         ]
         
         for col, (header, _) in enumerate(headers, start=1):
@@ -1044,10 +1043,10 @@ def download_bulk_upload_template():
             cell.alignment = Alignment(horizontal='center', wrap_text=True)
             cell.border = thin_border
         
-        # Ejemplo de datos (todos los campos completos)
+        # Ejemplo de datos (email y curp son opcionales)
         example_data = [
             ('candidato1@email.com', 'Juan', 'García', 'López', 'M', 'GALJ900101HDFRPR01'),
-            ('candidato2@email.com', 'María', 'Pérez', 'Sánchez', 'F', 'PESM950215MDFRRR02'),
+            ('', 'María', 'Pérez', 'Sánchez', 'F', ''),  # Sin email ni CURP
         ]
         
         for row_idx, data in enumerate(example_data, start=3):
@@ -1069,17 +1068,20 @@ def download_bulk_upload_template():
             "2. No modifique los encabezados de las columnas",
             "3. Elimine las filas de ejemplo antes de agregar sus datos",
             "",
-            "CAMPOS REQUERIDOS (TODOS SON OBLIGATORIOS):",
-            "- email: Correo electrónico único del candidato",
+            "CAMPOS REQUERIDOS:",
             "- nombre: Nombre(s) del candidato",
             "- primer_apellido: Apellido paterno",
             "- segundo_apellido: Apellido materno",
             "- genero: M (Masculino), F (Femenino), O (Otro)",
-            "- curp: CURP del candidato (18 caracteres)",
+            "",
+            "CAMPOS OPCIONALES:",
+            "- email: Sin email, el candidato NO podrá recibir insignia digital",
+            "- curp: Sin CURP, el candidato NO podrá recibir certificado CONOCER",
+            "  (El reporte de evaluación y certificado Eduit siempre están disponibles)",
             "",
             "GENERACIÓN AUTOMÁTICA:",
             "- Las contraseñas se generan automáticamente para cada usuario",
-            "- Los usernames se generan automáticamente a partir del email",
+            "- Los usernames se generan a partir del email o nombre+apellido",
             "",
             "NOTAS:",
             "- Los emails duplicados serán omitidos",
