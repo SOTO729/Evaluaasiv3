@@ -166,6 +166,44 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
             <p className="text-sm text-blue-700 mb-3">
               Descarga la plantilla Excel con el formato correcto para agregar los candidatos.
             </p>
+            
+            {/* Info de campos */}
+            <div className="mb-4 p-3 bg-white rounded-lg border border-blue-200">
+              <p className="text-xs font-semibold text-gray-700 mb-2">Campos de la plantilla:</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-red-400"></span>
+                  <span className="text-gray-600"><strong>nombre</strong> - Requerido</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-red-400"></span>
+                  <span className="text-gray-600"><strong>primer_apellido</strong> - Requerido</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-red-400"></span>
+                  <span className="text-gray-600"><strong>segundo_apellido</strong> - Requerido</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-red-400"></span>
+                  <span className="text-gray-600"><strong>genero</strong> - Requerido (M/F/O)</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-green-400"></span>
+                  <span className="text-gray-600"><strong>email</strong> - Opcional</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-green-400"></span>
+                  <span className="text-gray-600"><strong>curp</strong> - Opcional</span>
+                </div>
+              </div>
+              <div className="mt-3 p-2 bg-amber-50 rounded border border-amber-200">
+                <p className="text-xs text-amber-700">
+                  <AlertCircle className="inline h-3 w-3 mr-1" />
+                  <strong>Importante:</strong> Sin email no recibe insignia digital. Sin CURP no recibe certificado CONOCER.
+                </p>
+              </div>
+            </div>
+            
             <button
               onClick={handleDownloadTemplate}
               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
