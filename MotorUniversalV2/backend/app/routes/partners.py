@@ -6043,8 +6043,8 @@ def download_bulk_exam_assign_template(group_id):
             bottom=Side(style='thin')
         )
         
-        # Headers - Solo necesita UNO de: Nombre de Usuario, Email o CURP
-        headers = ['Nombre de Usuario', 'Email', 'CURP', 'Nombre Completo (opcional)']
+        # Headers - Solo Nombre de Usuario
+        headers = ['Nombre de Usuario', 'Nombre Completo (opcional)']
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=header)
             cell.font = header_font
@@ -6057,15 +6057,11 @@ def download_bulk_exam_assign_template(group_id):
             user = member.user
             if user:
                 ws.cell(row=row, column=1, value=user.username).border = thin_border
-                ws.cell(row=row, column=2, value=user.email).border = thin_border
-                ws.cell(row=row, column=3, value=user.curp or '').border = thin_border
-                ws.cell(row=row, column=4, value=user.full_name or '').border = thin_border
+                ws.cell(row=row, column=2, value=user.full_name or '').border = thin_border
         
         # Ajustar anchos de columna
-        ws.column_dimensions['A'].width = 25
-        ws.column_dimensions['B'].width = 35
-        ws.column_dimensions['C'].width = 22
-        ws.column_dimensions['D'].width = 40
+        ws.column_dimensions['A'].width = 30
+        ws.column_dimensions['B'].width = 45
         
         # === Hoja 2: Instrucciones ===
         ws2 = wb.create_sheet(title="Instrucciones")
@@ -6080,8 +6076,7 @@ def download_bulk_exam_assign_template(group_id):
             ("5. Suba este archivo para procesar las asignaciones.", None),
             ("", None),
             ("IDENTIFICACIÓN DE USUARIOS:", None),
-            ("- Solo se requiere UNO de: Nombre de Usuario, Email o CURP.", None),
-            ("- El sistema buscará al usuario por cualquiera de estos campos.", None),
+            ("- Se identifica a los usuarios por su 'Nombre de Usuario'.", None),
             ("- El campo 'Nombre Completo' es solo informativo.", None),
             ("", None),
             ("NOTAS IMPORTANTES:", None),
@@ -6194,24 +6189,18 @@ def bulk_assign_exams_by_ecm(group_id):
         # Obtener headers
         headers = [cell.value for cell in ws[1]]
         
-        # Encontrar columnas para identificar usuarios
+        # Encontrar columna de username
         username_col = None
-        email_col = None
-        curp_col = None
         
         for idx, header in enumerate(headers):
             if header:
                 header_lower = str(header).lower().strip()
                 if 'nombre de usuario' in header_lower or 'username' in header_lower:
                     username_col = idx
-                elif 'email' in header_lower or 'correo' in header_lower:
-                    email_col = idx
-                elif 'curp' in header_lower:
-                    curp_col = idx
         
-        if username_col is None and email_col is None and curp_col is None:
+        if username_col is None:
             return jsonify({
-                'error': 'El archivo debe tener al menos una columna: "Nombre de Usuario", "Email" o "CURP"'
+                'error': 'El archivo debe tener la columna "Nombre de Usuario"'
             }), 400
         
         # Procesar filas
@@ -6225,10 +6214,8 @@ def bulk_assign_exams_by_ecm(group_id):
         # Obtener miembros del grupo con sus usuarios
         group_members = {m.user_id: m.user for m in group.members.filter_by(status='active').all() if m.user}
         
-        # Crear índices para búsqueda rápida
+        # Crear índice para búsqueda rápida por username
         users_by_username = {u.username.lower(): uid for uid, u in group_members.items() if u.username}
-        users_by_email = {u.email.lower(): uid for uid, u in group_members.items() if u.email}
-        users_by_curp = {u.curp.upper(): uid for uid, u in group_members.items() if u.curp}
         
         # Verificar/crear GroupExam
         group_exam = GroupExam.query.filter_by(
@@ -6253,31 +6240,24 @@ def bulk_assign_exams_by_ecm(group_id):
             db.session.flush()
         
         for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-            # Obtener valores de identificación
+            # Obtener username
             username = str(row[username_col]).strip() if username_col is not None and row[username_col] else None
-            email = str(row[email_col]).strip() if email_col is not None and row[email_col] else None
-            curp = str(row[curp_col]).strip().upper() if curp_col is not None and row[curp_col] else None
             
-            # Si no hay ningún identificador, saltar fila
-            if not username and not email and not curp:
+            # Si no hay username, saltar fila
+            if not username:
                 continue
             
             results['processed'] += 1
-            identifier = username or email or curp
             
-            # Buscar usuario por cualquiera de los campos
+            # Buscar usuario por username
             user_id = None
-            if username and username.lower() in users_by_username:
+            if username.lower() in users_by_username:
                 user_id = users_by_username[username.lower()]
-            elif email and email.lower() in users_by_email:
-                user_id = users_by_email[email.lower()]
-            elif curp and curp in users_by_curp:
-                user_id = users_by_curp[curp]
             
             if not user_id:
                 results['errors'].append({
                     'row': row_num,
-                    'identifier': identifier,
+                    'identifier': username,
                     'error': 'Usuario no encontrado en el grupo'
                 })
                 continue
@@ -6291,7 +6271,7 @@ def bulk_assign_exams_by_ecm(group_id):
             if existing_member:
                 results['skipped'].append({
                     'row': row_num,
-                    'identifier': identifier,
+                    'username': username,
                     'reason': 'Usuario ya tiene este examen asignado'
                 })
                 continue
@@ -6300,7 +6280,7 @@ def bulk_assign_exams_by_ecm(group_id):
             if group_exam.assignment_type == 'all':
                 results['skipped'].append({
                     'row': row_num,
-                    'identifier': identifier,
+                    'username': username,
                     'reason': 'El examen está asignado a todo el grupo'
                 })
                 continue
@@ -6315,8 +6295,8 @@ def bulk_assign_exams_by_ecm(group_id):
             user = group_members[user_id]
             results['assigned'].append({
                 'row': row_num,
-                'identifier': identifier,
-                'user_name': user.full_name if user else identifier,
+                'username': username,
+                'user_name': user.full_name if user else username,
                 'exam_name': exam.name
             })
         
