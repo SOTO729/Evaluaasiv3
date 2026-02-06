@@ -34,6 +34,9 @@ import {
   Lock,
   Hash,
   Edit3,
+  Upload,
+  Download,
+  FileSpreadsheet,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -42,6 +45,9 @@ import {
   getAvailableExams,
   assignExamToGroup,
   getExamMaterialsForAssignment,
+  downloadBulkExamAssignTemplate,
+  bulkAssignExamsByECM,
+  BulkExamAssignResult,
   CandidateGroup,
   GroupMember,
   AvailableExam,
@@ -129,9 +135,15 @@ export default function GroupAssignExamPage() {
   const [materialSearchQuery, setMaterialSearchQuery] = useState('');
   
   // Paso 4: Asignación de miembros
-  const [assignmentType, setAssignmentType] = useState<'all' | 'selected'>('all');
+  const [assignmentType, setAssignmentType] = useState<'all' | 'selected' | 'bulk'>('all');
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  
+  // Carga masiva por ECM
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkResult, setBulkResult] = useState<BulkExamAssignResult | null>(null);
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   
   // Estado de guardado
   const [saving, setSaving] = useState(false);
@@ -261,6 +273,56 @@ export default function GroupAssignExamPage() {
     }
   };
 
+  // Funciones de carga masiva
+  const handleDownloadTemplate = async () => {
+    setDownloadingTemplate(true);
+    try {
+      const blob = await downloadBulkExamAssignTemplate(Number(groupId));
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `plantilla_asignacion_examenes_${group?.name || groupId}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al descargar la plantilla');
+    } finally {
+      setDownloadingTemplate(false);
+    }
+  };
+
+  const handleBulkFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setBulkFile(file);
+      setBulkResult(null);
+    }
+  };
+
+  const handleBulkUpload = async () => {
+    if (!bulkFile) return;
+    
+    setBulkUploading(true);
+    setBulkResult(null);
+    
+    try {
+      const result = await bulkAssignExamsByECM(Number(groupId), bulkFile, {
+        time_limit_minutes: useExamDefaultTime ? undefined : (timeLimitMinutes || undefined),
+        passing_score: useExamDefaultScore ? undefined : passingScore,
+        max_attempts: maxAttempts,
+        max_disconnections: maxDisconnections,
+        exam_content_type: examContentType
+      });
+      setBulkResult(result);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al procesar el archivo');
+    } finally {
+      setBulkUploading(false);
+    }
+  };
+
   const filteredMembers = members.filter(m => {
     if (!memberSearchQuery.trim()) return true;
     const query = memberSearchQuery.toLowerCase();
@@ -279,6 +341,9 @@ export default function GroupAssignExamPage() {
   const handleAssignExam = async () => {
     if (!selectedExam) return;
     
+    // No aplicar para carga masiva
+    if (assignmentType === 'bulk') return;
+    
     if (assignmentType === 'selected' && selectedMemberIds.length === 0) {
       setError('Debes seleccionar al menos un candidato');
       return;
@@ -290,7 +355,7 @@ export default function GroupAssignExamPage() {
       
       const config: ExamAssignmentConfig = {
         exam_id: selectedExam.id,
-        assignment_type: assignmentType,
+        assignment_type: assignmentType as 'all' | 'selected',
         member_ids: assignmentType === 'selected' ? selectedMemberIds : undefined,
         material_ids: selectedMaterialIds.length > 0 ? selectedMaterialIds : undefined,
         time_limit_minutes: useExamDefaultTime ? null : timeLimitMinutes,
@@ -1286,7 +1351,7 @@ export default function GroupAssignExamPage() {
               ¿A quién asignar el examen?
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div
                 onClick={() => setAssignmentType('all')}
                 className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
@@ -1300,7 +1365,7 @@ export default function GroupAssignExamPage() {
                   <div>
                     <h4 className="font-medium text-gray-900">Todo el Grupo</h4>
                     <p className="text-sm text-gray-500">
-                      Asignar a los {members.length} miembros del grupo
+                      Asignar a los {members.length} miembros
                     </p>
                   </div>
                 </div>
@@ -1319,7 +1384,26 @@ export default function GroupAssignExamPage() {
                   <div>
                     <h4 className="font-medium text-gray-900">Candidatos Específicos</h4>
                     <p className="text-sm text-gray-500">
-                      Seleccionar candidatos manualmente
+                      Seleccionar manualmente
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                onClick={() => setAssignmentType('bulk')}
+                className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                  assignmentType === 'bulk'
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <FileSpreadsheet className={`w-6 h-6 ${assignmentType === 'bulk' ? 'text-green-600' : 'text-gray-400'}`} />
+                  <div>
+                    <h4 className="font-medium text-gray-900">Carga Masiva</h4>
+                    <p className="text-sm text-gray-500">
+                      Asignar por código ECM
                     </p>
                   </div>
                 </div>
@@ -1391,6 +1475,166 @@ export default function GroupAssignExamPage() {
               </div>
             )}
 
+            {/* Carga masiva por ECM */}
+            {assignmentType === 'bulk' && (
+              <div className="border-t pt-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                  <h4 className="font-medium text-green-800 mb-2 flex items-center gap-2">
+                    <FileSpreadsheet className="w-5 h-5" />
+                    Asignación Masiva por Código ECM
+                  </h4>
+                  <p className="text-sm text-green-700">
+                    Con esta opción puedes asignar diferentes exámenes a diferentes candidatos 
+                    usando un archivo Excel. Cada candidato puede tener un código ECM distinto.
+                  </p>
+                </div>
+
+                {/* Paso 1: Descargar plantilla */}
+                <div className="mb-4">
+                  <h5 className="font-medium text-gray-700 mb-2">1. Descarga la plantilla</h5>
+                  <button
+                    onClick={handleDownloadTemplate}
+                    disabled={downloadingTemplate}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-green-600 text-green-600 rounded-lg hover:bg-green-50 disabled:opacity-50"
+                  >
+                    {downloadingTemplate ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Descargando...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        Descargar Plantilla Excel
+                      </>
+                    )}
+                  </button>
+                  <p className="text-xs text-gray-500 mt-1">
+                    La plantilla incluye los miembros del grupo y un catálogo de códigos ECM disponibles.
+                  </p>
+                </div>
+
+                {/* Paso 2: Subir archivo */}
+                <div className="mb-4">
+                  <h5 className="font-medium text-gray-700 mb-2">2. Completa y sube el archivo</h5>
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer">
+                      <Upload className="w-4 h-4" />
+                      Seleccionar Archivo
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={handleBulkFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                    {bulkFile && (
+                      <span className="text-sm text-gray-600">
+                        {bulkFile.name}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Paso 3: Procesar */}
+                {bulkFile && !bulkResult && (
+                  <div className="mb-4">
+                    <h5 className="font-medium text-gray-700 mb-2">3. Procesar asignaciones</h5>
+                    <button
+                      onClick={handleBulkUpload}
+                      disabled={bulkUploading}
+                      className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {bulkUploading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Procesando...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          Procesar Asignaciones
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Resultados */}
+                {bulkResult && (
+                  <div className="mt-4 space-y-3">
+                    <div className={`p-4 rounded-lg ${bulkResult.summary.errors > 0 ? 'bg-yellow-50 border border-yellow-200' : 'bg-green-50 border border-green-200'}`}>
+                      <h5 className={`font-medium mb-2 ${bulkResult.summary.errors > 0 ? 'text-yellow-800' : 'text-green-800'}`}>
+                        {bulkResult.message}
+                      </h5>
+                      <div className="grid grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-500">Procesados</p>
+                          <p className="font-semibold text-lg">{bulkResult.summary.total_processed}</p>
+                        </div>
+                        <div>
+                          <p className="text-green-600">Asignados</p>
+                          <p className="font-semibold text-lg text-green-700">{bulkResult.summary.assigned}</p>
+                        </div>
+                        <div>
+                          <p className="text-yellow-600">Omitidos</p>
+                          <p className="font-semibold text-lg text-yellow-700">{bulkResult.summary.skipped}</p>
+                        </div>
+                        <div>
+                          <p className="text-red-600">Errores</p>
+                          <p className="font-semibold text-lg text-red-700">{bulkResult.summary.errors}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Detalles de asignados */}
+                    {bulkResult.results.assigned.length > 0 && (
+                      <details className="bg-green-50 rounded-lg p-2">
+                        <summary className="cursor-pointer text-sm text-green-700 font-medium px-2">
+                          Ver asignaciones exitosas ({bulkResult.results.assigned.length})
+                        </summary>
+                        <div className="max-h-40 overflow-y-auto mt-2">
+                          {bulkResult.results.assigned.map((item, i) => (
+                            <div key={i} className="text-xs px-2 py-1 border-b border-green-100 last:border-0">
+                              <span className="text-gray-500">Fila {item.row}:</span> {item.ecm} → {item.exam_name}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+
+                    {/* Detalles de errores */}
+                    {bulkResult.results.errors.length > 0 && (
+                      <details className="bg-red-50 rounded-lg p-2">
+                        <summary className="cursor-pointer text-sm text-red-700 font-medium px-2">
+                          Ver errores ({bulkResult.results.errors.length})
+                        </summary>
+                        <div className="max-h-40 overflow-y-auto mt-2">
+                          {bulkResult.results.errors.map((item, i) => (
+                            <div key={i} className="text-xs px-2 py-1 border-b border-red-100 last:border-0">
+                              <span className="text-gray-500">Fila {item.row}:</span> {item.ecm} - <span className="text-red-600">{item.error}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+
+                    {/* Botón para volver al grupo */}
+                    {bulkResult.summary.assigned > 0 && (
+                      <div className="flex justify-center mt-4">
+                        <Link
+                          to={`/partners/groups/${groupId}`}
+                          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        >
+                          Volver al Detalle del Grupo
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Botones de acción */}
             <div className="flex justify-between pt-6 mt-6 border-t">
               <button
@@ -1399,23 +1643,25 @@ export default function GroupAssignExamPage() {
               >
                 ← Volver
               </button>
-              <button
-                onClick={handleAssignExam}
-                disabled={saving || (assignmentType === 'selected' && selectedMemberIds.length === 0)}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Asignando...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Asignar Examen
-                  </>
-                )}
-              </button>
+              {assignmentType !== 'bulk' && (
+                <button
+                  onClick={handleAssignExam}
+                  disabled={saving || (assignmentType === 'selected' && selectedMemberIds.length === 0)}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Asignando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Asignar Examen
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -714,16 +714,24 @@ def get_available_roles():
 @management_required
 def get_available_campuses():
     """
-    Obtener lista de planteles disponibles para asignar responsables.
-    Muestra planteles que no tienen responsable asignado o están inactivos.
+    Obtener lista de planteles disponibles.
+    Por defecto muestra todos los planteles (para asignar candidatos a grupos).
+    Con for_responsable=true, muestra solo los pendientes de activación.
     """
     try:
         from app.models.partner import Campus, Partner
         
-        # Obtener planteles sin responsable activo
-        campuses = Campus.query.join(Partner).filter(
-            Campus.is_active == False  # Solo planteles pendientes de activación
-        ).order_by(Partner.name, Campus.name).all()
+        for_responsable = request.args.get('for_responsable', 'false').lower() == 'true'
+        
+        # Usar outerjoin para incluir campus aunque no tengan partner asociado
+        query = Campus.query.outerjoin(Partner)
+        
+        if for_responsable:
+            # Solo planteles pendientes de activación (para asignar responsables)
+            query = query.filter(Campus.is_active == False)
+        # Si no es for_responsable, mostrar TODOS los planteles (sin filtro is_active)
+        
+        campuses = query.order_by(Campus.name).all()
         
         return jsonify({
             'campuses': [{
@@ -731,7 +739,7 @@ def get_available_campuses():
                 'name': c.name,
                 'code': c.code,
                 'partner_id': c.partner_id,
-                'partner_name': c.partner.name,
+                'partner_name': c.partner.name if c.partner else 'Sin partner',
                 'state_name': c.state_name,
                 'city': c.city,
                 'has_responsable': c.responsable_id is not None,

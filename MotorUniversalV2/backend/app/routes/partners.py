@@ -5999,3 +5999,361 @@ def cleanup_orphan_memberships():
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+# ============== ASIGNACIÓN MASIVA DE EXÁMENES POR ECM ==============
+
+@bp.route('/groups/<int:group_id>/exams/bulk-assign-template', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def download_bulk_exam_assign_template(group_id):
+    """
+    Descargar plantilla Excel para asignación masiva de exámenes.
+    La plantilla incluye los miembros del grupo y columnas para indicar el código ECM.
+    """
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
+    from openpyxl.utils import get_column_letter
+    from flask import send_file
+    
+    try:
+        group = CandidateGroup.query.get_or_404(group_id)
+        
+        # Obtener miembros del grupo
+        members = group.members.filter_by(is_active=True).all()
+        if not members:
+            return jsonify({'error': 'El grupo no tiene miembros activos'}), 400
+        
+        # Crear workbook
+        wb = Workbook()
+        
+        # === Hoja 1: Plantilla de Asignación ===
+        ws = wb.active
+        ws.title = "Asignación Exámenes"
+        
+        # Estilos
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="2563EB", end_color="2563EB", fill_type="solid")
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Headers
+        headers = ['ID Usuario', 'Nombre Completo', 'Email', 'CURP', 'Código ECM']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.border = thin_border
+            cell.alignment = Alignment(horizontal='center')
+        
+        # Datos de miembros
+        for row, member in enumerate(members, 2):
+            user = member.user
+            if user:
+                ws.cell(row=row, column=1, value=user.id).border = thin_border
+                ws.cell(row=row, column=2, value=user.full_name).border = thin_border
+                ws.cell(row=row, column=3, value=user.email).border = thin_border
+                ws.cell(row=row, column=4, value=user.curp or '').border = thin_border
+                # Columna ECM vacía para que el usuario la llene
+                ws.cell(row=row, column=5, value='').border = thin_border
+        
+        # Ajustar anchos de columna
+        ws.column_dimensions['A'].width = 40
+        ws.column_dimensions['B'].width = 35
+        ws.column_dimensions['C'].width = 35
+        ws.column_dimensions['D'].width = 22
+        ws.column_dimensions['E'].width = 20
+        
+        # === Hoja 2: Catálogo de ECM disponibles ===
+        ws2 = wb.create_sheet(title="Catálogo ECM")
+        
+        # Headers para catálogo
+        catalog_headers = ['Código ECM', 'Nombre del Examen', 'Marca', 'Sector']
+        for col, header in enumerate(catalog_headers, 1):
+            cell = ws2.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = PatternFill(start_color="059669", end_color="059669", fill_type="solid")
+            cell.border = thin_border
+            cell.alignment = Alignment(horizontal='center')
+        
+        # Obtener ECMs con exámenes publicados
+        from app.models.competency_standard import CompetencyStandard
+        from app.models.exam import Exam
+        
+        ecms = CompetencyStandard.query.filter(
+            CompetencyStandard.is_active == True,
+            CompetencyStandard.exams.any(Exam.is_active == True, Exam.is_published == True)
+        ).order_by(CompetencyStandard.code).all()
+        
+        for row, ecm in enumerate(ecms, 2):
+            ws2.cell(row=row, column=1, value=ecm.code).border = thin_border
+            ws2.cell(row=row, column=2, value=ecm.name).border = thin_border
+            ws2.cell(row=row, column=3, value=ecm.brand.name if ecm.brand else 'N/A').border = thin_border
+            ws2.cell(row=row, column=4, value=ecm.sector or 'N/A').border = thin_border
+        
+        # Ajustar anchos
+        ws2.column_dimensions['A'].width = 15
+        ws2.column_dimensions['B'].width = 50
+        ws2.column_dimensions['C'].width = 20
+        ws2.column_dimensions['D'].width = 30
+        
+        # === Hoja 3: Instrucciones ===
+        ws3 = wb.create_sheet(title="Instrucciones")
+        
+        instructions = [
+            ("INSTRUCCIONES DE USO", None),
+            ("", None),
+            ("1. En la hoja 'Asignación Exámenes', complete la columna 'Código ECM' para cada candidato.", None),
+            ("2. Use los códigos de la hoja 'Catálogo ECM' como referencia.", None),
+            ("3. Puede asignar diferentes exámenes a diferentes candidatos.", None),
+            ("4. Si deja la columna ECM vacía, ese candidato no recibirá asignación.", None),
+            ("5. Suba este archivo en el sistema para procesar las asignaciones.", None),
+            ("", None),
+            ("NOTAS IMPORTANTES:", None),
+            ("- Solo se procesarán códigos ECM válidos del catálogo.", None),
+            ("- Los exámenes deben estar publicados para poder asignarse.", None),
+            ("- Si un candidato ya tiene el examen asignado, se omitirá.", None),
+        ]
+        
+        for row, (text, _) in enumerate(instructions, 1):
+            cell = ws3.cell(row=row, column=1, value=text)
+            if row == 1 or row == 9:
+                cell.font = Font(bold=True, size=12)
+            else:
+                cell.font = Font(size=11)
+        
+        ws3.column_dimensions['A'].width = 80
+        
+        # Guardar en memoria
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        filename = f"plantilla_asignacion_examenes_{group.name.replace(' ', '_')}_{group_id}.xlsx"
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/exams/bulk-assign', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def bulk_assign_exams_by_ecm(group_id):
+    """
+    Procesar archivo Excel y asignar exámenes masivamente usando código ECM.
+    
+    El archivo debe tener las columnas:
+    - ID Usuario
+    - Código ECM
+    
+    Parámetros adicionales (JSON o form-data):
+    - time_limit_minutes: Límite de tiempo (opcional)
+    - passing_score: Puntaje mínimo (opcional)
+    - max_attempts: Máximo de intentos (default: 2)
+    - max_disconnections: Máximo de desconexiones (default: 3)
+    - exam_content_type: 'questions_only', 'exercises_only', 'mixed' (default: 'questions_only')
+    """
+    import io
+    from openpyxl import load_workbook
+    from app.models import GroupExam, Exam
+    from app.models.partner import GroupExamMember
+    from app.models.competency_standard import CompetencyStandard
+    
+    try:
+        group = CandidateGroup.query.get_or_404(group_id)
+        
+        # Verificar que se envió un archivo
+        if 'file' not in request.files:
+            return jsonify({'error': 'No se envió ningún archivo'}), 400
+        
+        file = request.files['file']
+        if not file.filename.endswith(('.xlsx', '.xls')):
+            return jsonify({'error': 'El archivo debe ser Excel (.xlsx o .xls)'}), 400
+        
+        # Obtener configuración adicional
+        config = {
+            'time_limit_minutes': request.form.get('time_limit_minutes', type=int),
+            'passing_score': request.form.get('passing_score', type=int),
+            'max_attempts': request.form.get('max_attempts', 2, type=int),
+            'max_disconnections': request.form.get('max_disconnections', 3, type=int),
+            'exam_content_type': request.form.get('exam_content_type', 'questions_only'),
+        }
+        
+        # Leer archivo Excel
+        wb = load_workbook(io.BytesIO(file.read()))
+        ws = wb.active
+        
+        # Obtener headers
+        headers = [cell.value for cell in ws[1]]
+        
+        # Encontrar columnas
+        user_id_col = None
+        ecm_col = None
+        
+        for idx, header in enumerate(headers):
+            if header:
+                header_lower = str(header).lower().strip()
+                if 'id' in header_lower and 'usuario' in header_lower:
+                    user_id_col = idx
+                elif 'ecm' in header_lower or 'código' in header_lower:
+                    ecm_col = idx
+        
+        if user_id_col is None or ecm_col is None:
+            return jsonify({
+                'error': 'El archivo debe tener columnas "ID Usuario" y "Código ECM"'
+            }), 400
+        
+        # Procesar filas
+        results = {
+            'processed': 0,
+            'assigned': [],
+            'skipped': [],
+            'errors': []
+        }
+        
+        # Cache de ECM a Exam
+        ecm_exam_cache = {}
+        
+        # Obtener miembros del grupo
+        group_member_ids = set(m.user_id for m in group.members.all())
+        
+        for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+            if not row[user_id_col] or not row[ecm_col]:
+                continue
+            
+            user_id = str(row[user_id_col]).strip()
+            ecm_code = str(row[ecm_col]).strip().upper()
+            
+            results['processed'] += 1
+            
+            # Verificar que el usuario sea miembro del grupo
+            if user_id not in group_member_ids:
+                results['errors'].append({
+                    'row': row_num,
+                    'user_id': user_id,
+                    'ecm': ecm_code,
+                    'error': 'Usuario no es miembro del grupo'
+                })
+                continue
+            
+            # Obtener examen del ECM (usar cache)
+            if ecm_code not in ecm_exam_cache:
+                ecm = CompetencyStandard.query.filter(
+                    db.func.upper(CompetencyStandard.code) == ecm_code,
+                    CompetencyStandard.is_active == True
+                ).first()
+                
+                if ecm:
+                    # Obtener examen activo más reciente
+                    exam = ecm.exams.filter_by(is_active=True, is_published=True).order_by(
+                        Exam.created_at.desc()
+                    ).first()
+                    ecm_exam_cache[ecm_code] = exam
+                else:
+                    ecm_exam_cache[ecm_code] = None
+            
+            exam = ecm_exam_cache[ecm_code]
+            
+            if not exam:
+                results['errors'].append({
+                    'row': row_num,
+                    'user_id': user_id,
+                    'ecm': ecm_code,
+                    'error': f'Código ECM "{ecm_code}" no encontrado o sin examen publicado'
+                })
+                continue
+            
+            # Verificar si ya existe asignación para este grupo y examen
+            group_exam = GroupExam.query.filter_by(
+                group_id=group_id, 
+                exam_id=exam.id,
+                is_active=True
+            ).first()
+            
+            # Si no existe, crear nueva asignación tipo 'selected'
+            if not group_exam:
+                group_exam = GroupExam(
+                    group_id=group_id,
+                    exam_id=exam.id,
+                    assigned_by_id=g.current_user.id,
+                    assignment_type='selected',
+                    time_limit_minutes=config['time_limit_minutes'],
+                    passing_score=config['passing_score'],
+                    max_attempts=config['max_attempts'],
+                    max_disconnections=config['max_disconnections'],
+                    exam_content_type=config['exam_content_type']
+                )
+                db.session.add(group_exam)
+                db.session.flush()
+            
+            # Verificar si el usuario ya tiene este examen asignado
+            existing_member = GroupExamMember.query.filter_by(
+                group_exam_id=group_exam.id,
+                user_id=user_id
+            ).first()
+            
+            if existing_member:
+                results['skipped'].append({
+                    'row': row_num,
+                    'user_id': user_id,
+                    'ecm': ecm_code,
+                    'reason': 'Usuario ya tiene este examen asignado'
+                })
+                continue
+            
+            # Si el GroupExam es tipo 'all', verificar si el usuario es miembro del grupo
+            if group_exam.assignment_type == 'all':
+                results['skipped'].append({
+                    'row': row_num,
+                    'user_id': user_id,
+                    'ecm': ecm_code,
+                    'reason': 'El examen está asignado a todo el grupo'
+                })
+                continue
+            
+            # Crear asignación de miembro
+            member = GroupExamMember(
+                group_exam_id=group_exam.id,
+                user_id=user_id
+            )
+            db.session.add(member)
+            
+            results['assigned'].append({
+                'row': row_num,
+                'user_id': user_id,
+                'ecm': ecm_code,
+                'exam_name': exam.name
+            })
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'Procesamiento completado. {len(results["assigned"])} asignaciones realizadas.',
+            'results': results,
+            'summary': {
+                'total_processed': results['processed'],
+                'assigned': len(results['assigned']),
+                'skipped': len(results['skipped']),
+                'errors': len(results['errors'])
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500

@@ -1862,3 +1862,80 @@ export async function getAvailableCompetencyStandards(): Promise<{
   const response = await api.get('/partners/competency-standards/available');
   return response.data;
 }
+
+/**
+ * Descargar plantilla Excel para asignación masiva de exámenes por ECM
+ */
+export async function downloadBulkExamAssignTemplate(groupId: number): Promise<Blob> {
+  const response = await api.get(`/partners/groups/${groupId}/exams/bulk-assign-template`, {
+    responseType: 'blob'
+  });
+  return response.data;
+}
+
+/**
+ * Resultado de asignación masiva de exámenes
+ */
+export interface BulkExamAssignResult {
+  message: string;
+  results: {
+    processed: number;
+    assigned: Array<{
+      row: number;
+      user_id: string;
+      ecm: string;
+      exam_name: string;
+    }>;
+    skipped: Array<{
+      row: number;
+      user_id: string;
+      ecm: string;
+      reason: string;
+    }>;
+    errors: Array<{
+      row: number;
+      user_id: string;
+      ecm: string;
+      error: string;
+    }>;
+  };
+  summary: {
+    total_processed: number;
+    assigned: number;
+    skipped: number;
+    errors: number;
+  };
+}
+
+/**
+ * Procesamiento masivo de asignación de exámenes por código ECM
+ */
+export async function bulkAssignExamsByECM(
+  groupId: number, 
+  file: File,
+  config?: {
+    time_limit_minutes?: number;
+    passing_score?: number;
+    max_attempts?: number;
+    max_disconnections?: number;
+    exam_content_type?: 'questions_only' | 'exercises_only' | 'mixed';
+  }
+): Promise<BulkExamAssignResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  if (config) {
+    if (config.time_limit_minutes) formData.append('time_limit_minutes', config.time_limit_minutes.toString());
+    if (config.passing_score) formData.append('passing_score', config.passing_score.toString());
+    if (config.max_attempts) formData.append('max_attempts', config.max_attempts.toString());
+    if (config.max_disconnections) formData.append('max_disconnections', config.max_disconnections.toString());
+    if (config.exam_content_type) formData.append('exam_content_type', config.exam_content_type);
+  }
+  
+  const response = await api.post(`/partners/groups/${groupId}/exams/bulk-assign`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+  return response.data;
+}
