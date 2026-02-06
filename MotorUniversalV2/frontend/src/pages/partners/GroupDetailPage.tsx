@@ -432,215 +432,66 @@ export default function GroupDetailPage() {
 
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
-      {/* Hero Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 rounded-2xl shadow-xl fluid-mb-6">
-        {/* Decoración de fondo */}
-        <div className="absolute inset-0">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2" />
-        </div>
-        
-        <div className="relative p-6 lg:p-8">
-          {/* Breadcrumb y acciones */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <div className="flex items-center gap-3">
-              <Link
-                to={`/partners/campuses/${group.campus_id}`}
-                className="p-2 hover:bg-white/10 rounded-xl transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 text-slate-300" />
-              </Link>
-              <div className="flex items-center gap-2 text-sm text-slate-400">
+      {/* Header simple */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 fluid-p-5 fluid-mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link
+              to={`/partners/campuses/${group.campus_id}`}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-500" />
+            </Link>
+            <div>
+              <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
                 <Building2 className="w-4 h-4" />
-                <Link to={`/partners/campuses/${group.campus_id}`} className="hover:text-white transition-colors">
+                <Link to={`/partners/campuses/${group.campus_id}`} className="hover:text-gray-700">
                   {group.campus?.name}
                 </Link>
               </div>
-            </div>
-            
-            {/* Acciones */}
-            <div className="flex items-center gap-2">
-              {members.length > 0 && (
-                <button
-                  onClick={handleExportExcel}
-                  disabled={exportingExcel}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-medium text-sm transition-all shadow-lg shadow-emerald-500/25 disabled:opacity-50"
-                >
-                  {exportingExcel ? (
-                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                  ) : (
-                    <Download className="w-4 h-4" />
-                  )}
-                  <span className="hidden sm:inline">Exportar Excel</span>
-                </button>
+              <div className="flex items-center gap-3">
+                <h1 className="fluid-text-xl font-bold text-gray-900">{group.name}</h1>
+                {group.is_active ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Activo
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                    <XCircle className="w-3 h-3" />
+                    Inactivo
+                  </span>
+                )}
+              </div>
+              {group.description && (
+                <p className="text-gray-500 text-sm mt-1">{group.description}</p>
               )}
-              <Link
-                to={`/partners/groups/${groupId}/edit`}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium text-sm transition-colors backdrop-blur-sm"
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {members.length > 0 && (
+              <button
+                onClick={handleExportExcel}
+                disabled={exportingExcel}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
               >
-                <Settings className="w-4 h-4" />
-                <span className="hidden sm:inline">Configurar</span>
-              </Link>
-            </div>
-          </div>
-
-          {/* Título y estado */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl lg:text-4xl font-bold text-white">
-                {group.name}
-              </h1>
-              {group.is_active ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Activo
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-500/20 text-slate-300 border border-slate-500/30">
-                  <XCircle className="w-3.5 h-3.5" />
-                  Inactivo
-                </span>
-              )}
-            </div>
-            {group.description && (
-              <p className="text-slate-400 text-sm max-w-2xl">{group.description}</p>
+                {exportingExcel ? (
+                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                <span className="hidden sm:inline">Exportar</span>
+              </button>
             )}
+            <Link
+              to={`/partners/groups/${groupId}/edit`}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium text-sm transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">Configurar</span>
+            </Link>
           </div>
-
-          {/* Dashboard de estadísticas */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {/* Candidatos */}
-            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-white">{stats.total}</p>
-                  <p className="text-xs text-slate-400">Candidatos</p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Certificados */}
-            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                  <Award className="w-5 h-5 text-emerald-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-white">
-                    {members.filter(m => m.certification_status === 'certified').length}
-                  </p>
-                  <p className="text-xs text-slate-400">Certificados</p>
-                </div>
-              </div>
-            </div>
-            
-            {/* En proceso */}
-            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-sky-500/20 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-sky-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-white">
-                    {members.filter(m => m.certification_status === 'in_progress').length}
-                  </p>
-                  <p className="text-xs text-slate-400">En proceso</p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Pendientes */}
-            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                  <HelpCircle className="w-5 h-5 text-amber-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-white">
-                    {members.filter(m => !m.certification_status || m.certification_status === 'pending').length}
-                  </p>
-                  <p className="text-xs text-slate-400">Pendientes</p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Exámenes */}
-            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                  <ClipboardList className="w-5 h-5 text-blue-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-white">{assignedExams.length}</p>
-                  <p className="text-xs text-slate-400">Exámenes</p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Materiales */}
-            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-pink-500/20 flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-pink-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-white">{stats.materials}</p>
-                  <p className="text-xs text-slate-400">Materiales</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Barra de progreso de certificación */}
-          {stats.total > 0 && (
-            <div className="mt-6 bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-white">Progreso de Certificación</span>
-                <span className="text-sm text-slate-400">
-                  {members.filter(m => m.certification_status === 'certified').length} de {stats.total} certificados
-                  {` (${Math.round((members.filter(m => m.certification_status === 'certified').length / stats.total) * 100)}%)`}
-                </span>
-              </div>
-              <div className="h-3 bg-slate-700 rounded-full overflow-hidden flex">
-                {/* Certificados - Verde */}
-                <div 
-                  className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500"
-                  style={{ width: `${(members.filter(m => m.certification_status === 'certified').length / stats.total) * 100}%` }}
-                />
-                {/* En proceso - Azul */}
-                <div 
-                  className="h-full bg-gradient-to-r from-sky-500 to-sky-400 transition-all duration-500"
-                  style={{ width: `${(members.filter(m => m.certification_status === 'in_progress').length / stats.total) * 100}%` }}
-                />
-                {/* Reprobados - Rojo */}
-                <div 
-                  className="h-full bg-gradient-to-r from-red-500 to-red-400 transition-all duration-500"
-                  style={{ width: `${(members.filter(m => m.certification_status === 'failed').length / stats.total) * 100}%` }}
-                />
-              </div>
-              <div className="flex items-center gap-4 mt-3 text-xs">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                  <span className="text-slate-400">Certificados</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-sky-400" />
-                  <span className="text-slate-400">En proceso</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                  <span className="text-slate-400">No aprobados</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-slate-600" />
-                  <span className="text-slate-400">Pendientes</span>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -701,8 +552,103 @@ export default function GroupDetailPage() {
           </button>
         </div>
 
+        {/* Estadísticas dinámicas según pestaña */}
+        <div className="px-6 pt-4 pb-2">
+          {activeTab === 'members' && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="flex items-center gap-3 bg-gray-50 rounded-lg px-4 py-3">
+                <Users className="w-5 h-5 text-purple-500" />
+                <div>
+                  <p className="text-lg font-bold text-gray-900">{stats.total}</p>
+                  <p className="text-xs text-gray-500">Total</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-emerald-50 rounded-lg px-4 py-3">
+                <Award className="w-5 h-5 text-emerald-500" />
+                <div>
+                  <p className="text-lg font-bold text-emerald-700">{members.filter(m => m.certification_status === 'certified').length}</p>
+                  <p className="text-xs text-gray-500">Certificados</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-blue-50 rounded-lg px-4 py-3">
+                <Clock className="w-5 h-5 text-blue-500" />
+                <div>
+                  <p className="text-lg font-bold text-blue-700">{members.filter(m => m.certification_status === 'in_progress').length}</p>
+                  <p className="text-xs text-gray-500">En proceso</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-amber-50 rounded-lg px-4 py-3">
+                <HelpCircle className="w-5 h-5 text-amber-500" />
+                <div>
+                  <p className="text-lg font-bold text-amber-700">{members.filter(m => !m.certification_status || m.certification_status === 'pending').length}</p>
+                  <p className="text-xs text-gray-500">Pendientes</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {activeTab === 'exams' && (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="flex items-center gap-3 bg-blue-50 rounded-lg px-4 py-3">
+                <ClipboardList className="w-5 h-5 text-blue-500" />
+                <div>
+                  <p className="text-lg font-bold text-blue-700">{assignedExams.length}</p>
+                  <p className="text-xs text-gray-500">Certificaciones</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-pink-50 rounded-lg px-4 py-3">
+                <BookOpen className="w-5 h-5 text-pink-500" />
+                <div>
+                  <p className="text-lg font-bold text-pink-700">{stats.materials}</p>
+                  <p className="text-xs text-gray-500">Materiales</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-purple-50 rounded-lg px-4 py-3">
+                <Target className="w-5 h-5 text-purple-500" />
+                <div>
+                  <p className="text-lg font-bold text-purple-700">{assignedExams.filter(e => e.exam?.ecm).length}</p>
+                  <p className="text-xs text-gray-500">Con ECM</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {activeTab === 'certificates' && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="flex items-center gap-3 bg-emerald-50 rounded-lg px-4 py-3">
+                <Award className="w-5 h-5 text-emerald-500" />
+                <div>
+                  <p className="text-lg font-bold text-emerald-700">{members.filter(m => m.certification_status === 'certified').length}</p>
+                  <p className="text-xs text-gray-500">Certificados</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-blue-50 rounded-lg px-4 py-3">
+                <FileText className="w-5 h-5 text-blue-500" />
+                <div>
+                  <p className="text-lg font-bold text-blue-700">{members.filter(m => m.certification_status === 'certified').length}</p>
+                  <p className="text-xs text-gray-500">Certificados generables</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-amber-50 rounded-lg px-4 py-3">
+                <Layers className="w-5 h-5 text-amber-500" />
+                <div>
+                  <p className="text-lg font-bold text-amber-700">{assignedExams.length}</p>
+                  <p className="text-xs text-gray-500">Certificaciones</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-purple-50 rounded-lg px-4 py-3">
+                <Users className="w-5 h-5 text-purple-500" />
+                <div>
+                  <p className="text-lg font-bold text-purple-700">{stats.total}</p>
+                  <p className="text-xs text-gray-500">Candidatos</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Contenido de Tabs */}
-        <div className="p-6">
+        <div className="p-6 pt-4">
         {/* Tab: Candidatos */}
         {activeTab === 'members' && (
           <div>
