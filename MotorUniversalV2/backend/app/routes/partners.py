@@ -361,8 +361,7 @@ def create_campus(partner_id):
         # El state_name puede ser None para países que no son México
         state_name = data.get('state_name') if country == 'México' else data.get('state_name', '')
             
-        if not data.get('postal_code'):
-            return jsonify({'error': 'El código postal es requerido'}), 400
+        # Código postal es opcional
             
         if not data.get('email'):
             return jsonify({'error': 'El correo de contacto es requerido'}), 400

@@ -244,10 +244,7 @@ export default function CampusFormPage() {
       setError('El estado es requerido para México');
       return;
     }
-    if (!formData.postal_code.trim()) {
-      setError('El código postal es requerido');
-      return;
-    }
+    // Código postal es opcional
     if (!formData.phone.trim()) {
       setError('El teléfono de contacto es requerido');
       return;
@@ -581,7 +578,7 @@ export default function CampusFormPage() {
             <div>
               <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                 <Hash className="fluid-icon-sm text-gray-400" />
-                Código Postal <span className="text-red-500">*</span>
+                Código Postal
               </label>
               <input
                 type="text"
@@ -590,7 +587,6 @@ export default function CampusFormPage() {
                 className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400"
                 placeholder="12345"
                 maxLength={5}
-                required
               />
             </div>
 
