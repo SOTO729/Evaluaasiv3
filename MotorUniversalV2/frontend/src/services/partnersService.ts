@@ -158,6 +158,31 @@ export interface CandidateGroup {
   };
 }
 
+export interface MemberEligibility {
+  has_curp: boolean;
+  has_email: boolean;
+  can_receive_eduit: boolean;
+  can_receive_certificate: boolean;
+  can_receive_conocer: boolean;
+  can_receive_badge: boolean;
+}
+
+export interface EligibilitySummary {
+  total_members: number;
+  fully_eligible: number;
+  members_with_curp: number;
+  members_with_email: number;
+  members_without_curp: number;
+  members_without_email: number;
+  conocer_enabled: boolean;
+  badge_enabled: boolean;
+  warnings: Array<{
+    type: 'missing_curp' | 'missing_email';
+    message: string;
+    count: number;
+  }>;
+}
+
 export interface GroupMember {
   id: number;
   group_id: number;
@@ -171,6 +196,8 @@ export interface GroupMember {
   has_material?: boolean;
   // Estado de certificación calculado por el backend
   certification_status?: 'certified' | 'in_progress' | 'failed' | 'pending';
+  // Elegibilidad de documentos
+  eligibility?: MemberEligibility;
   user?: {
     id: string;
     email: string;
@@ -711,6 +738,7 @@ export async function getGroupMembers(groupId: number, params?: {
   group_name: string;
   members: GroupMember[];
   total: number;
+  eligibility_summary?: EligibilitySummary;
 }> {
   const response = await api.get(`/partners/groups/${groupId}/members`, { params });
   return response.data;

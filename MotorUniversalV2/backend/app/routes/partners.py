@@ -2118,13 +2118,81 @@ def get_group_members(group_id):
             else:
                 member_dict['certification_status'] = 'pending'  # Sin intentos
             
+            # ========== ELEGIBILIDAD POR MIEMBRO ==========
+            user = m.user
+            has_curp = bool(user.curp) if user else False
+            has_email = bool(user.email) if user else False
+            
+            member_dict['eligibility'] = {
+                'has_curp': has_curp,
+                'has_email': has_email,
+                'can_receive_eduit': True,  # Siempre disponible
+                'can_receive_certificate': True,  # Siempre disponible
+                'can_receive_conocer': has_curp,  # Requiere CURP
+                'can_receive_badge': has_email,  # Requiere email
+            }
+            
             members_data.append(member_dict)
+        
+        # ========== OBTENER CONFIGURACIÓN DEL GRUPO/CAMPUS ==========
+        campus = group.campus
+        
+        # Determinar si CONOCER e insignia digital están habilitados
+        conocer_enabled = False
+        badge_enabled = False
+        
+        if campus:
+            if group.use_custom_config and group.enable_tier_advanced_override is not None:
+                conocer_enabled = group.enable_tier_advanced_override
+            else:
+                conocer_enabled = campus.enable_tier_advanced or False
+            
+            if group.use_custom_config and group.enable_digital_badge_override is not None:
+                badge_enabled = group.enable_digital_badge_override
+            else:
+                badge_enabled = campus.enable_digital_badge or False
+        
+        # ========== RESUMEN DE ELEGIBILIDAD ==========
+        total_members = len(members)
+        members_with_curp = sum(1 for m in members if m.user and m.user.curp)
+        members_with_email = sum(1 for m in members if m.user and m.user.email)
+        members_without_curp = total_members - members_with_curp
+        members_without_email = total_members - members_with_email
+        members_fully_eligible = sum(1 for m in members if m.user and m.user.curp and m.user.email)
+        
+        eligibility_summary = {
+            'total_members': total_members,
+            'fully_eligible': members_fully_eligible,
+            'members_with_curp': members_with_curp,
+            'members_with_email': members_with_email,
+            'members_without_curp': members_without_curp,
+            'members_without_email': members_without_email,
+            'conocer_enabled': conocer_enabled,
+            'badge_enabled': badge_enabled,
+            # Advertencias activas
+            'warnings': []
+        }
+        
+        if conocer_enabled and members_without_curp > 0:
+            eligibility_summary['warnings'].append({
+                'type': 'missing_curp',
+                'message': f'{members_without_curp} candidato(s) sin CURP no podrán recibir certificado CONOCER',
+                'count': members_without_curp
+            })
+        
+        if badge_enabled and members_without_email > 0:
+            eligibility_summary['warnings'].append({
+                'type': 'missing_email',
+                'message': f'{members_without_email} candidato(s) sin email no podrán recibir insignia digital',
+                'count': members_without_email
+            })
         
         return jsonify({
             'group_id': group_id,
             'group_name': group.name,
             'members': members_data,
-            'total': len(members)
+            'total': len(members),
+            'eligibility_summary': eligibility_summary
         })
         
     except Exception as e:

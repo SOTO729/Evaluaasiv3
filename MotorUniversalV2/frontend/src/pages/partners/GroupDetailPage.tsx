@@ -54,6 +54,7 @@ import {
   GroupExamAssignment,
   GroupExamMaterialItem,
   GroupStudyMaterialAssignment,
+  EligibilitySummary,
 } from '../../services/partnersService';
 
 export default function GroupDetailPage() {
@@ -75,9 +76,13 @@ export default function GroupDetailPage() {
   // Materiales de estudio independientes (sin examen)
   const [directMaterials, setDirectMaterials] = useState<GroupStudyMaterialAssignment[]>([]);
   
+  // Resumen de elegibilidad
+  const [eligibilitySummary, setEligibilitySummary] = useState<EligibilitySummary | null>(null);
+  
   // Filtros y búsqueda
   const [searchQuery, setSearchQuery] = useState('');
   const [assignmentFilter, setAssignmentFilter] = useState<'all' | 'exam_and_material' | 'exam_only' | 'material_only' | 'none'>('all');
+  const [eligibilityFilter, setEligibilityFilter] = useState<'all' | 'missing_curp' | 'missing_email' | 'fully_eligible'>('all');
   
   // Selección múltiple
   const [selectedMembers, setSelectedMembers] = useState<Set<number>>(new Set());
@@ -106,7 +111,7 @@ export default function GroupDetailPage() {
   // Limpiar selección cuando cambian los filtros
   useEffect(() => {
     setSelectedMembers(new Set());
-  }, [searchQuery, assignmentFilter]);
+  }, [searchQuery, assignmentFilter, eligibilityFilter]);
 
   const loadData = async () => {
     try {
@@ -119,6 +124,7 @@ export default function GroupDetailPage() {
       ]);
       setGroup(groupData);
       setMembers(membersData.members);
+      setEligibilitySummary(membersData.eligibility_summary || null);
       setAssignedExams(examsData.assigned_exams);
       setDirectMaterials(materialsData.assigned_materials || []);
     } catch (err: any) {
@@ -134,6 +140,16 @@ export default function GroupDetailPage() {
       // Filtro por tipo de asignación
       if (assignmentFilter !== 'all' && member.assignment_status !== assignmentFilter) {
         return false;
+      }
+      
+      // Filtro por elegibilidad
+      if (eligibilityFilter !== 'all') {
+        const hasCurp = member.eligibility?.has_curp ?? !!member.user?.curp;
+        const hasEmail = member.eligibility?.has_email ?? !!member.user?.email;
+        
+        if (eligibilityFilter === 'missing_curp' && hasCurp) return false;
+        if (eligibilityFilter === 'missing_email' && hasEmail) return false;
+        if (eligibilityFilter === 'fully_eligible' && (!hasCurp || !hasEmail)) return false;
       }
       
       // Filtro por búsqueda
@@ -210,7 +226,7 @@ export default function GroupDetailPage() {
     });
     
     return filtered;
-  }, [members, searchQuery, assignmentFilter, sortField, sortDirection]);
+  }, [members, searchQuery, assignmentFilter, eligibilityFilter, sortField, sortDirection]);
   
   // Handler para cambiar ordenamiento
   const handleSort = (field: SortField) => {
@@ -597,6 +613,61 @@ export default function GroupDetailPage() {
         {/* Tab: Candidatos */}
         {activeTab === 'members' && (
           <div>
+            {/* Panel de Elegibilidad del Grupo */}
+            {eligibilitySummary && eligibilitySummary.warnings.length > 0 && (
+              <div className="fluid-mb-5 p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-amber-100 rounded-lg">
+                    <AlertTriangle className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-amber-800 mb-2">
+                      Elegibilidad de Documentos
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+                      <div className="flex items-center gap-2 p-2 bg-white/60 rounded-lg">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span className="text-sm text-gray-700">
+                          <strong className="text-emerald-700">{eligibilitySummary.fully_eligible}</strong> con datos completos
+                        </span>
+                      </div>
+                      {eligibilitySummary.members_without_curp > 0 && (
+                        <button
+                          onClick={() => setEligibilityFilter('missing_curp')}
+                          className="flex items-center gap-2 p-2 bg-white/60 rounded-lg hover:bg-amber-100 transition-colors cursor-pointer text-left"
+                        >
+                          <AlertTriangle className="w-4 h-4 text-amber-600" />
+                          <span className="text-sm text-gray-700">
+                            <strong className="text-amber-700">{eligibilitySummary.members_without_curp}</strong> sin CURP
+                          </span>
+                        </button>
+                      )}
+                      {eligibilitySummary.members_without_email > 0 && (
+                        <button
+                          onClick={() => setEligibilityFilter('missing_email')}
+                          className="flex items-center gap-2 p-2 bg-white/60 rounded-lg hover:bg-amber-100 transition-colors cursor-pointer text-left"
+                        >
+                          <AlertTriangle className="w-4 h-4 text-amber-600" />
+                          <span className="text-sm text-gray-700">
+                            <strong className="text-amber-700">{eligibilitySummary.members_without_email}</strong> sin Email
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                    <div className="text-xs text-amber-700 space-y-1">
+                      {eligibilitySummary.conocer_enabled && eligibilitySummary.members_without_curp > 0 && (
+                        <p>• Candidatos sin CURP no podrán recibir <strong>Certificado CONOCER</strong></p>
+                      )}
+                      {eligibilitySummary.badge_enabled && eligibilitySummary.members_without_email > 0 && (
+                        <p>• Candidatos sin Email no podrán recibir <strong>Insignia Digital</strong></p>
+                      )}
+                      <p className="text-gray-600">El Certificado Eduit y Reporte de Evaluación siempre están disponibles.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* Toolbar: Búsqueda, Filtros, Acciones */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4 fluid-mb-5">
               {/* Búsqueda y Filtros */}
@@ -633,6 +704,21 @@ export default function GroupDetailPage() {
                     <option value="exam_only">✓ Solo Examen</option>
                     <option value="material_only">✓ Solo Material</option>
                     <option value="none">⚠ Sin asignación</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                </div>
+                
+                {/* Filtro por elegibilidad */}
+                <div className="relative">
+                  <select
+                    value={eligibilityFilter}
+                    onChange={(e) => setEligibilityFilter(e.target.value as 'all' | 'missing_curp' | 'missing_email' | 'fully_eligible')}
+                    className="appearance-none pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm bg-white cursor-pointer"
+                  >
+                    <option value="all">Elegibilidad</option>
+                    <option value="fully_eligible">✓ Datos completos</option>
+                    <option value="missing_curp">⚠ Sin CURP</option>
+                    <option value="missing_email">⚠ Sin Email</option>
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 </div>
@@ -673,16 +759,17 @@ export default function GroupDetailPage() {
             </div>
 
             {/* Indicador de filtros activos */}
-            {(searchQuery || assignmentFilter !== 'all') && (
+            {(searchQuery || assignmentFilter !== 'all' || eligibilityFilter !== 'all') && (
               <div className="flex items-center fluid-gap-2 fluid-mb-4 text-sm">
                 <span className="text-gray-500">
                   Mostrando {filteredMembers.length} de {members.length} candidatos
                 </span>
-                {(searchQuery || assignmentFilter !== 'all') && (
+                {(searchQuery || assignmentFilter !== 'all' || eligibilityFilter !== 'all') && (
                   <button
                     onClick={() => {
                       setSearchQuery('');
                       setAssignmentFilter('all');
+                      setEligibilityFilter('all');
                     }}
                     className="text-purple-600 hover:text-purple-800 font-medium"
                   >
@@ -776,6 +863,9 @@ export default function GroupDetailPage() {
                     Certificación
                     <SortIcon field="certification" />
                   </button>
+                  <div className="w-28 hidden xl:flex items-center gap-1.5 text-center">
+                    Elegibilidad
+                  </div>
                   <div className="w-16 text-center">Acciones</div>
                 </div>
                 
@@ -902,6 +992,47 @@ export default function GroupDetailPage() {
                               Pendiente
                             </span>
                           )}
+                        </div>
+                        
+                        {/* Elegibilidad de documentos */}
+                        <div className="w-28 hidden xl:flex items-center justify-center gap-1">
+                          {/* Eduit - siempre disponible */}
+                          <span 
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-600"
+                            title="Certificado Eduit: Disponible"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          </span>
+                          {/* CONOCER - requiere CURP */}
+                          <span 
+                            className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${
+                              member.eligibility?.can_receive_conocer || member.user?.curp
+                                ? 'bg-emerald-100 text-emerald-600'
+                                : 'bg-amber-100 text-amber-600'
+                            }`}
+                            title={member.eligibility?.can_receive_conocer || member.user?.curp
+                              ? 'Certificado CONOCER: Disponible'
+                              : 'Certificado CONOCER: Requiere CURP'}
+                          >
+                            {member.eligibility?.can_receive_conocer || member.user?.curp
+                              ? <CheckCircle2 className="w-3.5 h-3.5" />
+                              : <AlertTriangle className="w-3.5 h-3.5" />}
+                          </span>
+                          {/* Badge - requiere email */}
+                          <span 
+                            className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${
+                              member.eligibility?.can_receive_badge || member.user?.email
+                                ? 'bg-emerald-100 text-emerald-600'
+                                : 'bg-amber-100 text-amber-600'
+                            }`}
+                            title={member.eligibility?.can_receive_badge || member.user?.email
+                              ? 'Insignia Digital: Disponible'
+                              : 'Insignia Digital: Requiere Email'}
+                          >
+                            {member.eligibility?.can_receive_badge || member.user?.email
+                              ? <CheckCircle2 className="w-3.5 h-3.5" />
+                              : <AlertTriangle className="w-3.5 h-3.5" />}
+                          </span>
                         </div>
                         
                         {/* Botón remover del grupo */}
