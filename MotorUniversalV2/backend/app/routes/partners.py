@@ -615,6 +615,121 @@ def delete_campus(campus_id):
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/campuses/<int:campus_id>/permanent-delete', methods=['DELETE'])
+@jwt_required()
+def permanent_delete_campus(campus_id):
+    """
+    Eliminar permanentemente un plantel (SOLO ADMINISTRADOR)
+    Elimina:
+    - El plantel
+    - Los ciclos escolares del plantel
+    - Los grupos del plantel
+    - Los miembros de grupos (GroupMember)
+    - Los exámenes asignados a grupos (GroupExam) y sus miembros específicos
+    - Los materiales de estudio asignados a grupos (GroupStudyMaterial) y sus miembros específicos
+    - Los estándares de competencia del plantel (CampusCompetencyStandard)
+    
+    NO elimina y permanece intacto:
+    - Los usuarios (candidatos, responsables) - solo se desvinculan del plantel
+    - Los vouchers ya asignados - las certificaciones permanecen
+    - Los resultados de exámenes
+    """
+    from app.models.partner import GroupStudyMaterial, GroupStudyMaterialMember, GroupExamMember
+    
+    try:
+        # Verificar que el usuario sea admin
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user or user.role != 'admin':
+            return jsonify({'error': 'Acceso denegado. Solo administradores pueden eliminar planteles permanentemente'}), 403
+        
+        campus = Campus.query.get_or_404(campus_id)
+        partner_id = campus.partner_id
+        campus_name = campus.name
+        
+        # Contadores para el resumen
+        stats = {
+            'groups_deleted': 0,
+            'cycles_deleted': 0,
+            'members_removed': 0,
+            'exams_unassigned': 0,
+            'materials_unassigned': 0,
+            'users_unlinked': 0,
+            'competency_standards_deleted': 0
+        }
+        
+        # 1. Obtener todos los grupos del plantel
+        groups = CandidateGroup.query.filter_by(campus_id=campus_id).all()
+        
+        for group in groups:
+            # Contar miembros que se eliminarán
+            members_count = GroupMember.query.filter_by(group_id=group.id).count()
+            stats['members_removed'] += members_count
+            
+            # Obtener exámenes asignados y eliminar sus miembros específicos primero
+            group_exams = GroupExam.query.filter_by(group_id=group.id).all()
+            for ge in group_exams:
+                GroupExamMember.query.filter_by(group_exam_id=ge.id).delete()
+            stats['exams_unassigned'] += len(group_exams)
+            
+            # Obtener materiales asignados y eliminar sus miembros específicos primero
+            group_materials = GroupStudyMaterial.query.filter_by(group_id=group.id).all()
+            for gm in group_materials:
+                GroupStudyMaterialMember.query.filter_by(group_study_material_id=gm.id).delete()
+            stats['materials_unassigned'] += len(group_materials)
+            
+            # Eliminar miembros de grupo (los usuarios NO se eliminan, solo la membresía)
+            GroupMember.query.filter_by(group_id=group.id).delete()
+            
+            # Eliminar asignaciones de exámenes a grupos (GroupExam)
+            # Nota: Esto NO elimina los resultados del usuario, solo la asignación del grupo
+            GroupExam.query.filter_by(group_id=group.id).delete()
+            
+            # Eliminar asignaciones de materiales a grupos
+            GroupStudyMaterial.query.filter_by(group_id=group.id).delete()
+            
+            stats['groups_deleted'] += 1
+        
+        # 2. Eliminar grupos
+        CandidateGroup.query.filter_by(campus_id=campus_id).delete()
+        
+        # 3. Eliminar ciclos escolares
+        cycles_count = SchoolCycle.query.filter_by(campus_id=campus_id).count()
+        SchoolCycle.query.filter_by(campus_id=campus_id).delete()
+        stats['cycles_deleted'] = cycles_count
+        
+        # 4. Eliminar estándares de competencia del plantel
+        from app.models.partner import CampusCompetencyStandard
+        competency_count = CampusCompetencyStandard.query.filter_by(campus_id=campus_id).count()
+        CampusCompetencyStandard.query.filter_by(campus_id=campus_id).delete()
+        stats['competency_standards_deleted'] = competency_count
+        
+        # 5. Desvincular usuarios del plantel (NO eliminarlos)
+        # Los usuarios con campus_id = este plantel se desvinculan
+        users_in_campus = User.query.filter_by(campus_id=campus_id).all()
+        for u in users_in_campus:
+            u.campus_id = None
+            stats['users_unlinked'] += 1
+        
+        # 6. Desvincular responsable del plantel
+        campus.responsable_id = None
+        
+        # 7. Finalmente, eliminar el plantel
+        db.session.delete(campus)
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'Plantel "{campus_name}" eliminado permanentemente',
+            'campus_id': campus_id,
+            'partner_id': partner_id,
+            'stats': stats
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al eliminar el plantel: {str(e)}'}), 500
+
+
 # ============== ACTIVACIÓN DE PLANTEL ==============
 
 @bp.route('/campuses/<int:campus_id>/responsable', methods=['POST'])

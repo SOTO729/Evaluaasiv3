@@ -392,6 +392,27 @@ export async function deleteCampus(campusId: number): Promise<void> {
   await api.delete(`/partners/campuses/${campusId}`);
 }
 
+// Eliminar permanentemente un plantel (SOLO ADMIN)
+export interface PermanentDeleteStats {
+  groups_deleted: number;
+  cycles_deleted: number;
+  members_removed: number;
+  exams_unassigned: number;
+  materials_unassigned: number;
+  users_unlinked: number;
+  competency_standards_deleted: number;
+}
+
+export async function permanentDeleteCampus(campusId: number): Promise<{
+  message: string;
+  campus_id: number;
+  partner_id: number;
+  stats: PermanentDeleteStats;
+}> {
+  const response = await api.delete(`/partners/campuses/${campusId}/permanent-delete`);
+  return response.data;
+}
+
 // ============== ACTIVACIÓN DE PLANTEL - RESPONSABLE ==============
 
 export async function getCampusResponsable(campusId: number): Promise<{

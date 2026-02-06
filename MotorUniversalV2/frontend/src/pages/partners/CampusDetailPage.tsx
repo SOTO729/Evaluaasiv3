@@ -3,7 +3,7 @@
  * Con header con gradiente, listas scrolleables y mejor UX
  */
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   MapPin,
   ArrowLeft,
@@ -32,6 +32,7 @@ import {
   FileText,
   Clock,
   Globe,
+  AlertTriangle,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -42,13 +43,18 @@ import {
   deleteGroup,
   getGroups,
   deactivateCampus,
+  permanentDeleteCampus,
   Campus,
   SchoolCycle,
   CandidateGroup,
 } from '../../services/partnersService';
+import { useAuthStore } from '../../store/authStore';
 
 export default function CampusDetailPage() {
   const { campusId } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
   
   const [campus, setCampus] = useState<Campus | null>(null);
   const [cycles, setCycles] = useState<SchoolCycle[]>([]);
@@ -69,6 +75,12 @@ export default function CampusDetailPage() {
   const [showCycleSuccessModal, setShowCycleSuccessModal] = useState(false);
   const [createdCycleName, setCreatedCycleName] = useState('');
   const modalRef = useRef<HTMLDivElement>(null);
+  
+  // Estado para eliminación permanente (solo admin)
+  const [showPermanentDeleteModal, setShowPermanentDeleteModal] = useState(false);
+  const [isDeletingPermanently, setIsDeletingPermanently] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const permanentDeleteModalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadData();
@@ -170,6 +182,30 @@ export default function CampusDetailPage() {
     }
   };
 
+  const handlePermanentDeleteCampus = async () => {
+    if (!campus || !isAdmin) return;
+    if (deleteConfirmText !== campus.name) {
+      setError('Debe escribir el nombre exacto del plantel para confirmar');
+      return;
+    }
+    
+    try {
+      setIsDeletingPermanently(true);
+      const result = await permanentDeleteCampus(campus.id);
+      
+      // Mostrar resumen y redirigir
+      alert(`${result.message}\n\nResumen:\n- Grupos eliminados: ${result.stats.groups_deleted}\n- Ciclos eliminados: ${result.stats.cycles_deleted}\n- Miembros desvinculados: ${result.stats.members_removed}\n- Exámenes desasignados: ${result.stats.exams_unassigned}\n- Materiales desasignados: ${result.stats.materials_unassigned}\n- Usuarios desvinculados: ${result.stats.users_unlinked}`);
+      
+      navigate(`/partners/${result.partner_id}`);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al eliminar el plantel permanentemente');
+    } finally {
+      setIsDeletingPermanently(false);
+      setShowPermanentDeleteModal(false);
+      setDeleteConfirmText('');
+    }
+  };
+
   const handleModalBackdropClick = (e: React.MouseEvent) => {
     if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
       setShowNewCycleModal(false);
@@ -263,6 +299,17 @@ export default function CampusDetailPage() {
               >
                 <AlertCircle className="fluid-icon-base" />
                 Desactivar
+              </button>
+            )}
+            {/* Botón de eliminación permanente - Solo visible para administradores */}
+            {isAdmin && (
+              <button
+                onClick={() => setShowPermanentDeleteModal(true)}
+                className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-3 bg-red-500/80 hover:bg-red-600 text-white rounded-fluid-xl font-medium fluid-text-base transition-all duration-300"
+                title="Eliminar permanentemente (Solo Administrador)"
+              >
+                <Trash2 className="fluid-icon-base" />
+                Eliminar
               </button>
             )}
           </div>
@@ -825,6 +872,92 @@ export default function CampusDetailPage() {
                   className="fluid-px-6 fluid-py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-fluid-xl transition-all fluid-text-sm font-bold"
                 >
                   Continuar sin crear grupo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación de Eliminación Permanente (Solo Admin) */}
+      {showPermanentDeleteModal && campus && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 fluid-p-4">
+          <div 
+            ref={permanentDeleteModalRef}
+            className="bg-white rounded-fluid-2xl w-full max-w-lg shadow-2xl animate-scale-in"
+          >
+            <div className="fluid-p-6 border-b border-red-100 bg-red-50 rounded-t-fluid-2xl">
+              <div className="flex items-center fluid-gap-3">
+                <div className="fluid-p-3 bg-red-100 rounded-fluid-xl">
+                  <AlertTriangle className="fluid-icon-xl text-red-600" />
+                </div>
+                <div>
+                  <h3 className="fluid-text-xl font-bold text-red-900">Eliminar Plantel Permanentemente</h3>
+                  <p className="fluid-text-sm text-red-700">Esta acción no se puede deshacer</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="fluid-p-6">
+              <div className="bg-amber-50 border border-amber-200 rounded-fluid-xl fluid-p-4 fluid-mb-4">
+                <p className="fluid-text-sm text-amber-800 font-medium fluid-mb-2">Se eliminarán permanentemente:</p>
+                <ul className="fluid-text-sm text-amber-700 space-y-1 list-disc list-inside">
+                  <li>El plantel y toda su información</li>
+                  <li>Todos los ciclos escolares</li>
+                  <li>Todos los grupos del plantel</li>
+                  <li>Todas las asignaciones de exámenes y materiales</li>
+                </ul>
+              </div>
+              
+              <div className="bg-green-50 border border-green-200 rounded-fluid-xl fluid-p-4 fluid-mb-4">
+                <p className="fluid-text-sm text-green-800 font-medium fluid-mb-2">Se conservarán (no se eliminan):</p>
+                <ul className="fluid-text-sm text-green-700 space-y-1 list-disc list-inside">
+                  <li>Los usuarios candidatos (solo se desvinculan)</li>
+                  <li>Los vouchers/certificaciones ya asignados</li>
+                  <li>Los resultados de exámenes</li>
+                </ul>
+              </div>
+              
+              <div className="fluid-mb-4">
+                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                  Para confirmar, escriba el nombre del plantel: <span className="font-bold text-red-600">"{campus.name}"</span>
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="Escriba el nombre del plantel"
+                  className="w-full fluid-p-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                />
+              </div>
+              
+              <div className="flex fluid-gap-3 fluid-mt-6">
+                <button
+                  onClick={() => {
+                    setShowPermanentDeleteModal(false);
+                    setDeleteConfirmText('');
+                  }}
+                  className="flex-1 fluid-px-4 fluid-py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-fluid-xl font-medium transition-colors"
+                  disabled={isDeletingPermanently}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handlePermanentDeleteCampus}
+                  disabled={deleteConfirmText !== campus.name || isDeletingPermanently}
+                  className="flex-1 fluid-px-4 fluid-py-3 bg-red-600 hover:bg-red-700 text-white rounded-fluid-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center fluid-gap-2"
+                >
+                  {isDeletingPermanently ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Eliminando...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="fluid-icon-base" />
+                      Eliminar Permanentemente
+                    </>
+                  )}
                 </button>
               </div>
             </div>
