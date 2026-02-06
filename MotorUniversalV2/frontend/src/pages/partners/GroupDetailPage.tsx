@@ -56,6 +56,7 @@ import {
   GroupStudyMaterialAssignment,
   EligibilitySummary,
 } from '../../services/partnersService';
+import GroupCertificatesTab from './GroupCertificatesTab';
 
 export default function GroupDetailPage() {
   const { groupId } = useParams();
@@ -71,7 +72,7 @@ export default function GroupDetailPage() {
   
   // Exámenes asignados
   const [assignedExams, setAssignedExams] = useState<GroupExamAssignment[]>([]);
-  const [activeTab, setActiveTab] = useState<'members' | 'exams'>('members');
+  const [activeTab, setActiveTab] = useState<'members' | 'exams' | 'certificates'>('members');
   
   // Materiales de estudio independientes (sin examen)
   const [directMaterials, setDirectMaterials] = useState<GroupStudyMaterialAssignment[]>([]);
@@ -603,6 +604,20 @@ export default function GroupDetailPage() {
             </span>
             {activeTab === 'exams' && (
               <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('certificates')}
+            className={`flex-1 flex items-center justify-center fluid-gap-2 fluid-px-5 fluid-py-4 font-medium transition-colors relative ${
+              activeTab === 'certificates'
+                ? 'text-emerald-600 bg-emerald-50/50'
+                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+            }`}
+          >
+            <Award className="w-5 h-5" />
+            <span>Certificados</span>
+            {activeTab === 'certificates' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600" />
             )}
           </button>
         </div>
@@ -1357,6 +1372,11 @@ export default function GroupDetailPage() {
               )}
             </div>
           </div>
+        )}
+
+        {/* Tab: Certificados */}
+        {activeTab === 'certificates' && group && (
+          <GroupCertificatesTab groupId={group.id} groupName={group.name} />
         )}
       </div>
 

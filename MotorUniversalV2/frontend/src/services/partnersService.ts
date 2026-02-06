@@ -1943,3 +1943,132 @@ export async function bulkAssignExamsByECM(
   });
   return response.data;
 }
+
+// ============== CERTIFICADOS DEL GRUPO ==============
+
+export interface CertificateResult {
+  id: string;
+  exam_id: number;
+  score: number;
+  end_date: string | null;
+  has_report: boolean;
+  has_certificate: boolean;
+  certificate_code: string | null;
+  eduit_certificate_code: string | null;
+}
+
+export interface ConocerCertificateInfo {
+  id: number;
+  certificate_number: string;
+  standard_code: string;
+  standard_name: string;
+  issue_date: string | null;
+}
+
+export interface CandidateCertificateStats {
+  user_id: string;
+  full_name: string;
+  email: string | null;
+  curp: string | null;
+  exams_approved: number;
+  tier_basic_ready: number;
+  tier_basic_pending: number;
+  tier_standard_ready: number;
+  tier_standard_pending: number;
+  tier_advanced_count: number;
+  digital_badge_count: number;
+  results: CertificateResult[];
+  conocer_certificates: ConocerCertificateInfo[];
+}
+
+export interface GroupCertificatesStats {
+  group: {
+    id: number;
+    name: string;
+    member_count: number;
+  };
+  config: {
+    enable_tier_basic: boolean;
+    enable_tier_standard: boolean;
+    enable_tier_advanced: boolean;
+    enable_digital_badge: boolean;
+  };
+  summary: {
+    total_exams_approved: number;
+    tier_basic: {
+      enabled: boolean;
+      ready: number;
+      pending: number;
+      total: number;
+    };
+    tier_standard: {
+      enabled: boolean;
+      ready: number;
+      pending: number;
+      total: number;
+    };
+    tier_advanced: {
+      enabled: boolean;
+      count: number;
+    };
+    digital_badge: {
+      enabled: boolean;
+      count: number;
+    };
+  };
+  candidates: CandidateCertificateStats[];
+}
+
+/**
+ * Obtener estadísticas de certificados del grupo
+ */
+export async function getGroupCertificatesStats(groupId: number): Promise<GroupCertificatesStats> {
+  const response = await api.get(`/partners/groups/${groupId}/certificates/stats`);
+  return response.data;
+}
+
+/**
+ * Descargar ZIP con certificados del grupo
+ */
+export async function downloadGroupCertificatesZip(
+  groupId: number,
+  certificateTypes: ('tier_basic' | 'tier_standard' | 'tier_advanced')[],
+  userIds?: string[]
+): Promise<Blob> {
+  const response = await api.post(
+    `/partners/groups/${groupId}/certificates/download`,
+    { certificate_types: certificateTypes, user_ids: userIds },
+    { responseType: 'blob' }
+  );
+  return response.data;
+}
+
+/**
+ * Generar certificados pendientes del grupo
+ */
+export async function generateGroupCertificates(
+  groupId: number,
+  certificateType: 'tier_basic' | 'tier_standard',
+  userIds?: string[]
+): Promise<{ message: string; queued_count: number }> {
+  const response = await api.post(`/partners/groups/${groupId}/certificates/generate`, {
+    certificate_type: certificateType,
+    user_ids: userIds
+  });
+  return response.data;
+}
+
+/**
+ * Limpiar URLs de certificados para forzar regeneración
+ */
+export async function clearGroupCertificatesUrls(
+  groupId: number,
+  clearReports: boolean = true,
+  clearCertificates: boolean = true
+): Promise<{ message: string; cleared_count: number }> {
+  const response = await api.post(`/partners/groups/${groupId}/certificates/clear`, {
+    clear_reports: clearReports,
+    clear_certificates: clearCertificates
+  });
+  return response.data;
+}

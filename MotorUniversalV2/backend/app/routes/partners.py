@@ -6318,3 +6318,881 @@ def bulk_assign_exams_by_ecm(group_id):
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+# ============== CERTIFICADOS DEL GRUPO ==============
+
+@bp.route('/groups/<int:group_id>/certificates/stats', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_group_certificates_stats(group_id):
+    """
+    Obtener estadísticas de certificados del grupo.
+    Incluye conteos por tipo de certificado y por candidato.
+    """
+    try:
+        from app.models.result import Result
+        from app.models.conocer_certificate import ConocerCertificate
+        from app.models.exam import Exam
+        from sqlalchemy import and_, or_
+        
+        group = CandidateGroup.query.get_or_404(group_id)
+        
+        # Obtener configuración efectiva del grupo
+        if group.campus:
+            enable_tier_basic = group.enable_tier_basic_override if group.enable_tier_basic_override is not None else group.campus.enable_tier_basic
+            enable_tier_standard = group.enable_tier_standard_override if group.enable_tier_standard_override is not None else group.campus.enable_tier_standard
+            enable_tier_advanced = group.enable_tier_advanced_override if group.enable_tier_advanced_override is not None else group.campus.enable_tier_advanced
+            enable_digital_badge = group.enable_digital_badge_override if group.enable_digital_badge_override is not None else group.campus.enable_digital_badge
+        else:
+            enable_tier_basic = group.enable_tier_basic_override or False
+            enable_tier_standard = group.enable_tier_standard_override or False
+            enable_tier_advanced = group.enable_tier_advanced_override or False
+            enable_digital_badge = group.enable_digital_badge_override or False
+        
+        # Obtener miembros activos del grupo
+        members = GroupMember.query.filter_by(group_id=group_id, status='active').all()
+        member_user_ids = [m.user_id for m in members]
+        
+        # Obtener resultados de los miembros (aprobados)
+        results = Result.query.filter(
+            and_(
+                Result.user_id.in_(member_user_ids),
+                Result.status == 1,  # completado
+                Result.result == 1   # aprobado
+            )
+        ).all()
+        
+        # Obtener certificados CONOCER de los miembros
+        conocer_certs = ConocerCertificate.query.filter(
+            and_(
+                ConocerCertificate.user_id.in_(member_user_ids),
+                ConocerCertificate.status == 'active'
+            )
+        ).all()
+        
+        # Calcular estadísticas por tipo
+        tier_basic_count = 0  # Constancias (report_url disponible)
+        tier_standard_count = 0  # Certificados Eduit (certificate_url disponible)
+        tier_basic_pending = 0  # Sin report_url pero aprobado
+        tier_standard_pending = 0  # Sin certificate_url pero aprobado
+        
+        for r in results:
+            if r.report_url or r.certificate_code:
+                tier_basic_count += 1
+            else:
+                tier_basic_pending += 1
+            
+            if r.certificate_url or r.eduit_certificate_code:
+                tier_standard_count += 1
+            else:
+                tier_standard_pending += 1
+        
+        tier_advanced_count = len(conocer_certs)
+        
+        # Badge digital - asumimos que cada resultado aprobado puede tener uno
+        digital_badge_count = len(results)  # Mismo que aprobados
+        
+        # Estadísticas por candidato
+        candidates_stats = []
+        for member in members:
+            user = member.user
+            if not user:
+                continue
+            
+            user_results = [r for r in results if r.user_id == member.user_id]
+            user_conocer = [c for c in conocer_certs if c.user_id == member.user_id]
+            
+            candidate_stat = {
+                'user_id': member.user_id,
+                'full_name': user.full_name,
+                'email': user.email,
+                'curp': user.curp,
+                'exams_approved': len(user_results),
+                'tier_basic_ready': sum(1 for r in user_results if r.report_url or r.certificate_code),
+                'tier_basic_pending': sum(1 for r in user_results if not r.report_url and not r.certificate_code),
+                'tier_standard_ready': sum(1 for r in user_results if r.certificate_url or r.eduit_certificate_code),
+                'tier_standard_pending': sum(1 for r in user_results if not r.certificate_url and not r.eduit_certificate_code),
+                'tier_advanced_count': len(user_conocer),
+                'digital_badge_count': len(user_results),
+                'results': [{
+                    'id': r.id,
+                    'exam_id': r.exam_id,
+                    'score': r.score,
+                    'end_date': r.end_date.isoformat() if r.end_date else None,
+                    'has_report': bool(r.report_url),
+                    'has_certificate': bool(r.certificate_url),
+                    'certificate_code': r.certificate_code,
+                    'eduit_certificate_code': r.eduit_certificate_code
+                } for r in user_results],
+                'conocer_certificates': [{
+                    'id': c.id,
+                    'certificate_number': c.certificate_number,
+                    'standard_code': c.standard_code,
+                    'standard_name': c.standard_name,
+                    'issue_date': c.issue_date.isoformat() if c.issue_date else None
+                } for c in user_conocer]
+            }
+            candidates_stats.append(candidate_stat)
+        
+        return jsonify({
+            'group': {
+                'id': group.id,
+                'name': group.name,
+                'member_count': len(members)
+            },
+            'config': {
+                'enable_tier_basic': enable_tier_basic,
+                'enable_tier_standard': enable_tier_standard,
+                'enable_tier_advanced': enable_tier_advanced,
+                'enable_digital_badge': enable_digital_badge
+            },
+            'summary': {
+                'total_exams_approved': len(results),
+                'tier_basic': {
+                    'enabled': enable_tier_basic,
+                    'ready': tier_basic_count,
+                    'pending': tier_basic_pending,
+                    'total': tier_basic_count + tier_basic_pending
+                },
+                'tier_standard': {
+                    'enabled': enable_tier_standard,
+                    'ready': tier_standard_count,
+                    'pending': tier_standard_pending,
+                    'total': tier_standard_count + tier_standard_pending
+                },
+                'tier_advanced': {
+                    'enabled': enable_tier_advanced,
+                    'count': tier_advanced_count
+                },
+                'digital_badge': {
+                    'enabled': enable_digital_badge,
+                    'count': digital_badge_count
+                }
+            },
+            'candidates': candidates_stats
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/certificates/download', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def download_group_certificates_zip(group_id):
+    """
+    Descargar certificados del grupo en formato ZIP.
+    Genera los PDFs que no existan antes de crear el ZIP.
+    
+    Body:
+    - certificate_types: Array de tipos a incluir ['tier_basic', 'tier_standard', 'tier_advanced']
+    - user_ids: (opcional) Lista de user_ids específicos, o todo el grupo si no se especifica
+    """
+    try:
+        from app.models.result import Result
+        from app.models.conocer_certificate import ConocerCertificate
+        from app.models.exam import Exam
+        from flask import current_app
+        from io import BytesIO
+        from zipfile import ZipFile
+        import requests
+        from datetime import datetime
+        from sqlalchemy import and_
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import letter
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.colors import HexColor
+        from reportlab.pdfbase.pdfmetrics import stringWidth
+        import re
+        import os
+        
+        group = CandidateGroup.query.get_or_404(group_id)
+        
+        data = request.get_json() or {}
+        certificate_types = data.get('certificate_types', ['tier_basic', 'tier_standard'])
+        user_ids = data.get('user_ids', None)
+        
+        # --- FUNCIONES DE GENERACIÓN DE PDF ---
+        def strip_html(text):
+            if not text:
+                return ''
+            return re.sub(r'<[^>]+>', '', str(text))
+        
+        def generate_evaluation_report_pdf(result, exam, user):
+            """Genera el PDF del reporte de evaluación"""
+            buffer = BytesIO()
+            page_width, page_height = letter
+            margin = 50
+            
+            c = canvas.Canvas(buffer, pagesize=letter)
+            
+            primary_color = HexColor('#1e40af')
+            success_color = HexColor('#16a34a')
+            error_color = HexColor('#dc2626')
+            gray_color = HexColor('#6b7280')
+            
+            y = page_height - margin
+            
+            # ENCABEZADO
+            c.setFillColor(colors.black)
+            c.setFont('Helvetica-Bold', 16)
+            c.drawString(margin, y, 'Evaluaasi')
+            
+            c.setFillColor(gray_color)
+            c.setFont('Helvetica', 7)
+            c.drawRightString(page_width - margin, y, 'Sistema de Evaluación y Certificación')
+            c.drawRightString(page_width - margin, y - 12, datetime.now().strftime('%d/%m/%Y %H:%M'))
+            
+            y -= 45
+            c.setStrokeColor(primary_color)
+            c.setLineWidth(2)
+            c.line(margin, y, page_width - margin, y)
+            
+            y -= 30
+            
+            # TÍTULO
+            c.setFillColor(colors.black)
+            c.setFont('Helvetica-Bold', 14)
+            c.drawCentredString(page_width / 2, y, 'REPORTE DE EVALUACIÓN')
+            y -= 30
+            
+            # DATOS DEL ESTUDIANTE
+            c.setFillColor(primary_color)
+            c.setFont('Helvetica-Bold', 10)
+            c.drawString(margin, y, 'DATOS DEL ESTUDIANTE')
+            y -= 15
+            
+            c.setFillColor(colors.black)
+            name_parts = [user.name or '']
+            if hasattr(user, 'first_surname') and user.first_surname:
+                name_parts.append(user.first_surname)
+            if hasattr(user, 'second_surname') and user.second_surname:
+                name_parts.append(user.second_surname)
+            student_name = ' '.join(name_parts).strip() or user.email
+            
+            c.setFont('Helvetica-Bold', 9)
+            c.drawString(margin + 5, y, 'Nombre:')
+            c.setFont('Helvetica', 9)
+            c.drawString(margin + 50, y, student_name)
+            y -= 12
+            c.setFont('Helvetica-Bold', 9)
+            c.drawString(margin + 5, y, 'Correo:')
+            c.setFont('Helvetica', 9)
+            c.drawString(margin + 50, y, user.email)
+            y -= 20
+            
+            # DATOS DEL EXAMEN
+            c.setFillColor(primary_color)
+            c.setFont('Helvetica-Bold', 10)
+            c.drawString(margin, y, 'DATOS DEL EXAMEN')
+            y -= 15
+            
+            c.setFillColor(colors.black)
+            exam_name = strip_html(exam.name)[:60] if exam.name else 'Sin nombre'
+            c.setFont('Helvetica-Bold', 9)
+            c.drawString(margin + 5, y, 'Examen:')
+            c.setFont('Helvetica', 9)
+            c.drawString(margin + 55, y, exam_name)
+            y -= 12
+            
+            ecm_code = exam.version or 'N/A'
+            c.setFont('Helvetica-Bold', 9)
+            c.drawString(margin + 5, y, 'Código ECM:')
+            c.setFont('Helvetica', 9)
+            c.drawString(margin + 70, y, ecm_code)
+            y -= 12
+            
+            start_date = result.start_date.strftime('%d/%m/%Y %H:%M') if result.start_date else 'N/A'
+            c.setFont('Helvetica-Bold', 9)
+            c.drawString(margin + 5, y, 'Fecha:')
+            c.setFont('Helvetica', 9)
+            c.drawString(margin + 40, y, start_date)
+            y -= 25
+            
+            # RESULTADO
+            c.setFillColor(primary_color)
+            c.setFont('Helvetica-Bold', 10)
+            c.drawString(margin, y, 'RESULTADO DE LA EVALUACIÓN')
+            y -= 10
+            
+            box_height = 40
+            c.setStrokeColor(colors.black)
+            c.setLineWidth(0.5)
+            c.rect(margin, y - box_height, page_width - 2 * margin, box_height)
+            
+            passing_score = exam.passing_score or 70
+            is_passed = result.result == 1
+            percentage = result.score or 0
+            
+            c.setFillColor(colors.black)
+            c.setFont('Helvetica-Bold', 9)
+            c.drawString(margin + 10, y - 15, 'Calificación:')
+            c.setFont('Helvetica-Bold', 18)
+            c.drawString(margin + 70, y - 18, f'{percentage}%')
+            
+            c.setFont('Helvetica-Bold', 9)
+            c.drawString(margin + 10, y - 35, 'Resultado:')
+            
+            if is_passed:
+                c.setFillColor(success_color)
+                c.setFont('Helvetica-Bold', 12)
+                c.drawString(margin + 60, y - 37, 'APROBADO')
+            else:
+                c.setFillColor(error_color)
+                c.setFont('Helvetica-Bold', 12)
+                c.drawString(margin + 60, y - 37, 'NO APROBADO')
+            
+            c.setFillColor(colors.black)
+            c.setFont('Helvetica', 9)
+            c.drawRightString(page_width - margin - 10, y - 35, f'Puntaje mínimo requerido: {passing_score}%')
+            
+            y -= 60
+            
+            if result.certificate_code:
+                c.setFillColor(gray_color)
+                c.setFont('Helvetica', 8)
+                c.drawCentredString(page_width / 2, y, f'Código de verificación: {result.certificate_code}')
+            
+            c.save()
+            buffer.seek(0)
+            return buffer
+        
+        def generate_certificate_pdf_with_template(result, exam, user):
+            """Genera el certificado PDF usando plantilla si existe"""
+            from pypdf import PdfReader, PdfWriter
+            import qrcode
+            from reportlab.lib.utils import ImageReader
+            
+            template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'plantilla.pdf')
+            
+            if not os.path.exists(template_path):
+                # Solo generar reporte si no hay plantilla
+                return generate_evaluation_report_pdf(result, exam, user)
+            
+            try:
+                reader = PdfReader(template_path)
+                page = reader.pages[0]
+                width = float(page.mediabox.width)
+                height = float(page.mediabox.height)
+                
+                buffer_overlay = BytesIO()
+                c = canvas.Canvas(buffer_overlay, pagesize=(width, height))
+                c.setFillColor(HexColor('#1a365d'))
+                
+                # Configuración del área compartida para nombre y certificado
+                x_min = 85
+                x_max = 540
+                max_width = x_max - x_min
+                center_x = (x_min + x_max) / 2
+                
+                # Función para ajustar tamaño de fuente
+                def draw_fitted_text(canv, text, cx, y_pos, mw, font_name, max_font_size, min_font_size=8):
+                    font_sz = max_font_size
+                    while font_sz >= min_font_size:
+                        text_width = stringWidth(text, font_name, font_sz)
+                        if text_width <= mw:
+                            canv.setFont(font_name, font_sz)
+                            canv.drawCentredString(cx, y_pos, text)
+                            return font_sz
+                        font_sz -= 1
+                    canv.setFont(font_name, min_font_size)
+                    canv.drawCentredString(cx, y_pos, text)
+                    return min_font_size
+                
+                # Nombre del usuario (Title Case)
+                name_parts = [user.name or '']
+                if hasattr(user, 'first_surname') and user.first_surname:
+                    name_parts.append(user.first_surname)
+                if hasattr(user, 'second_surname') and user.second_surname:
+                    name_parts.append(user.second_surname)
+                student_name = ' '.join(name_parts).strip() or user.email
+                student_name = student_name.title()
+                
+                # NOMBRE en (center_x, 375), max 36pt - POSICIÓN CORRECTA
+                draw_fitted_text(c, student_name, center_x, 375, max_width, 'Helvetica-Bold', 36)
+                
+                # Nombre del certificado (MAYÚSCULAS)
+                cert_name = exam.name.upper() if exam.name else "CERTIFICADO DE COMPETENCIA"
+                cert_name = strip_html(cert_name)[:80]
+                
+                # CERTIFICADO en (center_x, 300), max 18pt - POSICIÓN CORRECTA
+                draw_fitted_text(c, cert_name, center_x, 300, max_width, 'Helvetica-Bold', 18)
+                
+                # === QR DE VERIFICACIÓN ===
+                verification_code = result.eduit_certificate_code
+                if verification_code:
+                    # URL de verificación
+                    verify_url = f"https://app.evaluaasi.com/verify/{verification_code}"
+                    
+                    # Crear QR
+                    qr = qrcode.QRCode(
+                        version=1,
+                        error_correction=qrcode.constants.ERROR_CORRECT_M,
+                        box_size=3,
+                        border=1,
+                    )
+                    qr.add_data(verify_url)
+                    qr.make(fit=True)
+                    
+                    # Crear imagen QR con fondo transparente
+                    qr_img = qr.make_image(fill_color="black", back_color="white").convert('RGBA')
+                    
+                    # Hacer el fondo transparente
+                    data = qr_img.getdata()
+                    new_data = []
+                    for item in data:
+                        # Si es blanco, hacerlo transparente
+                        if item[0] > 240 and item[1] > 240 and item[2] > 240:
+                            new_data.append((255, 255, 255, 0))
+                        else:
+                            new_data.append(item)
+                    qr_img.putdata(new_data)
+                    
+                    # Guardar QR en buffer
+                    qr_buffer = BytesIO()
+                    qr_img.save(qr_buffer, format='PNG')
+                    qr_buffer.seek(0)
+                    
+                    # Dibujar QR en el PDF (esquina inferior izquierda)
+                    qr_image = ImageReader(qr_buffer)
+                    qr_size = 55
+                    qr_x = 25  # Lado izquierdo
+                    qr_y = 25
+                    c.drawImage(qr_image, qr_x, qr_y, width=qr_size, height=qr_size, mask='auto')
+                    
+                    # Código de verificación debajo del QR
+                    c.setFillColor(HexColor('#444444'))
+                    c.setFont('Helvetica-Bold', 7)
+                    c.drawCentredString(qr_x + qr_size/2, qr_y - 8, verification_code)
+                    c.setFont('Helvetica', 5)
+                    c.drawCentredString(qr_x + qr_size/2, qr_y - 15, 'Escanea para verificar')
+                
+                c.save()
+                buffer_overlay.seek(0)
+                
+                # Combinar con plantilla
+                reader2 = PdfReader(template_path)
+                page2 = reader2.pages[0]
+                overlay_reader = PdfReader(buffer_overlay)
+                page2.merge_page(overlay_reader.pages[0])
+                
+                writer = PdfWriter()
+                writer.add_page(page2)
+                
+                output_buffer = BytesIO()
+                writer.write(output_buffer)
+                output_buffer.seek(0)
+                
+                return output_buffer
+                
+            except Exception as e:
+                current_app.logger.error(f"Error generando certificado con plantilla: {e}")
+                import traceback
+                current_app.logger.error(traceback.format_exc())
+                return generate_evaluation_report_pdf(result, exam, user)
+        
+        def upload_pdf_to_blob(buffer, filename):
+            """Sube el PDF a Azure Blob Storage"""
+            from azure.storage.blob import BlobServiceClient, ContentSettings
+            
+            connection_string = os.environ.get('AZURE_STORAGE_CONNECTION_STRING')
+            container_name = os.environ.get('AZURE_STORAGE_CONTAINER', 'evaluaasi-files')
+            
+            if not connection_string:
+                return None
+            
+            try:
+                blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+                container_client = blob_service_client.get_container_client(container_name)
+                
+                try:
+                    container_client.create_container()
+                except:
+                    pass
+                
+                blob_name = f"pdfs/{filename}"
+                blob_client = container_client.get_blob_client(blob_name)
+                
+                buffer.seek(0)
+                blob_client.upload_blob(
+                    buffer,
+                    overwrite=True,
+                    content_settings=ContentSettings(content_type='application/pdf')
+                )
+                
+                return blob_client.url
+            except Exception as e:
+                current_app.logger.error(f"Error subiendo a blob: {e}")
+                return None
+        
+        # --- FIN FUNCIONES DE GENERACIÓN ---
+        
+        # Obtener miembros
+        if user_ids:
+            members = GroupMember.query.filter(
+                and_(
+                    GroupMember.group_id == group_id,
+                    GroupMember.user_id.in_(user_ids),
+                    GroupMember.status == 'active'
+                )
+            ).all()
+        else:
+            members = GroupMember.query.filter_by(group_id=group_id, status='active').all()
+        
+        member_user_ids = [m.user_id for m in members]
+        
+        if not member_user_ids:
+            return jsonify({'error': 'No hay miembros en el grupo'}), 400
+        
+        # Obtener resultados aprobados
+        results = Result.query.filter(
+            and_(
+                Result.user_id.in_(member_user_ids),
+                Result.status == 1,
+                Result.result == 1
+            )
+        ).all()
+        
+        # Pre-cargar exámenes
+        exam_ids = list(set(r.exam_id for r in results))
+        exams_dict = {e.id: e for e in Exam.query.filter(Exam.id.in_(exam_ids)).all()}
+        
+        # Obtener certificados CONOCER
+        conocer_certs = []
+        if 'tier_advanced' in certificate_types:
+            conocer_certs = ConocerCertificate.query.filter(
+                and_(
+                    ConocerCertificate.user_id.in_(member_user_ids),
+                    ConocerCertificate.status == 'active'
+                )
+            ).all()
+        
+        # Crear ZIP en memoria
+        zip_buffer = BytesIO()
+        files_added = 0
+        generated = 0
+        errors = []
+        
+        # Mapa de usuarios
+        users_map = {}
+        for m in members:
+            if m.user:
+                users_map[m.user_id] = m.user
+        
+        current_app.logger.info(f"Procesando {len(results)} resultados para {len(certificate_types)} tipos de certificado")
+        
+        with ZipFile(zip_buffer, 'w') as zip_file:
+            # Procesar tier_basic (Reportes de evaluación)
+            if 'tier_basic' in certificate_types:
+                for r in results:
+                    user = users_map.get(r.user_id)
+                    if not user:
+                        continue
+                    
+                    exam = exams_dict.get(r.exam_id)
+                    if not exam:
+                        continue
+                    
+                    safe_name = ''.join(c for c in user.full_name if c.isalnum() or c in ' -_').strip().replace(' ', '_')
+                    exam_name = exam.name if exam else f'Examen_{r.exam_id}'
+                    safe_exam = ''.join(c for c in exam_name if c.isalnum() or c in ' -_').strip().replace(' ', '_')[:30]
+                    
+                    folder = f"Constancias/{safe_name}"
+                    filename = f"{folder}/{safe_exam}_Reporte_{r.certificate_code or r.id[:8]}.pdf"
+                    
+                    pdf_data = None
+                    
+                    if r.report_url:
+                        # Intentar descargar PDF existente
+                        try:
+                            response = requests.get(r.report_url, timeout=30)
+                            if response.status_code == 200:
+                                pdf_data = response.content
+                        except:
+                            pass
+                    
+                    if not pdf_data:
+                        # Generar PDF nuevo
+                        try:
+                            pdf_buffer = generate_evaluation_report_pdf(r, exam, user)
+                            pdf_data = pdf_buffer.getvalue()
+                            
+                            # Subir a blob y guardar URL
+                            blob_filename = f"report_{r.id}.pdf"
+                            blob_url = upload_pdf_to_blob(pdf_buffer, blob_filename)
+                            if blob_url:
+                                r.report_url = blob_url
+                                db.session.commit()
+                            
+                            generated += 1
+                        except Exception as e:
+                            errors.append({'user': user.full_name, 'type': 'tier_basic', 'error': str(e)})
+                            continue
+                    
+                    if pdf_data:
+                        zip_file.writestr(filename, pdf_data)
+                        files_added += 1
+            
+            # Procesar tier_standard (Certificados Eduit)
+            if 'tier_standard' in certificate_types:
+                for r in results:
+                    user = users_map.get(r.user_id)
+                    if not user:
+                        continue
+                    
+                    exam = exams_dict.get(r.exam_id)
+                    if not exam:
+                        continue
+                    
+                    safe_name = ''.join(c for c in user.full_name if c.isalnum() or c in ' -_').strip().replace(' ', '_')
+                    exam_name = exam.name if exam else f'Examen_{r.exam_id}'
+                    safe_exam = ''.join(c for c in exam_name if c.isalnum() or c in ' -_').strip().replace(' ', '_')[:30]
+                    
+                    folder = f"Certificados_Eduit/{safe_name}"
+                    filename = f"{folder}/{safe_exam}_Certificado_{r.eduit_certificate_code or r.id[:8]}.pdf"
+                    
+                    pdf_data = None
+                    
+                    if r.certificate_url:
+                        try:
+                            response = requests.get(r.certificate_url, timeout=30)
+                            if response.status_code == 200:
+                                pdf_data = response.content
+                        except:
+                            pass
+                    
+                    if not pdf_data:
+                        # Generar certificado nuevo
+                        try:
+                            # Asegurar que tenga código de certificado
+                            if not r.eduit_certificate_code:
+                                import uuid
+                                r.eduit_certificate_code = f"EC{uuid.uuid4().hex[:10].upper()}"
+                            
+                            pdf_buffer = generate_certificate_pdf_with_template(r, exam, user)
+                            pdf_data = pdf_buffer.getvalue()
+                            
+                            # Subir a blob
+                            blob_filename = f"certificate_{r.id}.pdf"
+                            blob_url = upload_pdf_to_blob(pdf_buffer, blob_filename)
+                            if blob_url:
+                                r.certificate_url = blob_url
+                                db.session.commit()
+                            
+                            generated += 1
+                        except Exception as e:
+                            errors.append({'user': user.full_name, 'type': 'tier_standard', 'error': str(e)})
+                            continue
+                    
+                    if pdf_data:
+                        zip_file.writestr(filename, pdf_data)
+                        files_added += 1
+            
+            # Procesar tier_advanced (CONOCER)
+            if 'tier_advanced' in certificate_types:
+                try:
+                    from app.services.conocer_blob_service import ConocerBlobService
+                    blob_service = ConocerBlobService()
+                    
+                    for cert in conocer_certs:
+                        user = users_map.get(cert.user_id)
+                        if not user:
+                            continue
+                        
+                        safe_name = ''.join(c for c in user.full_name if c.isalnum() or c in ' -_').strip().replace(' ', '_')
+                        folder = f"Certificados_CONOCER/{safe_name}"
+                        filename = f"{folder}/{cert.standard_code}_{cert.certificate_number}.pdf"
+                        
+                        try:
+                            blob_data = blob_service.download_certificate(cert.blob_name)
+                            if blob_data:
+                                zip_file.writestr(filename, blob_data)
+                                files_added += 1
+                        except Exception as e:
+                            errors.append({'user': user.full_name, 'type': 'tier_advanced', 'error': str(e)})
+                except ImportError:
+                    pass
+        
+        current_app.logger.info(f"ZIP creado: {files_added} archivos, {generated} generados nuevos")
+        
+        if files_added == 0:
+            return jsonify({
+                'error': 'No hay certificados disponibles para descargar',
+                'details': errors
+            }), 400
+        
+        # Preparar respuesta
+        zip_buffer.seek(0)
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        zip_filename = f"Certificados_{group.name}_{timestamp}.zip"
+        
+        from flask import Response
+        return Response(
+            zip_buffer.getvalue(),
+            mimetype='application/zip',
+            headers={
+                'Content-Disposition': f'attachment; filename="{zip_filename}"',
+                'Content-Length': len(zip_buffer.getvalue())
+            }
+        )
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/certificates/generate', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def generate_group_certificates(group_id):
+    """
+    Generar certificados pendientes para el grupo.
+    Este endpoint inicia la generación de PDFs para los certificados que no los tienen.
+    
+    Body:
+    - certificate_type: 'tier_basic' o 'tier_standard'
+    - user_ids: (opcional) Lista de user_ids específicos
+    """
+    try:
+        from app.models.result import Result
+        from app.models.exam import Exam
+        from app.utils.queue_utils import enqueue_pdf_generation
+        from sqlalchemy import and_, or_
+        from flask import current_app
+        
+        group = CandidateGroup.query.get_or_404(group_id)
+        
+        data = request.get_json() or {}
+        certificate_type = data.get('certificate_type', 'tier_basic')
+        user_ids = data.get('user_ids', None)
+        
+        if certificate_type not in ['tier_basic', 'tier_standard']:
+            return jsonify({'error': 'Tipo de certificado inválido. Use tier_basic o tier_standard'}), 400
+        
+        # Obtener miembros
+        if user_ids:
+            members = GroupMember.query.filter(
+                and_(
+                    GroupMember.group_id == group_id,
+                    GroupMember.user_id.in_(user_ids),
+                    GroupMember.status == 'active'
+                )
+            ).all()
+        else:
+            members = GroupMember.query.filter_by(group_id=group_id, status='active').all()
+        
+        member_user_ids = [m.user_id for m in members]
+        
+        # Obtener resultados aprobados sin el PDF correspondiente
+        if certificate_type == 'tier_basic':
+            # Reportes de evaluación - sin report_url
+            results = Result.query.filter(
+                and_(
+                    Result.user_id.in_(member_user_ids),
+                    Result.status == 1,
+                    Result.result == 1,
+                    or_(Result.report_url == None, Result.report_url == '')
+                )
+            ).all()
+        else:
+            # Certificados Eduit - sin certificate_url
+            results = Result.query.filter(
+                and_(
+                    Result.user_id.in_(member_user_ids),
+                    Result.status == 1,
+                    Result.result == 1,
+                    or_(Result.certificate_url == None, Result.certificate_url == '')
+                )
+            ).all()
+        
+        queued = []
+        for r in results:
+            try:
+                # Encolar generación de PDF
+                pdf_type = 'evaluation_report' if certificate_type == 'tier_basic' else 'certificate'
+                enqueue_pdf_generation(r.id, pdf_type)
+                queued.append({
+                    'result_id': r.id,
+                    'user_id': r.user_id,
+                    'exam_id': r.exam_id
+                })
+            except Exception as e:
+                current_app.logger.error(f"Error encolando PDF para result {r.id}: {e}")
+        
+        return jsonify({
+            'message': f'{len(queued)} certificados encolados para generación',
+            'queued_count': len(queued),
+            'certificate_type': certificate_type,
+            'details': queued
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/certificates/clear', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def clear_group_certificates_urls(group_id):
+    """
+    Limpiar URLs de certificados del grupo para forzar regeneración.
+    Esto permite regenerar los PDFs con las posiciones correctas.
+    """
+    try:
+        from app.models.result import Result
+        from sqlalchemy import and_
+        
+        group = CandidateGroup.query.get_or_404(group_id)
+        
+        data = request.get_json() or {}
+        clear_reports = data.get('clear_reports', True)  # tier_basic
+        clear_certificates = data.get('clear_certificates', True)  # tier_standard
+        
+        # Obtener miembros del grupo
+        members = GroupMember.query.filter_by(group_id=group_id, status='active').all()
+        member_user_ids = [m.user_id for m in members]
+        
+        if not member_user_ids:
+            return jsonify({'error': 'No hay miembros en el grupo'}), 400
+        
+        # Obtener resultados aprobados
+        results = Result.query.filter(
+            and_(
+                Result.user_id.in_(member_user_ids),
+                Result.status == 1,
+                Result.result == 1
+            )
+        ).all()
+        
+        cleared_count = 0
+        for r in results:
+            changed = False
+            if clear_reports and r.report_url:
+                r.report_url = None
+                changed = True
+            if clear_certificates and r.certificate_url:
+                r.certificate_url = None
+                changed = True
+            if changed:
+                cleared_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'{cleared_count} certificados limpiados para regeneración',
+            'cleared_count': cleared_count,
+            'group_id': group_id,
+            'group_name': group.name
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
