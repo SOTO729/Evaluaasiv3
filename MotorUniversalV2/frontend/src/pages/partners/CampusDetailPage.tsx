@@ -81,6 +81,22 @@ export default function CampusDetailPage() {
   const [isDeletingPermanently, setIsDeletingPermanently] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const permanentDeleteModalRef = useRef<HTMLDivElement>(null);
+  
+  // Estado para modal de éxito de eliminación
+  const [showDeleteSuccessModal, setShowDeleteSuccessModal] = useState(false);
+  const [deleteResult, setDeleteResult] = useState<{
+    message: string;
+    partner_id: number;
+    stats: {
+      groups_deleted: number;
+      cycles_deleted: number;
+      members_removed: number;
+      exams_unassigned: number;
+      materials_unassigned: number;
+      users_unlinked: number;
+    };
+  } | null>(null);
+  const deleteSuccessModalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadData();
@@ -193,10 +209,16 @@ export default function CampusDetailPage() {
       setIsDeletingPermanently(true);
       const result = await permanentDeleteCampus(campus.id);
       
-      // Mostrar resumen y redirigir
-      alert(`${result.message}\n\nResumen:\n- Grupos eliminados: ${result.stats.groups_deleted}\n- Ciclos eliminados: ${result.stats.cycles_deleted}\n- Miembros desvinculados: ${result.stats.members_removed}\n- Exámenes desasignados: ${result.stats.exams_unassigned}\n- Materiales desasignados: ${result.stats.materials_unassigned}\n- Usuarios desvinculados: ${result.stats.users_unlinked}`);
+      // Mostrar modal de éxito
+      setDeleteResult(result);
+      setShowDeleteSuccessModal(true);
+      setShowPermanentDeleteModal(false);
+      setDeleteConfirmText('');
       
-      navigate(`/partners/${result.partner_id}`);
+      // Redirigir después de 5 segundos
+      setTimeout(() => {
+        navigate(`/partners/${result.partner_id}`);
+      }, 5000);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al eliminar el plantel permanentemente');
     } finally {
@@ -960,6 +982,84 @@ export default function CampusDetailPage() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Éxito de Eliminación */}
+      {showDeleteSuccessModal && deleteResult && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 fluid-p-4"
+          onClick={(e) => {
+            if (deleteSuccessModalRef.current && !deleteSuccessModalRef.current.contains(e.target as Node)) {
+              setShowDeleteSuccessModal(false);
+              navigate(`/partners/${deleteResult.partner_id}`);
+            }
+          }}
+        >
+          <div 
+            ref={deleteSuccessModalRef}
+            className="bg-white rounded-fluid-2xl w-full max-w-lg shadow-2xl animate-scale-in"
+          >
+            <div className="fluid-p-6 border-b border-green-100 bg-green-50 rounded-t-fluid-2xl">
+              <div className="flex items-center fluid-gap-3">
+                <div className="fluid-p-3 bg-green-100 rounded-fluid-xl">
+                  <CheckCircle2 className="fluid-icon-xl text-green-600" />
+                </div>
+                <div>
+                  <h3 className="fluid-text-xl font-bold text-green-900">Plantel Eliminado</h3>
+                  <p className="fluid-text-sm text-green-700">La operación se completó exitosamente</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="fluid-p-6">
+              <p className="fluid-text-base text-gray-700 fluid-mb-4">{deleteResult.message}</p>
+              
+              <div className="bg-gray-50 rounded-fluid-xl fluid-p-4 fluid-mb-4">
+                <h4 className="fluid-text-sm font-semibold text-gray-700 fluid-mb-3">Resumen de la operación:</h4>
+                <div className="grid grid-cols-2 gap-3 fluid-text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Grupos eliminados:</span>
+                    <span className="font-medium text-gray-900">{deleteResult.stats.groups_deleted}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Ciclos eliminados:</span>
+                    <span className="font-medium text-gray-900">{deleteResult.stats.cycles_deleted}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Miembros desvinculados:</span>
+                    <span className="font-medium text-gray-900">{deleteResult.stats.members_removed}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Exámenes desasignados:</span>
+                    <span className="font-medium text-gray-900">{deleteResult.stats.exams_unassigned}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Materiales desasignados:</span>
+                    <span className="font-medium text-gray-900">{deleteResult.stats.materials_unassigned}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Usuarios desvinculados:</span>
+                    <span className="font-medium text-gray-900">{deleteResult.stats.users_unlinked}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <p className="fluid-text-sm text-gray-500 text-center fluid-mb-4">
+                Redirigiendo automáticamente en unos segundos...
+              </p>
+              
+              <button
+                onClick={() => {
+                  setShowDeleteSuccessModal(false);
+                  navigate(`/partners/${deleteResult.partner_id}`);
+                }}
+                className="w-full fluid-px-4 fluid-py-3 bg-green-600 hover:bg-green-700 text-white rounded-fluid-xl font-medium transition-colors"
+              >
+                Ir al Partner
+              </button>
             </div>
           </div>
         </div>
