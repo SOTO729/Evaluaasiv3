@@ -442,6 +442,7 @@ export interface AvailableResponsable {
   can_bulk_create_candidates: boolean;
   can_manage_groups: boolean;
   is_current: boolean;  // Si ya está asignado al plantel actual
+  is_director: boolean;  // Si es el director del plantel
   campus_id?: number;
 }
 

@@ -187,6 +187,14 @@ export default function CampusActivationPage() {
       setLoadingResponsables(true);
       const result = await getAvailableResponsables(Number(campusId));
       setAvailableResponsables(result.available_responsables);
+      
+      // Pre-seleccionar al director si existe y no hay ninguno seleccionado
+      if (!selectedResponsableId && result.available_responsables.length > 0) {
+        const director = result.available_responsables.find(r => r.is_director);
+        if (director) {
+          setSelectedResponsableId(director.id);
+        }
+      }
     } catch (err: any) {
       console.error('Error loading available responsables:', err);
       setFormError('Error al cargar los responsables disponibles');
@@ -713,11 +721,18 @@ export default function CampusActivationPage() {
                                   <p className="fluid-text-xs text-gray-400 font-mono fluid-mt-1">{resp.curp}</p>
                                 )}
                               </div>
-                              {resp.is_current && (
-                                <span className="fluid-text-xs bg-green-100 text-green-700 fluid-px-2 fluid-py-1 fluid-rounded-full font-medium">
-                                  Actual
-                                </span>
-                              )}
+                              <div className="flex flex-col fluid-gap-1 items-end">
+                                {resp.is_director && (
+                                  <span className="fluid-text-xs bg-purple-100 text-purple-700 fluid-px-2 fluid-py-1 fluid-rounded-full font-medium">
+                                    Director del Plantel
+                                  </span>
+                                )}
+                                {resp.is_current && (
+                                  <span className="fluid-text-xs bg-green-100 text-green-700 fluid-px-2 fluid-py-1 fluid-rounded-full font-medium">
+                                    Actual
+                                  </span>
+                                )}
+                              </div>
                             </label>
                           ))}
                         </div>

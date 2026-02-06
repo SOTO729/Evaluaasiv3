@@ -2,6 +2,8 @@
 Rutas para gestión de Partners, Planteles y Grupos
 Solo accesibles por coordinadores y admins
 """
+import secrets
+import string
 from datetime import datetime
 from io import BytesIO
 from flask import Blueprint, request, jsonify, g, send_file
@@ -458,6 +460,46 @@ def create_campus(partner_id):
         )
         
         db.session.add(campus)
+        db.session.flush()  # Para obtener el ID del campus
+        
+        # Crear usuario del director del plantel como responsable disponible
+        import random
+        import uuid
+        
+        def generate_unique_username():
+            chars = string.ascii_uppercase + string.digits
+            while True:
+                username = ''.join(random.choices(chars, k=10))
+                if not User.query.filter_by(username=username).first():
+                    return username
+        
+        director_username = generate_unique_username()
+        director_password = secrets.token_urlsafe(12)
+        
+        # Crear el usuario del director con rol responsable
+        # El usuario del director se identifica porque su CURP coincide con director_curp del campus
+        director_user = User(
+            id=str(uuid.uuid4()),
+            email=data.get('director_email'),
+            username=director_username,
+            name=data.get('director_name').strip(),
+            first_surname=data.get('director_first_surname').strip(),
+            second_surname=data.get('director_second_surname').strip(),
+            gender=data.get('director_gender'),
+            curp=director_curp,
+            date_of_birth=director_dob,
+            role='responsable',
+            campus_id=campus.id,  # Asociado al plantel
+            is_active=True,
+            is_verified=True,
+            can_bulk_create_candidates=False,
+            can_manage_groups=False
+        )
+        director_user.set_password(director_password)
+        director_user.encrypted_password = encrypt_password(director_password)
+        
+        db.session.add(director_user)
+        
         db.session.commit()
         
         # Obtener los estados actualizados del partner
@@ -471,7 +513,14 @@ def create_campus(partner_id):
             'message': message,
             'campus': campus.to_dict(),
             'state_auto_created': state_auto_created,
-            'partner_states': updated_states
+            'partner_states': updated_states,
+            'director_user': {
+                'id': director_user.id,
+                'username': director_username,
+                'full_name': director_user.full_name,
+                'email': director_user.email,
+                'temporary_password': director_password
+            }
         }), 201
         
     except Exception as e:
@@ -882,6 +931,7 @@ def get_available_responsables(campus_id):
     """
     Obtener lista de responsables disponibles que pueden ser asignados a este plantel.
     Solo muestra responsables del mismo partner que no estén asignados a otro plantel activo.
+    El director del plantel (identificado por su CURP) aparece primero en la lista.
     """
     try:
         campus = Campus.query.get_or_404(campus_id)
@@ -909,6 +959,9 @@ def get_available_responsables(campus_id):
             # También verificar si está asignado al plantel actual
             is_current = campus.responsable_id == resp.id
             
+            # Verificar si es el director del plantel (su CURP coincide con director_curp)
+            is_director = resp.curp and campus.director_curp and resp.curp.upper() == campus.director_curp.upper()
+            
             if not assigned_campus:
                 available.append({
                     'id': resp.id,
@@ -921,8 +974,12 @@ def get_available_responsables(campus_id):
                     'can_bulk_create_candidates': resp.can_bulk_create_candidates,
                     'can_manage_groups': resp.can_manage_groups,
                     'is_current': is_current,
+                    'is_director': is_director,
                     'campus_id': resp.campus_id
                 })
+        
+        # Ordenar: director primero, luego por nombre
+        available.sort(key=lambda x: (not x['is_director'], x['full_name'].lower()))
         
         return jsonify({
             'available_responsables': available,
