@@ -86,6 +86,8 @@ def list_users():
         search = request.args.get('search', '')
         role_filter = request.args.get('role', '')
         active_filter = request.args.get('is_active', '')
+        sort_by = request.args.get('sort_by', 'created_at')
+        sort_order = request.args.get('sort_order', 'desc')
         
         query = User.query
         
@@ -118,7 +120,23 @@ def list_users():
                 )
             )
         
-        query = query.order_by(User.created_at.desc())
+        # Ordenamiento dinámico
+        sort_columns = {
+            'name': User.name,
+            'full_name': User.first_surname,  # Ordenar por apellido primero
+            'email': User.email,
+            'role': User.role,
+            'is_active': User.is_active,
+            'created_at': User.created_at,
+            'last_login': User.last_login
+        }
+        
+        sort_column = sort_columns.get(sort_by, User.created_at)
+        if sort_order == 'asc':
+            query = query.order_by(sort_column.asc())
+        else:
+            query = query.order_by(sort_column.desc())
+        
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         
         return jsonify({

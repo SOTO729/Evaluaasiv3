@@ -82,6 +82,8 @@ export async function getUsers(params?: {
   search?: string;
   role?: string;
   is_active?: string;
+  sort_by?: string;
+  sort_order?: 'asc' | 'desc';
 }): Promise<{
   users: ManagedUser[];
   total: number;

@@ -26,6 +26,9 @@ import {
   FileSpreadsheet,
   UsersRound,
   X,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import BulkUploadModal from '../../components/users/BulkUploadModal';
@@ -107,6 +110,12 @@ export default function UsersListPage() {
   
   const isAdmin = currentUser?.role === 'admin';
   
+  // Ordenamiento
+  type SortField = 'full_name' | 'email' | 'role' | 'is_active' | 'created_at';
+  type SortDirection = 'asc' | 'desc';
+  const [sortField, setSortField] = useState<SortField>('created_at');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  
   // Roles filtrados según el tab activo
   const filteredRoles = useMemo(() => {
     const tabConfig = TAB_CONFIG[activeTab];
@@ -116,7 +125,7 @@ export default function UsersListPage() {
 
   useEffect(() => {
     loadData();
-  }, [page, roleFilter, activeFilter, activeTab]);
+  }, [page, roleFilter, activeFilter, activeTab, sortField, sortDirection]);
 
   useEffect(() => {
     loadRoles();
@@ -155,6 +164,8 @@ export default function UsersListPage() {
         search: search || undefined,
         role: rolesToFilter,
         is_active: activeFilter || undefined,
+        sort_by: sortField,
+        sort_order: sortDirection,
       });
       setUsers(data.users);
       setTotalPages(data.pages);
@@ -164,6 +175,27 @@ export default function UsersListPage() {
     } finally {
       setLoading(false);
     }
+  };
+  
+  // Handler para cambiar ordenamiento
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setPage(1); // Volver a la primera página al cambiar ordenamiento
+  };
+  
+  // Componente de icono de ordenamiento
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return <ChevronsUpDown className="fluid-icon-xs text-gray-400" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ChevronUp className="fluid-icon-xs text-blue-600" />
+      : <ChevronDown className="fluid-icon-xs text-blue-600" />;
   };
 
   const handleTabChange = (tab: TabType) => {
@@ -733,11 +765,51 @@ export default function UsersListPage() {
                     </button>
                   </th>
                 )}
-                <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">Usuario</th>
-                <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">Email</th>
-                <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">Rol</th>
-                <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">Estado</th>
-                <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">Creado</th>
+                <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
+                  <button
+                    onClick={() => handleSort('full_name')}
+                    className={`flex items-center fluid-gap-1 hover:text-blue-600 transition-colors ${sortField === 'full_name' ? 'text-blue-600' : ''}`}
+                  >
+                    Usuario
+                    <SortIcon field="full_name" />
+                  </button>
+                </th>
+                <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
+                  <button
+                    onClick={() => handleSort('email')}
+                    className={`flex items-center fluid-gap-1 hover:text-blue-600 transition-colors ${sortField === 'email' ? 'text-blue-600' : ''}`}
+                  >
+                    Email
+                    <SortIcon field="email" />
+                  </button>
+                </th>
+                <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
+                  <button
+                    onClick={() => handleSort('role')}
+                    className={`flex items-center fluid-gap-1 hover:text-blue-600 transition-colors ${sortField === 'role' ? 'text-blue-600' : ''}`}
+                  >
+                    Rol
+                    <SortIcon field="role" />
+                  </button>
+                </th>
+                <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
+                  <button
+                    onClick={() => handleSort('is_active')}
+                    className={`flex items-center fluid-gap-1 hover:text-blue-600 transition-colors ${sortField === 'is_active' ? 'text-blue-600' : ''}`}
+                  >
+                    Estado
+                    <SortIcon field="is_active" />
+                  </button>
+                </th>
+                <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
+                  <button
+                    onClick={() => handleSort('created_at')}
+                    className={`flex items-center fluid-gap-1 hover:text-blue-600 transition-colors ${sortField === 'created_at' ? 'text-blue-600' : ''}`}
+                  >
+                    Creado
+                    <SortIcon field="created_at" />
+                  </button>
+                </th>
                 <th className="fluid-px-4 fluid-py-3 text-right fluid-text-xs font-semibold text-gray-600">Acciones</th>
               </tr>
             </thead>
