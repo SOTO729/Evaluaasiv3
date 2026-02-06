@@ -22,6 +22,7 @@ import {
   downloadBulkUploadTemplate,
   BulkUploadResult
 } from '../../services/userManagementService';
+import { useNotificationStore } from '../../store/notificationStore';
 
 interface BulkUploadModalProps {
   isOpen: boolean;
@@ -36,6 +37,9 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
   const [result, setResult] = useState<BulkUploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Notificaciones globales
+  const { addNotification, updateNotification } = useNotificationStore();
   
   // Estados para expandir/colapsar secciones de resultados
   const [showCreated, setShowCreated] = useState(true);
@@ -82,24 +86,78 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
     }
   };
 
-  const handleUpload = async () => {
+  const handleUpload = async (runInBackground: boolean = false) => {
     if (!file) return;
     
-    setUploading(true);
-    setError(null);
-    setResult(null);
-    
-    try {
-      const uploadResult = await bulkUploadCandidates(file);
-      setResult(uploadResult);
+    if (runInBackground) {
+      // Proceso en segundo plano - cerrar modal y mostrar notificación
+      const notificationId = addNotification({
+        type: 'loading',
+        title: 'Procesando archivo',
+        message: `Cargando ${file.name}...`,
+        dismissible: false,
+        duration: 0,
+      });
       
-      if (uploadResult.summary.created > 0) {
-        onSuccess();
+      handleClose();
+      
+      try {
+        const uploadResult = await bulkUploadCandidates(file);
+        
+        // Actualizar notificación con resultado
+        if (uploadResult.summary.created > 0) {
+          updateNotification(notificationId, {
+            type: 'success',
+            title: 'Carga masiva completada',
+            message: `${uploadResult.summary.created} candidatos creados, ${uploadResult.summary.errors} errores`,
+            dismissible: true,
+            duration: 10000,
+          });
+          onSuccess();
+        } else if (uploadResult.summary.errors > 0) {
+          updateNotification(notificationId, {
+            type: 'error',
+            title: 'Error en carga masiva',
+            message: `${uploadResult.summary.errors} errores encontrados. Revisa el archivo.`,
+            dismissible: true,
+            duration: 10000,
+          });
+        } else {
+          updateNotification(notificationId, {
+            type: 'warning',
+            title: 'Sin cambios',
+            message: 'No se crearon candidatos nuevos.',
+            dismissible: true,
+            duration: 8000,
+          });
+        }
+      } catch (err: any) {
+        updateNotification(notificationId, {
+          type: 'error',
+          title: 'Error al procesar archivo',
+          message: err.response?.data?.error || 'Error desconocido',
+          dismissible: true,
+          duration: 10000,
+        });
       }
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al procesar el archivo');
-    } finally {
-      setUploading(false);
+    } else {
+      // Proceso normal - mantener modal abierto
+      setUploading(true);
+      setError(null);
+      setResult(null);
+      
+      try {
+        const uploadResult = await bulkUploadCandidates(file);
+        setResult(uploadResult);
+        
+        if (uploadResult.summary.created > 0) {
+          onSuccess();
+        }
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Error al procesar el archivo');
+      } finally {
+        setUploading(false);
+      }
     }
   };
 
@@ -290,24 +348,33 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
 
             {/* Upload button */}
             {file && !result && (
-              <div className="mt-4 flex justify-end">
-                <button
-                  onClick={handleUpload}
-                  disabled={uploading}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white rounded-xl font-medium transition-colors"
-                >
-                  {uploading ? (
-                    <>
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                      Procesando...
-                    </>
-                  ) : (
-                    <>
+              <div className="mt-4 flex flex-col gap-3">
+                {uploading ? (
+                  <div className="flex items-center justify-center gap-3 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                    <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                    <div>
+                      <p className="font-medium text-blue-800">Procesando archivo...</p>
+                      <p className="text-sm text-blue-600">Esto puede tomar unos segundos</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-3 justify-end">
+                    <button
+                      onClick={() => handleUpload(true)}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Procesar en segundo plano
+                    </button>
+                    <button
+                      onClick={() => handleUpload(false)}
+                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-colors"
+                    >
                       <Upload className="h-5 w-5" />
-                      Procesar Archivo
-                    </>
-                  )}
-                </button>
+                      Procesar y ver resultados
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

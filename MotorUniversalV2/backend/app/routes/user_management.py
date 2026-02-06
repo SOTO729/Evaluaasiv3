@@ -822,7 +822,7 @@ def bulk_upload_candidates():
             secrets.SystemRandom().shuffle(password)
             return ''.join(password)
         
-        # Procesar filas
+        # Procesar filas (empezar en fila 3: fila 1=encabezados, fila 2=descripciones)
         results = {
             'created': [],
             'errors': [],
@@ -830,7 +830,7 @@ def bulk_upload_candidates():
             'total_processed': 0
         }
         
-        for row_idx, row in enumerate(sheet.iter_rows(min_row=2), start=2):
+        for row_idx, row in enumerate(sheet.iter_rows(min_row=3), start=3):
             results['total_processed'] += 1
             
             # Obtener valores de la fila

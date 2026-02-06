@@ -4,6 +4,7 @@ import { useAuthStore } from './store/authStore'
 import LoadingSpinner from './components/LoadingSpinner'
 import InactivityWatcher from './components/InactivityWatcher'
 import SystemReadyGuard from './components/SystemReadyGuard'
+import GlobalNotifications from './components/ui/GlobalNotifications'
 
 // Eager imports (necesarios inmediatamente)
 import Layout from './components/layout/Layout'
@@ -117,6 +118,7 @@ function App() {
 
   return (
     <SystemReadyGuard>
+      <GlobalNotifications />
       <BrowserRouter>
         <InactivityWatcher timeoutMinutes={15}>
           <Suspense fallback={<LoadingSpinner message="Cargando..." fullScreen />}>
