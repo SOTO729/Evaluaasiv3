@@ -17,6 +17,7 @@ import {
   Copy,
   Check
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import {
   bulkUploadCandidates,
   downloadBulkUploadTemplate,
@@ -167,6 +168,38 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
     } catch (err: any) {
       setError('Error al descargar la plantilla. Intenta de nuevo.');
     }
+  };
+
+  const handleDownloadResults = () => {
+    if (!result || result.details.created.length === 0) return;
+    
+    // Crear datos para el Excel
+    const data = result.details.created.map((item) => ({
+      'Fila Original': item.row,
+      'Email': item.email || '(sin email)',
+      'Nombre': item.name,
+      'Usuario': item.username,
+      'Contraseña': item.password || '(no disponible)',
+    }));
+    
+    // Crear workbook y worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    
+    // Ajustar anchos de columna
+    ws['!cols'] = [
+      { wch: 12 }, // Fila Original
+      { wch: 35 }, // Email
+      { wch: 25 }, // Nombre
+      { wch: 20 }, // Usuario
+      { wch: 15 }, // Contraseña
+    ];
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Candidatos Creados');
+    
+    // Descargar
+    const fecha = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `Candidatos_Creados_${fecha}.xlsx`);
   };
 
   const handleReset = () => {
@@ -401,6 +434,19 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                   <p className="text-xs text-red-700">Errores</p>
                 </div>
               </div>
+
+              {/* Botón descargar Excel */}
+              {result.details.created.length > 0 && (
+                <div className="flex justify-center">
+                  <button
+                    onClick={handleDownloadResults}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg"
+                  >
+                    <Download className="h-5 w-5" />
+                    Descargar Excel con usuarios y contraseñas
+                  </button>
+                </div>
+              )}
 
               {/* Usuarios creados */}
               {result.details.created.length > 0 && (
