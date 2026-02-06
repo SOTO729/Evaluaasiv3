@@ -69,7 +69,20 @@ export default function GroupDetailPage() {
   
   // Exámenes asignados
   const [assignedExams, setAssignedExams] = useState<GroupExamAssignment[]>([]);
-  const [activeTab, setActiveTab] = useState<'members' | 'exams' | 'certificates'>('members');
+  const [expandedSections, setExpandedSections] = useState<Set<'members' | 'exams' | 'certificates'>>(new Set(['members']));
+  
+  // Toggle de secciones
+  const toggleSection = (section: 'members' | 'exams' | 'certificates') => {
+    setExpandedSections(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(section)) {
+        newSet.delete(section);
+      } else {
+        newSet.add(section);
+      }
+      return newSet;
+    });
+  };
   
   // Materiales de estudio independientes (sin examen)
   const [directMaterials, setDirectMaterials] = useState<GroupStudyMaterialAssignment[]>([]);
@@ -495,163 +508,34 @@ export default function GroupDetailPage() {
         </div>
       </div>
 
-      {/* Tabs - Rediseñados */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="flex border-b border-gray-200">
+      {/* Secciones Accordion */}
+      <div className="space-y-4">
+        
+        {/* Sección: Candidatos */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <button
-            onClick={() => setActiveTab('members')}
-            className={`flex-1 flex items-center justify-center gap-2.5 px-6 py-4 font-medium transition-all relative ${
-              activeTab === 'members'
-                ? 'text-purple-600 bg-purple-50/50'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
+            onClick={() => toggleSection('members')}
+            className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
           >
-            <Users className="w-5 h-5" />
-            <span className="hidden sm:inline">Candidatos</span>
-            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-              activeTab === 'members' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
-            }`}>
-              {members.length}
-            </span>
-            {activeTab === 'members' && (
-              <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-purple-600 rounded-full" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('exams')}
-            className={`flex-1 flex items-center justify-center gap-2.5 px-6 py-4 font-medium transition-all relative ${
-              activeTab === 'exams'
-                ? 'text-blue-600 bg-blue-50/50'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <ClipboardList className="w-5 h-5" />
-            <span className="hidden sm:inline">Certificaciones</span>
-            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-              activeTab === 'exams' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
-            }`}>
-              {assignedExams.length}
-            </span>
-            {activeTab === 'exams' && (
-              <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-blue-600 rounded-full" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('certificates')}
-            className={`flex-1 flex items-center justify-center gap-2.5 px-6 py-4 font-medium transition-all relative ${
-              activeTab === 'certificates'
-                ? 'text-emerald-600 bg-emerald-50/50'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <Award className="w-5 h-5" />
-            <span className="hidden sm:inline">Documentos</span>
-            {activeTab === 'certificates' && (
-              <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
-            )}
-          </button>
-        </div>
-
-        {/* Estadísticas dinámicas según pestaña */}
-        <div className="px-6 pt-4 pb-2">
-          {activeTab === 'members' && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="flex items-center gap-3 bg-gray-50 rounded-lg px-4 py-3">
-                <Users className="w-5 h-5 text-purple-500" />
-                <div>
-                  <p className="text-lg font-bold text-gray-900">{stats.total}</p>
-                  <p className="text-xs text-gray-500">Total</p>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${expandedSections.has('members') ? 'bg-purple-100' : 'bg-gray-100'}`}>
+                <Users className={`w-5 h-5 ${expandedSections.has('members') ? 'text-purple-600' : 'text-gray-500'}`} />
               </div>
-              <div className="flex items-center gap-3 bg-emerald-50 rounded-lg px-4 py-3">
-                <Award className="w-5 h-5 text-emerald-500" />
-                <div>
-                  <p className="text-lg font-bold text-emerald-700">{members.filter(m => m.certification_status === 'certified').length}</p>
-                  <p className="text-xs text-gray-500">Certificados</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 bg-blue-50 rounded-lg px-4 py-3">
-                <Clock className="w-5 h-5 text-blue-500" />
-                <div>
-                  <p className="text-lg font-bold text-blue-700">{members.filter(m => m.certification_status === 'in_progress').length}</p>
-                  <p className="text-xs text-gray-500">En proceso</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 bg-amber-50 rounded-lg px-4 py-3">
-                <HelpCircle className="w-5 h-5 text-amber-500" />
-                <div>
-                  <p className="text-lg font-bold text-amber-700">{members.filter(m => !m.certification_status || m.certification_status === 'pending').length}</p>
-                  <p className="text-xs text-gray-500">Pendientes</p>
+              <div className="text-left">
+                <h3 className="font-semibold text-gray-900">Candidatos</h3>
+                <div className="flex items-center gap-3 text-sm text-gray-500">
+                  <span>{stats.total} total</span>
+                  <span className="text-emerald-600">{members.filter(m => m.certification_status === 'certified').length} certificados</span>
+                  <span className="text-blue-600">{members.filter(m => m.certification_status === 'in_progress').length} en proceso</span>
                 </div>
               </div>
             </div>
-          )}
+            <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedSections.has('members') ? 'rotate-180' : ''}`} />
+          </button>
           
-          {activeTab === 'exams' && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <div className="flex items-center gap-3 bg-blue-50 rounded-lg px-4 py-3">
-                <ClipboardList className="w-5 h-5 text-blue-500" />
-                <div>
-                  <p className="text-lg font-bold text-blue-700">{assignedExams.length}</p>
-                  <p className="text-xs text-gray-500">Certificaciones</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 bg-pink-50 rounded-lg px-4 py-3">
-                <BookOpen className="w-5 h-5 text-pink-500" />
-                <div>
-                  <p className="text-lg font-bold text-pink-700">{stats.materials}</p>
-                  <p className="text-xs text-gray-500">Materiales</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 bg-purple-50 rounded-lg px-4 py-3">
-                <Target className="w-5 h-5 text-purple-500" />
-                <div>
-                  <p className="text-lg font-bold text-purple-700">{assignedExams.filter(e => e.exam?.ecm).length}</p>
-                  <p className="text-xs text-gray-500">Con ECM</p>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {activeTab === 'certificates' && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="flex items-center gap-3 bg-emerald-50 rounded-lg px-4 py-3">
-                <Award className="w-5 h-5 text-emerald-500" />
-                <div>
-                  <p className="text-lg font-bold text-emerald-700">{members.filter(m => m.certification_status === 'certified').length}</p>
-                  <p className="text-xs text-gray-500">Certificados</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 bg-blue-50 rounded-lg px-4 py-3">
-                <FileText className="w-5 h-5 text-blue-500" />
-                <div>
-                  <p className="text-lg font-bold text-blue-700">{members.filter(m => m.certification_status === 'certified').length}</p>
-                  <p className="text-xs text-gray-500">Certificados generables</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 bg-amber-50 rounded-lg px-4 py-3">
-                <Layers className="w-5 h-5 text-amber-500" />
-                <div>
-                  <p className="text-lg font-bold text-amber-700">{assignedExams.length}</p>
-                  <p className="text-xs text-gray-500">Certificaciones</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 bg-purple-50 rounded-lg px-4 py-3">
-                <Users className="w-5 h-5 text-purple-500" />
-                <div>
-                  <p className="text-lg font-bold text-purple-700">{stats.total}</p>
-                  <p className="text-xs text-gray-500">Candidatos</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Contenido de Tabs */}
-        <div className="p-6 pt-4">
-        {/* Tab: Candidatos */}
-        {activeTab === 'members' && (
-          <div>
+          {expandedSections.has('members') && (
+            <div className="px-5 pb-5 border-t border-gray-100">
+              <div className="pt-4">
             {/* Panel de Elegibilidad del Grupo */}
             {eligibilitySummary && eligibilitySummary.warnings.length > 0 && (
               <div className="fluid-mb-5 p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
@@ -1090,17 +974,43 @@ export default function GroupDetailPage() {
                 </div>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Tab: Exámenes */}
-        {activeTab === 'exams' && (
-          <div className="space-y-8">
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Sección: Certificaciones */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <button
+            onClick={() => toggleSection('exams')}
+            className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${expandedSections.has('exams') ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                <ClipboardList className={`w-5 h-5 ${expandedSections.has('exams') ? 'text-blue-600' : 'text-gray-500'}`} />
+              </div>
+              <div className="text-left">
+                <h3 className="font-semibold text-gray-900">Certificaciones</h3>
+                <div className="flex items-center gap-3 text-sm text-gray-500">
+                  <span>{assignedExams.length} exámenes</span>
+                  <span>{stats.materials} materiales</span>
+                  {assignedExams.filter(e => e.exam?.ecm).length > 0 && (
+                    <span className="text-purple-600">{assignedExams.filter(e => e.exam?.ecm).length} con ECM</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedSections.has('exams') ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {expandedSections.has('exams') && (
+            <div className="px-5 pb-5 border-t border-gray-100">
+          <div className="pt-4 space-y-8">
             {/* Header con acciones */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Certificaciones del Grupo</h3>
-                <p className="text-sm text-gray-500 mt-1">Gestiona los exámenes y materiales de estudio asignados</p>
+                <h3 className="text-lg font-bold text-gray-900">Gestión de Certificaciones</h3>
+                <p className="text-sm text-gray-500 mt-1">Exámenes y materiales de estudio asignados</p>
               </div>
               <div className="flex items-center gap-2">
                 {members.length === 0 ? (
@@ -1437,12 +1347,36 @@ export default function GroupDetailPage() {
               )}
             </div>
           </div>
-        )}
-
-        {/* Tab: Certificados */}
-        {activeTab === 'certificates' && group && (
-          <GroupCertificatesTab groupId={group.id} groupName={group.name} />
-        )}
+            </div>
+          )}
+        </div>
+        
+        {/* Sección: Documentos */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <button
+            onClick={() => toggleSection('certificates')}
+            className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${expandedSections.has('certificates') ? 'bg-emerald-100' : 'bg-gray-100'}`}>
+                <Award className={`w-5 h-5 ${expandedSections.has('certificates') ? 'text-emerald-600' : 'text-gray-500'}`} />
+              </div>
+              <div className="text-left">
+                <h3 className="font-semibold text-gray-900">Documentos</h3>
+                <div className="flex items-center gap-3 text-sm text-gray-500">
+                  <span className="text-emerald-600">{members.filter(m => m.certification_status === 'certified').length} certificados disponibles</span>
+                  <span>{assignedExams.length} certificaciones</span>
+                </div>
+              </div>
+            </div>
+            <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedSections.has('certificates') ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {expandedSections.has('certificates') && group && (
+            <div className="px-5 pb-5 border-t border-gray-100 pt-4">
+              <GroupCertificatesTab groupId={group.id} groupName={group.name} />
+            </div>
+          )}
         </div>
       </div>
 
