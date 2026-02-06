@@ -628,6 +628,22 @@ export async function deleteSchoolCycle(cycleId: number): Promise<void> {
   await api.delete(`/partners/cycles/${cycleId}`);
 }
 
+export interface CyclePermanentDeleteStats {
+  groups_deleted: number;
+  members_removed: number;
+  exams_unassigned: number;
+  materials_unassigned: number;
+}
+
+export async function permanentDeleteCycle(cycleId: number): Promise<{
+  message: string;
+  cycle_name: string;
+  stats: CyclePermanentDeleteStats;
+}> {
+  const response = await api.delete(`/partners/cycles/${cycleId}/permanent-delete`);
+  return response.data;
+}
+
 // ============== GRUPOS ==============
 
 export async function getGroups(campusId: number, params?: {
