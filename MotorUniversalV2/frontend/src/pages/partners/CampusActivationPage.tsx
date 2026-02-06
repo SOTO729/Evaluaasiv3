@@ -75,7 +75,7 @@ export default function CampusActivationPage() {
   const [createdResponsable, setCreatedResponsable] = useState<CampusResponsable | null>(null);
   
   // Estado para asignar responsable existente
-  const [assignMode, setAssignMode] = useState<'create' | 'existing'>('create');
+  const [assignMode, setAssignMode] = useState<'create' | 'existing'>('existing');
   const [availableResponsables, setAvailableResponsables] = useState<AvailableResponsable[]>([]);
   const [loadingResponsables, setLoadingResponsables] = useState(false);
   const [selectedResponsableId, setSelectedResponsableId] = useState<string | null>(null);
@@ -127,12 +127,12 @@ export default function CampusActivationPage() {
     loadCampus();
   }, [campusId]);
 
-  // Cargar responsables disponibles cuando se cambia al modo existente
+  // Cargar responsables disponibles al inicio
   useEffect(() => {
-    if (assignMode === 'existing' && campusId) {
+    if (campusId) {
       loadAvailableResponsables();
     }
-  }, [assignMode, campusId]);
+  }, [campusId]);
 
   // Cargar ECM disponibles cuando el campus tiene responsable y entramos al paso 2
   useEffect(() => {
@@ -629,6 +629,18 @@ export default function CampusActivationPage() {
                 <div className="flex">
                   <button
                     type="button"
+                    onClick={() => setAssignMode('existing')}
+                    className={`flex-1 fluid-py-3 fluid-px-4 fluid-text-sm font-medium transition-all flex items-center justify-center fluid-gap-2 ${
+                      assignMode === 'existing'
+                        ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <UserCheck className="fluid-w-4 fluid-h-4" />
+                    Seleccionar Responsable Existente
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setAssignMode('create')}
                     className={`flex-1 fluid-py-3 fluid-px-4 fluid-text-sm font-medium transition-all flex items-center justify-center fluid-gap-2 ${
                       assignMode === 'create'
@@ -638,18 +650,6 @@ export default function CampusActivationPage() {
                   >
                     <UserPlus className="fluid-w-4 fluid-h-4" />
                     Crear Nuevo Responsable
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAssignMode('existing')}
-                    className={`flex-1 fluid-py-3 fluid-px-4 fluid-text-sm font-medium transition-all flex items-center justify-center fluid-gap-2 ${
-                      assignMode === 'existing'
-                        ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <UserCheck className="fluid-w-4 fluid-h-4" />
-                    Asignar Responsable Existente
                   </button>
                 </div>
               </div>
