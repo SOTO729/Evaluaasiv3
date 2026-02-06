@@ -695,6 +695,22 @@ class GroupExam(db.Model):
             data['assigned_members_count'] = self.assigned_members.count() if self.assigned_members else 0
         
         if include_exam and self.exam:
+            # Obtener información del ECM si existe
+            ecm_data = None
+            if self.exam.competency_standard_id:
+                from app.models.competency_standard import CompetencyStandard
+                standard = CompetencyStandard.query.get(self.exam.competency_standard_id)
+                if standard:
+                    ecm_data = {
+                        'id': standard.id,
+                        'code': standard.code,
+                        'name': standard.name,
+                        'logo_url': standard.logo_url,
+                        'brand_id': standard.brand_id,
+                        'brand_name': standard.brand.name if standard.brand else None,
+                        'brand_logo_url': standard.brand.logo_url if standard.brand else None,
+                    }
+            
             data['exam'] = {
                 'id': self.exam.id,
                 'name': self.exam.name,
@@ -704,6 +720,8 @@ class GroupExam(db.Model):
                 'duration_minutes': self.exam.duration_minutes,
                 'passing_score': self.exam.passing_score,
                 'is_published': self.exam.is_published,
+                'competency_standard_id': self.exam.competency_standard_id,
+                'ecm': ecm_data,
             }
             
         if include_group and self.group:

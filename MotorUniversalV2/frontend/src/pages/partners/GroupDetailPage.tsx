@@ -27,7 +27,6 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronsUpDown,
-  Calendar,
   Settings,
   Trash2,
   FileText,
@@ -1071,221 +1070,281 @@ export default function GroupDetailPage() {
 
         {/* Tab: Exámenes */}
         {activeTab === 'exams' && (
-          <div>
-            {/* Toolbar de exámenes */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-3 fluid-mb-5">
-              <h3 className="text-lg font-semibold text-gray-800">
-                Exámenes y Materiales de Estudio
-              </h3>
-              <div className="flex items-center fluid-gap-2">
+          <div className="space-y-8">
+            {/* Header con acciones */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Certificaciones del Grupo</h3>
+                <p className="text-sm text-gray-500 mt-1">Gestiona los exámenes y materiales de estudio asignados</p>
+              </div>
+              <div className="flex items-center gap-2">
                 {members.length === 0 ? (
                   <div className="relative group">
                     <button
                       disabled
-                      className="inline-flex items-center fluid-gap-2 px-4 py-2 rounded-lg font-medium text-sm bg-gray-200 cursor-not-allowed text-gray-400"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm bg-gray-100 cursor-not-allowed text-gray-400"
                     >
                       <Plus className="w-4 h-4" />
-                      Asignar Examen
+                      Asignar Certificación
                     </button>
                     <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
                       Primero debes asignar candidatos
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
                     </div>
                   </div>
                 ) : (
                   <Link
                     to={`/partners/groups/${groupId}/assign-exam`}
-                    className="inline-flex items-center fluid-gap-2 px-4 py-2 rounded-lg font-medium text-sm bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/25 transition-all"
                   >
                     <Plus className="w-4 h-4" />
-                    Asignar Examen
+                    Asignar Certificación
                   </Link>
                 )}
               </div>
             </div>
 
-            {/* Sección de Exámenes */}
-            <div className="mb-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <ClipboardList className="w-5 h-5 text-blue-600" />
+            {/* Estado vacío - sin exámenes */}
+            {assignedExams.length === 0 ? (
+              <div className="text-center py-16 bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl border-2 border-dashed border-gray-200">
+                <div className="w-20 h-20 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Award className="w-10 h-10 text-blue-500" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-800">Exámenes Asignados</h3>
+                {members.length === 0 ? (
+                  <>
+                    <h4 className="text-lg font-semibold text-gray-800 mb-2">Sin certificaciones asignadas</h4>
+                    <p className="text-gray-500 max-w-md mx-auto mb-6">
+                      Para asignar certificaciones, primero debes agregar candidatos al grupo
+                    </p>
+                    <Link
+                      to={`/partners/groups/${groupId}/assign-candidates`}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-purple-600 bg-purple-50 hover:bg-purple-100 transition-colors"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      Agregar Candidatos
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <h4 className="text-lg font-semibold text-gray-800 mb-2">Sin certificaciones asignadas</h4>
+                    <p className="text-gray-500 max-w-md mx-auto mb-6">
+                      Asigna una certificación para que los candidatos puedan evaluarse
+                    </p>
+                    <Link
+                      to={`/partners/groups/${groupId}/assign-exam`}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Asignar Primera Certificación
+                    </Link>
+                  </>
+                )}
               </div>
-              
-              {assignedExams.length === 0 ? (
-                <div className="text-center fluid-py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                  <ClipboardList className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  {members.length === 0 ? (
-                    <>
-                      <h4 className="text-gray-600 font-medium mb-1">No hay exámenes asignados</h4>
-                      <p className="text-gray-400 text-sm mb-4 max-w-sm mx-auto">
-                        Primero debes asignar candidatos al grupo
-                      </p>
-                      <Link
-                        to={`/partners/groups/${groupId}/assign-candidates`}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-purple-600 hover:bg-purple-50 transition-colors"
-                      >
-                        <UserPlus className="w-4 h-4" />
-                        Agregar Candidatos
-                      </Link>
-                    </>
-                  ) : (
-                    <>
-                      <h4 className="text-gray-600 font-medium mb-1">No hay exámenes asignados</h4>
-                      <p className="text-gray-400 text-sm mb-4">
-                        Asigna un examen para que los candidatos puedan certificarse
-                      </p>
-                      <Link
-                        to={`/partners/groups/${groupId}/assign-exam`}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Asignar Examen
-                      </Link>
-                    </>
-                  )}
-                </div>
-              ) : (
-              <div className="flex flex-col fluid-gap-4">
-                {assignedExams.map((assignment) => (
-                  <div
-                    key={assignment.id}
-                    className="border border-gray-200 rounded-xl overflow-hidden hover:border-blue-300 transition-colors"
-                  >
-                    {/* Header del examen */}
-                    <div className="fluid-p-4 bg-gradient-to-r from-blue-50 to-indigo-50">
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                        <div className="flex-1">
-                          <div className="flex flex-wrap items-center gap-2 mb-2">
-                            <h4 className="font-semibold text-gray-900">
+            ) : (
+              /* Lista de exámenes agrupados por ECM */
+              <div className="space-y-6">
+                {assignedExams.map((assignment) => {
+                  const ecm = assignment.exam?.ecm;
+                  const hasMaterials = assignment.study_materials && assignment.study_materials.length > 0;
+                  
+                  return (
+                    <div
+                      key={assignment.id}
+                      className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+                    >
+                      {/* Header con ECM */}
+                      <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-5">
+                        <div className="flex items-start gap-4">
+                          {/* Logo ECM */}
+                          {ecm?.logo_url ? (
+                            <div className="w-16 h-16 bg-white rounded-xl p-2 flex-shrink-0 shadow-lg">
+                              <img
+                                src={ecm.logo_url}
+                                alt={ecm.code}
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                }}
+                              />
+                              <div className="hidden w-full h-full flex items-center justify-center">
+                                <Award className="w-8 h-8 text-slate-400" />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                              <Award className="w-8 h-8 text-white" />
+                            </div>
+                          )}
+                          
+                          {/* Info principal */}
+                          <div className="flex-1 min-w-0">
+                            {ecm?.code && (
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="px-2.5 py-0.5 bg-blue-500/20 text-blue-300 text-xs font-bold rounded-lg tracking-wide">
+                                  {ecm.code}
+                                </span>
+                                {ecm.brand_name && (
+                                  <span className="text-slate-400 text-xs">
+                                    {ecm.brand_name}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            <h4 className="text-lg font-bold text-white truncate">
                               {assignment.exam?.name || 'Examen'}
                             </h4>
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                              assignment.assignment_type === 'selected' 
-                                ? 'bg-purple-100 text-purple-700'
-                                : 'bg-blue-100 text-blue-700'
-                            }`}>
-                              {assignment.assignment_type === 'selected' ? (
-                                <><UserPlus className="h-3 w-3" />{assignment.assigned_members_count || 0} candidatos</>
-                              ) : (
-                                <><Users className="h-3 w-3" />Todo el grupo</>
-                              )}
-                            </span>
+                            {ecm?.name && ecm.name !== assignment.exam?.name && (
+                              <p className="text-slate-300 text-sm mt-0.5 line-clamp-1">
+                                {ecm.name}
+                              </p>
+                            )}
                           </div>
-                          <div className="flex flex-wrap fluid-gap-3 text-xs text-gray-600">
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3.5 h-3.5" />
-                              {assignment.time_limit_minutes || assignment.exam?.duration_minutes || 0} min
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Target className="w-3.5 h-3.5" />
-                              Aprobar: {assignment.passing_score || assignment.exam?.passing_score || 70}%
-                            </span>
-                            <span className="flex items-center gap-1 text-amber-600 font-medium">
-                              {assignment.max_attempts || 1} intento(s)
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-3.5 h-3.5" />
-                              {new Date(assignment.assigned_at).toLocaleDateString('es-MX')}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Link
-                            to={`/partners/groups/${groupId}/assignments/${assignment.exam_id}/edit-members?type=exam&name=${encodeURIComponent(assignment.exam?.name || 'Examen')}`}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 hover:bg-blue-100 rounded-lg text-blue-600 text-xs font-medium transition-colors"
-                            title="Editar candidatos asignados al examen"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Editar candidatos</span>
-                          </Link>
-                          <button
-                            onClick={() => handleUnassignExam(assignment.exam_id)}
-                            className="p-2 hover:bg-red-100 rounded-lg text-red-500 transition-colors"
-                            title="Desasignar examen"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Materiales */}
-                    <div className={`fluid-p-4 ${
-                      assignment.study_materials && assignment.study_materials.length > 0 
-                        ? 'bg-green-50/50' 
-                        : 'bg-amber-50/50'
-                    }`}>
-                      {assignment.study_materials && assignment.study_materials.length > 0 ? (
-                        <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <BookOpen className="w-4 h-4 text-green-600" />
-                              <span className="text-sm font-medium text-green-800">
-                                {assignment.study_materials.length} material{assignment.study_materials.length > 1 ? 'es' : ''} incluido{assignment.study_materials.length > 1 ? 's' : ''}
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => handleOpenMaterialsModal(assignment.id, assignment.exam?.name || 'Examen')}
-                              className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 px-2 py-1 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Modificar los materiales incluidos en este examen"
+                          {/* Acciones */}
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <Link
+                              to={`/partners/groups/${groupId}/assignments/${assignment.exam_id}/edit-members?type=exam&name=${encodeURIComponent(assignment.exam?.name || 'Examen')}`}
+                              className="p-2 hover:bg-white/10 rounded-lg text-slate-300 hover:text-white transition-colors"
+                              title="Editar candidatos"
                             >
-                              <Edit className="h-3.5 w-3.5" />
-                              Editar materiales
+                              <Edit className="w-4 h-4" />
+                            </Link>
+                            <button
+                              onClick={() => handleUnassignExam(assignment.exam_id)}
+                              className="p-2 hover:bg-red-500/20 rounded-lg text-slate-300 hover:text-red-400 transition-colors"
+                              title="Desasignar examen"
+                            >
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            {assignment.study_materials.map((material) => (
-                              <span
-                                key={material.id}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-green-200 text-green-700 rounded-lg text-xs"
-                              >
-                                <BookOpen className="h-3.5 w-3.5" />
-                                {material.title}
-                              </span>
-                            ))}
+                        </div>
+                      </div>
+
+                      {/* Configuración y stats */}
+                      <div className="px-5 py-4 bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-100">
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                              <Clock className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <span className="text-gray-500 text-xs">Duración</span>
+                              <p className="font-semibold text-gray-900">{assignment.time_limit_minutes || assignment.exam?.duration_minutes || 0} min</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                              <Target className="w-4 h-4 text-green-600" />
+                            </div>
+                            <div>
+                              <span className="text-gray-500 text-xs">Aprobar</span>
+                              <p className="font-semibold text-gray-900">{assignment.passing_score || assignment.exam?.passing_score || 70}%</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                              <Layers className="w-4 h-4 text-amber-600" />
+                            </div>
+                            <div>
+                              <span className="text-gray-500 text-xs">Intentos</span>
+                              <p className="font-semibold text-gray-900">{assignment.max_attempts || 1}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                              assignment.assignment_type === 'selected' ? 'bg-purple-100' : 'bg-indigo-100'
+                            }`}>
+                              {assignment.assignment_type === 'selected' ? (
+                                <UserPlus className="w-4 h-4 text-purple-600" />
+                              ) : (
+                                <Users className="w-4 h-4 text-indigo-600" />
+                              )}
+                            </div>
+                            <div>
+                              <span className="text-gray-500 text-xs">Asignado a</span>
+                              <p className="font-semibold text-gray-900">
+                                {assignment.assignment_type === 'selected' 
+                                  ? `${assignment.assigned_members_count || 0} candidatos`
+                                  : 'Todo el grupo'
+                                }
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      ) : (
-                        <div className="flex items-center justify-between">
+                      </div>
+
+                      {/* Materiales de estudio */}
+                      <div className="p-5">
+                        <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
-                            <BookOpen className="w-4 h-4 text-amber-600" />
-                            <span className="text-sm text-amber-800">Sin materiales de estudio</span>
+                            <BookOpen className={`w-5 h-5 ${hasMaterials ? 'text-green-600' : 'text-gray-400'}`} />
+                            <span className={`font-medium ${hasMaterials ? 'text-gray-900' : 'text-gray-500'}`}>
+                              Materiales de Estudio
+                            </span>
+                            {hasMaterials && (
+                              <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                                {assignment.study_materials!.length}
+                              </span>
+                            )}
                           </div>
                           <button
                             onClick={() => handleOpenMaterialsModal(assignment.id, assignment.exam?.name || 'Examen')}
-                            className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 px-2 py-1 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Agregar materiales de estudio al examen"
+                            className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 px-3 py-1.5 hover:bg-blue-50 rounded-lg transition-colors"
                           >
-                            <Plus className="h-3.5 w-3.5" />
-                            Agregar materiales
+                            {hasMaterials ? (
+                              <><Edit className="w-4 h-4" /> Editar</>
+                            ) : (
+                              <><Plus className="w-4 h-4" /> Agregar</>
+                            )}
                           </button>
                         </div>
-                      )}
+                        
+                        {hasMaterials ? (
+                          <div className="flex flex-wrap gap-2">
+                            {assignment.study_materials!.map((material) => (
+                              <div
+                                key={material.id}
+                                className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl text-sm"
+                              >
+                                <BookOpen className="w-4 h-4 text-green-600" />
+                                <span className="text-gray-800 font-medium">{material.title}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100">
+                            <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                            <p className="text-sm text-amber-800">
+                              Sin materiales de estudio. Los candidatos no tendrán acceso a contenido preparatorio.
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
-            </div>
 
             {/* Sección de Materiales Independientes */}
-            <div className="fluid-mt-8 pt-6 border-t border-gray-200">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-3 fluid-mb-5">
+            <div className="pt-8 border-t border-gray-200">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <BookOpen className="w-5 h-5 text-green-600" />
+                  <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/25">
+                    <BookOpen className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-800">Materiales de Estudio Adicionales</h3>
-                    <p className="text-sm text-gray-500">Materiales asignados sin estar vinculados a un examen</p>
+                    <h3 className="text-lg font-bold text-gray-900">Materiales Adicionales</h3>
+                    <p className="text-sm text-gray-500">Contenido de estudio independiente de certificaciones</p>
                   </div>
                 </div>
                 {members.length > 0 && (
                   <Link
                     to={`/partners/groups/${groupId}/assign-materials`}
-                    className="inline-flex items-center fluid-gap-2 px-4 py-2 rounded-lg font-medium text-sm bg-green-600 hover:bg-green-700 text-white transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/25 transition-all"
                   >
                     <Plus className="w-4 h-4" />
                     Asignar Material
@@ -1294,39 +1353,30 @@ export default function GroupDetailPage() {
               </div>
 
               {directMaterials.length === 0 ? (
-                <div className="text-center fluid-py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                <div className="text-center py-12 bg-gradient-to-br from-gray-50 to-green-50 rounded-2xl border-2 border-dashed border-gray-200">
                   <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <h4 className="text-gray-600 font-medium mb-1">Sin materiales independientes</h4>
-                  <p className="text-gray-400 text-sm mb-4">
-                    Puedes asignar materiales de estudio sin necesidad de un examen
+                  <h4 className="text-gray-600 font-medium mb-1">Sin materiales adicionales</h4>
+                  <p className="text-gray-400 text-sm max-w-sm mx-auto">
+                    Puedes asignar materiales de estudio sin vincularlos a una certificación
                   </p>
-                  {members.length > 0 && (
-                    <Link
-                      to={`/partners/groups/${groupId}/assign-materials`}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-green-600 hover:bg-green-50 transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Agregar Materiales
-                    </Link>
-                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {directMaterials.map((assignment) => (
                     <div
                       key={assignment.id}
-                      className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+                      className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all group"
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                          <BookOpen className="w-6 h-6 text-green-600" />
+                        </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2">
-                            <BookOpen className="w-5 h-5 text-green-600 flex-shrink-0" />
-                            <h4 className="font-semibold text-gray-900 truncate">
-                              {assignment.study_material?.title || 'Material'}
-                            </h4>
-                          </div>
-                          <div className="flex flex-wrap gap-2 text-xs text-gray-600">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium ${
+                          <h4 className="font-semibold text-gray-900 truncate group-hover:text-green-700 transition-colors">
+                            {assignment.study_material?.title || 'Material'}
+                          </h4>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
                               assignment.assignment_type === 'selected' 
                                 ? 'bg-purple-100 text-purple-700'
                                 : 'bg-blue-100 text-blue-700'
@@ -1334,33 +1384,23 @@ export default function GroupDetailPage() {
                               {assignment.assignment_type === 'selected' ? (
                                 <><UserPlus className="h-3 w-3" />Específicos</>
                               ) : (
-                                <><Users className="h-3 w-3" />Todo el grupo</>
+                                <><Users className="h-3 w-3" />Todos</>
                               )}
                             </span>
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-3.5 h-3.5" />
-                              {new Date(assignment.assigned_at).toLocaleDateString('es-MX')}
-                            </span>
                           </div>
-                          {assignment.study_material?.description && (
-                            <p className="text-xs text-gray-500 mt-2 line-clamp-2">
-                              {assignment.study_material.description}
-                            </p>
-                          )}
                         </div>
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Link
                             to={`/partners/groups/${groupId}/assignments/${assignment.study_material_id}/edit-members?type=material&name=${encodeURIComponent(assignment.study_material?.title || 'Material')}`}
-                            className="inline-flex items-center gap-1 px-2 py-1 hover:bg-blue-100 rounded-lg text-blue-500 hover:text-blue-600 text-xs font-medium transition-colors"
-                            title="Editar candidatos asignados a este material"
+                            className="p-1.5 hover:bg-blue-100 rounded-lg text-blue-500 transition-colors"
+                            title="Editar candidatos"
                           >
-                            <Edit className="w-3.5 h-3.5" />
-                            <span className="hidden xl:inline">Candidatos</span>
+                            <Edit className="w-4 h-4" />
                           </Link>
                           <button
                             onClick={() => handleUnassignMaterial(assignment.study_material_id)}
-                            className="p-1.5 hover:bg-red-100 rounded-lg text-red-400 hover:text-red-600 transition-colors"
-                            title="Desasignar material"
+                            className="p-1.5 hover:bg-red-100 rounded-lg text-red-400 transition-colors"
+                            title="Desasignar"
                           >
                             <X className="w-4 h-4" />
                           </button>

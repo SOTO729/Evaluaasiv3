@@ -206,7 +206,9 @@ const VerifyPage = () => {
                   <Calendar className="w-6 h-6 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Fecha de Completación</p>
+                  <p className="text-sm text-gray-500">
+                    {data.document_type === 'evaluation_report' ? 'Fecha de Evaluación' : 'Fecha de Certificación'}
+                  </p>
                   <p className="font-semibold text-gray-900">{data.certification.completion_date}</p>
                 </div>
               </div>

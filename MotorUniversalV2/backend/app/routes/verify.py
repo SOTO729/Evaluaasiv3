@@ -133,7 +133,7 @@ def verify_certificate(code):
                             brand_name = standard.brand.name
                         break
     
-    # Formatear fecha de completación en español
+    # Formatear fecha de certificación en español
     completion_date = None
     if result.end_date or result.start_date:
         date_to_format = result.end_date or result.start_date

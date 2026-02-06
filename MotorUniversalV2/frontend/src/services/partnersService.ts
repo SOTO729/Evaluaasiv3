@@ -1166,6 +1166,16 @@ export interface GroupExamAssignment {
     duration_minutes: number;
     passing_score: number;
     is_published: boolean;
+    competency_standard_id?: number;
+    ecm?: {
+      id: number;
+      code: string;
+      name: string;
+      logo_url?: string;
+      brand_id?: number;
+      brand_name?: string;
+      brand_logo_url?: string;
+    } | null;
   };
   study_materials?: Array<{
     id: number;
