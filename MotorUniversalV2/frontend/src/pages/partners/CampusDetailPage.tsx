@@ -76,6 +76,51 @@ export default function CampusDetailPage() {
   const [createdCycleName, setCreatedCycleName] = useState('');
   const modalRef = useRef<HTMLDivElement>(null);
   
+  // Función para generar el nombre del ciclo basado en las fechas
+  const generateCycleName = (startDate: string, endDate: string): string => {
+    if (!startDate || !endDate) return '';
+    
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T00:00:00');
+    
+    const startYear = start.getFullYear();
+    const endYear = end.getFullYear();
+    
+    // Calcular diferencia en meses
+    const diffMonths = (endYear - startYear) * 12 + (end.getMonth() - start.getMonth());
+    
+    const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    
+    // Si es un año o más, usar formato "Ciclo Escolar YYYY - YYYY"
+    if (diffMonths >= 12) {
+      if (startYear === endYear) {
+        return `Ciclo Escolar ${startYear}`;
+      }
+      return `Ciclo Escolar ${startYear} - ${endYear}`;
+    }
+    
+    // Si es menor a un año
+    const startMonth = meses[start.getMonth()];
+    const endMonth = meses[end.getMonth()];
+    
+    if (startYear === endYear) {
+      // Mismo año: "Ciclo Escolar Enero - Junio 2026"
+      return `Ciclo Escolar ${startMonth} - ${endMonth} ${startYear}`;
+    } else {
+      // Diferente año: "Ciclo Escolar Septiembre 2025 - Enero 2026"
+      return `Ciclo Escolar ${startMonth} ${startYear} - ${endMonth} ${endYear}`;
+    }
+  };
+  
+  // Actualizar nombre del ciclo cuando cambien las fechas
+  useEffect(() => {
+    if (newCycleForm.start_date && newCycleForm.end_date) {
+      const generatedName = generateCycleName(newCycleForm.start_date, newCycleForm.end_date);
+      setNewCycleForm(prev => ({ ...prev, name: generatedName }));
+    }
+  }, [newCycleForm.start_date, newCycleForm.end_date]);
+  
   // Estado para eliminación permanente (solo admin)
   const [showPermanentDeleteModal, setShowPermanentDeleteModal] = useState(false);
   const [isDeletingPermanently, setIsDeletingPermanently] = useState(false);
@@ -146,14 +191,18 @@ export default function CampusDetailPage() {
   };
 
   const handleCreateCycle = async () => {
-    if (!newCycleForm.name || !newCycleForm.start_date || !newCycleForm.end_date) return;
+    if (!newCycleForm.start_date || !newCycleForm.end_date) return;
+    
+    // Asegurar que el nombre esté generado
+    const cycleName = newCycleForm.name || generateCycleName(newCycleForm.start_date, newCycleForm.end_date);
     
     try {
       setIsCreatingCycle(true);
-      const newCycle = await createSchoolCycle(Number(campusId), newCycleForm);
+      const cycleData = { ...newCycleForm, name: cycleName };
+      const newCycle = await createSchoolCycle(Number(campusId), cycleData);
       setCycles(prev => [newCycle, ...prev]);
       setSelectedCycleId(newCycle.id);
-      setCreatedCycleName(newCycleForm.name);
+      setCreatedCycleName(cycleName);
       setShowNewCycleModal(false);
       setNewCycleForm({ name: '', cycle_type: 'annual', start_date: '', end_date: '', is_current: true });
       setShowCycleSuccessModal(true);
@@ -809,17 +858,6 @@ export default function CampusDetailPage() {
               <p className="fluid-text-sm text-gray-500 fluid-mt-2">Crea un nuevo ciclo escolar para organizar los grupos del plantel</p>
             </div>
             <div className="fluid-p-6 fluid-space-y-5">
-              <div>
-                <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2">Nombre del ciclo *</label>
-                <input
-                  type="text"
-                  value={newCycleForm.name}
-                  onChange={(e) => setNewCycleForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Ej: 2026-2027"
-                  className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all hover:border-blue-300"
-                  autoFocus
-                />
-              </div>
               <div className="grid grid-cols-2 fluid-gap-5">
                 <div>
                   <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2">Fecha inicio *</label>
@@ -828,6 +866,7 @@ export default function CampusDetailPage() {
                     value={newCycleForm.start_date}
                     onChange={(e) => setNewCycleForm(prev => ({ ...prev, start_date: e.target.value }))}
                     className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all hover:border-blue-300"
+                    autoFocus
                   />
                 </div>
                 <div>
@@ -840,6 +879,12 @@ export default function CampusDetailPage() {
                   />
                 </div>
               </div>
+              {newCycleForm.start_date && newCycleForm.end_date && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-fluid-xl fluid-p-4 border border-blue-200">
+                  <label className="block fluid-text-sm font-medium text-blue-700 fluid-mb-1">Nombre del ciclo (generado automáticamente)</label>
+                  <p className="fluid-text-lg font-bold text-blue-900">{newCycleForm.name || 'Selecciona las fechas'}</p>
+                </div>
+              )}
             </div>
             <div className="fluid-p-6 border-t border-gray-200 flex justify-end fluid-gap-4 bg-gray-50">
               <button
@@ -850,7 +895,7 @@ export default function CampusDetailPage() {
               </button>
               <button
                 onClick={handleCreateCycle}
-                disabled={isCreatingCycle || !newCycleForm.name || !newCycleForm.start_date || !newCycleForm.end_date}
+                disabled={isCreatingCycle || !newCycleForm.start_date || !newCycleForm.end_date}
                 className="fluid-px-6 fluid-py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-fluid-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 fluid-text-sm font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5"
               >
                 {isCreatingCycle ? (
