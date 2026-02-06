@@ -24,6 +24,8 @@ import {
   CheckSquare,
   Square,
   FileSpreadsheet,
+  UsersRound,
+  X,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import BulkUploadModal from '../../components/users/BulkUploadModal';
@@ -34,12 +36,15 @@ import {
   getAvailableRoles,
   exportSelectedUsersCredentials,
   exportFilteredUsersCredentials,
+  getAvailableCampuses,
   ManagedUser,
   UserStats,
   RoleOption,
+  AvailableCampus,
   ROLE_LABELS,
   ROLE_COLORS,
 } from '../../services/userManagementService';
+import { getGroups, addGroupMembersBulk, CandidateGroup } from '../../services/partnersService';
 import { useAuthStore } from '../../store/authStore';
 
 // Categorías de roles para los tabs
@@ -89,6 +94,16 @@ export default function UsersListPage() {
   // Selección de usuarios para exportar
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
+  
+  // Modal de asignar a grupo
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [campuses, setCampuses] = useState<AvailableCampus[]>([]);
+  const [selectedCampusId, setSelectedCampusId] = useState<number | null>(null);
+  const [groups, setGroups] = useState<CandidateGroup[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [assignMessage, setAssignMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   
   const isAdmin = currentUser?.role === 'admin';
   
@@ -257,6 +272,108 @@ export default function UsersListPage() {
       setError(err.message || 'Error al exportar usuarios');
     } finally {
       setIsExporting(false);
+    }
+  };
+  
+  // ============== FUNCIONES DE ASIGNAR A GRUPO ==============
+  
+  // Abrir modal de asignar a grupo
+  const openAssignModal = async () => {
+    if (selectedUsers.size === 0) {
+      setError('Selecciona al menos un usuario para asignar a un grupo');
+      return;
+    }
+    
+    // Solo candidatos pueden ser asignados a grupos
+    const selectedCandidatos = users.filter(u => selectedUsers.has(u.id) && u.role === 'candidato');
+    if (selectedCandidatos.length === 0) {
+      setError('Solo los candidatos pueden ser asignados a grupos. Ninguno de los usuarios seleccionados es candidato.');
+      return;
+    }
+    
+    setShowAssignModal(true);
+    setAssignMessage(null);
+    setSelectedCampusId(null);
+    setSelectedGroupId(null);
+    setGroups([]);
+    
+    // Cargar campus disponibles
+    try {
+      const data = await getAvailableCampuses();
+      setCampuses(data.campuses);
+    } catch (err: any) {
+      setError('Error al cargar los planteles disponibles');
+    }
+  };
+  
+  // Cargar grupos cuando se selecciona un campus
+  const loadGroupsForCampus = async (campusId: number) => {
+    setSelectedCampusId(campusId);
+    setSelectedGroupId(null);
+    setGroups([]);
+    setIsLoadingGroups(true);
+    
+    try {
+      const data = await getGroups(campusId, { active_only: true });
+      setGroups(data.groups);
+    } catch (err: any) {
+      setError('Error al cargar los grupos del plantel');
+    } finally {
+      setIsLoadingGroups(false);
+    }
+  };
+  
+  // Asignar usuarios seleccionados al grupo
+  const handleAssignToGroup = async () => {
+    if (!selectedGroupId) {
+      setAssignMessage({ type: 'error', text: 'Selecciona un grupo' });
+      return;
+    }
+    
+    // Filtrar solo candidatos de los seleccionados
+    const candidatoIds = users
+      .filter(u => selectedUsers.has(u.id) && u.role === 'candidato')
+      .map(u => u.id);
+    
+    if (candidatoIds.length === 0) {
+      setAssignMessage({ type: 'error', text: 'No hay candidatos seleccionados para asignar' });
+      return;
+    }
+    
+    setIsAssigning(true);
+    setAssignMessage(null);
+    
+    try {
+      const result = await addGroupMembersBulk(selectedGroupId, candidatoIds);
+      
+      const successMsg = `${result.added.length} usuario(s) agregado(s) al grupo`;
+      const errorCount = result.errors.length;
+      
+      if (errorCount > 0) {
+        // Mostrar errores comunes
+        const alreadyMembers = result.errors.filter(e => e.error === 'Ya es miembro').length;
+        const errorDetails = alreadyMembers > 0 
+          ? ` (${alreadyMembers} ya eran miembros)` 
+          : ` (${errorCount} error(es))`;
+        setAssignMessage({ 
+          type: result.added.length > 0 ? 'success' : 'error', 
+          text: successMsg + errorDetails 
+        });
+      } else {
+        setAssignMessage({ type: 'success', text: successMsg });
+      }
+      
+      // Limpiar selección si todos fueron exitosos
+      if (errorCount === 0) {
+        setTimeout(() => {
+          setShowAssignModal(false);
+          setSelectedUsers(new Set());
+        }, 1500);
+      }
+    } catch (err: any) {
+      setAssignMessage({ type: 'error', text: err.message || 'Error al asignar usuarios al grupo' });
+    } finally {
+      setIsAssigning(false);
     }
   };
   
@@ -569,6 +686,16 @@ export default function UsersListPage() {
                 <FileSpreadsheet className="fluid-icon-sm" />
                 Exportar Filtrados
               </button>
+              
+              <button
+                onClick={openAssignModal}
+                disabled={selectedUsers.size === 0 || isExporting}
+                className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-fluid-lg font-medium fluid-text-sm transition-colors"
+                title="Asignar candidatos seleccionados a un grupo"
+              >
+                <UsersRound className="fluid-icon-sm" />
+                Asignar a Grupo
+              </button>
             </div>
           </div>
         )}
@@ -737,6 +864,124 @@ export default function UsersListPage() {
           </div>
         )}
       </div>
+      
+      {/* Modal de asignar a grupo */}
+      {showAssignModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 fluid-p-4">
+          <div className="bg-white rounded-fluid-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between fluid-px-6 fluid-py-4 border-b border-gray-200">
+              <h3 className="fluid-text-lg font-semibold text-gray-900 flex items-center fluid-gap-2">
+                <UsersRound className="fluid-icon-md text-blue-600" />
+                Asignar a Grupo
+              </h3>
+              <button
+                onClick={() => setShowAssignModal(false)}
+                className="fluid-p-1 hover:bg-gray-100 rounded-fluid transition-colors"
+              >
+                <X className="fluid-icon-sm text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div className="fluid-px-6 fluid-py-4 space-y-4">
+              <p className="fluid-text-sm text-gray-600">
+                Seleccionaste <strong className="text-blue-600">{selectedUsers.size}</strong> usuario(s).
+                Solo los candidatos serán agregados al grupo.
+              </p>
+              
+              {/* Selector de Campus */}
+              <div>
+                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                  1. Selecciona un plantel
+                </label>
+                <select
+                  value={selectedCampusId || ''}
+                  onChange={(e) => e.target.value && loadGroupsForCampus(Number(e.target.value))}
+                  className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">-- Selecciona plantel --</option>
+                  {campuses.map(campus => (
+                    <option key={campus.id} value={campus.id}>
+                      {campus.name} ({campus.partner_name})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Selector de Grupo */}
+              {selectedCampusId && (
+                <div>
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                    2. Selecciona un grupo
+                  </label>
+                  {isLoadingGroups ? (
+                    <div className="flex items-center justify-center fluid-py-4">
+                      <div className="fluid-w-6 fluid-h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                      <span className="fluid-ml-2 fluid-text-sm text-gray-600">Cargando grupos...</span>
+                    </div>
+                  ) : groups.length === 0 ? (
+                    <p className="fluid-text-sm text-gray-500 fluid-py-2">
+                      No hay grupos activos en este plantel
+                    </p>
+                  ) : (
+                    <select
+                      value={selectedGroupId || ''}
+                      onChange={(e) => setSelectedGroupId(Number(e.target.value) || null)}
+                      className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">-- Selecciona grupo --</option>
+                      {groups.map(group => (
+                        <option key={group.id} value={group.id}>
+                          {group.name} {group.school_cycle?.name ? `(${group.school_cycle.name})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+              
+              {/* Mensaje de resultado */}
+              {assignMessage && (
+                <div className={`fluid-p-3 rounded-fluid-lg fluid-text-sm ${
+                  assignMessage.type === 'success' 
+                    ? 'bg-green-50 text-green-700 border border-green-200' 
+                    : 'bg-red-50 text-red-700 border border-red-200'
+                }`}>
+                  {assignMessage.text}
+                </div>
+              )}
+            </div>
+            
+            {/* Footer */}
+            <div className="flex items-center justify-end fluid-gap-3 fluid-px-6 fluid-py-4 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setShowAssignModal(false)}
+                className="fluid-px-4 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleAssignToGroup}
+                disabled={!selectedGroupId || isAssigning}
+                className="fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-fluid-lg fluid-text-sm font-medium transition-colors inline-flex items-center fluid-gap-2"
+              >
+                {isAssigning ? (
+                  <>
+                    <div className="fluid-w-4 fluid-h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Asignando...
+                  </>
+                ) : (
+                  <>
+                    <UsersRound className="fluid-icon-sm" />
+                    Asignar al Grupo
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
