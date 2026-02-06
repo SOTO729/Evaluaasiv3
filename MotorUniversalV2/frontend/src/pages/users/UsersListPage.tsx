@@ -23,7 +23,6 @@ import {
   Calendar,
   CheckSquare,
   Square,
-  FileSpreadsheet,
   UsersRound,
   X,
   ChevronUp,
@@ -38,7 +37,6 @@ import {
   toggleUserActive,
   getAvailableRoles,
   exportSelectedUsersCredentials,
-  exportFilteredUsersCredentials,
   getAvailableCampuses,
   ManagedUser,
   UserStats,
@@ -80,6 +78,7 @@ export default function UsersListPage() {
   
   // Filtros y paginación
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState(searchParams.get('search') || '');
@@ -94,7 +93,7 @@ export default function UsersListPage() {
   const [createdFrom, setCreatedFrom] = useState('');
   const [createdTo, setCreatedTo] = useState('');
   
-  // Selección de usuarios para exportar
+  // Selección de usuarios para exportar (persiste entre páginas)
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
   
@@ -125,7 +124,7 @@ export default function UsersListPage() {
 
   useEffect(() => {
     loadData();
-  }, [page, roleFilter, activeFilter, activeTab, sortField, sortDirection]);
+  }, [page, perPage, roleFilter, activeFilter, activeTab, sortField, sortDirection]);
 
   useEffect(() => {
     loadRoles();
@@ -160,7 +159,7 @@ export default function UsersListPage() {
       
       const data = await getUsers({
         page,
-        per_page: 20,
+        per_page: perPage,
         search: search || undefined,
         role: rolesToFilter,
         is_active: activeFilter || undefined,
@@ -257,16 +256,39 @@ export default function UsersListPage() {
     });
   };
   
+  // IDs de usuarios en la página actual
+  const currentPageUserIds = users.map(u => u.id);
+  
+  // Verificar si todos los de la página actual están seleccionados
+  const allCurrentPageSelected = users.length > 0 && currentPageUserIds.every(id => selectedUsers.has(id));
+  const someCurrentPageSelected = users.length > 0 && currentPageUserIds.some(id => selectedUsers.has(id)) && !allCurrentPageSelected;
+  
   const toggleSelectAll = () => {
-    if (selectedUsers.size === users.length) {
-      setSelectedUsers(new Set());
+    if (allCurrentPageSelected) {
+      // Deseleccionar solo los de la página actual
+      setSelectedUsers(prev => {
+        const newSet = new Set(prev);
+        currentPageUserIds.forEach(id => newSet.delete(id));
+        return newSet;
+      });
     } else {
-      setSelectedUsers(new Set(users.map(u => u.id)));
+      // Agregar todos los de la página actual a la selección
+      setSelectedUsers(prev => {
+        const newSet = new Set(prev);
+        currentPageUserIds.forEach(id => newSet.add(id));
+        return newSet;
+      });
     }
   };
   
-  const isAllSelected = users.length > 0 && selectedUsers.size === users.length;
-  const isSomeSelected = selectedUsers.size > 0 && selectedUsers.size < users.length;
+  // Para compatibilidad con el código existente
+  const isAllSelected = allCurrentPageSelected;
+  const isSomeSelected = someCurrentPageSelected;
+  
+  // Limpiar selección
+  const clearSelection = () => {
+    setSelectedUsers(new Set());
+  };
   
   // Exportar usuarios seleccionados
   const handleExportSelected = async () => {
@@ -278,28 +300,6 @@ export default function UsersListPage() {
     try {
       setIsExporting(true);
       await exportSelectedUsersCredentials(Array.from(selectedUsers));
-    } catch (err: any) {
-      setError(err.message || 'Error al exportar usuarios');
-    } finally {
-      setIsExporting(false);
-    }
-  };
-  
-  // Exportar usuarios con filtros actuales
-  const handleExportFiltered = async () => {
-    try {
-      setIsExporting(true);
-      
-      const tabConfig = TAB_CONFIG[activeTab];
-      const rolesToFilter = roleFilter || (tabConfig.roles ? tabConfig.roles.join(',') : undefined);
-      
-      await exportFilteredUsersCredentials({
-        search: search || undefined,
-        role: rolesToFilter,
-        is_active: activeFilter ? activeFilter === 'true' : undefined,
-        created_from: createdFrom || undefined,
-        created_to: createdTo || undefined,
-      });
     } catch (err: any) {
       setError(err.message || 'Error al exportar usuarios');
     } finally {
@@ -683,9 +683,17 @@ export default function UsersListPage() {
             <div className="flex items-center fluid-gap-3">
               <span className="fluid-text-sm text-gray-600">
                 {selectedUsers.size > 0 ? (
-                  <span className="font-semibold text-blue-600">{selectedUsers.size} usuarios seleccionados</span>
+                  <>
+                    <span className="font-semibold text-blue-600">{selectedUsers.size} usuarios seleccionados</span>
+                    <button
+                      onClick={clearSelection}
+                      className="ml-2 text-red-600 hover:text-red-800 underline fluid-text-xs"
+                    >
+                      (Limpiar selección)
+                    </button>
+                  </>
                 ) : (
-                  'Selecciona usuarios para exportar'
+                  'Selecciona usuarios con los checkboxes para exportar o asignar a grupo'
                 )}
               </span>
             </div>
@@ -707,16 +715,6 @@ export default function UsersListPage() {
                     Exportar Seleccionados ({selectedUsers.size})
                   </>
                 )}
-              </button>
-              
-              <button
-                onClick={handleExportFiltered}
-                disabled={isExporting}
-                className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-fluid-lg font-medium fluid-text-sm transition-colors"
-                title="Exporta todos los usuarios que cumplan con los filtros actuales"
-              >
-                <FileSpreadsheet className="fluid-icon-sm" />
-                Exportar Filtrados
               </button>
               
               <button
@@ -909,29 +907,57 @@ export default function UsersListPage() {
         )}
         
         {/* Paginación */}
-        {totalPages > 1 && (
-          <div className="fluid-px-4 fluid-py-3 border-t border-gray-200 flex items-center justify-between">
-            <p className="fluid-text-sm text-gray-600">
-              Mostrando {users.length} de {total} usuarios
-            </p>
-            <div className="flex items-center fluid-gap-2">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="fluid-p-2 rounded-fluid-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-              >
-                <ChevronLeft className="fluid-icon-sm" />
-              </button>
-              <span className="fluid-px-3 fluid-py-1 fluid-text-sm text-gray-700">
-                {page} / {totalPages}
-              </span>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="fluid-p-2 rounded-fluid-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-              >
-                <ChevronRight className="fluid-icon-sm" />
-              </button>
+        {totalPages >= 1 && (
+          <div className="fluid-px-4 fluid-py-3 border-t border-gray-200 flex flex-wrap items-center justify-between fluid-gap-4">
+            <div className="flex items-center fluid-gap-4">
+              <p className="fluid-text-sm text-gray-600">
+                Mostrando {users.length} de {total} usuarios
+              </p>
+              {selectedUsers.size > 0 && (
+                <span className="fluid-text-sm font-medium text-blue-600">
+                  ({selectedUsers.size} seleccionados en total)
+                </span>
+              )}
+            </div>
+            <div className="flex items-center fluid-gap-4">
+              {/* Selector de elementos por página */}
+              <div className="flex items-center fluid-gap-2">
+                <span className="fluid-text-sm text-gray-600">Por página:</span>
+                <select
+                  value={perPage}
+                  onChange={(e) => {
+                    setPerPage(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="fluid-px-2 fluid-py-1 border border-gray-300 rounded-fluid fluid-text-sm focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+              
+              {/* Navegación de páginas */}
+              <div className="flex items-center fluid-gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="fluid-p-2 rounded-fluid-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  <ChevronLeft className="fluid-icon-sm" />
+                </button>
+                <span className="fluid-px-3 fluid-py-1 fluid-text-sm text-gray-700">
+                  {page} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="fluid-p-2 rounded-fluid-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  <ChevronRight className="fluid-icon-sm" />
+                </button>
+              </div>
             </div>
           </div>
         )}
