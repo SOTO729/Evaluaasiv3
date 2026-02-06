@@ -505,3 +505,163 @@ def add_campus_website_column():
             'status': 'error',
             'message': str(e)
         }), 500
+
+
+@init_bp.route('/emergency-exam-results', methods=['POST'])
+def emergency_exam_results():
+    """
+    Endpoint de EMERGENCIA para crear resultados de examen aprobados
+    para un grupo específico. USAR CON PRECAUCIÓN.
+    """
+    from datetime import timedelta
+    import uuid
+    from app.models.result import Result
+    from app.models.partner import CandidateGroup, GroupMember, GroupExam, GroupExamMember
+    from app.models.exam import Exam
+    
+    token = request.headers.get('X-Init-Token') or request.args.get('token')
+    if token != INIT_TOKEN:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json() or {}
+    group_name = data.get('group_name', 'Grupo Emergencia Educare')
+    score = data.get('score', 100)
+    
+    try:
+        # 1. Buscar el grupo
+        group = CandidateGroup.query.filter(
+            CandidateGroup.name.ilike(f'%{group_name}%')
+        ).first()
+        
+        if not group:
+            all_groups = CandidateGroup.query.all()
+            return jsonify({
+                'error': f'No se encontró grupo con nombre "{group_name}"',
+                'available_groups': [{'id': g.id, 'name': g.name} for g in all_groups]
+            }), 404
+        
+        # 2. Obtener miembros activos
+        members = GroupMember.query.filter_by(
+            group_id=group.id,
+            status='active'
+        ).all()
+        
+        # 3. Obtener exámenes asignados
+        group_exams = GroupExam.query.filter_by(
+            group_id=group.id,
+            is_active=True
+        ).all()
+        
+        # Pre-cargar los exámenes para evitar autoflush issues
+        exams_dict = {}
+        for ge in group_exams:
+            exam = Exam.query.get(ge.exam_id)
+            if exam:
+                exams_dict[ge.exam_id] = exam
+        
+        results_created = []
+        results_skipped = []
+        
+        for member in members:
+            user = member.user
+            if not user:
+                continue
+            
+            for group_exam in group_exams:
+                exam = exams_dict.get(group_exam.exam_id)
+                if not exam:
+                    continue
+                
+                # Verificar acceso
+                has_access = False
+                if group_exam.assignment_type == 'all':
+                    has_access = True
+                else:
+                    exam_member = GroupExamMember.query.filter_by(
+                        group_exam_id=group_exam.id,
+                        user_id=user.id
+                    ).first()
+                    has_access = exam_member is not None
+                
+                if not has_access:
+                    continue
+                
+                # Verificar resultado existente
+                existing_result = Result.query.filter_by(
+                    user_id=user.id,
+                    exam_id=exam.id,
+                    status=1,
+                    result=1
+                ).first()
+                
+                if existing_result:
+                    results_skipped.append({
+                        'user': user.full_name,
+                        'email': user.email,
+                        'exam': exam.name,
+                        'reason': 'Ya tiene resultado aprobado'
+                    })
+                    continue
+                
+                # Crear resultado
+                now = datetime.utcnow()
+                start_time = now - timedelta(minutes=30)
+                
+                # Generar códigos únicos para certificados
+                unique_suffix = str(uuid.uuid4())[:8].upper()
+                cert_code = f'ZC{now.strftime("%y%m%d")}{unique_suffix}'
+                eduit_code = f'EC{now.strftime("%y%m%d")}{unique_suffix}'
+                
+                new_result = Result(
+                    id=str(uuid.uuid4()),
+                    user_id=user.id,
+                    exam_id=exam.id,
+                    competency_standard_id=getattr(exam, 'competency_standard_id', None),
+                    score=score,
+                    status=1,
+                    result=1,
+                    start_date=start_time,
+                    end_date=now,
+                    duration_seconds=1800,
+                    ip_address='192.168.1.1',
+                    user_agent='Emergency Script',
+                    browser='Emergency Script',
+                    certificate_code=cert_code,
+                    eduit_certificate_code=eduit_code,
+                    pdf_status='pending'
+                )
+                
+                db.session.add(new_result)
+                results_created.append({
+                    'user': user.full_name,
+                    'email': user.email,
+                    'exam': exam.name,
+                    'result_id': new_result.id
+                })
+        
+        if results_created:
+            db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'group': {
+                'id': group.id,
+                'name': group.name
+            },
+            'members_count': len(members),
+            'exams_count': len(group_exams),
+            'exams': [{'id': ge.exam_id, 'name': exams_dict.get(ge.exam_id).name if exams_dict.get(ge.exam_id) else 'N/A'} for ge in group_exams],
+            'results_created': len(results_created),
+            'results_skipped': len(results_skipped),
+            'created_details': results_created,
+            'skipped_details': results_skipped
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
