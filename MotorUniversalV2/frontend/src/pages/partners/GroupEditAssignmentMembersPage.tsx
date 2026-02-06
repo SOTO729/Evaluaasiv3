@@ -102,12 +102,8 @@ export default function GroupEditAssignmentMembersPage() {
 
   const processedMembers = useMemo(() => {
     let filtered = members.filter((m) => {
-      const alreadyHasAssignment = type === 'exam' ? m.has_exam : m.has_material;
-      const wasOriginallyAssigned = assignedUserIds.includes(m.user_id);
-      
-      if (alreadyHasAssignment && !wasOriginallyAssigned) {
-        return false;
-      }
+      // Permitir asignar múltiples exámenes al mismo candidato
+      // Ya no filtramos por has_exam o has_material
       
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
@@ -448,6 +444,7 @@ export default function GroupEditAssignmentMembersPage() {
                   const wasOriginallyAssigned = assignedUserIds.includes(member.user_id);
                   const isNewlyAdded = isSelected && !wasOriginallyAssigned;
                   const isBeingRemoved = !isSelected && wasOriginallyAssigned;
+                  const hasOtherExams = type === 'exam' && member.has_exam && !wasOriginallyAssigned;
 
                   return (
                     <tr
@@ -477,9 +474,17 @@ export default function GroupEditAssignmentMembersPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="font-medium text-gray-900">
-                          {member.user?.full_name || 'Sin nombre'}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900">
+                            {member.user?.full_name || 'Sin nombre'}
+                          </span>
+                          {hasOtherExams && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700" title="Tiene otros exámenes asignados">
+                              <ClipboardList className="w-3 h-3 mr-0.5" />
+                              +exámenes
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-gray-600">{member.user?.email || '-'}</span>
