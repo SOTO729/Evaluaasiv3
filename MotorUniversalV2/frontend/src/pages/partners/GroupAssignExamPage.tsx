@@ -302,13 +302,19 @@ export default function GroupAssignExamPage() {
   };
 
   const handleBulkUpload = async () => {
-    if (!bulkFile) return;
+    if (!bulkFile || !selectedExam) return;
+    
+    const ecmCode = selectedExam.ecm_code || selectedExam.standard;
+    if (!ecmCode) {
+      setError('El examen seleccionado no tiene código ECM');
+      return;
+    }
     
     setBulkUploading(true);
     setBulkResult(null);
     
     try {
-      const result = await bulkAssignExamsByECM(Number(groupId), bulkFile, {
+      const result = await bulkAssignExamsByECM(Number(groupId), bulkFile, ecmCode, {
         time_limit_minutes: useExamDefaultTime ? undefined : (timeLimitMinutes || undefined),
         passing_score: useExamDefaultScore ? undefined : passingScore,
         max_attempts: maxAttempts,

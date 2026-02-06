@@ -1908,11 +1908,14 @@ export interface BulkExamAssignResult {
 }
 
 /**
- * Procesamiento masivo de asignación de exámenes por código ECM
+ * Procesamiento masivo de asignación de exámenes.
+ * El archivo Excel contiene la lista de usuarios a asignar (identificados por username, email o curp).
+ * El ECM del examen se pasa como parámetro.
  */
 export async function bulkAssignExamsByECM(
   groupId: number, 
   file: File,
+  ecmCode: string,
   config?: {
     time_limit_minutes?: number;
     passing_score?: number;
@@ -1923,6 +1926,7 @@ export async function bulkAssignExamsByECM(
 ): Promise<BulkExamAssignResult> {
   const formData = new FormData();
   formData.append('file', file);
+  formData.append('ecm_code', ecmCode);
   
   if (config) {
     if (config.time_limit_minutes) formData.append('time_limit_minutes', config.time_limit_minutes.toString());
