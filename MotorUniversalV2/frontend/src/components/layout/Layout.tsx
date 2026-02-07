@@ -236,7 +236,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Mi Plantel
                   </Link>
                 )}
-                {user?.role === 'financiero' && (
+                {['financiero', 'admin'].includes(user?.role ?? '') && (
                   <Link 
                     to="/financiero" 
                     className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -245,10 +245,10 @@ const Layout = ({ children }: LayoutProps) => {
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
                     }`}
                   >
-                    Solicitudes
+                    Financiero
                   </Link>
                 )}
-                {user?.role === 'gerente' && (
+                {['gerente', 'admin'].includes(user?.role ?? '') && (
                   <Link 
                     to="/gerente" 
                     className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -489,7 +489,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {user?.role === 'financiero' && (
+              {['financiero', 'admin'].includes(user?.role ?? '') && (
                 <Link 
                   to="/financiero" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -502,11 +502,11 @@ const Layout = ({ children }: LayoutProps) => {
                     <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Solicitudes
+                    Financiero
                   </div>
                 </Link>
               )}
-              {user?.role === 'gerente' && (
+              {['gerente', 'admin'].includes(user?.role ?? '') && (
                 <Link 
                   to="/gerente" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
