@@ -16,6 +16,80 @@ def get_client_ip():
     return request.remote_addr or 'unknown'
 
 
+# ============= BLOQUEO DE CUENTA POR INTENTOS FALLIDOS =============
+
+def get_failed_login_count(username: str) -> int:
+    """Obtener el número de intentos fallidos para un usuario"""
+    try:
+        cache_key = f"failed_login:{username.lower()}"
+        count = cache.get(cache_key)
+        return count if count else 0
+    except Exception:
+        return 0
+
+
+def increment_failed_login(username: str) -> int:
+    """Incrementar contador de intentos fallidos. Retorna el nuevo conteo."""
+    try:
+        cache_key = f"failed_login:{username.lower()}"
+        current = cache.get(cache_key) or 0
+        new_count = current + 1
+        # Mantener el contador por 30 minutos
+        cache.set(cache_key, new_count, timeout=1800)
+        return new_count
+    except Exception:
+        return 0
+
+
+def reset_failed_login(username: str):
+    """Resetear contador de intentos fallidos después de login exitoso"""
+    try:
+        cache_key = f"failed_login:{username.lower()}"
+        cache.delete(cache_key)
+    except Exception:
+        pass
+
+
+def is_account_locked(username: str) -> tuple:
+    """
+    Verificar si una cuenta está bloqueada.
+    Retorna (is_locked, seconds_remaining)
+    """
+    try:
+        lock_key = f"account_locked:{username.lower()}"
+        locked_until = cache.get(lock_key)
+        
+        if locked_until:
+            remaining = int(locked_until - time.time())
+            if remaining > 0:
+                return True, remaining
+            # El bloqueo expiró, limpiar
+            cache.delete(lock_key)
+        
+        return False, 0
+    except Exception:
+        return False, 0
+
+
+def lock_account(username: str, duration_seconds: int = 900):
+    """
+    Bloquear cuenta por un período de tiempo.
+    Default: 15 minutos (900 segundos)
+    """
+    try:
+        lock_key = f"account_locked:{username.lower()}"
+        unlock_time = time.time() + duration_seconds
+        cache.set(lock_key, unlock_time, timeout=duration_seconds)
+        print(f"🔒 Cuenta bloqueada: {username} por {duration_seconds}s")
+    except Exception as e:
+        print(f"Error bloqueando cuenta: {e}")
+
+
+# Configuración de bloqueo
+MAX_FAILED_ATTEMPTS = 5  # Bloquear después de 5 intentos fallidos
+LOCKOUT_DURATION = 900   # 15 minutos de bloqueo
+
+
 def rate_limit(limit=10, window=60, key_prefix='rl'):
     """
     Decorador para limitar la tasa de requests

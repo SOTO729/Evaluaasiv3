@@ -13,7 +13,16 @@ from sqlalchemy import func
 from app import db, cache
 from app.models.user import User
 from app.models.partner import GroupMember
-from app.utils.rate_limit import rate_limit_login, rate_limit_register
+from app.utils.rate_limit import (
+    rate_limit_login, 
+    rate_limit_register,
+    is_account_locked,
+    increment_failed_login,
+    reset_failed_login,
+    lock_account,
+    MAX_FAILED_ATTEMPTS,
+    LOCKOUT_DURATION
+)
 from datetime import datetime
 import redis
 
@@ -136,6 +145,8 @@ def login():
         description: Login exitoso
       401:
         description: Credenciales inválidas
+      423:
+        description: Cuenta bloqueada temporalmente
     """
     data = request.get_json()
     
@@ -145,6 +156,17 @@ def login():
     if not username or not password:
         return jsonify({'error': 'Username y password son requeridos'}), 400
     
+    # Verificar si la cuenta está bloqueada
+    locked, remaining_seconds = is_account_locked(username)
+    if locked:
+        minutes_remaining = remaining_seconds // 60
+        return jsonify({
+            'error': 'Cuenta bloqueada temporalmente',
+            'message': f'Has excedido el número máximo de intentos. Tu cuenta está bloqueada por {minutes_remaining} minutos.',
+            'retry_after': remaining_seconds,
+            'locked': True
+        }), 423  # HTTP 423 Locked
+    
     # Buscar usuario (por username o email, ignorando mayúsculas/minúsculas)
     username_lower = username.lower().strip()
     user = User.query.filter(
@@ -152,10 +174,30 @@ def login():
     ).first()
     
     if not user or not user.check_password(password):
-        return jsonify({'error': 'Credenciales inválidas'}), 401
+        # Incrementar contador de intentos fallidos
+        failed_count = increment_failed_login(username)
+        attempts_remaining = MAX_FAILED_ATTEMPTS - failed_count
+        
+        # Bloquear cuenta si excede el límite
+        if failed_count >= MAX_FAILED_ATTEMPTS:
+            lock_account(username, LOCKOUT_DURATION)
+            return jsonify({
+                'error': 'Cuenta bloqueada',
+                'message': f'Has excedido {MAX_FAILED_ATTEMPTS} intentos fallidos. Tu cuenta ha sido bloqueada por {LOCKOUT_DURATION // 60} minutos.',
+                'locked': True,
+                'retry_after': LOCKOUT_DURATION
+            }), 423
+        
+        return jsonify({
+            'error': 'Credenciales inválidas',
+            'attempts_remaining': attempts_remaining if attempts_remaining > 0 else 0
+        }), 401
     
     if not user.is_active:
         return jsonify({'error': 'Usuario inactivo'}), 401
+    
+    # Login exitoso - resetear contador de intentos fallidos
+    reset_failed_login(username)
     
     # Actualizar último login
     user.last_login = datetime.utcnow()

@@ -152,6 +152,27 @@ def create_app(config_name='development'):
             'Exercise': Exercise
         }
     
+    # Security headers
+    @app.after_request
+    def add_security_headers(response):
+        """Agregar headers de seguridad a todas las respuestas"""
+        # Prevenir MIME type sniffing
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        # Prevenir clickjacking
+        response.headers['X-Frame-Options'] = 'DENY'
+        # Prevenir XSS (legacy, pero útil para navegadores antiguos)
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        # Forzar HTTPS (solo en producción)
+        if not app.debug:
+            response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        # Referrer policy
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        # Permissions policy (deshabilitar APIs peligrosas)
+        response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+        return response
+    
+    print("[INIT] ✅ Security headers configurados")
+    
     return app
 
 
