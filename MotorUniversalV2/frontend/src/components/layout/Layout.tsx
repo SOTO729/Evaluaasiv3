@@ -86,6 +86,10 @@ const Layout = ({ children }: LayoutProps) => {
         return 'bg-amber-100 text-amber-800'
       case 'responsable':
         return 'bg-purple-100 text-purple-800'
+      case 'financiero':
+        return 'bg-teal-100 text-teal-800'
+      case 'gerente':
+        return 'bg-indigo-100 text-indigo-800'
       default:
         return 'bg-gray-100 text-gray-800'
     }
@@ -104,6 +108,10 @@ const Layout = ({ children }: LayoutProps) => {
         return 'Coordinador'
       case 'responsable':
         return 'Responsable'
+      case 'financiero':
+        return 'Financiero'
+      case 'gerente':
+        return 'Gerente'
       default:
         return role
     }
@@ -226,6 +234,42 @@ const Layout = ({ children }: LayoutProps) => {
                     }`}
                   >
                     Mi Plantel
+                  </Link>
+                )}
+                {user?.role === 'financiero' && (
+                  <Link 
+                    to="/financiero" 
+                    className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/financiero') 
+                        ? 'text-primary-600 font-semibold bg-primary-50' 
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Solicitudes
+                  </Link>
+                )}
+                {user?.role === 'gerente' && (
+                  <Link 
+                    to="/gerente" 
+                    className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/gerente') 
+                        ? 'text-primary-600 font-semibold bg-primary-50' 
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Gerencia
+                  </Link>
+                )}
+                {user?.role === 'coordinator' && (
+                  <Link 
+                    to="/coordinador/mi-saldo" 
+                    className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/coordinador') 
+                        ? 'text-primary-600 font-semibold bg-primary-50' 
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Mi Saldo
                   </Link>
                 )}
                 {(user?.role === 'admin' || user?.role === 'coordinator') && (
@@ -442,6 +486,57 @@ const Layout = ({ children }: LayoutProps) => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
                     Mi Plantel
+                  </div>
+                </Link>
+              )}
+              {user?.role === 'financiero' && (
+                <Link 
+                  to="/financiero" 
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
+                    location.pathname.startsWith('/financiero') 
+                      ? 'bg-primary-50 text-primary-600 font-medium' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Solicitudes
+                  </div>
+                </Link>
+              )}
+              {user?.role === 'gerente' && (
+                <Link 
+                  to="/gerente" 
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
+                    location.pathname.startsWith('/gerente') 
+                      ? 'bg-primary-50 text-primary-600 font-medium' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    Gerencia
+                  </div>
+                </Link>
+              )}
+              {user?.role === 'coordinator' && (
+                <Link 
+                  to="/coordinador/mi-saldo" 
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
+                    location.pathname.startsWith('/coordinador') 
+                      ? 'bg-primary-50 text-primary-600 font-medium' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                    Mi Saldo
                   </div>
                 </Link>
               )}

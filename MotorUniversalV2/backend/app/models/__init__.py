@@ -42,6 +42,25 @@ from app.models.partner import (
     MEXICAN_STATES,
     user_partners
 )
+from app.models.balance import (
+    CoordinatorBalance,
+    BalanceRequest,
+    BalanceTransaction,
+    create_balance_transaction,
+    REQUEST_STATUS,
+    REQUEST_TYPES,
+    TRANSACTION_TYPES,
+    TRANSACTION_CONCEPTS
+)
+from app.models.activity_log import (
+    ActivityLog,
+    log_activity,
+    log_activity_from_request,
+    get_request_info,
+    ACTION_TYPES,
+    ENTITY_TYPES,
+    PERSONAL_ROLES
+)
 
 __all__ = [
     'User',
@@ -80,5 +99,22 @@ __all__ = [
     'GroupStudyMaterial',
     'GroupStudyMaterialMember',
     'MEXICAN_STATES',
-    'user_partners'
+    'user_partners',
+    # Balance models
+    'CoordinatorBalance',
+    'BalanceRequest',
+    'BalanceTransaction',
+    'create_balance_transaction',
+    'REQUEST_STATUS',
+    'REQUEST_TYPES',
+    'TRANSACTION_TYPES',
+    'TRANSACTION_CONCEPTS',
+    # Activity log models
+    'ActivityLog',
+    'log_activity',
+    'log_activity_from_request',
+    'get_request_info',
+    'ACTION_TYPES',
+    'ENTITY_TYPES',
+    'PERSONAL_ROLES'
 ]

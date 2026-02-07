@@ -94,6 +94,20 @@ def create_app(config_name='development'):
         print(f"[INIT] ❌ Error importando verify_bp: {e}")
         raise
     
+    try:
+        from app.routes.balance import bp as balance_bp
+        print("[INIT] ✅ balance_bp importado")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando balance_bp: {e}")
+        raise
+    
+    try:
+        from app.routes.activity import bp as activity_bp
+        print("[INIT] ✅ activity_bp importado")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando activity_bp: {e}")
+        raise
+    
     print("[INIT] Registrando blueprints...")
     app.register_blueprint(auth.bp, url_prefix='/api/auth')
     print("[INIT] ✅ auth registrado")
@@ -119,6 +133,10 @@ def create_app(config_name='development'):
     print("[INIT] ✅ partners registrado")
     app.register_blueprint(verify_bp, url_prefix='/api/verify')
     print("[INIT] ✅ verify registrado (rutas públicas)")
+    app.register_blueprint(balance_bp, url_prefix='/api/balance')
+    print("[INIT] ✅ balance registrado (saldos y solicitudes)")
+    app.register_blueprint(activity_bp, url_prefix='/api/activity')
+    print("[INIT] ✅ activity registrado (logs de actividad)")
     
     # Importar y registrar user_management
     from app.routes.user_management import bp as user_management_bp

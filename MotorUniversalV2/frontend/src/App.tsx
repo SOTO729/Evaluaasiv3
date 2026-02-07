@@ -109,6 +109,25 @@ const CampusActivationPage = lazy(() => import('./pages/partners/CampusActivatio
 const MiPlantelPage = lazy(() => import('./pages/responsable/MiPlantelPage'))
 const MiPlantelReportesPage = lazy(() => import('./pages/responsable/MiPlantelReportesPage'))
 
+// Financiero (Gestión de saldos)
+const FinancieroDashboard = lazy(() => import('./pages/financiero/FinancieroDashboard'))
+const FinancieroSolicitudesPage = lazy(() => import('./pages/financiero/FinancieroSolicitudesPage'))
+const FinancieroSolicitudDetailPage = lazy(() => import('./pages/financiero/FinancieroSolicitudDetailPage'))
+
+// Gerente (Portal de gerencia)
+const GerenteDashboard = lazy(() => import('./pages/gerente/GerenteDashboard'))
+const GerenteApprovalsPage = lazy(() => import('./pages/gerente/GerenteApprovalsPage'))
+const GerenteApprovalDetailPage = lazy(() => import('./pages/gerente/GerenteApprovalDetailPage'))
+const GerenteActivityLogsPage = lazy(() => import('./pages/gerente/GerenteActivityLogsPage'))
+const GerenteSecurityPage = lazy(() => import('./pages/gerente/GerenteSecurityPage'))
+const GerenteReportsPage = lazy(() => import('./pages/gerente/GerenteReportsPage'))
+
+// Coordinador - Saldo
+const MiSaldoPage = lazy(() => import('./pages/coordinador/MiSaldoPage'))
+const SolicitarSaldoPage = lazy(() => import('./pages/coordinador/SolicitarSaldoPage'))
+const HistorialSolicitudesPage = lazy(() => import('./pages/coordinador/HistorialSolicitudesPage'))
+const HistorialMovimientosPage = lazy(() => import('./pages/coordinador/HistorialMovimientosPage'))
+
 // User Management (Gestión de Usuarios)
 const UsersListPage = lazy(() => import('./pages/users/UsersListPage'))
 const UserFormPage = lazy(() => import('./pages/users/UserFormPage'))
@@ -228,6 +247,25 @@ function App() {
               {/* Responsable de Plantel */}
               <Route path="/mi-plantel" element={<MiPlantelPage />} />
               <Route path="/mi-plantel/reportes" element={<MiPlantelReportesPage />} />
+              
+              {/* Financiero - Gestión de Solicitudes de Saldo */}
+              <Route path="/financiero" element={<FinancieroDashboard />} />
+              <Route path="/financiero/solicitudes" element={<FinancieroSolicitudesPage />} />
+              <Route path="/financiero/solicitudes/:id" element={<FinancieroSolicitudDetailPage />} />
+              
+              {/* Gerente - Portal de Gerencia */}
+              <Route path="/gerente" element={<GerenteDashboard />} />
+              <Route path="/gerente/aprobaciones" element={<GerenteApprovalsPage />} />
+              <Route path="/gerente/aprobaciones/:id" element={<GerenteApprovalDetailPage />} />
+              <Route path="/gerente/actividad" element={<GerenteActivityLogsPage />} />
+              <Route path="/gerente/seguridad" element={<GerenteSecurityPage />} />
+              <Route path="/gerente/reportes" element={<GerenteReportsPage />} />
+              
+              {/* Coordinador - Gestión de Saldo */}
+              <Route path="/coordinador/mi-saldo" element={<MiSaldoPage />} />
+              <Route path="/coordinador/solicitar-saldo" element={<SolicitarSaldoPage />} />
+              <Route path="/coordinador/historial-solicitudes" element={<HistorialSolicitudesPage />} />
+              <Route path="/coordinador/historial-movimientos" element={<HistorialMovimientosPage />} />
               
               {/* User Management (Gestión de Usuarios) */}
               <Route path="/user-management" element={<UsersListPage />} />
