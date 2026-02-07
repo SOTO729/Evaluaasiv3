@@ -64,7 +64,7 @@ def create_balance_tables():
                     sql = """
                         CREATE TABLE coordinator_balances (
                             id INT IDENTITY(1,1) PRIMARY KEY,
-                            coordinator_id NVARCHAR(36) NOT NULL UNIQUE,
+                            coordinator_id VARCHAR(36) NOT NULL UNIQUE,
                             current_balance DECIMAL(12,2) DEFAULT 0 NOT NULL,
                             total_received DECIMAL(12,2) DEFAULT 0 NOT NULL,
                             total_spent DECIMAL(12,2) DEFAULT 0 NOT NULL,
@@ -120,7 +120,7 @@ def create_balance_tables():
                     sql = """
                         CREATE TABLE balance_requests (
                             id INT IDENTITY(1,1) PRIMARY KEY,
-                            coordinator_id NVARCHAR(36) NOT NULL,
+                            coordinator_id VARCHAR(36) NOT NULL,
                             campus_id INT NULL,
                             group_id INT NULL,
                             request_type NVARCHAR(20) DEFAULT 'saldo' NOT NULL,
@@ -128,13 +128,13 @@ def create_balance_tables():
                             amount_approved DECIMAL(12,2) NULL,
                             justification NVARCHAR(MAX) NOT NULL,
                             status NVARCHAR(30) DEFAULT 'pending' NOT NULL,
-                            financiero_id NVARCHAR(36) NULL,
+                            financiero_id VARCHAR(36) NULL,
                             financiero_notes NVARCHAR(MAX) NULL,
                             financiero_recommended_amount DECIMAL(12,2) NULL,
                             financiero_reviewed_at DATETIME NULL,
                             documentation_requested NVARCHAR(MAX) NULL,
                             documentation_provided BIT DEFAULT 0,
-                            approved_by_id NVARCHAR(36) NULL,
+                            approved_by_id VARCHAR(36) NULL,
                             approver_notes NVARCHAR(MAX) NULL,
                             approved_at DATETIME NULL,
                             requested_at DATETIME DEFAULT GETDATE() NOT NULL,
@@ -199,7 +199,7 @@ def create_balance_tables():
                     sql = """
                         CREATE TABLE balance_transactions (
                             id INT IDENTITY(1,1) PRIMARY KEY,
-                            coordinator_id NVARCHAR(36) NOT NULL,
+                            coordinator_id VARCHAR(36) NOT NULL,
                             request_id INT NULL,
                             transaction_type NVARCHAR(20) NOT NULL,
                             concept NVARCHAR(50) NOT NULL,
@@ -213,7 +213,7 @@ def create_balance_tables():
                             reference_type NVARCHAR(50) NULL,
                             reference_id INT NULL,
                             notes NVARCHAR(MAX) NULL,
-                            created_by_id NVARCHAR(36) NULL,
+                            created_by_id VARCHAR(36) NULL,
                             created_at DATETIME DEFAULT GETDATE() NOT NULL,
                             CONSTRAINT fk_balance_transaction_coordinator 
                                 FOREIGN KEY (coordinator_id) REFERENCES users(id),
@@ -267,7 +267,7 @@ def create_balance_tables():
                     sql = """
                         CREATE TABLE activity_logs (
                             id INT IDENTITY(1,1) PRIMARY KEY,
-                            user_id NVARCHAR(36) NULL,
+                            user_id VARCHAR(36) NULL,
                             user_role NVARCHAR(30) NULL,
                             user_email NVARCHAR(255) NULL,
                             action_type NVARCHAR(50) NOT NULL,

@@ -941,13 +941,20 @@ def check_and_make_email_nullable():
             print("  ⚠️  Columna email no existe, saltando...")
             return
         
-        # Verificar unique constraints
-        unique_constraints = inspector.get_unique_constraints('users')
-        email_unique = any(c for c in unique_constraints if 'email' in c.get('column_names', []))
+        # Verificar unique constraints (pymssql no soporta get_unique_constraints)
+        try:
+            unique_constraints = inspector.get_unique_constraints('users')
+            email_unique = any(c for c in unique_constraints if 'email' in c.get('column_names', []))
+        except NotImplementedError:
+            # SQL Server con pymssql no soporta get_unique_constraints
+            email_unique = False
         
         # También verificar índices únicos
-        indexes = inspector.get_indexes('users')
-        email_unique_index = any(i for i in indexes if i.get('unique') and 'email' in i.get('column_names', []))
+        try:
+            indexes = inspector.get_indexes('users')
+            email_unique_index = any(i for i in indexes if i.get('unique') and 'email' in i.get('column_names', []))
+        except NotImplementedError:
+            email_unique_index = False
         
         changes_made = False
         
