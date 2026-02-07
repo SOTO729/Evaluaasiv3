@@ -260,7 +260,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Gerencia
                   </Link>
                 )}
-                {user?.role === 'coordinator' && (
+                {['coordinator', 'admin'].includes(user?.role ?? '') && (
                   <Link 
                     to="/coordinador/mi-saldo" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -523,7 +523,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {user?.role === 'coordinator' && (
+              {['coordinator', 'admin'].includes(user?.role ?? '') && (
                 <Link 
                   to="/coordinador/mi-saldo" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
