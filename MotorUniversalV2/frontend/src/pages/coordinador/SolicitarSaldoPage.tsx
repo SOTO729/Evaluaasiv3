@@ -395,6 +395,9 @@ export default function SolicitarSaldoPage() {
                 <p className="text-green-100 mt-1">
                   {selectedCampus.partner_name} • {selectedCampus.state_name || 'Sin estado'}
                 </p>
+                <p className="text-green-100 mt-2 text-sm">
+                  Costo por certificación: <span className="font-bold text-white">{formatCurrency(pricePerCertification)}</span>
+                </p>
               </div>
               <button
                 onClick={handleBackToSelect}
