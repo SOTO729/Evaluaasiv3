@@ -205,6 +205,7 @@ export interface AvailableCampus {
   city?: string;
   has_responsable: boolean;
   activation_status: string;
+  certification_cost: number;
 }
 
 export async function getAvailableCampuses(): Promise<{

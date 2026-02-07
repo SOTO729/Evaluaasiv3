@@ -743,7 +743,8 @@ def get_available_campuses():
                 'state_name': c.state_name,
                 'city': c.city,
                 'has_responsable': c.responsable_id is not None,
-                'activation_status': c.activation_status
+                'activation_status': c.activation_status,
+                'certification_cost': float(c.certification_cost) if c.certification_cost else 500.0
             } for c in campuses],
             'total': len(campuses)
         })

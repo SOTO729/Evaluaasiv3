@@ -33,8 +33,8 @@ import {
   AvailableCampus,
 } from '../../services/userManagementService';
 
-// Precio por certificación (configurable)
-const PRICE_PER_CERTIFICATION = 500;
+// Precio por defecto si no hay plantel seleccionado
+const DEFAULT_PRICE_PER_CERTIFICATION = 500;
 
 export default function SolicitarSaldoPage() {
   const navigate = useNavigate();
@@ -103,9 +103,12 @@ export default function SolicitarSaldoPage() {
     });
   }, [campuses, searchTerm, partnerFilter, stateFilter]);
 
+  // Precio del plantel seleccionado
+  const pricePerCertification = selectedCampus?.certification_cost || DEFAULT_PRICE_PER_CERTIFICATION;
+
   // Calcular montos
-  const saldoAmount = saldoUnits * PRICE_PER_CERTIFICATION;
-  const becaAmount = becaUnits * PRICE_PER_CERTIFICATION;
+  const saldoAmount = saldoUnits * pricePerCertification;
+  const becaAmount = becaUnits * pricePerCertification;
   const totalUnits = saldoUnits + becaUnits;
   const totalAmount = saldoAmount + becaAmount;
 
@@ -457,7 +460,7 @@ export default function SolicitarSaldoPage() {
                     <span className="font-bold text-green-800">{formatCurrency(saldoAmount)}</span>
                   </div>
                   <p className="text-xs text-green-600 mt-1">
-                    {saldoUnits} × {formatCurrency(PRICE_PER_CERTIFICATION)} por certificación
+                    {saldoUnits} × {formatCurrency(pricePerCertification)} por certificación
                   </p>
                 </div>
               </div>
@@ -516,7 +519,7 @@ export default function SolicitarSaldoPage() {
                     <span className="font-bold text-purple-800">{formatCurrency(becaAmount)}</span>
                   </div>
                   <p className="text-xs text-purple-600 mt-1">
-                    {becaUnits} × {formatCurrency(PRICE_PER_CERTIFICATION)} por certificación
+                    {becaUnits} × {formatCurrency(pricePerCertification)} por certificación
                   </p>
                 </div>
               </div>
@@ -653,7 +656,7 @@ export default function SolicitarSaldoPage() {
                       <span className="font-bold text-gray-800">{saldoUnits}</span>
                     </td>
                     <td className="px-6 py-4 text-right text-gray-600">
-                      {formatCurrency(PRICE_PER_CERTIFICATION)}
+                      {formatCurrency(pricePerCertification)}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <span className="font-bold text-green-600">{formatCurrency(saldoAmount)}</span>
@@ -677,7 +680,7 @@ export default function SolicitarSaldoPage() {
                       <span className="font-bold text-gray-800">{becaUnits}</span>
                     </td>
                     <td className="px-6 py-4 text-right text-gray-600">
-                      {formatCurrency(PRICE_PER_CERTIFICATION)}
+                      {formatCurrency(pricePerCertification)}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <span className="font-bold text-purple-600">{formatCurrency(becaAmount)}</span>
