@@ -382,6 +382,15 @@ input[type="password"]::-webkit-password-viewable-toggle-button {
   
   /* Input fluido */
   .fluid-input { height: var(--input-height); padding-left: var(--space-3); padding-right: var(--space-3); }
+  
+  /* Ocultar scrollbar pero permitir scroll */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
 }
 
 @layer components {

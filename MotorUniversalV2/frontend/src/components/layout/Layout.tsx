@@ -152,11 +152,11 @@ const Layout = ({ children }: LayoutProps) => {
                   <span className="fluid-text-sm font-semibold text-primary-600">{campusName}</span>
                 </div>
               )}
-              {/* Navegación desktop */}
-              <nav className="hidden lg:flex fluid-ml-8 fluid-gap-5">
+              {/* Navegación desktop con scroll horizontal */}
+              <nav className="hidden lg:flex fluid-ml-8 fluid-gap-3 overflow-x-auto scrollbar-hide max-w-[calc(100vw-400px)] flex-nowrap">
                 <Link 
                   to="/dashboard" 
-                  className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                  className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                     location.pathname === '/dashboard' 
                       ? 'text-primary-600 font-semibold bg-primary-50' 
                       : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -167,7 +167,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role !== 'editor' && user?.role !== 'coordinator' && (
                   <Link 
                     to="/certificates" 
-                    className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/certificates') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -179,7 +179,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role !== 'coordinator' && (
                   <Link 
                     to="/exams" 
-                    className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/exams') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -191,7 +191,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role !== 'coordinator' && (
                   <Link 
                     to="/study-contents" 
-                  className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                  className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                     location.pathname.startsWith('/study-contents') 
                       ? 'text-primary-600 font-semibold bg-primary-50' 
                       : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -203,7 +203,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && (
                   <Link 
                     to="/standards" 
-                    className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/standards') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -215,7 +215,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {(user?.role === 'admin' || user?.role === 'coordinator') && (
                   <Link 
                     to="/partners/dashboard" 
-                    className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/partners') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -227,7 +227,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role === 'responsable' && (
                   <Link 
                     to="/mi-plantel" 
-                    className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/mi-plantel') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -239,7 +239,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {['financiero', 'admin'].includes(user?.role ?? '') && (
                   <Link 
                     to="/financiero" 
-                    className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/financiero') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -251,7 +251,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {['gerente', 'admin'].includes(user?.role ?? '') && (
                   <Link 
                     to="/gerente" 
-                    className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/gerente') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -263,7 +263,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role === 'coordinator' && (
                   <Link 
                     to="/coordinador/mi-saldo" 
-                    className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/coordinador') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -275,7 +275,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {(user?.role === 'admin' || user?.role === 'coordinator') && (
                   <Link 
                     to="/user-management" 
-                    className={`fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/user-management') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
