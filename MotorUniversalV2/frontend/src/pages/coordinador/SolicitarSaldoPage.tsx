@@ -1,10 +1,14 @@
 /**
  * Página de Solicitar Saldo - Coordinador
  * 
- * Formulario para solicitar nuevo saldo o beca
+ * Formulario mejorado para solicitar saldo y/o becas:
+ * - Tabla filtrable de planteles (Partner, Estado, Plantel)
+ * - Entrada en unidades con equivalente en pesos
+ * - Permite solicitar saldo y beca en la misma solicitud
+ * - Desglose antes de enviar
  */
-import { useState, useEffect } from 'react';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft,
   DollarSign,
@@ -14,52 +18,51 @@ import {
   AlertCircle,
   Loader2,
   Info,
+  Search,
+  ChevronRight,
+  MapPin,
+  Calculator,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
   createBalanceRequest,
+  formatCurrency,
 } from '../../services/balanceService';
-import {
-  getGroups,
-  CandidateGroup,
-} from '../../services/partnersService';
 import {
   getAvailableCampuses,
   AvailableCampus,
 } from '../../services/userManagementService';
 
+// Precio por certificación (configurable)
+const PRICE_PER_CERTIFICATION = 500;
+
 export default function SolicitarSaldoPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const isBeca = searchParams.get('type') === 'beca';
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [step, setStep] = useState<'select-campus' | 'configure' | 'review'>('select-campus');
   
   // Data
   const [campuses, setCampuses] = useState<AvailableCampus[]>([]);
-  const [groups, setGroups] = useState<CandidateGroup[]>([]);
   
-  // Form
-  const [requestType, setRequestType] = useState<'saldo' | 'beca'>(isBeca ? 'beca' : 'saldo');
-  const [amount, setAmount] = useState<string>('');
-  const [campusId, setCampusId] = useState<number | null>(null);
-  const [groupId, setGroupId] = useState<number | null>(null);
+  // Filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [partnerFilter, setPartnerFilter] = useState<string>('');
+  const [stateFilter, setStateFilter] = useState<string>('');
+  
+  // Selección
+  const [selectedCampus, setSelectedCampus] = useState<AvailableCampus | null>(null);
+  
+  // Solicitud - en unidades
+  const [saldoUnits, setSaldoUnits] = useState<number>(0);
+  const [becaUnits, setBecaUnits] = useState<number>(0);
   const [justification, setJustification] = useState('');
 
   useEffect(() => {
     loadCampuses();
   }, []);
-
-  useEffect(() => {
-    if (campusId) {
-      loadGroups(campusId);
-    } else {
-      setGroups([]);
-      setGroupId(null);
-    }
-  }, [campusId]);
 
   const loadCampuses = async () => {
     try {
@@ -73,50 +76,105 @@ export default function SolicitarSaldoPage() {
     }
   };
 
-  const loadGroups = async (campusId: number) => {
-    try {
-      const data = await getGroups(campusId, { active_only: true });
-      setGroups(data.groups || data);
-    } catch (err: any) {
-      console.error('Error loading groups:', err);
-    }
+  // Obtener lista única de partners y estados para filtros
+  const uniquePartners = useMemo(() => {
+    const partners = [...new Set(campuses.map(c => c.partner_name))];
+    return partners.sort();
+  }, [campuses]);
+
+  const uniqueStates = useMemo(() => {
+    const states = [...new Set(campuses.filter(c => c.state_name).map(c => c.state_name!))];
+    return states.sort();
+  }, [campuses]);
+
+  // Filtrar planteles
+  const filteredCampuses = useMemo(() => {
+    return campuses.filter(campus => {
+      const matchesSearch = searchTerm === '' || 
+        campus.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        campus.partner_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (campus.state_name && campus.state_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (campus.code && campus.code.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      const matchesPartner = partnerFilter === '' || campus.partner_name === partnerFilter;
+      const matchesState = stateFilter === '' || campus.state_name === stateFilter;
+      
+      return matchesSearch && matchesPartner && matchesState;
+    });
+  }, [campuses, searchTerm, partnerFilter, stateFilter]);
+
+  // Calcular montos
+  const saldoAmount = saldoUnits * PRICE_PER_CERTIFICATION;
+  const becaAmount = becaUnits * PRICE_PER_CERTIFICATION;
+  const totalUnits = saldoUnits + becaUnits;
+  const totalAmount = saldoAmount + becaAmount;
+
+  const handleSelectCampus = (campus: AvailableCampus) => {
+    setSelectedCampus(campus);
+    setStep('configure');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validations
-    if (!amount || parseFloat(amount) <= 0) {
-      setError('Ingresa un monto válido');
-      return;
-    }
-    if (!campusId) {
-      setError('Selecciona un plantel');
+  const handleBackToSelect = () => {
+    setStep('select-campus');
+  };
+
+  const handleGoToReview = () => {
+    // Validaciones
+    if (totalUnits <= 0) {
+      setError('Debes solicitar al menos 1 unidad');
       return;
     }
     if (!justification.trim()) {
       setError('Ingresa una justificación');
       return;
     }
-    if (requestType === 'beca' && justification.length < 50) {
+    if (becaUnits > 0 && justification.length < 50) {
       setError('Para solicitudes de beca, la justificación debe ser más detallada (mínimo 50 caracteres)');
       return;
     }
+    setError(null);
+    setStep('review');
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedCampus) return;
 
     try {
       setSubmitting(true);
       setError(null);
 
-      await createBalanceRequest({
-        request_type: requestType,
-        amount_requested: parseFloat(amount),
-        campus_id: campusId,
-        group_id: groupId || undefined,
-        justification: justification.trim(),
-      });
+      // Si hay ambos tipos, enviamos dos solicitudes
+      const promises = [];
+
+      if (saldoUnits > 0) {
+        promises.push(
+          createBalanceRequest({
+            request_type: 'saldo',
+            amount_requested: saldoAmount,
+            campus_id: selectedCampus.id,
+            justification: justification.trim(),
+          })
+        );
+      }
+
+      if (becaUnits > 0) {
+        promises.push(
+          createBalanceRequest({
+            request_type: 'beca',
+            amount_requested: becaAmount,
+            campus_id: selectedCampus.id,
+            justification: justification.trim(),
+          })
+        );
+      }
+
+      await Promise.all(promises);
 
       navigate('/coordinador/mi-saldo', {
-        state: { message: 'Solicitud enviada exitosamente', type: 'success' }
+        state: { 
+          message: `Solicitud${promises.length > 1 ? 'es' : ''} enviada${promises.length > 1 ? 's' : ''} exitosamente`, 
+          type: 'success' 
+        }
       });
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al enviar solicitud');
@@ -134,7 +192,7 @@ export default function SolicitarSaldoPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-4 py-8">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <Link
@@ -143,245 +201,548 @@ export default function SolicitarSaldoPage() {
         >
           <ArrowLeft className="w-5 h-5 text-gray-600" />
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-            {requestType === 'beca' ? (
-              <Gift className="w-8 h-8 text-purple-600" />
-            ) : (
-              <DollarSign className="w-8 h-8 text-green-600" />
-            )}
-            {requestType === 'beca' ? 'Solicitar Beca' : 'Solicitar Saldo'}
+            <DollarSign className="w-8 h-8 text-green-600" />
+            Solicitar Saldo
           </h1>
           <p className="text-gray-600 mt-1">
-            {requestType === 'beca' 
-              ? 'Solicita una beca para tus candidatos'
-              : 'Solicita saldo para asignar certificaciones'
-            }
+            Solicita saldo y/o becas para tus planteles
           </p>
         </div>
       </div>
 
-      {/* Type Selector */}
-      <div className="bg-white rounded-xl border shadow-sm p-6 mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-3">
-          Tipo de Solicitud
-        </label>
-        <div className="grid grid-cols-2 gap-4">
-          <button
-            type="button"
-            onClick={() => setRequestType('saldo')}
-            className={`p-4 rounded-xl border-2 transition-all ${
-              requestType === 'saldo'
-                ? 'border-green-500 bg-green-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${
-                requestType === 'saldo' ? 'bg-green-100' : 'bg-gray-100'
-              }`}>
-                <DollarSign className={`w-6 h-6 ${
-                  requestType === 'saldo' ? 'text-green-600' : 'text-gray-400'
-                }`} />
-              </div>
-              <div className="text-left">
-                <p className={`font-medium ${
-                  requestType === 'saldo' ? 'text-green-800' : 'text-gray-700'
-                }`}>
-                  Saldo
-                </p>
-                <p className="text-xs text-gray-500">Presupuesto regular</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setRequestType('beca')}
-            className={`p-4 rounded-xl border-2 transition-all ${
-              requestType === 'beca'
-                ? 'border-purple-500 bg-purple-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${
-                requestType === 'beca' ? 'bg-purple-100' : 'bg-gray-100'
-              }`}>
-                <Gift className={`w-6 h-6 ${
-                  requestType === 'beca' ? 'text-purple-600' : 'text-gray-400'
-                }`} />
-              </div>
-              <div className="text-left">
-                <p className={`font-medium ${
-                  requestType === 'beca' ? 'text-purple-800' : 'text-gray-700'
-                }`}>
-                  Beca
-                </p>
-                <p className="text-xs text-gray-500">Requiere justificación</p>
-              </div>
-            </div>
-          </button>
+      {/* Progress Steps */}
+      <div className="flex items-center gap-2 mb-8">
+        <button 
+          onClick={() => step !== 'select-campus' && setStep('select-campus')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+            step === 'select-campus' 
+              ? 'bg-green-100 text-green-700 font-medium' 
+              : 'text-gray-500 hover:bg-gray-100'
+          }`}
+        >
+          <span className="w-6 h-6 rounded-full bg-green-600 text-white text-sm flex items-center justify-center">1</span>
+          Seleccionar Plantel
+        </button>
+        <ChevronRight className="w-4 h-4 text-gray-400" />
+        <button 
+          onClick={() => step === 'review' && setStep('configure')}
+          disabled={!selectedCampus}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+            step === 'configure' 
+              ? 'bg-green-100 text-green-700 font-medium' 
+              : step === 'review' ? 'text-gray-500 hover:bg-gray-100' : 'text-gray-300 cursor-not-allowed'
+          }`}
+        >
+          <span className={`w-6 h-6 rounded-full text-sm flex items-center justify-center ${
+            step === 'configure' || step === 'review' ? 'bg-green-600 text-white' : 'bg-gray-300 text-white'
+          }`}>2</span>
+          Configurar Solicitud
+        </button>
+        <ChevronRight className="w-4 h-4 text-gray-400" />
+        <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+          step === 'review' 
+            ? 'bg-green-100 text-green-700 font-medium' 
+            : 'text-gray-300'
+        }`}>
+          <span className={`w-6 h-6 rounded-full text-sm flex items-center justify-center ${
+            step === 'review' ? 'bg-green-600 text-white' : 'bg-gray-300 text-white'
+          }`}>3</span>
+          Revisar y Enviar
         </div>
       </div>
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
-            <p className="text-red-700">{error}</p>
-          </div>
-        )}
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
+          <p className="text-red-700">{error}</p>
+        </div>
+      )}
 
-        {/* Monto */}
-        <div className="bg-white rounded-xl border shadow-sm p-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Monto a Solicitar (MXN) *
-          </label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg">$</span>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              className="w-full pl-10 pr-4 py-3 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+      {/* Step 1: Select Campus */}
+      {step === 'select-campus' && (
+        <div className="space-y-6">
+          {/* Filters */}
+          <div className="bg-white rounded-xl border shadow-sm p-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Search */}
+              <div className="md:col-span-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar por nombre, código o ubicación..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  />
+                </div>
+              </div>
+              
+              {/* Partner Filter */}
+              <div>
+                <select
+                  value={partnerFilter}
+                  onChange={(e) => setPartnerFilter(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                >
+                  <option value="">Todos los Partners</option>
+                  {uniquePartners.map(partner => (
+                    <option key={partner} value={partner}>{partner}</option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* State Filter */}
+              <div>
+                <select
+                  value={stateFilter}
+                  onChange={(e) => setStateFilter(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                >
+                  <option value="">Todos los Estados</option>
+                  {uniqueStates.map(state => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Campus Table */}
+          <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Partner</th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Estado</th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Plantel</th>
+                    <th className="text-center px-6 py-4 text-sm font-semibold text-gray-600">Acción</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredCampuses.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
+                        <Building2 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                        <p>No se encontraron planteles</p>
+                        <p className="text-sm mt-1">Intenta con otros filtros</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredCampuses.map((campus) => (
+                      <tr 
+                        key={campus.id} 
+                        className={`hover:bg-gray-50 cursor-pointer ${
+                          selectedCampus?.id === campus.id ? 'bg-green-50' : ''
+                        }`}
+                        onClick={() => handleSelectCampus(campus)}
+                      >
+                        <td className="px-6 py-4">
+                          <span className="font-medium text-gray-800">{campus.partner_name}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-gray-400" />
+                            <span className="text-gray-700">{campus.state_name || '-'}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div>
+                            <p className="font-medium text-gray-800">{campus.name}</p>
+                            {campus.code && (
+                              <p className="text-xs text-gray-500">Código: {campus.code}</p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectCampus(campus);
+                            }}
+                            className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                          >
+                            Seleccionar
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Pagination info */}
+            <div className="px-6 py-3 bg-gray-50 border-t text-sm text-gray-600">
+              Mostrando {filteredCampuses.length} de {campuses.length} planteles
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step 2: Configure Request */}
+      {step === 'configure' && selectedCampus && (
+        <div className="space-y-6">
+          {/* Selected Campus Card */}
+          <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-green-100 text-sm">Plantel Seleccionado</p>
+                <p className="text-2xl font-bold mt-1">{selectedCampus.name}</p>
+                <p className="text-green-100 mt-1">
+                  {selectedCampus.partner_name} • {selectedCampus.state_name || 'Sin estado'}
+                </p>
+              </div>
+              <button
+                onClick={handleBackToSelect}
+                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm transition-colors"
+              >
+                Cambiar
+              </button>
+            </div>
+          </div>
+
+          {/* Units Input */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Saldo Units */}
+            <div className="bg-white rounded-xl border shadow-sm p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-green-100 rounded-lg">
+                  <DollarSign className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-800">Saldo Regular</h3>
+                  <p className="text-sm text-gray-500">Presupuesto estándar</p>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Unidades (Certificaciones)
+                </label>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSaldoUnits(Math.max(0, saldoUnits - 1))}
+                    className="w-12 h-12 rounded-lg border border-gray-300 hover:bg-gray-50 text-xl font-bold transition-colors"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    value={saldoUnits}
+                    onChange={(e) => setSaldoUnits(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="flex-1 text-center text-2xl font-bold py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSaldoUnits(saldoUnits + 1)}
+                    className="w-12 h-12 rounded-lg border border-gray-300 hover:bg-gray-50 text-xl font-bold transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="mt-3 p-3 bg-green-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-green-700">Equivalente:</span>
+                    <span className="font-bold text-green-800">{formatCurrency(saldoAmount)}</span>
+                  </div>
+                  <p className="text-xs text-green-600 mt-1">
+                    {saldoUnits} × {formatCurrency(PRICE_PER_CERTIFICATION)} por certificación
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Beca Units */}
+            <div className="bg-white rounded-xl border shadow-sm p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-purple-100 rounded-lg">
+                  <Gift className="w-6 h-6 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-800">Becas</h3>
+                  <p className="text-sm text-gray-500">Requiere justificación detallada</p>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Unidades (Certificaciones)
+                </label>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setBecaUnits(Math.max(0, becaUnits - 1))}
+                    className="w-12 h-12 rounded-lg border border-gray-300 hover:bg-gray-50 text-xl font-bold transition-colors"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    value={becaUnits}
+                    onChange={(e) => setBecaUnits(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="flex-1 text-center text-2xl font-bold py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setBecaUnits(becaUnits + 1)}
+                    className="w-12 h-12 rounded-lg border border-gray-300 hover:bg-gray-50 text-xl font-bold transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="mt-3 p-3 bg-purple-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-purple-700">Equivalente:</span>
+                    <span className="font-bold text-purple-800">{formatCurrency(becaAmount)}</span>
+                  </div>
+                  <p className="text-xs text-purple-600 mt-1">
+                    {becaUnits} × {formatCurrency(PRICE_PER_CERTIFICATION)} por certificación
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Total Summary */}
+          {totalUnits > 0 && (
+            <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl p-6 text-white">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/20 rounded-lg">
+                  <Calculator className="w-8 h-8" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-blue-100">Total de la Solicitud</p>
+                  <p className="text-3xl font-bold">{totalUnits} unidades = {formatCurrency(totalAmount)}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Justification */}
+          <div className="bg-white rounded-xl border shadow-sm p-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Justificación *
+            </label>
+            <textarea
+              value={justification}
+              onChange={(e) => setJustification(e.target.value)}
+              rows={4}
+              placeholder={becaUnits > 0
+                ? 'Explica detalladamente por qué se requiere esta solicitud, quiénes serán los beneficiarios y cuál es el impacto esperado... (mínimo 50 caracteres para becas)'
+                : 'Indica para qué se utilizará el saldo, cuántos candidatos se beneficiarán, etc.'
+              }
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none"
               required
             />
-          </div>
-          {amount && parseFloat(amount) > 0 && (
-            <p className="text-sm text-gray-500 mt-2">
-              ≈ {Math.floor(parseFloat(amount) / 500)} certificaciones (estimado a $500 c/u)
-            </p>
-          )}
-        </div>
-
-        {/* Destino */}
-        <div className="bg-white rounded-xl border shadow-sm p-6 space-y-4">
-          <h3 className="font-medium text-gray-800 flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-gray-400" />
-            Destino del Saldo
-          </h3>
-
-          {/* Plantel */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Plantel *
-            </label>
-            <select
-              value={campusId || ''}
-              onChange={(e) => setCampusId(e.target.value ? parseInt(e.target.value) : null)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              required
-            >
-              <option value="">Seleccionar plantel...</option>
-              {campuses.map((campus) => (
-                <option key={campus.id} value={campus.id}>
-                  {campus.name} {campus.state_name && `(${campus.state_name})`}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Grupo (opcional) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Grupo (opcional)
-            </label>
-            <select
-              value={groupId || ''}
-              onChange={(e) => setGroupId(e.target.value ? parseInt(e.target.value) : null)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              disabled={!campusId}
-            >
-              <option value="">Todos los grupos / General</option>
-              {groups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name} {group.code && `(${group.code})`}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Dejar vacío si el saldo es para uso general en el plantel
-            </p>
-          </div>
-        </div>
-
-        {/* Justificación */}
-        <div className="bg-white rounded-xl border shadow-sm p-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Justificación *
-          </label>
-          <textarea
-            value={justification}
-            onChange={(e) => setJustification(e.target.value)}
-            rows={4}
-            placeholder={requestType === 'beca'
-              ? 'Explica detalladamente por qué se requiere esta beca, quiénes serán los beneficiarios y cuál es el impacto esperado...'
-              : 'Indica para qué se utilizará el saldo, cuántos candidatos se beneficiarán, etc.'
-            }
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none"
-            required
-          />
-          <div className="flex justify-between items-center mt-2">
-            <p className="text-xs text-gray-500">
-              {requestType === 'beca' ? 'Mínimo 50 caracteres para becas' : 'Obligatorio'}
-            </p>
-            <p className="text-xs text-gray-500">
-              {justification.length} caracteres
-            </p>
-          </div>
-        </div>
-
-        {/* Info Box para Becas */}
-        {requestType === 'beca' && (
-          <div className="p-4 bg-purple-50 border border-purple-200 rounded-xl flex items-start gap-3">
-            <Info className="w-5 h-5 text-purple-500 mt-0.5" />
-            <div>
-              <p className="font-medium text-purple-800">Solicitud de Beca</p>
-              <p className="text-sm text-purple-700 mt-1">
-                Las solicitudes de beca requieren una justificación detallada y pueden requerir 
-                documentación adicional. El proceso de aprobación puede tomar más tiempo que 
-                una solicitud de saldo regular.
+            <div className="flex justify-between items-center mt-2">
+              <p className="text-xs text-gray-500">
+                {becaUnits > 0 ? 'Mínimo 50 caracteres para becas' : 'Obligatorio'}
+              </p>
+              <p className={`text-xs ${becaUnits > 0 && justification.length < 50 ? 'text-red-500' : 'text-gray-500'}`}>
+                {justification.length} caracteres
               </p>
             </div>
           </div>
-        )}
 
-        {/* Submit */}
-        <div className="flex gap-4">
-          <Link
-            to="/coordinador/mi-saldo"
-            className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 text-center font-medium transition-colors"
-          >
-            Cancelar
-          </Link>
-          <button
-            type="submit"
-            disabled={submitting}
-            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-              requestType === 'beca'
-                ? 'bg-purple-600 hover:bg-purple-700'
-                : 'bg-green-600 hover:bg-green-700'
-            }`}
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Enviando...
-              </>
-            ) : (
-              <>
-                <Send className="w-5 h-5" />
-                Enviar Solicitud
-              </>
-            )}
-          </button>
+          {/* Beca Info */}
+          {becaUnits > 0 && (
+            <div className="p-4 bg-purple-50 border border-purple-200 rounded-xl flex items-start gap-3">
+              <Info className="w-5 h-5 text-purple-500 mt-0.5" />
+              <div>
+                <p className="font-medium text-purple-800">Solicitud incluye Becas</p>
+                <p className="text-sm text-purple-700 mt-1">
+                  Las solicitudes de beca requieren una justificación detallada y pueden requerir 
+                  documentación adicional. El proceso de aprobación puede tomar más tiempo.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-4">
+            <button
+              onClick={handleBackToSelect}
+              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 text-center font-medium transition-colors"
+            >
+              Volver
+            </button>
+            <button
+              onClick={handleGoToReview}
+              disabled={totalUnits === 0}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl font-medium transition-colors hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Revisar Solicitud
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
         </div>
-      </form>
+      )}
+
+      {/* Step 3: Review */}
+      {step === 'review' && selectedCampus && (
+        <div className="space-y-6">
+          {/* Review Header */}
+          <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl p-6 text-white">
+            <p className="text-green-100 text-sm mb-2">Revisa tu solicitud antes de enviar</p>
+            <p className="text-2xl font-bold">Desglose de Solicitud</p>
+          </div>
+
+          {/* Campus Info */}
+          <div className="bg-white rounded-xl border shadow-sm p-6">
+            <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-gray-400" />
+              Plantel Destino
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm text-gray-500">Partner</p>
+                <p className="font-medium text-gray-800">{selectedCampus.partner_name}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Estado</p>
+                <p className="font-medium text-gray-800">{selectedCampus.state_name || 'No especificado'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Plantel</p>
+                <p className="font-medium text-gray-800">{selectedCampus.name}</p>
+                {selectedCampus.code && (
+                  <p className="text-xs text-gray-500">Código: {selectedCampus.code}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Breakdown Table */}
+          <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Concepto</th>
+                  <th className="text-center px-6 py-4 text-sm font-semibold text-gray-600">Unidades</th>
+                  <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Precio Unitario</th>
+                  <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {saldoUnits > 0 && (
+                  <tr>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-green-100 rounded-lg">
+                          <DollarSign className="w-5 h-5 text-green-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-800">Saldo Regular</p>
+                          <p className="text-xs text-gray-500">Presupuesto estándar</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="font-bold text-gray-800">{saldoUnits}</span>
+                    </td>
+                    <td className="px-6 py-4 text-right text-gray-600">
+                      {formatCurrency(PRICE_PER_CERTIFICATION)}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <span className="font-bold text-green-600">{formatCurrency(saldoAmount)}</span>
+                    </td>
+                  </tr>
+                )}
+                {becaUnits > 0 && (
+                  <tr>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-purple-100 rounded-lg">
+                          <Gift className="w-5 h-5 text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-800">Becas</p>
+                          <p className="text-xs text-gray-500">Certificaciones becadas</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="font-bold text-gray-800">{becaUnits}</span>
+                    </td>
+                    <td className="px-6 py-4 text-right text-gray-600">
+                      {formatCurrency(PRICE_PER_CERTIFICATION)}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <span className="font-bold text-purple-600">{formatCurrency(becaAmount)}</span>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+              <tfoot className="bg-gray-50 border-t">
+                <tr>
+                  <td className="px-6 py-4 font-semibold text-gray-800">Total</td>
+                  <td className="px-6 py-4 text-center font-bold text-gray-800">
+                    {totalUnits} unidades
+                  </td>
+                  <td className="px-6 py-4"></td>
+                  <td className="px-6 py-4 text-right">
+                    <span className="text-xl font-bold text-gray-800">{formatCurrency(totalAmount)}</span>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {/* Justification Preview */}
+          <div className="bg-white rounded-xl border shadow-sm p-6">
+            <h3 className="font-semibold text-gray-800 mb-3">Justificación</h3>
+            <p className="text-gray-700 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg">
+              {justification}
+            </p>
+          </div>
+
+          {/* Confirmation Notice */}
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
+            <Info className="w-5 h-5 text-blue-500 mt-0.5" />
+            <div>
+              <p className="font-medium text-blue-800">¿Todo está correcto?</p>
+              <p className="text-sm text-blue-700 mt-1">
+                Al enviar tu solicitud, será revisada por el equipo financiero y posteriormente 
+                aprobada por gerencia. Recibirás notificaciones sobre el estado de tu solicitud.
+              </p>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-4">
+            <button
+              onClick={() => setStep('configure')}
+              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 text-center font-medium transition-colors"
+            >
+              Modificar
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl font-medium transition-colors hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <Send className="w-5 h-5" />
+                  Enviar Solicitud
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
