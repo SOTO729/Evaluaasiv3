@@ -128,10 +128,7 @@ export default function SolicitarSaldoPage() {
       setError('Ingresa una justificación');
       return;
     }
-    if (becaUnits > 0 && justification.length < 50) {
-      setError('Para solicitudes de beca, la justificación debe ser más detallada (mínimo 50 caracteres)');
-      return;
-    }
+
     setError(null);
     setStep('review');
   };
@@ -432,10 +429,18 @@ export default function SolicitarSaldoPage() {
                     -
                   </button>
                   <input
-                    type="number"
-                    min="0"
-                    value={saldoUnits}
-                    onChange={(e) => setSaldoUnits(Math.max(0, parseInt(e.target.value) || 0))}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={saldoUnits === 0 ? '' : saldoUnits}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      setSaldoUnits(val === '' ? 0 : parseInt(val, 10));
+                    }}
+                    onBlur={(e) => {
+                      if (e.target.value === '') setSaldoUnits(0);
+                    }}
+                    placeholder="0"
                     className="flex-1 text-center text-2xl font-bold py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   />
                   <button
@@ -466,7 +471,7 @@ export default function SolicitarSaldoPage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-800">Becas</h3>
-                  <p className="text-sm text-gray-500">Requiere justificación detallada</p>
+                  <p className="text-sm text-gray-500">Certificaciones sin costo</p>
                 </div>
               </div>
               
@@ -483,10 +488,18 @@ export default function SolicitarSaldoPage() {
                     -
                   </button>
                   <input
-                    type="number"
-                    min="0"
-                    value={becaUnits}
-                    onChange={(e) => setBecaUnits(Math.max(0, parseInt(e.target.value) || 0))}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={becaUnits === 0 ? '' : becaUnits}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      setBecaUnits(val === '' ? 0 : parseInt(val, 10));
+                    }}
+                    onBlur={(e) => {
+                      if (e.target.value === '') setBecaUnits(0);
+                    }}
+                    placeholder="0"
                     className="flex-1 text-center text-2xl font-bold py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                   <button
@@ -534,21 +547,13 @@ export default function SolicitarSaldoPage() {
               value={justification}
               onChange={(e) => setJustification(e.target.value)}
               rows={4}
-              placeholder={becaUnits > 0
-                ? 'Explica detalladamente por qué se requiere esta solicitud, quiénes serán los beneficiarios y cuál es el impacto esperado... (mínimo 50 caracteres para becas)'
-                : 'Indica para qué se utilizará el saldo, cuántos candidatos se beneficiarán, etc.'
-              }
+              placeholder="Indica para qué se utilizará el saldo, quiénes serán los beneficiarios y cuál es el impacto esperado..."
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none"
               required
             />
-            <div className="flex justify-between items-center mt-2">
-              <p className="text-xs text-gray-500">
-                {becaUnits > 0 ? 'Mínimo 50 caracteres para becas' : 'Obligatorio'}
-              </p>
-              <p className={`text-xs ${becaUnits > 0 && justification.length < 50 ? 'text-red-500' : 'text-gray-500'}`}>
-                {justification.length} caracteres
-              </p>
-            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Campo obligatorio
+            </p>
           </div>
 
           {/* Beca Info */}
@@ -558,8 +563,8 @@ export default function SolicitarSaldoPage() {
               <div>
                 <p className="font-medium text-purple-800">Solicitud incluye Becas</p>
                 <p className="text-sm text-purple-700 mt-1">
-                  Las solicitudes de beca requieren una justificación detallada y pueden requerir 
-                  documentación adicional. El proceso de aprobación puede tomar más tiempo.
+                  Las becas son certificaciones sin costo que se otorgan a beneficiarios elegibles.
+                  El proceso de aprobación puede tomar más tiempo.
                 </p>
               </div>
             </div>
