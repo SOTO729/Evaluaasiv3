@@ -32,6 +32,12 @@ class CompetencyStandard(db.Model):
     # Estado
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
+    # Marca (Brand) - Ej: Microsoft, Huawei, Abierto
+    brand_id = db.Column(db.Integer, db.ForeignKey('brands.id'), nullable=True)
+    
+    # Logo del estándar
+    logo_url = db.Column(db.String(500), nullable=True)
+    
     # Auditoría
     created_by = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
