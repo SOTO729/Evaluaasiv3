@@ -762,10 +762,12 @@ export default function SolicitarBecaPage() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 3xl:px-16 py-6 lg:py-8 max-w-[1920px] mx-auto">
       {/* Stepper */}
-      <StepIndicator />
+      <div className="animate-fadeInDown">
+        <StepIndicator />
+      </div>
 
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6 lg:mb-8">
+      <div className="flex items-center gap-4 mb-6 lg:mb-8 animate-fadeInDown delay-100">
         <Link
           to="/coordinador/mi-saldo"
           className="p-2.5 hover:bg-gray-100 rounded-xl transition-colors"
@@ -792,7 +794,7 @@ export default function SolicitarBecaPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 animate-fadeInUp delay-200">
         {/* Columna izquierda: Tabla de planteles */}
         <div className="xl:col-span-3 space-y-4">
           {/* Filters */}

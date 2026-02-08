@@ -121,6 +121,16 @@ export default {
       animation: {
         'slide-in': 'slideIn 0.3s ease-out forwards',
         'fadeSlideIn': 'fadeSlideIn 0.3s ease-out forwards',
+        'fadeIn': 'fadeIn 0.4s ease-out forwards',
+        'fadeInUp': 'fadeInUp 0.5s ease-out forwards',
+        'fadeInDown': 'fadeInDown 0.4s ease-out forwards',
+        'fadeInLeft': 'fadeInLeft 0.4s ease-out forwards',
+        'fadeInRight': 'fadeInRight 0.4s ease-out forwards',
+        'scaleIn': 'scaleIn 0.3s ease-out forwards',
+        'slideUp': 'slideUp 0.4s ease-out forwards',
+        'slideDown': 'slideDown 0.4s ease-out forwards',
+        'bounceIn': 'bounceIn 0.5s ease-out forwards',
+        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
       keyframes: {
         slideIn: {
@@ -130,6 +140,44 @@ export default {
         fadeSlideIn: {
           '0%': { opacity: '0', transform: 'translateY(10px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        fadeInUp: {
+          '0%': { opacity: '0', transform: 'translateY(20px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        fadeInDown: {
+          '0%': { opacity: '0', transform: 'translateY(-20px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        fadeInLeft: {
+          '0%': { opacity: '0', transform: 'translateX(-20px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        fadeInRight: {
+          '0%': { opacity: '0', transform: 'translateX(20px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        scaleIn: {
+          '0%': { opacity: '0', transform: 'scale(0.9)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        slideUp: {
+          '0%': { opacity: '0', transform: 'translateY(30px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideDown: {
+          '0%': { opacity: '0', transform: 'translateY(-30px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        bounceIn: {
+          '0%': { opacity: '0', transform: 'scale(0.3)' },
+          '50%': { transform: 'scale(1.05)' },
+          '70%': { transform: 'scale(0.9)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
         },
       },
     },

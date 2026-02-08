@@ -119,7 +119,7 @@ export default function MiSolicitudDetailPage() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-4 mb-6 animate-fadeInDown">
         <Link
           to="/coordinador/mi-saldo"
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -147,7 +147,7 @@ export default function MiSolicitudDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6 animate-fadeInUp delay-100">
           {/* Estado y Progreso */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -405,9 +405,9 @@ export default function MiSolicitudDetailPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fadeInUp delay-200">
           {/* Info Card */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover-lift card-transition">
             <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">
               Información
             </h3>

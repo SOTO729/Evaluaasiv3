@@ -469,7 +469,7 @@ export default function MiSaldoPage() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-8 animate-fadeInDown">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
             <Wallet className="w-8 h-8 text-green-600" />
@@ -490,7 +490,7 @@ export default function MiSaldoPage() {
       </div>
 
       {/* Saldo Principal */}
-      <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-8 text-white mb-8 shadow-xl">
+      <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-8 text-white mb-8 shadow-xl animate-fadeInUp hover-lift">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-green-100 text-sm font-medium mb-2">Saldo Disponible</p>
@@ -731,7 +731,7 @@ export default function MiSaldoPage() {
       {/* Stats Cards - 4 columnas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {/* Saldo Recibido (sin becas) */}
-        <div className="bg-white rounded-xl p-5 border shadow-sm">
+        <div className="bg-white rounded-xl p-5 border shadow-sm animate-fadeInUp delay-100 hover-lift card-transition">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2 bg-blue-100 rounded-lg">
               <TrendingUp className="w-5 h-5 text-blue-600" />
@@ -747,7 +747,7 @@ export default function MiSaldoPage() {
         </div>
 
         {/* Becas Recibidas */}
-        <div className="bg-white rounded-xl p-5 border shadow-sm">
+        <div className="bg-white rounded-xl p-5 border shadow-sm animate-fadeInUp delay-200 hover-lift card-transition">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2 bg-purple-100 rounded-lg">
               <Gift className="w-5 h-5 text-purple-600" />
@@ -763,7 +763,7 @@ export default function MiSaldoPage() {
         </div>
 
         {/* Total Consumido */}
-        <div className="bg-white rounded-xl p-5 border shadow-sm">
+        <div className="bg-white rounded-xl p-5 border shadow-sm animate-fadeInUp delay-300 hover-lift card-transition">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2 bg-amber-100 rounded-lg">
               <TrendingDown className="w-5 h-5 text-amber-600" />
@@ -779,7 +779,7 @@ export default function MiSaldoPage() {
         </div>
 
         {/* Total General (Recibido + Becas) */}
-        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border border-green-200 shadow-sm">
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border border-green-200 shadow-sm animate-fadeInUp delay-400 hover-lift card-transition">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2 bg-green-100 rounded-lg">
               <Wallet className="w-5 h-5 text-green-600" />
@@ -798,7 +798,7 @@ export default function MiSaldoPage() {
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Solicitudes Recientes */}
-        <div className="bg-white rounded-xl border shadow-sm">
+        <div className="bg-white rounded-xl border shadow-sm animate-fadeInUp delay-500 hover-lift card-transition">
           <div className="flex items-center justify-between p-6 border-b">
             <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
               <FileText className="w-5 h-5 text-blue-500" />
@@ -873,7 +873,7 @@ export default function MiSaldoPage() {
         </div>
 
         {/* Últimos Movimientos */}
-        <div className="bg-white rounded-xl border shadow-sm">
+        <div className="bg-white rounded-xl border shadow-sm animate-fadeInUp delay-600 hover-lift card-transition">
           <div className="flex items-center justify-between p-6 border-b">
             <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
               <History className="w-5 h-5 text-green-500" />

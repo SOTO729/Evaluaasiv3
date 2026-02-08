@@ -181,7 +181,7 @@ export default function GerenteApprovalsPage() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 animate-fadeInDown">
         <div className="flex items-center gap-4">
           <Link
             to="/gerente"
@@ -210,7 +210,7 @@ export default function GerenteApprovalsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border shadow-sm p-4 mb-6">
+      <div className="bg-white rounded-xl border shadow-sm p-4 mb-6 animate-fadeInUp delay-100 hover-lift card-transition">
         <div className="flex flex-col md:flex-row gap-4">
           {/* Search */}
           <form onSubmit={handleSearch} className="flex-1">
@@ -274,7 +274,7 @@ export default function GerenteApprovalsPage() {
       ) : (
         <>
           {/* Table */}
-          <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl border shadow-sm overflow-hidden animate-fadeInUp delay-200">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>

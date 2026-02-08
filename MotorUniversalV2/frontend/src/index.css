@@ -1132,3 +1132,67 @@ input[type="password"]::-webkit-password-viewable-toggle-button {
   outline-offset: 2px;
 }
 
+/* =============================================================================
+   UTILIDADES DE ANIMACIÓN - Para módulos de saldos y gerencia
+   ============================================================================= */
+
+/* Clases de delay para animaciones escalonadas */
+.delay-0 { animation-delay: 0ms; }
+.delay-75 { animation-delay: 75ms; }
+.delay-100 { animation-delay: 100ms; }
+.delay-150 { animation-delay: 150ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-600 { animation-delay: 600ms; }
+.delay-700 { animation-delay: 700ms; }
+
+/* Estado inicial para elementos animados (opacity 0 antes de animación) */
+.animate-on-load {
+  opacity: 0;
+}
+
+/* Variante de hover con escala suave */
+.hover-lift {
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+/* Transiciones suaves para cards */
+.card-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Shimmer effect para loading states */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Efecto de pulse para elementos destacados */
+.highlight-pulse {
+  animation: highlightPulse 2s ease-in-out infinite;
+}
+@keyframes highlightPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(59, 130, 246, 0); }
+}
+
+/* Contador animado */
+.counter-animate {
+  transition: transform 0.3s ease-out;
+}
+.counter-animate:hover {
+  transform: scale(1.02);
+}
+
+

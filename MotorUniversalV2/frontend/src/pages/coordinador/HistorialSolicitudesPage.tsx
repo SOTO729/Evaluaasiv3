@@ -94,7 +94,7 @@ export default function HistorialSolicitudesPage() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 animate-fadeInDown">
         <div className="flex items-center gap-4">
           <Link
             to="/coordinador/mi-saldo"
@@ -122,7 +122,7 @@ export default function HistorialSolicitudesPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border shadow-sm p-4 mb-6">
+      <div className="bg-white rounded-xl border shadow-sm p-4 mb-6 animate-fadeInUp delay-100 hover-lift card-transition">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex items-center gap-2">
             <Filter className="w-5 h-5 text-gray-400" />
