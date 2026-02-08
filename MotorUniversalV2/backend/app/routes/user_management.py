@@ -13,12 +13,12 @@ import re
 bp = Blueprint('user_management', __name__, url_prefix='/api/user-management')
 
 # Roles disponibles en el sistema (sin alumno)
-AVAILABLE_ROLES = ['admin', 'editor', 'soporte', 'coordinator', 'responsable', 'candidato', 'auxiliar']
+AVAILABLE_ROLES = ['admin', 'editor', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar']
 
 # Roles que puede crear cada tipo de usuario
 ROLE_CREATE_PERMISSIONS = {
-    'admin': ['editor', 'soporte', 'coordinator', 'responsable', 'candidato', 'auxiliar'],  # Todo menos admin
-    'coordinator': ['responsable', 'candidato']  # Responsables y candidatos
+    'admin': ['editor', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin
+    'coordinator': ['responsable', 'responsable_partner', 'candidato']  # Responsables, Responsables del Partner y candidatos
 }
 
 
@@ -91,9 +91,9 @@ def list_users():
         
         query = User.query
         
-        # Coordinadores ven candidatos y responsables
+        # Coordinadores ven candidatos, responsables y responsables del partner
         if current_user.role == 'coordinator':
-            query = query.filter(User.role.in_(['candidato', 'responsable']))
+            query = query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner']))
         
         # Filtros
         if role_filter:
@@ -159,8 +159,8 @@ def get_user_detail(user_id):
         current_user = g.current_user
         user = User.query.get_or_404(user_id)
         
-        # Coordinadores pueden ver candidatos y responsables
-        if current_user.role == 'coordinator' and user.role not in ['candidato', 'responsable']:
+        # Coordinadores pueden ver candidatos, responsables y responsables del partner
+        if current_user.role == 'coordinator' and user.role not in ['candidato', 'responsable', 'responsable_partner']:
             return jsonify({'error': 'No tienes permiso para ver este usuario'}), 403
         
         return jsonify({
@@ -358,8 +358,8 @@ def update_user(user_id):
         user = User.query.get_or_404(user_id)
         data = request.get_json()
         
-        # Coordinadores pueden editar candidatos y responsables
-        if current_user.role == 'coordinator' and user.role not in ['candidato', 'responsable']:
+        # Coordinadores pueden editar candidatos, responsables y responsables del partner
+        if current_user.role == 'coordinator' and user.role not in ['candidato', 'responsable', 'responsable_partner']:
             return jsonify({'error': 'No tienes permiso para editar este usuario'}), 403
         
         # No se puede editar a uno mismo por esta ruta (usar perfil)
@@ -444,8 +444,8 @@ def change_user_password(user_id):
         user = User.query.get_or_404(user_id)
         data = request.get_json()
         
-        # Coordinadores pueden cambiar contraseña de candidatos y responsables
-        if current_user.role == 'coordinator' and user.role not in ['candidato', 'responsable']:
+        # Coordinadores pueden cambiar contraseña de candidatos, responsables y responsables del partner
+        if current_user.role == 'coordinator' and user.role not in ['candidato', 'responsable', 'responsable_partner']:
             return jsonify({'error': 'No tienes permiso para cambiar la contraseña de este usuario'}), 403
         
         new_password = data.get('new_password')
@@ -542,8 +542,8 @@ def toggle_user_active(user_id):
         current_user = g.current_user
         user = User.query.get_or_404(user_id)
         
-        # Coordinadores pueden manejar candidatos y responsables
-        if current_user.role == 'coordinator' and user.role not in ['candidato', 'responsable']:
+        # Coordinadores pueden manejar candidatos, responsables y responsables del partner
+        if current_user.role == 'coordinator' and user.role not in ['candidato', 'responsable', 'responsable_partner']:
             return jsonify({'error': 'No tienes permiso para modificar este usuario'}), 403
         
         # No se puede desactivar a uno mismo
@@ -641,9 +641,9 @@ def get_user_stats():
         
         base_query = User.query
         
-        # Coordinadores ven stats de candidatos y responsables
+        # Coordinadores ven stats de candidatos, responsables y responsables del partner
         if current_user.role == 'coordinator':
-            base_query = base_query.filter(User.role.in_(['candidato', 'responsable']))
+            base_query = base_query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner']))
         
         total_users = base_query.count()
         active_users = base_query.filter(User.is_active == True).count()
@@ -657,7 +657,7 @@ def get_user_stats():
                 count = User.query.filter_by(role=role).count()
                 users_by_role.append({'role': role, 'count': count})
         elif current_user.role == 'coordinator':
-            for role in ['candidato', 'responsable']:
+            for role in ['candidato', 'responsable', 'responsable_partner']:
                 count = User.query.filter_by(role=role).count()
                 users_by_role.append({'role': role, 'count': count})
         else:
