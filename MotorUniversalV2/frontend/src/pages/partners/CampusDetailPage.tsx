@@ -497,10 +497,10 @@ export default function CampusDetailPage() {
                 </div>
                 <p className="fluid-text-sm font-semibold text-gray-900">{campus.director_full_name || campus.director_name}</p>
                 {campus.director_email && (
-                  <p className="fluid-text-xs text-gray-500 fluid-mt-1">{campus.director_email}</p>
+                  <p className="fluid-text-xs text-gray-500 fluid-mt-2">{campus.director_email}</p>
                 )}
                 {campus.director_curp && (
-                  <p className="fluid-text-xs text-gray-400 fluid-mt-0.5 font-mono">{campus.director_curp}</p>
+                  <p className="fluid-text-xs text-gray-400 fluid-mt-1.5 font-mono">{campus.director_curp}</p>
                 )}
               </div>
             )}
@@ -533,8 +533,8 @@ export default function CampusDetailPage() {
             
             {/* Niveles de Certificación */}
             <div>
-              <p className="fluid-text-xs font-bold text-gray-500 uppercase tracking-wide fluid-mb-2">Niveles de Certificación</p>
-              <div className="grid grid-cols-2 fluid-gap-2">
+              <p className="fluid-text-xs font-bold text-gray-500 uppercase tracking-wide fluid-mb-3">Niveles de Certificación</p>
+              <div className="grid grid-cols-2 fluid-gap-3">
                 <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${campus.enable_tier_basic !== false ? 'bg-green-100 text-green-800 border-2 border-green-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
                   <div className="flex items-center fluid-gap-2">
                     <Award className="fluid-icon-sm" />
@@ -568,8 +568,8 @@ export default function CampusDetailPage() {
             
             {/* Funcionalidades */}
             <div>
-              <p className="fluid-text-xs font-bold text-gray-500 uppercase tracking-wide fluid-mb-2">Funcionalidades</p>
-              <div className="grid grid-cols-2 fluid-gap-2">
+              <p className="fluid-text-xs font-bold text-gray-500 uppercase tracking-wide fluid-mb-3">Funcionalidades</p>
+              <div className="grid grid-cols-2 fluid-gap-3">
                 <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${campus.enable_partial_evaluations ? 'bg-green-100 text-green-800 border-2 border-green-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
                   <div className="flex items-center fluid-gap-2">
                     <FileText className="fluid-icon-sm" />
@@ -666,7 +666,7 @@ export default function CampusDetailPage() {
                   <p className="fluid-text-xs text-gray-500 truncate fluid-mt-0.5">{campus.responsable.email}</p>
                 </div>
               </div>
-              <div className="flex flex-wrap fluid-gap-2">
+              <div className="flex flex-wrap fluid-gap-2.5">
                 {campus.responsable.can_manage_groups && <span className="fluid-text-xs bg-indigo-100 text-indigo-700 fluid-px-3 fluid-py-1 rounded-full font-semibold border border-indigo-200">Grupos</span>}
                 {campus.responsable.can_bulk_create_candidates && <span className="fluid-text-xs bg-indigo-100 text-indigo-700 fluid-px-3 fluid-py-1 rounded-full font-semibold border border-indigo-200">Altas masivas</span>}
               </div>
