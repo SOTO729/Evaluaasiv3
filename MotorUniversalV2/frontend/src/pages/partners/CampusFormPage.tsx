@@ -397,7 +397,7 @@ export default function CampusFormPage() {
             value ? 'text-gray-800' : 'text-gray-500'
           }`}>{label}</span>
           {description && (
-            <p className="fluid-text-xs text-gray-500 mt-0.5">{description}</p>
+            <p className="fluid-text-xs text-gray-500 mt-1">{description}</p>
           )}
         </div>
         <button
@@ -916,7 +916,7 @@ export default function CampusFormPage() {
               <div className="fluid-space-y-6">
                 
                 {/* Fila 1: Versión Office, Costos y Vigencia */}
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 fluid-gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 fluid-gap-5">
                   {/* Versión de Office */}
                   <div className="bg-white fluid-p-5 rounded-fluid-xl border border-gray-200 hover:shadow-lg transition-all duration-300 hover:border-blue-300">
                     <div className="flex items-center fluid-gap-3 fluid-mb-4">
@@ -988,9 +988,9 @@ export default function CampusFormPage() {
                       </div>
                       <span className="font-semibold text-gray-800 fluid-text-sm">Vigencia de Licencia</span>
                     </div>
-                    <div className="grid grid-cols-2 fluid-gap-3">
+                    <div className="grid grid-cols-2 fluid-gap-4">
                       <div>
-                        <label className="block fluid-text-xs text-gray-500 fluid-mb-1">Inicio</label>
+                        <label className="block fluid-text-xs text-gray-500 fluid-mb-2">Inicio</label>
                         <input
                           type="date"
                           value={configData.license_start_date}
@@ -999,7 +999,7 @@ export default function CampusFormPage() {
                         />
                       </div>
                       <div>
-                        <label className="block fluid-text-xs text-gray-500 fluid-mb-1">Fin</label>
+                        <label className="block fluid-text-xs text-gray-500 fluid-mb-2">Fin</label>
                         <input
                           type="date"
                           value={configData.license_end_date}
@@ -1019,7 +1019,7 @@ export default function CampusFormPage() {
                       <Award className="fluid-icon-base text-indigo-600" />
                       Niveles de Certificación
                     </h3>
-                    <div className="fluid-space-y-3">
+                    <div className="fluid-space-y-4">
                       <ConfigToggle 
                         field="enable_tier_basic" 
                         label="Constancia de Evaluación" 
@@ -1057,7 +1057,7 @@ export default function CampusFormPage() {
                       <Settings className="fluid-icon-base text-indigo-600" />
                       Funcionalidades Disponibles
                     </h3>
-                    <div className="fluid-space-y-3">
+                    <div className="fluid-space-y-4">
                       <ConfigToggle 
                         field="enable_partial_evaluations" 
                         label="Evaluaciones Parciales" 
@@ -1111,7 +1111,7 @@ export default function CampusFormPage() {
                       <p>No hay estándares de competencia disponibles</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 fluid-gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 fluid-gap-4">
                       {availableEcm.map((ecm) => {
                         const isSelected = selectedEcmIds.includes(ecm.id);
                         return (
