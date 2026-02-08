@@ -35,6 +35,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import {
   getCampus,
   Campus,
@@ -531,6 +532,15 @@ export default function CampusActivationPage() {
 
   return (
     <div className="fluid-p-4 fluid-p-6 fluid-p-8 w-full animate-fade-in-up">
+      {/* Breadcrumb */}
+      <PartnersBreadcrumb 
+        items={[
+          { label: campus.partner?.name || 'Partner', path: `/partners/${campus.partner_id}` },
+          { label: campus.name, path: `/partners/campuses/${campusId}` },
+          { label: 'Activación' }
+        ]} 
+      />
+      
       {/* Header */}
       <div className="flex items-center fluid-gap-4 fluid-mb-6 fluid-mb-8">
         <Link

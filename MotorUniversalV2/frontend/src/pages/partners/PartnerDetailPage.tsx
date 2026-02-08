@@ -25,6 +25,7 @@ import {
   Info,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import {
   getPartner,
   getCampuses,
@@ -113,6 +114,9 @@ export default function PartnerDetailPage() {
 
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
+      {/* Breadcrumb */}
+      <PartnersBreadcrumb items={[{ label: partner.name }]} />
+      
       {/* Success Message */}
       {successMessage && (
         <div className="fluid-mb-6 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-fluid-2xl fluid-p-5 flex items-center fluid-gap-4 animate-fade-in-up shadow-sm">

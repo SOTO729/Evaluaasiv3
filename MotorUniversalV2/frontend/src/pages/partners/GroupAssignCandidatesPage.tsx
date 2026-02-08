@@ -35,6 +35,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import {
   getGroup,
   getGroupMembers,
@@ -470,6 +471,18 @@ export default function GroupAssignCandidatesPage() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-gray-100">
+      {/* ===== BREADCRUMB ===== */}
+      <div className="bg-white border-b border-gray-100 flex-shrink-0 fluid-px-4 fluid-pt-4">
+        <PartnersBreadcrumb 
+          items={[
+            { label: group?.campus?.partner?.name || 'Partner', path: `/partners/${group?.campus?.partner_id}` },
+            { label: group?.campus?.name || 'Plantel', path: `/partners/campuses/${group?.campus_id}` },
+            { label: group?.name || 'Grupo', path: `/partners/groups/${groupId}` },
+            { label: 'Asignar Candidatos' }
+          ]} 
+        />
+      </div>
+      
       {/* ===== HEADER CON TABS ===== */}
       <header className="bg-white border-b border-gray-200 flex-shrink-0">
         <div className="fluid-px-4 fluid-py-3">

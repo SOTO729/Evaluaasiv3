@@ -22,6 +22,7 @@ import {
   X,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import {
   getGroup,
   getGroupMembers,
@@ -251,6 +252,18 @@ export default function GroupEditAssignmentMembersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Breadcrumb */}
+      <div className="bg-white border-b fluid-px-6 fluid-pt-4">
+        <PartnersBreadcrumb 
+          items={[
+            { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
+            { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
+            { label: group.name, path: `/partners/groups/${groupId}` },
+            { label: 'Editar Miembros' }
+          ]} 
+        />
+      </div>
+      
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">

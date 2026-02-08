@@ -33,6 +33,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import {
   getCampus,
   createCampus,
@@ -424,6 +425,21 @@ export default function CampusFormPage() {
 
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
+      {/* Breadcrumb */}
+      <PartnersBreadcrumb 
+        items={isEditing 
+          ? [
+              { label: partnerName || 'Partner', path: `/partners/${actualPartnerId}` },
+              { label: formData.name || 'Plantel', path: `/partners/campuses/${campusId}` },
+              { label: 'Editar' }
+            ]
+          : [
+              { label: partnerName || 'Partner', path: `/partners/${actualPartnerId}` },
+              { label: 'Nuevo Plantel' }
+            ]
+        } 
+      />
+      
       {/* Header con gradiente */}
       <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 shadow-lg">
         <div className="flex items-center fluid-gap-5 flex-wrap">

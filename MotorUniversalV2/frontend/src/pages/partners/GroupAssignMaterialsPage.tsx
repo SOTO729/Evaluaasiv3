@@ -30,6 +30,7 @@ import {
   Edit3,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import {
   getGroup,
   getGroupMembers,
@@ -294,6 +295,16 @@ export default function GroupAssignMaterialsPage() {
 
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
+      {/* Breadcrumb */}
+      <PartnersBreadcrumb 
+        items={[
+          { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
+          { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
+          { label: group.name, path: `/partners/groups/${groupId}` },
+          { label: 'Asignar Materiales' }
+        ]} 
+      />
+      
       {/* Header */}
       <div className="mb-6">
         <Link

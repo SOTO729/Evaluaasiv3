@@ -37,6 +37,7 @@ import {
   Power,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import DatePickerInput from '../../components/DatePickerInput';
 import {
   getCampus,
@@ -364,6 +365,14 @@ export default function CampusDetailPage() {
 
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
+      {/* Breadcrumb */}
+      <PartnersBreadcrumb 
+        items={[
+          { label: campus.partner?.name || 'Partner', path: `/partners/${campus.partner_id}` },
+          { label: campus.name }
+        ]} 
+      />
+      
       {/* Header con Gradiente */}
       <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 shadow-lg">
         <div className="flex items-center fluid-gap-5 flex-wrap">

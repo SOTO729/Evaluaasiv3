@@ -34,6 +34,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import {
   getGroup,
   getGroupMembers,
@@ -445,6 +446,15 @@ export default function GroupDetailPage() {
 
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
+      {/* Breadcrumb */}
+      <PartnersBreadcrumb 
+        items={[
+          { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
+          { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
+          { label: group.name }
+        ]} 
+      />
+      
       {/* Header simple */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 fluid-p-5 fluid-mb-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

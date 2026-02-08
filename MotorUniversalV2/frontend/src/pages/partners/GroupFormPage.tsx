@@ -25,6 +25,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import {
   getCampus,
   getGroup,
@@ -380,6 +381,23 @@ export default function GroupFormPage() {
 
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
+      {/* Breadcrumb */}
+      <PartnersBreadcrumb 
+        items={isEditing 
+          ? [
+              { label: campus?.partner?.name || 'Partner', path: `/partners/${campus?.partner_id}` },
+              { label: campus?.name || 'Plantel', path: `/partners/campuses/${campusId}` },
+              { label: formData.name || 'Grupo', path: `/partners/groups/${groupId}` },
+              { label: 'Editar' }
+            ]
+          : [
+              { label: campus?.partner?.name || 'Partner', path: `/partners/${campus?.partner_id}` },
+              { label: campus?.name || 'Plantel', path: `/partners/campuses/${campusId}` },
+              { label: 'Nuevo Grupo' }
+            ]
+        } 
+      />
+      
       {/* Header */}
       <div className="flex items-center fluid-gap-5 fluid-mb-6">
         <Link
