@@ -95,7 +95,7 @@ export default function FinancieroDashboard() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8 animate-fadeInDown">
+      <div className="flex items-center justify-between mb-8 animate-fade-in-up">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Portal Financiero</h1>
           <p className="text-gray-600 mt-1">Gestión de solicitudes de saldo y reportes</p>
@@ -112,7 +112,7 @@ export default function FinancieroDashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-fadeInUp delay-100 hover-lift card-transition">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-fade-in-up">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Solicitudes Pendientes</p>
@@ -126,7 +126,7 @@ export default function FinancieroDashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-fadeInUp delay-200 hover-lift card-transition">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-fade-in-up">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">En Revisión</p>
@@ -140,7 +140,7 @@ export default function FinancieroDashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-fadeInUp delay-300 hover-lift card-transition">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-fade-in-up">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Esperando Aprobación</p>
@@ -154,7 +154,7 @@ export default function FinancieroDashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-fadeInUp delay-400 hover-lift card-transition">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-fade-in-up">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Saldo Total en Sistema</p>
@@ -173,7 +173,7 @@ export default function FinancieroDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Link
           to="/financiero/solicitudes"
-          className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-xl p-6 hover:from-indigo-600 hover:to-indigo-700 transition-all shadow-lg animate-fadeInUp delay-500 hover-lift"
+          className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-xl p-6 hover:from-indigo-600 hover:to-indigo-700 transition-all shadow-lg animate-fade-in-up"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -188,7 +188,7 @@ export default function FinancieroDashboard() {
 
         <Link
           to="/financiero/coordinadores"
-          className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-xl p-6 hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg animate-fadeInUp delay-600 hover-lift"
+          className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-xl p-6 hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg animate-fade-in-up"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -203,7 +203,7 @@ export default function FinancieroDashboard() {
 
         <Link
           to="/financiero/reportes"
-          className="bg-gradient-to-br from-amber-500 to-amber-600 text-white rounded-xl p-6 hover:from-amber-600 hover:to-amber-700 transition-all shadow-lg animate-fadeInUp delay-700 hover-lift"
+          className="bg-gradient-to-br from-amber-500 to-amber-600 text-white rounded-xl p-6 hover:from-amber-600 hover:to-amber-700 transition-all shadow-lg animate-fade-in-up"
         >
           <div className="flex items-center justify-between">
             <div>

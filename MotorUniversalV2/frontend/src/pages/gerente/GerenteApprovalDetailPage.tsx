@@ -140,7 +140,7 @@ export default function GerenteApprovalDetailPage() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6 animate-fadeInDown">
+      <div className="flex items-center gap-4 mb-6 animate-fade-in-up">
         <Link
           to="/gerente/aprobaciones"
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -181,7 +181,7 @@ export default function GerenteApprovalDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Info */}
-        <div className="lg:col-span-2 space-y-6 animate-fadeInUp delay-100">
+        <div className="lg:col-span-2 space-y-6 animate-fade-in-up">
           {/* Información del Coordinador */}
           <div className="bg-white rounded-xl border shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
@@ -422,9 +422,9 @@ export default function GerenteApprovalDetailPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6 animate-fadeInUp delay-200">
+        <div className="space-y-6 animate-fade-in-up">
           {/* Resumen Financiero */}
-          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl border border-purple-100 p-6 hover-lift card-transition">
+          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl border border-purple-100 p-6">
             <h3 className="font-semibold text-purple-800 mb-4 flex items-center gap-2">
               <DollarSign className="w-5 h-5" />
               Resumen Financiero

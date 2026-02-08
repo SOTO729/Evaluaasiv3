@@ -104,7 +104,7 @@ export default function GerenteDashboard() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8 animate-fadeInDown">
+      <div className="flex items-center justify-between mb-8 animate-fade-in-up">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
             <LayoutDashboard className="w-8 h-8 text-purple-600" />
@@ -127,7 +127,7 @@ export default function GerenteDashboard() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {/* Saldo Total */}
-        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100 animate-fadeInUp delay-100 hover-lift card-transition">
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100 animate-fade-in-up">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-3 bg-green-100 rounded-lg">
               <DollarSign className="w-6 h-6 text-green-600" />
@@ -143,7 +143,7 @@ export default function GerenteDashboard() {
         </div>
 
         {/* Pendientes de Aprobación */}
-        <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-xl p-6 border border-amber-100 animate-fadeInUp delay-200 hover-lift card-transition">
+        <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-xl p-6 border border-amber-100 animate-fade-in-up">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-3 bg-amber-100 rounded-lg">
               <FileCheck className="w-6 h-6 text-amber-600" />
@@ -159,7 +159,7 @@ export default function GerenteDashboard() {
         </div>
 
         {/* Actividad Hoy */}
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100 animate-fadeInUp delay-300 hover-lift card-transition">
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100 animate-fade-in-up">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-3 bg-blue-100 rounded-lg">
               <Activity className="w-6 h-6 text-blue-600" />
@@ -175,7 +175,7 @@ export default function GerenteDashboard() {
         </div>
 
         {/* Total Aprobado */}
-        <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-6 border border-purple-100 animate-fadeInUp delay-400 hover-lift card-transition">
+        <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-6 border border-purple-100 animate-fade-in-up">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-3 bg-purple-100 rounded-lg">
               <TrendingUp className="w-6 h-6 text-purple-600" />
@@ -194,7 +194,7 @@ export default function GerenteDashboard() {
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Solicitudes Pendientes de Aprobación */}
-        <div className="bg-white rounded-xl border shadow-sm animate-fadeInUp delay-500 hover-lift card-transition">
+        <div className="bg-white rounded-xl border shadow-sm animate-fade-in-up">
           <div className="flex items-center justify-between p-6 border-b">
             <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
               <FileCheck className="w-5 h-5 text-amber-500" />
@@ -255,7 +255,7 @@ export default function GerenteDashboard() {
         </div>
 
         {/* Resumen de Actividad */}
-        <div className="bg-white rounded-xl border shadow-sm animate-fadeInUp delay-600 hover-lift card-transition">
+        <div className="bg-white rounded-xl border shadow-sm animate-fade-in-up">
           <div className="flex items-center justify-between p-6 border-b">
             <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
               <Activity className="w-5 h-5 text-blue-500" />

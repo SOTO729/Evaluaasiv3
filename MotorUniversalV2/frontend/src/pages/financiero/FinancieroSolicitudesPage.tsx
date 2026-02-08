@@ -165,7 +165,7 @@ export default function FinancieroSolicitudesPage() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6 animate-fadeInDown">
+      <div className="flex items-center gap-4 mb-6 animate-fade-in-up">
         <Link
           to="/financiero"
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -179,7 +179,7 @@ export default function FinancieroSolicitudesPage() {
       </div>
 
       {/* Stats Badges */}
-      <div className="flex flex-wrap gap-3 mb-6 animate-fadeInUp delay-100">
+      <div className="flex flex-wrap gap-3 mb-6 animate-fade-in-up">
         <button
           onClick={() => updateParams('status', 'pending')}
           className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-colors ${
@@ -225,7 +225,7 @@ export default function FinancieroSolicitudesPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 animate-fadeInUp delay-200 hover-lift card-transition">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 animate-fade-in-up">
         <div className="flex flex-wrap gap-4">
           <div className="flex-1 min-w-[200px]">
             <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
@@ -259,7 +259,7 @@ export default function FinancieroSolicitudesPage() {
       </div>
 
       {/* Results */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-fadeInUp delay-300">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-fade-in-up">
         {loading ? (
           <div className="p-12 text-center">
             <LoadingSpinner size="lg" />
