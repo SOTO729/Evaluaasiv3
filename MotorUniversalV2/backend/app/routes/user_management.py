@@ -692,6 +692,7 @@ def get_available_roles():
             'soporte': 'Soporte - Atención a usuarios y vouchers',
             'coordinator': 'Coordinador - Gestión de partners y candidatos',
             'responsable': 'Responsable - Administra un plantel y sus candidatos',
+            'responsable_partner': 'Responsable del Partner - Supervisa al partner y sus planteles',
             'candidato': 'Candidato - Usuario que presenta evaluaciones',
             'auxiliar': 'Auxiliar - Acceso de solo lectura'
         }
