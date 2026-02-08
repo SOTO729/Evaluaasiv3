@@ -379,8 +379,9 @@ export default function PartnerDetailPage() {
                 </Link>
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
-                {filteredCampuses.map((campus) => (
+              <div className="max-h-[450px] overflow-y-auto">
+                <div className="divide-y divide-gray-100">
+                  {filteredCampuses.map((campus) => (
                   <div
                     key={campus.id}
                     className={`fluid-p-5 transition-all duration-300 hover:bg-gray-50 ${
@@ -455,7 +456,8 @@ export default function PartnerDetailPage() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>
