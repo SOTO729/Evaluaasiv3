@@ -877,7 +877,7 @@ export default function CampusActivationPage() {
                       <StyledSelect
                         name="gender"
                         value={formData.gender}
-                        onChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}
+                        onChange={(value) => setFormData(prev => ({ ...prev, gender: value as 'M' | 'F' | 'O' }))}
                         options={[
                           { value: 'M', label: 'Masculino' },
                           { value: 'F', label: 'Femenino' },
