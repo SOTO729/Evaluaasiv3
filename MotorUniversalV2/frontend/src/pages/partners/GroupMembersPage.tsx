@@ -13,7 +13,6 @@ import {
   X,
   UserPlus,
   UserMinus,
-  ClipboardList,
   BookOpen,
   Search,
   ChevronDown,

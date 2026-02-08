@@ -85,6 +85,8 @@ export default function UsersListPage() {
   const [assignMessage, setAssignMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   
   const isAdmin = currentUser?.role === 'admin';
+  const isCoordinator = currentUser?.role === 'coordinator';
+  const canManageUsers = isAdmin || isCoordinator;
   
   // Ordenamiento
   type SortField = 'full_name' | 'email' | 'curp' | 'role' | 'is_active' | 'created_at';
@@ -578,8 +580,8 @@ export default function UsersListPage() {
           </div>
         )}
         
-        {/* Barra de acciones de selección - Solo Admin */}
-        {isAdmin && (
+        {/* Barra de acciones de selección - Admin y Coordinador */}
+        {canManageUsers && (
           <div className="fluid-mt-4 fluid-pt-4 border-t border-gray-200 flex flex-wrap items-center justify-between fluid-gap-4">
             <div className="flex items-center fluid-gap-3">
               <span className="fluid-text-sm text-gray-600">
@@ -702,8 +704,8 @@ export default function UsersListPage() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {/* Checkbox de selección - Solo Admin */}
-                {isAdmin && (
+                {/* Checkbox de selección - Admin y Coordinador */}
+                {canManageUsers && (
                   <th className="fluid-px-4 fluid-py-3 text-center fluid-text-xs font-semibold text-gray-600 w-12">
                     <button
                       onClick={toggleSelectAll}
@@ -784,8 +786,8 @@ export default function UsersListPage() {
                   className={`hover:bg-blue-50 transition-colors cursor-pointer ${selectedUsers.has(user.id) ? 'bg-blue-50' : ''}`}
                   onClick={() => window.location.href = `/user-management/${user.id}`}
                 >
-                  {/* Checkbox de selección - Solo Admin */}
-                  {isAdmin && (
+                  {/* Checkbox de selección - Admin y Coordinador */}
+                  {canManageUsers && (
                     <td className="fluid-px-4 fluid-py-3 text-center" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => toggleSelectUser(user.id)}

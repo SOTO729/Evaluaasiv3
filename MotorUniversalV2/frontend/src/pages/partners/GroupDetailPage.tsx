@@ -23,7 +23,6 @@ import {
   Clock,
   Target,
   FileText,
-  MapPin,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
