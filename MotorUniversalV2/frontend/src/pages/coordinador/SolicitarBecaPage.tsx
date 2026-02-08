@@ -607,8 +607,8 @@ export default function SolicitarBecaPage() {
                   <div key={campusId} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                     <div className="p-4 lg:p-5 bg-gradient-to-r from-gray-50 to-white border-b flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-primary-100 rounded-lg">
-                          <Building2 className="w-5 h-5 text-primary-600" />
+                        <div className="p-2 bg-purple-100 rounded-lg">
+                          <Building2 className="w-5 h-5 text-purple-600" />
                         </div>
                         <div>
                           <p className="font-semibold text-gray-900">{campus?.name}</p>
@@ -872,9 +872,9 @@ export default function SolicitarBecaPage() {
                           <tr 
                             className={`cursor-pointer transition-all ${
                               isExpanded 
-                                ? 'bg-primary-50' 
+                                ? 'bg-purple-50' 
                                 : campusLinesCount > 0 
-                                  ? 'bg-primary-50/50 hover:bg-primary-50' 
+                                  ? 'bg-purple-50/50 hover:bg-purple-50' 
                                   : 'hover:bg-gray-50'
                             }`}
                             onClick={() => handleExpandCampus(campus.id)}
@@ -910,7 +910,7 @@ export default function SolicitarBecaPage() {
                                 className={`p-2 rounded-lg transition-all ${
                                   isExpanded 
                                     ? 'bg-purple-600 text-white shadow-md' 
-                                    : 'bg-gray-100 text-gray-600 hover:bg-primary-100 hover:text-primary-600'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-600'
                                 }`}
                               >
                                 {isExpanded ? <ChevronUp className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
@@ -994,10 +994,10 @@ export default function SolicitarBecaPage() {
                                       </div>
 
                                       {newLineUnits > 0 && (
-                                        <div className="mt-3 p-3 bg-white rounded-xl border border-gray-200 text-sm">
+                                        <div className="mt-3 p-3 bg-purple-50 rounded-xl border border-purple-200 text-sm">
                                           <span className="text-gray-600">Vista previa: </span>
                                           <span className="font-medium">{newLineUnits} unidades × {formatCurrency(getGroupPrice(campus.id, newLineGroupId))} = </span>
-                                          <span className="font-bold text-primary-600">{formatCurrency(newLineUnits * getGroupPrice(campus.id, newLineGroupId))}</span>
+                                          <span className="font-bold text-purple-600">{formatCurrency(newLineUnits * getGroupPrice(campus.id, newLineGroupId))}</span>
                                         </div>
                                       )}
 
@@ -1083,13 +1083,13 @@ export default function SolicitarBecaPage() {
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="p-3 bg-primary-50 rounded-xl text-center">
-                    <p className="text-2xl font-bold text-primary-700">{new Set(requestLines.map(l => l.campusId)).size}</p>
-                    <p className="text-xs text-primary-600 font-medium">Planteles</p>
+                  <div className="p-3 bg-purple-50 rounded-xl text-center">
+                    <p className="text-2xl font-bold text-purple-700">{new Set(requestLines.map(l => l.campusId)).size}</p>
+                    <p className="text-xs text-purple-600 font-medium">Planteles</p>
                   </div>
-                  <div className="p-3 bg-primary-50 rounded-xl text-center">
-                    <p className="text-2xl font-bold text-primary-700">{requestLines.length}</p>
-                    <p className="text-xs text-primary-600 font-medium">Líneas</p>
+                  <div className="p-3 bg-purple-50 rounded-xl text-center">
+                    <p className="text-2xl font-bold text-purple-700">{requestLines.length}</p>
+                    <p className="text-xs text-purple-600 font-medium">Líneas</p>
                   </div>
                 </div>
 
@@ -1107,14 +1107,14 @@ export default function SolicitarBecaPage() {
                     </div>
                   )}
                   {totals.becaAmount > 0 && (
-                    <div className="flex items-center justify-between py-2 px-3 bg-primary-50 rounded-xl">
+                    <div className="flex items-center justify-between py-2 px-3 bg-purple-50 rounded-xl">
                       <div className="flex items-center gap-2">
-                        <Gift className="w-4 h-4 text-primary-600" />
+                        <Gift className="w-4 h-4 text-purple-600" />
                         <span className="text-sm font-medium text-purple-800">Becas</span>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-primary-700">{formatCurrency(totals.becaAmount)}</p>
-                        <p className="text-xs text-primary-600">{totals.becaUnits} unidades</p>
+                        <p className="font-bold text-purple-700">{formatCurrency(totals.becaAmount)}</p>
+                        <p className="text-xs text-purple-600">{totals.becaUnits} unidades</p>
                       </div>
                     </div>
                   )}

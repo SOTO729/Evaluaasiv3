@@ -608,8 +608,8 @@ export default function SolicitarSaldoPage() {
                   <div key={campusId} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                     <div className="p-4 lg:p-5 bg-gradient-to-r from-gray-50 to-white border-b flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-primary-100 rounded-lg">
-                          <Building2 className="w-5 h-5 text-primary-600" />
+                        <div className="p-2 bg-green-100 rounded-lg">
+                          <Building2 className="w-5 h-5 text-green-600" />
                         </div>
                         <div>
                           <p className="font-semibold text-gray-900">{campus?.name}</p>
@@ -873,9 +873,9 @@ export default function SolicitarSaldoPage() {
                           <tr 
                             className={`cursor-pointer transition-all ${
                               isExpanded 
-                                ? 'bg-primary-50' 
+                                ? 'bg-green-50' 
                                 : campusLinesCount > 0 
-                                  ? 'bg-emerald-50/50 hover:bg-emerald-50' 
+                                  ? 'bg-green-50/50 hover:bg-green-50' 
                                   : 'hover:bg-gray-50'
                             }`}
                             onClick={() => handleExpandCampus(campus.id)}
@@ -898,7 +898,7 @@ export default function SolicitarSaldoPage() {
                             </td>
                             <td className="px-3 py-3 text-center">
                               {campusLinesCount > 0 ? (
-                                <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-1 bg-emerald-600 text-white text-xs font-bold rounded-full">
+                                <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-1 bg-green-600 text-white text-xs font-bold rounded-full">
                                   {campusLinesCount}
                                 </span>
                               ) : (
@@ -911,7 +911,7 @@ export default function SolicitarSaldoPage() {
                                 className={`p-2 rounded-lg transition-all ${
                                   isExpanded 
                                     ? 'bg-green-600 text-white shadow-md' 
-                                    : 'bg-gray-100 text-gray-600 hover:bg-primary-100 hover:text-primary-600'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-600'
                                 }`}
                               >
                                 {isExpanded ? <ChevronUp className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
@@ -995,10 +995,10 @@ export default function SolicitarSaldoPage() {
                                       </div>
 
                                       {newLineUnits > 0 && (
-                                        <div className="mt-3 p-3 bg-white rounded-xl border border-gray-200 text-sm">
+                                        <div className="mt-3 p-3 bg-green-50 rounded-xl border border-green-200 text-sm">
                                           <span className="text-gray-600">Vista previa: </span>
                                           <span className="font-medium">{newLineUnits} unidades × {formatCurrency(getGroupPrice(campus.id, newLineGroupId))} = </span>
-                                          <span className="font-bold text-primary-600">{formatCurrency(newLineUnits * getGroupPrice(campus.id, newLineGroupId))}</span>
+                                          <span className="font-bold text-green-600">{formatCurrency(newLineUnits * getGroupPrice(campus.id, newLineGroupId))}</span>
                                         </div>
                                       )}
 
@@ -1084,13 +1084,13 @@ export default function SolicitarSaldoPage() {
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="p-3 bg-primary-50 rounded-xl text-center">
-                    <p className="text-2xl font-bold text-primary-700">{new Set(requestLines.map(l => l.campusId)).size}</p>
-                    <p className="text-xs text-primary-600 font-medium">Planteles</p>
+                  <div className="p-3 bg-green-50 rounded-xl text-center">
+                    <p className="text-2xl font-bold text-green-700">{new Set(requestLines.map(l => l.campusId)).size}</p>
+                    <p className="text-xs text-green-600 font-medium">Planteles</p>
                   </div>
-                  <div className="p-3 bg-primary-50 rounded-xl text-center">
-                    <p className="text-2xl font-bold text-primary-700">{requestLines.length}</p>
-                    <p className="text-xs text-primary-600 font-medium">Líneas</p>
+                  <div className="p-3 bg-green-50 rounded-xl text-center">
+                    <p className="text-2xl font-bold text-green-700">{requestLines.length}</p>
+                    <p className="text-xs text-green-600 font-medium">Líneas</p>
                   </div>
                 </div>
 
