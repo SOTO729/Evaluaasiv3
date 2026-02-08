@@ -64,6 +64,20 @@ interface GroupEquivalence {
   hasDifferentPrice: boolean;
 }
 
+// Precio promedio para calcular equivalencia en unidades (certificaciones)
+const AVERAGE_CERT_PRICE = 500;
+
+// Helper para calcular equivalencia en unidades
+const calculateUnits = (amount: number): number => {
+  return Math.floor(amount / AVERAGE_CERT_PRICE);
+};
+
+// Helper para formatear unidades
+const formatUnits = (amount: number): string => {
+  const units = calculateUnits(amount);
+  return `≈ ${units} cert${units !== 1 ? 's' : ''}.`;
+};
+
 export default function MiSaldoPage() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'admin';
@@ -449,8 +463,8 @@ export default function MiSaldoPage() {
   // Calcular certificaciones disponibles (si hay costo promedio)
   // Esto es una estimación, el real se calcula por grupo
   const estimatedCertifications = balance && balance.current_balance > 0
-    ? Math.floor(balance.current_balance / 500) // Asumiendo $500 promedio
-    : 0;
+    ? formatUnits(calculateUnits(balance.current_balance))
+    : '0';
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
@@ -634,28 +648,36 @@ export default function MiSaldoPage() {
                     <p className="text-xs text-green-600">Aprobaciones de solicitudes de saldo</p>
                   </div>
                 </div>
-                <p className="text-xl font-bold text-green-700">
-                  +{formatCurrency(balance.total_received - (balance.total_scholarships || 0))}
-                </p>
+                <div className="text-right">
+                  <p className="text-xl font-bold text-green-700">
+                    +{formatCurrency(balance.total_received - (balance.total_scholarships || 0))}
+                  </p>
+                  <p className="text-xs text-green-600">
+                    {formatUnits(balance.total_received - (balance.total_scholarships || 0))}
+                  </p>
+                </div>
               </div>
 
-              {/* Becas Recibidas */}
-              {(balance.total_scholarships || 0) > 0 && (
-                <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-100">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <Gift className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-purple-800">Becas Recibidas</p>
-                      <p className="text-xs text-purple-600">Aprobaciones de solicitudes de beca</p>
-                    </div>
+              {/* Becas Recibidas - siempre visible */}
+              <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Gift className="w-5 h-5 text-purple-600" />
                   </div>
+                  <div>
+                    <p className="font-medium text-purple-800">Becas Recibidas</p>
+                    <p className="text-xs text-purple-600">Aprobaciones de solicitudes de beca</p>
+                  </div>
+                </div>
+                <div className="text-right">
                   <p className="text-xl font-bold text-purple-700">
                     +{formatCurrency(balance.total_scholarships || 0)}
                   </p>
+                  <p className="text-xs text-purple-600">
+                    {formatUnits(balance.total_scholarships || 0)}
+                  </p>
                 </div>
-              )}
+              </div>
 
               {/* Total Consumido */}
               <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100">
@@ -668,9 +690,14 @@ export default function MiSaldoPage() {
                     <p className="text-xs text-red-600">Certificaciones asignadas a alumnos</p>
                   </div>
                 </div>
-                <p className="text-xl font-bold text-red-700">
-                  -{formatCurrency(balance.total_spent)}
-                </p>
+                <div className="text-right">
+                  <p className="text-xl font-bold text-red-700">
+                    -{formatCurrency(balance.total_spent)}
+                  </p>
+                  <p className="text-xs text-red-600">
+                    {formatUnits(balance.total_spent)}
+                  </p>
+                </div>
               </div>
 
               {/* Línea divisora */}
@@ -687,50 +714,83 @@ export default function MiSaldoPage() {
                     <p className="text-xs text-gray-600">= Recibido + Becas - Consumido</p>
                   </div>
                 </div>
-                <p className="text-2xl font-bold text-green-700">
-                  {formatCurrency(balance.current_balance)}
-                </p>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-green-700">
+                    {formatCurrency(balance.current_balance)}
+                  </p>
+                  <p className="text-xs text-green-600 mt-1">
+                    {formatUnits(balance.current_balance)}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-xl p-6 border shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-blue-600" />
+      {/* Stats Cards - 4 columnas */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {/* Saldo Recibido (sin becas) */}
+        <div className="bg-white rounded-xl p-5 border shadow-sm">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <TrendingUp className="w-5 h-5 text-blue-600" />
             </div>
-            <span className="text-sm font-medium text-gray-600">Total Recibido</span>
+            <span className="text-sm font-medium text-gray-600">Saldo Recibido</span>
           </div>
-          <p className="text-2xl font-bold text-gray-800">
-            {formatCurrency(balance?.total_received || 0)}
+          <p className="text-xl font-bold text-gray-800">
+            {formatCurrency((balance?.total_received || 0) - (balance?.total_scholarships || 0))}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            {formatUnits((balance?.total_received || 0) - (balance?.total_scholarships || 0))}
           </p>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-amber-100 rounded-lg">
-              <TrendingDown className="w-6 h-6 text-amber-600" />
-            </div>
-            <span className="text-sm font-medium text-gray-600">Total Consumido</span>
-          </div>
-          <p className="text-2xl font-bold text-gray-800">
-            {formatCurrency(balance?.total_spent || 0)}
-          </p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <Gift className="w-6 h-6 text-purple-600" />
+        {/* Becas Recibidas */}
+        <div className="bg-white rounded-xl p-5 border shadow-sm">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Gift className="w-5 h-5 text-purple-600" />
             </div>
             <span className="text-sm font-medium text-gray-600">Becas Recibidas</span>
           </div>
-          <p className="text-2xl font-bold text-gray-800">
+          <p className="text-xl font-bold text-purple-700">
             {formatCurrency(balance?.total_scholarships || 0)}
+          </p>
+          <p className="text-xs text-purple-500 mt-1">
+            {formatUnits(balance?.total_scholarships || 0)}
+          </p>
+        </div>
+
+        {/* Total Consumido */}
+        <div className="bg-white rounded-xl p-5 border shadow-sm">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-amber-100 rounded-lg">
+              <TrendingDown className="w-5 h-5 text-amber-600" />
+            </div>
+            <span className="text-sm font-medium text-gray-600">Total Consumido</span>
+          </div>
+          <p className="text-xl font-bold text-amber-700">
+            {formatCurrency(balance?.total_spent || 0)}
+          </p>
+          <p className="text-xs text-amber-500 mt-1">
+            {formatUnits(balance?.total_spent || 0)}
+          </p>
+        </div>
+
+        {/* Total General (Recibido + Becas) */}
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border border-green-200 shadow-sm">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <Wallet className="w-5 h-5 text-green-600" />
+            </div>
+            <span className="text-sm font-medium text-green-700">Total Acreditado</span>
+          </div>
+          <p className="text-xl font-bold text-green-700">
+            {formatCurrency(balance?.total_received || 0)}
+          </p>
+          <p className="text-xs text-green-600 mt-1">
+            {formatUnits(balance?.total_received || 0)}
           </p>
         </div>
       </div>
@@ -794,9 +854,12 @@ export default function MiSaldoPage() {
                         <p className="font-semibold text-gray-800">
                           {formatCurrency(request.amount_requested)}
                         </p>
+                        <p className="text-xs text-gray-500">
+                          ≈ {formatUnits(calculateUnits(request.amount_requested))} certs
+                        </p>
                         {request.amount_approved && request.status === 'approved' && (
                           <p className="text-xs text-green-600">
-                            Aprobado: {formatCurrency(request.amount_approved)}
+                            Aprobado: {formatCurrency(request.amount_approved)} ({formatUnits(calculateUnits(request.amount_approved))} certs)
                           </p>
                         )}
                       </div>
@@ -857,14 +920,19 @@ export default function MiSaldoPage() {
                         </p>
                       </div>
                     </div>
-                    <p className={`font-semibold ${
-                      tx.transaction_type === 'credit'
-                        ? 'text-green-600'
-                        : 'text-red-600'
-                    }`}>
-                      {tx.transaction_type === 'credit' ? '+' : '-'}
-                      {formatCurrency(Math.abs(tx.amount))}
-                    </p>
+                    <div className="text-right">
+                      <p className={`font-semibold ${
+                        tx.transaction_type === 'credit'
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                      }`}>
+                        {tx.transaction_type === 'credit' ? '+' : '-'}
+                        {formatCurrency(Math.abs(tx.amount))}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        ≈ {formatUnits(calculateUnits(Math.abs(tx.amount)))} certs
+                      </p>
+                    </div>
                   </div>
                 ))}
               </div>
