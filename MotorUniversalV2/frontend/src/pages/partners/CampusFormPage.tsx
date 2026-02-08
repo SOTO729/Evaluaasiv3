@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
+import DatePickerInput from '../../components/DatePickerInput';
 import {
   getCampus,
   createCampus,
@@ -777,16 +778,21 @@ export default function CampusFormPage() {
             {/* Fecha de Nacimiento del Director */}
             <div>
               <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
-                <Calendar className="fluid-icon-sm text-gray-400" />
+                <Calendar className="fluid-icon-sm text-blue-500" />
                 Fecha de Nacimiento <span className="text-red-500">*</span>
               </label>
-              <input
-                type="date"
-                value={formData.director_date_of_birth}
-                onChange={(e) => setFormData({ ...formData, director_date_of_birth: e.target.value })}
-                className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400"
-                required
+              <DatePickerInput
+                value={formData.director_date_of_birth ? new Date(formData.director_date_of_birth + 'T00:00:00') : null}
+                onChange={(date) => setFormData({ ...formData, director_date_of_birth: date ? date.toISOString().split('T')[0] : '' })}
+                placeholder="Seleccionar fecha de nacimiento"
+                maxDate={new Date()}
+                colorScheme="blue"
               />
+              {formData.director_date_of_birth && (
+                <p className="fluid-text-xs text-blue-600 fluid-mt-2 font-medium">
+                  {new Date(formData.director_date_of_birth + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              )}
             </div>
           </div>
 
