@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { dashboardService, DashboardData } from '../services/dashboardService'
 import EditorDashboard from './EditorDashboard'
-import PartnersDashboardPage from './partners/PartnersDashboardPage'
+import CoordinatorDashboard from './coordinador/CoordinatorDashboard'
 import { 
   BookOpen, 
   FileText, 
@@ -58,9 +58,9 @@ const HomePage = () => {
     return <EditorDashboard />
   }
 
-  // Si es coordinador, mostrar el dashboard de partners
+  // Si es coordinador, mostrar el dashboard de bienvenida
   if (isCoordinator) {
-    return <PartnersDashboardPage />
+    return <CoordinatorDashboard />
   }
 
   if (loading) {
