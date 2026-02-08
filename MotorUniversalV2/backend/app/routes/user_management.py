@@ -94,6 +94,9 @@ def list_users():
         # Coordinadores ven candidatos, responsables y responsables del partner
         if current_user.role == 'coordinator':
             query = query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner']))
+            print(f"[DEBUG] Coordinator {current_user.email} requesting users - filtering by candidato, responsable, responsable_partner")
+        else:
+            print(f"[DEBUG] User {current_user.email} with role {current_user.role} requesting all users")
         
         # Filtros
         if role_filter:
@@ -138,6 +141,8 @@ def list_users():
             query = query.order_by(sort_column.desc())
         
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        print(f"[DEBUG] Total users found: {pagination.total}, Page: {page}, Roles in results: {set(u.role for u in pagination.items)}")
         
         return jsonify({
             'users': [u.to_dict(include_private=True) for u in pagination.items],
