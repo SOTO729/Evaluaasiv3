@@ -611,20 +611,20 @@ export default function CampusDetailPage() {
             </div>
             Costos y Vigencia
           </h3>
-          <div className="fluid-space-y-4">
-            <div className="grid grid-cols-2 fluid-gap-3">
+          <div className="fluid-space-y-5">
+            <div className="grid grid-cols-2 fluid-gap-4">
               <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-fluid-xl fluid-p-4 text-center border border-green-100 hover:shadow-md transition-all duration-200">
                 <p className="fluid-text-2xl font-bold text-green-700">${campus.certification_cost || 0}</p>
-                <p className="fluid-text-xs text-green-600 font-semibold fluid-mt-1">Certificación</p>
+                <p className="fluid-text-xs text-green-600 font-semibold fluid-mt-2">Certificación</p>
               </div>
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-fluid-xl fluid-p-4 text-center border border-blue-100 hover:shadow-md transition-all duration-200">
                 <p className="fluid-text-2xl font-bold text-blue-700">${campus.retake_cost || 0}</p>
-                <p className="fluid-text-xs text-blue-600 font-semibold fluid-mt-1">Retoma</p>
+                <p className="fluid-text-xs text-blue-600 font-semibold fluid-mt-2">Retoma</p>
               </div>
             </div>
             {(campus.license_start_date || campus.license_end_date) ? (
               <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-fluid-xl fluid-p-4 border border-purple-100">
-                <div className="flex items-center fluid-gap-2 fluid-mb-2">
+                <div className="flex items-center fluid-gap-2 fluid-mb-3">
                   <CalendarRange className="fluid-icon-base text-purple-600" />
                   <span className="fluid-text-sm font-bold text-purple-700">Vigencia</span>
                 </div>
@@ -635,13 +635,13 @@ export default function CampusDetailPage() {
             ) : (
               <div className="bg-gray-50 rounded-fluid-xl fluid-p-4 text-center border border-gray-100">
                 <CalendarRange className="fluid-icon-lg text-gray-300 mx-auto" />
-                <p className="fluid-text-xs text-gray-400 fluid-mt-2 font-medium">Sin vigencia configurada</p>
+                <p className="fluid-text-xs text-gray-400 fluid-mt-3 font-medium">Sin vigencia configurada</p>
               </div>
             )}
-            <div className="fluid-pt-3 border-t border-gray-100">
-              <div className="text-center fluid-p-3 bg-blue-50/50 rounded-fluid-xl hover:bg-blue-50 transition-colors border border-blue-100/50">
+            <div className="fluid-pt-4 border-t border-gray-100">
+              <div className="text-center fluid-p-4 bg-blue-50/50 rounded-fluid-xl hover:bg-blue-50 transition-colors border border-blue-100/50">
                 <p className="fluid-text-2xl font-bold text-blue-700">{cycles.filter(c => c.is_active).length}</p>
-                <p className="fluid-text-xs text-gray-600 font-semibold">Ciclos Activos</p>
+                <p className="fluid-text-xs text-gray-600 font-semibold fluid-mt-1">Ciclos Activos</p>
               </div>
             </div>
           </div>
