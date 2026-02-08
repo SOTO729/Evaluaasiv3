@@ -441,7 +441,7 @@ export default function SolicitarBecaPage() {
       <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : ''}`}>
         {label}
         {sortColumn === column ? (
-          sortDirection === 'asc' ? <ChevronUp className="w-3.5 h-3.5 text-purple-600" /> : <ChevronDown className="w-3.5 h-3.5 text-purple-600" />
+          sortDirection === 'asc' ? <ChevronUp className="w-3.5 h-3.5 text-primary-600" /> : <ChevronDown className="w-3.5 h-3.5 text-primary-600" />
         ) : (
           <ArrowUpDown className="w-3.5 h-3.5 text-gray-300" />
         )}
@@ -482,7 +482,7 @@ export default function SolicitarBecaPage() {
 
   // Stepper Component
   const StepIndicator = () => (
-    <div className="bg-white rounded-2xl border border-purple-200 shadow-sm p-4 lg:p-5 mb-6">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 lg:p-5 mb-6">
       <div className="flex items-center justify-between">
         {steps.map((step, index) => {
           const Icon = step.icon;
@@ -496,11 +496,11 @@ export default function SolicitarBecaPage() {
                 <div
                   className={`flex-shrink-0 w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center transition-all ${
                     isCompleted
-                      ? 'bg-purple-500 text-white'
+                      ? 'bg-primary-500 text-white'
                       : isActive
-                      ? 'bg-purple-600 text-white shadow-lg shadow-purple-200'
+                      ? 'bg-primary-600 text-white shadow-lg shadow-primary-200'
                       : isPast
-                      ? 'bg-purple-100 text-purple-600'
+                      ? 'bg-primary-100 text-primary-600'
                       : 'bg-gray-100 text-gray-400'
                   }`}
                 >
@@ -513,7 +513,7 @@ export default function SolicitarBecaPage() {
                 <div className="hidden sm:block min-w-0">
                   <p
                     className={`font-medium text-sm lg:text-base truncate ${
-                      isActive ? 'text-purple-700' : isCompleted || isPast ? 'text-gray-900' : 'text-gray-400'
+                      isActive ? 'text-primary-700' : isCompleted || isPast ? 'text-gray-900' : 'text-gray-400'
                     }`}
                   >
                     {step.label}
@@ -524,7 +524,7 @@ export default function SolicitarBecaPage() {
               {index < steps.length - 1 && (
                 <div
                   className={`hidden sm:block flex-shrink-0 w-8 lg:w-16 h-1 mx-2 lg:mx-4 rounded-full transition-all ${
-                    step.id < currentStep || isCompleted ? 'bg-purple-500' : 'bg-gray-200'
+                    step.id < currentStep || isCompleted ? 'bg-primary-500' : 'bg-gray-200'
                   }`}
                 />
               )}
@@ -553,8 +553,8 @@ export default function SolicitarBecaPage() {
             </button>
             <div className="flex-1">
               <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <div className="p-2.5 bg-purple-100 rounded-xl">
-                  <FileText className="w-7 h-7 text-purple-600" />
+                <div className="p-2.5 bg-primary-100 rounded-xl">
+                  <FileText className="w-7 h-7 text-primary-600" />
                 </div>
                 Revisar Solicitud
               </h1>
@@ -573,23 +573,23 @@ export default function SolicitarBecaPage() {
 
           <div className="space-y-6">
             {/* Resumen Hero */}
-            <div className="bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 rounded-2xl p-6 lg:p-8 text-white shadow-xl shadow-purple-200">
-              <p className="text-purple-200 text-sm font-medium mb-4">Resumen de tu solicitud</p>
+            <div className="bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 rounded-2xl p-6 lg:p-8 text-white shadow-xl shadow-primary-200">
+              <p className="text-primary-200 text-sm font-medium mb-4">Resumen de tu solicitud</p>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                  <p className="text-purple-200 text-xs uppercase tracking-wide">Planteles</p>
+                  <p className="text-primary-200 text-xs uppercase tracking-wide">Planteles</p>
                   <p className="text-3xl lg:text-4xl font-bold mt-1">{new Set(requestLines.map(l => l.campusId)).size}</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                  <p className="text-purple-200 text-xs uppercase tracking-wide">Líneas</p>
+                  <p className="text-primary-200 text-xs uppercase tracking-wide">Líneas</p>
                   <p className="text-3xl lg:text-4xl font-bold mt-1">{requestLines.length}</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                  <p className="text-purple-200 text-xs uppercase tracking-wide">Unidades</p>
+                  <p className="text-primary-200 text-xs uppercase tracking-wide">Unidades</p>
                   <p className="text-3xl lg:text-4xl font-bold mt-1">{totals.totalUnits}</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                  <p className="text-purple-200 text-xs uppercase tracking-wide">Total</p>
+                  <p className="text-primary-200 text-xs uppercase tracking-wide">Total</p>
                   <p className="text-3xl lg:text-4xl font-bold mt-1">{formatCurrency(totals.totalAmount)}</p>
                 </div>
               </div>
@@ -607,8 +607,8 @@ export default function SolicitarBecaPage() {
                   <div key={campusId} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                     <div className="p-4 lg:p-5 bg-gradient-to-r from-gray-50 to-white border-b flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-purple-100 rounded-lg">
-                          <Building2 className="w-5 h-5 text-purple-600" />
+                        <div className="p-2 bg-primary-100 rounded-lg">
+                          <Building2 className="w-5 h-5 text-primary-600" />
                         </div>
                         <div>
                           <p className="font-semibold text-gray-900">{campus?.name}</p>
@@ -636,14 +636,14 @@ export default function SolicitarBecaPage() {
                             <tr key={line.id} className="hover:bg-gray-50/50 transition-colors">
                               <td className="px-4 py-3">
                                 <div className="flex items-center gap-2">
-                                  <div className={`p-1.5 rounded-lg ${line.type === 'saldo' ? 'bg-emerald-100' : 'bg-purple-100'}`}>
+                                  <div className={`p-1.5 rounded-lg ${line.type === 'saldo' ? 'bg-emerald-100' : 'bg-primary-100'}`}>
                                     {line.type === 'saldo' ? (
                                       <DollarSign className="w-4 h-4 text-emerald-600" />
                                     ) : (
-                                      <Gift className="w-4 h-4 text-purple-600" />
+                                      <Gift className="w-4 h-4 text-primary-600" />
                                     )}
                                   </div>
-                                  <span className={`font-medium ${line.type === 'saldo' ? 'text-emerald-700' : 'text-purple-700'}`}>
+                                  <span className={`font-medium ${line.type === 'saldo' ? 'text-emerald-700' : 'text-primary-700'}`}>
                                     {line.type === 'saldo' ? 'Saldo' : 'Beca'}
                                   </span>
                                 </div>
@@ -703,7 +703,7 @@ export default function SolicitarBecaPage() {
                         href={att.url} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                        className="text-xs text-primary-600 hover:text-primary-700 font-medium"
                       >
                         Ver
                       </a>
@@ -714,11 +714,11 @@ export default function SolicitarBecaPage() {
             )}
 
             {/* Info */}
-            <div className="p-4 lg:p-5 bg-purple-50 border border-purple-200 rounded-2xl flex items-start gap-3">
-              <Info className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+            <div className="p-4 lg:p-5 bg-primary-50 border border-gray-200 rounded-2xl flex items-start gap-3">
+              <Info className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="font-medium text-purple-900">¿Todo está correcto?</p>
-                <p className="text-sm text-purple-700 mt-1">
+                <p className="font-medium text-primary-900">¿Todo está correcto?</p>
+                <p className="text-sm text-primary-700 mt-1">
                   Se crearán {requestLines.length} solicitud{requestLines.length !== 1 ? 'es' : ''} (una por cada línea).
                   Cada solicitud será revisada por el equipo financiero.
                 </p>
@@ -775,8 +775,8 @@ export default function SolicitarBecaPage() {
         </Link>
         <div className="flex-1">
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-2.5 bg-purple-100 rounded-xl">
-              <Gift className="w-7 h-7 text-purple-600" />
+            <div className="p-2.5 bg-primary-100 rounded-xl">
+              <Gift className="w-7 h-7 text-primary-600" />
             </div>
             Solicitar Beca
           </h1>
@@ -797,7 +797,7 @@ export default function SolicitarBecaPage() {
         {/* Columna izquierda: Tabla de planteles */}
         <div className="xl:col-span-3 space-y-4">
           {/* Filters */}
-          <div className="bg-white rounded-2xl border border-purple-200 shadow-sm p-4 lg:p-5">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 lg:p-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
               <div className="sm:col-span-2">
                 <div className="relative">
@@ -807,7 +807,7 @@ export default function SolicitarBecaPage() {
                     placeholder="Buscar por nombre, código, partner..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-11 pr-4 py-2.5 lg:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm lg:text-base"
+                    className="w-full pl-11 pr-4 py-2.5 lg:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-sm lg:text-base"
                   />
                 </div>
               </div>
@@ -815,7 +815,7 @@ export default function SolicitarBecaPage() {
               <select
                 value={partnerFilter}
                 onChange={(e) => setPartnerFilter(e.target.value)}
-                className="w-full px-4 py-2.5 lg:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm lg:text-base bg-white"
+                className="w-full px-4 py-2.5 lg:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm lg:text-base bg-white"
               >
                 <option value="">Todos los Partners</option>
                 {uniquePartners.map(partner => (
@@ -826,7 +826,7 @@ export default function SolicitarBecaPage() {
               <select
                 value={stateFilter}
                 onChange={(e) => setStateFilter(e.target.value)}
-                className="w-full px-4 py-2.5 lg:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm lg:text-base bg-white"
+                className="w-full px-4 py-2.5 lg:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm lg:text-base bg-white"
               >
                 <option value="">Todos los Estados</option>
                 {uniqueStates.map(state => (
@@ -837,10 +837,10 @@ export default function SolicitarBecaPage() {
           </div>
 
           {/* Campus Table */}
-          <div className="bg-white rounded-2xl border border-purple-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 350px)', minHeight: '400px' }}>
               <table className="w-full">
-                <thead className="bg-purple-50/60 border-b border-purple-100 sticky top-0 z-10 backdrop-blur-sm">
+                <thead className="bg-primary-50/60 border-b border-primary-100 sticky top-0 z-10 backdrop-blur-sm">
                   <tr>
                     <SortableHeader column="partner" label="Partner" />
                     <SortableHeader column="state" label="Estado" />
@@ -872,9 +872,9 @@ export default function SolicitarBecaPage() {
                           <tr 
                             className={`cursor-pointer transition-all ${
                               isExpanded 
-                                ? 'bg-purple-50' 
+                                ? 'bg-primary-50' 
                                 : campusLinesCount > 0 
-                                  ? 'bg-purple-50/50 hover:bg-purple-50' 
+                                  ? 'bg-primary-50/50 hover:bg-primary-50' 
                                   : 'hover:bg-gray-50'
                             }`}
                             onClick={() => handleExpandCampus(campus.id)}
@@ -910,7 +910,7 @@ export default function SolicitarBecaPage() {
                                 className={`p-2 rounded-lg transition-all ${
                                   isExpanded 
                                     ? 'bg-purple-600 text-white shadow-md' 
-                                    : 'bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-600'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-primary-100 hover:text-primary-600'
                                 }`}
                               >
                                 {isExpanded ? <ChevronUp className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
@@ -921,10 +921,10 @@ export default function SolicitarBecaPage() {
                           {isExpanded && (
                             <tr>
                               <td colSpan={6} className="p-0">
-                                <div className="px-4 py-4 bg-purple-50/50 border-t border-primary-100">
+                                <div className="px-4 py-4 bg-primary-50/50 border-t border-primary-100">
                                   {isLoading ? (
                                     <div className="py-6 text-center">
-                                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-purple-600" />
+                                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary-600" />
                                       <p className="text-sm text-gray-500 mt-2">Cargando grupos...</p>
                                     </div>
                                   ) : (
@@ -953,7 +953,7 @@ export default function SolicitarBecaPage() {
                                           <select
                                             value={newLineGroupId ?? 'null'}
                                             onChange={(e) => setNewLineGroupId(e.target.value === 'null' ? null : parseInt(e.target.value))}
-                                            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm bg-white"
+                                            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm bg-white"
                                           >
                                             {getGroupOptions(campus.id).map(opt => (
                                               <option key={opt.id ?? 'null'} value={opt.id ?? 'null'}>
@@ -977,7 +977,7 @@ export default function SolicitarBecaPage() {
                                               setNewLineUnits(val === '' ? 0 : parseInt(val, 10));
                                             }}
                                             placeholder="0"
-                                            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                                            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
                                           />
                                         </div>
 
@@ -994,10 +994,10 @@ export default function SolicitarBecaPage() {
                                       </div>
 
                                       {newLineUnits > 0 && (
-                                        <div className="mt-3 p-3 bg-white rounded-xl border border-purple-200 text-sm">
+                                        <div className="mt-3 p-3 bg-white rounded-xl border border-gray-200 text-sm">
                                           <span className="text-gray-600">Vista previa: </span>
                                           <span className="font-medium">{newLineUnits} unidades × {formatCurrency(getGroupPrice(campus.id, newLineGroupId))} = </span>
-                                          <span className="font-bold text-purple-600">{formatCurrency(newLineUnits * getGroupPrice(campus.id, newLineGroupId))}</span>
+                                          <span className="font-bold text-primary-600">{formatCurrency(newLineUnits * getGroupPrice(campus.id, newLineGroupId))}</span>
                                         </div>
                                       )}
 
@@ -1007,11 +1007,11 @@ export default function SolicitarBecaPage() {
                                           {linesByCampus[campus.id].map(line => (
                                             <div key={line.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
                                               <div className="flex items-center gap-3">
-                                                <div className={`p-1.5 rounded-lg ${line.type === 'saldo' ? 'bg-emerald-100' : 'bg-purple-100'}`}>
+                                                <div className={`p-1.5 rounded-lg ${line.type === 'saldo' ? 'bg-emerald-100' : 'bg-primary-100'}`}>
                                                   {line.type === 'saldo' ? (
                                                     <DollarSign className="w-4 h-4 text-emerald-600" />
                                                   ) : (
-                                                    <Gift className="w-4 h-4 text-purple-600" />
+                                                    <Gift className="w-4 h-4 text-primary-600" />
                                                   )}
                                                 </div>
                                                 <div>
@@ -1058,7 +1058,7 @@ export default function SolicitarBecaPage() {
             <div className="px-4 py-3 bg-gray-50/80 border-t text-sm text-gray-600 flex items-center justify-between">
               <span>Mostrando {filteredCampuses.length} de {campuses.length} planteles</span>
               {requestLines.length > 0 && (
-                <span className="text-purple-600 font-medium">{requestLines.length} líneas agregadas</span>
+                <span className="text-primary-600 font-medium">{requestLines.length} líneas agregadas</span>
               )}
             </div>
           </div>
@@ -1066,9 +1066,9 @@ export default function SolicitarBecaPage() {
 
         {/* Columna derecha: Resumen */}
         <div className="xl:col-span-1 space-y-4">
-          <div className="bg-white rounded-2xl border border-purple-200 shadow-sm p-5 sticky top-4">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sticky top-4">
             <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
-              <Calculator className="w-5 h-5 text-purple-600" />
+              <Calculator className="w-5 h-5 text-primary-600" />
               Resumen
             </h3>
 
@@ -1083,13 +1083,13 @@ export default function SolicitarBecaPage() {
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="p-3 bg-purple-50 rounded-xl text-center">
-                    <p className="text-2xl font-bold text-purple-700">{new Set(requestLines.map(l => l.campusId)).size}</p>
-                    <p className="text-xs text-purple-600 font-medium">Planteles</p>
+                  <div className="p-3 bg-primary-50 rounded-xl text-center">
+                    <p className="text-2xl font-bold text-primary-700">{new Set(requestLines.map(l => l.campusId)).size}</p>
+                    <p className="text-xs text-primary-600 font-medium">Planteles</p>
                   </div>
-                  <div className="p-3 bg-purple-50 rounded-xl text-center">
-                    <p className="text-2xl font-bold text-purple-700">{requestLines.length}</p>
-                    <p className="text-xs text-purple-600 font-medium">Líneas</p>
+                  <div className="p-3 bg-primary-50 rounded-xl text-center">
+                    <p className="text-2xl font-bold text-primary-700">{requestLines.length}</p>
+                    <p className="text-xs text-primary-600 font-medium">Líneas</p>
                   </div>
                 </div>
 
@@ -1107,14 +1107,14 @@ export default function SolicitarBecaPage() {
                     </div>
                   )}
                   {totals.becaAmount > 0 && (
-                    <div className="flex items-center justify-between py-2 px-3 bg-purple-50 rounded-xl">
+                    <div className="flex items-center justify-between py-2 px-3 bg-primary-50 rounded-xl">
                       <div className="flex items-center gap-2">
-                        <Gift className="w-4 h-4 text-purple-600" />
+                        <Gift className="w-4 h-4 text-primary-600" />
                         <span className="text-sm font-medium text-purple-800">Becas</span>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-purple-700">{formatCurrency(totals.becaAmount)}</p>
-                        <p className="text-xs text-purple-600">{totals.becaUnits} unidades</p>
+                        <p className="font-bold text-primary-700">{formatCurrency(totals.becaAmount)}</p>
+                        <p className="text-xs text-primary-600">{totals.becaUnits} unidades</p>
                       </div>
                     </div>
                   )}
@@ -1137,7 +1137,7 @@ export default function SolicitarBecaPage() {
                         {line.type === 'saldo' ? (
                           <DollarSign className="w-3 h-3 text-emerald-600 flex-shrink-0" />
                         ) : (
-                          <Gift className="w-3 h-3 text-purple-600 flex-shrink-0" />
+                          <Gift className="w-3 h-3 text-primary-600 flex-shrink-0" />
                         )}
                         <span className="text-gray-600 truncate text-xs">{line.campusName}</span>
                       </div>
@@ -1163,7 +1163,7 @@ export default function SolicitarBecaPage() {
                     onChange={(e) => setJustification(e.target.value)}
                     rows={3}
                     placeholder="Describe el uso del saldo..."
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none text-sm"
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none text-sm"
                     required
                   />
 
@@ -1207,7 +1207,7 @@ export default function SolicitarBecaPage() {
                       <div className={`flex flex-col items-center gap-2 p-4 border-2 border-dashed rounded-xl transition-colors ${
                         uploadingFile 
                           ? 'border-gray-200 bg-gray-50' 
-                          : 'border-gray-300 hover:border-purple-400 hover:bg-purple-50'
+                          : 'border-gray-300 hover:border-primary-400 hover:bg-primary-50'
                       }`}>
                         {uploadingFile ? (
                           <>
@@ -1237,10 +1237,10 @@ export default function SolicitarBecaPage() {
                   </div>
 
                   {totals.becaUnits > 0 && (
-                    <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-xl">
+                    <div className="mt-3 p-3 bg-primary-50 border border-gray-200 rounded-xl">
                       <div className="flex items-start gap-2">
                         <Info className="w-4 h-4 text-purple-500 mt-0.5 flex-shrink-0" />
-                        <p className="text-xs text-purple-700">
+                        <p className="text-xs text-primary-700">
                           Las becas requieren aprobación adicional.
                         </p>
                       </div>
