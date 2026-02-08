@@ -8,7 +8,6 @@ import { ChevronDown, LucideIcon } from 'lucide-react';
 export interface SelectOption {
   value: string;
   label: string;
-  icon?: string; // emoji o caracter
 }
 
 interface StyledSelectProps {
@@ -103,7 +102,7 @@ const StyledSelect = forwardRef<HTMLDivElement, StyledSelectProps>(({
         )}
         {options.map((option) => (
           <option key={option.value} value={option.value}>
-            {option.icon ? `${option.icon} ${option.label}` : option.label}
+            {option.label}
           </option>
         ))}
       </select>

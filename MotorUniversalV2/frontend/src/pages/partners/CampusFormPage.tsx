@@ -766,9 +766,9 @@ export default function CampusFormPage() {
                 onChange={(value) => setFormData({ ...formData, director_gender: value })}
                 options={[
                   { value: '', label: 'Seleccionar...' },
-                  { value: 'M', label: 'Masculino', icon: '♂️' },
-                  { value: 'F', label: 'Femenino', icon: '♀️' },
-                  { value: 'O', label: 'Otro', icon: '⚧️' },
+                  { value: 'M', label: 'Masculino' },
+                  { value: 'F', label: 'Femenino' },
+                  { value: 'O', label: 'Otro' },
                 ]}
                 icon={User}
                 colorScheme="purple"

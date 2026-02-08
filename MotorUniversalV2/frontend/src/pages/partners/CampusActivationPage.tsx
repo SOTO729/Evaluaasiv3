@@ -879,9 +879,9 @@ export default function CampusActivationPage() {
                         value={formData.gender}
                         onChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}
                         options={[
-                          { value: 'M', label: 'Masculino', icon: '♂️' },
-                          { value: 'F', label: 'Femenino', icon: '♀️' },
-                          { value: 'O', label: 'Otro', icon: '⚧️' },
+                          { value: 'M', label: 'Masculino' },
+                          { value: 'F', label: 'Femenino' },
+                          { value: 'O', label: 'Otro' },
                         ]}
                         icon={User}
                         colorScheme="purple"
