@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { dashboardService, DashboardData } from '../services/dashboardService'
 import EditorDashboard from './EditorDashboard'
+import PartnersDashboardPage from './partners/PartnersDashboardPage'
 import { 
   BookOpen, 
   FileText, 
@@ -27,6 +28,9 @@ const HomePage = () => {
   
   // Admin y Editor ven el mismo dashboard de gestión
   const isAdminOrEditor = user?.role === 'editor' || user?.role === 'admin'
+  
+  // El coordinador ve su propio dashboard de partners
+  const isCoordinator = user?.role === 'coordinator'
 
   const loadDashboard = async () => {
     try {
@@ -43,15 +47,20 @@ const HomePage = () => {
   }
 
   useEffect(() => {
-    // Solo cargar el dashboard del candidato si no es admin ni editor
-    if (!isAdminOrEditor) {
+    // Solo cargar el dashboard del candidato si no es admin, editor ni coordinador
+    if (!isAdminOrEditor && !isCoordinator) {
       loadDashboard()
     }
-  }, [isAdminOrEditor])
+  }, [isAdminOrEditor, isCoordinator])
 
   // Si es admin o editor, mostrar el dashboard de gestión
   if (isAdminOrEditor) {
     return <EditorDashboard />
+  }
+
+  // Si es coordinador, mostrar el dashboard de partners
+  if (isCoordinator) {
+    return <PartnersDashboardPage />
   }
 
   if (loading) {
