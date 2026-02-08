@@ -35,6 +35,7 @@ import {
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import DatePickerInput from '../../components/DatePickerInput';
+import StyledSelect from '../../components/StyledSelect';
 import {
   getCampus,
   createCampus,
@@ -519,20 +520,19 @@ export default function CampusFormPage() {
             {/* País - Heredado del partner, solo editable si el partner es de México */}
             <div>
               <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
-                <Globe className="fluid-icon-sm text-gray-400" />
+                <Globe className="fluid-icon-sm text-blue-500" />
                 País <span className="text-red-500">*</span>
               </label>
               {partnerCountry === 'México' ? (
-                <select
+                <StyledSelect
                   value={formData.country}
-                  onChange={(e) => setFormData({ ...formData, country: e.target.value, state_name: e.target.value === 'México' ? formData.state_name : '' })}
-                  className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400"
+                  onChange={(value) => setFormData({ ...formData, country: value, state_name: value === 'México' ? formData.state_name : '' })}
+                  options={countries.map(country => ({ value: country, label: country }))}
+                  placeholder="Seleccionar país..."
+                  icon={Globe}
+                  colorScheme="blue"
                   required
-                >
-                  {countries.map((country) => (
-                    <option key={country} value={country}>{country}</option>
-                  ))}
-                </select>
+                />
               ) : (
                 <div className="w-full fluid-px-4 fluid-py-3 bg-gray-100 border border-gray-300 rounded-fluid-xl fluid-text-base text-gray-700 flex items-center fluid-gap-2">
                   <Globe className="fluid-icon-sm text-blue-500" />
@@ -546,20 +546,18 @@ export default function CampusFormPage() {
             {formData.country === 'México' && partnerCountry === 'México' && (
               <div>
                 <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
-                  <MapPinned className="fluid-icon-sm text-gray-400" />
+                  <MapPinned className="fluid-icon-sm text-indigo-500" />
                   Estado <span className="text-red-500">*</span>
                 </label>
-                <select
+                <StyledSelect
                   value={formData.state_name}
-                  onChange={(e) => setFormData({ ...formData, state_name: e.target.value })}
-                  className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400"
+                  onChange={(value) => setFormData({ ...formData, state_name: value })}
+                  options={mexicanStates.map(state => ({ value: state, label: state }))}
+                  placeholder="Seleccionar estado..."
+                  icon={MapPinned}
+                  colorScheme="indigo"
                   required
-                >
-                  <option value="">Seleccionar estado...</option>
-                  {mexicanStates.map((state) => (
-                    <option key={state} value={state}>{state}</option>
-                  ))}
-                </select>
+                />
               </div>
             )}
 
@@ -760,19 +758,22 @@ export default function CampusFormPage() {
             {/* Género del Director */}
             <div>
               <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                <User className="fluid-icon-sm text-purple-500" />
                 Género <span className="text-red-500">*</span>
               </label>
-              <select
+              <StyledSelect
                 value={formData.director_gender}
-                onChange={(e) => setFormData({ ...formData, director_gender: e.target.value })}
-                className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400"
+                onChange={(value) => setFormData({ ...formData, director_gender: value })}
+                options={[
+                  { value: '', label: 'Seleccionar...' },
+                  { value: 'M', label: 'Masculino', icon: '♂️' },
+                  { value: 'F', label: 'Femenino', icon: '♀️' },
+                  { value: 'O', label: 'Otro', icon: '⚧️' },
+                ]}
+                icon={User}
+                colorScheme="purple"
                 required
-              >
-                <option value="">Seleccionar...</option>
-                <option value="M">Masculino</option>
-                <option value="F">Femenino</option>
-                <option value="O">Otro</option>
-              </select>
+              />
             </div>
 
             {/* Fecha de Nacimiento del Director */}

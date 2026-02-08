@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
+import StyledSelect from '../../components/StyledSelect';
 import {
   getPartner,
   createPartner,
@@ -233,18 +234,17 @@ export default function PartnerFormPage() {
 
               <div>
                 <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2 flex items-center fluid-gap-2">
-                  <Globe className="fluid-icon-sm text-gray-400" />
+                  <Globe className="fluid-icon-sm text-blue-500" />
                   País
                 </label>
-                <select
+                <StyledSelect
                   value={formData.country}
-                  onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                  className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all hover:border-blue-300"
-                >
-                  {countries.map((country) => (
-                    <option key={country} value={country}>{country}</option>
-                  ))}
-                </select>
+                  onChange={(value) => setFormData({ ...formData, country: value })}
+                  options={countries.map(country => ({ value: country, label: country }))}
+                  placeholder="Seleccionar país..."
+                  icon={Globe}
+                  colorScheme="blue"
+                />
               </div>
 
               <div>
