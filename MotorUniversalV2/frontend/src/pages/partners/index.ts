@@ -9,3 +9,6 @@ export { default as CampusFormPage } from './CampusFormPage';
 export { default as CampusDetailPage } from './CampusDetailPage';
 export { default as GroupFormPage } from './GroupFormPage';
 export { default as GroupDetailPage } from './GroupDetailPage';
+export { default as GroupMembersPage } from './GroupMembersPage';
+export { default as GroupExamsPage } from './GroupExamsPage';
+export { default as GroupDocumentsPage } from './GroupDocumentsPage';
