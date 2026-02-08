@@ -10,9 +10,6 @@ import {
   Filter,
   ChevronLeft,
   ChevronRight,
-  Eye,
-  Edit,
-  Power,
   UserCheck,
   UserX,
   BarChart3,
@@ -177,7 +174,8 @@ export default function UsersListPage() {
     loadData();
   };
 
-  const handleToggleActive = async (userId: string) => {
+  // Función para toggle de estado (se puede usar desde el detalle del usuario)
+  const _handleToggleActive = async (userId: string) => {
     try {
       const result = await toggleUserActive(userId);
       setUsers(users.map(u => u.id === userId ? result.user : u));
@@ -186,6 +184,8 @@ export default function UsersListPage() {
       setError(err.response?.data?.error || 'Error al cambiar estado');
     }
   };
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  void _handleToggleActive;
 
   const clearFilters = () => {
     setSearch('');
@@ -642,6 +642,62 @@ export default function UsersListPage() {
 
       {/* Tabla de usuarios */}
       <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
+        {/* Paginación Superior */}
+        {totalPages >= 1 && (
+          <div className="fluid-px-4 fluid-py-3 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center justify-between fluid-gap-4">
+            <div className="flex items-center fluid-gap-4">
+              <p className="fluid-text-sm text-gray-600">
+                Mostrando {users.length} de {total} usuarios
+              </p>
+              {selectedUsers.size > 0 && (
+                <span className="fluid-text-sm font-medium text-blue-600">
+                  ({selectedUsers.size} seleccionados)
+                </span>
+              )}
+            </div>
+            <div className="flex items-center fluid-gap-4">
+              {/* Selector de elementos por página */}
+              <div className="flex items-center fluid-gap-2">
+                <span className="fluid-text-sm text-gray-600">Por página:</span>
+                <select
+                  value={perPage}
+                  onChange={(e) => {
+                    setPerPage(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="fluid-px-2 fluid-py-1 border border-gray-300 rounded-fluid fluid-text-sm focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+              
+              {/* Navegación de páginas */}
+              <div className="flex items-center fluid-gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="fluid-p-2 rounded-fluid-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                >
+                  <ChevronLeft className="fluid-icon-sm" />
+                </button>
+                <span className="fluid-px-3 fluid-py-1 fluid-text-sm text-gray-700">
+                  {page} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="fluid-p-2 rounded-fluid-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                >
+                  <ChevronRight className="fluid-icon-sm" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -683,6 +739,9 @@ export default function UsersListPage() {
                   </button>
                 </th>
                 <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
+                  CURP
+                </th>
+                <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
                   <button
                     onClick={() => handleSort('role')}
                     className={`flex items-center fluid-gap-1 hover:text-blue-600 transition-colors ${sortField === 'role' ? 'text-blue-600' : ''}`}
@@ -690,6 +749,9 @@ export default function UsersListPage() {
                     Rol
                     <SortIcon field="role" />
                   </button>
+                </th>
+                <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
+                  Grupos
                 </th>
                 <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
                   <button
@@ -709,15 +771,18 @@ export default function UsersListPage() {
                     <SortIcon field="created_at" />
                   </button>
                 </th>
-                <th className="fluid-px-4 fluid-py-3 text-right fluid-text-xs font-semibold text-gray-600">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {users.map((user) => (
-                <tr key={user.id} className={`hover:bg-gray-50 transition-colors ${selectedUsers.has(user.id) ? 'bg-blue-50' : ''}`}>
+                <tr 
+                  key={user.id} 
+                  className={`hover:bg-blue-50 transition-colors cursor-pointer ${selectedUsers.has(user.id) ? 'bg-blue-50' : ''}`}
+                  onClick={() => window.location.href = `/user-management/${user.id}`}
+                >
                   {/* Checkbox de selección - Solo Admin */}
                   {isAdmin && (
-                    <td className="fluid-px-4 fluid-py-3 text-center">
+                    <td className="fluid-px-4 fluid-py-3 text-center" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => toggleSelectUser(user.id)}
                         className="fluid-p-1 hover:bg-gray-200 rounded transition-colors"
@@ -739,10 +804,31 @@ export default function UsersListPage() {
                   <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600">
                     {user.email}
                   </td>
+                  <td className="fluid-px-4 fluid-py-3 fluid-text-xs text-gray-600 font-mono">
+                    {user.curp || <span className="text-gray-400">—</span>}
+                  </td>
                   <td className="fluid-px-4 fluid-py-3">
                     <span className={`inline-flex fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium ${ROLE_COLORS[user.role] || 'bg-gray-100 text-gray-800'}`}>
                       {ROLE_LABELS[user.role] || user.role}
                     </span>
+                  </td>
+                  <td className="fluid-px-4 fluid-py-3">
+                    {user.groups && user.groups.length > 0 ? (
+                      <div className="flex flex-wrap fluid-gap-1">
+                        {user.groups.slice(0, 2).map((group) => (
+                          <span key={group.id} className="inline-flex fluid-px-2 fluid-py-0.5 bg-purple-100 text-purple-700 rounded-full fluid-text-xs">
+                            {group.name}
+                          </span>
+                        ))}
+                        {user.groups.length > 2 && (
+                          <span className="inline-flex fluid-px-2 fluid-py-0.5 bg-gray-100 text-gray-600 rounded-full fluid-text-xs">
+                            +{user.groups.length - 2}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 fluid-text-xs">—</span>
+                    )}
                   </td>
                   <td className="fluid-px-4 fluid-py-3">
                     {user.is_active ? (
@@ -764,37 +850,6 @@ export default function UsersListPage() {
                       year: 'numeric'
                     })}
                   </td>
-                  <td className="fluid-px-4 fluid-py-3">
-                    <div className="flex items-center justify-end fluid-gap-2">
-                      <Link
-                        to={`/user-management/${user.id}`}
-                        className="fluid-p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-fluid-lg transition-colors"
-                        title="Ver detalles"
-                      >
-                        <Eye className="fluid-icon-sm" />
-                      </Link>
-                      <Link
-                        to={`/user-management/${user.id}/edit`}
-                        className="fluid-p-2 text-gray-600 hover:text-amber-600 hover:bg-amber-50 rounded-fluid-lg transition-colors"
-                        title="Editar"
-                      >
-                        <Edit className="fluid-icon-sm" />
-                      </Link>
-                      {user.id !== currentUser?.id && (
-                        <button
-                          onClick={() => handleToggleActive(user.id)}
-                          className={`fluid-p-2 rounded-fluid-lg transition-colors ${
-                            user.is_active
-                              ? 'text-gray-600 hover:text-red-600 hover:bg-red-50'
-                              : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
-                          }`}
-                          title={user.is_active ? 'Desactivar' : 'Activar'}
-                        >
-                          <Power className="fluid-icon-sm" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -804,62 +859,6 @@ export default function UsersListPage() {
         {users.length === 0 && !loading && (
           <div className="fluid-p-8 text-center text-gray-500">
             No se encontraron usuarios
-          </div>
-        )}
-        
-        {/* Paginación */}
-        {totalPages >= 1 && (
-          <div className="fluid-px-4 fluid-py-3 border-t border-gray-200 flex flex-wrap items-center justify-between fluid-gap-4">
-            <div className="flex items-center fluid-gap-4">
-              <p className="fluid-text-sm text-gray-600">
-                Mostrando {users.length} de {total} usuarios
-              </p>
-              {selectedUsers.size > 0 && (
-                <span className="fluid-text-sm font-medium text-blue-600">
-                  ({selectedUsers.size} seleccionados en total)
-                </span>
-              )}
-            </div>
-            <div className="flex items-center fluid-gap-4">
-              {/* Selector de elementos por página */}
-              <div className="flex items-center fluid-gap-2">
-                <span className="fluid-text-sm text-gray-600">Por página:</span>
-                <select
-                  value={perPage}
-                  onChange={(e) => {
-                    setPerPage(Number(e.target.value));
-                    setPage(1);
-                  }}
-                  className="fluid-px-2 fluid-py-1 border border-gray-300 rounded-fluid fluid-text-sm focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-              
-              {/* Navegación de páginas */}
-              <div className="flex items-center fluid-gap-2">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="fluid-p-2 rounded-fluid-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                >
-                  <ChevronLeft className="fluid-icon-sm" />
-                </button>
-                <span className="fluid-px-3 fluid-py-1 fluid-text-sm text-gray-700">
-                  {page} / {totalPages}
-                </span>
-                <button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="fluid-p-2 rounded-fluid-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                >
-                  <ChevronRight className="fluid-icon-sm" />
-                </button>
-              </div>
-            </div>
           </div>
         )}
       </div>

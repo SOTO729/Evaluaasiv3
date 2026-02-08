@@ -28,6 +28,7 @@ export interface ManagedUser {
     digital_badge: boolean;
   };
   partners?: Array<{ id: number; name: string; logo_url?: string }>;
+  groups?: Array<{ id: number; name: string; campus_name?: string }>;
 }
 
 export interface CreateUserData {
