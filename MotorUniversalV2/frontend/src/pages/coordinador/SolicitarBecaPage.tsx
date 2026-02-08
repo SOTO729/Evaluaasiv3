@@ -780,7 +780,7 @@ export default function SolicitarBecaPage() {
             Solicitar Beca
           </h1>
           <p className="text-gray-500 mt-1 text-sm lg:text-base">
-            Selecciona planteles y configura las líneas de saldo y/o becas
+            Solicita becas de certificación para apoyar a tus alumnos
           </p>
         </div>
       </div>

@@ -780,7 +780,7 @@ export default function SolicitarSaldoPage() {
             Solicitar Saldo
           </h1>
           <p className="text-gray-500 mt-1 text-sm lg:text-base">
-            Selecciona planteles y configura las líneas de saldo y/o becas
+            Solicita saldo para asignar certificaciones a tus alumnos
           </p>
         </div>
       </div>
