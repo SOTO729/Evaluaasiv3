@@ -1847,7 +1847,7 @@ const ExamTestRunPage: React.FC = () => {
     <div className="min-h-screen bg-slate-50">
       {/* Modal de confirmación de salida */}
       {showExitConfirm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-3 sm:fluid-p-4">
+        <div className="fixed inset-0 bg-black/40  flex items-center justify-center z-50 fluid-p-3 sm:fluid-p-4">
           <div className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-2xl max-w-xs sm:max-w-sm w-full overflow-hidden">
             <div className="fluid-p-4 sm:fluid-p-6 text-center">
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto fluid-mb-3 sm:fluid-mb-4">
@@ -1903,7 +1903,7 @@ const ExamTestRunPage: React.FC = () => {
           className="fixed top-16 sm:top-20 right-2 sm:right-4 z-[100] animate-slide-in-right"
         >
           <div 
-            className={`flex items-center fluid-gap-2 sm:fluid-gap-3 fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 rounded-fluid-md shadow-lg border backdrop-blur-sm ${
+            className={`flex items-center fluid-gap-2 sm:fluid-gap-3 fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 rounded-fluid-md shadow-lg border  ${
               showTimeWarning.minutes === 1 
                 ? 'bg-red-50 border-red-200 text-red-800' 
                 : showTimeWarning.minutes === 5
@@ -2187,7 +2187,7 @@ const ExamTestRunPage: React.FC = () => {
       </div>
 
       {/* Navegación de ítems - FIJO debajo del header con animación */}
-      <div className={`fixed left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm transition-all duration-300 ease-out ${
+      <div className={`fixed left-0 right-0 z-30 bg-white/95  border-b border-gray-200 shadow-sm transition-all duration-300 ease-out ${
         isNavHidden 
           ? 'top-[44px] sm:top-[52px] lg:top-[60px] -translate-y-full opacity-0 pointer-events-none' 
           : 'top-[44px] sm:top-[52px] lg:top-[60px] translate-y-0 opacity-100'
@@ -2506,7 +2506,7 @@ const ExamTestRunPage: React.FC = () => {
 
       {/* Modal de confirmación - Simplificado */}
       {showConfirmSubmit && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-3 sm:fluid-p-4">
+        <div className="fixed inset-0 bg-black/40  flex items-center justify-center z-50 fluid-p-3 sm:fluid-p-4">
           <div className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-xl max-w-xs sm:max-w-sm w-full overflow-hidden">
             <div className="fluid-p-4 sm:fluid-p-6 text-center">
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto fluid-mb-3 sm:fluid-mb-4">

@@ -276,7 +276,7 @@ const DownloadableEditorPage = () => {
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
             <div className="relative z-10 flex items-center fluid-gap-3">
-              <div className="fluid-p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+              <div className="fluid-p-3 bg-white/20 rounded-xl ">
                 <Download className="w-8 h-8" />
               </div>
               <div>

@@ -11,7 +11,6 @@ import {
   Phone,
   Mail,
   Plus,
-  ChevronRight,
   Trash2,
   Users,
   Layers,
@@ -33,22 +32,23 @@ import {
   Clock,
   Globe,
   AlertTriangle,
+  Search,
+  X,
+  Power,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import DatePickerInput from '../../components/DatePickerInput';
 import {
   getCampus,
   getSchoolCycles,
   createSchoolCycle,
   deleteSchoolCycle,
-  deleteGroup,
-  getGroups,
   deactivateCampus,
   permanentDeleteCampus,
   permanentDeleteCycle,
   CyclePermanentDeleteStats,
   Campus,
   SchoolCycle,
-  CandidateGroup,
 } from '../../services/partnersService';
 import { useAuthStore } from '../../store/authStore';
 
@@ -60,7 +60,6 @@ export default function CampusDetailPage() {
   
   const [campus, setCampus] = useState<Campus | null>(null);
   const [cycles, setCycles] = useState<SchoolCycle[]>([]);
-  const [legacyGroups, setLegacyGroups] = useState<CandidateGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCycleId, setSelectedCycleId] = useState<number | null>(null);
@@ -83,6 +82,10 @@ export default function CampusDetailPage() {
   const [cycleToDelete, setCycleToDelete] = useState<SchoolCycle | null>(null);
   const [isDeletingCycle, setIsDeletingCycle] = useState(false);
   const [showCycleDeleteSuccessModal, setShowCycleDeleteSuccessModal] = useState(false);
+  const [isPermanentDelete, setIsPermanentDelete] = useState(false);
+  
+  // Búsqueda de ciclos
+  const [cycleSearchTerm, setCycleSearchTerm] = useState('');
   const [cycleDeleteStats, setCycleDeleteStats] = useState<CyclePermanentDeleteStats | null>(null);
   const [deletedCycleName, setDeletedCycleName] = useState('');
   
@@ -184,13 +187,6 @@ export default function CampusDetailPage() {
         console.log('Cycles endpoint not available');
         setCyclesAvailable(false);
         setCycles([]);
-        try {
-          const groupsData = await getGroups(Number(campusId));
-          setLegacyGroups(groupsData.groups);
-        } catch (groupsError) {
-          console.log('Groups endpoint error:', groupsError);
-          setLegacyGroups(campusData.groups || []);
-        }
       }
     } catch (err: any) {
       console.error('Error loading campus:', err);
@@ -223,9 +219,17 @@ export default function CampusDetailPage() {
     }
   };
 
-  // Abrir modal de confirmación para desactivar/eliminar ciclo
+  // Abrir modal de confirmación para desactivar ciclo
   const openCycleDeleteModal = (cycle: SchoolCycle) => {
     setCycleToDelete(cycle);
+    setIsPermanentDelete(false);
+    setShowCycleDeleteModal(true);
+  };
+
+  // Abrir modal de confirmación para borrar permanentemente
+  const openCyclePermanentDeleteModal = (cycle: SchoolCycle) => {
+    setCycleToDelete(cycle);
+    setIsPermanentDelete(true);
     setShowCycleDeleteModal(true);
   };
 
@@ -265,19 +269,6 @@ export default function CampusDetailPage() {
       setError(err.response?.data?.error || 'Error al eliminar el ciclo permanentemente');
     } finally {
       setIsDeletingCycle(false);
-    }
-  };
-
-  const handleDeleteGroup = async (groupId: number) => {
-    if (!confirm('¿Estás seguro de desactivar este grupo?')) return;
-    try {
-      await deleteGroup(groupId);
-      setCycles(prev => prev.map(c => ({
-        ...c,
-        groups: c.groups?.map(g => g.id === groupId ? { ...g, is_active: false } : g)
-      })));
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al desactivar el grupo');
     }
   };
 
@@ -323,13 +314,19 @@ export default function CampusDetailPage() {
   };
 
   const handleModalBackdropClick = (e: React.MouseEvent) => {
-    if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
-      setShowNewCycleModal(false);
+    // Solo cerrar si el clic fue directamente en el backdrop (no en elementos hijos)
+    if (e.target !== e.currentTarget) {
+      return;
     }
+    
+    // Verificar si hay un datepicker abierto
+    const datepickerOpen = document.querySelector('.react-datepicker-popper');
+    if (datepickerOpen) {
+      return; // No cerrar si hay un calendario abierto
+    }
+    
+    setShowNewCycleModal(false);
   };
-
-  const selectedCycle = cycles.find(c => c.id === selectedCycleId);
-  const orphanGroups = campus?.groups?.filter(g => !g.school_cycle_id) || [];
 
   if (loading) {
     return (
@@ -632,14 +629,10 @@ export default function CampusDetailPage() {
                 <p className="fluid-text-xs text-gray-400 fluid-mt-2 font-medium">Sin vigencia configurada</p>
               </div>
             )}
-            <div className="grid grid-cols-2 fluid-gap-3 fluid-pt-3 border-t border-gray-100">
+            <div className="fluid-pt-3 border-t border-gray-100">
               <div className="text-center fluid-p-3 bg-blue-50/50 rounded-fluid-xl hover:bg-blue-50 transition-colors border border-blue-100/50">
                 <p className="fluid-text-2xl font-bold text-blue-700">{cycles.filter(c => c.is_active).length}</p>
                 <p className="fluid-text-xs text-gray-600 font-semibold">Ciclos Activos</p>
-              </div>
-              <div className="text-center fluid-p-3 bg-amber-50/50 rounded-fluid-xl hover:bg-amber-50 transition-colors border border-amber-100/50">
-                <p className="fluid-text-2xl font-bold text-amber-700">{cycles.reduce((acc, c) => acc + (c.groups?.length || 0), 0) + orphanGroups.length}</p>
-                <p className="fluid-text-xs text-gray-600 font-semibold">Grupos Totales</p>
               </div>
             </div>
           </div>
@@ -689,28 +682,50 @@ export default function CampusDetailPage() {
         </div>
       </div>
 
-      {/* SECCIÓN INFERIOR: Ciclos y Grupos lado a lado */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 fluid-gap-6">
+      {/* SECCIÓN INFERIOR: Ciclos Escolares */}
+      <div className="fluid-space-y-6">
         {/* Ciclos Escolares */}
         {campus.is_active && cyclesAvailable ? (
-          <>
-            <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300">
-              <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex items-center justify-between">
-                <h3 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-3">
-                  <div className="fluid-p-2 bg-blue-100 rounded-fluid-lg">
-                    <GraduationCap className="fluid-icon-base text-blue-600" />
+          <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300">
+              <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4">
+                  <h3 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-3">
+                    <div className="fluid-p-2 bg-blue-100 rounded-fluid-lg">
+                      <GraduationCap className="fluid-icon-base text-blue-600" />
+                    </div>
+                    Ciclos Escolares
+                    <span className="fluid-text-sm font-medium text-gray-400 bg-gray-100 fluid-px-2 fluid-py-1 rounded-full">{cycles.length}</span>
+                  </h3>
+                  <div className="flex flex-col sm:flex-row fluid-gap-3">
+                    {/* Campo de búsqueda */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Buscar ciclo..."
+                        value={cycleSearchTerm}
+                        onChange={(e) => setCycleSearchTerm(e.target.value)}
+                        className="w-full sm:w-64 fluid-pl-10 fluid-pr-8 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-sm"
+                      />
+                      {cycleSearchTerm && (
+                        <button
+                          onClick={() => setCycleSearchTerm('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="fluid-icon-xs" />
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setShowNewCycleModal(true)}
+                      className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 hover:scale-105 shadow-md"
+                    >
+                      <Plus className="fluid-icon-sm" />Nuevo
+                    </button>
                   </div>
-                  Ciclos Escolares
-                  <span className="fluid-text-sm font-medium text-gray-400 bg-gray-100 fluid-px-2 fluid-py-1 rounded-full">{cycles.length}</span>
-                </h3>
-                <button
-                  onClick={() => setShowNewCycleModal(true)}
-                  className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 hover:scale-105 shadow-md"
-                >
-                  <Plus className="fluid-icon-sm" />Nuevo
-                </button>
+                </div>
               </div>
-              <div className="max-h-[350px] overflow-y-auto">
+              <div className="max-h-80 overflow-y-auto border-t border-gray-100">
                 {cycles.length === 0 ? (
                   <div className="fluid-p-8 text-center">
                     <GraduationCap className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-3" />
@@ -718,8 +733,26 @@ export default function CampusDetailPage() {
                     <p className="fluid-text-sm text-gray-400 fluid-mt-1">Crea un ciclo para organizar tus grupos</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-gray-100">
-                    {cycles.map((cycle) => (
+                  (() => {
+                    const filteredCycles = cycleSearchTerm 
+                      ? cycles.filter(c => c.name.toLowerCase().includes(cycleSearchTerm.toLowerCase()))
+                      : cycles;
+                    
+                    return filteredCycles.length === 0 ? (
+                      <div className="fluid-p-8 text-center">
+                        <Search className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-3" />
+                        <p className="fluid-text-base font-medium text-gray-500">No se encontraron ciclos</p>
+                        <p className="fluid-text-sm text-gray-400 fluid-mt-1">No hay resultados para "{cycleSearchTerm}"</p>
+                        <button
+                          onClick={() => setCycleSearchTerm('')}
+                          className="fluid-mt-3 fluid-text-sm text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          Limpiar búsqueda
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-gray-100">
+                        {filteredCycles.map((cycle) => (
                       <div
                         key={cycle.id}
                         onClick={() => setSelectedCycleId(cycle.id)}
@@ -742,91 +775,23 @@ export default function CampusDetailPage() {
                               </span>
                             </div>
                           </div>
-                          {/* Mostrar botón desactivar para ciclos activos, o eliminar para inactivos (solo admin) */}
-                          {cycle.is_active ? (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); openCycleDeleteModal(cycle); }}
-                              className="fluid-p-2 hover:bg-amber-50 rounded-fluid-xl text-gray-400 hover:text-amber-600 transition-colors"
-                              title="Desactivar ciclo"
-                            >
-                              <Trash2 className="fluid-icon-base" />
-                            </button>
-                          ) : isAdmin && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); openCycleDeleteModal(cycle); }}
-                              className="fluid-p-2 hover:bg-red-50 rounded-fluid-xl text-gray-400 hover:text-red-600 transition-colors"
-                              title="Eliminar permanentemente"
-                            >
-                              <Trash2 className="fluid-icon-base" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Grupos del ciclo seleccionado */}
-            <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300">
-              <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex items-center justify-between">
-                <h3 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-3">
-                  <div className="fluid-p-2 bg-amber-100 rounded-fluid-lg">
-                    <Layers className="fluid-icon-base text-amber-600" />
-                  </div>
-                  {selectedCycle ? `Grupos de ${selectedCycle.name}` : 'Grupos'}
-                </h3>
-                {selectedCycle && (
-                  <Link
-                    to={`/partners/campuses/${campusId}/groups/new?cycle=${selectedCycle.id}`}
-                    className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 hover:scale-105 shadow-md"
-                  >
-                    <Plus className="fluid-icon-sm" />Nuevo
-                  </Link>
-                )}
-              </div>
-              <div className="max-h-[350px] overflow-y-auto">
-                {!selectedCycle ? (
-                  <div className="fluid-p-8 text-center">
-                    <Layers className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-3" />
-                    <p className="fluid-text-base font-medium text-gray-500">Selecciona un ciclo escolar</p>
-                    <p className="fluid-text-sm text-gray-400 fluid-mt-1">Para ver sus grupos</p>
-                  </div>
-                ) : (!selectedCycle.groups || selectedCycle.groups.length === 0) ? (
-                  <div className="fluid-p-8 text-center">
-                    <Layers className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-3" />
-                    <p className="fluid-text-base font-medium text-gray-500">No hay grupos en este ciclo</p>
-                    <Link
-                      to={`/partners/campuses/${campusId}/groups/new?cycle=${selectedCycle.id}`}
-                      className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-fluid-xl fluid-text-sm font-semibold transition-all fluid-mt-4 shadow-md"
-                    >
-                      <Plus className="fluid-icon-sm" />Crear Grupo
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-gray-100">
-                    {selectedCycle.groups.map((group) => (
-                      <div key={group.id} className={`fluid-p-4 transition-all hover:bg-gray-50 ${!group.is_active ? 'opacity-50' : ''}`}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center fluid-gap-2 flex-wrap">
-                              <span className="fluid-text-base font-semibold text-gray-900">{group.name}</span>
-                              {group.code && <span className="fluid-text-xs font-mono bg-gray-100 text-gray-600 fluid-px-2 fluid-py-0.5 rounded-full font-semibold border border-gray-200">{group.code}</span>}
-                              {!group.is_active && <span className="fluid-text-xs bg-red-100 text-red-600 fluid-px-2 fluid-py-0.5 rounded-full font-semibold border border-red-200">Inactivo</span>}
-                            </div>
-                            <div className="flex items-center fluid-gap-3 fluid-text-sm text-gray-500 fluid-mt-1">
-                              <span className="flex items-center fluid-gap-1 font-medium">
-                                <Users className="fluid-icon-xs text-purple-500" />{group.member_count || 0} miembros
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center fluid-gap-2">
-                            <Link to={`/partners/groups/${group.id}`} className="fluid-p-2 hover:bg-amber-50 rounded-fluid-xl text-amber-600 transition-colors">
-                              <ChevronRight className="fluid-icon-lg" />
-                            </Link>
-                            {group.is_active && (
-                              <button onClick={() => handleDeleteGroup(group.id)} className="fluid-p-2 hover:bg-red-50 rounded-fluid-xl text-gray-400 hover:text-red-500 transition-colors">
+                          {/* Botones de acción: desactivar y borrar */}
+                          <div className="flex items-center fluid-gap-1">
+                            {cycle.is_active && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); openCycleDeleteModal(cycle); }}
+                                className="fluid-p-2 hover:bg-amber-50 rounded-fluid-xl text-gray-400 hover:text-amber-600 transition-colors"
+                                title="Desactivar ciclo"
+                              >
+                                <Power className="fluid-icon-base" />
+                              </button>
+                            )}
+                            {isAdmin && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); openCyclePermanentDeleteModal(cycle); }}
+                                className="fluid-p-2 hover:bg-red-50 rounded-fluid-xl text-gray-400 hover:text-red-600 transition-colors"
+                                title="Eliminar permanentemente (los grupos quedarán sin ciclo)"
+                              >
                                 <Trash2 className="fluid-icon-base" />
                               </button>
                             )}
@@ -835,75 +800,19 @@ export default function CampusDetailPage() {
                       </div>
                     ))}
                   </div>
+                    );
+                  })()
                 )}
               </div>
-              {orphanGroups.length > 0 && (
-                <div className="border-t border-amber-200 bg-amber-50 fluid-p-4">
-                  <div className="flex items-center fluid-gap-2 fluid-mb-3">
-                    <AlertCircle className="fluid-icon-base text-amber-600" />
-                    <span className="fluid-text-sm font-bold text-amber-800">{orphanGroups.length} grupo(s) sin ciclo</span>
-                  </div>
-                  <div className="fluid-space-y-2 max-h-[120px] overflow-y-auto">
-                    {orphanGroups.map((group) => (
-                      <div key={group.id} className="flex items-center justify-between bg-white rounded-fluid-xl fluid-p-3 border border-amber-200">
-                        <span className="fluid-text-sm font-medium text-gray-800">{group.name}</span>
-                        <Link to={`/partners/groups/${group.id}/edit`} className="fluid-text-xs text-blue-600 hover:underline font-semibold">Asignar</Link>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
-          </>
-        ) : campus.is_active ? (
-          <div className="lg:col-span-2 bg-white rounded-fluid-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300">
-            <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex items-center justify-between">
-              <h3 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-3">
-                <div className="fluid-p-2 bg-amber-100 rounded-fluid-lg">
-                  <Layers className="fluid-icon-base text-amber-600" />
-                </div>
-                Grupos
-              </h3>
-              <Link
-                to={`/partners/campuses/${campusId}/groups/new`}
-                className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 hover:scale-105 shadow-md"
-              >
-                <Plus className="fluid-icon-sm" />Nuevo Grupo
-              </Link>
-            </div>
-            <div className="max-h-[400px] overflow-y-auto">
-              {legacyGroups.length === 0 ? (
-                <div className="fluid-p-8 text-center">
-                  <Layers className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-3" />
-                  <p className="fluid-text-base font-medium text-gray-500">No hay grupos registrados</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-100">
-                  {legacyGroups.filter(g => g.is_active).map((group) => (
-                    <div key={group.id} className="flex items-center justify-between fluid-p-4 hover:bg-gray-50 transition-colors">
-                      <div>
-                        <span className="fluid-text-base font-semibold text-gray-900">{group.name}</span>
-                        <div className="fluid-text-sm text-gray-500 flex items-center fluid-gap-1 fluid-mt-1">
-                          <Users className="fluid-icon-xs" />{group.member_count || 0} miembros
-                        </div>
-                      </div>
-                      <Link to={`/partners/groups/${group.id}`} className="fluid-p-2 hover:bg-amber-50 rounded-fluid-xl text-amber-600 transition-colors">
-                        <ChevronRight className="fluid-icon-lg" />
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
         ) : null}
       </div>
 
       {/* Modal para crear ciclo escolar */}
       {showNewCycleModal && campus.is_active && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 fluid-p-4" onClick={handleModalBackdropClick}>
-          <div ref={modalRef} className="bg-white rounded-fluid-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-fade-in-up">
-            <div className="fluid-p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:fluid-p-4 overflow-y-auto" onClick={handleModalBackdropClick}>
+          <div ref={modalRef} className="bg-white rounded-3xl shadow-2xl max-w-xl w-full my-auto overflow-visible animate-fade-in-up border border-gray-100">
+            <div className="fluid-p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-3xl">
               <h3 className="fluid-text-xl font-bold text-gray-900 flex items-center fluid-gap-3">
                 <div className="fluid-p-2 bg-blue-100 rounded-fluid-xl">
                   <CalendarRange className="fluid-icon-lg text-blue-600" />
@@ -913,35 +822,62 @@ export default function CampusDetailPage() {
               <p className="fluid-text-sm text-gray-500 fluid-mt-2">Crea un nuevo ciclo escolar para organizar los grupos del plantel</p>
             </div>
             <div className="fluid-p-6 fluid-space-y-5">
-              <div className="grid grid-cols-2 fluid-gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 fluid-gap-5">
                 <div>
-                  <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2">Fecha inicio *</label>
-                  <input
-                    type="date"
-                    value={newCycleForm.start_date}
-                    onChange={(e) => setNewCycleForm(prev => ({ ...prev, start_date: e.target.value }))}
-                    className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all hover:border-blue-300"
-                    autoFocus
+                  <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2 flex items-center fluid-gap-2">
+                    <Calendar className="fluid-icon-sm text-green-500" />
+                    Fecha inicio *
+                  </label>
+                  <DatePickerInput
+                    value={newCycleForm.start_date ? new Date(newCycleForm.start_date + 'T00:00:00') : null}
+                    onChange={(date) => setNewCycleForm(prev => ({ 
+                      ...prev, 
+                      start_date: date ? date.toISOString().split('T')[0] : '' 
+                    }))}
+                    placeholder="Seleccionar fecha de inicio"
+                    colorScheme="green"
                   />
+                  {newCycleForm.start_date && (
+                    <p className="fluid-text-xs text-green-600 fluid-mt-2 font-medium">
+                      {new Date(newCycleForm.start_date + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2">Fecha fin *</label>
-                  <input
-                    type="date"
-                    value={newCycleForm.end_date}
-                    onChange={(e) => setNewCycleForm(prev => ({ ...prev, end_date: e.target.value }))}
-                    className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all hover:border-blue-300"
+                  <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2 flex items-center fluid-gap-2">
+                    <Calendar className="fluid-icon-sm text-indigo-500" />
+                    Fecha fin *
+                  </label>
+                  <DatePickerInput
+                    value={newCycleForm.end_date ? new Date(newCycleForm.end_date + 'T00:00:00') : null}
+                    onChange={(date) => setNewCycleForm(prev => ({ 
+                      ...prev, 
+                      end_date: date ? date.toISOString().split('T')[0] : '' 
+                    }))}
+                    placeholder="Seleccionar fecha de fin"
+                    minDate={newCycleForm.start_date ? new Date(newCycleForm.start_date + 'T00:00:00') : null}
+                    colorScheme="indigo"
                   />
+                  {newCycleForm.end_date && (
+                    <p className="fluid-text-xs text-indigo-600 fluid-mt-2 font-medium">
+                      {new Date(newCycleForm.end_date + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                    </p>
+                  )}
                 </div>
               </div>
               {newCycleForm.start_date && newCycleForm.end_date && (
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-fluid-xl fluid-p-4 border border-blue-200">
-                  <label className="block fluid-text-sm font-medium text-blue-700 fluid-mb-1">Nombre del ciclo (generado automáticamente)</label>
+                  <div className="flex items-center justify-between fluid-mb-2">
+                    <label className="fluid-text-sm font-medium text-blue-700">Nombre del ciclo (generado automáticamente)</label>
+                    <span className="fluid-text-xs bg-blue-100 text-blue-700 fluid-px-2 fluid-py-1 rounded-full font-semibold">
+                      {Math.ceil((new Date(newCycleForm.end_date).getTime() - new Date(newCycleForm.start_date).getTime()) / (1000 * 60 * 60 * 24 * 30))} meses
+                    </span>
+                  </div>
                   <p className="fluid-text-lg font-bold text-blue-900">{newCycleForm.name || 'Selecciona las fechas'}</p>
                 </div>
               )}
             </div>
-            <div className="fluid-p-6 border-t border-gray-200 flex justify-end fluid-gap-4 bg-gray-50">
+            <div className="fluid-p-6 border-t border-gray-200 flex justify-end fluid-gap-4 bg-gray-50 rounded-b-3xl">
               <button
                 onClick={() => setShowNewCycleModal(false)}
                 className="fluid-px-6 fluid-py-3 text-gray-700 hover:bg-gray-200 rounded-fluid-xl transition-all fluid-text-sm font-bold hover:shadow-md"
@@ -1011,45 +947,48 @@ export default function CampusDetailPage() {
             className="bg-white rounded-fluid-2xl w-full max-w-lg shadow-2xl animate-scale-in"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Cabecera diferente según estado del ciclo */}
-            <div className={`fluid-p-6 border-b rounded-t-fluid-2xl ${cycleToDelete.is_active ? 'border-amber-100 bg-amber-50' : 'border-red-100 bg-red-50'}`}>
+            {/* Cabecera diferente según acción */}
+            <div className={`fluid-p-6 border-b rounded-t-fluid-2xl ${isPermanentDelete ? 'border-red-100 bg-red-50' : 'border-amber-100 bg-amber-50'}`}>
               <div className="flex items-center fluid-gap-3">
-                <div className={`fluid-p-3 rounded-fluid-xl ${cycleToDelete.is_active ? 'bg-amber-100' : 'bg-red-100'}`}>
-                  <AlertTriangle className={`fluid-icon-xl ${cycleToDelete.is_active ? 'text-amber-600' : 'text-red-600'}`} />
+                <div className={`fluid-p-3 rounded-fluid-xl ${isPermanentDelete ? 'bg-red-100' : 'bg-amber-100'}`}>
+                  {isPermanentDelete ? (
+                    <Trash2 className="fluid-icon-xl text-red-600" />
+                  ) : (
+                    <Power className="fluid-icon-xl text-amber-600" />
+                  )}
                 </div>
                 <div>
-                  <h3 className={`fluid-text-xl font-bold ${cycleToDelete.is_active ? 'text-amber-900' : 'text-red-900'}`}>
-                    {cycleToDelete.is_active ? 'Desactivar Ciclo Escolar' : 'Eliminar Ciclo Escolar'}
+                  <h3 className={`fluid-text-xl font-bold ${isPermanentDelete ? 'text-red-900' : 'text-amber-900'}`}>
+                    {isPermanentDelete ? 'Eliminar Ciclo Escolar' : 'Desactivar Ciclo Escolar'}
                   </h3>
-                  <p className={`fluid-text-base font-medium ${cycleToDelete.is_active ? 'text-amber-800' : 'text-red-800'}`}>"{cycleToDelete.name}"</p>
+                  <p className={`fluid-text-base font-medium ${isPermanentDelete ? 'text-red-800' : 'text-amber-800'}`}>"{cycleToDelete.name}"</p>
                 </div>
               </div>
             </div>
             
             <div className="fluid-p-6">
-              {cycleToDelete.is_active ? (
-                /* Mensaje para desactivar ciclo activo */
-                <div className="bg-amber-50 border border-amber-200 rounded-fluid-xl fluid-p-4">
-                  <p className="fluid-text-base text-amber-800 font-medium fluid-mb-2">¿Deseas desactivar este ciclo?</p>
-                  <p className="fluid-text-sm text-amber-700">El ciclo y sus grupos permanecerán en el sistema pero no estarán activos. Podrás reactivarlos después si es necesario.</p>
-                </div>
-              ) : (
-                /* Mensaje para eliminar ciclo inactivo */
+              {isPermanentDelete ? (
+                /* Mensaje para eliminar permanentemente */
                 <div className="space-y-4">
                   <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-4">
                     <p className="fluid-text-base text-red-800 font-bold fluid-mb-2">⚠️ Esta acción NO se puede deshacer</p>
-                    <p className="fluid-text-sm text-red-700 fluid-mb-3">Se eliminarán permanentemente:</p>
-                    <ul className="fluid-text-sm text-red-700 space-y-1 list-disc list-inside">
-                      <li>El ciclo escolar</li>
-                      <li>Todos los grupos del ciclo</li>
-                      <li>Las membresías de candidatos en los grupos</li>
-                      <li>Las asignaciones de exámenes a grupos</li>
-                      <li>Las asignaciones de materiales de estudio</li>
-                    </ul>
+                    <p className="fluid-text-sm text-red-700 fluid-mb-3">Se eliminará el ciclo escolar permanentemente.</p>
+                    <p className="fluid-text-sm text-red-700 font-medium">Los grupos del ciclo quedarán sin ciclo asignado.</p>
                   </div>
-                  <div className="bg-green-50 border border-green-200 rounded-fluid-xl fluid-p-4">
-                    <p className="fluid-text-sm text-green-800 font-medium">✓ Se conservan: los usuarios, los resultados de exámenes y las certificaciones/vouchers asignados.</p>
-                  </div>
+                  {(cycleToDelete.groups?.length || 0) > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-fluid-xl fluid-p-4">
+                      <p className="fluid-text-sm text-amber-800 font-medium">
+                        <Users className="fluid-icon-sm inline fluid-mr-1" />
+                        {cycleToDelete.groups?.length} grupo(s) quedarán sin ciclo asignado
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Mensaje para desactivar ciclo */
+                <div className="bg-amber-50 border border-amber-200 rounded-fluid-xl fluid-p-4">
+                  <p className="fluid-text-base text-amber-800 font-medium fluid-mb-2">¿Deseas desactivar este ciclo?</p>
+                  <p className="fluid-text-sm text-amber-700">El ciclo y sus grupos permanecerán en el sistema pero no estarán activos. Podrás reactivarlos después si es necesario.</p>
                 </div>
               )}
             </div>
@@ -1063,19 +1002,19 @@ export default function CampusDetailPage() {
                 Cancelar
               </button>
               <button
-                onClick={cycleToDelete.is_active ? handleDeactivateCycle : handlePermanentDeleteCycle}
+                onClick={isPermanentDelete ? handlePermanentDeleteCycle : handleDeactivateCycle}
                 disabled={isDeletingCycle}
-                className={`fluid-px-6 fluid-py-3 rounded-fluid-xl transition-all fluid-text-sm font-bold flex items-center fluid-gap-2 disabled:opacity-50 shadow-lg hover:shadow-xl hover:-translate-y-0.5 ${cycleToDelete.is_active ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white' : 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white'}`}
+                className={`fluid-px-6 fluid-py-3 rounded-fluid-xl transition-all fluid-text-sm font-bold flex items-center fluid-gap-2 disabled:opacity-50 shadow-lg hover:shadow-xl hover:-translate-y-0.5 ${isPermanentDelete ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white' : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'}`}
               >
                 {isDeletingCycle ? (
                   <>
                     <div className="fluid-w-4 fluid-h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    {cycleToDelete.is_active ? 'Desactivando...' : 'Eliminando...'}
+                    {isPermanentDelete ? 'Eliminando...' : 'Desactivando...'}
                   </>
                 ) : (
                   <>
-                    <Trash2 className="fluid-icon-sm" />
-                    {cycleToDelete.is_active ? 'Desactivar Ciclo' : 'Eliminar Permanentemente'}
+                    {isPermanentDelete ? <Trash2 className="fluid-icon-sm" /> : <Power className="fluid-icon-sm" />}
+                    {isPermanentDelete ? 'Eliminar Permanentemente' : 'Desactivar Ciclo'}
                   </>
                 )}
               </button>

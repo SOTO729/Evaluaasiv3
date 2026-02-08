@@ -130,6 +130,9 @@ const SolicitarBecaPage = lazy(() => import('./pages/coordinador/SolicitarBecaPa
 const HistorialSolicitudesPage = lazy(() => import('./pages/coordinador/HistorialSolicitudesPage'))
 const HistorialMovimientosPage = lazy(() => import('./pages/coordinador/HistorialMovimientosPage'))
 
+// Grupos (gestión de grupos por plantel)
+const GruposListPage = lazy(() => import('./pages/grupos/GruposListPage'))
+
 // User Management (Gestión de Usuarios)
 const UsersListPage = lazy(() => import('./pages/users/UsersListPage'))
 const UserFormPage = lazy(() => import('./pages/users/UserFormPage'))
@@ -264,12 +267,15 @@ function App() {
               <Route path="/gerente/reportes" element={<GerenteReportsPage />} />
               
               {/* Coordinador - Gestión de Saldo */}
-              <Route path="/coordinador/mi-saldo" element={<MiSaldoPage />} />
-              <Route path="/coordinador/mi-saldo/solicitud/:id" element={<MiSolicitudDetailPage />} />
-              <Route path="/coordinador/solicitar-saldo" element={<SolicitarSaldoPage />} />
-              <Route path="/coordinador/solicitar-beca" element={<SolicitarBecaPage />} />
-              <Route path="/coordinador/historial-solicitudes" element={<HistorialSolicitudesPage />} />
-              <Route path="/coordinador/historial-movimientos" element={<HistorialMovimientosPage />} />
+              <Route path="/mi-saldo" element={<MiSaldoPage />} />
+              <Route path="/mi-saldo/solicitud/:id" element={<MiSolicitudDetailPage />} />
+              <Route path="/solicitar-saldo" element={<SolicitarSaldoPage />} />
+              <Route path="/solicitar-beca" element={<SolicitarBecaPage />} />
+              <Route path="/historial-solicitudes" element={<HistorialSolicitudesPage />} />
+              <Route path="/historial-movimientos" element={<HistorialMovimientosPage />} />
+              
+              {/* Grupos - Gestión de grupos por plantel */}
+              <Route path="/grupos" element={<GruposListPage />} />
               
               {/* User Management (Gestión de Usuarios) */}
               <Route path="/user-management" element={<UsersListPage />} />

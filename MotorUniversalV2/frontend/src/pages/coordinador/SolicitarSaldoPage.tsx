@@ -577,19 +577,19 @@ export default function SolicitarSaldoPage() {
             <div className="bg-gradient-to-br from-green-600 via-green-700 to-green-800 rounded-2xl p-6 lg:p-8 text-white shadow-xl shadow-green-200">
               <p className="text-green-200 text-sm font-medium mb-4">Resumen de tu solicitud</p>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <div className="bg-white/10  rounded-xl p-4">
                   <p className="text-green-200 text-xs uppercase tracking-wide">Planteles</p>
                   <p className="text-3xl lg:text-4xl font-bold mt-1">{new Set(requestLines.map(l => l.campusId)).size}</p>
                 </div>
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <div className="bg-white/10  rounded-xl p-4">
                   <p className="text-green-200 text-xs uppercase tracking-wide">Líneas</p>
                   <p className="text-3xl lg:text-4xl font-bold mt-1">{requestLines.length}</p>
                 </div>
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <div className="bg-white/10  rounded-xl p-4">
                   <p className="text-green-200 text-xs uppercase tracking-wide">Unidades</p>
                   <p className="text-3xl lg:text-4xl font-bold mt-1">{totals.totalUnits}</p>
                 </div>
-                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <div className="bg-white/10  rounded-xl p-4">
                   <p className="text-green-200 text-xs uppercase tracking-wide">Total</p>
                   <p className="text-3xl lg:text-4xl font-bold mt-1">{formatCurrency(totals.totalAmount)}</p>
                 </div>
@@ -841,7 +841,7 @@ export default function SolicitarSaldoPage() {
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 350px)', minHeight: '400px' }}>
               <table className="w-full">
-                <thead className="bg-primary-50/60 border-b border-primary-100 sticky top-0 z-10 backdrop-blur-sm">
+                <thead className="bg-primary-50/60 border-b border-primary-100 sticky top-0 z-10 ">
                   <tr>
                     <SortableHeader column="partner" label="Partner" />
                     <SortableHeader column="state" label="Estado" />

@@ -13,7 +13,7 @@ interface BreadcrumbProps {
 
 const Breadcrumb = ({ items }: BreadcrumbProps) => {
   return (
-    <nav className="flex items-center flex-wrap fluid-gap-1 fluid-text-sm fluid-mb-4 bg-white/80 backdrop-blur-sm rounded-fluid-xl fluid-px-4 fluid-py-3 shadow-sm border border-gray-100">
+    <nav className="flex items-center flex-wrap fluid-gap-1 fluid-text-sm fluid-mb-4 bg-white/80  rounded-fluid-xl fluid-px-4 fluid-py-3 shadow-sm border border-gray-100">
       <Link 
         to="/exams" 
         className="flex items-center text-gray-500 hover:text-blue-600 transition-colors duration-200"

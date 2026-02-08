@@ -191,7 +191,7 @@ const StudyContentCandidatePage = () => {
   return (
     <div ref={mainContainerRef} className="min-h-screen bg-gray-50 overflow-x-hidden overscroll-contain">
       {/* Barra de navegación superior */}
-      <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 border-b border-gray-200/80 shadow-sm sticky top-0 z-40 backdrop-blur-sm bg-opacity-95">
+      <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 border-b border-gray-200/80 shadow-sm sticky top-0 z-40  bg-opacity-95">
         <div className="fluid-container-2xl mx-auto fluid-px-6 fluid-py-4">
           <div className="flex items-center justify-between">
             {/* Botón volver */}
@@ -245,7 +245,7 @@ const StudyContentCandidatePage = () => {
               {/* Estadísticas en línea */}
               <div className="flex flex-wrap items-center fluid-gap-5 fluid-mb-8">
                 <div className="flex items-center fluid-gap-2">
-                  <div className="fluid-p-2 bg-white/20 backdrop-blur-sm rounded-fluid-lg">
+                  <div className="fluid-p-2 bg-white/20  rounded-fluid-lg">
                     <Layers className="fluid-icon-base text-white" />
                   </div>
                   <span className="fluid-text-sm text-white/90">
@@ -254,7 +254,7 @@ const StudyContentCandidatePage = () => {
                 </div>
                 <div className="w-px h-4 bg-white/30 hidden sm:block" />
                 <div className="flex items-center fluid-gap-2">
-                  <div className="fluid-p-2 bg-white/20 backdrop-blur-sm rounded-fluid-lg">
+                  <div className="fluid-p-2 bg-white/20  rounded-fluid-lg">
                     <FileText className="fluid-icon-base text-white" />
                   </div>
                   <span className="fluid-text-sm text-white/90">
@@ -265,7 +265,7 @@ const StudyContentCandidatePage = () => {
                   <>
                     <div className="w-px h-4 bg-white/30 hidden sm:block" />
                     <div className="flex items-center fluid-gap-2">
-                      <div className="fluid-p-2 bg-white/20 backdrop-blur-sm rounded-fluid-lg">
+                      <div className="fluid-p-2 bg-white/20  rounded-fluid-lg">
                         <Clock className="fluid-icon-base text-white" />
                       </div>
                       <span className="fluid-text-sm text-white/90">

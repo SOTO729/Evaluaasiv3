@@ -255,7 +255,7 @@ const CategoryDetailPage = () => {
                 <p className="text-blue-100 fluid-mt-2">{category.description}</p>
               )}
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-xl fluid-px-6 fluid-py-4 text-center">
+            <div className="bg-white/20  rounded-fluid-xl fluid-px-6 fluid-py-4 text-center">
               <div className="fluid-text-sm text-blue-100 font-medium">Peso en el examen</div>
               <div className="fluid-text-4xl font-bold text-white">{category.percentage}%</div>
             </div>
@@ -471,7 +471,7 @@ const CategoryDetailPage = () => {
       {/* Modal de Crear/Editar Tema */}
       {isCreateModalOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4"
+          className="fixed inset-0 bg-black/60  flex items-center justify-center z-50 fluid-p-4"
           onClick={handleCloseModal}
         >
           <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
@@ -525,7 +525,7 @@ const CategoryDetailPage = () => {
       {/* Modal de Confirmación de Eliminación */}
       {deleteConfirmTopic && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4"
+          className="fixed inset-0 bg-black/60  flex items-center justify-center z-50 fluid-p-4"
           onClick={() => setDeleteConfirmTopic(null)}
         >
           <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
@@ -592,7 +592,7 @@ const CategoryDetailPage = () => {
       {/* Modal de Ajuste de Porcentajes de Temas */}
       {showTopicPercentageModal && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4"
+          className="fixed inset-0 bg-black/60  flex items-center justify-center z-50 fluid-p-4"
           onClick={() => setShowTopicPercentageModal(false)}
         >
           <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>

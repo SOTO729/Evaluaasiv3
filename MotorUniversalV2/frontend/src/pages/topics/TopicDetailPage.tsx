@@ -408,7 +408,7 @@ const TopicDetailPage = () => {
         <div className="fluid-mb-4 bg-gradient-to-r from-blue-600 via-cyan-600 to-emerald-600 rounded-fluid-xl fluid-p-5 shadow-lg shadow-blue-500/20">
           <div className="flex items-center justify-between fluid-gap-3">
             <div className="flex items-center fluid-gap-3">
-              <div className="flex-shrink-0 w-10 h-10 rounded-fluid-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              <div className="flex-shrink-0 w-10 h-10 rounded-fluid-lg bg-white/20  flex items-center justify-center">
                 <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
@@ -903,7 +903,7 @@ const TopicDetailPage = () => {
       {/* Modal de Crear Pregunta */}
       {isCreateModalOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4"
+          className="fixed inset-0 bg-black/60  flex items-center justify-center z-50 fluid-p-4"
           onClick={() => {
             setIsCreateModalOpen(false)
             setFormData({ question_type_id: '', question_text: '' })
@@ -972,7 +972,7 @@ const TopicDetailPage = () => {
       {/* Modal de Editar Pregunta */}
       {isEditModalOpen && selectedQuestion && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4"
+          className="fixed inset-0 bg-black/60  flex items-center justify-center z-50 fluid-p-4"
           onClick={() => {
             setIsEditModalOpen(false)
             setSelectedQuestion(null)
@@ -1043,7 +1043,7 @@ const TopicDetailPage = () => {
       {/* Modal de Confirmación de Eliminación */}
       {isDeleteModalOpen && selectedQuestion && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4"
+          className="fixed inset-0 bg-black/60  flex items-center justify-center z-50 fluid-p-4"
           onClick={() => {
             setIsDeleteModalOpen(false)
             setSelectedQuestion(null)
@@ -1102,7 +1102,7 @@ const TopicDetailPage = () => {
       {/* Modal de Crear Ejercicio */}
       {isCreateExerciseModalOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4"
+          className="fixed inset-0 bg-black/60  flex items-center justify-center z-50 fluid-p-4"
           onClick={() => {
             setIsCreateExerciseModalOpen(false)
             setExerciseFormData({ exercise_text: '', is_complete: false })
@@ -1151,7 +1151,7 @@ const TopicDetailPage = () => {
       {/* Modal de Editar Ejercicio */}
       {isEditExerciseModalOpen && selectedExercise && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4"
+          className="fixed inset-0 bg-black/60  flex items-center justify-center z-50 fluid-p-4"
           onClick={() => {
             setIsEditExerciseModalOpen(false)
             setSelectedExercise(null)
@@ -1202,7 +1202,7 @@ const TopicDetailPage = () => {
       {/* Modal de Eliminar Ejercicio */}
       {isDeleteExerciseModalOpen && selectedExercise && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4"
+          className="fixed inset-0 bg-black/60  flex items-center justify-center z-50 fluid-p-4"
           onClick={() => {
             setIsDeleteExerciseModalOpen(false)
             setSelectedExercise(null)

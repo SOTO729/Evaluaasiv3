@@ -110,7 +110,7 @@ const ExamModeSelectorPage = () => {
             
             {/* Título sobre la imagen - Con más énfasis */}
             <div className="absolute bottom-0 left-0 right-0 fluid-p-4">
-              <span className="fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-mono bg-white/20 text-white backdrop-blur-sm fluid-mb-2 inline-block">
+              <span className="fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-mono bg-white/20 text-white  fluid-mb-2 inline-block">
                 v{exam.version}
               </span>
               <h1 className="fluid-text-3xl font-extrabold text-white drop-shadow-lg leading-tight">{exam.name}</h1>

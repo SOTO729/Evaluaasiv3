@@ -842,7 +842,7 @@ const ReadingEditorPage = () => {
 
       {/* Header */}
       <header className="sticky top-0 z-40 px-4 pt-4">
-        <div className="bg-white/95 backdrop-blur-md border border-gray-200 rounded-2xl shadow-sm px-6">
+        <div className="bg-white/95  border border-gray-200 rounded-2xl shadow-sm px-6">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-6">
               <button

@@ -282,7 +282,7 @@ const ProfilePage = () => {
             <div className="flex flex-col sm:flex-row items-center fluid-gap-6">
               {/* Avatar */}
               <div className="relative flex-shrink-0">
-                <div className="w-24 h-24 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center text-white fluid-text-3xl font-bold border-2 border-white/30 shadow-xl">
+                <div className="w-24 h-24 rounded-full bg-white/15  flex items-center justify-center text-white fluid-text-3xl font-bold border-2 border-white/30 shadow-xl">
                   {profile?.full_name?.split(' ').map(n => n[0]).slice(0, 2).join('') || 'U'}
                 </div>
                 {profile?.is_verified && (
@@ -303,7 +303,7 @@ const ProfilePage = () => {
                   <span className={`fluid-px-3 fluid-py-1 fluid-text-xs font-semibold rounded-full text-white shadow-sm ${roleBadge.color}`}>
                     {roleBadge.label}
                   </span>
-                  <span className={`fluid-px-3 fluid-py-1 fluid-text-xs font-medium rounded-full backdrop-blur-sm ${
+                  <span className={`fluid-px-3 fluid-py-1 fluid-text-xs font-medium rounded-full  ${
                     profile?.is_active ? 'bg-green-500/25 text-green-200 border border-green-400/30' : 'bg-red-500/25 text-red-200 border border-red-400/30'
                   }`}>
                     {profile?.is_active ? 'Cuenta Activa' : 'Cuenta Inactiva'}
@@ -317,7 +317,7 @@ const ProfilePage = () => {
                   {!isEditing ? (
                     <button
                       onClick={() => setIsEditing(true)}
-                      className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/15 hover:bg-white/25 text-white rounded-fluid-lg fluid-text-sm font-medium transition-all backdrop-blur-sm border border-white/20 shadow-sm"
+                      className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/15 hover:bg-white/25 text-white rounded-fluid-lg fluid-text-sm font-medium transition-all  border border-white/20 shadow-sm"
                     >
                       <Edit3 className="fluid-icon-sm" />
                       <span className="hidden sm:inline">Editar Perfil</span>
@@ -636,7 +636,7 @@ const ProfilePage = () => {
 
       {/* Modal Cambiar Email */}
       {showEmailModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4">
+        <div className="fixed inset-0 bg-black/50  flex items-center justify-center z-50 fluid-p-4">
           <div className="bg-white rounded-fluid-xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="fluid-p-5 border-b border-gray-100 flex items-center justify-between">
               <h3 className="fluid-text-lg font-semibold text-gray-900">Cambiar correo electrónico</h3>
@@ -688,7 +688,7 @@ const ProfilePage = () => {
 
       {/* Modal Cambiar Contraseña */}
       {showPasswordModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4">
+        <div className="fixed inset-0 bg-black/50  flex items-center justify-center z-50 fluid-p-4">
           <div className="bg-white rounded-fluid-xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="fluid-p-5 border-b border-gray-100 flex items-center justify-between">
               <h3 className="fluid-text-lg font-semibold text-gray-900">Cambiar contraseña</h3>

@@ -1311,14 +1311,14 @@ const StudyContentDetailPage = () => {
 
           {/* Statistics Grid */}
           <div className="grid grid-cols-3 fluid-gap-3">
-            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-lg fluid-p-4">
+            <div className="bg-white/20  rounded-fluid-lg fluid-p-4">
               <div className="flex items-center fluid-gap-2 fluid-mb-1">
                 <Layers className="fluid-icon-sm text-white/80" />
                 <span className="text-white/80 fluid-text-sm">Sesiones</span>
               </div>
               <span className="fluid-text-2xl font-bold text-white">{material.sessions?.length || 0}</span>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-lg fluid-p-4">
+            <div className="bg-white/20  rounded-fluid-lg fluid-p-4">
               <div className="flex items-center fluid-gap-2 fluid-mb-1">
                 <FileText className="fluid-icon-sm text-white/80" />
                 <span className="text-white/80 fluid-text-sm">Temas</span>
@@ -1327,7 +1327,7 @@ const StudyContentDetailPage = () => {
                 {material.sessions?.reduce((acc, s) => acc + (s.topics?.length || 0), 0) || 0}
               </span>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-fluid-lg fluid-p-4">
+            <div className="bg-white/20  rounded-fluid-lg fluid-p-4">
               <div className="flex items-center fluid-gap-2 fluid-mb-1">
                 <ClipboardList className="fluid-icon-sm text-white/80" />
                 <span className="text-white/80 fluid-text-sm">Exámenes vinculados</span>
@@ -1962,7 +1962,7 @@ const StudyContentDetailPage = () => {
             <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
             <div className="relative z-10">
               <div className="flex items-center fluid-gap-3 fluid-mb-3">
-                <div className="fluid-p-2 bg-white/20 rounded-fluid-lg backdrop-blur-sm">
+                <div className="fluid-p-2 bg-white/20 rounded-fluid-lg ">
                   <FileText className="fluid-icon-lg" />
                 </div>
                 <div>
@@ -2008,7 +2008,7 @@ const StudyContentDetailPage = () => {
                 className="relative w-full bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-500 text-white rounded-fluid-2xl fluid-p-4 flex items-center justify-between group hover:from-blue-600 hover:via-cyan-600 hover:to-teal-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
               >
                 <div className="flex items-center fluid-gap-3">
-                  <div className="fluid-p-2 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
+                  <div className="fluid-p-2 bg-white/20 rounded-fluid-xl ">
                     <Check className="fluid-icon-sm" />
                   </div>
                   <div className="text-left">
@@ -2169,7 +2169,7 @@ const StudyContentDetailPage = () => {
             <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
             <div className="relative z-10">
               <div className="flex items-center fluid-gap-3 fluid-mb-3">
-                <div className="fluid-p-2 bg-white/20 rounded-fluid-lg backdrop-blur-sm">
+                <div className="fluid-p-2 bg-white/20 rounded-fluid-lg ">
                   <Video className="fluid-icon-lg" />
                 </div>
                 <div>
@@ -2215,7 +2215,7 @@ const StudyContentDetailPage = () => {
                 className="relative w-full bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500 text-white rounded-fluid-2xl fluid-p-4 flex items-center justify-between group hover:from-purple-600 hover:via-violet-600 hover:to-indigo-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
               >
                 <div className="flex items-center fluid-gap-3">
-                  <div className="fluid-p-2 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
+                  <div className="fluid-p-2 bg-white/20 rounded-fluid-xl ">
                     <Check className="fluid-icon" />
                   </div>
                   <div className="text-left">
@@ -2591,7 +2591,7 @@ const StudyContentDetailPage = () => {
             <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
             <div className="relative z-10">
               <div className="flex items-center fluid-gap-3 fluid-mb-3">
-                <div className="fluid-p-2 bg-white/20 rounded-fluid-lg backdrop-blur-sm">
+                <div className="fluid-p-2 bg-white/20 rounded-fluid-lg ">
                   <Download className="fluid-icon-lg" />
                 </div>
                 <div>
@@ -2637,7 +2637,7 @@ const StudyContentDetailPage = () => {
                 className="relative w-full bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white rounded-fluid-2xl fluid-p-4 flex items-center justify-between group hover:from-orange-600 hover:via-amber-600 hover:to-yellow-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
               >
                 <div className="flex items-center fluid-gap-3">
-                  <div className="fluid-p-2 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
+                  <div className="fluid-p-2 bg-white/20 rounded-fluid-xl ">
                     <Check className="fluid-icon" />
                   </div>
                   <div className="text-left">
@@ -3030,7 +3030,7 @@ const StudyContentDetailPage = () => {
             <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
             <div className="relative z-10">
               <div className="flex items-center fluid-gap-3 fluid-mb-3">
-                <div className="fluid-p-2 bg-white/20 rounded-fluid-lg backdrop-blur-sm">
+                <div className="fluid-p-2 bg-white/20 rounded-fluid-lg ">
                   <Gamepad2 className="fluid-icon-lg" />
                 </div>
                 <div>
@@ -3084,7 +3084,7 @@ const StudyContentDetailPage = () => {
                 className="relative w-full bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white rounded-fluid-2xl fluid-p-4 flex items-center justify-between group hover:from-green-600 hover:via-emerald-600 hover:to-teal-600 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-[1.02]"
               >
                 <div className="flex items-center fluid-gap-3">
-                  <div className="fluid-p-2 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
+                  <div className="fluid-p-2 bg-white/20 rounded-fluid-xl ">
                     <Check className="fluid-icon" />
                   </div>
                   <div className="text-left">
@@ -3385,7 +3385,7 @@ const StudyContentDetailPage = () => {
             {/* Header */}
             <div className="bg-gradient-to-r from-amber-500 to-orange-500 fluid-p-6">
               <div className="flex items-center fluid-gap-4">
-                <div className="fluid-p-3 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
+                <div className="fluid-p-3 bg-white/20 rounded-fluid-xl ">
                   <svg className="fluid-icon-lg text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>

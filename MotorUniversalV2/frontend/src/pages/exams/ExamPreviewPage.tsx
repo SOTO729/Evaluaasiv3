@@ -137,11 +137,11 @@ const ExamPreviewPage = () => {
           {/* Título sobre la imagen */}
           <div className="absolute bottom-0 left-0 right-0 fluid-p-4">
             <div className="flex items-center fluid-gap-2 fluid-mb-2 flex-wrap">
-              <span className="fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-mono bg-white/20 text-white backdrop-blur-sm">
+              <span className="fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-mono bg-white/20 text-white ">
                 v{exam.version}
               </span>
               {exam.competency_standard && (
-                <span className="fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium bg-blue-500/80 text-white backdrop-blur-sm">
+                <span className="fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium bg-blue-500/80 text-white ">
                   {exam.competency_standard.code}
                 </span>
               )}

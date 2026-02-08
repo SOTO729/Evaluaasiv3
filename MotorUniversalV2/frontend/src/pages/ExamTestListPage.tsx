@@ -63,7 +63,7 @@ const ExamConfigModal: React.FC<ExamConfigModalProps> = ({
   const exercisePercentage = totalExercises > 0 ? (exerciseCount / totalExercises) * 100 : 0;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+    <div className="fixed inset-0 bg-black/60  flex items-center justify-center z-50 p-4 animate-fade-in">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-slide-up">
         {/* Header con gradiente */}
         <div className="bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-5 relative">

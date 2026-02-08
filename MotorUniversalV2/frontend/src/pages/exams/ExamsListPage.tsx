@@ -471,7 +471,7 @@ const ExamsListPage = () => {
 
       {/* Delete Modal */}
       {deleteModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4" onClick={() => { setDeleteModalOpen(false); setExamToDelete(null); }}>
+        <div className="fixed inset-0 bg-black/50  flex items-center justify-center z-50 fluid-p-4" onClick={() => { setDeleteModalOpen(false); setExamToDelete(null); }}>
           <div className="bg-white rounded-fluid-xl shadow-2xl fluid-p-6 max-w-md w-full animate-fadeSlideIn" onClick={(e) => e.stopPropagation()}>
             <h3 className="fluid-text-lg font-bold text-gray-900 fluid-mb-2">Eliminar Examen</h3>
             <p className="text-gray-600 fluid-mb-4">

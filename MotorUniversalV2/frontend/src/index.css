@@ -12,6 +12,219 @@ input[type="password"]::-webkit-password-viewable-toggle-button {
 }
 
 /* =============================================================================
+   ESTILOS MEJORADOS PARA INPUT DATE
+   ============================================================================= */
+
+/* Estilos base para inputs de fecha */
+.date-input-styled {
+  position: relative;
+  font-family: inherit;
+  color-scheme: light;
+}
+
+/* Mejorar el icono del calendario en Chrome/Edge */
+.date-input-styled::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  padding: 0.5rem;
+  margin-right: -0.25rem;
+  border-radius: 0.5rem;
+  background-color: transparent;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+  filter: invert(40%) sepia(50%) saturate(500%) hue-rotate(180deg);
+}
+
+.date-input-styled::-webkit-calendar-picker-indicator:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* Mejorar el botón del calendario en Firefox */
+.date-input-styled::-moz-calendar-picker-indicator {
+  cursor: pointer;
+}
+
+/* Estilos cuando está vacío */
+.date-input-styled:not(:valid) {
+  color: #9ca3af;
+}
+
+/* Animación suave en focus */
+.date-input-styled:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* =============================================================================
+   ESTILOS PERSONALIZADOS PARA REACT-DATEPICKER
+   ============================================================================= */
+
+.react-datepicker {
+  font-family: inherit !important;
+  border: none !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+  overflow: hidden !important;
+}
+
+.react-datepicker__header {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+.react-datepicker__day-names {
+  display: flex !important;
+  justify-content: space-around !important;
+  background: linear-gradient(to right, #f8fafc, #f1f5f9) !important;
+  padding: 0.75rem 0.5rem !important;
+  margin: 0 !important;
+}
+
+.react-datepicker__day-name {
+  color: #64748b !important;
+  font-weight: 600 !important;
+  font-size: 0.75rem !important;
+  text-transform: uppercase !important;
+  width: 2.5rem !important;
+  margin: 0 !important;
+}
+
+.react-datepicker__month {
+  margin: 0 !important;
+  padding: 0.5rem !important;
+  background: white !important;
+}
+
+.react-datepicker__week {
+  display: flex !important;
+  justify-content: space-around !important;
+}
+
+.react-datepicker__day {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  line-height: 2.5rem !important;
+  margin: 0.125rem !important;
+  border-radius: 0.5rem !important;
+  font-weight: 500 !important;
+  color: #1f2937 !important;
+  transition: all 0.15s ease !important;
+}
+
+.react-datepicker__day:hover {
+  background: linear-gradient(135deg, #dbeafe, #e0e7ff) !important;
+  border-radius: 0.5rem !important;
+  transform: scale(1.1) !important;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background: linear-gradient(135deg, #3b82f6, #6366f1) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3) !important;
+}
+
+.react-datepicker__day--selected:hover,
+.react-datepicker__day--keyboard-selected:hover {
+  background: linear-gradient(135deg, #2563eb, #4f46e5) !important;
+  transform: scale(1.1) !important;
+}
+
+.react-datepicker__day--today {
+  font-weight: 700 !important;
+  border: 2px solid #3b82f6 !important;
+  background: #eff6ff !important;
+}
+
+.react-datepicker__day--today:not(.react-datepicker__day--selected) {
+  color: #3b82f6 !important;
+}
+
+.react-datepicker__day--disabled {
+  color: #d1d5db !important;
+  cursor: not-allowed !important;
+}
+
+.react-datepicker__day--disabled:hover {
+  background: transparent !important;
+  transform: none !important;
+}
+
+.react-datepicker__day--outside-month {
+  color: #9ca3af !important;
+  opacity: 0.5 !important;
+}
+
+.react-datepicker__triangle {
+  display: none !important;
+}
+
+.react-datepicker-popper {
+  z-index: 99999 !important;
+}
+
+.react-datepicker-popper[data-placement^=bottom] {
+  padding-top: 0.5rem !important;
+}
+
+.react-datepicker-popper[data-placement^=top] {
+  padding-bottom: 0.5rem !important;
+}
+
+/* Portal del datepicker - máxima prioridad */
+#datepicker-portal {
+  position: relative;
+  z-index: 99999;
+}
+
+#datepicker-portal .react-datepicker-popper {
+  z-index: 99999 !important;
+}
+
+/* Responsive para móvil */
+@media (max-width: 640px) {
+  .react-datepicker {
+    width: calc(100vw - 2rem) !important;
+    max-width: 280px !important;
+  }
+  
+  .react-datepicker__day-name,
+  .react-datepicker__day {
+    width: 1.75rem !important;
+    height: 1.75rem !important;
+    line-height: 1.75rem !important;
+    font-size: 0.75rem !important;
+  }
+  
+  .react-datepicker__day-names {
+    padding: 0.5rem 0.25rem !important;
+  }
+  
+  .react-datepicker__month {
+    padding: 0.25rem !important;
+  }
+}
+
+/* Animación de entrada */
+.react-datepicker-popper {
+  animation: datepicker-slide-in 0.2s ease-out !important;
+}
+
+@keyframes datepicker-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =============================================================================
    SISTEMA DE ESCALADO FLUIDO PROPORCIONAL
    
    Este sistema permite que todos los elementos escalen proporcionalmente
