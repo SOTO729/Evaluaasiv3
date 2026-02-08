@@ -613,6 +613,89 @@ export default function MiSaldoPage() {
         </div>
       )}
 
+      {/* Desglose del Saldo */}
+      {balance && (
+        <div className="bg-white rounded-xl border shadow-sm mb-8 overflow-hidden">
+          <div className="p-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-purple-500" />
+              Desglose del Saldo
+            </h2>
+            
+            <div className="space-y-3">
+              {/* Total Recibido */}
+              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <TrendingUp className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-green-800">Saldo Recibido</p>
+                    <p className="text-xs text-green-600">Aprobaciones de solicitudes de saldo</p>
+                  </div>
+                </div>
+                <p className="text-xl font-bold text-green-700">
+                  +{formatCurrency(balance.total_received - (balance.total_scholarships || 0))}
+                </p>
+              </div>
+
+              {/* Becas Recibidas */}
+              {(balance.total_scholarships || 0) > 0 && (
+                <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-100">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <Gift className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-purple-800">Becas Recibidas</p>
+                      <p className="text-xs text-purple-600">Aprobaciones de solicitudes de beca</p>
+                    </div>
+                  </div>
+                  <p className="text-xl font-bold text-purple-700">
+                    +{formatCurrency(balance.total_scholarships || 0)}
+                  </p>
+                </div>
+              )}
+
+              {/* Total Consumido */}
+              <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-red-100 rounded-lg">
+                    <TrendingDown className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-red-800">Saldo Consumido</p>
+                    <p className="text-xs text-red-600">Certificaciones asignadas a alumnos</p>
+                  </div>
+                </div>
+                <p className="text-xl font-bold text-red-700">
+                  -{formatCurrency(balance.total_spent)}
+                </p>
+              </div>
+
+              {/* Línea divisora */}
+              <div className="border-t border-gray-200 my-2" />
+
+              {/* Saldo Actual */}
+              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border-2 border-green-200">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white rounded-lg shadow-sm">
+                    <Wallet className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-800">Saldo Disponible</p>
+                    <p className="text-xs text-gray-600">= Recibido + Becas - Consumido</p>
+                  </div>
+                </div>
+                <p className="text-2xl font-bold text-green-700">
+                  {formatCurrency(balance.current_balance)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-xl p-6 border shadow-sm">
@@ -683,9 +766,10 @@ export default function MiSaldoPage() {
             ) : (
               <div className="space-y-4">
                 {recentRequests.map((request) => (
-                  <div
+                  <Link
                     key={request.id}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                    to={`/coordinador/mi-saldo/solicitud/${request.id}`}
+                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer group"
                   >
                     <div>
                       <div className="flex items-center gap-2">
@@ -705,17 +789,20 @@ export default function MiSaldoPage() {
                         {new Date(request.requested_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-gray-800">
-                        {formatCurrency(request.amount_requested)}
-                      </p>
-                      {request.amount_approved && request.status === 'approved' && (
-                        <p className="text-xs text-green-600">
-                          Aprobado: {formatCurrency(request.amount_approved)}
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="font-semibold text-gray-800">
+                          {formatCurrency(request.amount_requested)}
                         </p>
-                      )}
+                        {request.amount_approved && request.status === 'approved' && (
+                          <p className="text-xs text-green-600">
+                            Aprobado: {formatCurrency(request.amount_approved)}
+                          </p>
+                        )}
+                      </div>
+                      <Eye className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}

@@ -124,6 +124,7 @@ const GerenteReportsPage = lazy(() => import('./pages/gerente/GerenteReportsPage
 
 // Coordinador - Saldo
 const MiSaldoPage = lazy(() => import('./pages/coordinador/MiSaldoPage'))
+const MiSolicitudDetailPage = lazy(() => import('./pages/coordinador/MiSolicitudDetailPage'))
 const SolicitarSaldoPage = lazy(() => import('./pages/coordinador/SolicitarSaldoPage'))
 const HistorialSolicitudesPage = lazy(() => import('./pages/coordinador/HistorialSolicitudesPage'))
 const HistorialMovimientosPage = lazy(() => import('./pages/coordinador/HistorialMovimientosPage'))
@@ -263,6 +264,7 @@ function App() {
               
               {/* Coordinador - Gestión de Saldo */}
               <Route path="/coordinador/mi-saldo" element={<MiSaldoPage />} />
+              <Route path="/coordinador/mi-saldo/solicitud/:id" element={<MiSolicitudDetailPage />} />
               <Route path="/coordinador/solicitar-saldo" element={<SolicitarSaldoPage />} />
               <Route path="/coordinador/historial-solicitudes" element={<HistorialSolicitudesPage />} />
               <Route path="/coordinador/historial-movimientos" element={<HistorialMovimientosPage />} />

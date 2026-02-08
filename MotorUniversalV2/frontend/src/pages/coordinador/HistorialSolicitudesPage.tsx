@@ -18,6 +18,7 @@ import {
   Gift,
   Building2,
   Users,
+  Eye,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -315,6 +316,17 @@ export default function HistorialSolicitudesPage() {
                     </p>
                   </div>
                 )}
+
+                {/* Botón Ver Detalle */}
+                <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end">
+                  <Link
+                    to={`/coordinador/mi-saldo/solicitud/${request.id}`}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    <Eye className="w-4 h-4" />
+                    Ver Detalle
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
