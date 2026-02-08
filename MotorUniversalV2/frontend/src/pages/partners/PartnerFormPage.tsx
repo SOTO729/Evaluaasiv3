@@ -14,8 +14,6 @@ import {
   Phone,
   Globe,
   FileText,
-  Hash,
-  Image,
   CheckCircle2,
   XCircle,
   Info,
@@ -44,13 +42,10 @@ export default function PartnerFormPage() {
 
   const [formData, setFormData] = useState({
     name: '',
-    legal_name: '',
-    rfc: '',
     country: 'México',
     email: '',
     phone: '',
     website: '',
-    logo_url: '',
     notes: '',
     is_active: true,
   });
@@ -79,13 +74,10 @@ export default function PartnerFormPage() {
       const partner = await getPartner(Number(partnerId));
       setFormData({
         name: partner.name || '',
-        legal_name: partner.legal_name || '',
-        rfc: partner.rfc || '',
         country: partner.country || 'México',
         email: partner.email || '',
         phone: partner.phone || '',
         website: partner.website || '',
-        logo_url: partner.logo_url || '',
         notes: partner.notes || '',
         is_active: partner.is_active,
       });
@@ -240,19 +232,6 @@ export default function PartnerFormPage() {
               </div>
 
               <div>
-                <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2">
-                  Razón Social
-                </label>
-                <input
-                  type="text"
-                  value={formData.legal_name}
-                  onChange={(e) => setFormData({ ...formData, legal_name: e.target.value })}
-                  className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all hover:border-blue-300"
-                  placeholder="Razón social completa"
-                />
-              </div>
-
-              <div>
                 <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2 flex items-center fluid-gap-2">
                   <Globe className="fluid-icon-sm text-gray-400" />
                   País
@@ -266,21 +245,6 @@ export default function PartnerFormPage() {
                     <option key={country} value={country}>{country}</option>
                   ))}
                 </select>
-              </div>
-
-              <div>
-                <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2 flex items-center fluid-gap-2">
-                  <Hash className="fluid-icon-sm text-gray-400" />
-                  {formData.country === 'México' ? 'RFC' : 'ID Fiscal'}
-                </label>
-                <input
-                  type="text"
-                  value={formData.rfc}
-                  onChange={(e) => setFormData({ ...formData, rfc: e.target.value.toUpperCase() })}
-                  className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base font-mono transition-all hover:border-blue-300"
-                  placeholder="RFC del partner"
-                  maxLength={13}
-                />
               </div>
 
               <div>
@@ -323,31 +287,6 @@ export default function PartnerFormPage() {
                   className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all hover:border-blue-300"
                   placeholder="https://ejemplo.com"
                 />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2 flex items-center fluid-gap-2">
-                  <Image className="fluid-icon-sm text-gray-400" />
-                  URL del Logo
-                </label>
-                <input
-                  type="url"
-                  value={formData.logo_url}
-                  onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
-                  className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all hover:border-blue-300"
-                  placeholder="https://ejemplo.com/logo.png"
-                />
-                {formData.logo_url && (
-                  <div className="fluid-mt-3 fluid-p-3 bg-gray-50 rounded-fluid-xl border border-gray-200">
-                    <p className="fluid-text-xs text-gray-500 fluid-mb-2">Vista previa:</p>
-                    <img 
-                      src={formData.logo_url} 
-                      alt="Logo preview" 
-                      className="fluid-h-16 object-contain"
-                      onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
-                    />
-                  </div>
-                )}
               </div>
 
               <div className="md:col-span-2">
