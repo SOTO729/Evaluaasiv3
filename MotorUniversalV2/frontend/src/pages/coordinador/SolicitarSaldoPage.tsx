@@ -608,8 +608,8 @@ export default function SolicitarSaldoPage() {
                   <div key={campusId} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                     <div className="p-4 lg:p-5 bg-gradient-to-r from-gray-50 to-white border-b flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-green-100 rounded-lg">
-                          <Building2 className="w-5 h-5 text-green-600" />
+                        <div className="p-2 bg-primary-100 rounded-lg">
+                          <Building2 className="w-5 h-5 text-primary-600" />
                         </div>
                         <div>
                           <p className="font-semibold text-gray-900">{campus?.name}</p>
@@ -776,8 +776,8 @@ export default function SolicitarSaldoPage() {
         </Link>
         <div className="flex-1">
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-2.5 bg-primary-100 rounded-xl">
-              <Wallet className="w-7 h-7 text-primary-600" />
+            <div className="p-2.5 bg-green-100 rounded-xl">
+              <Wallet className="w-7 h-7 text-green-600" />
             </div>
             Solicitar Saldo
           </h1>
