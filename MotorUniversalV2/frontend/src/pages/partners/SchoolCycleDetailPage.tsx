@@ -241,80 +241,158 @@ export default function SchoolCycleDetailPage() {
         </div>
 
         {/* Contenido */}
-        <div className="max-h-[500px] overflow-y-auto">
-          {filteredGroups.length === 0 ? (
-            <div className="fluid-p-12 text-center">
-              <div className="fluid-w-20 fluid-h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto fluid-mb-5">
-                <Users className="fluid-icon-2xl text-gray-400" />
-              </div>
-              {searchQuery ? (
-                <>
-                  <p className="fluid-text-lg font-semibold text-gray-700 fluid-mb-2">No se encontraron grupos</p>
-                  <p className="fluid-text-base text-gray-500 fluid-mb-4">No hay resultados para "{searchQuery}"</p>
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="fluid-px-4 fluid-py-2 text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    Limpiar búsqueda
-                  </button>
-                </>
-              ) : (
-                <>
-                  <p className="fluid-text-lg font-semibold text-gray-700 fluid-mb-2">No hay grupos en este ciclo</p>
-                  <p className="fluid-text-base text-gray-500 fluid-mb-6">Crea el primer grupo para comenzar</p>
-                  <Link
-                    to={`/partners/campuses/${cycle.campus_id}/groups/new?cycleId=${cycle.id}`}
-                    className="inline-flex items-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl font-semibold transition-all shadow-lg"
-                  >
-                    <Plus className="fluid-icon-sm" />
-                    Crear Grupo
-                  </Link>
-                </>
-              )}
+        {filteredGroups.length === 0 ? (
+          <div className="fluid-p-12 text-center">
+            <div className="fluid-w-20 fluid-h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto fluid-mb-5">
+              <Users className="fluid-icon-2xl text-gray-400" />
             </div>
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {filteredGroups.map((group) => (
-                <Link
-                  key={group.id}
-                  to={`/partners/groups/${group.id}`}
-                  className="flex items-center justify-between fluid-p-4 hover:bg-blue-50 transition-all duration-200 group"
+            {searchQuery ? (
+              <>
+                <p className="fluid-text-lg font-semibold text-gray-700 fluid-mb-2">No se encontraron grupos</p>
+                <p className="fluid-text-base text-gray-500 fluid-mb-4">No hay resultados para "{searchQuery}"</p>
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="fluid-px-4 fluid-py-2 text-blue-600 hover:text-blue-700 font-medium"
                 >
-                  <div className="flex items-center fluid-gap-4 min-w-0">
-                    <div className={`fluid-p-2.5 rounded-fluid-xl ${group.is_active ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                      <Users className={`fluid-icon-base ${group.is_active ? 'text-blue-600' : 'text-gray-400'}`} />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center fluid-gap-2 flex-wrap">
-                        <span className={`fluid-text-base font-semibold truncate ${group.is_active ? 'text-gray-900' : 'text-gray-500'}`}>
-                          {group.name}
-                        </span>
-                        {!group.is_active && (
-                          <span className="fluid-text-xs bg-red-100 text-red-600 fluid-px-2 fluid-py-0.5 rounded-full font-semibold border border-red-200">
+                  Limpiar búsqueda
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="fluid-text-lg font-semibold text-gray-700 fluid-mb-2">No hay grupos en este ciclo</p>
+                <p className="fluid-text-base text-gray-500 fluid-mb-6">Crea el primer grupo para comenzar</p>
+                <Link
+                  to={`/partners/campuses/${cycle.campus_id}/groups/new?cycleId=${cycle.id}`}
+                  className="inline-flex items-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl font-semibold transition-all shadow-lg"
+                >
+                  <Plus className="fluid-icon-sm" />
+                  Crear Grupo
+                </Link>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <div className="max-h-[450px] overflow-y-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+                  <tr>
+                    <th className="fluid-px-5 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Grupo
+                    </th>
+                    <th className="fluid-px-5 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Código
+                    </th>
+                    <th className="fluid-px-5 fluid-py-3 text-center fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Miembros
+                    </th>
+                    <th className="fluid-px-5 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Período
+                    </th>
+                    <th className="fluid-px-5 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Creación
+                    </th>
+                    <th className="fluid-px-5 fluid-py-3 text-center fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Estado
+                    </th>
+                    <th className="fluid-px-5 fluid-py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredGroups.map((group) => (
+                    <tr
+                      key={group.id}
+                      className="hover:bg-blue-50 transition-colors cursor-pointer group"
+                      onClick={() => window.location.href = `/partners/groups/${group.id}`}
+                    >
+                      <td className="fluid-px-5 fluid-py-4">
+                        <div className="flex items-center fluid-gap-3 min-w-0">
+                          <div className={`fluid-p-2 rounded-fluid-lg flex-shrink-0 ${group.is_active ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                            <Layers className={`fluid-icon-sm ${group.is_active ? 'text-blue-600' : 'text-gray-400'}`} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className={`fluid-text-sm font-semibold truncate ${group.is_active ? 'text-gray-900' : 'text-gray-500'}`}>
+                              {group.name}
+                            </p>
+                            {group.description && (
+                              <p className="fluid-text-xs text-gray-500 truncate max-w-xs">{group.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="fluid-px-5 fluid-py-4">
+                        {group.code ? (
+                          <span className="inline-flex fluid-px-2.5 fluid-py-1 bg-gray-100 text-gray-700 rounded-md fluid-text-xs font-mono">
+                            {group.code}
+                          </span>
+                        ) : (
+                          <span className="fluid-text-xs text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="fluid-px-5 fluid-py-4 text-center">
+                        <div className="inline-flex items-center fluid-gap-1.5 fluid-px-3 fluid-py-1 bg-amber-50 text-amber-700 rounded-full">
+                          <Users className="fluid-icon-xs" />
+                          <span className="fluid-text-sm font-medium">{group.member_count || 0}</span>
+                        </div>
+                      </td>
+                      <td className="fluid-px-5 fluid-py-4">
+                        {group.start_date || group.end_date ? (
+                          <div className="fluid-text-xs text-gray-600 space-y-0.5">
+                            {group.start_date && (
+                              <div className="flex items-center fluid-gap-1">
+                                <span className="text-gray-400">Inicio:</span>
+                                <span>{new Date(group.start_date).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                              </div>
+                            )}
+                            {group.end_date && (
+                              <div className="flex items-center fluid-gap-1">
+                                <span className="text-gray-400">Fin:</span>
+                                <span>{new Date(group.end_date).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="fluid-text-xs text-gray-400">Sin definir</span>
+                        )}
+                      </td>
+                      <td className="fluid-px-5 fluid-py-4">
+                        <div className="flex items-center fluid-gap-2 fluid-text-xs text-gray-600">
+                          <Clock className="fluid-icon-xs text-gray-400" />
+                          {group.created_at 
+                            ? new Date(group.created_at).toLocaleDateString('es-MX', { 
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric'
+                              })
+                            : '—'
+                          }
+                        </div>
+                      </td>
+                      <td className="fluid-px-5 fluid-py-4 text-center">
+                        {group.is_active ? (
+                          <span className="inline-flex items-center fluid-gap-1 fluid-px-2.5 fluid-py-1 bg-emerald-100 text-emerald-700 rounded-full fluid-text-xs font-semibold">
+                            <CheckCircle2 className="fluid-icon-xs" />
+                            Activo
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center fluid-gap-1 fluid-px-2.5 fluid-py-1 bg-red-100 text-red-600 rounded-full fluid-text-xs font-semibold">
                             Inactivo
                           </span>
                         )}
-                      </div>
-                      {group.description && (
-                        <p className="fluid-text-sm text-gray-500 truncate fluid-mt-0.5">{group.description}</p>
-                      )}
-                      <div className="flex items-center fluid-gap-4 fluid-mt-1.5 fluid-text-sm text-gray-500">
-                        <span className="flex items-center fluid-gap-1">
-                          <Users className="fluid-icon-xs text-amber-500" />
-                          {group.member_count || 0} miembros
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center fluid-gap-2 text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="fluid-text-sm font-medium">Ver detalle</span>
-                    <ChevronRight className="fluid-icon-sm" />
-                  </div>
-                </Link>
-              ))}
+                      </td>
+                      <td className="fluid-px-5 fluid-py-4 text-right">
+                        <div className="flex items-center fluid-gap-2 text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
+                          <span className="fluid-text-xs font-medium">Ver</span>
+                          <ChevronRight className="fluid-icon-sm" />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
