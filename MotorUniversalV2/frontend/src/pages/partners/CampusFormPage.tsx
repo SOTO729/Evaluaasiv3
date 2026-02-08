@@ -6,7 +6,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   MapPin,
-  Save,
   ArrowLeft,
   AlertCircle,
   X,
@@ -443,33 +442,6 @@ export default function CampusFormPage() {
               <MapPin className="fluid-icon-xl" />
               {isEditing ? 'Editar Plantel' : 'Nuevo Plantel'}
             </h1>
-          </div>
-          
-          {/* Botones de acción principales */}
-          <div className="flex fluid-gap-3 flex-wrap">
-            <Link
-              to={isEditing ? `/partners/campuses/${campusId}` : `/partners/${actualPartnerId}`}
-              className="fluid-px-5 fluid-py-2.5 bg-white/20 hover:bg-white/30 text-white rounded-fluid-xl font-medium fluid-text-base transition-all duration-300 hover:scale-105"
-            >
-              Cancelar
-            </Link>
-            <button
-              onClick={handleSubmit}
-              disabled={saving}
-              className="fluid-px-5 fluid-py-2.5 bg-white text-blue-600 hover:bg-blue-50 rounded-fluid-xl font-semibold fluid-text-base transition-all duration-300 hover:scale-105 flex items-center fluid-gap-2 shadow-lg disabled:opacity-50"
-            >
-              {saving ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                  Guardando...
-                </>
-              ) : (
-                <>
-                  <Save className="fluid-icon-base" />
-                  {isEditing ? 'Guardar Cambios' : 'Crear Plantel'}
-                </>
-              )}
-            </button>
           </div>
         </div>
       </div>
@@ -911,10 +883,7 @@ export default function CampusFormPage() {
                         Guardando...
                       </>
                     ) : (
-                      <>
-                        <Save className="fluid-icon-base" />
-                        Guardar Configuración
-                      </>
+                      'Guardar Configuración'
                     )}
                   </button>
                 )}
@@ -1182,31 +1151,28 @@ export default function CampusFormPage() {
           </>
         )}
 
-        {/* Botones de acción finales (versión móvil) */}
-        <div className="flex flex-col sm:flex-row fluid-gap-3 lg:hidden">
-          <button
-            type="submit"
-            disabled={saving}
-            className="flex-1 inline-flex items-center justify-center fluid-gap-2 fluid-px-6 fluid-py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white rounded-fluid-xl font-semibold fluid-text-lg transition-all duration-300 shadow-lg"
-          >
-            {saving ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Guardando...
-              </>
-            ) : (
-              <>
-                <Save className="fluid-icon-lg" />
-                {isEditing ? 'Guardar Cambios' : 'Crear Plantel'}
-              </>
-            )}
-          </button>
+        {/* Botones de acción finales */}
+        <div className="flex flex-col sm:flex-row fluid-gap-3 justify-end fluid-mt-8 fluid-pt-6 border-t border-gray-200">
           <Link
             to={isEditing ? `/partners/campuses/${campusId}` : `/partners/${actualPartnerId}`}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center fluid-gap-2 fluid-px-6 fluid-py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-fluid-xl font-medium fluid-text-lg transition-colors"
+            className="inline-flex items-center justify-center fluid-px-6 fluid-py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-fluid-xl font-medium fluid-text-base transition-colors"
           >
             Cancelar
           </Link>
+          <button
+            type="submit"
+            disabled={saving}
+            className="inline-flex items-center justify-center fluid-px-6 fluid-py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white rounded-fluid-xl font-semibold fluid-text-base transition-all duration-300 shadow-lg"
+          >
+            {saving ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                Guardando...
+              </>
+            ) : (
+              isEditing ? 'Guardar Cambios' : 'Crear Plantel'
+            )}
+          </button>
         </div>
       </form>
     </div>
