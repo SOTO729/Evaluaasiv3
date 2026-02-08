@@ -201,9 +201,9 @@ export default function PartnerDetailPage() {
               </div>
               Información de Contacto
             </h2>
-            <div className="fluid-space-y-4">
+            <div className="fluid-space-y-5">
               {/* País */}
-              <div className="flex items-center fluid-gap-3 fluid-p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-fluid-xl border border-blue-100">
+              <div className="flex items-center fluid-gap-4 fluid-p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-fluid-xl border border-blue-100">
                 <Globe className="fluid-icon-base text-blue-500" />
                 <div>
                   <p className="fluid-text-xs text-gray-500 font-medium uppercase tracking-wide">País</p>
@@ -211,7 +211,7 @@ export default function PartnerDetailPage() {
                 </div>
               </div>
               {partner.rfc && (
-                <div className="flex items-center fluid-gap-3 fluid-p-3 bg-gray-50 rounded-fluid-xl hover:bg-gray-100 transition-colors">
+                <div className="flex items-center fluid-gap-4 fluid-p-4 bg-gray-50 rounded-fluid-xl hover:bg-gray-100 transition-colors">
                   <Hash className="fluid-icon-base text-gray-400" />
                   <div>
                     <p className="fluid-text-xs text-gray-500 font-medium uppercase tracking-wide">{partner.country === 'México' ? 'RFC' : 'ID Fiscal'}</p>
@@ -220,7 +220,7 @@ export default function PartnerDetailPage() {
                 </div>
               )}
               {partner.email && (
-                <div className="flex items-center fluid-gap-3 fluid-p-3 bg-gray-50 rounded-fluid-xl hover:bg-blue-50 transition-colors group">
+                <div className="flex items-center fluid-gap-4 fluid-p-4 bg-gray-50 rounded-fluid-xl hover:bg-blue-50 transition-colors group">
                   <Mail className="fluid-icon-base text-gray-400 group-hover:text-blue-500 transition-colors" />
                   <a href={`mailto:${partner.email}`} className="fluid-text-base text-blue-600 hover:underline truncate">
                     {partner.email}
@@ -228,7 +228,7 @@ export default function PartnerDetailPage() {
                 </div>
               )}
               {partner.phone && (
-                <div className="flex items-center fluid-gap-3 fluid-p-3 bg-gray-50 rounded-fluid-xl hover:bg-green-50 transition-colors group">
+                <div className="flex items-center fluid-gap-4 fluid-p-4 bg-gray-50 rounded-fluid-xl hover:bg-green-50 transition-colors group">
                   <Phone className="fluid-icon-base text-gray-400 group-hover:text-green-500 transition-colors" />
                   <a href={`tel:${partner.phone}`} className="fluid-text-base text-gray-900 font-medium">
                     {partner.phone}
@@ -236,7 +236,7 @@ export default function PartnerDetailPage() {
                 </div>
               )}
               {partner.website && (
-                <div className="flex items-center fluid-gap-3 fluid-p-3 bg-gray-50 rounded-fluid-xl hover:bg-purple-50 transition-colors group">
+                <div className="flex items-center fluid-gap-4 fluid-p-4 bg-gray-50 rounded-fluid-xl hover:bg-purple-50 transition-colors group">
                   <Globe className="fluid-icon-base text-gray-400 group-hover:text-purple-500 transition-colors" />
                   <a href={partner.website} target="_blank" rel="noopener noreferrer" className="fluid-text-base text-purple-600 hover:underline truncate">
                     {partner.website}
@@ -244,7 +244,7 @@ export default function PartnerDetailPage() {
                 </div>
               )}
               {partner.created_at && (
-                <div className="flex items-center fluid-gap-3 fluid-p-3 border-t border-gray-100 fluid-mt-2">
+                <div className="flex items-center fluid-gap-4 fluid-p-4 border-t border-gray-100 fluid-mt-3">
                   <Clock className="fluid-icon-base text-gray-400" />
                   <div>
                     <p className="fluid-text-xs text-gray-500">Registrado</p>
@@ -304,18 +304,18 @@ export default function PartnerDetailPage() {
               </div>
               Estadísticas
             </h2>
-            <div className="grid grid-cols-3 fluid-gap-4">
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-fluid-xl fluid-p-4 text-center border border-blue-100 hover:shadow-md transition-all duration-200">
+            <div className="grid grid-cols-3 fluid-gap-5">
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-fluid-xl fluid-p-5 text-center border border-blue-100 hover:shadow-md transition-all duration-200">
                 <p className="fluid-text-3xl font-bold text-blue-700">{campuses.filter(c => c.is_active).length}</p>
-                <p className="fluid-text-xs text-blue-600 font-medium fluid-mt-1">Planteles</p>
+                <p className="fluid-text-sm text-blue-600 font-medium fluid-mt-2">Planteles</p>
               </div>
-              <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-fluid-xl fluid-p-4 text-center border border-amber-100 hover:shadow-md transition-all duration-200">
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-fluid-xl fluid-p-5 text-center border border-amber-100 hover:shadow-md transition-all duration-200">
                 <p className="fluid-text-3xl font-bold text-amber-700">{campuses.reduce((acc, c) => acc + (c.group_count || 0), 0)}</p>
-                <p className="fluid-text-xs text-amber-600 font-medium fluid-mt-1">Grupos</p>
+                <p className="fluid-text-sm text-amber-600 font-medium fluid-mt-2">Grupos</p>
               </div>
-              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-fluid-xl fluid-p-4 text-center border border-emerald-100 hover:shadow-md transition-all duration-200">
+              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-fluid-xl fluid-p-5 text-center border border-emerald-100 hover:shadow-md transition-all duration-200">
                 <p className="fluid-text-3xl font-bold text-emerald-700">{partner.states?.length || 0}</p>
-                <p className="fluid-text-xs text-emerald-600 font-medium fluid-mt-1">Estados</p>
+                <p className="fluid-text-sm text-emerald-600 font-medium fluid-mt-2">Estados</p>
               </div>
             </div>
           </div>
