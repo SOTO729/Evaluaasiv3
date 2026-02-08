@@ -1,5 +1,5 @@
 /**
- * Página de listado de usuarios - Optimizada con tabs por tipo
+ * Página de listado de usuarios
  */
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -16,8 +16,6 @@ import {
   UserCheck,
   UserX,
   BarChart3,
-  Briefcase,
-  GraduationCap,
   Upload,
   Download,
   Calendar,
@@ -48,18 +46,6 @@ import {
 import { getGroups, addGroupMembersBulk, CandidateGroup } from '../../services/partnersService';
 import { useAuthStore } from '../../store/authStore';
 
-// Categorías de roles para los tabs
-const STAFF_ROLES = ['admin', 'editor', 'soporte', 'coordinator', 'auxiliar'];
-const CANDIDATE_ROLES = ['candidato'];
-
-type TabType = 'all' | 'staff' | 'candidates';
-
-const TAB_CONFIG: Record<TabType, { label: string; icon: typeof Users; roles: string[] | null }> = {
-  all: { label: 'Todos', icon: Users, roles: null },
-  staff: { label: 'Personal', icon: Briefcase, roles: STAFF_ROLES },
-  candidates: { label: 'Candidatos', icon: GraduationCap, roles: CANDIDATE_ROLES },
-};
-
 export default function UsersListPage() {
   const { user: currentUser } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -69,12 +55,6 @@ export default function UsersListPage() {
   const [roles, setRoles] = useState<RoleOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Tab activo
-  const [activeTab, setActiveTab] = useState<TabType>(() => {
-    const tabParam = searchParams.get('tab');
-    return (tabParam as TabType) || 'all';
-  });
   
   // Filtros y paginación
   const [page, setPage] = useState(1);
@@ -115,16 +95,14 @@ export default function UsersListPage() {
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   
-  // Roles filtrados según el tab activo
+  // Roles filtrados - mostrar todos los roles disponibles
   const filteredRoles = useMemo(() => {
-    const tabConfig = TAB_CONFIG[activeTab];
-    if (!tabConfig.roles) return roles;
-    return roles.filter(r => tabConfig.roles!.includes(r.value));
-  }, [roles, activeTab]);
+    return roles;
+  }, [roles]);
 
   useEffect(() => {
     loadData();
-  }, [page, perPage, roleFilter, activeFilter, activeTab, sortField, sortDirection]);
+  }, [page, perPage, roleFilter, activeFilter, sortField, sortDirection]);
 
   useEffect(() => {
     loadRoles();
@@ -153,15 +131,11 @@ export default function UsersListPage() {
     try {
       setLoading(true);
       
-      // Determinar qué roles cargar según el tab
-      const tabConfig = TAB_CONFIG[activeTab];
-      const rolesToFilter = roleFilter || (tabConfig.roles ? tabConfig.roles.join(',') : undefined);
-      
       const data = await getUsers({
         page,
         per_page: perPage,
         search: search || undefined,
-        role: rolesToFilter,
+        role: roleFilter || undefined,
         is_active: activeFilter || undefined,
         sort_by: sortField,
         sort_order: sortDirection,
@@ -195,17 +169,6 @@ export default function UsersListPage() {
     return sortDirection === 'asc' 
       ? <ChevronUp className="fluid-icon-xs text-blue-600" />
       : <ChevronDown className="fluid-icon-xs text-blue-600" />;
-  };
-
-  const handleTabChange = (tab: TabType) => {
-    setActiveTab(tab);
-    setPage(1);
-    setRoleFilter('');
-    setSearchParams(prev => {
-      prev.set('tab', tab);
-      prev.delete('role');
-      return prev;
-    });
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -408,21 +371,6 @@ export default function UsersListPage() {
       setIsAssigning(false);
     }
   };
-  
-  // Conteo de usuarios por categoría (desde stats)
-  const staffCount = useMemo(() => {
-    if (!stats?.users_by_role) return 0;
-    return stats.users_by_role
-      .filter(r => STAFF_ROLES.includes(r.role))
-      .reduce((acc, r) => acc + r.count, 0);
-  }, [stats]);
-  
-  const candidatesCount = useMemo(() => {
-    if (!stats?.users_by_role) return 0;
-    return stats.users_by_role
-      .filter(r => CANDIDATE_ROLES.includes(r.role))
-      .reduce((acc, r) => acc + r.count, 0);
-  }, [stats]);
 
   if (loading && users.length === 0) {
     return (
@@ -450,16 +398,14 @@ export default function UsersListPage() {
         </div>
         
         <div className="flex flex-col sm:flex-row fluid-gap-3">
-          {/* Botón de carga masiva - solo visible en tab de candidatos o todos */}
-          {(activeTab === 'candidates' || activeTab === 'all') && (
-            <button
-              onClick={() => setShowBulkUploadModal(true)}
-              className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-green-600 hover:bg-green-700 text-white rounded-fluid-lg font-medium fluid-text-sm transition-colors"
-            >
-              <Upload className="fluid-icon-sm" />
-              Carga Masiva
-            </button>
-          )}
+          {/* Botón de carga masiva */}
+          <button
+            onClick={() => setShowBulkUploadModal(true)}
+            className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-green-600 hover:bg-green-700 text-white rounded-fluid-lg font-medium fluid-text-sm transition-colors"
+          >
+            <Upload className="fluid-icon-sm" />
+            Carga Masiva
+          </button>
           
           <Link
             to="/user-management/new"
@@ -530,51 +476,6 @@ export default function UsersListPage() {
           </div>
         </div>
       )}
-
-      {/* Tabs por tipo de usuario */}
-      <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-mb-6">
-        <div className="flex border-b border-gray-200">
-          {(Object.keys(TAB_CONFIG) as TabType[]).map((tab) => {
-            const config = TAB_CONFIG[tab];
-            const Icon = config.icon;
-            const count = tab === 'all' 
-              ? stats?.total_users || 0
-              : tab === 'staff' 
-                ? staffCount 
-                : candidatesCount;
-            
-            // Coordinador solo ve candidatos
-            if (currentUser?.role === 'coordinator' && tab === 'staff') {
-              return null;
-            }
-            
-            return (
-              <button
-                key={tab}
-                onClick={() => handleTabChange(tab)}
-                className={`flex-1 flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-3 fluid-text-sm font-medium transition-colors relative ${
-                  activeTab === tab
-                    ? 'text-blue-600 bg-blue-50/50'
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
-                }`}
-              >
-                <Icon className="fluid-icon-sm" />
-                <span>{config.label}</span>
-                <span className={`fluid-px-2 py-0.5 rounded-full fluid-text-xs font-semibold ${
-                  activeTab === tab 
-                    ? 'bg-blue-100 text-blue-700' 
-                    : 'bg-gray-100 text-gray-600'
-                }`}>
-                  {count}
-                </span>
-                {activeTab === tab && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
 
       {/* Búsqueda y Filtros */}
       <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4 fluid-mb-6">
