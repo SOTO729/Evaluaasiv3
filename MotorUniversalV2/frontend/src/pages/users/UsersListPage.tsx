@@ -87,7 +87,7 @@ export default function UsersListPage() {
   const isAdmin = currentUser?.role === 'admin';
   
   // Ordenamiento
-  type SortField = 'full_name' | 'email' | 'role' | 'is_active' | 'created_at';
+  type SortField = 'full_name' | 'email' | 'curp' | 'role' | 'is_active' | 'created_at';
   type SortDirection = 'asc' | 'desc';
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -739,7 +739,13 @@ export default function UsersListPage() {
                   </button>
                 </th>
                 <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
-                  CURP
+                  <button
+                    onClick={() => handleSort('curp')}
+                    className={`flex items-center fluid-gap-1 hover:text-blue-600 transition-colors ${sortField === 'curp' ? 'text-blue-600' : ''}`}
+                  >
+                    CURP
+                    <SortIcon field="curp" />
+                  </button>
                 </th>
                 <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
                   <button
@@ -750,9 +756,7 @@ export default function UsersListPage() {
                     <SortIcon field="role" />
                   </button>
                 </th>
-                <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
-                  Grupos
-                </th>
+
                 <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
                   <button
                     onClick={() => handleSort('is_active')}
@@ -812,24 +816,7 @@ export default function UsersListPage() {
                       {ROLE_LABELS[user.role] || user.role}
                     </span>
                   </td>
-                  <td className="fluid-px-4 fluid-py-3">
-                    {user.groups && user.groups.length > 0 ? (
-                      <div className="flex flex-wrap fluid-gap-1">
-                        {user.groups.slice(0, 2).map((group) => (
-                          <span key={group.id} className="inline-flex fluid-px-2 fluid-py-0.5 bg-purple-100 text-purple-700 rounded-full fluid-text-xs">
-                            {group.name}
-                          </span>
-                        ))}
-                        {user.groups.length > 2 && (
-                          <span className="inline-flex fluid-px-2 fluid-py-0.5 bg-gray-100 text-gray-600 rounded-full fluid-text-xs">
-                            +{user.groups.length - 2}
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400 fluid-text-xs">—</span>
-                    )}
-                  </td>
+
                   <td className="fluid-px-4 fluid-py-3">
                     {user.is_active ? (
                       <span className="inline-flex items-center fluid-gap-1 text-green-700 fluid-text-xs">

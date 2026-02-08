@@ -296,7 +296,7 @@ export default function PartnersDashboardPage() {
                   />
                   <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} />
                   <Tooltip
-                    content={({ active, payload }: { active?: boolean; payload?: any[] }) => {
+                    content={({ active, payload }: any) => {
                       if (active && payload && payload.length) {
                         const data = payload[0].payload;
                         return (
@@ -354,7 +354,7 @@ export default function PartnersDashboardPage() {
                   ))}
                 </Pie>
                 <Tooltip
-                  content={({ active, payload }: { active?: boolean; payload?: any[] }) => {
+                  content={({ active, payload }: any) => {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload;
                       return (
