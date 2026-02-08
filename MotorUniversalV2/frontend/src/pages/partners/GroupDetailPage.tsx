@@ -14,7 +14,6 @@ import {
   Settings,
   Download,
   ClipboardList,
-  BookOpen,
   Award,
   ChevronRight,
   UserPlus,
@@ -23,6 +22,9 @@ import {
   Clock,
   Target,
   FileText,
+  Sparkles,
+  ArrowRight,
+  Zap,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
@@ -109,6 +111,69 @@ export default function GroupDetailPage() {
     totalMaterials: directMaterials.length + assignedExams.reduce((acc, e) => acc + (e.study_materials?.length || 0), 0),
     withWarnings: (eligibilitySummary?.members_without_curp || 0) + (eligibilitySummary?.members_without_email || 0),
   };
+
+  // Determinar el paso actual y próximo paso
+  const getWorkflowStatus = () => {
+    const hasCandidates = stats.totalMembers > 0;
+    const hasExams = stats.totalExams > 0;
+    const hasCertified = stats.certified > 0;
+
+    if (!hasCandidates) {
+      return {
+        currentStep: 0,
+        nextAction: 'candidates',
+        message: 'Agrega candidatos para comenzar',
+        description: 'El primer paso es agregar los candidatos que participarán en las certificaciones',
+        buttonText: 'Agregar Candidatos',
+        buttonLink: `/partners/groups/${groupId}/assign-candidates`,
+        color: 'purple',
+      };
+    }
+    if (!hasExams) {
+      return {
+        currentStep: 1,
+        nextAction: 'exams',
+        message: 'Asigna una certificación',
+        description: `Tienes ${stats.totalMembers} candidatos listos. Ahora asigna un examen para evaluarlos`,
+        buttonText: 'Asignar Certificación',
+        buttonLink: `/partners/groups/${groupId}/assign-exam`,
+        color: 'blue',
+      };
+    }
+    if (!hasCertified && stats.inProgress === 0) {
+      return {
+        currentStep: 2,
+        nextAction: 'waiting',
+        message: 'Esperando evaluaciones',
+        description: 'Los candidatos ya pueden presentar sus exámenes. Los resultados aparecerán aquí',
+        buttonText: 'Ver Candidatos',
+        buttonLink: `/partners/groups/${groupId}/members`,
+        color: 'amber',
+      };
+    }
+    if (hasCertified) {
+      return {
+        currentStep: 3,
+        nextAction: 'documents',
+        message: '¡Certificados disponibles!',
+        description: `${stats.certified} candidatos han completado su certificación. Descarga sus documentos`,
+        buttonText: 'Ver Documentos',
+        buttonLink: `/partners/groups/${groupId}/documents`,
+        color: 'emerald',
+      };
+    }
+    return {
+      currentStep: 2,
+      nextAction: 'in_progress',
+      message: 'Evaluaciones en curso',
+      description: `${stats.inProgress} candidatos están presentando su examen`,
+      buttonText: 'Ver Progreso',
+      buttonLink: `/partners/groups/${groupId}/members`,
+      color: 'sky',
+    };
+  };
+
+  const workflow = getWorkflowStatus();
 
   if (loading) {
     return (
@@ -210,54 +275,237 @@ export default function GroupDetailPage() {
         </div>
       </div>
 
-      {/* Stats rápidos */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 fluid-gap-4 fluid-mb-6">
-        <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4">
-          <div className="flex items-center fluid-gap-3">
-            <div className="fluid-p-3 bg-purple-100 rounded-fluid-lg">
-              <Users className="fluid-icon-base text-purple-600" />
+      {/* Próximo Paso Contextual */}
+      {group.is_active && (
+        <div className={`rounded-fluid-2xl fluid-p-5 fluid-mb-6 border-2 ${
+          workflow.color === 'purple' ? 'bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200' :
+          workflow.color === 'blue' ? 'bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200' :
+          workflow.color === 'amber' ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200' :
+          workflow.color === 'emerald' ? 'bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-200' :
+          'bg-gradient-to-r from-sky-50 to-blue-50 border-sky-200'
+        }`}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-4">
+            <div className="flex items-start fluid-gap-4">
+              <div className={`fluid-p-3 rounded-fluid-xl ${
+                workflow.color === 'purple' ? 'bg-purple-100' :
+                workflow.color === 'blue' ? 'bg-blue-100' :
+                workflow.color === 'amber' ? 'bg-amber-100' :
+                workflow.color === 'emerald' ? 'bg-emerald-100' :
+                'bg-sky-100'
+              }`}>
+                <Sparkles className={`fluid-icon-lg ${
+                  workflow.color === 'purple' ? 'text-purple-600' :
+                  workflow.color === 'blue' ? 'text-blue-600' :
+                  workflow.color === 'amber' ? 'text-amber-600' :
+                  workflow.color === 'emerald' ? 'text-emerald-600' :
+                  'text-sky-600'
+                }`} />
+              </div>
+              <div>
+                <h3 className={`fluid-text-lg font-bold ${
+                  workflow.color === 'purple' ? 'text-purple-800' :
+                  workflow.color === 'blue' ? 'text-blue-800' :
+                  workflow.color === 'amber' ? 'text-amber-800' :
+                  workflow.color === 'emerald' ? 'text-emerald-800' :
+                  'text-sky-800'
+                }`}>
+                  {workflow.message}
+                </h3>
+                <p className={`fluid-text-sm fluid-mt-1 ${
+                  workflow.color === 'purple' ? 'text-purple-600' :
+                  workflow.color === 'blue' ? 'text-blue-600' :
+                  workflow.color === 'amber' ? 'text-amber-600' :
+                  workflow.color === 'emerald' ? 'text-emerald-600' :
+                  'text-sky-600'
+                }`}>
+                  {workflow.description}
+                </p>
+              </div>
+            </div>
+            <Link
+              to={workflow.buttonLink}
+              className={`inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-3 rounded-fluid-xl font-semibold fluid-text-sm shadow-lg transition-all whitespace-nowrap ${
+                workflow.color === 'purple' ? 'bg-purple-600 hover:bg-purple-700 text-white' :
+                workflow.color === 'blue' ? 'bg-blue-600 hover:bg-blue-700 text-white' :
+                workflow.color === 'amber' ? 'bg-amber-600 hover:bg-amber-700 text-white' :
+                workflow.color === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' :
+                'bg-sky-600 hover:bg-sky-700 text-white'
+              }`}
+            >
+              {workflow.buttonText}
+              <ArrowRight className="fluid-icon-sm" />
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Flujo Visual de Pasos */}
+      <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5 fluid-mb-6">
+        <div className="flex items-center fluid-gap-2 fluid-mb-4">
+          <Zap className="fluid-icon-base text-indigo-600" />
+          <h3 className="fluid-text-base font-semibold text-gray-800">Progreso del Grupo</h3>
+        </div>
+        <div className="flex items-center justify-between">
+          {/* Paso 1: Candidatos */}
+          <div className="flex-1 flex flex-col items-center">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center fluid-mb-2 transition-all ${
+              stats.totalMembers > 0 
+                ? 'bg-emerald-100 text-emerald-600 ring-2 ring-emerald-500 ring-offset-2' 
+                : workflow.currentStep === 0 
+                  ? 'bg-purple-100 text-purple-600 ring-2 ring-purple-500 ring-offset-2 animate-pulse'
+                  : 'bg-gray-100 text-gray-400'
+            }`}>
+              {stats.totalMembers > 0 ? (
+                <CheckCircle2 className="fluid-icon-base" />
+              ) : (
+                <Users className="fluid-icon-base" />
+              )}
+            </div>
+            <p className="fluid-text-xs font-medium text-gray-700">Candidatos</p>
+            <p className={`fluid-text-xs ${
+              stats.totalMembers > 0 ? 'text-emerald-600 font-semibold' : 'text-gray-400'
+            }`}>
+              {stats.totalMembers > 0 ? `${stats.totalMembers} añadidos` : 'Pendiente'}
+            </p>
+          </div>
+
+          {/* Línea conectora */}
+          <div className={`flex-1 h-1 rounded-full mx-2 ${
+            stats.totalMembers > 0 ? 'bg-emerald-300' : 'bg-gray-200'
+          }`} />
+
+          {/* Paso 2: Certificación */}
+          <div className="flex-1 flex flex-col items-center">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center fluid-mb-2 transition-all ${
+              stats.totalExams > 0 
+                ? 'bg-emerald-100 text-emerald-600 ring-2 ring-emerald-500 ring-offset-2' 
+                : workflow.currentStep === 1 
+                  ? 'bg-blue-100 text-blue-600 ring-2 ring-blue-500 ring-offset-2 animate-pulse'
+                  : 'bg-gray-100 text-gray-400'
+            }`}>
+              {stats.totalExams > 0 ? (
+                <CheckCircle2 className="fluid-icon-base" />
+              ) : (
+                <ClipboardList className="fluid-icon-base" />
+              )}
+            </div>
+            <p className="fluid-text-xs font-medium text-gray-700">Certificación</p>
+            <p className={`fluid-text-xs ${
+              stats.totalExams > 0 ? 'text-emerald-600 font-semibold' : 'text-gray-400'
+            }`}>
+              {stats.totalExams > 0 ? `${stats.totalExams} asignadas` : 'Pendiente'}
+            </p>
+          </div>
+
+          {/* Línea conectora */}
+          <div className={`flex-1 h-1 rounded-full mx-2 ${
+            stats.totalExams > 0 ? 'bg-emerald-300' : 'bg-gray-200'
+          }`} />
+
+          {/* Paso 3: Documentos */}
+          <div className="flex-1 flex flex-col items-center">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center fluid-mb-2 transition-all ${
+              stats.certified > 0 
+                ? 'bg-emerald-100 text-emerald-600 ring-2 ring-emerald-500 ring-offset-2' 
+                : workflow.currentStep >= 2 
+                  ? 'bg-amber-100 text-amber-600 ring-2 ring-amber-400 ring-offset-2'
+                  : 'bg-gray-100 text-gray-400'
+            }`}>
+              {stats.certified > 0 ? (
+                <CheckCircle2 className="fluid-icon-base" />
+              ) : (
+                <Award className="fluid-icon-base" />
+              )}
+            </div>
+            <p className="fluid-text-xs font-medium text-gray-700">Documentos</p>
+            <p className={`fluid-text-xs ${
+              stats.certified > 0 ? 'text-emerald-600 font-semibold' : 
+              stats.inProgress > 0 ? 'text-sky-600' : 'text-gray-400'
+            }`}>
+              {stats.certified > 0 ? `${stats.certified} listos` : 
+               stats.inProgress > 0 ? `${stats.inProgress} en proceso` : 'Pendiente'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Acciones Rápidas Directas */}
+      <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5 fluid-mb-6">
+        <div className="flex items-center fluid-gap-2 fluid-mb-4">
+          <Target className="fluid-icon-base text-indigo-600" />
+          <h3 className="fluid-text-base font-semibold text-gray-800">Acciones Rápidas</h3>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 fluid-gap-3">
+          <Link
+            to={group.is_active ? `/partners/groups/${groupId}/assign-candidates` : '#'}
+            onClick={(e) => !group.is_active && e.preventDefault()}
+            className={`flex items-center fluid-gap-3 fluid-p-4 rounded-fluid-xl border-2 transition-all ${
+              group.is_active 
+                ? 'border-purple-200 bg-purple-50 hover:bg-purple-100 hover:border-purple-300' 
+                : 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-50'
+            }`}
+          >
+            <div className="fluid-p-2 bg-purple-100 rounded-fluid-lg">
+              <UserPlus className="fluid-icon-base text-purple-600" />
             </div>
             <div>
-              <p className="fluid-text-2xl font-bold text-gray-900">{stats.totalMembers}</p>
+              <p className="fluid-text-sm font-semibold text-gray-800">Agregar</p>
               <p className="fluid-text-xs text-gray-500">Candidatos</p>
             </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4">
-          <div className="flex items-center fluid-gap-3">
-            <div className="fluid-p-3 bg-emerald-100 rounded-fluid-lg">
-              <Award className="fluid-icon-base text-emerald-600" />
+          </Link>
+
+          <Link
+            to={stats.totalMembers > 0 ? `/partners/groups/${groupId}/assign-exam` : '#'}
+            onClick={(e) => stats.totalMembers === 0 && e.preventDefault()}
+            className={`flex items-center fluid-gap-3 fluid-p-4 rounded-fluid-xl border-2 transition-all ${
+              stats.totalMembers > 0 
+                ? 'border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300' 
+                : 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-50'
+            }`}
+          >
+            <div className="fluid-p-2 bg-blue-100 rounded-fluid-lg">
+              <Plus className="fluid-icon-base text-blue-600" />
             </div>
             <div>
-              <p className="fluid-text-2xl font-bold text-gray-900">{stats.certified}</p>
-              <p className="fluid-text-xs text-gray-500">Certificados</p>
+              <p className="fluid-text-sm font-semibold text-gray-800">Asignar</p>
+              <p className="fluid-text-xs text-gray-500">Certificación</p>
             </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4">
-          <div className="flex items-center fluid-gap-3">
-            <div className="fluid-p-3 bg-blue-100 rounded-fluid-lg">
-              <ClipboardList className="fluid-icon-base text-blue-600" />
-            </div>
-            <div>
-              <p className="fluid-text-2xl font-bold text-gray-900">{stats.totalExams}</p>
-              <p className="fluid-text-xs text-gray-500">Certificaciones</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4">
-          <div className="flex items-center fluid-gap-3">
-            <div className="fluid-p-3 bg-green-100 rounded-fluid-lg">
-              <BookOpen className="fluid-icon-base text-green-600" />
+          </Link>
+
+          <button
+            onClick={handleExportExcel}
+            disabled={exportingExcel || stats.totalMembers === 0}
+            className={`flex items-center fluid-gap-3 fluid-p-4 rounded-fluid-xl border-2 transition-all text-left ${
+              stats.totalMembers > 0 
+                ? 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300' 
+                : 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-50'
+            }`}
+          >
+            <div className="fluid-p-2 bg-emerald-100 rounded-fluid-lg">
+              {exportingExcel ? (
+                <div className="animate-spin h-5 w-5 border-2 border-emerald-600 border-t-transparent rounded-full" />
+              ) : (
+                <Download className="fluid-icon-base text-emerald-600" />
+              )}
             </div>
             <div>
-              <p className="fluid-text-2xl font-bold text-gray-900">{stats.totalMaterials}</p>
-              <p className="fluid-text-xs text-gray-500">Materiales</p>
+              <p className="fluid-text-sm font-semibold text-gray-800">Exportar</p>
+              <p className="fluid-text-xs text-gray-500">Reporte Excel</p>
             </div>
-          </div>
+          </button>
+
+          <Link
+            to={`/partners/groups/${groupId}/documents`}
+            className="flex items-center fluid-gap-3 fluid-p-4 rounded-fluid-xl border-2 border-amber-200 bg-amber-50 hover:bg-amber-100 hover:border-amber-300 transition-all"
+          >
+            <div className="fluid-p-2 bg-amber-100 rounded-fluid-lg">
+              <FileText className="fluid-icon-base text-amber-600" />
+            </div>
+            <div>
+              <p className="fluid-text-sm font-semibold text-gray-800">Ver</p>
+              <p className="fluid-text-xs text-gray-500">Documentos</p>
+            </div>
+          </Link>
         </div>
       </div>
 
