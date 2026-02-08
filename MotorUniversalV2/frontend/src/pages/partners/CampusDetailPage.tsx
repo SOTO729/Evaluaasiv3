@@ -764,8 +764,8 @@ export default function CampusDetailPage() {
                         {filteredCycles.map((cycle) => (
                       <div
                         key={cycle.id}
-                        onClick={() => setSelectedCycleId(cycle.id)}
-                        className={`fluid-p-4 cursor-pointer transition-all duration-200 ${selectedCycleId === cycle.id ? 'bg-blue-50 border-l-4 border-blue-500' : 'hover:bg-gray-50 border-l-4 border-transparent'} ${!cycle.is_active ? 'opacity-50' : ''}`}
+                        onClick={() => navigate(`/partners/cycles/${cycle.id}`)}
+                        className={`fluid-p-4 cursor-pointer transition-all duration-200 hover:bg-blue-50 border-l-4 border-transparent hover:border-blue-500 ${!cycle.is_active ? 'opacity-50' : ''}`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
