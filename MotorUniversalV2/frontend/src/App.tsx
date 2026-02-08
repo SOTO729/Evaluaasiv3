@@ -126,6 +126,7 @@ const GerenteReportsPage = lazy(() => import('./pages/gerente/GerenteReportsPage
 const MiSaldoPage = lazy(() => import('./pages/coordinador/MiSaldoPage'))
 const MiSolicitudDetailPage = lazy(() => import('./pages/coordinador/MiSolicitudDetailPage'))
 const SolicitarSaldoPage = lazy(() => import('./pages/coordinador/SolicitarSaldoPage'))
+const SolicitarBecaPage = lazy(() => import('./pages/coordinador/SolicitarBecaPage'))
 const HistorialSolicitudesPage = lazy(() => import('./pages/coordinador/HistorialSolicitudesPage'))
 const HistorialMovimientosPage = lazy(() => import('./pages/coordinador/HistorialMovimientosPage'))
 
@@ -266,6 +267,7 @@ function App() {
               <Route path="/coordinador/mi-saldo" element={<MiSaldoPage />} />
               <Route path="/coordinador/mi-saldo/solicitud/:id" element={<MiSolicitudDetailPage />} />
               <Route path="/coordinador/solicitar-saldo" element={<SolicitarSaldoPage />} />
+              <Route path="/coordinador/solicitar-beca" element={<SolicitarBecaPage />} />
               <Route path="/coordinador/historial-solicitudes" element={<HistorialSolicitudesPage />} />
               <Route path="/coordinador/historial-movimientos" element={<HistorialMovimientosPage />} />
               

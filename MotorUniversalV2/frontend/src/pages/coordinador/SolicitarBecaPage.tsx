@@ -1,14 +1,14 @@
 /**
- * Página de Solicitar Saldo - Coordinador
+ * Página de Solicitar Beca - Coordinador
  * 
- * Formulario para solicitar SALDO de MÚLTIPLES planteles:
+ * Formulario para solicitar BECA de MÚLTIPLES planteles:
  * - Diseño fluid responsive para todas las pantallas
  * - Tabla filtrable y ordenable de planteles
  * - Expandir plantel para agregar líneas de solicitud
  * - Entrada en unidades con equivalente en pesos
- * - Color primario azul de la app
+ * - Color primario púrpura para becas
  * 
- * NOTA: Para solicitar becas, usar /coordinador/solicitar-beca
+ * NOTA: Para solicitar saldo, usar /coordinador/solicitar-saldo
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
@@ -82,7 +82,7 @@ interface GroupsCache {
 type SortColumn = 'partner' | 'state' | 'name' | 'price' | 'lines';
 type SortDirection = 'asc' | 'desc';
 
-export default function SolicitarSaldoPage() {
+export default function SolicitarBecaPage() {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
@@ -103,8 +103,8 @@ export default function SolicitarSaldoPage() {
   const [expandedCampusId, setExpandedCampusId] = useState<number | null>(null);
   const [requestLines, setRequestLines] = useState<RequestLine[]>([]);
   
-  // Tipo fijo 'saldo' - para becas usar SolicitarBecaPage
-  const newLineType: 'saldo' = 'saldo';
+  // Tipo fijo 'beca' - para saldo usar SolicitarSaldoPage
+  const newLineType: 'beca' = 'beca';
   const [newLineGroupId, setNewLineGroupId] = useState<number | null>(null);
   const [newLineUnits, setNewLineUnits] = useState<number>(0);
   
@@ -283,7 +283,7 @@ export default function SolicitarSaldoPage() {
       setExpandedCampusId(null);
     } else {
       setExpandedCampusId(campusId);
-      // newLineType siempre es 'saldo'
+      // newLineType siempre es 'beca'
       setNewLineGroupId(null);
       setNewLineUnits(0);
       await loadGroups(campusId);
@@ -777,7 +777,7 @@ export default function SolicitarSaldoPage() {
             <div className="p-2.5 bg-primary-100 rounded-xl">
               <Wallet className="w-7 h-7 text-primary-600" />
             </div>
-            Solicitar Saldo
+            Solicitar Beca
           </h1>
           <p className="text-gray-500 mt-1 text-sm lg:text-base">
             Selecciona planteles y configura las líneas de saldo y/o becas
@@ -873,7 +873,7 @@ export default function SolicitarSaldoPage() {
                               isExpanded 
                                 ? 'bg-primary-50' 
                                 : campusLinesCount > 0 
-                                  ? 'bg-emerald-50/50 hover:bg-emerald-50' 
+                                  ? 'bg-purple-50/50 hover:bg-purple-50' 
                                   : 'hover:bg-gray-50'
                             }`}
                             onClick={() => handleExpandCampus(campus.id)}
@@ -896,7 +896,7 @@ export default function SolicitarSaldoPage() {
                             </td>
                             <td className="px-3 py-3 text-center">
                               {campusLinesCount > 0 ? (
-                                <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-1 bg-emerald-600 text-white text-xs font-bold rounded-full">
+                                <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-1 bg-purple-600 text-white text-xs font-bold rounded-full">
                                   {campusLinesCount}
                                 </span>
                               ) : (
