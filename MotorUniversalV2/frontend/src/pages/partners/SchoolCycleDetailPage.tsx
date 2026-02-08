@@ -280,9 +280,6 @@ export default function SchoolCycleDetailPage() {
                     <th className="fluid-px-5 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       Grupo
                     </th>
-                    <th className="fluid-px-5 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Código
-                    </th>
                     <th className="fluid-px-5 fluid-py-3 text-center fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       Miembros
                     </th>
@@ -319,15 +316,6 @@ export default function SchoolCycleDetailPage() {
                             )}
                           </div>
                         </div>
-                      </td>
-                      <td className="fluid-px-5 fluid-py-4">
-                        {group.code ? (
-                          <span className="inline-flex fluid-px-2.5 fluid-py-1 bg-gray-100 text-gray-700 rounded-md fluid-text-xs font-mono">
-                            {group.code}
-                          </span>
-                        ) : (
-                          <span className="fluid-text-xs text-gray-400">—</span>
-                        )}
                       </td>
                       <td className="fluid-px-5 fluid-py-4 text-center">
                         <div className="inline-flex items-center fluid-gap-1.5 fluid-px-3 fluid-py-1 bg-amber-50 text-amber-700 rounded-full">
