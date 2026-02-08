@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
+import DatePickerInput from '../../components/DatePickerInput';
 import {
   getCampus,
   Campus,
@@ -884,16 +885,22 @@ export default function CampusActivationPage() {
                     </div>
                     
                     <div>
-                      <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                      <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-blue-500" />
                         Fecha de Nacimiento <span className="text-red-500">*</span>
                       </label>
-                      <input
-                        type="date"
-                        name="date_of_birth"
-                        value={formData.date_of_birth}
-                        onChange={handleChange}
-                        className="w-full fluid-px-3 fluid-py-2 border border-gray-300 fluid-rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      <DatePickerInput
+                        value={formData.date_of_birth ? new Date(formData.date_of_birth + 'T00:00:00') : null}
+                        onChange={(date) => setFormData(prev => ({ ...prev, date_of_birth: date ? date.toISOString().split('T')[0] : '' }))}
+                        placeholder="Seleccionar fecha de nacimiento"
+                        maxDate={new Date()}
+                        colorScheme="blue"
                       />
+                      {formData.date_of_birth && (
+                        <p className="text-xs text-blue-600 mt-1 font-medium">
+                          {new Date(formData.date_of_birth + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                        </p>
+                      )}
                     </div>
                     
                     <div>
@@ -1525,29 +1532,41 @@ export default function CampusActivationPage() {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-green-500" />
                           Fecha de Inicio <span className="text-red-500">*</span>
                         </label>
-                        <input
-                          type="date"
-                          name="license_start_date"
-                          value={configData.license_start_date || ''}
-                          onChange={handleConfigChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        <DatePickerInput
+                          value={configData.license_start_date ? new Date(configData.license_start_date + 'T00:00:00') : null}
+                          onChange={(date) => setConfigData(prev => ({ ...prev, license_start_date: date ? date.toISOString().split('T')[0] : '' }))}
+                          placeholder="Seleccionar fecha de inicio"
+                          colorScheme="green"
                         />
+                        {configData.license_start_date && (
+                          <p className="text-xs text-green-600 mt-1 font-medium">
+                            {new Date(configData.license_start_date + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                          </p>
+                        )}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-indigo-500" />
                           Fecha de Fin <span className="text-gray-400 text-xs">(opcional)</span>
                         </label>
-                        <input
-                          type="date"
-                          name="license_end_date"
-                          value={configData.license_end_date || ''}
-                          onChange={handleConfigChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        <DatePickerInput
+                          value={configData.license_end_date ? new Date(configData.license_end_date + 'T00:00:00') : null}
+                          onChange={(date) => setConfigData(prev => ({ ...prev, license_end_date: date ? date.toISOString().split('T')[0] : '' }))}
+                          placeholder="Seleccionar fecha de fin"
+                          minDate={configData.license_start_date ? new Date(configData.license_start_date + 'T00:00:00') : null}
+                          colorScheme="indigo"
                         />
-                        <p className="text-xs text-gray-500 mt-1">Deja vacío para vigencia indefinida</p>
+                        {configData.license_end_date ? (
+                          <p className="text-xs text-indigo-600 mt-1 font-medium">
+                            {new Date(configData.license_end_date + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-gray-500 mt-1">Deja vacío para vigencia indefinida</p>
+                        )}
                       </div>
                     </div>
                   </div>

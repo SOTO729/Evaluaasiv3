@@ -996,22 +996,39 @@ export default function CampusFormPage() {
                     </div>
                     <div className="grid grid-cols-2 fluid-gap-4">
                       <div>
-                        <label className="block fluid-text-xs text-gray-500 fluid-mb-2">Inicio</label>
-                        <input
-                          type="date"
-                          value={configData.license_start_date}
-                          onChange={(e) => handleConfigChange('license_start_date', e.target.value)}
-                          className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500"
+                        <label className="block fluid-text-xs text-gray-500 fluid-mb-2 flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-green-500" />
+                          Inicio
+                        </label>
+                        <DatePickerInput
+                          value={configData.license_start_date ? new Date(configData.license_start_date + 'T00:00:00') : null}
+                          onChange={(date) => handleConfigChange('license_start_date', date ? date.toISOString().split('T')[0] : '')}
+                          placeholder="Fecha inicio"
+                          colorScheme="green"
                         />
+                        {configData.license_start_date && (
+                          <p className="fluid-text-xs text-green-600 fluid-mt-1 font-medium">
+                            {new Date(configData.license_start_date + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </p>
+                        )}
                       </div>
                       <div>
-                        <label className="block fluid-text-xs text-gray-500 fluid-mb-2">Fin</label>
-                        <input
-                          type="date"
-                          value={configData.license_end_date}
-                          onChange={(e) => handleConfigChange('license_end_date', e.target.value)}
-                          className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500"
+                        <label className="block fluid-text-xs text-gray-500 fluid-mb-2 flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-indigo-500" />
+                          Fin
+                        </label>
+                        <DatePickerInput
+                          value={configData.license_end_date ? new Date(configData.license_end_date + 'T00:00:00') : null}
+                          onChange={(date) => handleConfigChange('license_end_date', date ? date.toISOString().split('T')[0] : '')}
+                          placeholder="Fecha fin"
+                          minDate={configData.license_start_date ? new Date(configData.license_start_date + 'T00:00:00') : null}
+                          colorScheme="indigo"
                         />
+                        {configData.license_end_date && (
+                          <p className="fluid-text-xs text-indigo-600 fluid-mt-1 font-medium">
+                            {new Date(configData.license_end_date + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>

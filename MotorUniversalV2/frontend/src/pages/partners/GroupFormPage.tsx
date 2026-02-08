@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
+import DatePickerInput from '../../components/DatePickerInput';
 import {
   getCampus,
   getGroup,
@@ -659,20 +660,23 @@ export default function GroupFormPage() {
                         <div className="grid grid-cols-2 fluid-gap-2">
                           <div>
                             <label className="block fluid-text-xs text-gray-500 fluid-mb-1">Inicio</label>
-                            <input
-                              type="date"
-                              value={configOverrides.group_start_date || groupConfig.campus_config.license_start_date || ''}
-                              onChange={(e) => handleConfigChange('group_start_date', e.target.value || null)}
-                              className="w-full fluid-px-2 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-xs"
+                            <DatePickerInput
+                              value={configOverrides.group_start_date ? new Date(configOverrides.group_start_date + 'T00:00:00') : 
+                                     groupConfig.campus_config.license_start_date ? new Date(groupConfig.campus_config.license_start_date + 'T00:00:00') : null}
+                              onChange={(date) => handleConfigChange('group_start_date', date ? date.toISOString().split('T')[0] : null)}
+                              placeholder="Fecha inicio"
+                              colorScheme="green"
                             />
                           </div>
                           <div>
                             <label className="block fluid-text-xs text-gray-500 fluid-mb-1">Fin</label>
-                            <input
-                              type="date"
-                              value={configOverrides.group_end_date || groupConfig.campus_config.license_end_date || ''}
-                              onChange={(e) => handleConfigChange('group_end_date', e.target.value || null)}
-                              className="w-full fluid-px-2 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-xs"
+                            <DatePickerInput
+                              value={configOverrides.group_end_date ? new Date(configOverrides.group_end_date + 'T00:00:00') : 
+                                     groupConfig.campus_config.license_end_date ? new Date(groupConfig.campus_config.license_end_date + 'T00:00:00') : null}
+                              onChange={(date) => handleConfigChange('group_end_date', date ? date.toISOString().split('T')[0] : null)}
+                              placeholder="Fecha fin"
+                              minDate={configOverrides.group_start_date ? new Date(configOverrides.group_start_date + 'T00:00:00') : null}
+                              colorScheme="indigo"
                             />
                           </div>
                         </div>

@@ -2,8 +2,9 @@
  * Modal para Activación de Plantel - Paso 1: Crear Responsable
  */
 import { useState } from 'react';
-import { X, User, Mail, Shield, AlertCircle, CheckCircle2, Copy, Eye, EyeOff } from 'lucide-react';
+import { X, User, Mail, Shield, AlertCircle, CheckCircle2, Copy, Eye, EyeOff, Calendar } from 'lucide-react';
 import { CreateResponsableData, CampusResponsable, createCampusResponsable } from '../../services/partnersService';
+import DatePickerInput from '../DatePickerInput';
 
 interface CampusActivationModalProps {
   campusId: number;
@@ -225,16 +226,22 @@ export default function CampusActivationModal({
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-blue-500" />
                       Fecha de Nacimiento <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="date"
-                      name="date_of_birth"
-                      value={formData.date_of_birth}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    <DatePickerInput
+                      value={formData.date_of_birth ? new Date(formData.date_of_birth + 'T00:00:00') : null}
+                      onChange={(date) => setFormData(prev => ({ ...prev, date_of_birth: date ? date.toISOString().split('T')[0] : '' }))}
+                      placeholder="Seleccionar fecha de nacimiento"
+                      maxDate={new Date()}
+                      colorScheme="blue"
                     />
+                    {formData.date_of_birth && (
+                      <p className="text-xs text-blue-600 mt-1 font-medium">
+                        {new Date(formData.date_of_birth + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                    )}
                   </div>
                   
                   <div>
