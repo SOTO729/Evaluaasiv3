@@ -74,6 +74,7 @@ class AzureStorageService:
     def upload_file(self, file, folder='general'):
         """
         Subir archivo a Azure Blob Storage
+        Usa el cliente general si está disponible, sino usa el cliente de videos como fallback
         
         Args:
             file: FileStorage object de Flask
@@ -82,7 +83,18 @@ class AzureStorageService:
         Returns:
             str: URL del archivo subido o None si falla
         """
-        if not self.blob_service_client:
+        # Determinar qué cliente usar
+        client = self.blob_service_client
+        container = self.container_name
+        
+        # Fallback al cliente de videos si el general no está configurado
+        if not client and self.video_blob_client:
+            print("Using video storage as fallback for general files")
+            client = self.video_blob_client
+            container = self.video_container_name
+        
+        if not client:
+            print("No Azure storage client available")
             return None
         
         try:
@@ -96,8 +108,8 @@ class AzureStorageService:
             content_type = file.content_type or 'application/octet-stream'
             
             # Subir archivo
-            blob_client = self.blob_service_client.get_blob_client(
-                container=self.container_name,
+            blob_client = client.get_blob_client(
+                container=container,
                 blob=blob_name
             )
             

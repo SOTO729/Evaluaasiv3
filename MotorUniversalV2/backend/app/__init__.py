@@ -44,9 +44,10 @@ def create_app(config_name='development'):
     CORS(app, 
          origins=app.config['CORS_ORIGINS'],
          supports_credentials=app.config['CORS_SUPPORTS_CREDENTIALS'],
-         allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+         allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control'],
          methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-         expose_headers=['Content-Type', 'Authorization'])
+         expose_headers=['Content-Type', 'Authorization'],
+         max_age=86400)
     
     # Registrar blueprints con logging
     print("[INIT] Importando blueprints...")
@@ -326,6 +327,20 @@ def ensure_label_style_column(app):
     
     # Hacer email nullable para candidatos sin email
     _ensure_email_nullable()
+    
+    # Agregar columna attachments a balance_requests
+    _ensure_balance_attachments_column()
+
+
+def _ensure_balance_attachments_column():
+    """Agregar columna attachments a balance_requests"""
+    from app.auto_migrate import check_and_add_balance_attachments_column
+    
+    try:
+        print("[AUTO-MIGRATE] Ejecutando migración de attachments en balance_requests...")
+        check_and_add_balance_attachments_column()
+    except Exception as e:
+        print(f"[AUTO-MIGRATE] Error en migración de attachments: {e}")
 
 
 def _ensure_email_nullable():

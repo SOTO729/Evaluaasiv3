@@ -58,6 +58,7 @@ export interface BalanceRequest {
   financiero_reviewed_at: string | null;
   documentation_requested: string | null;
   documentation_provided: boolean;
+  attachments: Attachment[];
   approver_notes: string | null;
   approved_at: string | null;
   requested_at: string;
@@ -100,6 +101,13 @@ export type TransactionConcept =
   | 'asignacion_retoma' 
   | 'ajuste_manual' 
   | 'devolucion';
+
+export interface Attachment {
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+}
 
 export interface BalanceTransaction {
   id: number;
@@ -204,6 +212,7 @@ export async function createBalanceRequest(data: {
   campus_id: number;
   group_id?: number;
   request_type?: RequestType;
+  attachments?: Attachment[];
 }): Promise<{ message: string; request: BalanceRequest }> {
   const response = await api.post('/balance/request', data);
   return response.data;
@@ -411,4 +420,79 @@ export async function getTransactions(params?: {
 }): Promise<PaginatedResponse<BalanceTransaction> & { transactions: BalanceTransaction[] }> {
   const response = await api.get('/balance/transactions', { params });
   return response.data;
+}
+
+// =====================================================
+// FUNCIONES DE ARCHIVOS ADJUNTOS
+// =====================================================
+
+/**
+ * Subir archivo adjunto a Azure Blob Storage
+ */
+export async function uploadAttachment(file: File): Promise<Attachment> {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await api.post('/balance/upload-attachment', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  
+  return response.data.attachment;
+}
+
+/**
+ * Actualizar adjuntos de una solicitud
+ */
+export async function updateRequestAttachments(
+  requestId: number, 
+  attachments: Attachment[]
+): Promise<Attachment[]> {
+  const response = await api.put(`/balance/request/${requestId}/attachments`, {
+    attachments,
+  });
+  return response.data.attachments;
+}
+
+/**
+ * Extensiones de archivo permitidas
+ */
+export const ALLOWED_FILE_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'xls', 'xlsx'];
+
+/**
+ * Tamaño máximo de archivo (10 MB)
+ */
+export const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+/**
+ * Validar archivo antes de subir
+ */
+export function validateFile(file: File): { valid: boolean; error?: string } {
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  
+  if (!ALLOWED_FILE_EXTENSIONS.includes(ext)) {
+    return {
+      valid: false,
+      error: `Tipo no permitido. Permitidos: ${ALLOWED_FILE_EXTENSIONS.join(', ')}`,
+    };
+  }
+  
+  if (file.size > MAX_FILE_SIZE) {
+    return {
+      valid: false,
+      error: 'Archivo demasiado grande. Máximo: 10 MB',
+    };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Formatear tamaño de archivo
+ */
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

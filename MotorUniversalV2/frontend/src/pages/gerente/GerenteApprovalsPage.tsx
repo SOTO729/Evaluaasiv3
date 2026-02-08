@@ -4,8 +4,57 @@
  * Lista de solicitudes recomendadas por el financiero
  * que requieren aprobación final del gerente/admin
  */
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { X } from 'lucide-react';
+
+// Componente Toast para notificaciones
+interface ToastProps {
+  message: string;
+  type: 'success' | 'error' | 'info';
+  onClose: () => void;
+}
+
+const Toast = ({ message, type, onClose }: ToastProps) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const bgColor = type === 'success' 
+    ? 'bg-green-600' 
+    : type === 'error' 
+    ? 'bg-red-600' 
+    : 'bg-blue-600';
+
+  return (
+    <div className="fixed top-4 right-4 z-50 animate-slide-in">
+      <div className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${bgColor} text-white`}>
+        {type === 'success' && (
+          <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )}
+        {type === 'error' && (
+          <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )}
+        {type === 'info' && (
+          <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )}
+        <span className="font-medium">{message}</span>
+        <button onClick={onClose} className="ml-2 hover:opacity-80 transition-opacity">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+  );
+};
 import {
   FileCheck,
   ArrowLeft,
@@ -31,6 +80,7 @@ import {
 type FilterStatus = 'all' | 'recommended_approve' | 'recommended_reject';
 
 export default function GerenteApprovalsPage() {
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requests, setRequests] = useState<BalanceRequest[]>([]);
@@ -39,8 +89,25 @@ export default function GerenteApprovalsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const perPage = 10;
+
+  // Mostrar toast si venimos de una acción exitosa
+  useEffect(() => {
+    if (location.state?.message) {
+      setToast({
+        message: location.state.message,
+        type: location.state.type || 'success'
+      });
+      // Limpiar el state para evitar que se muestre de nuevo
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
+  const handleCloseToast = useCallback(() => {
+    setToast(null);
+  }, []);
 
   useEffect(() => {
     loadRequests();
@@ -112,7 +179,7 @@ export default function GerenteApprovalsPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
@@ -340,6 +407,15 @@ export default function GerenteApprovalsPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* Toast de notificación */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={handleCloseToast}
+        />
       )}
     </div>
   );

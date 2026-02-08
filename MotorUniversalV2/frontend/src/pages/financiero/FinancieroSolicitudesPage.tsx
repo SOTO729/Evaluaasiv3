@@ -6,8 +6,8 @@
  * - Filtrar por estado y tipo
  * - Acceder al detalle para revisar
  */
-import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
   Filter,
@@ -17,8 +17,57 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  X,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+
+// Componente Toast para notificaciones
+interface ToastProps {
+  message: string;
+  type: 'success' | 'error' | 'info';
+  onClose: () => void;
+}
+
+const Toast = ({ message, type, onClose }: ToastProps) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const bgColor = type === 'success' 
+    ? 'bg-green-600' 
+    : type === 'error' 
+    ? 'bg-red-600' 
+    : 'bg-blue-600';
+
+  return (
+    <div className="fixed top-4 right-4 z-50 animate-slide-in">
+      <div className={`flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg ${bgColor} text-white`}>
+        {type === 'success' && (
+          <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )}
+        {type === 'error' && (
+          <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )}
+        {type === 'info' && (
+          <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )}
+        <span className="font-medium">{message}</span>
+        <button onClick={onClose} className="ml-2 hover:opacity-80 transition-opacity">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+  );
+};
 import {
   getPendingRequests,
   BalanceRequest,
@@ -45,6 +94,7 @@ const TYPE_OPTIONS: { value: string; label: string }[] = [
 
 export default function FinancieroSolicitudesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<BalanceRequest[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -54,10 +104,26 @@ export default function FinancieroSolicitudesPage() {
     in_review: 0,
     recommended: 0,
   });
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const page = parseInt(searchParams.get('page') || '1');
   const status = searchParams.get('status') || 'all_pending';
   const type = searchParams.get('type') || '';
+
+  // Mostrar toast si venimos de una accion exitosa
+  useEffect(() => {
+    if (location.state?.message) {
+      setToast({
+        message: location.state.message,
+        type: location.state.type || 'success'
+      });
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
+  const handleCloseToast = useCallback(() => {
+    setToast(null);
+  }, []);
 
   useEffect(() => {
     loadRequests();
@@ -97,7 +163,7 @@ export default function FinancieroSolicitudesPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <Link
@@ -330,6 +396,15 @@ export default function FinancieroSolicitudesPage() {
           </>
         )}
       </div>
+
+      {/* Toast de notificacion */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={handleCloseToast}
+        />
+      )}
     </div>
   );
 }

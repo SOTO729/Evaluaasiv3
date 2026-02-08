@@ -6,6 +6,7 @@ Sistema de control de inventario de certificaciones:
 - BalanceRequest: Solicitudes de saldo/beca
 - BalanceTransaction: Historial de movimientos (auditoría)
 """
+import json
 from datetime import datetime
 from app import db
 from decimal import Decimal
@@ -131,6 +132,9 @@ class BalanceRequest(db.Model):
     documentation_requested = db.Column(db.Text, nullable=True)  # Qué documentos se pidieron
     documentation_provided = db.Column(db.Boolean, default=False)  # Si ya se proporcionaron
     
+    # Archivos adjuntos (JSON: [{name, url, type, size}])
+    attachments = db.Column(db.Text, nullable=True)  # JSON de archivos adjuntos
+    
     # Aprobación final (gerente o admin)
     approved_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
     approver_notes = db.Column(db.Text, nullable=True)
@@ -165,6 +169,7 @@ class BalanceRequest(db.Model):
             'financiero_reviewed_at': self.financiero_reviewed_at.isoformat() if self.financiero_reviewed_at else None,
             'documentation_requested': self.documentation_requested,
             'documentation_provided': self.documentation_provided,
+            'attachments': json.loads(self.attachments) if self.attachments else [],
             'approver_notes': self.approver_notes,
             'approved_at': self.approved_at.isoformat() if self.approved_at else None,
             'requested_at': self.requested_at.isoformat() if self.requested_at else None,

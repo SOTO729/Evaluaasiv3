@@ -22,6 +22,11 @@ import {
   ThumbsUp,
   ThumbsDown,
   Loader2,
+  Paperclip,
+  FileSpreadsheet,
+  Image,
+  File,
+  ExternalLink,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -110,7 +115,7 @@ export default function GerenteApprovalDetailPage() {
 
   if (error && !request) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-red-800 mb-2">Error</h2>
@@ -133,7 +138,7 @@ export default function GerenteApprovalDetailPage() {
   const isRecommendedReject = request.status === 'recommended_reject';
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <Link
@@ -238,6 +243,47 @@ export default function GerenteApprovalDetailPage() {
               {request.justification || 'Sin justificación proporcionada'}
             </p>
           </div>
+
+          {/* Documentación Adjunta */}
+          {request.attachments && request.attachments.length > 0 && (
+            <div className="bg-white rounded-xl border shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <Paperclip className="w-5 h-5 text-gray-400" />
+                Documentación Adjunta ({request.attachments.length} archivo{request.attachments.length !== 1 ? 's' : ''})
+              </h2>
+              <div className="space-y-2">
+                {request.attachments.map((file, index) => {
+                  const getFileIcon = (type: string) => {
+                    if (type === 'xlsx' || type === 'xls') return <FileSpreadsheet className="w-5 h-5 text-green-600" />;
+                    if (type === 'pdf') return <File className="w-5 h-5 text-red-600" />;
+                    if (['jpg', 'jpeg', 'png'].includes(type)) return <Image className="w-5 h-5 text-blue-600" />;
+                    return <File className="w-5 h-5 text-gray-600" />;
+                  };
+                  const formatSize = (bytes: number) => {
+                    if (bytes < 1024) return `${bytes} B`;
+                    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+                    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+                  };
+                  return (
+                    <a
+                      key={index}
+                      href={file.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
+                    >
+                      {getFileIcon(file.type)}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{file.name}</p>
+                        <p className="text-xs text-gray-500">{formatSize(file.size)} • {file.type.toUpperCase()}</p>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Notas del Financiero */}
           {request.financiero_notes && (

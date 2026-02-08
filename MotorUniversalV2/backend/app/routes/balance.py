@@ -47,6 +47,8 @@ def financiero_required(f):
     """Requiere rol de financiero o superior"""
     @wraps(f)
     def decorated(*args, **kwargs):
+        if request.method == 'OPTIONS':
+            return f(*args, **kwargs)
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         if not user or user.role not in ['admin', 'gerente', 'financiero']:
@@ -59,6 +61,8 @@ def approver_required(f):
     """Requiere rol de gerente o admin para aprobar"""
     @wraps(f)
     def decorated(*args, **kwargs):
+        if request.method == 'OPTIONS':
+            return f(*args, **kwargs)
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         if not user or user.role not in ['admin', 'gerente']:
@@ -205,6 +209,11 @@ def create_request():
             if group.campus_id != campus.id:
                 return jsonify({'error': 'El grupo no pertenece al plantel especificado'}), 400
         
+        # Procesar attachments si se proporcionan
+        import json
+        attachments = data.get('attachments', [])
+        attachments_json = json.dumps(attachments) if attachments else None
+        
         # Crear solicitud
         balance_request = BalanceRequest(
             coordinator_id=user_id,
@@ -212,7 +221,8 @@ def create_request():
             group_id=group.id if group else None,
             request_type=data.get('request_type', 'saldo'),
             amount_requested=amount,
-            justification=data['justification']
+            justification=data['justification'],
+            attachments=attachments_json
         )
         
         db.session.add(balance_request)
@@ -299,10 +309,73 @@ def get_pending_requests():
         return jsonify({'error': str(e)}), 500
 
 
-@bp.route('/requests/<int:request_id>/review', methods=['PUT'])
-@jwt_required()
+@bp.route('/requests/<int:request_id>', methods=['GET', 'OPTIONS'])
+@jwt_required(optional=True)
+def get_request_detail(request_id):
+    """
+    Obtener detalle de una solicitud específica.
+    Incluye desglose de saldo solicitado y archivos adjuntos.
+    """
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.headers['Access-Control-Allow-Origin'] = request.headers.get('Origin', '*')
+        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Max-Age'] = '86400'
+        return response, 200
+    
+    try:
+        user_id = get_jwt_identity()
+        if not user_id:
+            return jsonify({'error': 'Autenticación requerida'}), 401
+            
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        balance_request = BalanceRequest.query.get_or_404(request_id)
+        
+        # Verificar permisos: coordinador dueño, financiero, gerente o admin
+        if user.role == 'coordinator' and str(balance_request.coordinator_id) != str(user_id):
+            return jsonify({'error': 'No tienes permiso para ver esta solicitud'}), 403
+        elif user.role not in ['coordinator', 'financiero', 'gerente', 'admin']:
+            return jsonify({'error': 'No tienes permiso para ver esta solicitud'}), 403
+        
+        # Obtener datos completos incluyendo attachments
+        result = balance_request.to_dict(
+            include_coordinator=True, 
+            include_campus=True, 
+            include_group=True, 
+            include_reviewers=True
+        )
+        
+        # Parsear attachments si existe
+        if balance_request.attachments:
+            import json
+            try:
+                result['attachments'] = json.loads(balance_request.attachments)
+            except:
+                result['attachments'] = []
+        else:
+            result['attachments'] = []
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/requests/<int:request_id>/review', methods=['PUT', 'OPTIONS'])
+@jwt_required(optional=True)
 @financiero_required
 def review_request(request_id):
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'PUT, OPTIONS')
+        return response, 200
     """
     Financiero revisa y recomienda aprobar o rechazar una solicitud.
     También puede solicitar documentación adicional para becas.
@@ -431,10 +504,16 @@ def get_requests_for_approval():
         return jsonify({'error': str(e)}), 500
 
 
-@bp.route('/requests/<int:request_id>/approve', methods=['PUT'])
-@jwt_required()
+@bp.route('/requests/<int:request_id>/approve', methods=['PUT', 'OPTIONS'])
+@jwt_required(optional=True)
 @approver_required
 def approve_request(request_id):
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'PUT, OPTIONS')
+        return response, 200
     """Gerente/Admin aprueba una solicitud de saldo"""
     try:
         user_id = get_jwt_identity()
@@ -509,10 +588,16 @@ def approve_request(request_id):
         return jsonify({'error': str(e)}), 500
 
 
-@bp.route('/requests/<int:request_id>/reject', methods=['PUT'])
-@jwt_required()
+@bp.route('/requests/<int:request_id>/reject', methods=['PUT', 'OPTIONS'])
+@jwt_required(optional=True)
 @approver_required
 def reject_request(request_id):
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'PUT, OPTIONS')
+        return response, 200
     """Gerente/Admin rechaza una solicitud de saldo"""
     try:
         user_id = get_jwt_identity()
@@ -732,4 +817,138 @@ def get_balance_stats():
         })
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# =====================================================
+# UPLOAD DE ARCHIVOS ADJUNTOS
+# =====================================================
+
+ALLOWED_EXTENSIONS = {'pdf', 'jpg', 'jpeg', 'png', 'xls', 'xlsx'}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@bp.route('/upload-attachment', methods=['POST', 'OPTIONS'])
+@jwt_required(optional=True)
+def upload_attachment():
+    """
+    Subir archivo adjunto para solicitud de saldo.
+    Sube a Azure Blob Storage (cuenta cool) y retorna la URL.
+    """
+    from flask import make_response
+    
+    # Handle preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        return response, 200
+    
+    # Para POST, verificar autenticación
+    user_id = get_jwt_identity()
+    if not user_id:
+        return jsonify({'error': 'Token de autenticación requerido'}), 401
+    
+    user = User.query.get(user_id)
+    if not user or user.role not in ['admin', 'gerente', 'coordinator']:
+        return jsonify({'error': 'No autorizado'}), 403
+    
+    import json
+    from app.utils.azure_storage import AzureStorageService
+    from werkzeug.utils import secure_filename
+    
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No se proporcionó archivo'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'Nombre de archivo vacío'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({
+                'error': f'Tipo de archivo no permitido. Permitidos: {", ".join(ALLOWED_EXTENSIONS)}'
+            }), 400
+        
+        # Verificar tamaño
+        file.seek(0, 2)  # Ir al final
+        file_size = file.tell()
+        file.seek(0)  # Volver al inicio
+        
+        if file_size > MAX_FILE_SIZE:
+            return jsonify({'error': f'Archivo demasiado grande. Máximo: 10 MB'}), 400
+        
+        # Subir a Azure
+        storage = AzureStorageService()
+        url = storage.upload_file(file, folder='balance-attachments')
+        
+        if not url:
+            return jsonify({'error': 'Error al subir archivo a Azure'}), 500
+        
+        # Retornar info del archivo
+        original_name = secure_filename(file.filename)
+        ext = original_name.rsplit('.', 1)[1].lower() if '.' in original_name else ''
+        
+        return jsonify({
+            'success': True,
+            'attachment': {
+                'name': original_name,
+                'url': url,
+                'type': ext,
+                'size': file_size
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/request/<int:request_id>/attachments', methods=['PUT'])
+@jwt_required()
+@coordinator_required
+def update_request_attachments(request_id):
+    """
+    Actualizar los archivos adjuntos de una solicitud.
+    Solo el coordinador dueño puede actualizar mientras está pendiente.
+    """
+    import json
+    
+    try:
+        user_id = get_jwt_identity()
+        
+        balance_request = BalanceRequest.query.get(request_id)
+        if not balance_request:
+            return jsonify({'error': 'Solicitud no encontrada'}), 404
+        
+        # Verificar propiedad y estado
+        if balance_request.coordinator_id != user_id:
+            return jsonify({'error': 'No tienes permiso para modificar esta solicitud'}), 403
+        
+        if balance_request.status not in ['pending', 'in_review']:
+            return jsonify({'error': 'No se pueden modificar adjuntos de solicitudes procesadas'}), 400
+        
+        data = request.get_json()
+        attachments = data.get('attachments', [])
+        
+        # Validar estructura
+        for att in attachments:
+            if not all(k in att for k in ['name', 'url', 'type', 'size']):
+                return jsonify({'error': 'Estructura de adjunto inválida'}), 400
+        
+        # Guardar
+        balance_request.attachments = json.dumps(attachments) if attachments else None
+        balance_request.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'attachments': attachments
+        })
+        
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500

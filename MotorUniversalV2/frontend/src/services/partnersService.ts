@@ -649,9 +649,11 @@ export async function permanentDeleteCycle(cycleId: number): Promise<{
 export async function getGroups(campusId: number, params?: {
   active_only?: boolean;
   cycle_id?: number;
+  include_config?: boolean;
 }): Promise<{
   campus_id: number;
   campus_name: string;
+  campus_certification_cost?: number;
   groups: CandidateGroup[];
   total: number;
 }> {

@@ -149,6 +149,8 @@ export default function GroupFormPage() {
     try {
       setLoadingConfig(true);
       const config = await getGroupConfig(gId);
+      console.log('Loaded config from server:', config);
+      console.log('Group overrides from server:', config.group_overrides);
       setGroupConfig(config);
       
       // Establecer valores de override
@@ -209,6 +211,7 @@ export default function GroupFormPage() {
       setSavingConfig(true);
       setError(null);
       
+      console.log('Saving config:', configOverrides);
       await updateGroupConfig(Number(groupId), configOverrides);
       setSuccessMessage('Configuración guardada exitosamente');
       setConfigChanged(false);
@@ -248,6 +251,7 @@ export default function GroupFormPage() {
   };
 
   const handleConfigChange = (field: string, value: any) => {
+    console.log('handleConfigChange:', { field, value, type: typeof value });
     setConfigOverrides(prev => ({ ...prev, [field]: value }));
     setConfigChanged(true);
   };

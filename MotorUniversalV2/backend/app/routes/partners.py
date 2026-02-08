@@ -9,6 +9,7 @@ from io import BytesIO
 from flask import Blueprint, request, jsonify, g, send_file
 from functools import wraps
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy.orm import joinedload
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from app import db
@@ -1834,8 +1835,10 @@ def get_groups(campus_id):
         
         active_only = request.args.get('active_only', 'true').lower() == 'true'
         cycle_id = request.args.get('cycle_id', type=int)
+        include_config = request.args.get('include_config', 'false').lower() == 'true'
         
-        query = CandidateGroup.query.filter_by(campus_id=campus_id)
+        # Usar joinedload para cargar la relación campus (necesaria para effective_config)
+        query = CandidateGroup.query.options(joinedload(CandidateGroup.campus)).filter_by(campus_id=campus_id)
         
         if active_only:
             query = query.filter(CandidateGroup.is_active == True)
@@ -1846,10 +1849,14 @@ def get_groups(campus_id):
         
         groups = query.order_by(CandidateGroup.name).all()
         
+        # Precio base del campus para comparación
+        campus_certification_cost = float(campus.certification_cost) if campus.certification_cost else 0
+        
         return jsonify({
             'campus_id': campus_id,
             'campus_name': campus.name,
-            'groups': [g.to_dict(include_members=True, include_cycle=True) for g in groups],
+            'campus_certification_cost': campus_certification_cost,
+            'groups': [g.to_dict(include_members=True, include_cycle=True, include_config=include_config) for g in groups],
             'total': len(groups)
         })
         

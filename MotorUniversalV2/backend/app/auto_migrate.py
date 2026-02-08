@@ -1041,3 +1041,34 @@ def check_and_make_email_nullable():
         import traceback
         traceback.print_exc()
         db.session.rollback()
+
+
+def check_and_add_balance_attachments_column():
+    """Verificar y agregar columna attachments a balance_requests"""
+    print("🔍 Verificando columna attachments en balance_requests...")
+    
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        if 'balance_requests' not in tables:
+            print("  ⚠️  Tabla balance_requests no existe, saltando...")
+            return
+        
+        columns = [col['name'] for col in inspector.get_columns('balance_requests')]
+        
+        if 'attachments' in columns:
+            print("  ✓ Columna attachments ya existe")
+            return
+        
+        print("  📝 Agregando columna attachments...")
+        db.session.execute(text("""
+            ALTER TABLE balance_requests 
+            ADD COLUMN attachments TEXT NULL
+        """))
+        db.session.commit()
+        print("  ✓ Columna attachments agregada exitosamente")
+        
+    except Exception as e:
+        print(f"❌ Error agregando columna attachments: {e}")
+        db.session.rollback()

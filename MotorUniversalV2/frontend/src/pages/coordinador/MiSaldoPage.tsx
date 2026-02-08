@@ -6,7 +6,7 @@
  * 
  * Para Admin: ver todos los saldos de coordinadores
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Wallet,
@@ -23,6 +23,10 @@ import {
   Users,
   Search,
   Eye,
+  Calculator,
+  ChevronDown,
+  ChevronUp,
+  Building2,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useAuthStore } from '../../store/authStore';
@@ -38,6 +42,8 @@ import {
   getStatusColor,
   getStatusLabel,
 } from '../../services/balanceService';
+import { getAvailableCampuses } from '../../services/userManagementService';
+import { getGroups } from '../../services/partnersService';
 
 interface CoordinatorBalanceInfo {
   coordinator: {
@@ -46,6 +52,16 @@ interface CoordinatorBalanceInfo {
     email: string;
   };
   balance: CoordinatorBalance;
+}
+
+interface GroupEquivalence {
+  id: number;
+  name: string;
+  campusName: string;
+  campusId: number;
+  price: number;
+  equivalentUnits: number;
+  hasDifferentPrice: boolean;
 }
 
 export default function MiSaldoPage() {
@@ -63,6 +79,11 @@ export default function MiSaldoPage() {
   const [allCoordinators, setAllCoordinators] = useState<CoordinatorBalanceInfo[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [totalBalances, setTotalBalances] = useState({ total: 0, pages: 1 });
+  
+  // Estado para equivalencias por grupo
+  const [groupEquivalences, setGroupEquivalences] = useState<GroupEquivalence[]>([]);
+  const [showEquivalences, setShowEquivalences] = useState(false);
+  const [loadingEquivalences, setLoadingEquivalences] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -103,6 +124,91 @@ export default function MiSaldoPage() {
     setRefreshing(false);
   };
 
+  // Cargar equivalencias por grupo (lazy loading)
+  const loadGroupEquivalences = async () => {
+    if (groupEquivalences.length > 0 || !balance) return;
+    
+    try {
+      setLoadingEquivalences(true);
+      
+      // Obtener todos los campuses del coordinador
+      const campusesData = await getAvailableCampuses();
+      const campuses = campusesData.campuses || [];
+      
+      const equivalences: GroupEquivalence[] = [];
+      const currentBalance = balance.current_balance || 0;
+      
+      // Para cada campus, obtener los grupos con sus precios
+      for (const campus of campuses) {
+        const baseCampusPrice = campus.certification_cost || 500;
+        
+        // Agregar equivalencia a nivel plantel
+        const plantelUnits = baseCampusPrice > 0 ? Math.floor(currentBalance / baseCampusPrice) : 0;
+        equivalences.push({
+          id: 0,
+          name: `Precio base plantel`,
+          campusName: campus.name,
+          campusId: campus.id,
+          price: baseCampusPrice,
+          equivalentUnits: plantelUnits,
+          hasDifferentPrice: false,
+        });
+        
+        // Obtener grupos del campus
+        try {
+          const groupsData = await getGroups(campus.id, { active_only: true, include_config: true });
+          
+          for (const group of groupsData.groups) {
+            const groupPrice = group.effective_config?.certification_cost ?? baseCampusPrice;
+            
+            // Solo agregar si tiene precio diferente al campus
+            if (groupPrice !== baseCampusPrice) {
+              const groupUnits = groupPrice > 0 ? Math.floor(currentBalance / groupPrice) : 0;
+              equivalences.push({
+                id: group.id,
+                name: group.name,
+                campusName: campus.name,
+                campusId: campus.id,
+                price: groupPrice,
+                equivalentUnits: groupUnits,
+                hasDifferentPrice: true,
+              });
+            }
+          }
+        } catch (err) {
+          console.error(`Error loading groups for campus ${campus.id}:`, err);
+        }
+      }
+      
+      setGroupEquivalences(equivalences);
+    } catch (err) {
+      console.error('Error loading group equivalences:', err);
+    } finally {
+      setLoadingEquivalences(false);
+    }
+  };
+
+  const handleToggleEquivalences = async () => {
+    if (!showEquivalences) {
+      await loadGroupEquivalences();
+    }
+    setShowEquivalences(!showEquivalences);
+  };
+
+  // Agrupar equivalencias por campus
+  const equivalencesByCampus = useMemo(() => {
+    const grouped: { [campusId: number]: { campusName: string; items: GroupEquivalence[] } } = {};
+    
+    groupEquivalences.forEach(eq => {
+      if (!grouped[eq.campusId]) {
+        grouped[eq.campusId] = { campusName: eq.campusName, items: [] };
+      }
+      grouped[eq.campusId].items.push(eq);
+    });
+    
+    return grouped;
+  }, [groupEquivalences]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -113,7 +219,7 @@ export default function MiSaldoPage() {
 
   if (error) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-red-800 mb-2">Error</h2>
@@ -145,7 +251,7 @@ export default function MiSaldoPage() {
   // Vista para Admin
   if (isAdmin) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -347,7 +453,7 @@ export default function MiSaldoPage() {
     : 0;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -413,6 +519,99 @@ export default function MiSaldoPage() {
           </div>
         </div>
       </div>
+
+      {/* Equivalencias por Grupo - Desplegable */}
+      {balance && balance.current_balance > 0 && (
+        <div className="bg-white rounded-xl border shadow-sm mb-8 overflow-hidden">
+          <button
+            onClick={handleToggleEquivalences}
+            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Calculator className="w-5 h-5 text-blue-600" />
+              </div>
+              <div className="text-left">
+                <p className="font-medium text-gray-800">Equivalencias por Grupo</p>
+                <p className="text-sm text-gray-500">Ver cuántas certificaciones equivale tu saldo en cada grupo</p>
+              </div>
+            </div>
+            {loadingEquivalences ? (
+              <RefreshCw className="w-5 h-5 text-gray-400 animate-spin" />
+            ) : showEquivalences ? (
+              <ChevronUp className="w-5 h-5 text-gray-400" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-gray-400" />
+            )}
+          </button>
+          
+          {showEquivalences && (
+            <div className="border-t p-4">
+              {loadingEquivalences ? (
+                <div className="py-8 text-center">
+                  <RefreshCw className="w-8 h-8 animate-spin mx-auto text-gray-400" />
+                  <p className="text-gray-500 mt-2">Calculando equivalencias...</p>
+                </div>
+              ) : groupEquivalences.length === 0 ? (
+                <div className="py-8 text-center text-gray-500">
+                  <Calculator className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                  <p>No se encontraron grupos con configuración de precios</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {Object.entries(equivalencesByCampus).map(([campusId, { campusName, items }]) => (
+                    <div key={campusId}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Building2 className="w-4 h-4 text-gray-400" />
+                        <h4 className="font-medium text-gray-700">{campusName}</h4>
+                      </div>
+                      <div className="space-y-2">
+                        {items.map((eq, idx) => (
+                          <div 
+                            key={`${eq.id}-${idx}`}
+                            className={`flex items-center justify-between p-3 rounded-lg ${
+                              eq.hasDifferentPrice ? 'bg-amber-50 border border-amber-100' : 'bg-gray-50'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className={`font-medium ${eq.hasDifferentPrice ? 'text-amber-800' : 'text-gray-700'}`}>
+                                  {eq.name}
+                                </span>
+                                {eq.hasDifferentPrice && (
+                                  <span className="text-xs px-2 py-0.5 bg-amber-200 text-amber-700 rounded-full">
+                                    Precio diferente
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-500">
+                                Precio: {formatCurrency(eq.price)}/certificación
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className={`text-2xl font-bold ${eq.hasDifferentPrice ? 'text-amber-700' : 'text-green-600'}`}>
+                                {eq.equivalentUnits}
+                              </p>
+                              <p className="text-xs text-gray-500">certificaciones</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-blue-700">
+                      <strong>Nota:</strong> El saldo a nivel plantel se puede usar en cualquier grupo.
+                      La cantidad de certificaciones varía según el precio configurado en cada grupo.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
