@@ -737,7 +737,7 @@ export default function SolicitarSaldoPage() {
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 bg-green-600 text-white rounded-xl font-medium transition-all hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-green-200 hover:shadow-xl hover:shadow-primary-300"
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 bg-primary-600 text-white rounded-xl font-medium transition-all hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary-200 hover:shadow-xl hover:shadow-primary-300"
               >
                 {submitting ? (
                   <>
@@ -986,7 +986,7 @@ export default function SolicitarSaldoPage() {
                                           <button
                                             onClick={() => handleAddLine(campus)}
                                             disabled={newLineUnits <= 0}
-                                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all shadow-sm hover:shadow-md"
+                                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all shadow-sm hover:shadow-md"
                                           >
                                             <Plus className="w-4 h-4" />
                                             Agregar
@@ -1251,7 +1251,7 @@ export default function SolicitarSaldoPage() {
                   <button
                     onClick={handleGoToReview}
                     disabled={requestLines.length === 0 || !justification.trim()}
-                    className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-green-600 text-white rounded-xl font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-green-200 hover:shadow-xl"
+                    className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary-200 hover:shadow-xl"
                   >
                     <Send className="w-5 h-5" />
                     Revisar y Enviar
