@@ -91,9 +91,9 @@ def list_users():
         
         query = User.query
         
-        # Coordinadores solo ven candidatos
+        # Coordinadores ven candidatos y responsables
         if current_user.role == 'coordinator':
-            query = query.filter(User.role == 'candidato')
+            query = query.filter(User.role.in_(['candidato', 'responsable']))
         
         # Filtros
         if role_filter:
@@ -159,8 +159,8 @@ def get_user_detail(user_id):
         current_user = g.current_user
         user = User.query.get_or_404(user_id)
         
-        # Coordinadores solo pueden ver candidatos
-        if current_user.role == 'coordinator' and user.role != 'candidato':
+        # Coordinadores pueden ver candidatos y responsables
+        if current_user.role == 'coordinator' and user.role not in ['candidato', 'responsable']:
             return jsonify({'error': 'No tienes permiso para ver este usuario'}), 403
         
         return jsonify({
@@ -358,8 +358,8 @@ def update_user(user_id):
         user = User.query.get_or_404(user_id)
         data = request.get_json()
         
-        # Coordinadores solo pueden editar candidatos
-        if current_user.role == 'coordinator' and user.role != 'candidato':
+        # Coordinadores pueden editar candidatos y responsables
+        if current_user.role == 'coordinator' and user.role not in ['candidato', 'responsable']:
             return jsonify({'error': 'No tienes permiso para editar este usuario'}), 403
         
         # No se puede editar a uno mismo por esta ruta (usar perfil)
@@ -444,8 +444,8 @@ def change_user_password(user_id):
         user = User.query.get_or_404(user_id)
         data = request.get_json()
         
-        # Coordinadores solo pueden cambiar contraseña de candidatos
-        if current_user.role == 'coordinator' and user.role != 'candidato':
+        # Coordinadores pueden cambiar contraseña de candidatos y responsables
+        if current_user.role == 'coordinator' and user.role not in ['candidato', 'responsable']:
             return jsonify({'error': 'No tienes permiso para cambiar la contraseña de este usuario'}), 403
         
         new_password = data.get('new_password')
@@ -542,8 +542,8 @@ def toggle_user_active(user_id):
         current_user = g.current_user
         user = User.query.get_or_404(user_id)
         
-        # Coordinadores solo pueden manejar candidatos
-        if current_user.role == 'coordinator' and user.role != 'candidato':
+        # Coordinadores pueden manejar candidatos y responsables
+        if current_user.role == 'coordinator' and user.role not in ['candidato', 'responsable']:
             return jsonify({'error': 'No tienes permiso para modificar este usuario'}), 403
         
         # No se puede desactivar a uno mismo
@@ -641,19 +641,23 @@ def get_user_stats():
         
         base_query = User.query
         
-        # Coordinadores solo ven stats de candidatos
+        # Coordinadores ven stats de candidatos y responsables
         if current_user.role == 'coordinator':
-            base_query = base_query.filter(User.role == 'candidato')
+            base_query = base_query.filter(User.role.in_(['candidato', 'responsable']))
         
         total_users = base_query.count()
         active_users = base_query.filter(User.is_active == True).count()
         inactive_users = base_query.filter(User.is_active == False).count()
         verified_users = base_query.filter(User.is_verified == True).count()
         
-        # Usuarios por rol (solo para admin)
+        # Usuarios por rol
         users_by_role = []
         if current_user.role == 'admin':
             for role in AVAILABLE_ROLES:
+                count = User.query.filter_by(role=role).count()
+                users_by_role.append({'role': role, 'count': count})
+        elif current_user.role == 'coordinator':
+            for role in ['candidato', 'responsable']:
                 count = User.query.filter_by(role=role).count()
                 users_by_role.append({'role': role, 'count': count})
         else:
