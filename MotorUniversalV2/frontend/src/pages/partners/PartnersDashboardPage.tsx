@@ -230,7 +230,7 @@ export default function PartnersDashboardPage() {
           </Link>
 
           <Link
-            to="/partners"
+            to="/grupos"
             className="flex flex-col items-center fluid-gap-3 fluid-p-5 bg-gradient-to-br from-amber-50 to-amber-100 hover:from-amber-100 hover:to-amber-200 rounded-fluid-xl border border-amber-200 transition-all duration-300 group"
           >
             <div className="fluid-p-3 bg-amber-600 rounded-fluid-xl group-hover:scale-110 transition-transform shadow-lg">
@@ -240,23 +240,23 @@ export default function PartnersDashboardPage() {
           </Link>
 
           <Link
-            to="/partners"
+            to="/grupos"
             className="flex flex-col items-center fluid-gap-3 fluid-p-5 bg-gradient-to-br from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 rounded-fluid-xl border border-purple-200 transition-all duration-300 group"
           >
             <div className="fluid-p-3 bg-purple-600 rounded-fluid-xl group-hover:scale-110 transition-transform shadow-lg">
-              <GraduationCap className="fluid-icon-base text-white" />
+              <Layers className="fluid-icon-base text-white" />
             </div>
-            <span className="fluid-text-sm font-semibold text-purple-700 text-center">Ciclos Escolares</span>
+            <span className="fluid-text-sm font-semibold text-purple-700 text-center">Grupos</span>
           </Link>
 
           <Link
-            to="/partners"
+            to="/grupos"
             className="flex flex-col items-center fluid-gap-3 fluid-p-5 bg-gradient-to-br from-rose-50 to-rose-100 hover:from-rose-100 hover:to-rose-200 rounded-fluid-xl border border-rose-200 transition-all duration-300 group"
           >
             <div className="fluid-p-3 bg-rose-600 rounded-fluid-xl group-hover:scale-110 transition-transform shadow-lg">
-              <Users className="fluid-icon-base text-white" />
+              <GraduationCap className="fluid-icon-base text-white" />
             </div>
-            <span className="fluid-text-sm font-semibold text-rose-700 text-center">Grupos</span>
+            <span className="fluid-text-sm font-semibold text-rose-700 text-center">Ciclos</span>
           </Link>
 
           <Link
