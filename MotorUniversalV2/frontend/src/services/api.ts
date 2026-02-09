@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore'
 // Usar la URL del backend de Azure Container Apps en producción
 const API_URL = import.meta.env.VITE_API_URL || 
   (import.meta.env.MODE === 'production' 
-    ? 'https://evaluaasi-motorv2-api.calmbay-0c9f3d6a.southcentralus.azurecontainerapps.io/api' 
+    ? 'https://evaluaasi-motorv2-api.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api' 
     : '/api')
 
 // Debug: Log de la URL del API

@@ -14,7 +14,6 @@ import {
   MapPin,
   Calendar,
   ArrowLeft,
-  UserPlus,
   X,
   ArrowUpDown,
   ArrowUp,
