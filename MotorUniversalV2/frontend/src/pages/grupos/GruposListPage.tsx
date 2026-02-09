@@ -41,6 +41,7 @@ interface CampusWithPartner extends Campus {
 
 type SortField = 'name' | 'partner_name' | 'city' | 'state_name' | 'group_count';
 type SortDirection = 'asc' | 'desc';
+type GroupSortField = 'name' | 'member_count' | 'school_cycle' | 'created_at' | 'is_active';
 
 export default function GruposListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -68,6 +69,13 @@ export default function GruposListPage() {
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [selectedCampus, setSelectedCampus] = useState<CampusWithPartner | null>(null);
   
+  // Estado para búsqueda, filtros y ordenamiento de grupos
+  const [groupSearchTerm, setGroupSearchTerm] = useState('');
+  const [groupSortField, setGroupSortField] = useState<GroupSortField>('name');
+  const [groupSortDirection, setGroupSortDirection] = useState<SortDirection>('asc');
+  const [filterGroupStatus, setFilterGroupStatus] = useState<'' | 'active' | 'inactive'>('');
+  const [filterSchoolCycle, setFilterSchoolCycle] = useState<string>('');
+  
   // Estado general
   const [error, setError] = useState<string | null>(null);
 
@@ -82,6 +90,14 @@ export default function GruposListPage() {
     const states = [...new Set(campuses.map(c => c.state_name).filter(Boolean))] as string[];
     return states.sort((a, b) => a.localeCompare(b));
   }, [campuses]);
+
+  // Obtener lista única de ciclos escolares para el filtro de grupos
+  const uniqueSchoolCycles = useMemo(() => {
+    const cycles = groups
+      .map(g => g.school_cycle?.name)
+      .filter((name): name is string => Boolean(name));
+    return [...new Set(cycles)].sort((a, b) => a.localeCompare(b));
+  }, [groups]);
 
   // Cargar todos los planteles
   const loadAllCampuses = useCallback(async () => {
@@ -147,6 +163,10 @@ export default function GruposListPage() {
     setGroups([]);
     setView('campuses');
     setSearchParams({});
+    // Limpiar filtros de grupos
+    setGroupSearchTerm('');
+    setFilterGroupStatus('');
+    setFilterSchoolCycle('');
   };
 
   // Manejar ordenación
@@ -165,6 +185,26 @@ export default function GruposListPage() {
       return <ArrowUpDown className="fluid-icon-xs text-gray-400" />;
     }
     return sortDirection === 'asc' 
+      ? <ArrowUp className="fluid-icon-xs text-blue-600" />
+      : <ArrowDown className="fluid-icon-xs text-blue-600" />;
+  };
+
+  // Manejar ordenación de grupos
+  const handleGroupSort = (field: GroupSortField) => {
+    if (groupSortField === field) {
+      setGroupSortDirection(groupSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setGroupSortField(field);
+      setGroupSortDirection('asc');
+    }
+  };
+
+  // Obtener icono de ordenación para grupos
+  const getGroupSortIcon = (field: GroupSortField) => {
+    if (groupSortField !== field) {
+      return <ArrowUpDown className="fluid-icon-xs text-gray-400" />;
+    }
+    return groupSortDirection === 'asc' 
       ? <ArrowUp className="fluid-icon-xs text-blue-600" />
       : <ArrowDown className="fluid-icon-xs text-blue-600" />;
   };
@@ -246,6 +286,69 @@ export default function GruposListPage() {
   };
 
   const hasActiveFilters = searchTerm || filterPartner || filterState;
+
+  // Limpiar filtros de grupos
+  const clearGroupFilters = () => {
+    setGroupSearchTerm('');
+    setFilterGroupStatus('');
+    setFilterSchoolCycle('');
+  };
+
+  const hasActiveGroupFilters = groupSearchTerm || filterGroupStatus || filterSchoolCycle;
+
+  // Filtrar y ordenar grupos
+  const processedGroups = useMemo(() => {
+    let result = [...groups];
+    
+    // Aplicar búsqueda
+    if (groupSearchTerm) {
+      const searchLower = groupSearchTerm.toLowerCase();
+      result = result.filter(group => 
+        group.name.toLowerCase().includes(searchLower) ||
+        group.description?.toLowerCase().includes(searchLower) ||
+        group.school_cycle?.name?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Aplicar filtro de estado
+    if (filterGroupStatus === 'active') {
+      result = result.filter(group => group.is_active);
+    } else if (filterGroupStatus === 'inactive') {
+      result = result.filter(group => !group.is_active);
+    }
+    
+    // Aplicar filtro de ciclo escolar
+    if (filterSchoolCycle) {
+      result = result.filter(group => group.school_cycle?.name === filterSchoolCycle);
+    }
+    
+    // Ordenar
+    result.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (groupSortField) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'member_count':
+          comparison = (a.member_count || 0) - (b.member_count || 0);
+          break;
+        case 'school_cycle':
+          comparison = (a.school_cycle?.name || '').localeCompare(b.school_cycle?.name || '');
+          break;
+        case 'created_at':
+          comparison = new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+          break;
+        case 'is_active':
+          comparison = (a.is_active ? 1 : 0) - (b.is_active ? 1 : 0);
+          break;
+      }
+      
+      return groupSortDirection === 'asc' ? comparison : -comparison;
+    });
+    
+    return result;
+  }, [groups, groupSearchTerm, filterGroupStatus, filterSchoolCycle, groupSortField, groupSortDirection]);
 
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
@@ -652,32 +755,178 @@ export default function GruposListPage() {
               </Link>
             </div>
           ) : (
+            <>
+              {/* Barra de búsqueda y filtros para grupos */}
+              <div className="bg-white rounded-fluid-xl shadow fluid-p-5 fluid-mb-6">
+                <div className="flex flex-col lg:flex-row gap-4">
+                  {/* Búsqueda */}
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 fluid-icon-lg text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Buscar por nombre, descripción o ciclo..."
+                      value={groupSearchTerm}
+                      onChange={(e) => setGroupSearchTerm(e.target.value)}
+                      className="w-full fluid-pl-12 fluid-pr-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-base"
+                    />
+                  </div>
+                  
+                  {/* Filtros */}
+                  <div className="flex flex-wrap gap-3">
+                    {/* Filtro Estado */}
+                    <select
+                      value={filterGroupStatus}
+                      onChange={(e) => setFilterGroupStatus(e.target.value as '' | 'active' | 'inactive')}
+                      className={`fluid-px-4 fluid-py-3 border rounded-fluid-xl fluid-text-sm transition-colors cursor-pointer ${
+                        filterGroupStatus 
+                          ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                          : 'border-gray-300 hover:bg-gray-50 text-gray-700'
+                      }`}
+                    >
+                      <option value="">Todos los estados</option>
+                      <option value="active">Activos</option>
+                      <option value="inactive">Inactivos</option>
+                    </select>
+                    
+                    {/* Filtro Ciclo Escolar */}
+                    {uniqueSchoolCycles.length > 0 && (
+                      <select
+                        value={filterSchoolCycle}
+                        onChange={(e) => setFilterSchoolCycle(e.target.value)}
+                        className={`fluid-px-4 fluid-py-3 border rounded-fluid-xl fluid-text-sm transition-colors cursor-pointer ${
+                          filterSchoolCycle 
+                            ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                            : 'border-gray-300 hover:bg-gray-50 text-gray-700'
+                        }`}
+                      >
+                        <option value="">Todos los ciclos</option>
+                        {uniqueSchoolCycles.map(cycle => (
+                          <option key={cycle} value={cycle}>{cycle}</option>
+                        ))}
+                      </select>
+                    )}
+                    
+                    {/* Limpiar filtros */}
+                    {hasActiveGroupFilters && (
+                      <button
+                        onClick={clearGroupFilters}
+                        className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-3 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-fluid-xl fluid-text-sm transition-colors"
+                      >
+                        <X className="fluid-icon-sm" />
+                        <span className="hidden sm:inline">Limpiar</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Resumen de filtros activos */}
+                {hasActiveGroupFilters && (
+                  <div className="flex items-center flex-wrap gap-2 fluid-mt-4 fluid-pt-4 border-t border-gray-100">
+                    <span className="fluid-text-sm text-gray-500">Filtros activos:</span>
+                    {groupSearchTerm && (
+                      <span className="inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1 bg-gray-100 text-gray-700 rounded-full fluid-text-sm">
+                        Búsqueda: "{groupSearchTerm}"
+                        <button onClick={() => setGroupSearchTerm('')} className="hover:text-gray-900">
+                          <X className="fluid-icon-xs" />
+                        </button>
+                      </span>
+                    )}
+                    {filterGroupStatus && (
+                      <span className="inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1 bg-blue-100 text-blue-700 rounded-full fluid-text-sm">
+                        Estado: {filterGroupStatus === 'active' ? 'Activos' : 'Inactivos'}
+                        <button onClick={() => setFilterGroupStatus('')} className="hover:text-blue-900">
+                          <X className="fluid-icon-xs" />
+                        </button>
+                      </span>
+                    )}
+                    {filterSchoolCycle && (
+                      <span className="inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1 bg-green-100 text-green-700 rounded-full fluid-text-sm">
+                        Ciclo: {filterSchoolCycle}
+                        <button onClick={() => setFilterSchoolCycle('')} className="hover:text-green-900">
+                          <X className="fluid-icon-xs" />
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {processedGroups.length === 0 ? (
+                <div className="bg-white rounded-fluid-xl shadow fluid-p-10 text-center">
+                  <Users className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-5" />
+                  <h3 className="fluid-text-xl font-medium text-gray-700 fluid-mb-2">
+                    No se encontraron grupos
+                  </h3>
+                  <p className="text-gray-500 fluid-text-base fluid-mb-4">
+                    Intenta con otros filtros o términos de búsqueda
+                  </p>
+                  {hasActiveGroupFilters && (
+                    <button
+                      onClick={clearGroupFilters}
+                      className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-fluid-xl fluid-text-base transition-colors"
+                    >
+                      <X className="fluid-icon-sm" />
+                      Limpiar filtros
+                    </button>
+                  )}
+                </div>
+              ) : (
             <div className="bg-white rounded-fluid-xl shadow overflow-hidden">
               <div className="overflow-x-auto">
                 <div className="max-h-[450px] overflow-y-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
                       <tr>
-                        <th className="fluid-px-5 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          Grupo
+                        <th 
+                          className="fluid-px-5 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleGroupSort('name')}
+                        >
+                          <div className="flex items-center fluid-gap-2">
+                            Grupo
+                            {getGroupSortIcon('name')}
+                          </div>
                         </th>
-                        <th className="fluid-px-5 fluid-py-3 text-center fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          Miembros
+                        <th 
+                          className="fluid-px-5 fluid-py-3 text-center fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleGroupSort('member_count')}
+                        >
+                          <div className="flex items-center justify-center fluid-gap-2">
+                            Miembros
+                            {getGroupSortIcon('member_count')}
+                          </div>
                         </th>
-                        <th className="fluid-px-5 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          Ciclo Escolar
+                        <th 
+                          className="fluid-px-5 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleGroupSort('school_cycle')}
+                        >
+                          <div className="flex items-center fluid-gap-2">
+                            Ciclo Escolar
+                            {getGroupSortIcon('school_cycle')}
+                          </div>
                         </th>
-                        <th className="fluid-px-5 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          Creación
+                        <th 
+                          className="fluid-px-5 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleGroupSort('created_at')}
+                        >
+                          <div className="flex items-center fluid-gap-2">
+                            Creación
+                            {getGroupSortIcon('created_at')}
+                          </div>
                         </th>
-                        <th className="fluid-px-5 fluid-py-3 text-center fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          Estado
+                        <th 
+                          className="fluid-px-5 fluid-py-3 text-center fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleGroupSort('is_active')}
+                        >
+                          <div className="flex items-center justify-center fluid-gap-2">
+                            Estado
+                            {getGroupSortIcon('is_active')}
+                          </div>
                         </th>
                         <th className="fluid-px-5 fluid-py-3"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {groups.map((group) => (
+                      {processedGroups.map((group) => (
                         <tr
                           key={group.id}
                           className="hover:bg-blue-50 transition-colors cursor-pointer group"
@@ -755,10 +1004,13 @@ export default function GruposListPage() {
               {/* Footer con estadísticas */}
               <div className="fluid-px-5 fluid-py-4 bg-gray-50 border-t border-gray-200">
                 <p className="fluid-text-sm text-gray-600 text-center">
-                  Mostrando <span className="font-semibold">{groups.length}</span> grupo{groups.length !== 1 ? 's' : ''}
+                  Mostrando <span className="font-semibold">{processedGroups.length}</span> de{' '}
+                  <span className="font-semibold">{groups.length}</span> grupo{groups.length !== 1 ? 's' : ''}
                 </p>
               </div>
             </div>
+              )}
+            </>
           )}
         </>
       )}
