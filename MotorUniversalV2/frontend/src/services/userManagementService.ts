@@ -77,6 +77,13 @@ export interface UserStats {
 
 // ============== LISTAR USUARIOS ==============
 
+/**
+ * Obtener lista de usuarios con paginación.
+ * Soporta tanto paginación tradicional (offset) como cursor-based.
+ * 
+ * Cursor pagination es más eficiente para páginas > 100 con datasets grandes.
+ * Para usarla, pasa cursor y cursor_date del último usuario de la página anterior.
+ */
 export async function getUsers(params?: {
   page?: number;
   per_page?: number;
@@ -85,11 +92,18 @@ export async function getUsers(params?: {
   is_active?: string;
   sort_by?: string;
   sort_order?: 'asc' | 'desc';
+  // Cursor pagination (opcional, más eficiente para grandes datasets)
+  cursor?: string;  // ID del último usuario
+  cursor_date?: string;  // created_at del último usuario
 }): Promise<{
   users: ManagedUser[];
   total: number;
   pages: number;
   current_page: number;
+  // Nuevos campos para cursor pagination
+  has_more?: boolean;
+  next_cursor?: string;
+  next_cursor_date?: string;
 }> {
   const response = await api.get('/user-management/users', { params });
   return response.data;

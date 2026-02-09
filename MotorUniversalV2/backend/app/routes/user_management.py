@@ -77,19 +77,44 @@ def validate_password(password):
 @jwt_required()
 @management_required
 def list_users():
-    """Listar usuarios según permisos del solicitante"""
+    """
+    Listar usuarios según permisos del solicitante.
+    Optimizado para escalar a 100K+ usuarios con:
+    - Select específico de columnas (evita SELECT *)
+    - Cursor-based pagination opcional
+    - Índices optimizados
+    """
     try:
         current_user = g.current_user
         
+        # Parámetros de paginación
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
-        search = request.args.get('search', '')
+        per_page = min(request.args.get('per_page', 20, type=int), 100)  # Max 100 por página
+        
+        # Cursor-based pagination (más eficiente para grandes datasets)
+        cursor = request.args.get('cursor', '')  # ID del último usuario
+        cursor_date = request.args.get('cursor_date', '')  # Fecha del último usuario
+        use_cursor = cursor and cursor_date
+        
+        # Filtros
+        search = request.args.get('search', '').strip()
         role_filter = request.args.get('role', '')
         active_filter = request.args.get('is_active', '')
         sort_by = request.args.get('sort_by', 'created_at')
         sort_order = request.args.get('sort_order', 'desc')
         
-        query = User.query
+        # Seleccionar solo las columnas necesarias para la lista (evita cargar todo)
+        columns = [
+            User.id, User.email, User.username, User.name, User.first_surname,
+            User.second_surname, User.gender, User.role, User.is_active,
+            User.is_verified, User.created_at, User.last_login, User.curp,
+            User.phone, User.campus_id, User.date_of_birth,
+            User.can_bulk_create_candidates, User.can_manage_groups,
+            User.enable_evaluation_report, User.enable_certificate,
+            User.enable_conocer_certificate, User.enable_digital_badge
+        ]
+        
+        query = db.session.query(*columns)
         
         # Coordinadores ven candidatos, responsables y responsables del partner
         if current_user.role == 'coordinator':
@@ -97,7 +122,6 @@ def list_users():
         
         # Filtros
         if role_filter:
-            # Soportar múltiples roles separados por coma (ej: "admin,editor,soporte")
             roles = [r.strip() for r in role_filter.split(',') if r.strip()]
             if len(roles) == 1:
                 query = query.filter(User.role == roles[0])
@@ -108,46 +132,168 @@ def list_users():
             is_active = active_filter.lower() == 'true'
             query = query.filter(User.is_active == is_active)
         
+        # Búsqueda optimizada
         if search:
             search_term = f'%{search}%'
-            query = query.filter(
-                db.or_(
-                    User.name.ilike(search_term),
-                    User.first_surname.ilike(search_term),
-                    User.email.ilike(search_term),
-                    User.curp.ilike(search_term),
-                    User.username.ilike(search_term)
+            # Intentar usar búsqueda por prefijo si es corta (más eficiente con índices)
+            if len(search) <= 3:
+                search_prefix = f'{search}%'
+                query = query.filter(
+                    or_(
+                        User.name.ilike(search_prefix),
+                        User.first_surname.ilike(search_prefix),
+                        User.email.ilike(search_prefix),
+                        User.curp.ilike(search_prefix),
+                        User.username.ilike(search_prefix)
+                    )
                 )
-            )
+            else:
+                query = query.filter(
+                    or_(
+                        User.name.ilike(search_term),
+                        User.first_surname.ilike(search_term),
+                        User.email.ilike(search_term),
+                        User.curp.ilike(search_term),
+                        User.username.ilike(search_term)
+                    )
+                )
         
         # Ordenamiento dinámico
         sort_columns = {
             'name': User.name,
-            'full_name': User.first_surname,  # Ordenar por apellido primero
+            'full_name': User.first_surname,
             'email': User.email,
             'role': User.role,
             'is_active': User.is_active,
             'created_at': User.created_at,
-            'last_login': User.last_login
+            'last_login': User.last_login,
+            'curp': User.curp
         }
         
         sort_column = sort_columns.get(sort_by, User.created_at)
-        if sort_order == 'asc':
-            query = query.order_by(sort_column.asc())
-        else:
-            query = query.order_by(sort_column.desc())
         
-        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        # Cursor-based pagination (más eficiente para páginas > 100)
+        if use_cursor and sort_by == 'created_at':
+            try:
+                cursor_datetime = datetime.fromisoformat(cursor_date)
+                if sort_order == 'desc':
+                    query = query.filter(
+                        or_(
+                            User.created_at < cursor_datetime,
+                            and_(User.created_at == cursor_datetime, User.id < cursor)
+                        )
+                    )
+                else:
+                    query = query.filter(
+                        or_(
+                            User.created_at > cursor_datetime,
+                            and_(User.created_at == cursor_datetime, User.id > cursor)
+                        )
+                    )
+            except ValueError:
+                pass  # Invalid cursor, use offset pagination
+        
+        # Aplicar ordenamiento
+        if sort_order == 'asc':
+            query = query.order_by(sort_column.asc(), User.id.asc())
+        else:
+            query = query.order_by(sort_column.desc(), User.id.desc())
+        
+        # Contar total solo si no usamos cursor (es costoso)
+        if use_cursor:
+            # Con cursor, estimamos el total o lo cacheamos
+            total = _get_cached_user_count(current_user.role, role_filter, active_filter)
+            users_data = query.limit(per_page + 1).all()  # +1 para saber si hay más
+            has_more = len(users_data) > per_page
+            users_data = users_data[:per_page]
+            pages = -1  # Indicar que usamos cursor
+        else:
+            # Paginación tradicional con offset
+            total = query.count()
+            pages = (total + per_page - 1) // per_page
+            offset = (page - 1) * per_page
+            users_data = query.offset(offset).limit(per_page).all()
+            has_more = page < pages
+        
+        # Convertir resultados a diccionarios
+        users_list = []
+        for row in users_data:
+            full_name = ' '.join(filter(None, [row.name, row.first_surname, row.second_surname]))
+            users_list.append({
+                'id': row.id,
+                'email': row.email,
+                'username': row.username,
+                'name': row.name,
+                'first_surname': row.first_surname,
+                'second_surname': row.second_surname,
+                'full_name': full_name,
+                'gender': row.gender,
+                'role': row.role,
+                'is_active': row.is_active,
+                'is_verified': row.is_verified,
+                'created_at': row.created_at.isoformat() if row.created_at else None,
+                'last_login': row.last_login.isoformat() if row.last_login else None,
+                'curp': row.curp,
+                'phone': row.phone,
+                'campus_id': row.campus_id,
+                'date_of_birth': row.date_of_birth.isoformat() if row.date_of_birth else None,
+                'can_bulk_create_candidates': row.can_bulk_create_candidates,
+                'can_manage_groups': row.can_manage_groups,
+                'document_options': {
+                    'evaluation_report': row.enable_evaluation_report,
+                    'certificate': row.enable_certificate,
+                    'conocer_certificate': row.enable_conocer_certificate,
+                    'digital_badge': row.enable_digital_badge
+                }
+            })
+        
+        # Generar cursor para siguiente página
+        next_cursor = None
+        next_cursor_date = None
+        if users_list and has_more:
+            last_user = users_list[-1]
+            next_cursor = last_user['id']
+            next_cursor_date = last_user['created_at']
         
         return jsonify({
-            'users': [u.to_dict(include_private=True) for u in pagination.items],
-            'total': pagination.total,
-            'pages': pagination.pages,
-            'current_page': page
+            'users': users_list,
+            'total': total,
+            'pages': pages,
+            'current_page': page,
+            'has_more': has_more,
+            'next_cursor': next_cursor,
+            'next_cursor_date': next_cursor_date
         })
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+def _get_cached_user_count(user_role, role_filter='', active_filter=''):
+    """
+    Obtener conteo de usuarios con caché.
+    El conteo exacto es costoso, así que lo cacheamos por 5 minutos.
+    """
+    cache_key = f'user_count_{user_role}_{role_filter}_{active_filter}'
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
+    query = User.query
+    if user_role == 'coordinator':
+        query = query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner']))
+    if role_filter:
+        roles = [r.strip() for r in role_filter.split(',') if r.strip()]
+        query = query.filter(User.role.in_(roles))
+    if active_filter:
+        is_active = active_filter.lower() == 'true'
+        query = query.filter(User.is_active == is_active)
+    
+    count = query.count()
+    cache.set(cache_key, count, timeout=300)  # 5 minutos
+    return count
 
 
 @bp.route('/users/<string:user_id>', methods=['GET'])
@@ -635,42 +781,100 @@ def delete_user(user_id):
 @jwt_required()
 @management_required
 def get_user_stats():
-    """Obtener estadísticas de usuarios"""
+    """
+    Obtener estadísticas de usuarios.
+    Optimizado con:
+    - Caché de 5 minutos
+    - Una sola query agregada en lugar de múltiples counts
+    """
     try:
         current_user = g.current_user
         
-        base_query = User.query
+        # Intentar obtener del caché primero
+        cache_key = f'user_stats_{current_user.role}'
+        cached_stats = cache.get(cache_key)
+        if cached_stats is not None:
+            return jsonify(cached_stats)
         
-        # Coordinadores ven stats de candidatos, responsables y responsables del partner
+        # Query optimizada: obtener todos los conteos en una sola consulta
         if current_user.role == 'coordinator':
-            base_query = base_query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner']))
+            allowed_roles = ['candidato', 'responsable', 'responsable_partner']
+        else:
+            allowed_roles = AVAILABLE_ROLES
         
-        total_users = base_query.count()
-        active_users = base_query.filter(User.is_active == True).count()
-        inactive_users = base_query.filter(User.is_active == False).count()
-        verified_users = base_query.filter(User.is_verified == True).count()
+        # Usar una sola query con GROUP BY para obtener stats por rol
+        stats_query = db.session.query(
+            User.role,
+            func.count(User.id).label('total'),
+            func.sum(func.cast(User.is_active == True, db.Integer)).label('active'),
+            func.sum(func.cast(User.is_verified == True, db.Integer)).label('verified')
+        )
         
-        # Usuarios por rol
+        if current_user.role == 'coordinator':
+            stats_query = stats_query.filter(User.role.in_(allowed_roles))
+        
+        stats_query = stats_query.group_by(User.role)
+        role_stats = stats_query.all()
+        
+        # Procesar resultados
+        total_users = 0
+        active_users = 0
+        verified_users = 0
         users_by_role = []
+        
+        role_counts = {stat.role: stat.total for stat in role_stats}
+        
+        for stat in role_stats:
+            total_users += stat.total
+            active_users += stat.active or 0
+            verified_users += stat.verified or 0
+            users_by_role.append({'role': stat.role, 'count': stat.total})
+        
+        # Asegurar que todos los roles aparezcan (aunque tengan 0)
         if current_user.role == 'admin':
             for role in AVAILABLE_ROLES:
-                count = User.query.filter_by(role=role).count()
-                users_by_role.append({'role': role, 'count': count})
+                if role not in role_counts:
+                    users_by_role.append({'role': role, 'count': 0})
         elif current_user.role == 'coordinator':
-            for role in ['candidato', 'responsable', 'responsable_partner']:
-                count = User.query.filter_by(role=role).count()
-                users_by_role.append({'role': role, 'count': count})
-        else:
-            users_by_role = [{'role': 'candidato', 'count': total_users}]
+            for role in allowed_roles:
+                if role not in role_counts:
+                    users_by_role.append({'role': role, 'count': 0})
         
-        return jsonify({
+        # Ordenar por rol
+        users_by_role.sort(key=lambda x: x['role'])
+        
+        inactive_users = total_users - active_users
+        
+        result = {
             'total_users': total_users,
             'active_users': active_users,
             'inactive_users': inactive_users,
             'verified_users': verified_users,
             'users_by_role': users_by_role
-        })
+        }
         
+        # Guardar en caché por 5 minutos
+        cache.set(cache_key, result, timeout=300)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/stats/invalidate', methods=['POST'])
+@jwt_required()
+@admin_required
+def invalidate_stats_cache():
+    """Invalidar caché de estadísticas (solo admin)"""
+    try:
+        cache.delete('user_stats_admin')
+        cache.delete('user_stats_coordinator')
+        # Invalidar también los conteos de usuarios
+        cache.delete_many('user_count_*')
+        return jsonify({'message': 'Caché de estadísticas invalidada'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

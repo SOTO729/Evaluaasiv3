@@ -1,5 +1,6 @@
 /**
  * Página de listado de usuarios
+ * Optimizada para escalar a 100K+ usuarios con cursor pagination
  */
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -48,6 +49,9 @@ import {
 import { getGroups, addGroupMembersBulk, CandidateGroup } from '../../services/partnersService';
 import { useAuthStore } from '../../store/authStore';
 
+// Umbral para usar cursor pagination (más eficiente para grandes datasets)
+const CURSOR_PAGINATION_THRESHOLD = 1000;
+
 export default function UsersListPage() {
   const { user: currentUser } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -67,6 +71,12 @@ export default function UsersListPage() {
   const [roleFilter, setRoleFilter] = useState(searchParams.get('role') || '');
   const [activeFilter, setActiveFilter] = useState(searchParams.get('is_active') || '');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Cursor pagination (para datasets grandes)
+  const [hasMore, setHasMore] = useState(true);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [nextCursorDate, setNextCursorDate] = useState<string | null>(null);
+  const [useCursorPagination, setUseCursorPagination] = useState(false);
   
   // Modal de carga masiva
   const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
@@ -131,11 +141,15 @@ export default function UsersListPage() {
     }
   };
 
-  const loadData = async () => {
+  const loadData = async (useCursor = false, cursorId?: string, cursorDate?: string) => {
     try {
       setLoading(true);
       
-      const data = await getUsers({
+      // Usar cursor pagination si hay más de CURSOR_PAGINATION_THRESHOLD usuarios
+      // o si ya estamos en modo cursor
+      const shouldUseCursor = useCursor || (total > CURSOR_PAGINATION_THRESHOLD && page > 1);
+      
+      const params: Parameters<typeof getUsers>[0] = {
         page,
         per_page: perPage,
         search: search || undefined,
@@ -143,10 +157,26 @@ export default function UsersListPage() {
         is_active: activeFilter || undefined,
         sort_by: sortField,
         sort_order: sortDirection,
-      });
+      };
+      
+      // Agregar cursor si está disponible
+      if (shouldUseCursor && cursorId && cursorDate) {
+        params.cursor = cursorId;
+        params.cursor_date = cursorDate;
+      }
+      
+      const data = await getUsers(params);
       setUsers(data.users);
-      setTotalPages(data.pages);
+      setTotalPages(data.pages > 0 ? data.pages : Math.ceil(data.total / perPage));
       setTotal(data.total);
+      
+      // Guardar cursor para siguiente página
+      if (data.has_more !== undefined) {
+        setHasMore(data.has_more);
+        setNextCursor(data.next_cursor || null);
+        setNextCursorDate(data.next_cursor_date || null);
+        setUseCursorPagination(data.total > CURSOR_PAGINATION_THRESHOLD);
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar usuarios');
     } finally {
@@ -694,18 +724,31 @@ export default function UsersListPage() {
               {/* Navegación de páginas */}
               <div className="flex items-center fluid-gap-2">
                 <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  onClick={() => {
+                    setPage(p => Math.max(1, p - 1));
+                    // Reset cursor when going back
+                    if (useCursorPagination && page > 1) {
+                      loadData(false);
+                    }
+                  }}
                   disabled={page === 1}
                   className="fluid-p-2 rounded-fluid-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
                 >
                   <ChevronLeft className="fluid-icon-sm" />
                 </button>
                 <span className="fluid-px-3 fluid-py-1 fluid-text-sm text-gray-700">
-                  {page} / {totalPages}
+                  {page} / {totalPages > 0 ? totalPages : '...'}
+                  {useCursorPagination && hasMore && <span className="text-gray-400 ml-1">+</span>}
                 </span>
                 <button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
+                  onClick={() => {
+                    setPage(p => Math.min(totalPages || p + 1, p + 1));
+                    // Use cursor for next page if available (more efficient)
+                    if (useCursorPagination && nextCursor && nextCursorDate) {
+                      loadData(true, nextCursor, nextCursorDate);
+                    }
+                  }}
+                  disabled={!hasMore && page >= totalPages}
                   className="fluid-p-2 rounded-fluid-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
                 >
                   <ChevronRight className="fluid-icon-sm" />
