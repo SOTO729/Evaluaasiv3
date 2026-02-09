@@ -23,9 +23,14 @@ import {
   ChevronUp,
   ChevronDown,
   ChevronsUpDown,
+  Shield,
+  Activity,
+  Building2,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import BulkUploadModal from '../../components/users/BulkUploadModal';
+import StyledSelect from '../../components/StyledSelect';
+import DatePickerInput from '../../components/DatePickerInput';
 import {
   getUsers,
   getUserStats,
@@ -384,38 +389,44 @@ export default function UsersListPage() {
 
   return (
     <div className="fluid-p-6 max-w-[1920px] mx-auto animate-fade-in-up">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4 fluid-mb-6">
-        <div>
-          <h1 className="fluid-text-2xl font-bold text-gray-800 flex items-center fluid-gap-3">
-            <Users className="fluid-icon-lg text-blue-600" />
-            Gestión de Usuarios
-          </h1>
-          <p className="fluid-text-sm text-gray-600 fluid-mt-1">
-            {currentUser?.role === 'coordinator' 
-              ? 'Administra los candidatos del sistema'
-              : 'Administra todos los usuarios del sistema'
-            }
-          </p>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row fluid-gap-3">
-          {/* Botón de carga masiva */}
-          <button
-            onClick={() => setShowBulkUploadModal(true)}
-            className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-green-600 hover:bg-green-700 text-white rounded-fluid-lg font-medium fluid-text-sm transition-colors"
-          >
-            <Upload className="fluid-icon-sm" />
-            Carga Masiva
-          </button>
+      {/* Header con gradiente */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-fluid-xl fluid-p-6 fluid-mb-6 text-white shadow-lg">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4">
+          <div className="flex items-center fluid-gap-4">
+            <div className="fluid-p-3 bg-white/20 rounded-fluid-xl">
+              <Users className="fluid-icon-lg" />
+            </div>
+            <div>
+              <h1 className="fluid-text-2xl font-bold">
+                Gestión de Usuarios
+              </h1>
+              <p className="fluid-text-sm text-blue-100 fluid-mt-1">
+                {currentUser?.role === 'coordinator' 
+                  ? 'Administra los candidatos del sistema'
+                  : 'Administra todos los usuarios del sistema'
+                }
+              </p>
+            </div>
+          </div>
           
-          <Link
-            to="/user-management/new"
-            className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-lg font-medium fluid-text-sm transition-colors"
-          >
-            <Plus className="fluid-icon-sm" />
-            Nuevo Usuario
-          </Link>
+          <div className="flex flex-col sm:flex-row fluid-gap-3">
+            {/* Botón de carga masiva */}
+            <button
+              onClick={() => setShowBulkUploadModal(true)}
+              className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 text-white border border-white/30 rounded-fluid-lg font-medium fluid-text-sm transition-colors"
+            >
+              <Upload className="fluid-icon-sm" />
+              Carga Masiva
+            </button>
+            
+            <Link
+              to="/user-management/new"
+              className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white text-blue-600 hover:bg-blue-50 rounded-fluid-lg font-medium fluid-text-sm transition-colors shadow-sm"
+            >
+              <Plus className="fluid-icon-sm" />
+              Nuevo Usuario
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -429,50 +440,50 @@ export default function UsersListPage() {
         }}
       />
 
-      {/* Stats Cards */}
+      {/* Stats Cards mejoradas */}
       {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-4 fluid-gap-4 fluid-mb-6">
-          <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4">
+          <div className="bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 fluid-p-4 hover:border-blue-300 hover:shadow-md transition-all">
             <div className="flex items-center fluid-gap-3">
-              <div className="fluid-p-2 bg-blue-100 rounded-fluid-lg">
-                <Users className="fluid-icon-sm text-blue-600" />
+              <div className="fluid-p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-fluid-xl shadow-sm">
+                <Users className="fluid-icon-sm text-white" />
               </div>
               <div>
-                <p className="fluid-text-xs text-gray-500">Total</p>
-                <p className="fluid-text-xl font-bold text-gray-900">{stats.total_users}</p>
+                <p className="fluid-text-xs text-gray-500 font-medium">Total Usuarios</p>
+                <p className="fluid-text-2xl font-bold text-gray-900">{stats.total_users}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4">
+          <div className="bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 fluid-p-4 hover:border-green-300 hover:shadow-md transition-all">
             <div className="flex items-center fluid-gap-3">
-              <div className="fluid-p-2 bg-green-100 rounded-fluid-lg">
-                <UserCheck className="fluid-icon-sm text-green-600" />
+              <div className="fluid-p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-fluid-xl shadow-sm">
+                <UserCheck className="fluid-icon-sm text-white" />
               </div>
               <div>
-                <p className="fluid-text-xs text-gray-500">Activos</p>
-                <p className="fluid-text-xl font-bold text-gray-900">{stats.active_users}</p>
+                <p className="fluid-text-xs text-gray-500 font-medium">Activos</p>
+                <p className="fluid-text-2xl font-bold text-gray-900">{stats.active_users}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4">
+          <div className="bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 fluid-p-4 hover:border-red-300 hover:shadow-md transition-all">
             <div className="flex items-center fluid-gap-3">
-              <div className="fluid-p-2 bg-red-100 rounded-fluid-lg">
-                <UserX className="fluid-icon-sm text-red-600" />
+              <div className="fluid-p-3 bg-gradient-to-br from-red-500 to-red-600 rounded-fluid-xl shadow-sm">
+                <UserX className="fluid-icon-sm text-white" />
               </div>
               <div>
-                <p className="fluid-text-xs text-gray-500">Inactivos</p>
-                <p className="fluid-text-xl font-bold text-gray-900">{stats.inactive_users}</p>
+                <p className="fluid-text-xs text-gray-500 font-medium">Inactivos</p>
+                <p className="fluid-text-2xl font-bold text-gray-900">{stats.inactive_users}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4">
+          <div className="bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 fluid-p-4 hover:border-purple-300 hover:shadow-md transition-all">
             <div className="flex items-center fluid-gap-3">
-              <div className="fluid-p-2 bg-purple-100 rounded-fluid-lg">
-                <BarChart3 className="fluid-icon-sm text-purple-600" />
+              <div className="fluid-p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-fluid-xl shadow-sm">
+                <BarChart3 className="fluid-icon-sm text-white" />
               </div>
               <div>
-                <p className="fluid-text-xs text-gray-500">Verificados</p>
-                <p className="fluid-text-xl font-bold text-gray-900">{stats.verified_users}</p>
+                <p className="fluid-text-xs text-gray-500 font-medium">Verificados</p>
+                <p className="fluid-text-2xl font-bold text-gray-900">{stats.verified_users}</p>
               </div>
             </div>
           </div>
@@ -480,7 +491,7 @@ export default function UsersListPage() {
       )}
 
       {/* Búsqueda y Filtros */}
-      <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4 fluid-mb-6">
+      <div className="bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 fluid-p-4 fluid-mb-6">
         <form onSubmit={handleSearch} className="flex flex-col lg:flex-row fluid-gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400" />
@@ -489,7 +500,7 @@ export default function UsersListPage() {
               placeholder="Buscar por nombre, email, CURP..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full fluid-pl-10 fluid-pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm"
+              className="w-full fluid-pl-10 fluid-pr-4 fluid-py-3 border-2 border-gray-200 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all"
             />
           </div>
           
@@ -515,67 +526,71 @@ export default function UsersListPage() {
         </form>
         
         {showFilters && (
-          <div className="fluid-mt-4 fluid-pt-4 border-t border-gray-200 flex flex-wrap fluid-gap-4">
-            <div className="w-full sm:w-auto">
-              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Rol</label>
-              <select
+          <div className="fluid-mt-4 fluid-pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 fluid-gap-4">
+            <div>
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">Rol</label>
+              <StyledSelect
                 value={roleFilter}
-                onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
-                className="w-full sm:w-48 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Todos los roles</option>
-                {filteredRoles.map(role => (
-                  <option key={role.value} value={role.value}>{role.label}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="w-full sm:w-auto">
-              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Estado</label>
-              <select
-                value={activeFilter}
-                onChange={(e) => { setActiveFilter(e.target.value); setPage(1); }}
-                className="w-full sm:w-48 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Todos</option>
-                <option value="true">Activos</option>
-                <option value="false">Inactivos</option>
-              </select>
-            </div>
-            
-            <div className="w-full sm:w-auto">
-              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                <Calendar className="fluid-icon-xs inline fluid-mr-1" />
-                Fecha Creación Desde
-              </label>
-              <input
-                type="date"
-                value={createdFrom}
-                onChange={(e) => { setCreatedFrom(e.target.value); setPage(1); }}
-                className="w-full sm:w-44 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={(value) => { setRoleFilter(value); setPage(1); }}
+                options={filteredRoles.map(role => ({ value: role.value, label: role.label }))}
+                placeholder="Todos los roles"
+                icon={Shield}
+                colorScheme="indigo"
               />
             </div>
             
-            <div className="w-full sm:w-auto">
-              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                <Calendar className="fluid-icon-xs inline fluid-mr-1" />
-                Fecha Creación Hasta
+            <div>
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">Estado</label>
+              <StyledSelect
+                value={activeFilter}
+                onChange={(value) => { setActiveFilter(value); setPage(1); }}
+                options={[
+                  { value: 'true', label: 'Activos' },
+                  { value: 'false', label: 'Inactivos' }
+                ]}
+                placeholder="Todos"
+                icon={Activity}
+                colorScheme="green"
+              />
+            </div>
+            
+            <div>
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                Creación Desde
               </label>
-              <input
-                type="date"
-                value={createdTo}
-                onChange={(e) => { setCreatedTo(e.target.value); setPage(1); }}
-                className="w-full sm:w-44 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              <DatePickerInput
+                value={createdFrom ? new Date(createdFrom) : null}
+                onChange={(date) => { setCreatedFrom(date ? date.toISOString().split('T')[0] : ''); setPage(1); }}
+                placeholder="Desde..."
+                colorScheme="blue"
+                maxDate={createdTo ? new Date(createdTo) : new Date()}
+              />
+            </div>
+            
+            <div>
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                Creación Hasta
+              </label>
+              <DatePickerInput
+                value={createdTo ? new Date(createdTo) : null}
+                onChange={(date) => { setCreatedTo(date ? date.toISOString().split('T')[0] : ''); setPage(1); }}
+                placeholder="Hasta..."
+                colorScheme="blue"
+                minDate={createdFrom ? new Date(createdFrom) : null}
+                maxDate={new Date()}
               />
             </div>
             
             {(roleFilter || activeFilter || search || createdFrom || createdTo) && (
-              <button
-                onClick={clearFilters}
-                className="self-end fluid-px-4 fluid-py-2 fluid-text-sm text-gray-600 hover:text-gray-800"
-              >
-                Limpiar filtros
-              </button>
+              <div className="sm:col-span-2 lg:col-span-4 flex justify-end">
+                <button
+                  onClick={clearFilters}
+                  className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 text-red-600 hover:bg-red-50 rounded-fluid-lg transition-colors"
+                >
+                  <X className="fluid-icon-sm" />
+                  Limpiar filtros
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -643,7 +658,7 @@ export default function UsersListPage() {
       )}
 
       {/* Tabla de usuarios */}
-      <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 overflow-hidden">
         {/* Paginación Superior */}
         {totalPages >= 1 && (
           <div className="fluid-px-4 fluid-py-3 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center justify-between fluid-gap-4">
@@ -882,18 +897,17 @@ export default function UsersListPage() {
                 <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                   1. Selecciona un plantel
                 </label>
-                <select
-                  value={selectedCampusId || ''}
-                  onChange={(e) => e.target.value && loadGroupsForCampus(Number(e.target.value))}
-                  className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">-- Selecciona plantel --</option>
-                  {campuses.map(campus => (
-                    <option key={campus.id} value={campus.id}>
-                      {campus.name} ({campus.partner_name})
-                    </option>
-                  ))}
-                </select>
+                <StyledSelect
+                  value={selectedCampusId?.toString() || ''}
+                  onChange={(value) => value && loadGroupsForCampus(Number(value))}
+                  options={campuses.map(campus => ({
+                    value: campus.id.toString(),
+                    label: `${campus.name} (${campus.partner_name})`
+                  }))}
+                  placeholder="-- Selecciona plantel --"
+                  icon={Building2}
+                  colorScheme="blue"
+                />
               </div>
               
               {/* Selector de Grupo */}
@@ -912,18 +926,17 @@ export default function UsersListPage() {
                       No hay grupos activos en este plantel
                     </p>
                   ) : (
-                    <select
-                      value={selectedGroupId || ''}
-                      onChange={(e) => setSelectedGroupId(Number(e.target.value) || null)}
-                      className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">-- Selecciona grupo --</option>
-                      {groups.map(group => (
-                        <option key={group.id} value={group.id}>
-                          {group.name} {group.school_cycle?.name ? `(${group.school_cycle.name})` : ''}
-                        </option>
-                      ))}
-                    </select>
+                    <StyledSelect
+                      value={selectedGroupId?.toString() || ''}
+                      onChange={(value) => setSelectedGroupId(Number(value) || null)}
+                      options={groups.map(group => ({
+                        value: group.id.toString(),
+                        label: `${group.name} ${group.school_cycle?.name ? `(${group.school_cycle.name})` : ''}`
+                      }))}
+                      placeholder="-- Selecciona grupo --"
+                      icon={UsersRound}
+                      colorScheme="indigo"
+                    />
                   )}
                 </div>
               )}

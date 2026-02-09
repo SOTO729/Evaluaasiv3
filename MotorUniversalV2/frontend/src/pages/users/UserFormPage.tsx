@@ -14,8 +14,12 @@ import {
   Copy,
   Eye,
   EyeOff,
+  Shield,
+  User,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import StyledSelect from '../../components/StyledSelect';
+import DatePickerInput from '../../components/DatePickerInput';
 import {
   getUser,
   createUser,
@@ -286,22 +290,32 @@ export default function UserFormPage() {
 
   return (
     <div className="fluid-p-6 max-w-4xl mx-auto animate-fade-in-up">
+      {/* Header mejorado */}
       <div className="fluid-mb-6">
         <Link
           to="/user-management"
-          className="inline-flex items-center fluid-gap-2 text-gray-600 hover:text-gray-800 fluid-mb-4"
+          className="inline-flex items-center fluid-gap-2 text-gray-600 hover:text-gray-800 fluid-mb-4 group"
         >
-          <ArrowLeft className="fluid-icon-sm" />
+          <ArrowLeft className="fluid-icon-sm group-hover:-translate-x-1 transition-transform" />
           Volver a usuarios
         </Link>
-        
-        <h1 className="fluid-text-2xl font-bold text-gray-800 flex items-center fluid-gap-3">
-          <Users className="fluid-icon-lg text-blue-600" />
-          {isEditing ? 'Editar Usuario' : 'Nuevo Usuario'}
-        </h1>
-        <p className="fluid-text-sm text-gray-600 fluid-mt-1">
-          {isEditing ? 'Modifica los datos del usuario' : 'Completa los datos para crear un nuevo usuario'}
-        </p>
+      </div>
+
+      {/* Header con gradiente */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-fluid-xl fluid-p-6 fluid-mb-6 text-white shadow-lg">
+        <div className="flex items-center fluid-gap-4">
+          <div className="fluid-p-3 bg-white/20 rounded-fluid-xl">
+            <Users className="fluid-icon-lg" />
+          </div>
+          <div>
+            <h1 className="fluid-text-2xl font-bold">
+              {isEditing ? 'Editar Usuario' : 'Nuevo Usuario'}
+            </h1>
+            <p className="fluid-text-sm text-blue-100 fluid-mt-1">
+              {isEditing ? 'Modifica los datos del usuario' : 'Completa los datos para crear un nuevo usuario'}
+            </p>
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -400,7 +414,7 @@ export default function UserFormPage() {
       )}
 
       {!createdCredentials && (
-      <form onSubmit={handleSubmit} className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-6">
+      <form onSubmit={handleSubmit} className="bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 fluid-p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-6">
           {/* Username solo se muestra al editar (es generado automáticamente) */}
           {isEditing && (
@@ -444,22 +458,19 @@ export default function UserFormPage() {
           )}
 
           <div>
-            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
               Rol <span className="text-red-500">*</span>
             </label>
-            <select
-              name="role"
+            <StyledSelect
               value={formData.role}
-              onChange={handleChange}
+              onChange={(value) => setFormData(prev => ({ ...prev, role: value }))}
+              options={roles.map(role => ({ value: role.value, label: role.label }))}
+              placeholder="Seleccionar rol..."
+              icon={Shield}
+              colorScheme="indigo"
               disabled={isEditing && currentUser?.role !== 'admin'}
-              className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-            >
-              {roles.map(role => (
-                <option key={role.value} value={role.value}>
-                  {role.label}
-                </option>
-              ))}
-            </select>
+              required
+            />
             {isEditing && currentUser?.role !== 'admin' && (
               <p className="fluid-text-xs text-gray-500 fluid-mt-1">Solo administradores pueden cambiar roles</p>
             )}
@@ -534,40 +545,42 @@ export default function UserFormPage() {
           )}
 
           <div>
-            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
               Género {(formData.role === 'candidato' || formData.role === 'responsable') && <span className="text-red-500">*</span>}
             </label>
-            <select
-              name="gender"
+            <StyledSelect
               value={formData.gender}
-              onChange={handleChange}
-              className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Seleccionar...</option>
-              <option value="M">Masculino</option>
-              <option value="F">Femenino</option>
-              <option value="O">Otro</option>
-            </select>
+              onChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}
+              options={[
+                { value: 'M', label: 'Masculino' },
+                { value: 'F', label: 'Femenino' },
+                { value: 'O', label: 'Otro' }
+              ]}
+              placeholder="Seleccionar género..."
+              icon={User}
+              colorScheme="purple"
+              required={(formData.role === 'candidato' || formData.role === 'responsable')}
+            />
           </div>
 
           {/* Campos adicionales para responsables */}
           {formData.role === 'responsable' && !isEditing && (
             <>
               <div>
-                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                   Fecha de Nacimiento <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
-                  name="date_of_birth"
-                  value={formData.date_of_birth}
-                  onChange={handleChange}
-                  className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                <DatePickerInput
+                  value={formData.date_of_birth ? new Date(formData.date_of_birth) : null}
+                  onChange={(date) => setFormData(prev => ({ ...prev, date_of_birth: date ? date.toISOString().split('T')[0] : '' }))}
+                  placeholder="Seleccionar fecha..."
+                  colorScheme="green"
+                  maxDate={new Date()}
                 />
               </div>
 
               <div>
-                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                   Plantel <span className="text-red-500">*</span>
                 </label>
                 {loadingCampuses ? (
@@ -576,19 +589,18 @@ export default function UserFormPage() {
                     Cargando planteles...
                   </div>
                 ) : (
-                  <select
-                    name="campus_id"
-                    value={formData.campus_id}
-                    onChange={handleChange}
-                    className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value={0}>Seleccionar plantel...</option>
-                    {availableCampuses.map(campus => (
-                      <option key={campus.id} value={campus.id}>
-                        {campus.partner_name} - {campus.name} ({campus.code})
-                      </option>
-                    ))}
-                  </select>
+                  <StyledSelect
+                    value={formData.campus_id.toString()}
+                    onChange={(value) => setFormData(prev => ({ ...prev, campus_id: parseInt(value) || 0 }))}
+                    options={availableCampuses.map(campus => ({
+                      value: campus.id.toString(),
+                      label: `${campus.partner_name} - ${campus.name} (${campus.code})`
+                    }))}
+                    placeholder="Seleccionar plantel..."
+                    icon={Building2}
+                    colorScheme="blue"
+                    required
+                  />
                 )}
                 {availableCampuses.length === 0 && !loadingCampuses && (
                   <p className="fluid-text-xs text-amber-600 fluid-mt-1">

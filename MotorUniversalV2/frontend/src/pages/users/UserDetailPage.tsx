@@ -196,9 +196,9 @@ export default function UserDetailPage() {
       <div className="fluid-mb-6">
         <Link
           to="/user-management"
-          className="inline-flex items-center fluid-gap-2 text-gray-600 hover:text-gray-800 fluid-mb-4"
+          className="inline-flex items-center fluid-gap-2 text-gray-600 hover:text-gray-800 fluid-mb-4 group"
         >
-          <ArrowLeft className="fluid-icon-sm" />
+          <ArrowLeft className="fluid-icon-sm group-hover:-translate-x-1 transition-transform" />
           Volver a usuarios
         </Link>
       </div>
@@ -220,8 +220,8 @@ export default function UserDetailPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 fluid-px-6 fluid-py-8 text-white">
+      <div className="bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 fluid-px-6 fluid-py-8 text-white">
           <div className="flex items-start justify-between">
             <div className="flex items-center fluid-gap-4">
               <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center fluid-text-2xl font-bold">
@@ -272,45 +272,45 @@ export default function UserDetailPage() {
 
         <div className="fluid-p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-6">
-            <div className="flex items-start fluid-gap-3">
-              <div className="fluid-p-2 bg-blue-100 rounded-fluid-lg">
-                <Mail className="fluid-icon-sm text-blue-600" />
+            <div className="flex items-start fluid-gap-3 p-4 bg-gray-50 rounded-fluid-xl hover:bg-blue-50 transition-colors">
+              <div className="fluid-p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-fluid-xl shadow-sm">
+                <Mail className="fluid-icon-sm text-white" />
               </div>
               <div>
-                <p className="fluid-text-sm text-gray-500">Email</p>
+                <p className="fluid-text-sm text-gray-500 font-medium">Email</p>
                 <p className="font-medium text-gray-900">{user.email}</p>
                 {user.is_verified && (
-                  <span className="fluid-text-xs text-green-600">✓ Verificado</span>
+                  <span className="fluid-text-xs text-green-600 font-medium">Verificado</span>
                 )}
               </div>
             </div>
 
-            <div className="flex items-start fluid-gap-3">
-              <div className="fluid-p-2 bg-green-100 rounded-fluid-lg">
-                <Phone className="fluid-icon-sm text-green-600" />
+            <div className="flex items-start fluid-gap-3 p-4 bg-gray-50 rounded-fluid-xl hover:bg-green-50 transition-colors">
+              <div className="fluid-p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-fluid-xl shadow-sm">
+                <Phone className="fluid-icon-sm text-white" />
               </div>
               <div>
-                <p className="fluid-text-sm text-gray-500">Teléfono</p>
+                <p className="fluid-text-sm text-gray-500 font-medium">Teléfono</p>
                 <p className="font-medium text-gray-900">{user.phone || 'No registrado'}</p>
               </div>
             </div>
 
-            <div className="flex items-start fluid-gap-3">
-              <div className="fluid-p-2 bg-purple-100 rounded-fluid-lg">
-                <FileText className="fluid-icon-sm text-purple-600" />
+            <div className="flex items-start fluid-gap-3 p-4 bg-gray-50 rounded-fluid-xl hover:bg-purple-50 transition-colors">
+              <div className="fluid-p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-fluid-xl shadow-sm">
+                <FileText className="fluid-icon-sm text-white" />
               </div>
               <div>
-                <p className="fluid-text-sm text-gray-500">CURP</p>
+                <p className="fluid-text-sm text-gray-500 font-medium">CURP</p>
                 <p className="font-medium text-gray-900 font-mono">{user.curp || 'No registrado'}</p>
               </div>
             </div>
 
-            <div className="flex items-start fluid-gap-3">
-              <div className="fluid-p-2 bg-amber-100 rounded-fluid-lg">
-                <Shield className="fluid-icon-sm text-amber-600" />
+            <div className="flex items-start fluid-gap-3 p-4 bg-gray-50 rounded-fluid-xl hover:bg-amber-50 transition-colors">
+              <div className="fluid-p-3 bg-gradient-to-br from-amber-500 to-amber-600 rounded-fluid-xl shadow-sm">
+                <Shield className="fluid-icon-sm text-white" />
               </div>
               <div>
-                <p className="fluid-text-sm text-gray-500">Rol</p>
+                <p className="fluid-text-sm text-gray-500 font-medium">Rol</p>
                 <span className={`inline-flex fluid-px-2 fluid-py-1 rounded-full fluid-text-sm font-medium ${ROLE_COLORS[user.role] || 'bg-gray-100 text-gray-800'}`}>
                   {ROLE_LABELS[user.role] || user.role}
                 </span>
@@ -318,12 +318,12 @@ export default function UserDetailPage() {
             </div>
 
             {user.gender && (
-              <div className="flex items-start fluid-gap-3">
-                <div className="fluid-p-2 bg-indigo-100 rounded-fluid-lg">
-                  <Users className="fluid-icon-sm text-indigo-600" />
+              <div className="flex items-start fluid-gap-3 p-4 bg-gray-50 rounded-fluid-xl hover:bg-indigo-50 transition-colors">
+                <div className="fluid-p-3 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-fluid-xl shadow-sm">
+                  <Users className="fluid-icon-sm text-white" />
                 </div>
                 <div>
-                  <p className="fluid-text-sm text-gray-500">Género</p>
+                  <p className="fluid-text-sm text-gray-500 font-medium">Género</p>
                   <p className="font-medium text-gray-900">
                     {user.gender === 'M' ? 'Masculino' : user.gender === 'F' ? 'Femenino' : 'Otro'}
                   </p>
