@@ -27,7 +27,6 @@ import {
   ChevronRight,
   ChevronLeft,
   EyeOff,
-  Save,
   ChevronsLeft,
   ChevronsRight,
   Search,
@@ -162,7 +161,6 @@ export default function GroupAssignExamPage() {
   // Cost preview (paso 5)
   const [costPreview, setCostPreview] = useState<CostPreviewData | null>(null);
   const [loadingCostPreview, setLoadingCostPreview] = useState(false);
-  const [costPreviewError, setCostPreviewError] = useState<string | null>(null);
   
   // Modal de examen ya asignado
   const [showAlreadyAssignedModal, setShowAlreadyAssignedModal] = useState(false);
@@ -275,7 +273,7 @@ export default function GroupAssignExamPage() {
     
     try {
       setLoadingCostPreview(true);
-      setCostPreviewError(null);
+      setError(null);
       const preview = await getAssignmentCostPreview(Number(groupId), {
         assignment_type: assignmentType as 'all' | 'selected',
         member_ids: assignmentType === 'selected' ? selectedMemberIds : undefined,
@@ -283,7 +281,6 @@ export default function GroupAssignExamPage() {
       setCostPreview(preview);
       setCurrentStep('cost-preview');
     } catch (err: any) {
-      setCostPreviewError(err.response?.data?.error || 'Error al calcular el costo');
       setError(err.response?.data?.error || 'Error al calcular el desglose de costo');
     } finally {
       setLoadingCostPreview(false);
