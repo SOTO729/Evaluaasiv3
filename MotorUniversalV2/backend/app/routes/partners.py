@@ -7651,7 +7651,7 @@ def get_ecm_assignment_detail(ecm_id):
                 continue
             
             if search:
-                full_name = f"{u.first_name} {u.last_name}".lower()
+                full_name = u.full_name.lower()
                 if search.lower() not in full_name and search.lower() not in (u.email or '').lower():
                     continue
             
@@ -7714,7 +7714,7 @@ def get_ecm_assignment_detail(ecm_id):
             
             enriched.append({
                 'user_id': u.id,
-                'user_name': f"{u.first_name} {u.last_name}",
+                'user_name': u.full_name,
                 'user_email': u.email,
                 'user_role': u.role,
                 'user_curp': getattr(u, 'curp', None),
