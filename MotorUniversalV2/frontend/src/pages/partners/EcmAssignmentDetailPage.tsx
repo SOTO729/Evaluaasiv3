@@ -212,7 +212,7 @@ export default function EcmAssignmentDetailPage() {
   const filters = data?.filters;
 
   return (
-    <div className="max-w-7xl mx-auto animate-fade-in-up">
+    <div className="w-full px-4 xl:px-6 2xl:px-8 animate-fade-in-up">
       {/* Header */}
       <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl">
         <div className="flex items-center justify-between flex-wrap fluid-gap-4">
@@ -468,43 +468,44 @@ export default function EcmAssignmentDetailPage() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase">
+                  <th className="text-left py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase">
                     <button onClick={() => handleSort('name')} className="flex items-center fluid-gap-1 hover:text-gray-900 transition-colors">
                       Usuario
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
-                  <th className="text-left py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Rol</th>
-                  <th className="text-left py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Grupo / Campus</th>
-                  <th className="text-left py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Examen</th>
-                  <th className="text-center py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                  <th className="text-left py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Rol</th>
+                  <th className="text-left py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Grupo / Campus</th>
+                  <th className="text-left py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Examen</th>
+                  <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
                     <button onClick={() => handleSort('date')} className="flex items-center fluid-gap-1 hover:text-gray-900 transition-colors mx-auto">
                       Fecha
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
-                  <th className="text-center py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                  <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
                     <button onClick={() => handleSort('cost')} className="flex items-center fluid-gap-1 hover:text-gray-900 transition-colors mx-auto">
                       Costo
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
-                  <th className="text-center py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                  <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
                     <button onClick={() => handleSort('score')} className="flex items-center fluid-gap-1 hover:text-gray-900 transition-colors mx-auto">
                       Calificación
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
-                  <th className="text-center py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Estado</th>
-                  <th className="text-center py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Material</th>
-                  <th className="text-center py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Duración</th>
+                  <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Estado</th>
+                  <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Certificados</th>
+                  <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Material</th>
+                  <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Duración</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {assignments.map((a, idx) => (
                   <tr key={`${a.user_id}-${a.exam_id}-${a.group_id}-${idx}`} className="hover:bg-gray-50 transition-colors">
                     {/* Usuario */}
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-3">
                       <div>
                         <p className="font-medium text-gray-900 fluid-text-sm">{a.user_name}</p>
                         <p className="fluid-text-xs text-gray-500">{a.user_email}</p>
@@ -514,11 +515,11 @@ export default function EcmAssignmentDetailPage() {
                       </div>
                     </td>
                     {/* Rol */}
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-3">
                       {getRoleBadge(a.user_role)}
                     </td>
                     {/* Grupo / Campus */}
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-3">
                       <div>
                         <Link
                           to={`/partners/groups/${a.group_id}`}
@@ -541,14 +542,14 @@ export default function EcmAssignmentDetailPage() {
                       </div>
                     </td>
                     {/* Examen */}
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-3">
                       <p className="fluid-text-sm text-gray-900">{a.exam_name}</p>
                       {a.passing_score && (
                         <p className="fluid-text-xs text-gray-400">Min: {a.passing_score}%</p>
                       )}
                     </td>
                     {/* Fecha */}
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-3 px-3 text-center">
                       <p className="fluid-text-sm text-gray-700">{formatDate(a.assignment_date)}</p>
                       {a.result_date && a.result_date !== a.assignment_date && (
                         <p className="fluid-text-xs text-gray-400">
@@ -557,13 +558,13 @@ export default function EcmAssignmentDetailPage() {
                       )}
                     </td>
                     {/* Costo */}
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-3 px-3 text-center">
                       <p className={`fluid-text-sm font-medium ${a.unit_cost > 0 ? 'text-green-600' : 'text-gray-400'}`}>
                         {a.unit_cost > 0 ? formatCurrency(a.unit_cost) : '$0'}
                       </p>
                     </td>
                     {/* Calificación */}
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-3 px-3 text-center">
                       {a.score !== null ? (
                         <span className={`fluid-text-base font-bold ${
                           a.passed ? 'text-green-600' : a.result_status === 'completed' ? 'text-red-600' : 'text-amber-600'
@@ -575,7 +576,7 @@ export default function EcmAssignmentDetailPage() {
                       )}
                     </td>
                     {/* Estado */}
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-3 px-3 text-center">
                       {getStatusBadge(a)}
                       {a.certificate_code && (
                         <p className="fluid-text-xs text-green-600 mt-1 flex items-center justify-center fluid-gap-1">
@@ -584,14 +585,36 @@ export default function EcmAssignmentDetailPage() {
                         </p>
                       )}
                     </td>
+                    {/* Certificados */}
+                    <td className="py-3 px-3">
+                      <div className="flex flex-wrap gap-1 justify-center min-w-[100px]">
+                        {(a.certificate_types || []).map(ct => {
+                          const certConfig: Record<string, { bg: string; text: string; label: string }> = {
+                            reporte_evaluacion: { bg: 'bg-sky-100', text: 'text-sky-700', label: 'Rep. Eval.' },
+                            certificado_eduit: { bg: 'bg-violet-100', text: 'text-violet-700', label: 'Cert. Eduit' },
+                            insignia_digital: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Insignia' },
+                            certificado_conocer: { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'CONOCER' },
+                          };
+                          const c = certConfig[ct] || { bg: 'bg-gray-100', text: 'text-gray-600', label: ct };
+                          return (
+                            <span key={ct} className={`inline-block ${c.bg} ${c.text} fluid-text-xs font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap`}>
+                              {c.label}
+                            </span>
+                          );
+                        })}
+                        {(!a.certificate_types || a.certificate_types.length === 0) && (
+                          <span className="fluid-text-xs text-gray-400">—</span>
+                        )}
+                      </div>
+                    </td>
                     {/* Material */}
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-3">
                       <div className="min-w-[80px]">
                         {getMaterialBar(a.material_progress)}
                       </div>
                     </td>
                     {/* Duración */}
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-3 px-3 text-center">
                       <p className="fluid-text-sm text-gray-700">{formatDuration(a.duration_seconds)}</p>
                     </td>
                   </tr>

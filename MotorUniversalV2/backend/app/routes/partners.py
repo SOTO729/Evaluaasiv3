@@ -7712,6 +7712,21 @@ def get_ecm_assignment_detail(ecm_id):
                 except ValueError:
                     pass
             
+            # Tipos de certificado habilitados en la sede
+            cert_types = []
+            if a['campus']:
+                c = a['campus']
+                if getattr(c, 'enable_tier_basic', True) or True:  # Reporte de evaluación siempre disponible
+                    cert_types.append('reporte_evaluacion')
+                if getattr(c, 'enable_tier_standard', False):
+                    cert_types.append('certificado_eduit')
+                if getattr(c, 'enable_digital_badge', False):
+                    cert_types.append('insignia_digital')
+                if getattr(c, 'enable_tier_advanced', False):
+                    cert_types.append('certificado_conocer')
+            else:
+                cert_types.append('reporte_evaluacion')
+            
             enriched.append({
                 'user_id': u.id,
                 'user_name': u.full_name,
@@ -7741,6 +7756,7 @@ def get_ecm_assignment_detail(ecm_id):
                 'max_attempts': a['group_exam'].max_attempts,
                 'time_limit': a['group_exam'].time_limit_minutes,
                 'passing_score': a['group_exam'].passing_score,
+                'certificate_types': cert_types,
             })
         
         # Ordenar

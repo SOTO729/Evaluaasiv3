@@ -2143,6 +2143,7 @@ export interface EcmAssignmentDetail {
   max_attempts: number;
   time_limit: number | null;
   passing_score: number | null;
+  certificate_types: string[];
 }
 
 export interface EcmAssignmentDetailResponse {
