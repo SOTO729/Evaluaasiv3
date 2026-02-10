@@ -7607,16 +7607,18 @@ def get_ecm_assignment_detail(ecm_id):
         where_sql = '\n                '.join(where_parts)
 
         # ── Sort mapping ──
+        # Note: MSSQL doesn't allow ORDER BY on column aliases,
+        # so computed columns must use the full expression.
         sort_map = {
             'date': 'a.assignment_date',
             'name': 'a.user_name',
             'score': 'COALESCE(lr.score, -1)',
-            'cost': 'COALESCE(unit_cost, 0)',
+            'cost': 'COALESCE(CAST(COALESCE(co.total_cost, 0) AS FLOAT) / NULLIF(mc.member_count, 0), 0)',
             'role': 'a.user_role',
             'group': 'a.group_name',
             'exam': 'a.exam_name',
             'status': 'COALESCE(lr.result_status_raw, -1)',
-            'material': 'COALESCE(lr.score, -1)',
+            'material': 'COALESCE(lr.result_status_raw, -1)',
             'duration': 'COALESCE(lr.duration_seconds, -1)',
         }
         sort_col = sort_map.get(sort_by, 'a.assignment_date')
@@ -8021,6 +8023,384 @@ def get_ecm_assignment_detail(ecm_id):
                 'groups': available_groups,
             }
         })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/ecm-assignments/<int:ecm_id>/export', methods=['GET'])
+@jwt_required()
+def export_ecm_assignments_excel(ecm_id):
+    """Exportar todas las asignaciones de un ECM a Excel.
+    
+    Sin paginación — descarga TODOS los registros con los filtros aplicados.
+    Usa las mismas CTEs optimizadas del endpoint de detalle.
+    """
+    try:
+        from app.models.exam import Exam
+        from sqlalchemy import text
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+        from io import BytesIO
+
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user or user.role not in ['admin', 'coordinator']:
+            return jsonify({'error': 'Acceso denegado'}), 403
+
+        ecm = CompetencyStandard.query.get(ecm_id)
+        if not ecm:
+            return jsonify({'error': 'ECM no encontrado'}), 404
+
+        search = request.args.get('search', '').strip()
+        user_type_filter = request.args.get('user_type', 'all')
+        status_filter = request.args.get('status', 'all')
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+        group_id_filter = request.args.get('group_id', type=int)
+        exam_id_filter = request.args.get('exam_id', type=int)
+        sort_by = request.args.get('sort_by', 'date')
+        sort_dir = request.args.get('sort_dir', 'desc')
+
+        # ── Dynamic WHERE ──
+        params = {'ecm_id': ecm_id}
+        where_parts = []
+
+        if exam_id_filter:
+            where_parts.append("AND a.exam_id = :exam_id_f")
+            params['exam_id_f'] = exam_id_filter
+        if group_id_filter:
+            where_parts.append("AND a.group_id = :group_id_f")
+            params['group_id_f'] = group_id_filter
+        if user_type_filter != 'all':
+            where_parts.append("AND a.user_role = :user_type_f")
+            params['user_type_f'] = user_type_filter
+        if search:
+            where_parts.append(
+                "AND (LOWER(a.user_name) LIKE :search_f OR LOWER(a.user_email) LIKE :search_f)"
+            )
+            params['search_f'] = f'%{search.lower()}%'
+        if date_from:
+            try:
+                from_dt = datetime.strptime(date_from, '%Y-%m-%d')
+                where_parts.append("AND a.assignment_date >= :date_from_f")
+                params['date_from_f'] = from_dt
+            except ValueError:
+                pass
+        if date_to:
+            try:
+                to_dt = datetime.strptime(date_to, '%Y-%m-%d').replace(
+                    hour=23, minute=59, second=59
+                )
+                where_parts.append("AND a.assignment_date <= :date_to_f")
+                params['date_to_f'] = to_dt
+            except ValueError:
+                pass
+        if status_filter == 'completed':
+            where_parts.append("AND lr.result_status_raw = 1")
+        elif status_filter == 'pending':
+            where_parts.append("AND (lr.result_status_raw IS NULL OR lr.result_status_raw != 1)")
+        elif status_filter == 'passed':
+            where_parts.append("AND lr.result_status_raw = 1 AND lr.result_raw = 1")
+        elif status_filter == 'failed':
+            where_parts.append("AND lr.result_status_raw = 1 AND lr.result_raw = 0")
+
+        where_sql = '\n                '.join(where_parts)
+
+        # MSSQL doesn't allow ORDER BY on column aliases
+        sort_map = {
+            'date': 'a.assignment_date',
+            'name': 'a.user_name',
+            'score': 'COALESCE(lr.score, -1)',
+            'cost': 'COALESCE(CAST(COALESCE(co.total_cost, 0) AS FLOAT) / NULLIF(mc.member_count, 0), 0)',
+            'role': 'a.user_role',
+            'group': 'a.group_name',
+            'exam': 'a.exam_name',
+            'status': 'COALESCE(lr.result_status_raw, -1)',
+            'duration': 'COALESCE(lr.duration_seconds, -1)',
+        }
+        sort_col = sort_map.get(sort_by, 'a.assignment_date')
+        sort_direction = 'DESC' if sort_dir == 'desc' else 'ASC'
+
+        # ── CTEs (same as detail endpoint, NO pagination) ──
+        cte_sql = """
+            WITH base_assignments AS (
+                SELECT
+                    u.id AS user_id,
+                    CONCAT(u.name, ' ', u.first_surname,
+                           COALESCE(' ' + u.second_surname, '')) AS user_name,
+                    u.email AS user_email,
+                    u.role AS user_role,
+                    u.curp AS user_curp,
+                    ge.id AS group_exam_id,
+                    ge.exam_id,
+                    ge.assigned_at AS assignment_date,
+                    ge.assignment_type,
+                    ge.max_attempts,
+                    ge.time_limit_minutes,
+                    ge.passing_score,
+                    cg.id AS group_id,
+                    cg.name AS group_name,
+                    cg.code AS group_code,
+                    c.id AS campus_id,
+                    c.name AS campus_name,
+                    COALESCE(c.enable_tier_basic, 0) AS enable_tier_basic,
+                    COALESCE(c.enable_tier_standard, 0) AS enable_tier_standard,
+                    COALESCE(c.enable_tier_advanced, 0) AS enable_tier_advanced,
+                    COALESCE(c.enable_digital_badge, 0) AS enable_digital_badge,
+                    p.id AS partner_id,
+                    p.name AS partner_name,
+                    e.name AS exam_name
+                FROM group_exams ge
+                JOIN exams e ON e.id = ge.exam_id
+                JOIN candidate_groups cg ON cg.id = ge.group_id
+                LEFT JOIN campuses c ON c.id = cg.campus_id
+                LEFT JOIN partners p ON p.id = c.partner_id
+                JOIN group_members gm ON gm.group_id = ge.group_id
+                JOIN users u ON u.id = gm.user_id
+                WHERE e.competency_standard_id = :ecm_id
+                  AND ge.assignment_type = 'all'
+
+                UNION ALL
+
+                SELECT
+                    u.id,
+                    CONCAT(u.name, ' ', u.first_surname,
+                           COALESCE(' ' + u.second_surname, '')),
+                    u.email, u.role, u.curp,
+                    ge.id, ge.exam_id, ge.assigned_at,
+                    ge.assignment_type,
+                    ge.max_attempts, ge.time_limit_minutes, ge.passing_score,
+                    cg.id, cg.name, cg.code,
+                    c.id, c.name,
+                    COALESCE(c.enable_tier_basic, 0),
+                    COALESCE(c.enable_tier_standard, 0),
+                    COALESCE(c.enable_tier_advanced, 0),
+                    COALESCE(c.enable_digital_badge, 0),
+                    p.id, p.name,
+                    e.name
+                FROM group_exams ge
+                JOIN exams e ON e.id = ge.exam_id
+                JOIN candidate_groups cg ON cg.id = ge.group_id
+                LEFT JOIN campuses c ON c.id = cg.campus_id
+                LEFT JOIN partners p ON p.id = c.partner_id
+                JOIN group_exam_members gem ON gem.group_exam_id = ge.id
+                JOIN users u ON u.id = gem.user_id
+                WHERE e.competency_standard_id = :ecm_id
+                  AND ge.assignment_type != 'all'
+            ),
+            latest_results AS (
+                SELECT
+                    r.user_id, r.exam_id, r.score,
+                    r.status AS result_status_raw,
+                    r.result AS result_raw,
+                    r.end_date, r.duration_seconds, r.certificate_code,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY r.user_id, r.exam_id
+                        ORDER BY r.created_at DESC
+                    ) AS rn
+                FROM results r
+                WHERE r.exam_id IN (
+                    SELECT id FROM exams
+                    WHERE competency_standard_id = :ecm_id
+                )
+            ),
+            costs AS (
+                SELECT
+                    bt.reference_id AS group_exam_id,
+                    SUM(bt.amount) AS total_cost
+                FROM balance_transactions bt
+                WHERE bt.reference_type = 'group_exam'
+                  AND bt.concept IN ('asignacion_certificacion', 'asignacion_retoma')
+                  AND bt.reference_id IN (
+                      SELECT ge.id FROM group_exams ge
+                      JOIN exams e ON e.id = ge.exam_id
+                      WHERE e.competency_standard_id = :ecm_id
+                  )
+                GROUP BY bt.reference_id
+            ),
+            member_counts AS (
+                SELECT ge.id AS group_exam_id, COUNT(gm.id) AS member_count
+                FROM group_exams ge
+                JOIN exams e ON e.id = ge.exam_id
+                JOIN group_members gm ON gm.group_id = ge.group_id
+                WHERE e.competency_standard_id = :ecm_id
+                  AND ge.assignment_type = 'all'
+                GROUP BY ge.id
+
+                UNION ALL
+
+                SELECT ge.id, COUNT(gem.id)
+                FROM group_exams ge
+                JOIN exams e ON e.id = ge.exam_id
+                JOIN group_exam_members gem ON gem.group_exam_id = ge.id
+                WHERE e.competency_standard_id = :ecm_id
+                  AND ge.assignment_type != 'all'
+                GROUP BY ge.id
+            )
+        """
+
+        data_sql = text(cte_sql + f"""
+            SELECT
+                a.user_name, a.user_email, a.user_role, a.user_curp,
+                a.group_name, a.group_code,
+                a.campus_name, a.partner_name,
+                a.exam_name,
+                a.assignment_date,
+                a.passing_score,
+                a.max_attempts,
+                a.time_limit_minutes,
+                a.enable_tier_basic, a.enable_tier_standard,
+                a.enable_tier_advanced, a.enable_digital_badge,
+                lr.score, lr.result_status_raw, lr.result_raw,
+                lr.end_date AS result_date, lr.duration_seconds, lr.certificate_code,
+                CAST(COALESCE(co.total_cost, 0) AS FLOAT)
+                    / NULLIF(mc.member_count, 0) AS unit_cost
+            FROM base_assignments a
+            LEFT JOIN latest_results lr
+                ON lr.user_id = a.user_id
+               AND lr.exam_id = a.exam_id
+               AND lr.rn = 1
+            LEFT JOIN costs co
+                ON co.group_exam_id = a.group_exam_id
+            LEFT JOIN member_counts mc
+                ON mc.group_exam_id = a.group_exam_id
+            WHERE 1=1
+                {where_sql}
+            ORDER BY {sort_col} {sort_direction}
+        """)
+
+        rows = db.session.execute(data_sql, params).fetchall()
+
+        # ── Build Excel ──
+        wb = Workbook()
+        ws = wb.active
+        ws.title = f"ECM {ecm.code}"[:31]  # Max 31 chars for sheet name
+
+        # Styles
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        header_fill = PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
+        header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        thin_border = Border(
+            left=Side(style='thin', color='D1D5DB'),
+            right=Side(style='thin', color='D1D5DB'),
+            top=Side(style='thin', color='D1D5DB'),
+            bottom=Side(style='thin', color='D1D5DB'),
+        )
+        center_align = Alignment(horizontal='center', vertical='center')
+
+        # Title row
+        ws.merge_cells('A1:X1')
+        title_cell = ws['A1']
+        title_cell.value = f"Asignaciones ECM: {ecm.code} - {ecm.name}"
+        title_cell.font = Font(bold=True, size=14, color="4F46E5")
+        title_cell.alignment = Alignment(horizontal='center')
+
+        ws.merge_cells('A2:X2')
+        subtitle = ws['A2']
+        subtitle.value = f"Sector: {ecm.sector or 'N/A'} | Nivel: {ecm.level or 'N/A'} | Total registros: {len(rows)} | Exportado: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        subtitle.font = Font(size=10, color="6B7280")
+        subtitle.alignment = Alignment(horizontal='center')
+
+        # Headers (row 4)
+        headers = [
+            'Nombre', 'Email', 'CURP', 'Rol', 'Grupo', 'Código Grupo',
+            'Sede', 'Partner', 'Examen', 'Fecha Asignación',
+            'Costo', 'Calificación', 'Estado', 'Aprobado',
+            'Fecha Resultado', 'Duración (min)', 'Código Certificado',
+            'Rep. Evaluación', 'Cert. Eduit', 'Insignia Digital', 'Cert. CONOCER',
+            'Calif. Mínima', 'Intentos Máx', 'Tiempo Límite (min)',
+        ]
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=4, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = thin_border
+
+        # Role labels
+        role_labels = {
+            'candidato': 'Candidato',
+            'responsable': 'Responsable',
+            'coordinator': 'Coordinador',
+            'admin': 'Administrador',
+        }
+
+        # Data rows
+        for row_idx, row in enumerate(rows, 5):
+            if row.result_status_raw == 1:
+                status_txt = 'Completado'
+                passed_txt = 'Sí' if row.result_raw == 1 else 'No'
+            elif row.result_status_raw == 0:
+                status_txt = 'En proceso'
+                passed_txt = ''
+            else:
+                status_txt = 'Pendiente'
+                passed_txt = ''
+
+            duration_min = round(row.duration_seconds / 60, 1) if row.duration_seconds else None
+            assign_date = row.assignment_date.strftime('%Y-%m-%d') if row.assignment_date else ''
+            result_date = row.result_date.strftime('%Y-%m-%d %H:%M') if row.result_date else ''
+
+            data = [
+                row.user_name,
+                row.user_email,
+                row.user_curp or '',
+                role_labels.get(row.user_role, row.user_role),
+                row.group_name,
+                row.group_code,
+                row.campus_name or '',
+                row.partner_name or '',
+                row.exam_name,
+                assign_date,
+                round(float(row.unit_cost), 2) if row.unit_cost else 0,
+                row.score if row.score is not None else '',
+                status_txt,
+                passed_txt,
+                result_date,
+                duration_min if duration_min else '',
+                row.certificate_code if row.result_raw == 1 else '',
+                'Sí',  # Rep. Evaluación siempre disponible
+                'Sí' if row.enable_tier_standard else 'No',
+                'Sí' if row.enable_digital_badge else 'No',
+                'Sí' if row.enable_tier_advanced else 'No',
+                row.passing_score if row.passing_score else '',
+                row.max_attempts if row.max_attempts else '',
+                row.time_limit_minutes if row.time_limit_minutes else '',
+            ]
+            for col, val in enumerate(data, 1):
+                cell = ws.cell(row=row_idx, column=col, value=val)
+                cell.border = thin_border
+                if col >= 10:
+                    cell.alignment = center_align
+
+        # Column widths
+        col_widths = [30, 30, 20, 14, 20, 14, 20, 20, 30, 14,
+                      10, 12, 12, 10, 18, 14, 18, 14, 12, 14, 14, 12, 12, 16]
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+        # Auto-filter + freeze
+        ws.auto_filter.ref = f"A4:{get_column_letter(len(headers))}{4 + len(rows)}"
+        ws.freeze_panes = 'A5'
+
+        # Save to buffer
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        safe_code = ecm.code.replace(' ', '_').replace('/', '-')
+        filename = f"Asignaciones_{safe_code}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename,
+        )
 
     except Exception as e:
         import traceback

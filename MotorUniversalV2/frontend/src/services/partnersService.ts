@@ -2207,3 +2207,41 @@ export async function getEcmAssignmentDetail(ecmId: number, params?: {
   const response = await api.get(`/partners/ecm-assignments/${ecmId}`, { params });
   return response.data;
 }
+
+/**
+ * Exportar asignaciones de un ECM a Excel
+ */
+export async function exportEcmAssignmentsExcel(ecmId: number, params?: {
+  search?: string;
+  user_type?: string;
+  status?: string;
+  date_from?: string;
+  date_to?: string;
+  group_id?: number;
+  exam_id?: number;
+  sort_by?: string;
+  sort_dir?: string;
+}): Promise<void> {
+  const response = await api.get(`/partners/ecm-assignments/${ecmId}/export`, {
+    params,
+    responseType: 'blob'
+  });
+
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+
+  // Extraer filename del header Content-Disposition si existe
+  const contentDisposition = response.headers['content-disposition'];
+  let filename = `asignaciones_ecm_${ecmId}.xlsx`;
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename=(.+)/);
+    if (match) filename = match[1].replace(/"/g, '');
+  }
+
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}

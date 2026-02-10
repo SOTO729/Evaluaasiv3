@@ -28,10 +28,12 @@ import {
   MapPin,
   ArrowUpDown,
   BadgeCheck,
+  Download,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
   getEcmAssignmentDetail,
+  exportEcmAssignmentsExcel,
   EcmAssignmentDetail,
   EcmAssignmentDetailResponse,
 } from '../../services/partnersService';
@@ -43,6 +45,7 @@ export default function EcmAssignmentDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<EcmAssignmentDetailResponse | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   // Filtros
   const [search, setSearch] = useState('');
@@ -91,6 +94,29 @@ export default function EcmAssignmentDetailPage() {
   const handleSearch = () => {
     setPage(1);
     loadData();
+  };
+
+  const handleExport = async () => {
+    if (!ecmId || exporting) return;
+    setExporting(true);
+    try {
+      await exportEcmAssignmentsExcel(Number(ecmId), {
+        search: search || undefined,
+        user_type: userType !== 'all' ? userType : undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+        group_id: groupId,
+        exam_id: examId,
+        sort_by: sortBy,
+        sort_dir: sortDir,
+      });
+    } catch (err) {
+      console.error('Error exporting:', err);
+      setError('Error al exportar el reporte Excel');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleRefresh = () => {
@@ -240,14 +266,25 @@ export default function EcmAssignmentDetailPage() {
               )}
             </div>
           </div>
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="fluid-px-4 fluid-py-2 bg-white/10 hover:bg-white/20 rounded-fluid-xl flex items-center fluid-gap-2 fluid-text-sm transition-all"
-          >
-            <RefreshCw className={`fluid-icon-sm ${refreshing ? 'animate-spin' : ''}`} />
-            Actualizar
-          </button>
+          <div className="flex items-center fluid-gap-2">
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="fluid-px-4 fluid-py-2 bg-white/10 hover:bg-white/20 rounded-fluid-xl flex items-center fluid-gap-2 fluid-text-sm transition-all disabled:opacity-50"
+              title="Descargar reporte Excel"
+            >
+              <Download className={`fluid-icon-sm ${exporting ? 'animate-pulse' : ''}`} />
+              {exporting ? 'Exportando...' : 'Excel'}
+            </button>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="fluid-px-4 fluid-py-2 bg-white/10 hover:bg-white/20 rounded-fluid-xl flex items-center fluid-gap-2 fluid-text-sm transition-all"
+            >
+              <RefreshCw className={`fluid-icon-sm ${refreshing ? 'animate-spin' : ''}`} />
+              Actualizar
+            </button>
+          </div>
         </div>
       </div>
 
