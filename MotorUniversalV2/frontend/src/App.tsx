@@ -108,6 +108,8 @@ const GroupAssignMaterialsPage = lazy(() => import('./pages/partners/GroupAssign
 const GroupEditAssignmentMembersPage = lazy(() => import('./pages/partners/GroupEditAssignmentMembersPage'))
 const CampusActivationPage = lazy(() => import('./pages/partners/CampusActivationPage'))
 const SchoolCycleDetailPage = lazy(() => import('./pages/partners/SchoolCycleDetailPage'))
+const EcmAssignmentsPage = lazy(() => import('./pages/partners/EcmAssignmentsPage'))
+const EcmAssignmentDetailPage = lazy(() => import('./pages/partners/EcmAssignmentDetailPage'))
 
 // Responsable de Plantel
 const MiPlantelPage = lazy(() => import('./pages/responsable/MiPlantelPage'))
@@ -257,6 +259,10 @@ function App() {
               <Route path="/partners/groups/:groupId/assign-exam" element={<GroupAssignExamPage />} />
               <Route path="/partners/groups/:groupId/assign-materials" element={<GroupAssignMaterialsPage />} />
               <Route path="/partners/groups/:groupId/assignments/:assignmentId/edit-members" element={<GroupEditAssignmentMembersPage />} />
+              
+              {/* Asignaciones por ECM */}
+              <Route path="/asignaciones-ecm" element={<EcmAssignmentsPage />} />
+              <Route path="/asignaciones-ecm/:ecmId" element={<EcmAssignmentDetailPage />} />
               
               {/* Responsable de Plantel */}
               <Route path="/mi-plantel" element={<MiPlantelPage />} />

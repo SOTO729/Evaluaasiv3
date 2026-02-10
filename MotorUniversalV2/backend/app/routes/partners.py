@@ -17,9 +17,12 @@ from app.models import (
     Partner, PartnerStatePresence, Campus, CandidateGroup, GroupMember,
     User, MEXICAN_STATES, SchoolCycle
 )
-from app.models.partner import GroupExam
+from app.models.partner import GroupExam, GroupExamMember, GroupExamMaterial
 from app.models.user import decrypt_password, encrypt_password
 from app.models.balance import CoordinatorBalance, BalanceTransaction, create_balance_transaction
+from app.models.competency_standard import CompetencyStandard
+from app.models.result import Result
+from app.models.student_progress import StudentTopicProgress
 
 bp = Blueprint('partners', __name__)
 
@@ -7353,6 +7356,458 @@ def clear_group_certificates_urls(group_id):
             'cleared_count': cleared_count,
             'group_id': group_id,
             'group_name': group.name
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+# ============== MÓDULO DE ASIGNACIONES POR ECM ==============
+
+@bp.route('/ecm-assignments', methods=['GET'])
+@jwt_required()
+def get_ecm_assignments():
+    """Listado de ECMs con resumen de asignaciones.
+    
+    Solo accesible por admin y coordinator.
+    Retorna cada ECM con contadores: total asignaciones, candidatos, costo total, etc.
+    
+    Query params:
+    - search (str): Buscar en código o nombre del ECM
+    - active_only (bool): Solo ECMs activos (default true)
+    """
+    try:
+        from app.models.exam import Exam
+        from sqlalchemy import func
+        
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user or user.role not in ['admin', 'coordinator']:
+            return jsonify({'error': 'Acceso denegado'}), 403
+        
+        search = request.args.get('search', '').strip()
+        active_only = request.args.get('active_only', 'true').lower() == 'true'
+        
+        # Query ECMs
+        ecm_query = CompetencyStandard.query
+        if active_only:
+            ecm_query = ecm_query.filter(CompetencyStandard.is_active == True)
+        if search:
+            ecm_query = ecm_query.filter(
+                db.or_(
+                    CompetencyStandard.code.ilike(f'%{search}%'),
+                    CompetencyStandard.name.ilike(f'%{search}%')
+                )
+            )
+        
+        ecm_query = ecm_query.order_by(CompetencyStandard.code)
+        ecms = ecm_query.all()
+        
+        result = []
+        for ecm in ecms:
+            # Obtener exámenes de este ECM
+            exam_ids = [e.id for e in Exam.query.filter_by(competency_standard_id=ecm.id).all()]
+            
+            if not exam_ids:
+                result.append({
+                    'id': ecm.id,
+                    'code': ecm.code,
+                    'name': ecm.name,
+                    'sector': ecm.sector,
+                    'level': ecm.level,
+                    'certifying_body': ecm.certifying_body,
+                    'is_active': ecm.is_active,
+                    'logo_url': ecm.logo_url,
+                    'total_assignments': 0,
+                    'total_candidates': 0,
+                    'total_cost': 0,
+                    'avg_score': None,
+                    'pass_rate': None,
+                    'exams_count': 0,
+                })
+                continue
+            
+            # Contar asignaciones (group_exams) de estos exámenes
+            assignments_count = GroupExam.query.filter(
+                GroupExam.exam_id.in_(exam_ids)
+            ).count()
+            
+            # Contar candidatos distintos
+            all_user_ids = set()
+            
+            # De assignment_type='all' → miembros del grupo
+            group_exam_all = GroupExam.query.filter(
+                GroupExam.exam_id.in_(exam_ids),
+                GroupExam.assignment_type == 'all'
+            ).all()
+            for ge in group_exam_all:
+                members = GroupMember.query.filter_by(group_id=ge.group_id).all()
+                for m in members:
+                    all_user_ids.add(m.user_id)
+            
+            # De assignment_type='selected' → group_exam_members
+            selected_members = db.session.query(GroupExamMember.user_id).join(
+                GroupExam, GroupExam.id == GroupExamMember.group_exam_id
+            ).filter(
+                GroupExam.exam_id.in_(exam_ids),
+                GroupExam.assignment_type == 'selected'
+            ).all()
+            for m in selected_members:
+                all_user_ids.add(m.user_id)
+            
+            total_candidates = len(all_user_ids)
+            
+            # Costo total (de balance_transactions)
+            total_cost = db.session.query(func.sum(BalanceTransaction.amount)).filter(
+                BalanceTransaction.reference_type == 'group_exam',
+                BalanceTransaction.reference_id.in_(
+                    db.session.query(GroupExam.id).filter(GroupExam.exam_id.in_(exam_ids))
+                ),
+                BalanceTransaction.concept.in_(['asignacion_certificacion', 'asignacion_retoma'])
+            ).scalar() or 0
+            
+            # Resultados de exámenes para este ECM
+            completed_results = Result.query.filter(
+                Result.competency_standard_id == ecm.id,
+                Result.status == 1
+            ).all()
+            
+            avg_score = None
+            pass_rate = None
+            if completed_results:
+                scores = [r.score for r in completed_results]
+                avg_score = round(sum(scores) / len(scores), 1)
+                passed = sum(1 for r in completed_results if r.result == 1)
+                pass_rate = round(passed / len(completed_results) * 100, 1)
+            
+            result.append({
+                'id': ecm.id,
+                'code': ecm.code,
+                'name': ecm.name,
+                'sector': ecm.sector,
+                'level': ecm.level,
+                'certifying_body': ecm.certifying_body,
+                'is_active': ecm.is_active,
+                'logo_url': ecm.logo_url,
+                'total_assignments': assignments_count,
+                'total_candidates': total_candidates,
+                'total_cost': float(total_cost),
+                'avg_score': avg_score,
+                'pass_rate': pass_rate,
+                'exams_count': len(exam_ids),
+            })
+        
+        return jsonify({
+            'ecms': result,
+            'total': len(result),
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/ecm-assignments/<int:ecm_id>', methods=['GET'])
+@jwt_required()
+def get_ecm_assignment_detail(ecm_id):
+    """Detalle de todas las asignaciones para un ECM específico.
+    
+    Retorna cada asignación individual con datos del usuario, examen, grupo,
+    costo, calificación, progreso de materiales, etc.
+    
+    Query params:
+    - page (int): Página (default 1)
+    - per_page (int): Por página (default 30)
+    - search (str): Buscar por nombre de usuario
+    - user_type (str): Filtrar por tipo: candidato, responsable, all
+    - status (str): Filtrar: all, completed, pending, passed, failed
+    - date_from (str): YYYY-MM-DD
+    - date_to (str): YYYY-MM-DD
+    - group_id (int): Filtrar por grupo
+    - exam_id (int): Filtrar por examen
+    - sort_by (str): Ordenar por: date, name, score, cost (default: date)
+    - sort_dir (str): asc o desc (default: desc)
+    """
+    try:
+        from app.models.exam import Exam
+        from app.models.study_content import StudyMaterial
+        
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user or user.role not in ['admin', 'coordinator']:
+            return jsonify({'error': 'Acceso denegado'}), 403
+        
+        ecm = CompetencyStandard.query.get(ecm_id)
+        if not ecm:
+            return jsonify({'error': 'ECM no encontrado'}), 404
+        
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 30, type=int), 100)
+        search = request.args.get('search', '').strip()
+        user_type_filter = request.args.get('user_type', 'all')
+        status_filter = request.args.get('status', 'all')
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+        group_id_filter = request.args.get('group_id', type=int)
+        exam_id_filter = request.args.get('exam_id', type=int)
+        sort_by = request.args.get('sort_by', 'date')
+        sort_dir = request.args.get('sort_dir', 'desc')
+        
+        # Obtener exámenes de este ECM
+        exam_query = Exam.query.filter_by(competency_standard_id=ecm.id)
+        if exam_id_filter:
+            exam_query = exam_query.filter_by(id=exam_id_filter)
+        exams = {e.id: e for e in exam_query.all()}
+        exam_ids = list(exams.keys())
+        
+        if not exam_ids:
+            return jsonify({
+                'ecm': {
+                    'id': ecm.id, 'code': ecm.code, 'name': ecm.name,
+                    'sector': ecm.sector, 'level': ecm.level, 'logo_url': ecm.logo_url,
+                },
+                'assignments': [], 'total': 0, 'pages': 0, 'current_page': 1,
+                'summary': {
+                    'total_assignments': 0, 'total_candidates': 0, 'total_cost': 0,
+                    'avg_score': None, 'pass_rate': None,
+                    'completed_count': 0, 'pending_count': 0, 'passed_count': 0,
+                },
+                'filters': { 'exams': [], 'groups': [] }
+            })
+        
+        # Obtener todas las asignaciones grupo-examen para estos exámenes
+        ge_query = GroupExam.query.filter(GroupExam.exam_id.in_(exam_ids))
+        if group_id_filter:
+            ge_query = ge_query.filter(GroupExam.group_id == group_id_filter)
+        group_exams = ge_query.all()
+        
+        # Construir lista de asignaciones individuales (usuario-examen)
+        raw_assignments = []
+        
+        for ge in group_exams:
+            group = CandidateGroup.query.get(ge.group_id)
+            if not group:
+                continue
+            
+            campus = Campus.query.get(group.campus_id) if group.campus_id else None
+            partner = Partner.query.get(campus.partner_id) if campus and campus.partner_id else None
+            exam = exams.get(ge.exam_id)
+            if not exam:
+                continue
+            
+            # Obtener usuarios asignados
+            if ge.assignment_type == 'all':
+                member_users = db.session.query(User).join(
+                    GroupMember, GroupMember.user_id == User.id
+                ).filter(GroupMember.group_id == ge.group_id).all()
+            else:
+                member_users = db.session.query(User).join(
+                    GroupExamMember, GroupExamMember.user_id == User.id
+                ).filter(GroupExamMember.group_exam_id == ge.id).all()
+            
+            # Costo de esta asignación
+            txn = BalanceTransaction.query.filter_by(
+                reference_type='group_exam',
+                reference_id=ge.id
+            ).filter(
+                BalanceTransaction.concept.in_(['asignacion_certificacion', 'asignacion_retoma'])
+            ).first()
+            
+            total_assignment_cost = float(txn.amount) if txn else 0
+            unit_cost = total_assignment_cost / len(member_users) if member_users else 0
+            
+            # Materiales asociados
+            custom_materials = GroupExamMaterial.query.filter_by(
+                group_exam_id=ge.id, is_included=True
+            ).all()
+            material_ids = [m.study_material_id for m in custom_materials]
+            
+            if not material_ids:
+                try:
+                    material_ids = [m.id for m in exam.linked_study_materials.all()]
+                except:
+                    material_ids = []
+            
+            for u in member_users:
+                raw_assignments.append({
+                    'user': u, 'group_exam': ge, 'group': group,
+                    'campus': campus, 'partner': partner, 'exam': exam,
+                    'unit_cost': round(unit_cost, 2), 'material_ids': material_ids,
+                })
+        
+        # Enriquecer con resultado y progreso
+        enriched = []
+        for a in raw_assignments:
+            u = a['user']
+            exam = a['exam']
+            
+            # Filtros
+            if user_type_filter == 'candidato' and u.role != 'candidato':
+                continue
+            if user_type_filter == 'responsable' and u.role != 'responsable':
+                continue
+            
+            if search:
+                full_name = f"{u.first_name} {u.last_name}".lower()
+                if search.lower() not in full_name and search.lower() not in (u.email or '').lower():
+                    continue
+            
+            # Resultado de examen
+            result_record = Result.query.filter_by(
+                user_id=u.id, exam_id=exam.id,
+            ).order_by(Result.created_at.desc()).first()
+            
+            # Filtros de estado
+            if status_filter == 'completed' and (not result_record or result_record.status != 1):
+                continue
+            if status_filter == 'pending' and result_record and result_record.status == 1:
+                continue
+            if status_filter == 'passed' and (not result_record or result_record.result != 1):
+                continue
+            if status_filter == 'failed' and (not result_record or result_record.result != 0 or result_record.status != 1):
+                continue
+            
+            # Progreso de materiales
+            material_progress = None
+            if a['material_ids']:
+                total_topics = 0
+                completed_topics = 0
+                for mid in a['material_ids']:
+                    mat = StudyMaterial.query.get(mid)
+                    if mat:
+                        for session in mat.sessions.all():
+                            if hasattr(session, 'topics'):
+                                topics_list = session.topics.all() if hasattr(session.topics, 'all') else []
+                                for topic in topics_list:
+                                    total_topics += 1
+                                    tp = StudentTopicProgress.query.filter_by(
+                                        user_id=u.id, topic_id=topic.id
+                                    ).first()
+                                    if tp and tp.is_completed:
+                                        completed_topics += 1
+                
+                material_progress = {
+                    'total': total_topics,
+                    'completed': completed_topics,
+                    'percentage': round(completed_topics / total_topics * 100, 1) if total_topics > 0 else 0,
+                }
+            
+            # Filtro por fecha
+            assignment_date = a['group_exam'].assigned_at or getattr(a['group_exam'], 'created_at', None)
+            if date_from:
+                try:
+                    from_dt = datetime.strptime(date_from, '%Y-%m-%d')
+                    if assignment_date and assignment_date < from_dt:
+                        continue
+                except ValueError:
+                    pass
+            if date_to:
+                try:
+                    to_dt = datetime.strptime(date_to, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+                    if assignment_date and assignment_date > to_dt:
+                        continue
+                except ValueError:
+                    pass
+            
+            enriched.append({
+                'user_id': u.id,
+                'user_name': f"{u.first_name} {u.last_name}",
+                'user_email': u.email,
+                'user_role': u.role,
+                'user_curp': getattr(u, 'curp', None),
+                'group_id': a['group'].id,
+                'group_name': a['group'].name,
+                'group_code': a['group'].code,
+                'campus_name': a['campus'].name if a['campus'] else None,
+                'campus_id': a['campus'].id if a['campus'] else None,
+                'partner_name': a['partner'].name if a['partner'] else None,
+                'partner_id': a['partner'].id if a['partner'] else None,
+                'exam_id': exam.id,
+                'exam_name': exam.name,
+                'exam_ecm_code': ecm.code,
+                'assignment_date': assignment_date.isoformat() if assignment_date else None,
+                'assignment_type': a['group_exam'].assignment_type,
+                'unit_cost': a['unit_cost'],
+                'score': result_record.score if result_record else None,
+                'result_status': 'completed' if result_record and result_record.status == 1 else 'in_progress' if result_record and result_record.status == 0 else 'pending',
+                'passed': result_record.result == 1 if result_record and result_record.status == 1 else None,
+                'result_date': result_record.end_date.isoformat() if result_record and result_record.end_date else None,
+                'duration_seconds': result_record.duration_seconds if result_record else None,
+                'certificate_code': result_record.certificate_code if result_record and result_record.result == 1 else None,
+                'material_progress': material_progress,
+                'max_attempts': a['group_exam'].max_attempts,
+                'time_limit': a['group_exam'].time_limit_minutes,
+                'passing_score': a['group_exam'].passing_score,
+            })
+        
+        # Ordenar
+        def sort_key(item):
+            if sort_by == 'name':
+                return item.get('user_name', '') or ''
+            elif sort_by == 'score':
+                return item.get('score') or -1
+            elif sort_by == 'cost':
+                return item.get('unit_cost') or 0
+            else:
+                return item.get('assignment_date') or ''
+        
+        enriched.sort(key=sort_key, reverse=(sort_dir == 'desc'))
+        
+        # Paginación manual
+        total = len(enriched)
+        total_pages = (total + per_page - 1) // per_page
+        start = (page - 1) * per_page
+        end = start + per_page
+        page_items = enriched[start:end]
+        
+        # Resumen
+        total_cost = sum(a['unit_cost'] for a in enriched)
+        scores = [a['score'] for a in enriched if a['score'] is not None]
+        completed_count = sum(1 for a in enriched if a['result_status'] == 'completed')
+        pending_count = total - completed_count
+        passed_count = sum(1 for a in enriched if a.get('passed') == True)
+        
+        avg_score = round(sum(scores) / len(scores), 1) if scores else None
+        pass_rate = round(passed_count / completed_count * 100, 1) if completed_count > 0 else None
+        
+        # Filtros disponibles
+        available_exams = [{'id': eid, 'name': exams[eid].name} for eid in exam_ids]
+        group_ids_seen = set()
+        available_groups = []
+        for a in enriched:
+            gid = a['group_id']
+            if gid not in group_ids_seen:
+                group_ids_seen.add(gid)
+                available_groups.append({'id': gid, 'name': a['group_name']})
+        
+        return jsonify({
+            'ecm': {
+                'id': ecm.id, 'code': ecm.code, 'name': ecm.name,
+                'sector': ecm.sector, 'level': ecm.level,
+                'certifying_body': ecm.certifying_body, 'logo_url': ecm.logo_url,
+            },
+            'assignments': page_items,
+            'total': total,
+            'pages': total_pages,
+            'current_page': page,
+            'per_page': per_page,
+            'summary': {
+                'total_assignments': total,
+                'total_candidates': len(set(a['user_id'] for a in enriched)),
+                'total_cost': round(total_cost, 2),
+                'avg_score': avg_score,
+                'pass_rate': pass_rate,
+                'completed_count': completed_count,
+                'pending_count': pending_count,
+                'passed_count': passed_count,
+            },
+            'filters': {
+                'exams': available_exams,
+                'groups': available_groups,
+            }
         })
         
     except Exception as e:

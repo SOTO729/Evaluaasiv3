@@ -2084,3 +2084,125 @@ export async function clearGroupCertificatesUrls(
   });
   return response.data;
 }
+
+
+// ============== MÓDULO DE ASIGNACIONES POR ECM ==============
+
+export interface EcmAssignmentSummary {
+  id: number;
+  code: string;
+  name: string;
+  sector: string | null;
+  level: number | null;
+  certifying_body: string | null;
+  is_active: boolean;
+  logo_url: string | null;
+  total_assignments: number;
+  total_candidates: number;
+  total_cost: number;
+  avg_score: number | null;
+  pass_rate: number | null;
+  exams_count: number;
+}
+
+export interface EcmAssignmentsListResponse {
+  ecms: EcmAssignmentSummary[];
+  total: number;
+}
+
+export interface EcmAssignmentDetail {
+  user_id: string;
+  user_name: string;
+  user_email: string;
+  user_role: string;
+  user_curp: string | null;
+  group_id: number;
+  group_name: string;
+  group_code: string;
+  campus_name: string | null;
+  campus_id: number | null;
+  partner_name: string | null;
+  partner_id: number | null;
+  exam_id: number;
+  exam_name: string;
+  exam_ecm_code: string;
+  assignment_date: string | null;
+  assignment_type: string;
+  unit_cost: number;
+  score: number | null;
+  result_status: 'completed' | 'in_progress' | 'pending';
+  passed: boolean | null;
+  result_date: string | null;
+  duration_seconds: number | null;
+  certificate_code: string | null;
+  material_progress: {
+    total: number;
+    completed: number;
+    percentage: number;
+  } | null;
+  max_attempts: number;
+  time_limit: number | null;
+  passing_score: number | null;
+}
+
+export interface EcmAssignmentDetailResponse {
+  ecm: {
+    id: number;
+    code: string;
+    name: string;
+    sector: string | null;
+    level: number | null;
+    certifying_body: string | null;
+    logo_url: string | null;
+  };
+  assignments: EcmAssignmentDetail[];
+  total: number;
+  pages: number;
+  current_page: number;
+  per_page: number;
+  summary: {
+    total_assignments: number;
+    total_candidates: number;
+    total_cost: number;
+    avg_score: number | null;
+    pass_rate: number | null;
+    completed_count: number;
+    pending_count: number;
+    passed_count: number;
+  };
+  filters: {
+    exams: { id: number; name: string }[];
+    groups: { id: number; name: string }[];
+  };
+}
+
+/**
+ * Obtener listado de ECMs con resumen de asignaciones
+ */
+export async function getEcmAssignments(params?: {
+  search?: string;
+  active_only?: boolean;
+}): Promise<EcmAssignmentsListResponse> {
+  const response = await api.get('/partners/ecm-assignments', { params });
+  return response.data;
+}
+
+/**
+ * Obtener detalle de asignaciones de un ECM específico
+ */
+export async function getEcmAssignmentDetail(ecmId: number, params?: {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  user_type?: string;
+  status?: string;
+  date_from?: string;
+  date_to?: string;
+  group_id?: number;
+  exam_id?: number;
+  sort_by?: string;
+  sort_dir?: string;
+}): Promise<EcmAssignmentDetailResponse> {
+  const response = await api.get(`/partners/ecm-assignments/${ecmId}`, { params });
+  return response.data;
+}
