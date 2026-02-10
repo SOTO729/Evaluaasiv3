@@ -37,6 +37,11 @@ import {
   Upload,
   Download,
   FileSpreadsheet,
+  DollarSign,
+  Wallet,
+  TrendingDown,
+  ShieldCheck,
+  ShieldAlert,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
@@ -56,8 +61,13 @@ import {
   ExamAssignmentConfig,
   ExamMaterialForAssignment,
 } from '../../services/partnersService';
+import {
+  getAssignmentCostPreview,
+  CostPreviewData,
+  formatCurrency,
+} from '../../services/balanceService';
 
-type Step = 'select-exam' | 'configure' | 'select-materials' | 'assign-members';
+type Step = 'select-exam' | 'configure' | 'select-materials' | 'assign-members' | 'cost-preview';
 
 const EXAM_CONTENT_TYPES: { value: ExamContentType; label: string; description: string; icon: React.ReactNode }[] = [
   {
@@ -148,6 +158,11 @@ export default function GroupAssignExamPage() {
   
   // Estado de guardado
   const [saving, setSaving] = useState(false);
+  
+  // Cost preview (paso 5)
+  const [costPreview, setCostPreview] = useState<CostPreviewData | null>(null);
+  const [loadingCostPreview, setLoadingCostPreview] = useState(false);
+  const [costPreviewError, setCostPreviewError] = useState<string | null>(null);
   
   // Modal de examen ya asignado
   const [showAlreadyAssignedModal, setShowAlreadyAssignedModal] = useState(false);
@@ -248,6 +263,35 @@ export default function GroupAssignExamPage() {
 
   const handleBackToMaterialSelection = () => {
     setCurrentStep('select-materials');
+  };
+
+  // Ir al paso de cost preview antes de asignar
+  const handleGoToCostPreview = async () => {
+    if (!selectedExam || assignmentType === 'bulk') return;
+    if (assignmentType === 'selected' && selectedMemberIds.length === 0) {
+      setError('Debes seleccionar al menos un candidato');
+      return;
+    }
+    
+    try {
+      setLoadingCostPreview(true);
+      setCostPreviewError(null);
+      const preview = await getAssignmentCostPreview(Number(groupId), {
+        assignment_type: assignmentType as 'all' | 'selected',
+        member_ids: assignmentType === 'selected' ? selectedMemberIds : undefined,
+      });
+      setCostPreview(preview);
+      setCurrentStep('cost-preview');
+    } catch (err: any) {
+      setCostPreviewError(err.response?.data?.error || 'Error al calcular el costo');
+      setError(err.response?.data?.error || 'Error al calcular el desglose de costo');
+    } finally {
+      setLoadingCostPreview(false);
+    }
+  };
+
+  const handleBackToMemberAssignment = () => {
+    setCurrentStep('assign-members');
   };
 
   const handleToggleMaterial = (materialId: number) => {
@@ -386,7 +430,13 @@ export default function GroupAssignExamPage() {
       // Redirigir directamente
       navigate(`/partners/groups/${groupId}`);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al asignar el examen');
+      const errorType = err.response?.data?.error_type;
+      if (errorType === 'insufficient_balance') {
+        setError(`Saldo insuficiente. Necesitas ${formatCurrency(err.response?.data?.required || 0)} pero solo tienes ${formatCurrency(err.response?.data?.current_balance || 0)}.`);
+        setCurrentStep('cost-preview');
+      } else {
+        setError(err.response?.data?.error || 'Error al asignar el examen');
+      }
       setSaving(false);
     }
   };
@@ -428,9 +478,9 @@ export default function GroupAssignExamPage() {
         <div className={`flex items-center ${currentStep === 'configure' ? 'text-blue-600' : 'text-gray-400'}`}>
           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
             currentStep === 'configure' ? 'bg-blue-600 text-white' : 
-            ['select-materials', 'assign-members'].includes(currentStep) ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+            ['select-materials', 'assign-members', 'cost-preview'].includes(currentStep) ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
           }`}>
-            {['select-materials', 'assign-members'].includes(currentStep) ? <CheckCircle2 className="w-5 h-5" /> : '2'}
+            {['select-materials', 'assign-members', 'cost-preview'].includes(currentStep) ? <CheckCircle2 className="w-5 h-5" /> : '2'}
           </div>
           <span className="ml-2 font-medium hidden sm:inline">Configurar</span>
         </div>
@@ -440,9 +490,9 @@ export default function GroupAssignExamPage() {
         <div className={`flex items-center ${currentStep === 'select-materials' ? 'text-blue-600' : 'text-gray-400'}`}>
           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
             currentStep === 'select-materials' ? 'bg-blue-600 text-white' : 
-            currentStep === 'assign-members' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+            ['assign-members', 'cost-preview'].includes(currentStep) ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
           }`}>
-            {currentStep === 'assign-members' ? <CheckCircle2 className="w-5 h-5" /> : '3'}
+            {['assign-members', 'cost-preview'].includes(currentStep) ? <CheckCircle2 className="w-5 h-5" /> : '3'}
           </div>
           <span className="ml-2 font-medium hidden sm:inline">Materiales</span>
         </div>
@@ -451,11 +501,23 @@ export default function GroupAssignExamPage() {
         {/* Paso 4: Asignar */}
         <div className={`flex items-center ${currentStep === 'assign-members' ? 'text-blue-600' : 'text-gray-400'}`}>
           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-            currentStep === 'assign-members' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+            currentStep === 'assign-members' ? 'bg-blue-600 text-white' : 
+            currentStep === 'cost-preview' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
           }`}>
-            4
+            {currentStep === 'cost-preview' ? <CheckCircle2 className="w-5 h-5" /> : '4'}
           </div>
-          <span className="ml-2 font-medium hidden sm:inline">Asignar</span>
+          <span className="ml-2 font-medium hidden sm:inline">Candidatos</span>
+        </div>
+        <ChevronRight className="w-4 h-4 text-gray-300" />
+        
+        {/* Paso 5: Confirmar Costo */}
+        <div className={`flex items-center ${currentStep === 'cost-preview' ? 'text-blue-600' : 'text-gray-400'}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+            currentStep === 'cost-preview' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+          }`}>
+            5
+          </div>
+          <span className="ml-2 font-medium hidden sm:inline">Confirmar</span>
         </div>
       </div>
     </div>
@@ -1662,24 +1724,214 @@ export default function GroupAssignExamPage() {
               </button>
               {assignmentType !== 'bulk' && (
                 <button
-                  onClick={handleAssignExam}
-                  disabled={saving || (assignmentType === 'selected' && selectedMemberIds.length === 0)}
-                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  onClick={handleGoToCostPreview}
+                  disabled={loadingCostPreview || (assignmentType === 'selected' && selectedMemberIds.length === 0)}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  {saving ? (
+                  {loadingCostPreview ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Asignando...
+                      Calculando costo...
                     </>
                   ) : (
                     <>
-                      <Save className="w-4 h-4" />
-                      Asignar Examen
+                      <DollarSign className="w-4 h-4" />
+                      Revisar Costo y Confirmar
                     </>
                   )}
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== PASO 5: DESGLOSE DE COSTO Y CONFIRMACIÓN ===== */}
+      {currentStep === 'cost-preview' && selectedExam && costPreview && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Desglose de Costo</h2>
+              <p className="text-sm text-gray-500">Revisa el consumo de saldo antes de confirmar la asignación</p>
+            </div>
+          </div>
+
+          {/* Resumen del examen */}
+          <div className="bg-gray-50 rounded-lg p-4 mb-6">
+            <h3 className="text-sm font-medium text-gray-500 mb-2">Resumen de la asignación</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs text-gray-400">Examen</p>
+                <p className="font-medium text-gray-900">{selectedExam.name}</p>
+                {(selectedExam.ecm_code || selectedExam.standard) && (
+                  <p className="text-xs text-blue-600">ECM: {selectedExam.ecm_code || selectedExam.standard}</p>
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-gray-400">Grupo</p>
+                <p className="font-medium text-gray-900">{costPreview.group_name}</p>
+                <p className="text-xs text-gray-500">{costPreview.campus_name}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400">Tipo de asignación</p>
+                <p className="font-medium text-gray-900">
+                  {assignmentType === 'all' ? 'Todo el grupo' : `${selectedMemberIds.length} candidato(s) seleccionado(s)`}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Desglose de costo - Estilo factura */}
+          <div className="border border-gray-200 rounded-lg overflow-hidden mb-6">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b">
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Concepto</th>
+                  <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Unidades</th>
+                  <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase">Precio unitario</th>
+                  <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b">
+                  <td className="py-3 px-4">
+                    <p className="font-medium text-gray-900">Certificación</p>
+                    <p className="text-xs text-gray-500">Origen del costo: {costPreview.cost_source}</p>
+                  </td>
+                  <td className="py-3 px-4 text-center">
+                    <span className="inline-flex items-center gap-1 text-gray-900 font-medium">
+                      <Users className="w-4 h-4 text-gray-400" />
+                      {costPreview.units}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-right font-medium text-gray-900">
+                    {formatCurrency(costPreview.unit_cost)}
+                  </td>
+                  <td className="py-3 px-4 text-right font-medium text-gray-900">
+                    {formatCurrency(costPreview.total_cost)}
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr className="bg-gray-50">
+                  <td colSpan={3} className="py-3 px-4 text-right font-semibold text-gray-700">
+                    Total a descontar
+                  </td>
+                  <td className="py-3 px-4 text-right font-bold text-lg text-gray-900">
+                    {formatCurrency(costPreview.total_cost)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {/* Estado del saldo - Estilo bancario */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Wallet className="w-4 h-4 text-blue-500" />
+                <p className="text-xs font-medium text-blue-600">Saldo actual</p>
+              </div>
+              <p className="text-2xl font-bold text-blue-700">{formatCurrency(costPreview.current_balance)}</p>
+            </div>
+            
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingDown className="w-4 h-4 text-orange-500" />
+                <p className="text-xs font-medium text-orange-600">Descuento</p>
+              </div>
+              <p className="text-2xl font-bold text-orange-700">- {formatCurrency(costPreview.total_cost)}</p>
+            </div>
+            
+            <div className={`border rounded-lg p-4 ${
+              costPreview.has_sufficient_balance 
+                ? 'bg-green-50 border-green-200' 
+                : 'bg-red-50 border-red-200'
+            }`}>
+              <div className="flex items-center gap-2 mb-1">
+                {costPreview.has_sufficient_balance 
+                  ? <ShieldCheck className="w-4 h-4 text-green-500" />
+                  : <ShieldAlert className="w-4 h-4 text-red-500" />
+                }
+                <p className={`text-xs font-medium ${
+                  costPreview.has_sufficient_balance ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  Saldo restante
+                </p>
+              </div>
+              <p className={`text-2xl font-bold ${
+                costPreview.has_sufficient_balance ? 'text-green-700' : 'text-red-700'
+              }`}>
+                {formatCurrency(costPreview.remaining_balance)}
+              </p>
+            </div>
+          </div>
+
+          {/* Alerta si no hay saldo suficiente */}
+          {!costPreview.has_sufficient_balance && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-start gap-3">
+              <ShieldAlert className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-red-700">Saldo insuficiente</p>
+                <p className="text-sm text-red-600 mt-1">
+                  Necesitas <strong>{formatCurrency(costPreview.total_cost)}</strong> pero tu saldo actual es de{' '}
+                  <strong>{formatCurrency(costPreview.current_balance)}</strong>. 
+                  Te faltan <strong>{formatCurrency(Math.abs(costPreview.remaining_balance))}</strong> para completar esta asignación.
+                </p>
+                <Link
+                  to="/solicitar-saldo"
+                  className="inline-flex items-center gap-1 text-sm text-red-700 hover:text-red-900 font-medium mt-2 underline"
+                >
+                  Solicitar más saldo →
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Alerta si el costo es $0 */}
+          {costPreview.total_cost === 0 && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-yellow-700">Sin costo configurado</p>
+                <p className="text-sm text-yellow-600 mt-1">
+                  No se ha definido un costo de certificación para este grupo ni su campus.
+                  La asignación se realizará sin consumir saldo.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Botones de acción */}
+          <div className="flex justify-between pt-6 mt-2 border-t">
+            <button
+              onClick={handleBackToMemberAssignment}
+              className="px-4 py-2 text-gray-600 hover:text-gray-900"
+            >
+              ← Volver
+            </button>
+            <button
+              onClick={handleAssignExam}
+              disabled={saving || (!costPreview.has_sufficient_balance && costPreview.total_cost > 0)}
+              className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium shadow-sm"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Asignando y descontando saldo...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-5 h-5" />
+                  {costPreview.total_cost > 0 
+                    ? `Confirmar Asignación (${formatCurrency(costPreview.total_cost)})` 
+                    : 'Confirmar Asignación'}
+                </>
+              )}
+            </button>
           </div>
         </div>
       )}

@@ -18,11 +18,11 @@ from app.models.balance import (
     REQUEST_STATUS,
     REQUEST_TYPES
 )
-from app.models.partner import Campus, CandidateGroup
+from app.models.partner import Campus, CandidateGroup, GroupExam, GroupExamMember
 from app.models.activity_log import log_activity_from_request
 from datetime import datetime
 from functools import wraps
-from sqlalchemy import desc, or_
+from sqlalchemy import desc, or_, func
 
 bp = Blueprint('balance', __name__)
 
@@ -951,4 +951,146 @@ def update_request_attachments(request_id):
         
     except Exception as e:
         db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================
+# HISTORIAL DE ASIGNACIONES (Rastreo detallado de consumo de saldo)
+# ============================================================
+
+@bp.route('/assignment-history', methods=['GET'])
+@jwt_required()
+def get_assignment_history():
+    """Historial detallado de asignaciones que consumieron saldo.
+    
+    Muestra cada transacción de tipo 'asignacion_certificacion' o 'asignacion_retoma'
+    con detalles del grupo, examen, candidatos y costos.
+    
+    Query params:
+    - page (int): Página actual (default 1)
+    - per_page (int): Resultados por página (default 20)
+    - concept (str): Filtrar por concepto (asignacion_certificacion, asignacion_retoma)
+    - date_from (str): Fecha desde (YYYY-MM-DD)
+    - date_to (str): Fecha hasta (YYYY-MM-DD)
+    - group_id (int): Filtrar por grupo específico
+    """
+    try:
+        from app.models import Exam
+        
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 20, type=int), 100)
+        concept_filter = request.args.get('concept')
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+        group_id_filter = request.args.get('group_id', type=int)
+        
+        # Query base: transacciones de asignación del coordinador
+        query = BalanceTransaction.query.filter(
+            BalanceTransaction.coordinator_id == user_id,
+            BalanceTransaction.concept.in_(['asignacion_certificacion', 'asignacion_retoma'])
+        )
+        
+        # Filtros opcionales
+        if concept_filter:
+            query = query.filter(BalanceTransaction.concept == concept_filter)
+        
+        if date_from:
+            try:
+                from_date = datetime.strptime(date_from, '%Y-%m-%d')
+                query = query.filter(BalanceTransaction.created_at >= from_date)
+            except ValueError:
+                pass
+        
+        if date_to:
+            try:
+                to_date = datetime.strptime(date_to, '%Y-%m-%d')
+                to_date = to_date.replace(hour=23, minute=59, second=59)
+                query = query.filter(BalanceTransaction.created_at <= to_date)
+            except ValueError:
+                pass
+        
+        # Ordenar por fecha desc
+        query = query.order_by(desc(BalanceTransaction.created_at))
+        
+        # Paginar
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        # Construir respuesta enriquecida
+        transactions = []
+        for txn in pagination.items:
+            txn_data = txn.to_dict(include_created_by=True)
+            
+            # Enriquecer con datos del grupo y examen si reference_type es group_exam
+            if txn.reference_type == 'group_exam' and txn.reference_id:
+                group_exam = GroupExam.query.get(txn.reference_id)
+                if group_exam:
+                    group = CandidateGroup.query.get(group_exam.group_id)
+                    exam = Exam.query.get(group_exam.exam_id)
+                    
+                    # Contar candidatos asignados
+                    if group_exam.assignment_type == 'all':
+                        candidates_count = group.members.count() if group else 0
+                    else:
+                        candidates_count = GroupExamMember.query.filter_by(
+                            group_exam_id=group_exam.id
+                        ).count()
+                    
+                    # Calcular costo unitario
+                    unit_cost = float(txn.amount) / candidates_count if candidates_count > 0 else 0
+                    
+                    txn_data['assignment_details'] = {
+                        'group_exam_id': group_exam.id,
+                        'group': {
+                            'id': group.id,
+                            'name': group.name,
+                            'code': group.code,
+                        } if group else None,
+                        'exam': {
+                            'id': exam.id,
+                            'name': exam.name,
+                            'ecm_code': getattr(exam, 'ecm_code', None) or getattr(exam, 'standard', None),
+                        } if exam else None,
+                        'assignment_type': group_exam.assignment_type,
+                        'candidates_count': candidates_count,
+                        'unit_cost': round(unit_cost, 2),
+                        'assigned_at': group_exam.created_at.isoformat() if group_exam.created_at else None,
+                    }
+                    
+                    # Aplicar filtro de grupo si se pidió
+                    if group_id_filter and group and group.id != group_id_filter:
+                        continue
+            
+            transactions.append(txn_data)
+        
+        # Estadísticas resumidas
+        total_spent = db.session.query(
+            func.sum(BalanceTransaction.amount)
+        ).filter(
+            BalanceTransaction.coordinator_id == user_id,
+            BalanceTransaction.concept.in_(['asignacion_certificacion', 'asignacion_retoma'])
+        ).scalar() or 0
+        
+        total_assignments = BalanceTransaction.query.filter(
+            BalanceTransaction.coordinator_id == user_id,
+            BalanceTransaction.concept.in_(['asignacion_certificacion', 'asignacion_retoma'])
+        ).count()
+        
+        return jsonify({
+            'transactions': transactions,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'current_page': page,
+            'per_page': per_page,
+            'summary': {
+                'total_assignments': total_assignments,
+                'total_spent': float(total_spent),
+            }
+        })
+        
+    except Exception as e:
         return jsonify({'error': str(e)}), 500

@@ -133,6 +133,7 @@ const SolicitarSaldoPage = lazy(() => import('./pages/coordinador/SolicitarSaldo
 const SolicitarBecaPage = lazy(() => import('./pages/coordinador/SolicitarBecaPage'))
 const HistorialSolicitudesPage = lazy(() => import('./pages/coordinador/HistorialSolicitudesPage'))
 const HistorialMovimientosPage = lazy(() => import('./pages/coordinador/HistorialMovimientosPage'))
+const HistorialAsignacionesPage = lazy(() => import('./pages/coordinador/HistorialAsignacionesPage'))
 
 // Grupos (gestión de grupos por plantel)
 const GruposListPage = lazy(() => import('./pages/grupos/GruposListPage'))
@@ -281,6 +282,7 @@ function App() {
               <Route path="/solicitar-beca" element={<SolicitarBecaPage />} />
               <Route path="/historial-solicitudes" element={<HistorialSolicitudesPage />} />
               <Route path="/historial-movimientos" element={<HistorialMovimientosPage />} />
+              <Route path="/historial-asignaciones" element={<HistorialAsignacionesPage />} />
               
               {/* Grupos - Gestión de grupos por plantel */}
               <Route path="/grupos" element={<GruposListPage />} />

@@ -19,6 +19,7 @@ from app.models import (
 )
 from app.models.partner import GroupExam
 from app.models.user import decrypt_password, encrypt_password
+from app.models.balance import CoordinatorBalance, BalanceTransaction, create_balance_transaction
 
 bp = Blueprint('partners', __name__)
 
@@ -3348,6 +3349,76 @@ def get_group_exams(group_id):
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/groups/<int:group_id>/assignment-cost-preview', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def assignment_cost_preview(group_id):
+    """Calcular el desglose de costo de una asignación antes de confirmar
+    
+    Body:
+    - assignment_type: 'all' | 'selected'
+    - member_ids: lista de user_ids (solo si selected)
+    
+    Retorna el costo unitario, cantidad de unidades, total y saldo actual
+    """
+    try:
+        group = CandidateGroup.query.get_or_404(group_id)
+        data = request.get_json()
+        
+        assignment_type = data.get('assignment_type', 'all')
+        member_ids = data.get('member_ids', [])
+        
+        # Calcular cantidad de unidades (alumnos)
+        if assignment_type == 'selected':
+            units = len(member_ids)
+        else:
+            units = group.members.count()
+        
+        if units == 0:
+            return jsonify({'error': 'No hay candidatos para asignar'}), 400
+        
+        # Obtener costo unitario efectivo (grupo override > campus)
+        campus = Campus.query.get(group.campus_id)
+        if not campus:
+            return jsonify({'error': 'Campus no encontrado'}), 404
+        
+        if group.certification_cost_override is not None:
+            unit_cost = float(group.certification_cost_override)
+        elif campus.certification_cost is not None:
+            unit_cost = float(campus.certification_cost)
+        else:
+            unit_cost = 0.0
+        
+        total_cost = unit_cost * units
+        
+        # Obtener saldo actual del coordinador
+        coordinator_id = g.current_user.id
+        balance = CoordinatorBalance.query.filter_by(coordinator_id=coordinator_id).first()
+        current_balance = float(balance.current_balance) if balance else 0.0
+        
+        remaining_balance = current_balance - total_cost
+        has_sufficient_balance = remaining_balance >= 0
+        
+        # Info del coordinador
+        is_admin = g.current_user.role == 'admin'
+        
+        return jsonify({
+            'unit_cost': unit_cost,
+            'units': units,
+            'total_cost': total_cost,
+            'current_balance': current_balance,
+            'remaining_balance': remaining_balance,
+            'has_sufficient_balance': has_sufficient_balance,
+            'is_admin': is_admin,
+            'campus_name': campus.name,
+            'group_name': group.name,
+            'cost_source': 'grupo (override)' if group.certification_cost_override is not None else 'campus',
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/groups/<int:group_id>/exams', methods=['POST'])
 @jwt_required()
 @coordinator_required
@@ -3434,6 +3505,47 @@ def assign_exam_to_group(group_id):
                         )
                         db.session.add(material)
                 
+                # ========== VERIFICACIÓN Y DEDUCCIÓN DE SALDO (Reactivación) ==========
+                campus = Campus.query.get(group.campus_id)
+                if group.certification_cost_override is not None:
+                    r_unit_cost = float(group.certification_cost_override)
+                elif campus and campus.certification_cost is not None:
+                    r_unit_cost = float(campus.certification_cost)
+                else:
+                    r_unit_cost = 0.0
+                
+                r_assigned_count = len(member_ids) if assignment_type == 'selected' else group.members.count()
+                r_total_cost = r_unit_cost * r_assigned_count
+                
+                if r_total_cost > 0:
+                    coordinator_id = g.current_user.id
+                    balance = CoordinatorBalance.query.filter_by(coordinator_id=coordinator_id).first()
+                    current_bal = float(balance.current_balance) if balance else 0.0
+                    
+                    if current_bal < r_total_cost:
+                        db.session.rollback()
+                        return jsonify({
+                            'error': f'Saldo insuficiente. Necesitas ${r_total_cost:,.2f} pero tu saldo es ${current_bal:,.2f}',
+                            'error_type': 'insufficient_balance',
+                            'required': r_total_cost,
+                            'available': current_bal,
+                            'deficit': r_total_cost - current_bal
+                        }), 400
+                    
+                    exam_name = exam.name if exam else f'Examen #{exam_id}'
+                    notes = f'Reasignación de "{exam_name}" a grupo "{group.name}" - {r_assigned_count} unidad(es) x ${r_unit_cost:,.2f}'
+                    
+                    create_balance_transaction(
+                        coordinator_id=coordinator_id,
+                        transaction_type='debit',
+                        concept='asignacion_certificacion',
+                        amount=r_total_cost,
+                        reference_type='group_exam',
+                        reference_id=existing.id,
+                        notes=notes,
+                        created_by_id=coordinator_id
+                    )
+                
                 db.session.commit()
                 
                 # Obtener materiales asociados
@@ -3502,6 +3614,50 @@ def assign_exam_to_group(group_id):
                     is_included=True
                 )
                 db.session.add(material)
+        
+        # ========== VERIFICACIÓN Y DEDUCCIÓN DE SALDO ==========
+        # Calcular costo de la asignación
+        campus = Campus.query.get(group.campus_id)
+        if group.certification_cost_override is not None:
+            unit_cost = float(group.certification_cost_override)
+        elif campus and campus.certification_cost is not None:
+            unit_cost = float(campus.certification_cost)
+        else:
+            unit_cost = 0.0
+        
+        assigned_count = len(member_ids) if assignment_type == 'selected' else group.members.count()
+        total_cost = unit_cost * assigned_count
+        
+        # Solo verificar y deducir si hay costo > 0
+        if total_cost > 0:
+            coordinator_id = g.current_user.id
+            balance = CoordinatorBalance.query.filter_by(coordinator_id=coordinator_id).first()
+            current_balance = float(balance.current_balance) if balance else 0.0
+            
+            if current_balance < total_cost:
+                db.session.rollback()
+                return jsonify({
+                    'error': f'Saldo insuficiente. Necesitas ${total_cost:,.2f} pero tu saldo es ${current_balance:,.2f}',
+                    'error_type': 'insufficient_balance',
+                    'required': total_cost,
+                    'available': current_balance,
+                    'deficit': total_cost - current_balance
+                }), 400
+            
+            # Deducir saldo y crear transacción
+            exam_name = exam.name if exam else f'Examen #{exam_id}'
+            notes = f'Asignación de "{exam_name}" a grupo "{group.name}" - {assigned_count} unidad(es) x ${unit_cost:,.2f}'
+            
+            create_balance_transaction(
+                coordinator_id=coordinator_id,
+                transaction_type='debit',
+                concept='asignacion_certificacion',
+                amount=total_cost,
+                reference_type='group_exam',
+                reference_id=group_exam.id,
+                notes=notes,
+                created_by_id=coordinator_id
+            )
         
         db.session.commit()
         

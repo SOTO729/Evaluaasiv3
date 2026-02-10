@@ -496,3 +496,84 @@ export function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+// =====================================================
+// HISTORIAL DE ASIGNACIONES
+// =====================================================
+
+export interface AssignmentDetails {
+  group_exam_id: number;
+  group: {
+    id: number;
+    name: string;
+    code: string;
+  } | null;
+  exam: {
+    id: number;
+    name: string;
+    ecm_code: string | null;
+  } | null;
+  assignment_type: 'all' | 'selected';
+  candidates_count: number;
+  unit_cost: number;
+  assigned_at: string | null;
+}
+
+export interface AssignmentTransaction extends BalanceTransaction {
+  assignment_details?: AssignmentDetails;
+}
+
+export interface AssignmentHistoryResponse {
+  transactions: AssignmentTransaction[];
+  total: number;
+  pages: number;
+  current_page: number;
+  per_page: number;
+  summary: {
+    total_assignments: number;
+    total_spent: number;
+  };
+}
+
+/**
+ * Obtener historial detallado de asignaciones con consumo de saldo
+ */
+export async function getAssignmentHistory(params?: {
+  page?: number;
+  per_page?: number;
+  concept?: 'asignacion_certificacion' | 'asignacion_retoma';
+  date_from?: string;
+  date_to?: string;
+  group_id?: number;
+}): Promise<AssignmentHistoryResponse> {
+  const response = await api.get('/balance/assignment-history', { params });
+  return response.data;
+}
+
+// =====================================================
+// COST PREVIEW (Pre-asignación)
+// =====================================================
+
+export interface CostPreviewData {
+  unit_cost: number;
+  units: number;
+  total_cost: number;
+  current_balance: number;
+  remaining_balance: number;
+  has_sufficient_balance: boolean;
+  is_admin: boolean;
+  campus_name: string;
+  group_name: string;
+  cost_source: string;
+}
+
+/**
+ * Obtener desglose de costo antes de confirmar una asignación
+ */
+export async function getAssignmentCostPreview(
+  groupId: number,
+  data: { assignment_type: 'all' | 'selected'; member_ids?: string[] }
+): Promise<CostPreviewData> {
+  const response = await api.post(`/partners/groups/${groupId}/assignment-cost-preview`, data);
+  return response.data;
+}

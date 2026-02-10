@@ -941,6 +941,25 @@ export default function MiSaldoPage() {
         </div>
       </div>
 
+      {/* Acceso rápido a Historial de Asignaciones */}
+      <div className="mt-6 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+            <TrendingDown className="w-5 h-5 text-emerald-600" />
+          </div>
+          <div>
+            <p className="font-medium text-emerald-800">Historial de Asignaciones</p>
+            <p className="text-sm text-emerald-600">Rastrea cada peso invertido en certificaciones: grupos, exámenes, candidatos y costos</p>
+          </div>
+        </div>
+        <Link
+          to="/historial-asignaciones"
+          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+        >
+          Ver detalle <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+
       {/* Alerta de saldo bajo */}
       {balance && balance.current_balance < (balance.total_received * 0.2) && balance.total_received > 0 && (
         <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
