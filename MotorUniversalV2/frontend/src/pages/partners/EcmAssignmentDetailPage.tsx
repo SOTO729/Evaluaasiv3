@@ -474,9 +474,24 @@ export default function EcmAssignmentDetailPage() {
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
-                  <th className="text-left py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Rol</th>
-                  <th className="text-left py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Grupo / Campus</th>
-                  <th className="text-left py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Examen</th>
+                  <th className="text-left py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                    <button onClick={() => handleSort('role')} className="flex items-center fluid-gap-1 hover:text-gray-900 transition-colors">
+                      Rol
+                      <ArrowUpDown className="w-3 h-3" />
+                    </button>
+                  </th>
+                  <th className="text-left py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                    <button onClick={() => handleSort('group')} className="flex items-center fluid-gap-1 hover:text-gray-900 transition-colors">
+                      Grupo / Campus
+                      <ArrowUpDown className="w-3 h-3" />
+                    </button>
+                  </th>
+                  <th className="text-left py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                    <button onClick={() => handleSort('exam')} className="flex items-center fluid-gap-1 hover:text-gray-900 transition-colors">
+                      Examen
+                      <ArrowUpDown className="w-3 h-3" />
+                    </button>
+                  </th>
                   <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
                     <button onClick={() => handleSort('date')} className="flex items-center fluid-gap-1 hover:text-gray-900 transition-colors mx-auto">
                       Fecha
@@ -495,10 +510,25 @@ export default function EcmAssignmentDetailPage() {
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
-                  <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Estado</th>
+                  <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                    <button onClick={() => handleSort('status')} className="flex items-center fluid-gap-1 hover:text-gray-900 transition-colors mx-auto">
+                      Estado
+                      <ArrowUpDown className="w-3 h-3" />
+                    </button>
+                  </th>
                   <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Certificados</th>
-                  <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Material</th>
-                  <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Duración</th>
+                  <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                    <button onClick={() => handleSort('material')} className="flex items-center fluid-gap-1 hover:text-gray-900 transition-colors mx-auto">
+                      Material
+                      <ArrowUpDown className="w-3 h-3" />
+                    </button>
+                  </th>
+                  <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                    <button onClick={() => handleSort('duration')} className="flex items-center fluid-gap-1 hover:text-gray-900 transition-colors mx-auto">
+                      Duración
+                      <ArrowUpDown className="w-3 h-3" />
+                    </button>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">

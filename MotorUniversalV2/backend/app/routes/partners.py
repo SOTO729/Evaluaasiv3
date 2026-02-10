@@ -7612,6 +7612,12 @@ def get_ecm_assignment_detail(ecm_id):
             'name': 'a.user_name',
             'score': 'COALESCE(lr.score, -1)',
             'cost': 'COALESCE(unit_cost, 0)',
+            'role': 'a.user_role',
+            'group': 'a.group_name',
+            'exam': 'a.exam_name',
+            'status': 'COALESCE(lr.result_status_raw, -1)',
+            'material': 'COALESCE(lr.score, -1)',
+            'duration': 'COALESCE(lr.duration_seconds, -1)',
         }
         sort_col = sort_map.get(sort_by, 'a.assignment_date')
         sort_direction = 'DESC' if sort_dir == 'desc' else 'ASC'
