@@ -27,6 +27,7 @@ import {
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import DatePickerInput from '../../components/DatePickerInput';
+import StyledSelect from '../../components/StyledSelect';
 import {
   getCampus,
   getGroup,
@@ -132,11 +133,20 @@ export default function GroupFormPage() {
         setCampus(campusData);
         setCycles(cyclesData.cycles);
         
-        // Si viene un ciclo por URL, usarlo
+        // Si viene un ciclo por URL, usarlo; si no, seleccionar el más reciente
         if (defaultCycleId) {
           setFormData(prev => ({
             ...prev,
             school_cycle_id: parseInt(defaultCycleId),
+          }));
+        } else if (cyclesData.cycles.length > 0) {
+          // Ordenar por created_at descendente y tomar el primero
+          const sorted = [...cyclesData.cycles].sort((a, b) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          setFormData(prev => ({
+            ...prev,
+            school_cycle_id: sorted[0].id,
           }));
         }
       }
@@ -399,151 +409,182 @@ export default function GroupFormPage() {
         } 
       />
       
-      {/* Header */}
-      <div className="flex items-center fluid-gap-5 fluid-mb-6">
-        <Link
-          to={isEditing ? `/partners/groups/${groupId}` : `/partners/campuses/${campusId}`}
-          className="fluid-p-2 hover:bg-gray-100 rounded-fluid-xl transition-colors"
-        >
-          <ArrowLeft className="fluid-icon-lg text-gray-600" />
-        </Link>
-        <div>
-          {campus && (
-            <div className="flex items-center gap-2 fluid-text-base text-gray-500 mb-1">
-              <Building2 className="fluid-icon-sm" />
-              <span>{campus.name}</span>
-            </div>
-          )}
-          <h1 className="fluid-text-3xl font-bold text-gray-800">
-            {isEditing ? 'Configuración del Grupo' : 'Nuevo Grupo'}
-          </h1>
+      {/* Header con Gradiente */}
+      <div className={`bg-gradient-to-r ${isEditing ? 'from-indigo-600 via-purple-600 to-blue-600' : 'from-blue-600 via-indigo-600 to-purple-600'} rounded-fluid-2xl fluid-p-6 fluid-mb-6 shadow-lg`}>
+        <div className="flex items-center fluid-gap-5 flex-wrap">
+          <Link
+            to={isEditing ? `/partners/groups/${groupId}` : `/partners/campuses/${campusId}`}
+            className="fluid-p-3 bg-white/20 hover:bg-white/30 rounded-fluid-xl transition-all duration-300 hover:scale-105"
+          >
+            <ArrowLeft className="fluid-icon-lg text-white" />
+          </Link>
+          
+          <div className="flex-1 min-w-0">
+            {campus && (
+              <div className="flex items-center fluid-gap-2 fluid-text-sm text-white/80 fluid-mb-1">
+                <Building2 className="fluid-icon-sm" />
+                <Link to={`/partners/campuses/${campusId}`} className="hover:text-white transition-colors">{campus.name}</Link>
+              </div>
+            )}
+            <h1 className="fluid-text-3xl font-bold text-white flex items-center fluid-gap-3">
+              <Layers className="fluid-icon-xl" />
+              {isEditing ? 'Configuración del Grupo' : 'Nuevo Grupo'}
+            </h1>
+          </div>
+
+          <div className="flex items-center fluid-gap-3">
+            <Link
+              to={isEditing ? `/partners/groups/${groupId}` : `/partners/campuses/${campusId}`}
+              className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-3 bg-white/20 hover:bg-white/30 text-white rounded-fluid-xl font-medium fluid-text-base transition-all duration-300"
+            >
+              Cancelar
+            </Link>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                const form = document.getElementById('group-form') as HTMLFormElement;
+                if (form) form.requestSubmit();
+              }}
+              disabled={saving}
+              className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-3 bg-white hover:bg-gray-100 text-blue-600 rounded-fluid-xl font-semibold fluid-text-base transition-all duration-300 hover:scale-105 shadow-lg disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Save className="fluid-icon-base" />
+                  {isEditing ? 'Guardar Cambios' : 'Crear Grupo'}
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Mensajes */}
+      {/* Modal de Error */}
       {error && (
-        <div className="fluid-mb-6 bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-4 flex items-center fluid-gap-3">
-          <AlertCircle className="fluid-icon-lg text-red-600 flex-shrink-0" />
-          <p className="text-red-700 fluid-text-base">{error}</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setError(null)}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center">
+              <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <AlertCircle className="w-8 h-8 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Error</h3>
+              <p className="text-gray-600 mb-6 leading-relaxed">{error}</p>
+              <button onClick={() => setError(null)} className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 px-6 rounded-xl transition-colors">Entendido</button>
+            </div>
+          </div>
         </div>
       )}
       
       {successMessage && (
-        <div className="fluid-mb-6 bg-green-50 border border-green-200 rounded-fluid-xl fluid-p-4 flex items-center fluid-gap-3">
+        <div className="fluid-mb-6 bg-green-50 border border-green-200 rounded-fluid-xl fluid-p-4 flex items-center fluid-gap-3 animate-fade-in-up">
           <CheckCircle2 className="fluid-icon-lg text-green-600 flex-shrink-0" />
           <p className="text-green-700 fluid-text-base">{successMessage}</p>
         </div>
       )}
 
-      {/* Contenido principal */}
-      <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-6">
-        <form onSubmit={handleSubmit}>
-          {/* Información del Grupo */}
-          <div className="fluid-mb-8">
-            <div className="flex items-center justify-between fluid-mb-5">
-              <h2 className="fluid-text-lg font-semibold text-gray-800 flex items-center fluid-gap-2">
-                <Layers className="fluid-icon-lg text-blue-600" />
-                Información del Grupo
-              </h2>
-              <div className="flex fluid-gap-3">
-                <Link
-                  to={isEditing ? `/partners/groups/${groupId}` : `/partners/campuses/${campusId}`}
-                  className="inline-flex items-center justify-center fluid-px-5 fluid-py-2 border border-gray-300 text-gray-600 hover:bg-gray-100 rounded-fluid-lg font-medium fluid-text-sm transition-colors"
-                >
-                  Cancelar
-                </Link>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="inline-flex items-center justify-center fluid-gap-2 fluid-px-5 fluid-py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-fluid-lg font-medium fluid-text-sm transition-colors"
-                >
-                  {saving ? (
-                    <>
-                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                      Guardando...
-                    </>
-                  ) : (
-                    isEditing ? 'Guardar Cambios' : 'Crear Grupo'
-                  )}
-                </button>
+      {/* Formulario */}
+      <form id="group-form" onSubmit={handleSubmit}>
+        {/* Card: Información del Grupo */}
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-mb-6 overflow-hidden hover:shadow-lg transition-all duration-300">
+          <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white">
+            <h2 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-3">
+              <div className="fluid-p-2 bg-blue-100 rounded-fluid-lg">
+                <Layers className="fluid-icon-base text-blue-600" />
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 fluid-gap-5">
+              Información del Grupo
+            </h2>
+          </div>
+          <div className="fluid-p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 fluid-gap-6">
+              {/* Nombre */}
               <div>
-                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
-                  Nombre del Grupo *
+                <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2 flex items-center fluid-gap-2">
+                  <Layers className="fluid-icon-sm text-blue-500" />
+                  Nombre del Grupo <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Ej: Grupo 2024-A"
-                  className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base"
+                  placeholder="Ej: Grupo 2026-A"
+                  className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all"
                   required
                 />
               </div>
 
+              {/* Ciclo Escolar */}
               {cycles.length > 0 && (
                 <div>
-                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
-                    <GraduationCap className="inline fluid-icon-sm mr-1" />
+                  <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2 flex items-center fluid-gap-2">
+                    <GraduationCap className="fluid-icon-sm text-indigo-500" />
                     Ciclo Escolar
                   </label>
-                  <select
-                    value={formData.school_cycle_id || ''}
-                    onChange={(e) => setFormData({ ...formData, school_cycle_id: e.target.value ? parseInt(e.target.value) : undefined })}
-                    className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base"
-                  >
-                    <option value="">Sin ciclo asignado</option>
-                    {cycles.map((cycle) => (
-                      <option key={cycle.id} value={cycle.id}>
-                        {cycle.name} {cycle.is_current ? '(Actual)' : ''}
-                      </option>
-                    ))}
-                  </select>
+                  <StyledSelect
+                    value={formData.school_cycle_id ? String(formData.school_cycle_id) : ''}
+                    onChange={(val) => setFormData({ ...formData, school_cycle_id: val ? parseInt(val) : undefined })}
+                    options={[
+                      { value: '', label: 'Sin ciclo asignado' },
+                      ...cycles.map((cycle) => ({
+                        value: String(cycle.id),
+                        label: `${cycle.name}${cycle.is_current ? ' (Actual)' : ''}`,
+                      }))
+                    ]}
+                    icon={GraduationCap}
+                    colorScheme="indigo"
+                    placeholder="Seleccionar ciclo"
+                  />
                 </div>
               )}
 
-              <div className="xl:col-span-2">
-                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
-                  <FileText className="inline fluid-icon-sm mr-1" />
+              {/* Descripción */}
+              <div className={cycles.length > 0 ? '' : 'md:col-span-2'}>
+                <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2 flex items-center fluid-gap-2">
+                  <FileText className="fluid-icon-sm text-gray-500" />
                   Descripción
                 </label>
                 <input
                   type="text"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Descripción breve del grupo"
-                  className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base"
+                  placeholder="Descripción breve del grupo (opcional)"
+                  className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all"
                 />
               </div>
             </div>
-
           </div>
+        </div>
 
-          {/* Configuración heredada (solo al editar) */}
-          {isEditing && groupConfig && (
-            <>
-              <div className="border-t border-gray-200 fluid-my-8" />
-              
-              <div>
-                <div className="flex items-center justify-between fluid-mb-5">
-                  <h2 className="fluid-text-lg font-semibold text-gray-800 flex items-center fluid-gap-2">
-                    <Settings className="fluid-icon-lg text-blue-600" />
-                    Configuración Heredada del Plantel
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={handleResetConfig}
-                    disabled={savingConfig}
-                    className="inline-flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 fluid-text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-fluid-lg transition-colors"
-                    title="Restablecer a valores del plantel"
-                  >
-                    <RefreshCw className="fluid-icon-sm" />
-                    Restablecer
-                  </button>
-                </div>
+        {/* Card: Configuración heredada (solo al editar) */}
+        {isEditing && groupConfig && (
+          <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-mb-6 overflow-hidden hover:shadow-lg transition-all duration-300">
+            <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-white">
+              <div className="flex items-center justify-between">
+                <h2 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-3">
+                  <div className="fluid-p-2 bg-purple-100 rounded-fluid-lg">
+                    <Settings className="fluid-icon-base text-purple-600" />
+                  </div>
+                  Configuración Heredada del Plantel
+                </h2>
+                <button
+                  type="button"
+                  onClick={handleResetConfig}
+                  disabled={savingConfig}
+                  className="inline-flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 fluid-text-sm text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-fluid-lg transition-colors"
+                  title="Restablecer a valores del plantel"
+                >
+                  <RefreshCw className="fluid-icon-sm" />
+                  Restablecer
+                </button>
+              </div>
+            </div>
+            <div className="fluid-p-6">
 
                 {/* Info */}
                 <div className="flex items-start fluid-gap-3 fluid-p-4 fluid-mb-6 bg-blue-50 rounded-fluid-xl border border-blue-200">
@@ -743,11 +784,10 @@ export default function GroupFormPage() {
                     )}
                   </div>
                 )}
-              </div>
-            </>
-          )}
-        </form>
-      </div>
+            </div>
+          </div>
+        )}
+      </form>
     </div>
   );
 }
