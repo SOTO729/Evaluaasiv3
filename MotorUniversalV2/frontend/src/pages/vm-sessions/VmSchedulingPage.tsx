@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Clock, Calendar, X, AlertCircle, CheckCircle, Loader2, CalendarDays } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import {
@@ -92,9 +92,10 @@ export default function VmSchedulingPage() {
   // Toast
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const weekDays = getWeekDays(currentDate);
+  const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate]);
+  const weekKey = useMemo(() => formatDateStr(weekDays[0]), [weekDays]);
   const campusId = access?.campus_id;
-  const monthDays = getMonthDays(currentDate.getFullYear(), currentDate.getMonth());
+  const monthDays = useMemo(() => getMonthDays(currentDate.getFullYear(), currentDate.getMonth()), [currentDate]);
 
   // Check access
   useEffect(() => {
@@ -110,42 +111,44 @@ export default function VmSchedulingPage() {
     })();
   }, []);
 
-  // Load ALL week slots at once
+  // Load week slots sequentially to avoid connection exhaustion
   const loadWeekSlots = useCallback(async () => {
     if (!campusId && !isAdminOrCoord) return;
     const targetCampusId = campusId || 1;
+    const days = getWeekDays(currentDate);
     setSlotsLoading(true);
     try {
       const results: WeekSlotsMap = {};
-      await Promise.all(
-        weekDays.map(async (day) => {
-          const dateStr = formatDateStr(day);
-          const res = await getAvailableSlots({ campus_id: targetCampusId, date: dateStr });
-          results[dateStr] = res.slots;
-        })
-      );
+      for (const day of days) {
+        const dateStr = formatDateStr(day);
+        const res = await getAvailableSlots({ campus_id: targetCampusId, date: dateStr });
+        results[dateStr] = res.slots;
+      }
       setWeekSlots(results);
     } catch {
       setWeekSlots({});
     } finally {
       setSlotsLoading(false);
     }
-  }, [campusId, weekDays, isAdminOrCoord]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campusId, weekKey, isAdminOrCoord]);
 
   // Load my sessions
   const loadMySessions = useCallback(async () => {
     try {
+      const days = getWeekDays(currentDate);
       const res = await getVmSessions({
         campus_id: campusId || undefined,
-        date_from: formatDateStr(weekDays[0]),
-        date_to: formatDateStr(weekDays[6]),
+        date_from: formatDateStr(days[0]),
+        date_to: formatDateStr(days[6]),
         status: 'scheduled',
       });
       setMySessions(res.sessions);
     } catch {
       setMySessions([]);
     }
-  }, [campusId, weekDays]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campusId, weekKey]);
 
   useEffect(() => { loadWeekSlots(); }, [loadWeekSlots]);
   useEffect(() => { if (access?.has_access) loadMySessions(); }, [access, loadMySessions]);
