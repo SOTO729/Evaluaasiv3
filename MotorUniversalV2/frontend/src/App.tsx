@@ -103,7 +103,10 @@ const GroupMembersPage = lazy(() => import('./pages/partners/GroupMembersPage'))
 const GroupExamsPage = lazy(() => import('./pages/partners/GroupExamsPage'))
 const GroupDocumentsPage = lazy(() => import('./pages/partners/GroupDocumentsPage'))
 const GroupAssignCandidatesPage = lazy(() => import('./pages/partners/GroupAssignCandidatesPage'))
-const GroupAssignExamPage = lazy(() => import('./pages/partners/GroupAssignExamPage'))
+const ExamSelectConfigPage = lazy(() => import('./pages/partners/exam-assignment/ExamSelectConfigPage'))
+const ExamSelectMaterialsPage = lazy(() => import('./pages/partners/exam-assignment/ExamSelectMaterialsPage'))
+const ExamAssignMembersPage = lazy(() => import('./pages/partners/exam-assignment/ExamAssignMembersPage'))
+const ExamAssignmentReviewPage = lazy(() => import('./pages/partners/exam-assignment/ExamAssignmentReviewPage'))
 const GroupAssignMaterialsPage = lazy(() => import('./pages/partners/GroupAssignMaterialsPage'))
 const GroupEditAssignmentMembersPage = lazy(() => import('./pages/partners/GroupEditAssignmentMembersPage'))
 const CampusActivationPage = lazy(() => import('./pages/partners/CampusActivationPage'))
@@ -259,7 +262,10 @@ function App() {
               <Route path="/partners/groups/:groupId/documents" element={<GroupDocumentsPage />} />
               <Route path="/partners/groups/:groupId/edit" element={<GroupFormPage />} />
               <Route path="/partners/groups/:groupId/assign-candidates" element={<GroupAssignCandidatesPage />} />
-              <Route path="/partners/groups/:groupId/assign-exam" element={<GroupAssignExamPage />} />
+              <Route path="/partners/groups/:groupId/assign-exam" element={<ExamSelectConfigPage />} />
+              <Route path="/partners/groups/:groupId/assign-exam/materials" element={<ExamSelectMaterialsPage />} />
+              <Route path="/partners/groups/:groupId/assign-exam/members" element={<ExamAssignMembersPage />} />
+              <Route path="/partners/groups/:groupId/assign-exam/review" element={<ExamAssignmentReviewPage />} />
               <Route path="/partners/groups/:groupId/assign-materials" element={<GroupAssignMaterialsPage />} />
               <Route path="/partners/groups/:groupId/assignments/:assignmentId/edit-members" element={<GroupEditAssignmentMembersPage />} />
               
