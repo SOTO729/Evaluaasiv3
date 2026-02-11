@@ -440,11 +440,24 @@ export default function CampusActivationPage() {
       return 'La fecha de inicio de vigencia es requerida';
     }
     
-    // Fecha fin debe ser mayor a fecha inicio si está definida
-    if (configData.license_end_date && configData.license_start_date) {
-      if (new Date(configData.license_end_date) <= new Date(configData.license_start_date)) {
-        return 'La fecha de fin debe ser posterior a la fecha de inicio';
-      }
+    // Fecha de fin es requerida
+    if (!configData.license_end_date) {
+      return 'La fecha de fin de vigencia es requerida';
+    }
+    
+    // Fecha fin debe ser mayor a fecha inicio
+    if (new Date(configData.license_end_date) <= new Date(configData.license_start_date)) {
+      return 'La fecha de fin debe ser posterior a la fecha de inicio';
+    }
+    
+    // Costos deben ser mayores a 0
+    const certCost = parseFloat(String(configData.certification_cost || '0'));
+    const retCost = parseFloat(String(configData.retake_cost || '0'));
+    if (!certCost || certCost <= 0) {
+      return 'El costo de certificación debe ser mayor a $0';
+    }
+    if (!retCost || retCost <= 0) {
+      return 'El costo de retoma debe ser mayor a $0';
     }
     
     return null;
@@ -1625,7 +1638,7 @@ export default function CampusActivationPage() {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-indigo-500" />
-                          Fecha de Fin <span className="text-gray-400 text-xs">(opcional)</span>
+                          Fecha de Fin <span className="text-red-500">*</span>
                         </label>
                         <DatePickerInput
                           value={configData.license_end_date ? new Date(configData.license_end_date + 'T00:00:00') : null}
@@ -1639,7 +1652,7 @@ export default function CampusActivationPage() {
                             {new Date(configData.license_end_date + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                           </p>
                         ) : (
-                          <p className="text-xs text-gray-500 mt-1">Deja vacío para vigencia indefinida</p>
+                          <p className="text-xs text-gray-500 mt-1">Selecciona la fecha de fin de vigencia</p>
                         )}
                       </div>
                     </div>
@@ -1654,7 +1667,7 @@ export default function CampusActivationPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
                       <div>
                         <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                          Costo por Certificación (MXN)
+                          Costo por Certificación (MXN) <span className="text-red-500">*</span>
                         </label>
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
@@ -1673,7 +1686,7 @@ export default function CampusActivationPage() {
                       </div>
                       <div>
                         <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                          Costo por Retoma (MXN)
+                          Costo por Retoma (MXN) <span className="text-red-500">*</span>
                         </label>
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>

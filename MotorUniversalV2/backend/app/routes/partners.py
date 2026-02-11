@@ -399,6 +399,11 @@ def create_campus(partner_id):
         if len(director_curp) != 18:
             return jsonify({'error': 'El CURP del director debe tener 18 caracteres'}), 400
         
+        # Verificar que el CURP del director no esté ya registrado como usuario
+        existing_curp_user = User.query.filter_by(curp=director_curp).first()
+        if existing_curp_user:
+            return jsonify({'error': f'Ya existe un usuario registrado con ese CURP ({director_curp}). No se puede usar la misma persona como director en otro plantel.'}), 400
+        
         if not data.get('director_gender'):
             return jsonify({'error': 'El género del director es requerido'}), 400
         
@@ -570,6 +575,11 @@ def update_campus(campus_id):
             data['director_curp'] = data['director_curp'].upper().strip()
             if len(data['director_curp']) != 18:
                 return jsonify({'error': 'El CURP del director debe tener 18 caracteres'}), 400
+            # Verificar que el CURP no esté ya registrado como otro usuario
+            if data['director_curp'] != (campus.director_curp or '').upper().strip():
+                existing_curp_user = User.query.filter_by(curp=data['director_curp']).first()
+                if existing_curp_user:
+                    return jsonify({'error': f'Ya existe un usuario registrado con ese CURP ({data["director_curp"]}). No se puede usar la misma persona como director en otro plantel.'}), 400
         
         if 'director_gender' in data and data['director_gender']:
             if data['director_gender'] not in ['M', 'F', 'O']:
@@ -1605,8 +1615,17 @@ def configure_campus(campus_id):
             if not campus.license_start_date:
                 return jsonify({'error': 'Debe establecer la fecha de inicio de vigencia del plantel'}), 400
             
-            if campus.license_end_date and campus.license_end_date <= campus.license_start_date:
+            if not campus.license_end_date:
+                return jsonify({'error': 'Debe establecer la fecha de fin de vigencia del plantel'}), 400
+            
+            if campus.license_end_date <= campus.license_start_date:
                 return jsonify({'error': 'La fecha de fin debe ser posterior a la fecha de inicio'}), 400
+            
+            # Validar costos > 0
+            if not campus.certification_cost or campus.certification_cost <= 0:
+                return jsonify({'error': 'El costo de certificación debe ser mayor a $0'}), 400
+            if not campus.retake_cost or campus.retake_cost <= 0:
+                return jsonify({'error': 'El costo de retoma debe ser mayor a $0'}), 400
             
             # Al menos un tier debe estar habilitado
             if not (campus.enable_tier_basic or campus.enable_tier_standard or campus.enable_tier_advanced or campus.enable_digital_badge):

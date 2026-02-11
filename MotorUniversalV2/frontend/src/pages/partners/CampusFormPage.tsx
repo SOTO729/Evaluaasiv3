@@ -403,13 +403,13 @@ export default function CampusFormPage() {
         const result = await createCampus(actualPartnerId!, formData);
         // Si se auto-creó el estado, mostrar mensaje especial
         if (result.state_auto_created) {
-          navigate(`/partners/campuses/${result.campus.id}/activate`, {
+          navigate(`/partners/campuses/${result.campus.id}`, {
             state: {
               successMessage: `Plantel creado exitosamente. Se registró automáticamente la presencia en ${formData.state_name}.`,
             },
           });
         } else {
-          navigate(`/partners/campuses/${result.campus.id}/activate`);
+          navigate(`/partners/campuses/${result.campus.id}`);
         }
       }
     } catch (err: any) {
