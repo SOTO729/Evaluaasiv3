@@ -6,6 +6,7 @@ import { X, User, Mail, Shield, AlertCircle, CheckCircle2, Copy, Eye, EyeOff, Ca
 import { CreateResponsableData, CampusResponsable, createCampusResponsable } from '../../services/partnersService';
 import DatePickerInput from '../DatePickerInput';
 import StyledSelect from '../StyledSelect';
+import ToggleSwitch from '../ui/ToggleSwitch';
 
 interface CampusActivationModalProps {
   campusId: number;
@@ -297,37 +298,33 @@ export default function CampusActivationModal({
                 </h3>
                 
                 <div className="space-y-3">
-                  <label className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      name="can_bulk_create_candidates"
-                      checked={formData.can_bulk_create_candidates}
-                      onChange={handleChange}
-                      className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5"
-                    />
+                  <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
                     <div>
                       <span className="font-medium text-gray-800">Altas masivas de candidatos</span>
                       <p className="text-sm text-gray-500">
                         Puede crear múltiples usuarios candidato a través de importación de archivos
                       </p>
                     </div>
-                  </label>
-                  
-                  <label className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      name="can_manage_groups"
-                      checked={formData.can_manage_groups}
-                      onChange={handleChange}
-                      className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5"
+                    <ToggleSwitch
+                      checked={formData.can_bulk_create_candidates}
+                      onChange={(v) => setFormData(prev => ({ ...prev, can_bulk_create_candidates: v }))}
+                      colorScheme="blue"
                     />
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
                     <div>
                       <span className="font-medium text-gray-800">Gestión de grupos</span>
                       <p className="text-sm text-gray-500">
                         Puede crear grupos de alumnos y asignar exámenes o materiales de estudio
                       </p>
                     </div>
-                  </label>
+                    <ToggleSwitch
+                      checked={formData.can_manage_groups}
+                      onChange={(v) => setFormData(prev => ({ ...prev, can_manage_groups: v }))}
+                      colorScheme="blue"
+                    />
+                  </div>
                 </div>
               </div>
 

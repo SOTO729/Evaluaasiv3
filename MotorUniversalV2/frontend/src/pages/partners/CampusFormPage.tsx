@@ -44,6 +44,7 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import DatePickerInput from '../../components/DatePickerInput';
 import StyledSelect from '../../components/StyledSelect';
+import ToggleSwitch from '../../components/ui/ToggleSwitch';
 import {
   getCampus,
   createCampus,
@@ -402,13 +403,13 @@ export default function CampusFormPage() {
         const result = await createCampus(actualPartnerId!, formData);
         // Si se auto-creó el estado, mostrar mensaje especial
         if (result.state_auto_created) {
-          navigate(`/partners/${actualPartnerId}`, {
+          navigate(`/partners/campuses/${result.campus.id}/activate`, {
             state: {
               successMessage: `Plantel creado exitosamente. Se registró automáticamente la presencia en ${formData.state_name}.`,
             },
           });
         } else {
-          navigate(`/partners/campuses/${result.campus.id}`);
+          navigate(`/partners/campuses/${result.campus.id}/activate`);
         }
       }
     } catch (err: any) {
@@ -1352,25 +1353,25 @@ export default function CampusFormPage() {
 
                           {/* Permisos toggles */}
                           {resp.is_active && (
-                            <div className="flex items-center fluid-gap-4 flex-shrink-0">
-                              <label className="flex items-center fluid-gap-2 cursor-pointer">
-                                <input
-                                  type="checkbox"
+                            <div className="flex items-center fluid-gap-5 flex-shrink-0">
+                              <div className="flex items-center fluid-gap-2">
+                                <ToggleSwitch
+                                  size="sm"
                                   checked={resp.can_manage_groups}
-                                  onChange={(e) => handleToggleRespPermission(resp.id, 'can_manage_groups', e.target.checked)}
-                                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                  onChange={(v) => handleToggleRespPermission(resp.id, 'can_manage_groups', v)}
+                                  colorScheme="indigo"
                                 />
-                                <span className="fluid-text-xs text-gray-700 font-medium">Grupos</span>
-                              </label>
-                              <label className="flex items-center fluid-gap-2 cursor-pointer">
-                                <input
-                                  type="checkbox"
+                                <span className="fluid-text-xs text-gray-700 font-medium select-none">Grupos</span>
+                              </div>
+                              <div className="flex items-center fluid-gap-2">
+                                <ToggleSwitch
+                                  size="sm"
                                   checked={resp.can_bulk_create_candidates}
-                                  onChange={(e) => handleToggleRespPermission(resp.id, 'can_bulk_create_candidates', e.target.checked)}
-                                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                  onChange={(v) => handleToggleRespPermission(resp.id, 'can_bulk_create_candidates', v)}
+                                  colorScheme="indigo"
                                 />
-                                <span className="fluid-text-xs text-gray-700 font-medium">Altas masivas</span>
-                              </label>
+                                <span className="fluid-text-xs text-gray-700 font-medium select-none">Altas masivas</span>
+                              </div>
                               {!resp.is_primary && (
                                 <button
                                   type="button"
@@ -1483,17 +1484,27 @@ export default function CampusFormPage() {
                           </div>
 
                           {/* Permisos */}
-                          <div className="fluid-mb-4 fluid-p-3 bg-indigo-50 rounded-fluid-lg border border-indigo-200">
-                            <p className="fluid-text-xs font-semibold text-indigo-700 fluid-mb-2">Permisos</p>
+                          <div className="fluid-mb-4 fluid-p-4 bg-indigo-50/70 rounded-fluid-xl border border-indigo-200">
+                            <p className="fluid-text-xs font-semibold text-indigo-700 fluid-mb-3">Permisos</p>
                             <div className="flex fluid-gap-6">
-                              <label className="flex items-center fluid-gap-2 cursor-pointer">
-                                <input type="checkbox" checked={newResp.can_manage_groups} onChange={(e) => setNewResp(p => ({ ...p, can_manage_groups: e.target.checked }))} className="w-4 h-4 text-indigo-600 border-gray-300 rounded" />
-                                <span className="fluid-text-xs text-gray-700 font-medium">Gestionar Grupos</span>
-                              </label>
-                              <label className="flex items-center fluid-gap-2 cursor-pointer">
-                                <input type="checkbox" checked={newResp.can_bulk_create_candidates} onChange={(e) => setNewResp(p => ({ ...p, can_bulk_create_candidates: e.target.checked }))} className="w-4 h-4 text-indigo-600 border-gray-300 rounded" />
-                                <span className="fluid-text-xs text-gray-700 font-medium">Altas Masivas</span>
-                              </label>
+                              <div className="flex items-center fluid-gap-2">
+                                <ToggleSwitch
+                                  size="sm"
+                                  checked={newResp.can_manage_groups}
+                                  onChange={(v) => setNewResp(p => ({ ...p, can_manage_groups: v }))}
+                                  colorScheme="indigo"
+                                />
+                                <span className="fluid-text-xs text-gray-700 font-medium select-none">Gestionar Grupos</span>
+                              </div>
+                              <div className="flex items-center fluid-gap-2">
+                                <ToggleSwitch
+                                  size="sm"
+                                  checked={newResp.can_bulk_create_candidates}
+                                  onChange={(v) => setNewResp(p => ({ ...p, can_bulk_create_candidates: v }))}
+                                  colorScheme="indigo"
+                                />
+                                <span className="fluid-text-xs text-gray-700 font-medium select-none">Altas Masivas</span>
+                              </div>
                             </div>
                           </div>
 

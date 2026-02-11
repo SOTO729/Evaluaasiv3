@@ -38,6 +38,7 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import DatePickerInput from '../../components/DatePickerInput';
 import StyledSelect from '../../components/StyledSelect';
+import ToggleSwitch from '../../components/ui/ToggleSwitch';
 import {
   getCampus,
   Campus,
@@ -774,35 +775,33 @@ export default function CampusActivationPage() {
                         </h3>
                         
                         <div className="fluid-space-y-3">
-                          <label className="flex items-start fluid-gap-3 fluid-p-3 border border-gray-200 fluid-rounded-lg hover:bg-gray-50 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={assignPerms.can_bulk_create_candidates}
-                              onChange={(e) => setAssignPerms(prev => ({ ...prev, can_bulk_create_candidates: e.target.checked }))}
-                              className="fluid-w-5 fluid-h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5"
-                            />
+                          <div className="flex items-center justify-between fluid-p-3 border border-gray-200 fluid-rounded-lg hover:bg-gray-50">
                             <div>
                               <span className="font-medium text-gray-800">Altas masivas de candidatos</span>
                               <p className="fluid-text-sm text-gray-500">
                                 Puede crear múltiples usuarios candidato a través de importación de archivos
                               </p>
                             </div>
-                          </label>
-                          
-                          <label className="flex items-start fluid-gap-3 fluid-p-3 border border-gray-200 fluid-rounded-lg hover:bg-gray-50 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={assignPerms.can_manage_groups}
-                              onChange={(e) => setAssignPerms(prev => ({ ...prev, can_manage_groups: e.target.checked }))}
-                              className="fluid-w-5 fluid-h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5"
+                            <ToggleSwitch
+                              checked={assignPerms.can_bulk_create_candidates}
+                              onChange={(v) => setAssignPerms(prev => ({ ...prev, can_bulk_create_candidates: v }))}
+                              colorScheme="blue"
                             />
+                          </div>
+                          
+                          <div className="flex items-center justify-between fluid-p-3 border border-gray-200 fluid-rounded-lg hover:bg-gray-50">
                             <div>
                               <span className="font-medium text-gray-800">Gestión de grupos</span>
                               <p className="fluid-text-sm text-gray-500">
                                 Puede crear grupos de alumnos y asignar exámenes o materiales de estudio
                               </p>
                             </div>
-                          </label>
+                            <ToggleSwitch
+                              checked={assignPerms.can_manage_groups}
+                              onChange={(v) => setAssignPerms(prev => ({ ...prev, can_manage_groups: v }))}
+                              colorScheme="blue"
+                            />
+                          </div>
                         </div>
                       </div>
 
@@ -972,37 +971,33 @@ export default function CampusActivationPage() {
                   </h3>
                   
                   <div className="fluid-space-y-3">
-                    <label className="flex items-start fluid-gap-3 fluid-p-3 border border-gray-200 fluid-rounded-lg hover:bg-gray-50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="can_bulk_create_candidates"
-                        checked={formData.can_bulk_create_candidates}
-                        onChange={handleChange}
-                        className="fluid-w-5 fluid-h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5"
-                      />
+                    <div className="flex items-center justify-between fluid-p-3 border border-gray-200 fluid-rounded-lg hover:bg-gray-50">
                       <div>
                         <span className="font-medium text-gray-800">Altas masivas de candidatos</span>
                         <p className="fluid-text-sm text-gray-500">
                           Puede crear múltiples usuarios candidato a través de importación de archivos
                         </p>
                       </div>
-                    </label>
-                    
-                    <label className="flex items-start fluid-gap-3 fluid-p-3 border border-gray-200 fluid-rounded-lg hover:bg-gray-50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="can_manage_groups"
-                        checked={formData.can_manage_groups}
-                        onChange={handleChange}
-                        className="fluid-w-5 fluid-h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5"
+                      <ToggleSwitch
+                        checked={formData.can_bulk_create_candidates}
+                        onChange={(v) => setFormData(prev => ({ ...prev, can_bulk_create_candidates: v }))}
+                        colorScheme="blue"
                       />
+                    </div>
+                    
+                    <div className="flex items-center justify-between fluid-p-3 border border-gray-200 fluid-rounded-lg hover:bg-gray-50">
                       <div>
                         <span className="font-medium text-gray-800">Gestión de grupos</span>
                         <p className="fluid-text-sm text-gray-500">
                           Puede crear grupos de alumnos y asignar exámenes o materiales de estudio
                         </p>
                       </div>
-                    </label>
+                      <ToggleSwitch
+                        checked={formData.can_manage_groups}
+                        onChange={(v) => setFormData(prev => ({ ...prev, can_manage_groups: v }))}
+                        colorScheme="blue"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1218,9 +1213,9 @@ export default function CampusActivationPage() {
                         </select>
                         <input type="date" value={addMoreForm.date_of_birth} onChange={e => setAddMoreForm(p => ({...p, date_of_birth: e.target.value}))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
                       </div>
-                      <div className="flex gap-4 mb-3 p-2 bg-indigo-50 rounded-lg">
-                        <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={addMoreForm.can_manage_groups} onChange={e => setAddMoreForm(p => ({...p, can_manage_groups: e.target.checked}))} className="w-4 h-4 text-indigo-600 rounded" /><span className="text-xs text-gray-700">Gestionar Grupos</span></label>
-                        <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={addMoreForm.can_bulk_create_candidates} onChange={e => setAddMoreForm(p => ({...p, can_bulk_create_candidates: e.target.checked}))} className="w-4 h-4 text-indigo-600 rounded" /><span className="text-xs text-gray-700">Altas Masivas</span></label>
+                      <div className="flex gap-6 mb-3 p-3 bg-indigo-50/70 rounded-xl border border-indigo-200">
+                        <div className="flex items-center gap-2"><ToggleSwitch size="sm" checked={addMoreForm.can_manage_groups} onChange={v => setAddMoreForm(p => ({...p, can_manage_groups: v}))} colorScheme="indigo" /><span className="text-xs text-gray-700 font-medium select-none">Gestionar Grupos</span></div>
+                        <div className="flex items-center gap-2"><ToggleSwitch size="sm" checked={addMoreForm.can_bulk_create_candidates} onChange={v => setAddMoreForm(p => ({...p, can_bulk_create_candidates: v}))} colorScheme="indigo" /><span className="text-xs text-gray-700 font-medium select-none">Altas Masivas</span></div>
                       </div>
                       <div className="flex gap-2 justify-end">
                         <button type="button" onClick={() => setShowAddMore(false)} className="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-100">Cancelar</button>
@@ -1378,91 +1373,73 @@ export default function CampusActivationPage() {
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Tier Básico - Siempre habilitado */}
-                      <div className="flex items-start gap-3 p-4 border-2 rounded-xl border-blue-500 bg-blue-50">
-                        <input
-                          type="checkbox"
-                          name="enable_tier_basic"
-                          checked={true}
-                          disabled
-                          className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5 cursor-not-allowed"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-blue-600" />
-                            <span className="font-medium text-gray-800">Tier Básico</span>
-                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Incluido</span>
+                      <div className="flex items-center justify-between p-4 border-2 rounded-xl border-blue-500 bg-blue-50">
+                        <div className="flex items-center gap-3">
+                          <FileText className="w-5 h-5 text-blue-600" />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-gray-800">Tier Básico</span>
+                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Incluido</span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-0.5">Constancia de participación (Eduit)</p>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Constancia de participación (Eduit)
-                          </p>
                         </div>
+                        <ToggleSwitch checked={true} onChange={() => {}} disabled colorScheme="blue" />
                       </div>
 
                       {/* Tier Estándar */}
-                      <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                      <div className={`flex items-center justify-between p-4 border-2 rounded-xl transition-all ${
                         configData.enable_tier_standard ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'
                       }`}>
-                        <input
-                          type="checkbox"
-                          name="enable_tier_standard"
-                          checked={configData.enable_tier_standard}
-                          onChange={handleConfigChange}
-                          className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 mt-0.5"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <Award className="w-4 h-4 text-green-600" />
+                        <div className="flex items-center gap-3">
+                          <Award className="w-5 h-5 text-green-600" />
+                          <div>
                             <span className="font-medium text-gray-800">Tier Estándar</span>
+                            <p className="text-xs text-gray-500 mt-0.5">Certificado Eduit oficial</p>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Certificado Eduit oficial
-                          </p>
                         </div>
-                      </label>
+                        <ToggleSwitch
+                          checked={configData.enable_tier_standard}
+                          onChange={(v) => setConfigData(prev => ({ ...prev, enable_tier_standard: v }))}
+                          colorScheme="green"
+                        />
+                      </div>
 
                       {/* Tier Avanzado (CONOCER) */}
-                      <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                      <div className={`flex items-center justify-between p-4 border-2 rounded-xl transition-all ${
                         configData.enable_tier_advanced ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
                       }`}>
-                        <input
-                          type="checkbox"
-                          name="enable_tier_advanced"
-                          checked={configData.enable_tier_advanced}
-                          onChange={handleConfigChange}
-                          className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500 mt-0.5"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <BadgeCheck className="w-4 h-4 text-purple-600" />
+                        <div className="flex items-center gap-3">
+                          <BadgeCheck className="w-5 h-5 text-purple-600" />
+                          <div>
                             <span className="font-medium text-gray-800">Tier Avanzado (CONOCER)</span>
+                            <p className="text-xs text-gray-500 mt-0.5">Certificado avalado por CONOCER</p>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Certificado avalado por CONOCER
-                          </p>
                         </div>
-                      </label>
+                        <ToggleSwitch
+                          checked={configData.enable_tier_advanced}
+                          onChange={(v) => setConfigData(prev => ({ ...prev, enable_tier_advanced: v }))}
+                          colorScheme="purple"
+                        />
+                      </div>
 
                       {/* Insignia Digital */}
-                      <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                      <div className={`flex items-center justify-between p-4 border-2 rounded-xl transition-all ${
                         configData.enable_digital_badge ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-gray-300'
                       }`}>
-                        <input
-                          type="checkbox"
-                          name="enable_digital_badge"
-                          checked={configData.enable_digital_badge}
-                          onChange={handleConfigChange}
-                          className="w-5 h-5 text-amber-600 border-gray-300 rounded focus:ring-amber-500 mt-0.5"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-amber-600" />
+                        <div className="flex items-center gap-3">
+                          <Sparkles className="w-5 h-5 text-amber-600" />
+                          <div>
                             <span className="font-medium text-gray-800">Insignia Digital</span>
+                            <p className="text-xs text-gray-500 mt-0.5">Reconocimiento digital verificable</p>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Reconocimiento digital verificable
-                          </p>
                         </div>
-                      </label>
+                        <ToggleSwitch
+                          checked={configData.enable_digital_badge}
+                          onChange={(v) => setConfigData(prev => ({ ...prev, enable_digital_badge: v }))}
+                          colorScheme="amber"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -1492,21 +1469,15 @@ export default function CampusActivationPage() {
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-80 overflow-y-auto">
                         {availableEcm.map((ecm) => (
-                          <label
+                          <div
                             key={ecm.id}
-                            className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                            className={`flex items-center justify-between p-4 border-2 rounded-xl transition-all ${
                               selectedEcmIds.includes(ecm.id) 
                                 ? 'border-indigo-500 bg-indigo-50' 
                                 : 'border-gray-200 hover:border-gray-300'
                             }`}
                           >
-                            <input
-                              type="checkbox"
-                              checked={selectedEcmIds.includes(ecm.id)}
-                              onChange={() => toggleEcmSelection(ecm.id)}
-                              className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 mt-0.5"
-                            />
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0 mr-3">
                               <div className="flex items-center gap-2">
                                 <span className="font-mono text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
                                   {ecm.code}
@@ -1522,7 +1493,13 @@ export default function CampusActivationPage() {
                                 <p className="text-xs text-gray-500 truncate">{ecm.sector}</p>
                               )}
                             </div>
-                          </label>
+                            <ToggleSwitch
+                              checked={selectedEcmIds.includes(ecm.id)}
+                              onChange={() => toggleEcmSelection(ecm.id)}
+                              colorScheme="indigo"
+                              size="sm"
+                            />
+                          </div>
                         ))}
                       </div>
                     )}
@@ -1541,42 +1518,37 @@ export default function CampusActivationPage() {
                       Evaluaciones Parciales de Office
                     </h3>
                     <div className="space-y-3">
-                      <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                      <div className={`flex items-center justify-between p-4 border-2 rounded-xl transition-all ${
                         configData.enable_partial_evaluations ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'
                       }`}>
-                        <input
-                          type="checkbox"
-                          name="enable_partial_evaluations"
-                          checked={configData.enable_partial_evaluations}
-                          onChange={handleConfigChange}
-                          className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 mt-0.5"
-                        />
-                        <div className="flex-1">
-                          <span className="font-medium text-gray-800">Habilitar Evaluaciones Parciales</span>
-                          <p className="text-xs text-gray-500 mt-1">
-                            El profesor programa fecha, grupo y unidad para evaluar
-                          </p>
+                        <div className="flex items-center gap-3">
+                          <Clock className="w-5 h-5 text-indigo-600" />
+                          <div>
+                            <span className="font-medium text-gray-800">Habilitar Evaluaciones Parciales</span>
+                            <p className="text-xs text-gray-500 mt-0.5">El profesor programa fecha, grupo y unidad para evaluar</p>
+                          </div>
                         </div>
-                      </label>
+                        <ToggleSwitch
+                          checked={configData.enable_partial_evaluations}
+                          onChange={(v) => setConfigData(prev => ({ ...prev, enable_partial_evaluations: v }))}
+                          colorScheme="indigo"
+                        />
+                      </div>
 
                       {configData.enable_partial_evaluations && (
-                        <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ml-6 ${
+                        <div className={`flex items-center justify-between p-4 border-2 rounded-xl transition-all ml-6 ${
                           configData.enable_unscheduled_partials ? 'border-cyan-500 bg-cyan-50' : 'border-gray-200 hover:border-gray-300'
                         }`}>
-                          <input
-                            type="checkbox"
-                            name="enable_unscheduled_partials"
-                            checked={configData.enable_unscheduled_partials}
-                            onChange={handleConfigChange}
-                            className="w-5 h-5 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500 mt-0.5"
-                          />
-                          <div className="flex-1">
+                          <div>
                             <span className="font-medium text-gray-800">Permitir Parciales sin Agendar</span>
-                            <p className="text-xs text-gray-500 mt-1">
-                              El alumno puede seleccionar la unidad a evaluar sin programación previa
-                            </p>
+                            <p className="text-xs text-gray-500 mt-0.5">El alumno puede seleccionar la unidad a evaluar sin programación previa</p>
                           </div>
-                        </label>
+                          <ToggleSwitch
+                            checked={configData.enable_unscheduled_partials}
+                            onChange={(v) => setConfigData(prev => ({ ...prev, enable_unscheduled_partials: v }))}
+                            colorScheme="cyan"
+                          />
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1589,48 +1561,40 @@ export default function CampusActivationPage() {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Calendario de Sesiones */}
-                      <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                      <div className={`flex items-center justify-between p-4 border-2 rounded-xl transition-all ${
                         configData.enable_virtual_machines ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'
                       }`}>
-                        <input
-                          type="checkbox"
-                          name="enable_virtual_machines"
-                          checked={configData.enable_virtual_machines}
-                          onChange={handleConfigChange}
-                          className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 mt-0.5"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <Monitor className="w-4 h-4 text-emerald-600" />
+                        <div className="flex items-center gap-3">
+                          <Monitor className="w-5 h-5 text-emerald-600" />
+                          <div>
                             <span className="font-medium text-gray-800">Calendario de Sesiones</span>
+                            <p className="text-xs text-gray-500 mt-0.5">Permite a los candidatos agendar sesiones de práctica</p>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Permite a los candidatos agendar sesiones de práctica
-                          </p>
                         </div>
-                      </label>
+                        <ToggleSwitch
+                          checked={configData.enable_virtual_machines}
+                          onChange={(v) => setConfigData(prev => ({ ...prev, enable_virtual_machines: v }))}
+                          colorScheme="emerald"
+                        />
+                      </div>
 
                       {/* Pagos en Línea */}
-                      <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                      <div className={`flex items-center justify-between p-4 border-2 rounded-xl transition-all ${
                         configData.enable_online_payments ? 'border-rose-500 bg-rose-50' : 'border-gray-200 hover:border-gray-300'
                       }`}>
-                        <input
-                          type="checkbox"
-                          name="enable_online_payments"
-                          checked={configData.enable_online_payments}
-                          onChange={handleConfigChange}
-                          className="w-5 h-5 text-rose-600 border-gray-300 rounded focus:ring-rose-500 mt-0.5"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <CreditCard className="w-4 h-4 text-rose-600" />
+                        <div className="flex items-center gap-3">
+                          <CreditCard className="w-5 h-5 text-rose-600" />
+                          <div>
                             <span className="font-medium text-gray-800">Pagos en Línea</span>
+                            <p className="text-xs text-gray-500 mt-0.5">Permite pagos de certificación en línea</p>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Permite pagos de certificación en línea
-                          </p>
                         </div>
-                      </label>
+                        <ToggleSwitch
+                          checked={configData.enable_online_payments}
+                          onChange={(v) => setConfigData(prev => ({ ...prev, enable_online_payments: v }))}
+                          colorScheme="rose"
+                        />
+                      </div>
                     </div>
                   </div>
 
