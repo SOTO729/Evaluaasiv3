@@ -31,6 +31,14 @@ import {
   Hash,
   FileCheck,
   Loader2,
+  UserPlus,
+  UserCog,
+  Eye,
+  EyeOff,
+  Copy,
+  Trash2,
+  Star,
+  Users,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
@@ -48,6 +56,11 @@ import {
   getAvailableCompetencyStandards,
   getCampusCompetencyStandards,
   AvailableCompetencyStandard,
+  listCampusResponsables,
+  addCampusResponsable,
+  updateResponsablePermissions,
+  removeCampusResponsable,
+  type CampusResponsableItem,
 } from '../../services/partnersService';
 
 export default function CampusFormPage() {
@@ -71,6 +84,21 @@ export default function CampusFormPage() {
   const [availableEcm, setAvailableEcm] = useState<AvailableCompetencyStandard[]>([]);
   const [selectedEcmIds, setSelectedEcmIds] = useState<number[]>([]);
   const [loadingEcm, setLoadingEcm] = useState(false);
+
+  // Responsables
+  const [responsables, setResponsables] = useState<CampusResponsableItem[]>([]);
+  const [loadingResp, setLoadingResp] = useState(false);
+  const [showAddResp, setShowAddResp] = useState(false);
+  const [savingResp, setSavingResp] = useState(false);
+  const [respError, setRespError] = useState<string | null>(null);
+  const [newRespPassword, setNewRespPassword] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [newResp, setNewResp] = useState({
+    name: '', first_surname: '', second_surname: '',
+    email: '', curp: '', gender: '' as '' | 'M' | 'F' | 'O',
+    date_of_birth: '',
+    can_bulk_create_candidates: false, can_manage_groups: false,
+  });
 
   // Datos básicos del plantel
   const [formData, setFormData] = useState({
@@ -177,6 +205,9 @@ export default function CampusFormPage() {
         
         // Cargar ECMs disponibles y asignados
         await loadEcmData(Number(campusId));
+
+        // Cargar responsables
+        await loadResponsables(Number(campusId));
         
         // Ahora cargar el partner
         const partner = await getPartner(partnerId);
@@ -220,6 +251,71 @@ export default function CampusFormPage() {
       console.error('Error al cargar ECMs:', err);
     } finally {
       setLoadingEcm(false);
+    }
+  };
+
+  // ====== RESPONSABLES ======
+  const loadResponsables = async (cId: number) => {
+    try {
+      setLoadingResp(true);
+      const res = await listCampusResponsables(cId);
+      setResponsables(res.responsables);
+    } catch {
+      setResponsables([]);
+    } finally {
+      setLoadingResp(false);
+    }
+  };
+
+  const handleAddResponsable = async () => {
+    if (!campusId) return;
+    if (!newResp.name || !newResp.first_surname || !newResp.second_surname || !newResp.email || !newResp.curp || !newResp.gender || !newResp.date_of_birth) {
+      setRespError('Todos los campos son requeridos');
+      return;
+    }
+    setSavingResp(true);
+    setRespError(null);
+    try {
+      const res = await addCampusResponsable(Number(campusId), {
+        name: newResp.name,
+        first_surname: newResp.first_surname,
+        second_surname: newResp.second_surname,
+        email: newResp.email,
+        curp: newResp.curp,
+        gender: newResp.gender as 'M' | 'F' | 'O',
+        date_of_birth: newResp.date_of_birth,
+        can_bulk_create_candidates: newResp.can_bulk_create_candidates,
+        can_manage_groups: newResp.can_manage_groups,
+      });
+      setNewRespPassword(res.responsable.temporary_password || null);
+      setNewResp({ name: '', first_surname: '', second_surname: '', email: '', curp: '', gender: '', date_of_birth: '', can_bulk_create_candidates: false, can_manage_groups: false });
+      await loadResponsables(Number(campusId));
+      if (!res.responsable.temporary_password) setShowAddResp(false);
+    } catch (err: any) {
+      setRespError(err?.response?.data?.error || 'Error al crear responsable');
+    } finally {
+      setSavingResp(false);
+    }
+  };
+
+  const handleToggleRespPermission = async (userId: string, field: 'can_bulk_create_candidates' | 'can_manage_groups', value: boolean) => {
+    if (!campusId) return;
+    try {
+      await updateResponsablePermissions(Number(campusId), userId, { [field]: value });
+      setResponsables(prev => prev.map(r => r.id === userId ? { ...r, [field]: value } : r));
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Error al actualizar permisos');
+    }
+  };
+
+  const handleRemoveResponsable = async (userId: string) => {
+    if (!campusId) return;
+    if (!confirm('¿Estás seguro de desactivar este responsable?')) return;
+    try {
+      await removeCampusResponsable(Number(campusId), userId);
+      await loadResponsables(Number(campusId));
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Error al desactivar responsable');
     }
   };
 
@@ -1098,9 +1194,9 @@ export default function CampusFormPage() {
                       />
                       <ConfigToggle 
                         field="enable_virtual_machines" 
-                        label="Máquinas Virtuales" 
-                        icon={Monitor}
-                        description="Exámenes en ambiente virtual"
+                        label="Calendario de Sesiones" 
+                        icon={Calendar}
+                        description="Agendar sesiones de práctica"
                         colorClass="purple"
                       />
                       <ConfigToggle 
@@ -1183,6 +1279,235 @@ export default function CampusFormPage() {
                           </button>
                         );
                       })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Sección: Responsables del Plantel */}
+                <div className="bg-white fluid-p-5 rounded-fluid-xl border border-gray-200 hover:shadow-lg transition-all duration-300">
+                  <div className="flex items-center justify-between fluid-mb-5 pb-3 border-b border-gray-200">
+                    <h3 className="fluid-text-base font-bold text-gray-800 uppercase tracking-wide flex items-center fluid-gap-2">
+                      <Users className="fluid-icon-base text-indigo-600" />
+                      Responsables del Plantel
+                      <span className="ml-2 fluid-text-xs font-normal normal-case text-gray-500">
+                        {responsables.filter(r => r.is_active).length} activo(s)
+                      </span>
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => { setShowAddResp(true); setRespError(null); setNewRespPassword(null); }}
+                      className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-fluid-lg fluid-text-sm font-medium transition-colors"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      Agregar Responsable
+                    </button>
+                  </div>
+
+                  {loadingResp ? (
+                    <div className="flex items-center justify-center fluid-py-8">
+                      <Loader2 className="fluid-icon-lg text-indigo-600 animate-spin" />
+                    </div>
+                  ) : responsables.length === 0 ? (
+                    <div className="text-center fluid-py-8 text-gray-500">
+                      <UserCog className="fluid-icon-xl mx-auto mb-2 text-gray-300" />
+                      <p>No hay responsables asignados</p>
+                    </div>
+                  ) : (
+                    <div className="fluid-space-y-4">
+                      {responsables.map((resp) => (
+                        <div
+                          key={resp.id}
+                          className={`flex flex-col sm:flex-row sm:items-center fluid-gap-4 fluid-p-4 rounded-fluid-xl border-2 transition-all ${
+                            !resp.is_active
+                              ? 'border-gray-200 bg-gray-50 opacity-60'
+                              : resp.is_primary
+                              ? 'border-indigo-300 bg-gradient-to-r from-indigo-50 to-purple-50'
+                              : 'border-gray-200 bg-white hover:border-indigo-200'
+                          }`}
+                        >
+                          {/* Avatar + Info */}
+                          <div className="flex items-center fluid-gap-3 flex-1 min-w-0">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                              resp.is_primary
+                                ? 'bg-gradient-to-br from-indigo-400 to-purple-500'
+                                : 'bg-gray-300'
+                            }`}>
+                              <UserCog className="w-5 h-5 text-white" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center fluid-gap-2">
+                                <p className="fluid-text-sm font-bold text-gray-900 truncate">{resp.full_name}</p>
+                                {resp.is_primary && (
+                                  <span className="flex items-center fluid-gap-1 fluid-text-xs bg-indigo-100 text-indigo-700 fluid-px-2 fluid-py-0.5 rounded-full font-semibold flex-shrink-0">
+                                    <Star className="w-3 h-3" /> Principal
+                                  </span>
+                                )}
+                                {!resp.is_active && (
+                                  <span className="fluid-text-xs bg-red-100 text-red-600 fluid-px-2 fluid-py-0.5 rounded-full font-semibold flex-shrink-0">Inactivo</span>
+                                )}
+                              </div>
+                              <p className="fluid-text-xs text-gray-500 truncate">{resp.email}</p>
+                            </div>
+                          </div>
+
+                          {/* Permisos toggles */}
+                          {resp.is_active && (
+                            <div className="flex items-center fluid-gap-4 flex-shrink-0">
+                              <label className="flex items-center fluid-gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={resp.can_manage_groups}
+                                  onChange={(e) => handleToggleRespPermission(resp.id, 'can_manage_groups', e.target.checked)}
+                                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                />
+                                <span className="fluid-text-xs text-gray-700 font-medium">Grupos</span>
+                              </label>
+                              <label className="flex items-center fluid-gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={resp.can_bulk_create_candidates}
+                                  onChange={(e) => handleToggleRespPermission(resp.id, 'can_bulk_create_candidates', e.target.checked)}
+                                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                />
+                                <span className="fluid-text-xs text-gray-700 font-medium">Altas masivas</span>
+                              </label>
+                              {!resp.is_primary && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveResponsable(resp.id)}
+                                  className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Desactivar responsable"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Modal/Form para agregar responsable */}
+                  {showAddResp && (
+                    <div className="fluid-mt-5 fluid-pt-5 border-t border-gray-200">
+                      {newRespPassword ? (
+                        /* Mostrar credenciales del nuevo responsable */
+                        <div className="bg-green-50 border border-green-200 rounded-fluid-xl fluid-p-5">
+                          <div className="flex items-center fluid-gap-2 fluid-mb-3">
+                            <CheckCircle2 className="w-5 h-5 text-green-600" />
+                            <h4 className="fluid-text-sm font-bold text-green-800">Responsable creado exitosamente</h4>
+                          </div>
+                          <p className="fluid-text-xs text-green-700 fluid-mb-3">Guarda estas credenciales, la contraseña solo se muestra una vez:</p>
+                          <div className="bg-white rounded-lg fluid-p-4 border border-green-200 font-mono fluid-text-sm space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">Usuario:</span>
+                              <div className="flex items-center fluid-gap-2">
+                                <span className="font-bold text-gray-800">{responsables[responsables.length - 1]?.username}</span>
+                                <button type="button" onClick={() => navigator.clipboard.writeText(responsables[responsables.length - 1]?.username || '')} className="p-1 hover:bg-gray-100 rounded"><Copy className="w-3.5 h-3.5 text-gray-400" /></button>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">Contraseña:</span>
+                              <div className="flex items-center fluid-gap-2">
+                                <span className="font-bold text-gray-800">{showPassword ? newRespPassword : '••••••••••••'}</span>
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="p-1 hover:bg-gray-100 rounded">{showPassword ? <EyeOff className="w-3.5 h-3.5 text-gray-400" /> : <Eye className="w-3.5 h-3.5 text-gray-400" />}</button>
+                                <button type="button" onClick={() => navigator.clipboard.writeText(newRespPassword || '')} className="p-1 hover:bg-gray-100 rounded"><Copy className="w-3.5 h-3.5 text-gray-400" /></button>
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => { setShowAddResp(false); setNewRespPassword(null); setShowPassword(false); }}
+                            className="fluid-mt-4 fluid-px-4 fluid-py-2 bg-green-600 hover:bg-green-700 text-white rounded-fluid-lg fluid-text-sm font-medium transition-colors"
+                          >
+                            Entendido
+                          </button>
+                        </div>
+                      ) : (
+                        /* Formulario para crear responsable */
+                        <div>
+                          <div className="flex items-center justify-between fluid-mb-4">
+                            <h4 className="fluid-text-sm font-bold text-gray-800 flex items-center fluid-gap-2">
+                              <UserPlus className="w-4 h-4 text-indigo-600" />
+                              Nuevo Responsable
+                            </h4>
+                            <button type="button" onClick={() => setShowAddResp(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4 text-gray-500" /></button>
+                          </div>
+
+                          {respError && (
+                            <div className="fluid-mb-4 fluid-p-3 bg-red-50 border border-red-200 rounded-fluid-lg flex items-center fluid-gap-2">
+                              <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                              <p className="fluid-text-xs text-red-700">{respError}</p>
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 fluid-gap-4 fluid-mb-4">
+                            <div>
+                              <label className="block fluid-text-xs font-medium text-gray-700 fluid-mb-1">Nombre(s) *</label>
+                              <input type="text" value={newResp.name} onChange={(e) => setNewResp(p => ({ ...p, name: e.target.value }))} className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-indigo-500" placeholder="Juan Carlos" />
+                            </div>
+                            <div>
+                              <label className="block fluid-text-xs font-medium text-gray-700 fluid-mb-1">Apellido Paterno *</label>
+                              <input type="text" value={newResp.first_surname} onChange={(e) => setNewResp(p => ({ ...p, first_surname: e.target.value }))} className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-indigo-500" placeholder="González" />
+                            </div>
+                            <div>
+                              <label className="block fluid-text-xs font-medium text-gray-700 fluid-mb-1">Apellido Materno *</label>
+                              <input type="text" value={newResp.second_surname} onChange={(e) => setNewResp(p => ({ ...p, second_surname: e.target.value }))} className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-indigo-500" placeholder="López" />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4 fluid-mb-4">
+                            <div>
+                              <label className="block fluid-text-xs font-medium text-gray-700 fluid-mb-1">Correo Electrónico *</label>
+                              <input type="email" value={newResp.email} onChange={(e) => setNewResp(p => ({ ...p, email: e.target.value }))} className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-indigo-500" placeholder="responsable@correo.com" />
+                            </div>
+                            <div>
+                              <label className="block fluid-text-xs font-medium text-gray-700 fluid-mb-1">CURP *</label>
+                              <input type="text" maxLength={18} value={newResp.curp} onChange={(e) => setNewResp(p => ({ ...p, curp: e.target.value.toUpperCase() }))} className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-indigo-500 uppercase" placeholder="XXXX000000XXXXXX00" />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4 fluid-mb-4">
+                            <div>
+                              <label className="block fluid-text-xs font-medium text-gray-700 fluid-mb-1">Género *</label>
+                              <select value={newResp.gender} onChange={(e) => setNewResp(p => ({ ...p, gender: e.target.value as '' | 'M' | 'F' | 'O' }))} className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-indigo-500">
+                                <option value="">Seleccionar...</option>
+                                <option value="M">Masculino</option>
+                                <option value="F">Femenino</option>
+                                <option value="O">Otro</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block fluid-text-xs font-medium text-gray-700 fluid-mb-1">Fecha de Nacimiento *</label>
+                              <input type="date" value={newResp.date_of_birth} onChange={(e) => setNewResp(p => ({ ...p, date_of_birth: e.target.value }))} className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-indigo-500" />
+                            </div>
+                          </div>
+
+                          {/* Permisos */}
+                          <div className="fluid-mb-4 fluid-p-3 bg-indigo-50 rounded-fluid-lg border border-indigo-200">
+                            <p className="fluid-text-xs font-semibold text-indigo-700 fluid-mb-2">Permisos</p>
+                            <div className="flex fluid-gap-6">
+                              <label className="flex items-center fluid-gap-2 cursor-pointer">
+                                <input type="checkbox" checked={newResp.can_manage_groups} onChange={(e) => setNewResp(p => ({ ...p, can_manage_groups: e.target.checked }))} className="w-4 h-4 text-indigo-600 border-gray-300 rounded" />
+                                <span className="fluid-text-xs text-gray-700 font-medium">Gestionar Grupos</span>
+                              </label>
+                              <label className="flex items-center fluid-gap-2 cursor-pointer">
+                                <input type="checkbox" checked={newResp.can_bulk_create_candidates} onChange={(e) => setNewResp(p => ({ ...p, can_bulk_create_candidates: e.target.checked }))} className="w-4 h-4 text-indigo-600 border-gray-300 rounded" />
+                                <span className="fluid-text-xs text-gray-700 font-medium">Altas Masivas</span>
+                              </label>
+                            </div>
+                          </div>
+
+                          <div className="flex fluid-gap-3 justify-end">
+                            <button type="button" onClick={() => setShowAddResp(false)} className="fluid-px-4 fluid-py-2 border border-gray-300 text-gray-700 rounded-fluid-lg fluid-text-sm font-medium hover:bg-gray-50 transition-colors">
+                              Cancelar
+                            </button>
+                            <button type="button" onClick={handleAddResponsable} disabled={savingResp} className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-fluid-lg fluid-text-sm font-medium transition-colors disabled:opacity-50">
+                              {savingResp ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                              {savingResp ? 'Creando...' : 'Crear Responsable'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

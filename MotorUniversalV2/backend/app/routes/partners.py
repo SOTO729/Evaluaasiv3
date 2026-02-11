@@ -1203,6 +1203,265 @@ def assign_existing_responsable(campus_id):
         return jsonify({'error': str(e)}), 500
 
 
+# ============== MULTI-RESPONSABLES ==============
+
+@bp.route('/campuses/<int:campus_id>/responsables', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def list_campus_responsables(campus_id):
+    """Listar TODOS los responsables del plantel (no solo el principal)"""
+    try:
+        campus = Campus.query.get_or_404(campus_id)
+
+        # Buscar todos los usuarios con role='responsable' y campus_id=este campus
+        responsables = User.query.filter(
+            User.role == 'responsable',
+            User.campus_id == campus.id
+        ).order_by(User.created_at.asc()).all()
+
+        result = []
+        for r in responsables:
+            result.append({
+                'id': r.id,
+                'username': r.username,
+                'full_name': r.full_name,
+                'email': r.email,
+                'curp': r.curp,
+                'gender': r.gender,
+                'date_of_birth': r.date_of_birth.isoformat() if r.date_of_birth else None,
+                'can_bulk_create_candidates': r.can_bulk_create_candidates,
+                'can_manage_groups': r.can_manage_groups,
+                'is_active': r.is_active,
+                'is_primary': r.id == campus.responsable_id,
+                'created_at': r.created_at.isoformat() if r.created_at else None
+            })
+
+        return jsonify({
+            'responsables': result,
+            'total': len(result),
+            'primary_responsable_id': campus.responsable_id
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/campuses/<int:campus_id>/responsables', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def add_campus_responsable(campus_id):
+    """
+    Crear un nuevo responsable adicional para el plantel.
+    Crea un usuario real con rol 'responsable' y lo asocia al plantel.
+    """
+    import random
+    import string
+    import uuid
+    import secrets
+    from datetime import datetime as dt
+
+    try:
+        campus = Campus.query.get_or_404(campus_id)
+        data = request.get_json()
+
+        # Validar campos requeridos
+        required_fields = {
+            'name': 'Nombre(s)',
+            'first_surname': 'Apellido paterno',
+            'second_surname': 'Apellido materno',
+            'email': 'Correo electrónico',
+            'curp': 'CURP',
+            'gender': 'Género',
+            'date_of_birth': 'Fecha de nacimiento'
+        }
+
+        for field, label in required_fields.items():
+            if not data.get(field):
+                return jsonify({'error': f'El campo {label} es requerido'}), 400
+
+        email = data['email'].strip().lower()
+        curp = data['curp'].upper().strip()
+
+        # Validar formato de email
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            return jsonify({'error': 'Formato de correo electrónico inválido'}), 400
+
+        # Validar CURP
+        curp_pattern = r'^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$'
+        if not re.match(curp_pattern, curp):
+            return jsonify({'error': 'Formato de CURP inválido. Debe tener 18 caracteres'}), 400
+
+        if data['gender'] not in ['M', 'F', 'O']:
+            return jsonify({'error': 'Género inválido'}), 400
+
+        try:
+            date_of_birth = dt.strptime(data['date_of_birth'], '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}), 400
+
+        # Verificar unicidad de email y CURP
+        if User.query.filter_by(email=email).first():
+            return jsonify({'error': 'Ya existe un usuario con ese correo electrónico'}), 400
+        if User.query.filter_by(curp=curp).first():
+            return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
+
+        # Generar username y password
+        chars = string.ascii_uppercase + string.digits
+        while True:
+            username = ''.join(random.choices(chars, k=10))
+            if not User.query.filter_by(username=username).first():
+                break
+        password = secrets.token_urlsafe(12)
+
+        from werkzeug.security import generate_password_hash
+        new_user = User(
+            id=str(uuid.uuid4()),
+            email=email,
+            username=username,
+            name=data['name'].strip(),
+            first_surname=data['first_surname'].strip(),
+            second_surname=data['second_surname'].strip(),
+            gender=data['gender'],
+            curp=curp,
+            date_of_birth=date_of_birth,
+            role='responsable',
+            campus_id=campus.id,
+            is_active=True,
+            is_verified=True,
+            password_hash=generate_password_hash(password),
+            can_bulk_create_candidates=bool(data.get('can_bulk_create_candidates', False)),
+            can_manage_groups=bool(data.get('can_manage_groups', False)),
+        )
+
+        db.session.add(new_user)
+
+        # Si el plantel no tiene responsable principal, asignar este
+        if not campus.responsable_id:
+            campus.responsable_id = new_user.id
+            if campus.activation_status == 'pending':
+                campus.activation_status = 'configuring'
+
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Responsable creado exitosamente',
+            'responsable': {
+                'id': new_user.id,
+                'username': new_user.username,
+                'full_name': new_user.full_name,
+                'email': new_user.email,
+                'curp': new_user.curp,
+                'gender': new_user.gender,
+                'date_of_birth': new_user.date_of_birth.isoformat(),
+                'can_bulk_create_candidates': new_user.can_bulk_create_candidates,
+                'can_manage_groups': new_user.can_manage_groups,
+                'is_active': True,
+                'is_primary': new_user.id == campus.responsable_id,
+                'temporary_password': password,
+            },
+            'campus': {
+                'id': campus.id,
+                'activation_status': campus.activation_status
+            }
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/campuses/<int:campus_id>/responsables/<string:user_id>', methods=['PUT'])
+@jwt_required()
+@coordinator_required
+def update_responsable_permissions(campus_id, user_id):
+    """Actualizar permisos de un responsable específico del plantel"""
+    try:
+        campus = Campus.query.get_or_404(campus_id)
+        responsable = User.query.get_or_404(user_id)
+
+        if responsable.role != 'responsable' or responsable.campus_id != campus.id:
+            return jsonify({'error': 'El usuario no es responsable de este plantel'}), 400
+
+        data = request.get_json()
+
+        if 'can_bulk_create_candidates' in data:
+            responsable.can_bulk_create_candidates = bool(data['can_bulk_create_candidates'])
+        if 'can_manage_groups' in data:
+            responsable.can_manage_groups = bool(data['can_manage_groups'])
+        if 'is_active' in data:
+            responsable.is_active = bool(data['is_active'])
+
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Permisos actualizados exitosamente',
+            'responsable': {
+                'id': responsable.id,
+                'username': responsable.username,
+                'full_name': responsable.full_name,
+                'email': responsable.email,
+                'can_bulk_create_candidates': responsable.can_bulk_create_candidates,
+                'can_manage_groups': responsable.can_manage_groups,
+                'is_active': responsable.is_active,
+                'is_primary': responsable.id == campus.responsable_id,
+            }
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/campuses/<int:campus_id>/responsables/<string:user_id>', methods=['DELETE'])
+@jwt_required()
+@coordinator_required
+def remove_campus_responsable(campus_id, user_id):
+    """Desactivar un responsable del plantel"""
+    try:
+        campus = Campus.query.get_or_404(campus_id)
+        responsable = User.query.get_or_404(user_id)
+
+        if responsable.role != 'responsable' or responsable.campus_id != campus.id:
+            return jsonify({'error': 'El usuario no es responsable de este plantel'}), 400
+
+        # No permitir eliminar al principal si es el único activo
+        active_count = User.query.filter(
+            User.role == 'responsable',
+            User.campus_id == campus.id,
+            User.is_active == True,
+            User.id != user_id
+        ).count()
+
+        if responsable.id == campus.responsable_id and active_count == 0:
+            return jsonify({'error': 'No se puede eliminar al único responsable activo del plantel'}), 400
+
+        responsable.is_active = False
+
+        # Si era el principal, reasignar a otro activo
+        if responsable.id == campus.responsable_id and active_count > 0:
+            next_resp = User.query.filter(
+                User.role == 'responsable',
+                User.campus_id == campus.id,
+                User.is_active == True,
+                User.id != user_id
+            ).first()
+            if next_resp:
+                campus.responsable_id = next_resp.id
+
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Responsable desactivado exitosamente',
+            'responsable_id': user_id
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/campuses/<int:campus_id>/activate', methods=['POST'])
 @jwt_required()
 @coordinator_required

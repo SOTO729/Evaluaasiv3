@@ -52,6 +52,8 @@ import {
   getAvailableCompetencyStandards,
   AvailableCompetencyStandard,
   getCampusCompetencyStandards,
+  addCampusResponsable,
+  type CampusResponsableItem,
 } from '../../services/partnersService';
 
 interface ActivationStep {
@@ -94,6 +96,20 @@ export default function CampusActivationPage() {
     date_of_birth: '',
     can_bulk_create_candidates: false,
     can_manage_groups: false
+  });
+
+  // Estado para responsables adicionales
+  const [additionalResps, setAdditionalResps] = useState<CampusResponsableItem[]>([]);
+  const [showAddMore, setShowAddMore] = useState(false);
+  const [addMoreLoading, setAddMoreLoading] = useState(false);
+  const [addMoreError, setAddMoreError] = useState<string | null>(null);
+  const [addMorePassword, setAddMorePassword] = useState<string | null>(null);
+  const [showAddMorePwd, setShowAddMorePwd] = useState(false);
+  const [addMoreForm, setAddMoreForm] = useState({
+    name: '', first_surname: '', second_surname: '',
+    email: '', curp: '', gender: '' as '' | 'M' | 'F' | 'O',
+    date_of_birth: '',
+    can_bulk_create_candidates: false, can_manage_groups: false,
   });
 
   // Estado del formulario de configuración
@@ -1136,6 +1152,95 @@ export default function CampusActivationPage() {
                   </div>
                 </div>
                 )}
+
+                {/* Agregar más responsables */}
+                <div className="border-t border-gray-200 pt-4 mt-2">
+                  {additionalResps.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Responsables adicionales creados</p>
+                      <div className="space-y-2">
+                        {additionalResps.map(r => (
+                          <div key={r.id} className="flex items-center gap-3 bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+                            <div className="w-8 h-8 bg-indigo-400 rounded-full flex items-center justify-center"><UserCog className="w-4 h-4 text-white" /></div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-800 truncate">{r.full_name}</p>
+                              <p className="text-xs text-gray-500 truncate">{r.email}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {!showAddMore ? (
+                    <button
+                      type="button"
+                      onClick={() => { setShowAddMore(true); setAddMoreError(null); setAddMorePassword(null); }}
+                      className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium hover:bg-indigo-50 px-3 py-2 rounded-lg transition-colors"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      Agregar otro responsable al plantel
+                    </button>
+                  ) : addMorePassword ? (
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                        <p className="text-sm font-bold text-green-800">Responsable adicional creado</p>
+                      </div>
+                      <div className="bg-white rounded-lg p-3 border border-green-200 font-mono text-sm space-y-1">
+                        <div className="flex justify-between"><span className="text-gray-500">Usuario:</span><span className="font-bold">{additionalResps[additionalResps.length - 1]?.username}</span></div>
+                        <div className="flex items-center justify-between"><span className="text-gray-500">Contraseña:</span><div className="flex items-center gap-1"><span className="font-bold">{showAddMorePwd ? addMorePassword : '••••••••'}</span><button type="button" onClick={() => setShowAddMorePwd(!showAddMorePwd)} className="p-0.5 hover:bg-gray-100 rounded">{showAddMorePwd ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}</button><button type="button" onClick={() => navigator.clipboard.writeText(addMorePassword || '')} className="p-0.5 hover:bg-gray-100 rounded"><Copy className="w-3 h-3" /></button></div></div>
+                      </div>
+                      <div className="flex gap-2 mt-3">
+                        <button type="button" onClick={() => { setAddMorePassword(null); setShowAddMore(false); setShowAddMorePwd(false); }} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">Entendido</button>
+                        <button type="button" onClick={() => { setAddMorePassword(null); setAddMoreForm({ name: '', first_surname: '', second_surname: '', email: '', curp: '', gender: '', date_of_birth: '', can_bulk_create_candidates: false, can_manage_groups: false }); }} className="px-3 py-1.5 border border-green-300 text-green-700 rounded-lg text-sm font-medium hover:bg-green-50 transition-colors">Agregar otro</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2"><UserPlus className="w-4 h-4 text-indigo-600" />Nuevo Responsable Adicional</h4>
+                        <button type="button" onClick={() => setShowAddMore(false)} className="p-1 hover:bg-gray-200 rounded"><span className="sr-only">Cerrar</span>✕</button>
+                      </div>
+                      {addMoreError && <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-center gap-2"><AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />{addMoreError}</div>}
+                      <div className="grid grid-cols-3 gap-3 mb-3">
+                        <input type="text" placeholder="Nombre(s)*" value={addMoreForm.name} onChange={e => setAddMoreForm(p => ({...p, name: e.target.value}))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                        <input type="text" placeholder="Ap. Paterno*" value={addMoreForm.first_surname} onChange={e => setAddMoreForm(p => ({...p, first_surname: e.target.value}))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                        <input type="text" placeholder="Ap. Materno*" value={addMoreForm.second_surname} onChange={e => setAddMoreForm(p => ({...p, second_surname: e.target.value}))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <input type="email" placeholder="Correo*" value={addMoreForm.email} onChange={e => setAddMoreForm(p => ({...p, email: e.target.value}))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                        <input type="text" maxLength={18} placeholder="CURP*" value={addMoreForm.curp} onChange={e => setAddMoreForm(p => ({...p, curp: e.target.value.toUpperCase()}))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm uppercase" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <select value={addMoreForm.gender} onChange={e => setAddMoreForm(p => ({...p, gender: e.target.value as any}))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                          <option value="">Género*</option><option value="M">Masculino</option><option value="F">Femenino</option><option value="O">Otro</option>
+                        </select>
+                        <input type="date" value={addMoreForm.date_of_birth} onChange={e => setAddMoreForm(p => ({...p, date_of_birth: e.target.value}))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                      </div>
+                      <div className="flex gap-4 mb-3 p-2 bg-indigo-50 rounded-lg">
+                        <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={addMoreForm.can_manage_groups} onChange={e => setAddMoreForm(p => ({...p, can_manage_groups: e.target.checked}))} className="w-4 h-4 text-indigo-600 rounded" /><span className="text-xs text-gray-700">Gestionar Grupos</span></label>
+                        <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={addMoreForm.can_bulk_create_candidates} onChange={e => setAddMoreForm(p => ({...p, can_bulk_create_candidates: e.target.checked}))} className="w-4 h-4 text-indigo-600 rounded" /><span className="text-xs text-gray-700">Altas Masivas</span></label>
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <button type="button" onClick={() => setShowAddMore(false)} className="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-100">Cancelar</button>
+                        <button type="button" disabled={addMoreLoading} onClick={async () => {
+                          if (!addMoreForm.name || !addMoreForm.first_surname || !addMoreForm.second_surname || !addMoreForm.email || !addMoreForm.curp || !addMoreForm.gender || !addMoreForm.date_of_birth) { setAddMoreError('Todos los campos son requeridos'); return; }
+                          setAddMoreLoading(true); setAddMoreError(null);
+                          try {
+                            const res = await addCampusResponsable(Number(campusId), { name: addMoreForm.name, first_surname: addMoreForm.first_surname, second_surname: addMoreForm.second_surname, email: addMoreForm.email, curp: addMoreForm.curp, gender: addMoreForm.gender as 'M'|'F'|'O', date_of_birth: addMoreForm.date_of_birth, can_bulk_create_candidates: addMoreForm.can_bulk_create_candidates, can_manage_groups: addMoreForm.can_manage_groups });
+                            setAdditionalResps(prev => [...prev, res.responsable]);
+                            setAddMorePassword(res.responsable.temporary_password || null);
+                          } catch (err: any) { setAddMoreError(err?.response?.data?.error || 'Error al crear'); }
+                          finally { setAddMoreLoading(false); }
+                        }} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+                          {addMoreLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                          {addMoreLoading ? 'Creando...' : 'Crear'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Botón para continuar */}
                 <button

@@ -498,6 +498,65 @@ export async function assignExistingResponsable(
   return response.data;
 }
 
+// ============== MULTI-RESPONSABLES ==============
+
+export interface CampusResponsableItem {
+  id: string;
+  username: string;
+  full_name: string;
+  email: string;
+  curp?: string;
+  gender?: string;
+  date_of_birth?: string;
+  can_bulk_create_candidates: boolean;
+  can_manage_groups: boolean;
+  is_active: boolean;
+  is_primary: boolean;
+  temporary_password?: string;
+  created_at?: string;
+}
+
+export async function listCampusResponsables(campusId: number): Promise<{
+  responsables: CampusResponsableItem[];
+  total: number;
+  primary_responsable_id: string | null;
+}> {
+  const response = await api.get(`/partners/campuses/${campusId}/responsables`);
+  return response.data;
+}
+
+export async function addCampusResponsable(
+  campusId: number,
+  data: CreateResponsableData
+): Promise<{
+  message: string;
+  responsable: CampusResponsableItem;
+  campus: { id: number; activation_status: string };
+}> {
+  const response = await api.post(`/partners/campuses/${campusId}/responsables`, data);
+  return response.data;
+}
+
+export async function updateResponsablePermissions(
+  campusId: number,
+  userId: string,
+  data: { can_bulk_create_candidates?: boolean; can_manage_groups?: boolean; is_active?: boolean }
+): Promise<{
+  message: string;
+  responsable: CampusResponsableItem;
+}> {
+  const response = await api.put(`/partners/campuses/${campusId}/responsables/${userId}`, data);
+  return response.data;
+}
+
+export async function removeCampusResponsable(
+  campusId: number,
+  userId: string
+): Promise<{ message: string; responsable_id: string }> {
+  const response = await api.delete(`/partners/campuses/${campusId}/responsables/${userId}`);
+  return response.data;
+}
+
 export async function activateCampus(campusId: number): Promise<{
   message: string;
   campus: Campus;
