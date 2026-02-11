@@ -705,60 +705,71 @@ export default function CampusDetailPage() {
         </div>
       </div>
 
-      {/* SECCIÓN: Estándares de Competencia (ECM) */}
-      {competencyStandards.length > 0 && (
-        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5 fluid-mb-6 hover:shadow-lg transition-all duration-300">
-          <h3 className="fluid-text-sm font-bold text-gray-700 uppercase tracking-wide fluid-mb-5 flex items-center fluid-gap-2">
-            <div className="fluid-p-2 bg-purple-100 rounded-fluid-lg">
-              <Award className="fluid-icon-sm text-purple-600" />
-            </div>
-            Estándares de Competencia Asignados
-            <span className="fluid-text-sm font-medium text-gray-400 bg-gray-100 fluid-px-2 fluid-py-0.5 rounded-full ml-1">{competencyStandards.length}</span>
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 fluid-gap-4">
-            {competencyStandards.map((ecm) => (
-              <div
-                key={ecm.id}
-                className="group relative bg-gradient-to-br from-gray-50 to-white rounded-fluid-xl border border-gray-200 fluid-p-4 hover:shadow-md hover:border-purple-300 transition-all duration-300"
-              >
-                <div className="flex items-start fluid-gap-3">
-                  {/* Logo del ECM o Brand */}
-                  <div className="flex-shrink-0 w-12 h-12 rounded-fluid-lg bg-white border border-gray-200 flex items-center justify-center overflow-hidden shadow-sm group-hover:shadow-md transition-shadow">
-                    {ecm.logo_url ? (
-                      <img src={ecm.logo_url} alt={ecm.code} className="w-10 h-10 object-contain" />
-                    ) : ecm.brand_logo_url ? (
-                      <img src={ecm.brand_logo_url} alt={ecm.brand || ''} className="w-10 h-10 object-contain" />
-                    ) : (
-                      <Award className="fluid-icon-base text-purple-400" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="inline-block fluid-text-xs font-mono font-bold text-purple-700 bg-purple-100 fluid-px-2 fluid-py-0.5 rounded-md mb-1">{ecm.code}</span>
-                    <p className="fluid-text-sm font-semibold text-gray-900 leading-tight line-clamp-2">{ecm.name}</p>
-                    {ecm.brand && (
-                      <p className="fluid-text-xs text-gray-500 font-medium fluid-mt-1">{ecm.brand}</p>
-                    )}
-                  </div>
-                </div>
-                {(ecm.sector || ecm.level) && (
-                  <div className="flex flex-wrap fluid-gap-1.5 fluid-mt-3">
-                    {ecm.sector && (
-                      <span className="fluid-text-xs text-gray-500 bg-gray-100 fluid-px-2 fluid-py-0.5 rounded-md">{ecm.sector}</span>
-                    )}
-                    {ecm.level && (
-                      <span className="fluid-text-xs text-blue-600 bg-blue-50 fluid-px-2 fluid-py-0.5 rounded-md font-medium">Nivel {ecm.level}</span>
-                    )}
-                  </div>
-                )}
+      {/* SECCIÓN INFERIOR: ECM y Ciclos Escolares lado a lado */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 fluid-gap-6">
+        {/* Columna Izquierda: Estándares de Competencia (ECM) */}
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300">
+          <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-white">
+            <h3 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-3">
+              <div className="fluid-p-2 bg-purple-100 rounded-fluid-lg">
+                <Award className="fluid-icon-base text-purple-600" />
               </div>
-            ))}
+              Certificaciones Asignadas
+              <span className="fluid-text-sm font-medium text-gray-400 bg-gray-100 fluid-px-2 fluid-py-1 rounded-full">{competencyStandards.length}</span>
+            </h3>
+          </div>
+          <div className="max-h-96 overflow-y-auto">
+            {competencyStandards.length === 0 ? (
+              <div className="fluid-p-8 text-center">
+                <Award className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-3" />
+                <p className="fluid-text-base font-medium text-gray-500">Sin estándares asignados</p>
+                <p className="fluid-text-sm text-gray-400 fluid-mt-1">Asigna estándares de competencia desde el módulo ECM</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {competencyStandards.map((ecm) => (
+                  <div
+                    key={ecm.id}
+                    className="fluid-p-4 transition-all duration-200 hover:bg-purple-50 border-l-4 border-transparent hover:border-purple-500"
+                  >
+                    <div className="flex items-center fluid-gap-4">
+                      {/* Logo */}
+                      <div className="flex-shrink-0 w-11 h-11 rounded-fluid-lg bg-white border border-gray-200 flex items-center justify-center overflow-hidden shadow-sm">
+                        {ecm.logo_url ? (
+                          <img src={ecm.logo_url} alt={ecm.code} className="w-9 h-9 object-contain" />
+                        ) : ecm.brand_logo_url ? (
+                          <img src={ecm.brand_logo_url} alt={ecm.brand || ''} className="w-9 h-9 object-contain" />
+                        ) : (
+                          <Award className="fluid-icon-base text-purple-400" />
+                        )}
+                      </div>
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center fluid-gap-2 flex-wrap">
+                          <span className="fluid-text-base font-semibold text-gray-900 truncate">{ecm.name}</span>
+                          <span className="fluid-text-xs font-mono font-bold text-purple-700 bg-purple-100 fluid-px-2 fluid-py-0.5 rounded-full border border-purple-200">{ecm.code}</span>
+                        </div>
+                        <div className="flex items-center fluid-gap-3 fluid-text-sm text-gray-500 fluid-mt-1">
+                          {ecm.brand && (
+                            <span className="flex items-center fluid-gap-1 font-medium">{ecm.brand}</span>
+                          )}
+                          {ecm.sector && (
+                            <span className="text-gray-400">{ecm.sector}</span>
+                          )}
+                          {ecm.level && (
+                            <span className="fluid-text-xs text-blue-600 bg-blue-50 fluid-px-2 fluid-py-0.5 rounded-full font-medium">Nivel {ecm.level}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      )}
 
-      {/* SECCIÓN INFERIOR: Ciclos Escolares */}
-      <div className="fluid-space-y-6">
-        {/* Ciclos Escolares */}
+        {/* Columna Derecha: Ciclos Escolares */}
         {campus.is_active && cyclesAvailable ? (
           <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300">
               <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
@@ -779,7 +790,7 @@ export default function CampusDetailPage() {
                         placeholder="Buscar ciclo..."
                         value={cycleSearchTerm}
                         onChange={(e) => setCycleSearchTerm(e.target.value)}
-                        className="w-full sm:w-64 fluid-pl-10 fluid-pr-8 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-sm"
+                        className="w-full sm:w-48 fluid-pl-10 fluid-pr-8 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-sm"
                       />
                       {cycleSearchTerm && (
                         <button
@@ -799,7 +810,7 @@ export default function CampusDetailPage() {
                   </div>
                 </div>
               </div>
-              <div className="max-h-80 overflow-y-auto border-t border-gray-100">
+              <div className="max-h-96 overflow-y-auto border-t border-gray-100">
                 {cycles.length === 0 ? (
                   <div className="fluid-p-8 text-center">
                     <GraduationCap className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-3" />
@@ -879,7 +890,15 @@ export default function CampusDetailPage() {
                 )}
               </div>
             </div>
-        ) : null}
+        ) : (
+          <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="fluid-p-8 text-center">
+              <GraduationCap className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-3" />
+              <p className="fluid-text-base font-medium text-gray-500">Ciclos no disponibles</p>
+              <p className="fluid-text-sm text-gray-400 fluid-mt-1">Activa el plantel para gestionar ciclos escolares</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal para crear ciclo escolar */}
