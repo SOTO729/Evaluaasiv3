@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, ReactNode } from 'react'
+import { useState, useRef, useEffect, useCallback, ReactNode } from 'react'
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '../../store/authStore'
@@ -18,6 +18,38 @@ const Layout = ({ children }: LayoutProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
+  
+  // Refs y estado para scroll horizontal del navbar
+  const navScrollRef = useRef<HTMLDivElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+
+  const checkNavScroll = useCallback(() => {
+    const el = navScrollRef.current
+    if (!el) return
+    setCanScrollLeft(el.scrollLeft > 2)
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 2)
+  }, [])
+
+  useEffect(() => {
+    checkNavScroll()
+    const el = navScrollRef.current
+    if (!el) return
+    el.addEventListener('scroll', checkNavScroll, { passive: true })
+    const ro = new ResizeObserver(checkNavScroll)
+    ro.observe(el)
+    return () => {
+      el.removeEventListener('scroll', checkNavScroll)
+      ro.disconnect()
+    }
+  }, [checkNavScroll, location.pathname])
+
+  const scrollNav = (direction: 'left' | 'right') => {
+    const el = navScrollRef.current
+    if (!el) return
+    const amount = el.clientWidth * 0.6
+    el.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' })
+  }
 
   // Obtener información del plantel para usuarios responsables
   const { data: plantelData } = useQuery({
@@ -156,11 +188,34 @@ const Layout = ({ children }: LayoutProps) => {
                   <span className="fluid-text-sm font-semibold text-primary-600">{campusName}</span>
                 </div>
               )}
-              {/* Navegación desktop con scroll horizontal */}
-              <nav className="hidden lg:flex fluid-ml-8 fluid-gap-3 overflow-x-auto scrollbar-hide max-w-[calc(100vw-400px)] flex-nowrap">
+              {/* Navegación desktop con scroll horizontal y flechas */}
+              <div className="hidden lg:flex items-center flex-1 min-w-0 fluid-ml-6 relative">
+                {/* Flecha izquierda */}
+                {canScrollLeft && (
+                  <button
+                    onClick={() => scrollNav('left')}
+                    className="absolute left-0 z-10 flex items-center justify-center w-8 h-8 rounded-full bg-white/90 shadow-md border border-gray-200 text-gray-500 hover:text-primary-600 hover:bg-primary-50 transition-all hover:shadow-lg flex-shrink-0"
+                    aria-label="Scroll izquierda"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                )}
+                
+                {/* Gradiente izquierdo */}
+                {canScrollLeft && (
+                  <div className="absolute left-8 top-0 bottom-0 w-6 bg-gradient-to-r from-white to-transparent z-[5] pointer-events-none" />
+                )}
+
+                <nav
+                  ref={navScrollRef}
+                  className="flex items-center fluid-gap-1 overflow-x-auto scrollbar-hide scroll-smooth flex-nowrap px-10"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
                 <Link 
                   to="/dashboard" 
-                  className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                  className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
                     location.pathname === '/dashboard' 
                       ? 'text-primary-600 font-semibold bg-primary-50' 
                       : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -171,7 +226,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role !== 'editor' && user?.role !== 'editor_invitado' && user?.role !== 'coordinator' && (
                   <Link 
                     to="/certificates" 
-                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/certificates') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -183,7 +238,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role !== 'coordinator' && (
                   <Link 
                     to="/exams" 
-                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/exams') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -195,7 +250,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role !== 'coordinator' && (
                   <Link 
                     to="/study-contents" 
-                  className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                  className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
                     location.pathname.startsWith('/study-contents') 
                       ? 'text-primary-600 font-semibold bg-primary-50' 
                       : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -207,7 +262,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {['candidato', 'admin', 'coordinator'].includes(user?.role ?? '') && (
                   <Link 
                     to="/vm-sessions" 
-                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/vm-sessions') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -219,7 +274,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && (
                   <Link 
                     to="/standards" 
-                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/standards') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -231,7 +286,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {(user?.role === 'admin' || user?.role === 'coordinator') && (
                   <Link 
                     to="/partners/dashboard" 
-                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/partners') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -243,7 +298,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {(user?.role === 'admin' || user?.role === 'coordinator') && (
                   <Link 
                     to="/asignaciones-ecm" 
-                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/asignaciones-ecm') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -255,7 +310,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {user?.role === 'responsable' && (
                   <Link 
                     to="/mi-plantel" 
-                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/mi-plantel') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -267,7 +322,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {['financiero', 'admin'].includes(user?.role ?? '') && (
                   <Link 
                     to="/financiero" 
-                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/financiero') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -279,7 +334,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {['gerente', 'admin'].includes(user?.role ?? '') && (
                   <Link 
                     to="/gerente" 
-                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/gerente') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -291,7 +346,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {(user?.role === 'admin' || user?.role === 'coordinator') && (
                   <Link 
                     to="/grupos" 
-                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/grupos') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -303,7 +358,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {['coordinator', 'admin'].includes(user?.role ?? '') && (
                   <Link 
                     to="/mi-saldo" 
-                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/mi-saldo') || location.pathname.startsWith('/solicitar-') || location.pathname.startsWith('/historial-')
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -315,7 +370,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {(user?.role === 'admin' || user?.role === 'coordinator') && (
                   <Link 
                     to="/user-management" 
-                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/user-management') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
@@ -325,6 +380,25 @@ const Layout = ({ children }: LayoutProps) => {
                   </Link>
                 )}
               </nav>
+
+                {/* Gradiente derecho */}
+                {canScrollRight && (
+                  <div className="absolute right-8 top-0 bottom-0 w-6 bg-gradient-to-l from-white to-transparent z-[5] pointer-events-none" />
+                )}
+
+                {/* Flecha derecha */}
+                {canScrollRight && (
+                  <button
+                    onClick={() => scrollNav('right')}
+                    className="absolute right-0 z-10 flex items-center justify-center w-8 h-8 rounded-full bg-white/90 shadow-md border border-gray-200 text-gray-500 hover:text-primary-600 hover:bg-primary-50 transition-all hover:shadow-lg flex-shrink-0"
+                    aria-label="Scroll derecha"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* User Dropdown */}
