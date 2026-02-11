@@ -5,15 +5,15 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'vm_sessions')
 BEGIN
     CREATE TABLE vm_sessions (
         id INT IDENTITY(1,1) PRIMARY KEY,
-        user_id NVARCHAR(100) NOT NULL,
+        user_id VARCHAR(36) NOT NULL,
         campus_id INT NOT NULL,
         group_id INT NULL,
         session_date DATE NOT NULL,
         start_hour INT NOT NULL CHECK (start_hour >= 0 AND start_hour <= 23),
         status NVARCHAR(20) NOT NULL DEFAULT 'scheduled',
         notes NVARCHAR(MAX) NULL,
-        created_by_id NVARCHAR(100) NULL,
-        cancelled_by_id NVARCHAR(100) NULL,
+        created_by_id VARCHAR(36) NULL,
+        cancelled_by_id VARCHAR(36) NULL,
         cancellation_reason NVARCHAR(500) NULL,
         cancelled_at DATETIME2 NULL,
         created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
