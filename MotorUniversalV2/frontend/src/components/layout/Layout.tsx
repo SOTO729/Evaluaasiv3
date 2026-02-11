@@ -80,6 +80,8 @@ const Layout = ({ children }: LayoutProps) => {
         return 'bg-red-100 text-red-800'
       case 'editor':
         return 'bg-blue-100 text-blue-800'
+      case 'editor_invitado':
+        return 'bg-teal-100 text-teal-800'
       case 'candidato':
         return 'bg-green-100 text-green-800'
       case 'coordinator':
@@ -102,6 +104,8 @@ const Layout = ({ children }: LayoutProps) => {
         return 'Administrador'
       case 'editor':
         return 'Editor'
+      case 'editor_invitado':
+        return 'Editor Invitado'
       case 'candidato':
         return 'Candidato'
       case 'coordinator':
@@ -164,7 +168,7 @@ const Layout = ({ children }: LayoutProps) => {
                 >
                   Inicio
                 </Link>
-                {user?.role !== 'editor' && user?.role !== 'coordinator' && (
+                {user?.role !== 'editor' && user?.role !== 'editor_invitado' && user?.role !== 'coordinator' && (
                   <Link 
                     to="/certificates" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -423,7 +427,7 @@ const Layout = ({ children }: LayoutProps) => {
                   Inicio
                 </div>
               </Link>
-              {user?.role !== 'editor' && user?.role !== 'coordinator' && (
+              {user?.role !== 'editor' && user?.role !== 'editor_invitado' && user?.role !== 'coordinator' && (
                 <Link 
                   to="/certificates" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${

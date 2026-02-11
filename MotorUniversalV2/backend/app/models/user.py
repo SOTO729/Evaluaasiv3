@@ -75,7 +75,7 @@ class User(db.Model):
     date_of_birth = db.Column(db.Date)
     
     # Rol y permisos
-    role = db.Column(db.String(20), nullable=False, default='candidato')  # admin, gerente, financiero, editor, soporte, coordinator, candidato, auxiliar, responsable
+    role = db.Column(db.String(20), nullable=False, default='candidato')  # admin, gerente, financiero, editor, editor_invitado, soporte, coordinator, candidato, auxiliar, responsable
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
     
@@ -143,6 +143,7 @@ class User(db.Model):
             'gerente': ['users:read', 'users:manage', 'balance:approve', 'activity:read', 'reports:read'],  # Ver actividad de personal, aprobar saldos
             'financiero': ['users:read', 'balance:review', 'balance:read', 'reports:read'],  # Revisar y recomendar saldos
             'editor': ['exams:create', 'exams:read', 'exams:update', 'exams:delete'],
+            'editor_invitado': ['exams:create', 'exams:read', 'exams:update', 'exams:delete'],  # Mismo que editor pero con aislamiento de datos
             'soporte': ['users:read', 'vouchers:create', 'vouchers:read'],
             'coordinator': ['users:read', 'users:create', 'exams:read', 'groups:manage', 'balance:request'],
             'responsable': ['users:read', 'users:create', 'exams:read', 'groups:manage'],  # Permisos base, extendidos por can_bulk_create_candidates y can_manage_groups

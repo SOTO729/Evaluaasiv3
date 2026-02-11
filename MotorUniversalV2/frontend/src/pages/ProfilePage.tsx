@@ -227,6 +227,7 @@ const ProfilePage = () => {
     const roles: Record<string, { label: string; color: string }> = {
       admin: { label: 'Administrador', color: 'bg-red-500' },
       editor: { label: 'Editor', color: 'bg-blue-500' },
+      editor_invitado: { label: 'Editor Invitado', color: 'bg-teal-500' },
       soporte: { label: 'Soporte', color: 'bg-purple-500' },
       candidato: { label: 'Candidato', color: 'bg-green-500' },
       auxiliar: { label: 'Auxiliar', color: 'bg-amber-500' }
@@ -312,7 +313,7 @@ const ProfilePage = () => {
               </div>
 
               {/* Botones de acción */}
-              {profile?.role !== 'editor' && (
+              {profile?.role !== 'editor' && profile?.role !== 'editor_invitado' && (
                 <div className="flex fluid-gap-2 fluid-mt-2 sm:mt-0 flex-shrink-0">
                   {!isEditing ? (
                     <button
@@ -455,7 +456,7 @@ const ProfilePage = () => {
                     <CheckCircle2 className="fluid-icon-xs text-green-500 flex-shrink-0" />
                   )}
                 </div>
-                {profile?.role !== 'editor' && (
+                {profile?.role !== 'editor' && profile?.role !== 'editor_invitado' && (
                   <button onClick={() => setShowEmailModal(true)} className="fluid-mt-1 fluid-text-xs text-blue-600 hover:text-blue-700 font-medium">
                     Cambiar correo →
                   </button>
@@ -467,7 +468,7 @@ const ProfilePage = () => {
                 <p className="text-gray-900 fluid-text-sm font-medium">@{profile?.username}</p>
               </div>
               
-              {profile?.role !== 'editor' && (
+              {profile?.role !== 'editor' && profile?.role !== 'editor_invitado' && (
                 <div>
                   <label className="block fluid-text-xs font-medium text-gray-500 uppercase tracking-wide fluid-mb-1">Teléfono</label>
                   {isEditing ? (
@@ -481,8 +482,8 @@ const ProfilePage = () => {
             </div>
           </div>
 
-          {/* Identificación - Solo si no es editor */}
-          {profile?.role !== 'editor' && (
+          {/* Identificación - Solo si no es editor/editor_invitado */}
+          {profile?.role !== 'editor' && profile?.role !== 'editor_invitado' && (
             <div className="bg-white rounded-fluid-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
               <div className="fluid-px-5 fluid-py-4 border-b border-gray-100 bg-gradient-to-r from-amber-50 to-transparent">
                 <div className="flex items-center fluid-gap-3">

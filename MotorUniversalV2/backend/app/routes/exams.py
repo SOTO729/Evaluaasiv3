@@ -178,6 +178,15 @@ def get_exams():
     if user and user.role in ['alumno', 'candidato']:
         query = query.filter_by(is_published=True)
     
+    # Aislamiento de datos para editor_invitado
+    if user and user.role == 'editor_invitado':
+        # Solo ve exámenes que él creó
+        query = query.filter(Exam.created_by == user_id)
+    elif user and user.role == 'editor':
+        # Editor regular: no ve contenido de editores invitados
+        editor_invitado_ids = db.session.query(User.id).filter(User.role == 'editor_invitado').subquery()
+        query = query.filter(~Exam.created_by.in_(editor_invitado_ids))
+    
     # Ordenar: publicados primero, luego por fecha de actualización (más recientes primero)
     # Esto asegura que al publicar un examen de la página 2+, aparezca en la primera página
     pagination = query.order_by(
@@ -549,6 +558,17 @@ def get_exam(exam_id):
     if not exam:
         return jsonify({'error': 'Examen no encontrado'}), 404
     
+    # Verificar visibilidad según rol
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    if user:
+        if user.role == 'editor_invitado' and exam.created_by != user_id:
+            return jsonify({'error': 'Examen no encontrado'}), 404
+        elif user.role == 'editor' and exam.created_by:
+            creator = User.query.get(exam.created_by)
+            if creator and creator.role == 'editor_invitado':
+                return jsonify({'error': 'Examen no encontrado'}), 404
+    
     include_details = request.args.get('include_details', 'false').lower() == 'true'
     
     return jsonify(exam.to_dict(include_details=include_details)), 200
@@ -583,6 +603,16 @@ def update_exam(exam_id):
     
     data = request.get_json()
     user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    # Editor invitado solo puede editar su propio contenido
+    if user and user.role == 'editor_invitado' and exam.created_by != user_id:
+        return jsonify({'error': 'No tienes permiso para editar este examen'}), 403
+    # Editor regular no puede editar contenido de editor_invitado
+    if user and user.role == 'editor' and exam.created_by:
+        creator = User.query.get(exam.created_by)
+        if creator and creator.role == 'editor_invitado':
+            return jsonify({'error': 'No tienes permiso para editar este examen'}), 403
     
     # Actualizar campos permitidos
     updatable_fields = [
@@ -633,6 +663,16 @@ def delete_exam(exam_id):
     
     if not exam:
         return jsonify({'error': 'Examen no encontrado'}), 404
+    
+    # Verificar ownership para editor_invitado
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    if user and user.role == 'editor_invitado' and exam.created_by != user_id:
+        return jsonify({'error': 'No tienes permiso para eliminar este examen'}), 403
+    if user and user.role == 'editor' and exam.created_by:
+        creator = User.query.get(exam.created_by)
+        if creator and creator.role == 'editor_invitado':
+            return jsonify({'error': 'No tienes permiso para eliminar este examen'}), 403
     
     try:
         # Eliminar study_materials y study_material_exams que referencian este examen

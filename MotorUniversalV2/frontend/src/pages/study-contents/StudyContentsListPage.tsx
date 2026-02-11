@@ -171,7 +171,7 @@ const StudyContentsListPage = () => {
   const draftsRef = useRef<HTMLDivElement>(null);
   
   const isCandidate = user?.role === 'candidato' || user?.role === 'responsable';
-  const canCreate = user?.role === 'admin' || user?.role === 'editor';
+  const canCreate = user?.role === 'admin' || user?.role === 'editor' || user?.role === 'editor_invitado';
   
   // Debounce del término de búsqueda (300ms)
   const debouncedSearchTerm = useDebounce(searchTerm, 300);

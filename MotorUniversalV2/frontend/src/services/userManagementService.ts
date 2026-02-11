@@ -236,6 +236,7 @@ export async function getAvailableCampuses(): Promise<{
 export const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
   editor: 'Editor',
+  editor_invitado: 'Editor Invitado',
   soporte: 'Soporte',
   coordinator: 'Coordinador',
   responsable: 'Responsable',
@@ -246,6 +247,7 @@ export const ROLE_LABELS: Record<string, string> = {
 export const ROLE_COLORS: Record<string, string> = {
   admin: 'bg-red-100 text-red-800',
   editor: 'bg-purple-100 text-purple-800',
+  editor_invitado: 'bg-teal-100 text-teal-800',
   soporte: 'bg-blue-100 text-blue-800',
   coordinator: 'bg-amber-100 text-amber-800',
   responsable: 'bg-indigo-100 text-indigo-800',

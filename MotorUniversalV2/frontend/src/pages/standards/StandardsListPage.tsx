@@ -148,7 +148,7 @@ export default function StandardsListPage() {
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   const isAdmin = user?.role === 'admin';
-  const isEditor = user?.role === 'editor';
+  const isEditor = user?.role === 'editor' || user?.role === 'editor_invitado';
   const canCreate = isAdmin || isEditor;
 
   useEffect(() => {

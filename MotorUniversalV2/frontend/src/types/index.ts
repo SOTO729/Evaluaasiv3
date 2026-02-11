@@ -11,7 +11,7 @@ export interface User {
   second_surname?: string
   full_name: string
   gender?: string
-  role: 'admin' | 'editor' | 'soporte' | 'candidato' | 'auxiliar' | 'coordinator' | 'responsable' | 'financiero' | 'gerente'
+  role: 'admin' | 'editor' | 'editor_invitado' | 'soporte' | 'candidato' | 'auxiliar' | 'coordinator' | 'responsable' | 'financiero' | 'gerente'
   is_active: boolean
   is_verified: boolean
   created_at: string

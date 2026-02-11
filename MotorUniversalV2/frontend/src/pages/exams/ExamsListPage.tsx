@@ -285,7 +285,7 @@ const ExamsListPage = () => {
   //   setDeleteModalOpen(true);
   // };
 
-  const canCreateExam = user?.role === 'admin' || user?.role === 'editor'
+  const canCreateExam = user?.role === 'admin' || user?.role === 'editor' || user?.role === 'editor_invitado'
 
   // Datos de paginación del servidor
   const allExams = data?.exams || [];

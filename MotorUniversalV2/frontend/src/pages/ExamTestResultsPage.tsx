@@ -127,7 +127,7 @@ const ExamTestResultsPage: React.FC = () => {
   const { accessToken, user } = useAuthStore();
 
   // Verificar si el usuario puede ver las respuestas detalladas (no candidatos)
-  const canViewAnswers = user?.role && ['admin', 'editor', 'soporte'].includes(user.role);
+  const canViewAnswers = user?.role && ['admin', 'editor', 'editor_invitado', 'soporte'].includes(user.role);
 
   // Expandir/colapsar secciones
   const [expandedExercises, setExpandedExercises] = useState<Record<string, boolean>>({});

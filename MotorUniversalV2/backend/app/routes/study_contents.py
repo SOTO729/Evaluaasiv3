@@ -32,13 +32,13 @@ study_contents_bp = Blueprint('study_contents', __name__)
 
 
 def admin_or_editor_required(fn):
-    """Decorador para verificar que el usuario sea admin o editor"""
+    """Decorador para verificar que el usuario sea admin, editor o editor_invitado"""
     @wraps(fn)
     def wrapper(*args, **kwargs):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
-        if not user or user.role not in ['admin', 'editor']:
+        if not user or user.role not in ['admin', 'editor', 'editor_invitado']:
             return jsonify({'error': 'Permiso denegado'}), 403
         
         return fn(*args, **kwargs)
@@ -49,6 +49,35 @@ def get_current_user():
     """Obtener el usuario actual"""
     user_id = get_jwt_identity()
     return User.query.get(user_id)
+
+
+def check_material_ownership(material_id):
+    """Verificar si el usuario actual tiene acceso al material según su rol.
+    Retorna (True, None) si tiene acceso, o (False, response) si no lo tiene."""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    if not user:
+        return False, (jsonify({'error': 'No autorizado'}), 401)
+    
+    material = StudyMaterial.query.get(material_id)
+    if not material:
+        return False, (jsonify({'error': 'Material no encontrado'}), 404)
+    
+    # Admin y gerente ven todo
+    if user.role in ['admin', 'gerente']:
+        return True, None
+    
+    # Editor invitado solo puede acceder a su propio contenido
+    if user.role == 'editor_invitado' and str(material.created_by) != str(user_id):
+        return False, (jsonify({'error': 'No tienes permiso para acceder a este material'}), 403)
+    
+    # Editor regular no puede acceder a contenido de editor_invitado
+    if user.role == 'editor' and material.created_by:
+        creator = User.query.get(material.created_by)
+        if creator and creator.role == 'editor_invitado':
+            return False, (jsonify({'error': 'No tienes permiso para acceder a este material'}), 403)
+    
+    return True, None
 
 
 def ensure_study_material_exams_table():
@@ -302,6 +331,15 @@ def get_materials():
         if user and user.role in ['alumno', 'candidato']:
             query = query.filter_by(is_published=True)
         
+        # Aislamiento de datos para editor_invitado
+        if user and user.role == 'editor_invitado':
+            # Solo ve materiales que él creó
+            query = query.filter(StudyMaterial.created_by == user_id)
+        elif user and user.role == 'editor':
+            # Editor regular: no ve contenido de editores invitados
+            editor_invitado_ids = db.session.query(User.id).filter(User.role == 'editor_invitado').subquery()
+            query = query.filter(~StudyMaterial.created_by.in_(editor_invitado_ids))
+        
         # Ordenar: publicados primero, luego por fecha de actualización (más recientes primero)
         # Esto asegura que al publicar un material de la página 2+, aparezca en la primera página
         query = query.order_by(
@@ -327,6 +365,18 @@ def get_material(material_id):
     """Obtener un material de estudio por ID"""
     try:
         material = StudyMaterial.query.get_or_404(material_id)
+        
+        # Verificar visibilidad según rol
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if user:
+            if user.role == 'editor_invitado' and str(material.created_by) != str(user_id):
+                return jsonify({'error': 'Material no encontrado'}), 404
+            elif user.role == 'editor' and material.created_by:
+                creator = User.query.get(material.created_by)
+                if creator and creator.role == 'editor_invitado':
+                    return jsonify({'error': 'Material no encontrado'}), 404
+        
         return jsonify(material.to_dict(include_sessions=True)), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -565,6 +615,11 @@ def create_material():
 def update_material(material_id):
     """Actualizar un material de estudio"""
     try:
+        # Verificar ownership
+        has_access, error_response = check_material_ownership(material_id)
+        if not has_access:
+            return error_response
+        
         from datetime import datetime
         material = StudyMaterial.query.get_or_404(material_id)
         data = request.get_json()
@@ -610,6 +665,11 @@ def update_material(material_id):
 def delete_material(material_id):
     """Eliminar un material de estudio y todos sus archivos de Azure Storage"""
     try:
+        # Verificar ownership
+        has_access, error_response = check_material_ownership(material_id)
+        if not has_access:
+            return error_response
+        
         material = StudyMaterial.query.get_or_404(material_id)
         
         # Eliminar archivos de Azure Storage antes de borrar el material

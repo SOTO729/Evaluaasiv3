@@ -13,11 +13,11 @@ import re
 bp = Blueprint('user_management', __name__, url_prefix='/api/user-management')
 
 # Roles disponibles en el sistema (sin alumno)
-AVAILABLE_ROLES = ['admin', 'editor', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar']
+AVAILABLE_ROLES = ['admin', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar']
 
 # Roles que puede crear cada tipo de usuario
 ROLE_CREATE_PERMISSIONS = {
-    'admin': ['editor', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin
+    'admin': ['editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin
     'coordinator': ['responsable', 'responsable_partner', 'candidato']  # Responsables, Responsables del Partner y candidatos
 }
 
@@ -413,8 +413,8 @@ def create_user():
             else:
                 return jsonify({'error': f'No tienes permiso para crear usuarios con rol {role}'}), 403
         
-        # Verificar CURP único si se proporciona (solo para roles diferentes a editor)
-        if data.get('curp') and role != 'editor':
+        # Verificar CURP único si se proporciona (solo para roles diferentes a editor/editor_invitado)
+        if data.get('curp') and role not in ['editor', 'editor_invitado']:
             curp = data['curp'].upper().strip()
             if User.query.filter_by(curp=curp).first():
                 return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
@@ -440,10 +440,10 @@ def create_user():
         user_date_of_birth = None
         user_campus_id = None
         
-        if role not in ['editor', 'candidato']:
+        if role not in ['editor', 'editor_invitado', 'candidato']:
             # Solo admin/coordinator/responsable pueden tener teléfono
             user_phone = data.get('phone', '').strip() or None
-        if role != 'editor':
+        if role not in ['editor', 'editor_invitado']:
             # Solo candidatos, responsables y otros roles (no editor) pueden tener CURP
             user_curp = data.get('curp', '').upper().strip() or None
         
@@ -514,15 +514,15 @@ def update_user(user_id):
         
         # Campos actualizables
         basic_fields = ['name', 'first_surname', 'second_surname', 'gender']
-        # Solo actualizar phone si el usuario NO es editor ni candidato
-        if user.role not in ['editor', 'candidato']:
+        # Solo actualizar phone si el usuario NO es editor/editor_invitado ni candidato
+        if user.role not in ['editor', 'editor_invitado', 'candidato']:
             basic_fields.append('phone')
         for field in basic_fields:
             if field in data:
                 setattr(user, field, data[field].strip() if data[field] else None)
         
-        # CURP - verificar unicidad (solo si el usuario no es editor)
-        if 'curp' in data and user.role != 'editor':
+        # CURP - verificar unicidad (solo si el usuario no es editor/editor_invitado)
+        if 'curp' in data and user.role not in ['editor', 'editor_invitado']:
             curp = data['curp'].upper().strip() if data['curp'] else None
             if curp:
                 existing = User.query.filter(User.curp == curp, User.id != user_id).first()
@@ -547,11 +547,11 @@ def update_user(user_id):
                 # Admin no puede crear otros admins
                 if new_role == 'admin' and user.role != 'admin':
                     return jsonify({'error': 'No se puede asignar rol de administrador'}), 403
-                # Si cambia a editor o candidato, limpiar phone
-                if new_role in ['editor', 'candidato'] and user.role not in ['editor', 'candidato']:
+                # Si cambia a editor/editor_invitado o candidato, limpiar phone
+                if new_role in ['editor', 'editor_invitado', 'candidato'] and user.role not in ['editor', 'editor_invitado', 'candidato']:
                     user.phone = None
-                # Si cambia a editor, también limpiar CURP
-                if new_role == 'editor' and user.role != 'editor':
+                # Si cambia a editor/editor_invitado, también limpiar CURP
+                if new_role in ['editor', 'editor_invitado'] and user.role not in ['editor', 'editor_invitado']:
                     user.curp = None
                 user.role = new_role
             
@@ -893,6 +893,7 @@ def get_available_roles():
         role_descriptions = {
             'admin': 'Administrador - Acceso total al sistema',
             'editor': 'Editor - Gestión de exámenes y contenidos',
+            'editor_invitado': 'Editor Invitado - Gestión de exámenes con contenido aislado',
             'soporte': 'Soporte - Atención a usuarios y vouchers',
             'coordinator': 'Coordinador - Gestión de partners y candidatos',
             'responsable': 'Responsable - Administra un plantel y sus candidatos',

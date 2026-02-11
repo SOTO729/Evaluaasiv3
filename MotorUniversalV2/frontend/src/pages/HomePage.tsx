@@ -26,8 +26,8 @@ const HomePage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
-  // Admin y Editor ven el mismo dashboard de gestión
-  const isAdminOrEditor = user?.role === 'editor' || user?.role === 'admin'
+  // Admin, Editor y Editor Invitado ven el mismo dashboard de gestión
+  const isAdminOrEditor = user?.role === 'editor' || user?.role === 'editor_invitado' || user?.role === 'admin'
   
   // El coordinador ve su propio dashboard de partners
   const isCoordinator = user?.role === 'coordinator'
