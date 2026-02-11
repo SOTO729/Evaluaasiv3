@@ -599,16 +599,24 @@ def get_editor_dashboard():
         if not current_user:
             return jsonify({'error': 'Usuario no encontrado'}), 404
         
-        # Verificar que sea editor o admin
-        if current_user.role not in ['admin', 'editor']:
+        # Verificar que sea editor, editor_invitado o admin
+        if current_user.role not in ['admin', 'editor', 'editor_invitado']:
             return jsonify({'error': 'Acceso solo para editores'}), 403
         
         # ===== ESTADÍSTICAS DE ESTÁNDARES (ECM) =====
-        total_standards = CompetencyStandard.query.count()
-        active_standards = CompetencyStandard.query.filter_by(is_active=True).count()
+        # editor_invitado solo ve su propio contenido
+        is_guest_editor = current_user.role == 'editor_invitado'
+        
+        if is_guest_editor:
+            standards_query = CompetencyStandard.query.filter_by(created_by=user_id)
+        else:
+            standards_query = CompetencyStandard.query
+        
+        total_standards = standards_query.count()
+        active_standards = standards_query.filter_by(is_active=True).count()
         
         # Estándares recientes (ordenados por updated_at, más reciente primero)
-        recent_standards = CompetencyStandard.query.order_by(
+        recent_standards = standards_query.order_by(
             CompetencyStandard.updated_at.desc()
         ).limit(5).all()
         
@@ -619,17 +627,24 @@ def get_editor_dashboard():
             'sector': s.sector,
             'level': s.level,
             'is_active': s.is_active,
+            'logo_url': s.logo_url,
+            'brand': s.brand.to_dict() if s.brand else None,
             'created_at': s.created_at.isoformat() if s.created_at else None,
             'updated_at': s.updated_at.isoformat() if s.updated_at else None
         } for s in recent_standards]
         
         # ===== ESTADÍSTICAS DE EXÁMENES =====
-        total_exams = Exam.query.count()
-        published_exams = Exam.query.filter_by(is_published=True).count()
-        draft_exams = Exam.query.filter_by(is_published=False).count()
+        if is_guest_editor:
+            exams_query = Exam.query.filter_by(created_by=user_id)
+        else:
+            exams_query = Exam.query
+        
+        total_exams = exams_query.count()
+        published_exams = exams_query.filter_by(is_published=True).count()
+        draft_exams = exams_query.filter_by(is_published=False).count()
         
         # Exámenes recientes (ordenados por updated_at, más reciente primero)
-        recent_exams = Exam.query.order_by(
+        recent_exams = exams_query.order_by(
             Exam.updated_at.desc()
         ).limit(5).all()
         
@@ -651,12 +666,17 @@ def get_editor_dashboard():
         } for e in recent_exams]
         
         # ===== ESTADÍSTICAS DE MATERIALES DE ESTUDIO =====
-        total_materials = StudyMaterial.query.count()
-        published_materials = StudyMaterial.query.filter_by(is_published=True).count()
-        draft_materials = StudyMaterial.query.filter_by(is_published=False).count()
+        if is_guest_editor:
+            materials_query = StudyMaterial.query.filter_by(created_by=user_id)
+        else:
+            materials_query = StudyMaterial.query
+        
+        total_materials = materials_query.count()
+        published_materials = materials_query.filter_by(is_published=True).count()
+        draft_materials = materials_query.filter_by(is_published=False).count()
         
         # Materiales recientes (ordenados por updated_at, más reciente primero)
-        recent_materials = StudyMaterial.query.order_by(
+        recent_materials = materials_query.order_by(
             StudyMaterial.updated_at.desc()
         ).limit(5).all()
         
