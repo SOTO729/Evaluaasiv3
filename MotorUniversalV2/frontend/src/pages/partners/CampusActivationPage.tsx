@@ -550,7 +550,7 @@ export default function CampusActivationPage() {
   const currentStep = activeStep !== null ? activeStep : naturalStep;
 
   return (
-    <div className="fluid-p-4 fluid-p-6 fluid-p-8 w-full animate-fade-in-up">
+    <div className="fluid-p-4 fluid-p-6 fluid-p-8 w-full animate-fade-in-up" style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
       {/* Breadcrumb */}
       <PartnersBreadcrumb 
         items={[
@@ -647,7 +647,7 @@ export default function CampusActivationPage() {
         <div className="lg:col-span-3 fluid-space-y-6">
           {/* Paso 1: Crear/Asignar Responsable */}
           {currentStep === 1 && !createdResponsable && (
-            <div className="bg-white fluid-rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-white fluid-rounded-2xl shadow-sm border border-gray-200">
               {/* Header */}
               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 fluid-px-6 fluid-py-4 text-white">
                 <div className="flex items-center fluid-gap-3">
@@ -725,7 +725,7 @@ export default function CampusActivationPage() {
                           Seleccione un responsable ({availableResponsables.length} disponibles)
                         </h3>
                         
-                        <div className="fluid-space-y-3 max-h-[400px] overflow-y-auto">
+                        <div className="fluid-space-y-3 max-h-[400px] overflow-y-auto overscroll-contain">
                           {availableResponsables.map((resp) => (
                             <label
                               key={resp.id}
@@ -1028,7 +1028,7 @@ export default function CampusActivationPage() {
 
           {/* Responsable recién creado - Mostrar credenciales */}
           {currentStep === 1 && createdResponsable && (
-            <div className="bg-white fluid-rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-white fluid-rounded-2xl shadow-sm border border-gray-200">
               {/* Header de éxito */}
               <div className="bg-gradient-to-r from-green-500 to-emerald-500 fluid-px-6 fluid-py-4 text-white">
                 <div className="flex items-center fluid-gap-3">
@@ -1296,7 +1296,7 @@ export default function CampusActivationPage() {
               </div>
 
               {/* Formulario de Configuración */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 text-white">
                   <div className="flex items-center gap-3">
@@ -1467,7 +1467,7 @@ export default function CampusActivationPage() {
                         </p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-80 overflow-y-auto">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-80 overflow-y-auto overscroll-contain">
                         {availableEcm.map((ecm) => (
                           <div
                             key={ecm.id}

@@ -312,9 +312,10 @@ input[type="password"]::-webkit-password-viewable-toggle-button {
   html {
     scroll-behavior: auto;
     -webkit-overflow-scrolling: touch;
-    height: 100%;
+    min-height: 100%;
+    height: auto;
     overflow-x: hidden;
-    overflow-y: auto;
+    overflow-y: scroll;
     /* Aplicar el sistema de escalado fluido */
     font-size: clamp(14px, 12px + 0.25vw, 20px);
   }
@@ -348,8 +349,6 @@ input[type="password"]::-webkit-password-viewable-toggle-button {
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
     scroll-behavior: auto;
-    /* Asegurar que el scroll con rueda del mouse funcione */
-    touch-action: pan-y;
   }
   
   /* Fix para que el scroll funcione en toda la página */
