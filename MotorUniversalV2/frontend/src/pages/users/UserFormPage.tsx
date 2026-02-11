@@ -261,13 +261,14 @@ export default function UserFormPage() {
 
         const result = await createUser(createData);
         
-        // Si es responsable, mostrar las credenciales temporales
-        if (formData.role === 'responsable' && (result as any).temporary_password) {
+        // Si es responsable o editor_invitado, mostrar las credenciales temporales
+        if (['responsable', 'editor_invitado'].includes(formData.role) && (result as any).temporary_password) {
           setCreatedCredentials({
             username: result.user.username,
             password: (result as any).temporary_password
           });
-          setSuccess('Responsable creado exitosamente. Guarda las credenciales de acceso.');
+          const roleLabel = formData.role === 'responsable' ? 'Responsable' : 'Editor invitado';
+          setSuccess(`${roleLabel} creado exitosamente. Guarda las credenciales de acceso.`);
         } else {
           setSuccess('Usuario creado correctamente');
           setTimeout(() => navigate('/user-management'), 1500);

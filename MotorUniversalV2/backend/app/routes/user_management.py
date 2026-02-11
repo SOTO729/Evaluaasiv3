@@ -477,12 +477,12 @@ def create_user():
         db.session.add(new_user)
         db.session.commit()
         
-        # Si es responsable, incluir la contraseña temporal en la respuesta
+        # Si es responsable o editor_invitado, incluir la contraseña temporal en la respuesta
         response_data = {
             'message': 'Usuario creado exitosamente',
             'user': new_user.to_dict(include_private=True)
         }
-        if role == 'responsable':
+        if role in ['responsable', 'editor_invitado']:
             response_data['temporary_password'] = password
         
         return jsonify(response_data), 201
