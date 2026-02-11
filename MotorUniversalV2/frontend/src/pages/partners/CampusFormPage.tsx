@@ -561,14 +561,30 @@ export default function CampusFormPage() {
         </div>
       </div>
 
-      {/* Mensajes */}
+      {/* Modal de Error */}
       {error && (
-        <div className="fluid-mb-6 fluid-p-4 bg-red-50 border border-red-200 rounded-fluid-xl flex items-center fluid-gap-3 animate-fade-in-up">
-          <AlertCircle className="fluid-icon-lg text-red-600 flex-shrink-0" />
-          <p className="fluid-text-base text-red-700 flex-1">{error}</p>
-          <button onClick={() => setError(null)} className="hover:bg-red-100 rounded-full p-1 transition-colors">
-            <X className="h-5 w-5 text-red-600" />
-          </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setError(null)}>
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          {/* Modal */}
+          <div
+            className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-fade-in-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <AlertCircle className="w-8 h-8 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Error</h3>
+              <p className="text-gray-600 mb-6 leading-relaxed">{error}</p>
+              <button
+                onClick={() => setError(null)}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 px-6 rounded-xl transition-colors"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
         </div>
       )}
       
