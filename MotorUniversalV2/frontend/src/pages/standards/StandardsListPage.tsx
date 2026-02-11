@@ -61,39 +61,20 @@ const StandardRow = ({
     return colors[level] || 'bg-gray-100 text-gray-600';
   };
 
-  const hasLogo = !!standard.logo_url;
-  const hasBrand = !!standard.brand;
-
   return (
     <div 
       onClick={onView}
       className="bg-white border-2 border-gray-200 rounded-fluid-xl fluid-p-5 hover:border-blue-500 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group"
     >
       <div className="flex flex-col sm:flex-row sm:items-center fluid-gap-4">
-        {/* Logos: estándar y marca */}
-        {(hasLogo || hasBrand) && (
-          <div className="flex items-center fluid-gap-3 flex-shrink-0">
-            {hasLogo && (
-              <img
-                src={standard.logo_url}
-                alt={`Logo ${standard.code}`}
-                className="w-14 h-14 object-contain rounded-fluid-lg border border-gray-200 bg-gray-50 p-1"
-              />
-            )}
-            {hasBrand && (
-              <div className="flex flex-col items-center fluid-gap-1">
-                {standard.brand?.logo_url && (
-                  <img
-                    src={standard.brand.logo_url}
-                    alt={standard.brand.name}
-                    className="w-8 h-8 object-contain"
-                  />
-                )}
-                <span className="fluid-text-xs text-gray-500 font-medium leading-tight text-center max-w-[60px] truncate" title={standard.brand?.name}>
-                  {standard.brand?.name}
-                </span>
-              </div>
-            )}
+        {/* Logo del estándar */}
+        {standard.logo_url && (
+          <div className="flex-shrink-0">
+            <img
+              src={standard.logo_url}
+              alt={`Logo ${standard.code}`}
+              className="w-14 h-14 object-contain rounded-fluid-lg border border-gray-200 bg-gray-50 p-1"
+            />
           </div>
         )}
         
