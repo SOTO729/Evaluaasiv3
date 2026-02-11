@@ -1877,6 +1877,10 @@ export interface CampusCompetencyStandard {
   code: string;
   name: string;
   brand: string | null;
+  brand_logo_url: string | null;
+  logo_url: string | null;
+  sector: string | null;
+  level: number | null;
   is_active: boolean;
   assigned_at: string | null;
 }

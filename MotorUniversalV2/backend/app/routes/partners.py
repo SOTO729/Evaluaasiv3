@@ -1313,9 +1313,10 @@ def add_campus_responsable(campus_id):
 
         # Verificar unicidad de email y CURP
         if User.query.filter_by(email=email).first():
-            return jsonify({'error': 'Ya existe un usuario con ese correo electrónico'}), 400
-        if User.query.filter_by(curp=curp).first():
-            return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
+            return jsonify({'error': 'Ya existe un usuario registrado con ese correo electrónico. No se puede usar el mismo correo para otro responsable.'}), 400
+        existing_curp_user = User.query.filter_by(curp=curp).first()
+        if existing_curp_user:
+            return jsonify({'error': f'Ya existe un usuario registrado con ese CURP ({curp}). No se puede usar la misma persona como responsable en otro plantel.'}), 400
 
         # Generar username y password
         chars = string.ascii_uppercase + string.digits
@@ -1725,6 +1726,7 @@ def get_campus_competency_standards(campus_id):
     try:
         from app.models.partner import CampusCompetencyStandard
         from app.models.competency_standard import CompetencyStandard
+        from app.models.brand import Brand
         
         campus = Campus.query.get_or_404(campus_id)
         
@@ -1735,13 +1737,24 @@ def get_campus_competency_standards(campus_id):
         for cs in campus_standards:
             standard = CompetencyStandard.query.get(cs.competency_standard_id)
             if standard:
+                brand_name = None
+                brand_logo = None
+                if standard.brand_id:
+                    brand_obj = Brand.query.get(standard.brand_id)
+                    if brand_obj:
+                        brand_name = brand_obj.name
+                        brand_logo = brand_obj.logo_url
                 standards_data.append({
                     'id': cs.id,
                     'competency_standard_id': standard.id,
                     'code': standard.code,
                     'name': standard.name,
                     'sector': standard.sector,
+                    'level': standard.level,
                     'is_active': standard.is_active,
+                    'logo_url': standard.logo_url,
+                    'brand': brand_name,
+                    'brand_logo_url': brand_logo,
                     'assigned_at': cs.created_at.isoformat() if cs.created_at else None
                 })
         
