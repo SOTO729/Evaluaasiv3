@@ -285,15 +285,7 @@ const EditorDashboard = () => {
         </div>
 
         {/* Steps Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 fluid-gap-4 relative">
-          {/* Líneas conectoras (solo desktop) */}
-          <div className="hidden md:block absolute top-[52px] left-[calc(33.33%-8px)] w-[calc(33.33%+16px)] h-0.5">
-            <div className="w-full h-full bg-gradient-to-r from-purple-300 via-blue-300 to-blue-300 rounded-full" />
-          </div>
-          <div className="hidden md:block absolute top-[52px] left-[calc(66.66%-8px)] w-[calc(33.33%+16px)] h-0.5">
-            <div className="w-full h-full bg-gradient-to-r from-blue-300 via-emerald-300 to-emerald-300 rounded-full" />
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-3 fluid-gap-4">
           {flowSteps.map((step, index) => {
             const Icon = step.icon
             const isActive = activeFlowStep === index
@@ -393,8 +385,8 @@ const EditorDashboard = () => {
           
           {contentDistribution.length > 0 ? (
             <div className="flex items-center fluid-gap-4">
-              <div className="w-[180px] h-[180px] flex-shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="w-[180px] h-[180px] flex-shrink-0" style={{ minWidth: 180, minHeight: 180 }}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                   <PieChart>
                     <Pie
                       data={contentDistribution}
