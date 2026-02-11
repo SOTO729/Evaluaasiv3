@@ -137,6 +137,9 @@ const HistorialSolicitudesPage = lazy(() => import('./pages/coordinador/Historia
 const HistorialMovimientosPage = lazy(() => import('./pages/coordinador/HistorialMovimientosPage'))
 const HistorialAsignacionesPage = lazy(() => import('./pages/coordinador/HistorialAsignacionesPage'))
 
+// VM Sessions (Máquinas Virtuales)
+const VmSchedulingPage = lazy(() => import('./pages/vm-sessions/VmSchedulingPage'))
+
 // Grupos (gestión de grupos por plantel)
 const GruposListPage = lazy(() => import('./pages/grupos/GruposListPage'))
 
@@ -289,6 +292,9 @@ function App() {
               <Route path="/historial-solicitudes" element={<HistorialSolicitudesPage />} />
               <Route path="/historial-movimientos" element={<HistorialMovimientosPage />} />
               <Route path="/historial-asignaciones" element={<HistorialAsignacionesPage />} />
+              
+              {/* Máquinas Virtuales - Calendario de sesiones */}
+              <Route path="/vm-sessions" element={<VmSchedulingPage />} />
               
               {/* Grupos - Gestión de grupos por plantel */}
               <Route path="/grupos" element={<GruposListPage />} />

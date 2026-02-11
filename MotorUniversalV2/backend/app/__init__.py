@@ -139,6 +139,16 @@ def create_app(config_name='development'):
     app.register_blueprint(activity_bp, url_prefix='/api/activity')
     print("[INIT] ✅ activity registrado (logs de actividad)")
     
+    try:
+        from app.routes.vm_sessions import bp as vm_sessions_bp
+        print("[INIT] ✅ vm_sessions_bp importado")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando vm_sessions_bp: {e}")
+        raise
+    
+    app.register_blueprint(vm_sessions_bp, url_prefix='/api/vm-sessions')
+    print("[INIT] ✅ vm-sessions registrado (máquinas virtuales)")
+    
     # Importar y registrar user_management
     from app.routes.user_management import bp as user_management_bp
     app.register_blueprint(user_management_bp)

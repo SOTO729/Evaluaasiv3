@@ -527,10 +527,30 @@ def get_dashboard():
         if not can_receive_badge:
             document_requirements_missing.append('email_required_for_badge')
         
+        # ========== VM FLAG ==========
+        vm_enabled = False
+        if current_user.role == 'candidato':
+            try:
+                from app.models.partner import GroupMember as GM2, CandidateGroup as CG2
+                mem = GM2.query.filter_by(user_id=str(user_id), status='active').first()
+                if mem:
+                    grp = CG2.query.get(mem.group_id)
+                    if grp:
+                        cmp = grp.campus
+                        if grp.enable_virtual_machines_override is not None:
+                            vm_enabled = grp.enable_virtual_machines_override
+                        elif cmp and cmp.enable_virtual_machines is not None:
+                            vm_enabled = cmp.enable_virtual_machines
+            except Exception:
+                pass
+        elif current_user.role in ['admin', 'coordinator']:
+            vm_enabled = True
+        
         # Construir respuesta del usuario con document_options actualizados
         user_data = current_user.to_dict()
         user_data['document_options'] = document_options
         user_data['document_requirements_missing'] = document_requirements_missing
+        user_data['vm_enabled'] = vm_enabled
         
         return jsonify({
             'user': user_data,

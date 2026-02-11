@@ -200,6 +200,18 @@ const Layout = ({ children }: LayoutProps) => {
                     Materiales
                   </Link>
                 )}
+                {['candidato', 'admin', 'coordinator'].includes(user?.role ?? '') && (
+                  <Link 
+                    to="/vm-sessions" 
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-4 fluid-py-2 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/vm-sessions') 
+                        ? 'text-primary-600 font-semibold bg-primary-50' 
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    VMs
+                  </Link>
+                )}
                 {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && (
                   <Link 
                     to="/standards" 
@@ -459,6 +471,24 @@ const Layout = ({ children }: LayoutProps) => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                     </svg>
                     Materiales de Estudio
+                  </div>
+                </Link>
+              )}
+              {['candidato', 'admin', 'coordinator'].includes(user?.role ?? '') && (
+                <Link 
+                  to="/vm-sessions" 
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
+                    location.pathname.startsWith('/vm-sessions') 
+                      ? 'bg-primary-50 text-primary-600 font-medium' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    Máquinas Virtuales
                   </div>
                 </Link>
               )}
