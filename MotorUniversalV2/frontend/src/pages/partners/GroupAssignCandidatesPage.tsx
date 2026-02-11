@@ -38,7 +38,7 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import {
   getGroup,
-  getGroupMembers,
+  getGroupMembersCount,
   searchCandidatesAdvanced,
   addGroupMembersBulk,
   uploadGroupMembersExcel,
@@ -122,6 +122,16 @@ export default function GroupAssignCandidatesPage() {
   const [selectedToMove, setSelectedToMove] = useState<Set<string>>(new Set());
   const [movingMembers, setMovingMembers] = useState(false);
   
+  // Paginación del tab mover
+  const [moveCurrentPage, setMoveCurrentPage] = useState(1);
+  const [movePageSize, setMovePageSize] = useState(25);
+  const [moveTotalPages, setMoveTotalPages] = useState(1);
+  const [moveTotalResults, setMoveTotalResults] = useState(0);
+  const [moveSearchQuery, setMoveSearchQuery] = useState('');
+  
+  // Filtro de grupos en selector
+  const [groupFilterQuery, setGroupFilterQuery] = useState('');
+  
   // IDs de miembros actuales del grupo destino (para marcar en "mover")
   const [currentMemberIds, setCurrentMemberIds] = useState<Set<string>>(new Set());
   
@@ -140,14 +150,14 @@ export default function GroupAssignCandidatesPage() {
   const loadGroupData = async () => {
     try {
       setLoading(true);
-      const [groupData, membersData] = await Promise.all([
+      const [groupData, membersCountData] = await Promise.all([
         getGroup(Number(groupId)),
-        getGroupMembers(Number(groupId)),
+        getGroupMembersCount(Number(groupId)),
       ]);
       setGroup(groupData);
-      setCurrentMemberCount(membersData.members.length);
-      // Guardar IDs de miembros actuales
-      setCurrentMemberIds(new Set(membersData.members.map((m: any) => m.id)));
+      setCurrentMemberCount(membersCountData.count);
+      // Guardar IDs de miembros actuales (ligero, solo IDs)
+      setCurrentMemberIds(new Set(membersCountData.member_ids));
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar el grupo');
     } finally {
@@ -388,23 +398,58 @@ export default function GroupAssignCandidatesPage() {
   const handleSourceGroupChange = async (newSourceGroupId: number | null) => {
     setSourceGroupId(newSourceGroupId);
     setSelectedToMove(new Set());
+    setMoveSearchQuery('');
+    setMoveCurrentPage(1);
     
     if (!newSourceGroupId) {
       setSourceGroupMembers([]);
+      setMoveTotalResults(0);
+      setMoveTotalPages(1);
       return;
     }
     
+    loadSourceMembers(newSourceGroupId, 1, movePageSize, '');
+  };
+
+  const loadSourceMembers = async (srcGroupId: number, page: number, perPage: number, search: string) => {
     try {
       setLoadingSourceMembers(true);
       const results = await searchCandidatesAdvanced({
-        group_id: newSourceGroupId,
-        per_page: 100,
+        group_id: srcGroupId,
+        search: search.length >= 2 ? search : undefined,
+        page,
+        per_page: perPage,
       });
       setSourceGroupMembers(results.candidates);
+      setMoveTotalPages(results.pages);
+      setMoveTotalResults(results.total);
+      setMoveCurrentPage(page);
     } catch (err: any) {
       setError('Error al cargar miembros del grupo');
     } finally {
       setLoadingSourceMembers(false);
+    }
+  };
+
+  // Debounce para búsqueda en tab mover
+  useEffect(() => {
+    if (!sourceGroupId) return;
+    const timer = setTimeout(() => {
+      loadSourceMembers(sourceGroupId, 1, movePageSize, moveSearchQuery);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [moveSearchQuery]);
+
+  const handleMovePageChange = (newPage: number) => {
+    if (sourceGroupId && newPage >= 1 && newPage <= moveTotalPages) {
+      loadSourceMembers(sourceGroupId, newPage, movePageSize, moveSearchQuery);
+    }
+  };
+
+  const handleMovePageSizeChange = (newSize: number) => {
+    setMovePageSize(newSize);
+    if (sourceGroupId) {
+      loadSourceMembers(sourceGroupId, 1, newSize, moveSearchQuery);
     }
   };
 
@@ -433,8 +478,10 @@ export default function GroupAssignCandidatesPage() {
         setSuccessMessage(`${result.moved.length} candidato(s) movido(s) exitosamente`);
         setCurrentMemberCount(prev => prev + result.moved.length);
         setSelectedToMove(new Set());
-        // Recargar miembros del grupo origen
-        handleSourceGroupChange(sourceGroupId);
+        // Recargar miembros del grupo origen con paginación
+        if (sourceGroupId) {
+          loadSourceMembers(sourceGroupId, moveCurrentPage, movePageSize, moveSearchQuery);
+        }
         // Actualizar lista de grupos
         loadAllGroups();
       }
@@ -1213,49 +1260,81 @@ export default function GroupAssignCandidatesPage() {
           <div className="flex-1 overflow-auto flex flex-col">
             {/* Selector de grupo origen */}
             <div className="bg-white border-b border-gray-200 fluid-px-4 fluid-py-4">
-              <div className="flex flex-wrap items-center fluid-gap-4">
-                <label className="font-medium text-gray-700">Grupo origen:</label>
+              <div className="flex flex-wrap items-center fluid-gap-3">
+                <label className="font-medium text-gray-700 whitespace-nowrap">Grupo origen:</label>
+                <div className="relative min-w-[300px] flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400" />
+                  <input
+                    type="text"
+                    value={groupFilterQuery}
+                    onChange={(e) => setGroupFilterQuery(e.target.value)}
+                    placeholder="Filtrar grupos..."
+                    className="w-full pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 fluid-text-sm"
+                  />
+                </div>
                 <select
                   value={sourceGroupId || ''}
                   onChange={(e) => handleSourceGroupChange(e.target.value ? Number(e.target.value) : null)}
                   className="fluid-px-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 min-w-[300px]"
                 >
                   <option value="">Selecciona un grupo...</option>
-                  {allGroups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name} ({g.current_members} miembros) - {g.partner_name || g.campus_name}
-                    </option>
-                  ))}
+                  {allGroups
+                    .filter(g => !groupFilterQuery || 
+                      g.name.toLowerCase().includes(groupFilterQuery.toLowerCase()) ||
+                      (g.partner_name || '').toLowerCase().includes(groupFilterQuery.toLowerCase()) ||
+                      (g.campus_name || '').toLowerCase().includes(groupFilterQuery.toLowerCase())
+                    )
+                    .map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name} ({g.current_members} miembros) - {g.partner_name || g.campus_name}
+                      </option>
+                    ))}
                 </select>
-                
-                {selectedToMove.size > 0 && (
-                  <>
-                    <div className="h-6 w-px bg-gray-300" />
-                    <span className="font-medium text-blue-700">
-                      {selectedToMove.size} seleccionado(s)
-                    </span>
-                    <button
-                      onClick={() => setSelectedToMove(new Set())}
-                      className="fluid-text-sm text-gray-500 hover:text-gray-700"
-                    >
-                      Limpiar
-                    </button>
-                    
-                    <button
-                      onClick={handleMoveSelectedCandidates}
-                      disabled={movingMembers}
-                      className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-fluid-lg font-medium transition-colors ml-auto"
-                    >
-                      {movingMembers ? (
-                        <Loader2 className="fluid-icon-sm animate-spin" />
-                      ) : (
-                        <ArrowRightLeft className="fluid-icon-sm" />
-                      )}
-                      Mover a {group?.name}
-                    </button>
-                  </>
-                )}
               </div>
+              
+              {/* Barra de búsqueda y acciones cuando hay grupo seleccionado */}
+              {sourceGroupId && (
+                <div className="flex flex-wrap items-center fluid-gap-3 fluid-mt-3 fluid-pt-3 border-t border-gray-100">
+                  <div className="relative flex-1 min-w-[250px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400" />
+                    <input
+                      type="text"
+                      value={moveSearchQuery}
+                      onChange={(e) => setMoveSearchQuery(e.target.value)}
+                      placeholder="Buscar en miembros del grupo (mín. 2 caracteres)..."
+                      className="w-full pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 fluid-text-sm"
+                    />
+                  </div>
+                  
+                  {selectedToMove.size > 0 && (
+                    <>
+                      <div className="h-6 w-px bg-gray-300" />
+                      <span className="font-medium text-blue-700">
+                        {selectedToMove.size} seleccionado(s)
+                      </span>
+                      <button
+                        onClick={() => setSelectedToMove(new Set())}
+                        className="fluid-text-sm text-gray-500 hover:text-gray-700"
+                      >
+                        Limpiar
+                      </button>
+                      
+                      <button
+                        onClick={handleMoveSelectedCandidates}
+                        disabled={movingMembers}
+                        className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-fluid-lg font-medium transition-colors ml-auto"
+                      >
+                        {movingMembers ? (
+                          <Loader2 className="fluid-icon-sm animate-spin" />
+                        ) : (
+                          <ArrowRightLeft className="fluid-icon-sm" />
+                        )}
+                        Mover a {group?.name}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
             
             {/* Lista de candidatos del grupo origen */}
@@ -1384,6 +1463,56 @@ export default function GroupAssignCandidatesPage() {
                 </table>
               )}
             </div>
+            
+            {/* Paginación del tab mover */}
+            {sourceGroupId && moveTotalResults > 0 && (
+              <div className="bg-white border-t border-gray-200 fluid-px-4 fluid-py-3 flex-shrink-0">
+                <div className="flex flex-wrap items-center justify-between fluid-gap-4">
+                  <div className="fluid-text-sm text-gray-600">
+                    Mostrando <span className="font-medium">{(moveCurrentPage - 1) * movePageSize + 1}</span>
+                    {' - '}
+                    <span className="font-medium">{Math.min(moveCurrentPage * movePageSize, moveTotalResults)}</span>
+                    {' de '}
+                    <span className="font-medium">{moveTotalResults}</span> miembros
+                  </div>
+                  
+                  <div className="flex items-center fluid-gap-4">
+                    <div className="flex items-center fluid-gap-2">
+                      <span className="fluid-text-sm text-gray-600">Por página:</span>
+                      <select
+                        value={movePageSize}
+                        onChange={(e) => handleMovePageSizeChange(Number(e.target.value))}
+                        className="fluid-px-2 py-1 border border-gray-300 rounded fluid-text-sm"
+                      >
+                        {PAGE_SIZE_OPTIONS.map((size) => (
+                          <option key={size} value={size}>{size}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleMovePageChange(moveCurrentPage - 1)}
+                        disabled={moveCurrentPage === 1}
+                        className="p-1.5 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        <ChevronLeft className="fluid-icon-sm" />
+                      </button>
+                      <span className="fluid-px-3 fluid-text-sm">
+                        {moveCurrentPage} / {moveTotalPages}
+                      </span>
+                      <button
+                        onClick={() => handleMovePageChange(moveCurrentPage + 1)}
+                        disabled={moveCurrentPage === moveTotalPages}
+                        className="p-1.5 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        <ChevronRight className="fluid-icon-sm" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

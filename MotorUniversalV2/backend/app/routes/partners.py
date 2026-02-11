@@ -2212,25 +2212,72 @@ def create_group(campus_id):
 def list_all_groups():
     """Listar todos los grupos para selectores (sin paginación, info mínima)"""
     try:
-        groups = CandidateGroup.query.filter_by(is_active=True).order_by(CandidateGroup.name).all()
+        from sqlalchemy import func, text
         
-        result = []
-        for group in groups:
-            campus = group.campus
-            partner = campus.partner if campus else None
-            member_count = GroupMember.query.filter_by(group_id=group.id, status='active').count()
-            
-            result.append({
-                'id': group.id,
-                'name': group.name,
-                'campus_name': campus.name if campus else None,
-                'partner_name': partner.name if partner else None,
-                'current_members': member_count
-            })
+        # Una sola query con LEFT JOIN para contar miembros (elimina N+1)
+        member_count_sub = db.session.query(
+            GroupMember.group_id,
+            func.count(GroupMember.id).label('member_count')
+        ).filter(
+            GroupMember.status == 'active'
+        ).group_by(GroupMember.group_id).subquery()
+        
+        groups = db.session.query(
+            CandidateGroup.id,
+            CandidateGroup.name,
+            Campus.name.label('campus_name'),
+            Partner.name.label('partner_name'),
+            func.coalesce(member_count_sub.c.member_count, 0).label('current_members')
+        ).join(
+            Campus, CandidateGroup.campus_id == Campus.id, isouter=True
+        ).join(
+            Partner, Campus.partner_id == Partner.id, isouter=True
+        ).outerjoin(
+            member_count_sub, CandidateGroup.id == member_count_sub.c.group_id
+        ).filter(
+            CandidateGroup.is_active == True
+        ).order_by(CandidateGroup.name).all()
+        
+        result = [{
+            'id': g.id,
+            'name': g.name,
+            'campus_name': g.campus_name,
+            'partner_name': g.partner_name,
+            'current_members': g.current_members
+        } for g in groups]
         
         return jsonify({
             'groups': result,
             'total': len(result)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/members/count', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_group_members_count(group_id):
+    """Obtener solo el conteo y lista de IDs de miembros (endpoint ligero)"""
+    try:
+        from sqlalchemy import text
+        group = CandidateGroup.query.get_or_404(group_id)
+        
+        status_filter = request.args.get('status', 'active')
+        
+        result = db.session.execute(text("""
+            SELECT gm.user_id
+            FROM group_members gm
+            WHERE gm.group_id = :group_id AND gm.status = :status
+        """), {'group_id': group_id, 'status': status_filter})
+        
+        member_ids = [str(row[0]) for row in result]
+        
+        return jsonify({
+            'group_id': group_id,
+            'count': len(member_ids),
+            'member_ids': member_ids
         })
         
     except Exception as e:
@@ -2810,7 +2857,7 @@ def add_group_member(group_id):
 @jwt_required()
 @coordinator_required
 def add_group_members_bulk(group_id):
-    """Agregar múltiples candidatos al grupo"""
+    """Agregar múltiples candidatos al grupo - optimizado para miles de candidatos"""
     try:
         group = CandidateGroup.query.get_or_404(group_id)
         data = request.get_json()
@@ -2822,28 +2869,47 @@ def add_group_members_bulk(group_id):
         added = []
         errors = []
         
-        for user_id in user_ids:
-            user = User.query.get(user_id)
-            if not user:
-                errors.append({'user_id': user_id, 'error': 'Usuario no encontrado'})
-                continue
+        # Procesar en chunks para evitar queries demasiado grandes
+        CHUNK_SIZE = 500
+        
+        for i in range(0, len(user_ids), CHUNK_SIZE):
+            chunk_ids = user_ids[i:i + CHUNK_SIZE]
+            
+            # Batch: obtener todos los usuarios válidos en una sola query
+            valid_users = User.query.filter(
+                User.id.in_(chunk_ids),
+                User.role == 'candidato'
+            ).all()
+            valid_user_map = {u.id: u for u in valid_users}
+            
+            # Batch: obtener membresías existentes en una sola query
+            existing_members = GroupMember.query.filter(
+                GroupMember.group_id == group_id,
+                GroupMember.user_id.in_(chunk_ids)
+            ).all()
+            existing_member_ids = {m.user_id for m in existing_members}
+            
+            for user_id in chunk_ids:
+                if user_id not in valid_user_map:
+                    # Check if user exists at all but isn't candidato
+                    errors.append({'user_id': user_id, 'error': 'Usuario no encontrado o no es candidato'})
+                    continue
+                    
+                if user_id in existing_member_ids:
+                    errors.append({'user_id': user_id, 'error': 'Ya es miembro'})
+                    continue
                 
-            if user.role != 'candidato':
-                errors.append({'user_id': user_id, 'error': 'No es candidato'})
-                continue
+                member = GroupMember(
+                    group_id=group_id,
+                    user_id=user_id,
+                    status='active'
+                )
+                db.session.add(member)
+                added.append(user_id)
             
-            existing = GroupMember.query.filter_by(group_id=group_id, user_id=user_id).first()
-            if existing:
-                errors.append({'user_id': user_id, 'error': 'Ya es miembro'})
-                continue
-            
-            member = GroupMember(
-                group_id=group_id,
-                user_id=user_id,
-                status='active'
-            )
-            db.session.add(member)
-            added.append(user_id)
+            # Flush cada chunk para liberar memoria
+            if added:
+                db.session.flush()
         
         db.session.commit()
         
@@ -3140,25 +3206,70 @@ def upload_group_members(group_id):
         errors = []
         current_count = GroupMember.query.filter_by(group_id=group_id, status='active').count()
         
-        # Procesar cada fila (saltando el encabezado)
+        # Recolectar todos los identificadores primero
+        all_identifiers = []
+        row_data = []
         for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
             identifier = row[0] if len(row) > 0 else None
             notes = row[1] if len(row) > 1 else None
-            
             if not identifier:
                 continue
-            
             identifier = str(identifier).strip()
-            
-            # Buscar usuario por email o CURP
-            user = User.query.filter(
+            all_identifiers.append(identifier)
+            row_data.append((row_num, identifier, notes))
+        
+        # Batch: buscar todos los usuarios por email o CURP
+        user_by_identifier = {}
+        CHUNK_SIZE = 500
+        for i in range(0, len(all_identifiers), CHUNK_SIZE):
+            chunk = all_identifiers[i:i + CHUNK_SIZE]
+            chunk_upper = [c.upper() for c in chunk]
+            users = User.query.filter(
                 db.or_(
-                    User.email == identifier,
-                    User.curp == identifier.upper()
+                    User.email.in_(chunk),
+                    User.curp.in_(chunk_upper)
                 ),
                 User.role == 'candidato',
                 User.is_active == True
-            ).first()
+            ).all()
+            for u in users:
+                if u.email and u.email in chunk:
+                    user_by_identifier[u.email] = u
+                if u.curp:
+                    for c in chunk:
+                        if c.upper() == u.curp:
+                            user_by_identifier[c] = u
+        
+        # Batch: obtener membresías existentes en ESTE grupo
+        found_user_ids = list(set(u.id for u in user_by_identifier.values()))
+        existing_in_target_map = {}
+        if found_user_ids:
+            for i in range(0, len(found_user_ids), CHUNK_SIZE):
+                chunk = found_user_ids[i:i + CHUNK_SIZE]
+                existing = GroupMember.query.filter(
+                    GroupMember.group_id == group_id,
+                    GroupMember.user_id.in_(chunk)
+                ).all()
+                for m in existing:
+                    existing_in_target_map[m.user_id] = m
+        
+        # Batch: obtener membresías en OTROS grupos (solo si modo move)
+        existing_other_map = {}
+        if mode == 'move' and found_user_ids:
+            for i in range(0, len(found_user_ids), CHUNK_SIZE):
+                chunk = found_user_ids[i:i + CHUNK_SIZE]
+                others = GroupMember.query.filter(
+                    GroupMember.user_id.in_(chunk),
+                    GroupMember.group_id != group_id,
+                    GroupMember.status == 'active'
+                ).all()
+                for m in others:
+                    if m.user_id not in existing_other_map:
+                        existing_other_map[m.user_id] = m
+        
+        # Procesar cada fila con los datos pre-cargados
+        for row_num, identifier, notes in row_data:
+            user = user_by_identifier.get(identifier)
             
             if not user:
                 errors.append({
@@ -3168,7 +3279,7 @@ def upload_group_members(group_id):
                 continue
             
             # Verificar si ya es miembro de ESTE grupo
-            existing_in_target = GroupMember.query.filter_by(group_id=group_id, user_id=user.id).first()
+            existing_in_target = existing_in_target_map.get(user.id)
             if existing_in_target:
                 if existing_in_target.status == 'active':
                     errors.append({
@@ -3185,11 +3296,7 @@ def upload_group_members(group_id):
                     continue
             
             # Verificar si está en otro grupo
-            existing_other = GroupMember.query.filter(
-                GroupMember.user_id == user.id,
-                GroupMember.group_id != group_id,
-                GroupMember.status == 'active'
-            ).first()
+            existing_other = existing_other_map.get(user.id)
             
             if existing_other and mode == 'move':
                 # Mover: desactivar membresía anterior
@@ -5096,7 +5203,7 @@ def reset_group_exam_materials(group_exam_id):
 @jwt_required()
 @coordinator_required
 def move_members_to_group(source_group_id):
-    """Mover candidatos de un grupo a otro"""
+    """Mover candidatos de un grupo a otro - optimizado para miles de candidatos"""
     try:
         data = request.get_json()
         
@@ -5119,58 +5226,68 @@ def move_members_to_group(source_group_id):
         moved = []
         errors = []
         
-        for user_id in user_ids:
-            # Verificar que el candidato esté en el grupo origen
-            source_member = GroupMember.query.filter_by(
-                group_id=source_group_id,
-                user_id=user_id,
-                status='active'
-            ).first()
+        # Procesar en chunks
+        CHUNK_SIZE = 500
+        
+        for i in range(0, len(user_ids), CHUNK_SIZE):
+            chunk_ids = user_ids[i:i + CHUNK_SIZE]
             
-            if not source_member:
-                user = User.query.get(user_id)
-                errors.append({
+            # Batch: obtener miembros activos del grupo origen
+            source_members = GroupMember.query.filter(
+                GroupMember.group_id == source_group_id,
+                GroupMember.user_id.in_(chunk_ids),
+                GroupMember.status == 'active'
+            ).all()
+            source_member_map = {m.user_id: m for m in source_members}
+            
+            # Batch: verificar existencia en grupo destino
+            existing_targets = GroupMember.query.filter(
+                GroupMember.group_id == target_group_id,
+                GroupMember.user_id.in_(chunk_ids)
+            ).all()
+            existing_target_ids = {m.user_id for m in existing_targets}
+            
+            # Batch: obtener datos de usuarios para respuesta
+            users = User.query.filter(User.id.in_(chunk_ids)).all()
+            user_map = {u.id: u for u in users}
+            
+            for user_id in chunk_ids:
+                user = user_map.get(user_id)
+                
+                if user_id not in source_member_map:
+                    errors.append({
+                        'user_id': user_id,
+                        'name': user.name if user else 'Desconocido',
+                        'error': 'No es miembro activo del grupo origen'
+                    })
+                    continue
+                
+                if user_id in existing_target_ids:
+                    errors.append({
+                        'user_id': user_id,
+                        'name': user.name if user else 'Desconocido',
+                        'error': 'Ya existe en el grupo destino'
+                    })
+                    continue
+                
+                # Mover: eliminar del origen y crear en destino
+                db.session.delete(source_member_map[user_id])
+                
+                new_member = GroupMember(
+                    group_id=target_group_id,
+                    user_id=user_id,
+                    status='active',
+                    notes=f'Movido desde {source_group.name}'
+                )
+                db.session.add(new_member)
+                
+                moved.append({
                     'user_id': user_id,
-                    'name': user.name if user else 'Desconocido',
-                    'error': 'No es miembro activo del grupo origen'
+                    'name': f"{user.name} {user.first_surname}" if user else 'Desconocido',
+                    'email': user.email if user else ''
                 })
-                continue
             
-            # Verificar que no esté ya en el grupo destino
-            existing_target = GroupMember.query.filter_by(
-                group_id=target_group_id,
-                user_id=user_id
-            ).first()
-            
-            if existing_target:
-                user = User.query.get(user_id)
-                errors.append({
-                    'user_id': user_id,
-                    'name': user.name if user else 'Desconocido',
-                    'error': 'Ya existe en el grupo destino'
-                })
-                continue
-            
-            # Mover: eliminar del origen y crear en destino
-            user = User.query.get(user_id)
-            
-            # Eliminar del grupo origen
-            db.session.delete(source_member)
-            
-            # Crear en grupo destino
-            new_member = GroupMember(
-                group_id=target_group_id,
-                user_id=user_id,
-                status='active',
-                notes=f'Movido desde {source_group.name}'
-            )
-            db.session.add(new_member)
-            
-            moved.append({
-                'user_id': user_id,
-                'name': f"{user.name} {user.first_surname}" if user else 'Desconocido',
-                'email': user.email if user else ''
-            })
+            db.session.flush()
         
         db.session.commit()
         
@@ -5211,27 +5328,56 @@ def preview_group_members_upload(group_id):
         preview = []
         current_count = GroupMember.query.filter_by(group_id=group_id, status='active').count()
         
-        # Procesar cada fila (saltando el encabezado)
+        # Recolectar todos los identificadores primero
+        all_identifiers = []
+        row_data = []
         for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
             identifier = row[0] if len(row) > 0 else None
             notes = row[1] if len(row) > 1 else None
-            
             if not identifier:
                 continue
-            
             identifier = str(identifier).strip()
-            
-            # Buscar usuario por email o CURP
-            user = User.query.filter(
+            all_identifiers.append(identifier)
+            row_data.append((row_num, identifier, notes))
+        
+        # Batch: buscar todos los usuarios en chunks (por email o CURP)
+        user_by_identifier = {}
+        CHUNK_SIZE = 500
+        for i in range(0, len(all_identifiers), CHUNK_SIZE):
+            chunk = all_identifiers[i:i + CHUNK_SIZE]
+            chunk_upper = [c.upper() for c in chunk]
+            users = User.query.filter(
                 db.or_(
-                    User.email == identifier,
-                    User.curp == identifier.upper()
+                    User.email.in_(chunk),
+                    User.curp.in_(chunk_upper)
                 ),
                 User.role == 'candidato',
                 User.is_active == True
-            ).first()
-            
-            status = 'ready'  # ready, already_member, not_found
+            ).all()
+            for u in users:
+                if u.email and u.email in chunk:
+                    user_by_identifier[u.email] = u
+                if u.curp:
+                    for c in chunk:
+                        if c.upper() == u.curp:
+                            user_by_identifier[c] = u
+        
+        # Batch: obtener membresías existentes para este grupo
+        found_user_ids = [u.id for u in user_by_identifier.values()]
+        existing_member_ids = set()
+        if found_user_ids:
+            for i in range(0, len(found_user_ids), CHUNK_SIZE):
+                chunk = found_user_ids[i:i + CHUNK_SIZE]
+                existing = GroupMember.query.filter(
+                    GroupMember.group_id == group_id,
+                    GroupMember.user_id.in_(chunk)
+                ).all()
+                existing_member_ids.update(m.user_id for m in existing)
+        
+        # Construir preview
+        for row_num, identifier, notes in row_data:
+            user = user_by_identifier.get(identifier)
+            status = 'ready'
             user_info = None
             error_message = None
             
@@ -5239,9 +5385,7 @@ def preview_group_members_upload(group_id):
                 status = 'not_found'
                 error_message = 'Candidato no encontrado o inactivo'
             else:
-                # Verificar si ya es miembro
-                existing = GroupMember.query.filter_by(group_id=group_id, user_id=user.id).first()
-                if existing:
+                if user.id in existing_member_ids:
                     status = 'already_member'
                     error_message = 'Ya es miembro del grupo'
                 
@@ -5411,33 +5555,44 @@ def search_candidates_advanced():
             query = query.order_by(User.first_surname, User.name)
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         
+        # Batch: obtener membresías activas para todos los usuarios de la página
+        user_ids_in_page = [user.id for user in pagination.items]
+        
+        membership_map = {}
+        if user_ids_in_page:
+            from sqlalchemy import text
+            membership_rows = db.session.execute(text("""
+                SELECT gm.user_id, g.id as group_id, g.name as group_name,
+                       c.id as campus_id, c.name as campus_name, c.state_name, c.city,
+                       sc.id as cycle_id, sc.name as cycle_name,
+                       p.id as partner_id, p.name as partner_name
+                FROM group_members gm
+                JOIN candidate_groups g ON gm.group_id = g.id
+                LEFT JOIN campuses c ON g.campus_id = c.id
+                LEFT JOIN school_cycles sc ON g.school_cycle_id = sc.id
+                LEFT JOIN partners p ON c.partner_id = p.id
+                WHERE gm.user_id IN :user_ids AND gm.status = 'active'
+            """), {'user_ids': tuple(user_ids_in_page) if user_ids_in_page else (0,)})
+            
+            for row in membership_rows:
+                # Solo guardar la primera membresía activa por usuario
+                if row[0] not in membership_map:
+                    membership_map[row[0]] = {
+                        'group_id': row[1],
+                        'group_name': row[2],
+                        'campus_id': row[3],
+                        'campus_name': row[4],
+                        'state_name': row[5],
+                        'city': row[6],
+                        'school_cycle_id': row[7],
+                        'school_cycle_name': row[8],
+                        'partner_id': row[9],
+                        'partner_name': row[10],
+                    }
+        
         candidates = []
         for user in pagination.items:
-            # Obtener información del grupo actual
-            current_membership = GroupMember.query.filter_by(
-                user_id=user.id,
-                status='active'
-            ).first()
-            
-            group_info = None
-            if current_membership and current_membership.group:
-                group = current_membership.group
-                campus = group.campus
-                cycle = group.school_cycle
-                partner = campus.partner if campus else None
-                
-                group_info = {
-                    'group_id': group.id,
-                    'group_name': group.name,
-                    'campus_id': campus.id if campus else None,
-                    'campus_name': campus.name if campus else None,
-                    'state_name': campus.state_name if campus else None,
-                    'city': campus.city if campus else None,
-                    'school_cycle_id': cycle.id if cycle else None,
-                    'school_cycle_name': cycle.name if cycle else None,
-                    'partner_id': partner.id if partner else None,
-                    'partner_name': partner.name if partner else None,
-                }
+            group_info = membership_map.get(user.id)
             
             candidates.append({
                 'id': user.id,

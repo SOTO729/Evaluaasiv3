@@ -830,6 +830,15 @@ export async function resetGroupConfig(groupId: number): Promise<{
 
 // ============== MIEMBROS DE GRUPO ==============
 
+export async function getGroupMembersCount(groupId: number): Promise<{
+  group_id: number;
+  count: number;
+  member_ids: string[];
+}> {
+  const response = await api.get(`/partners/groups/${groupId}/members/count`);
+  return response.data;
+}
+
 export async function getGroupMembers(groupId: number, params?: {
   status?: string;
 }): Promise<{
