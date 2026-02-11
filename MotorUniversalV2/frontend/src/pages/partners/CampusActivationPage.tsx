@@ -1483,7 +1483,7 @@ export default function CampusActivationPage() {
                       Características Adicionales
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Máquinas Virtuales */}
+                      {/* Calendario de Sesiones */}
                       <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
                         configData.enable_virtual_machines ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'
                       }`}>
@@ -1497,10 +1497,10 @@ export default function CampusActivationPage() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <Monitor className="w-4 h-4 text-emerald-600" />
-                            <span className="font-medium text-gray-800">Máquinas Virtuales</span>
+                            <span className="font-medium text-gray-800">Calendario de Sesiones</span>
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
-                            Entorno controlado para exámenes prácticos
+                            Permite a los candidatos agendar sesiones de práctica
                           </p>
                         </div>
                       </label>
@@ -1738,8 +1738,8 @@ export default function CampusActivationPage() {
 
                   {campus.enable_virtual_machines && (
                     <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-gray-500 text-xs mb-1">Máquinas Virtuales</p>
-                      <p className="font-medium text-emerald-600">Habilitadas</p>
+                      <p className="text-gray-500 text-xs mb-1">Calendario de Sesiones</p>
+                      <p className="font-medium text-emerald-600">Habilitado</p>
                     </div>
                   )}
 

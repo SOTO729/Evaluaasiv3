@@ -712,7 +712,7 @@ export default function GroupFormPage() {
                         <div className="fluid-space-y-2">
                           <ConfigSelect field="enable_partial_evaluations_override" label="Evaluaciones Parciales" icon={FileText} />
                           <ConfigSelect field="enable_unscheduled_partials_override" label="Parciales Sin Agendar" icon={Calendar} />
-                          <ConfigSelect field="enable_virtual_machines_override" label="Máquinas Virtuales" icon={Monitor} />
+                          <ConfigSelect field="enable_virtual_machines_override" label="Calendario de Sesiones" icon={Calendar} />
                           <ConfigSelect field="enable_online_payments_override" label="Pagos en Línea" icon={CreditCard} />
                         </div>
                       </div>
