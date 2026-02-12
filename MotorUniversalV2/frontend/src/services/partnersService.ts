@@ -1324,6 +1324,17 @@ export async function getGroupExams(groupId: number): Promise<{
   return response.data;
 }
 
+/** Candidato que ya tenía este ECM asignado previamente */
+export interface AlreadyAssignedCandidate {
+  user_id: string;
+  user_name: string;
+  user_email: string;
+  user_curp: string | null;
+  assignment_number: string;
+  assigned_at: string;
+  original_group: string;
+}
+
 /**
  * Asignar un examen a un grupo con configuración completa
  */
@@ -1332,6 +1343,9 @@ export async function assignExamToGroup(groupId: number, config: ExamAssignmentC
   assignment: GroupExamAssignment;
   study_materials_count: number;
   assigned_members_count: number;
+  already_assigned?: AlreadyAssignedCandidate[];
+  already_assigned_count?: number;
+  new_ecm_assignments_count?: number;
 }> {
   const response = await api.post(`/partners/groups/${groupId}/exams`, config);
   return response.data;
@@ -2299,6 +2313,7 @@ export interface EcmAssignmentDetail {
   user_email: string;
   user_role: string;
   user_curp: string | null;
+  assignment_number?: string | null;
   group_id: number;
   group_name: string;
   group_code: string;

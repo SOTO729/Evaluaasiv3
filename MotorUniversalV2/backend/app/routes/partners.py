@@ -3947,17 +3947,67 @@ def assign_exam_to_group(group_id):
                         created_by_id=coordinator_id
                     )
                 
+                # ========== ASIGNACIONES ECM PERMANENTES (Reactivación) ==========
+                r_already_assigned = []
+                r_ecm_id = exam.competency_standard_id
+                
+                if r_ecm_id:
+                    from app.models.partner import EcmCandidateAssignment
+                    
+                    if assignment_type == 'selected':
+                        r_target_ids = member_ids
+                    else:
+                        r_target_ids = [m.user_id for m in group.members.all()]
+                    
+                    for uid in r_target_ids:
+                        existing_ecm = EcmCandidateAssignment.query.filter_by(
+                            user_id=uid,
+                            competency_standard_id=r_ecm_id
+                        ).first()
+                        
+                        if existing_ecm:
+                            user_obj = User.query.get(uid)
+                            r_already_assigned.append({
+                                'user_id': uid,
+                                'user_name': user_obj.full_name if user_obj else uid,
+                                'user_email': user_obj.email if user_obj else '',
+                                'user_curp': user_obj.curp if user_obj else '',
+                                'assignment_number': existing_ecm.assignment_number,
+                                'assigned_at': existing_ecm.assigned_at.isoformat() if existing_ecm.assigned_at else None,
+                                'original_group': existing_ecm.group_name,
+                            })
+                        else:
+                            new_ecm = EcmCandidateAssignment(
+                                assignment_number=EcmCandidateAssignment.generate_assignment_number(),
+                                user_id=uid,
+                                competency_standard_id=r_ecm_id,
+                                exam_id=exam_id,
+                                campus_id=group.campus_id,
+                                group_id=group_id,
+                                group_name=group.name,
+                                group_exam_id=existing.id,
+                                assigned_by_id=g.current_user.id,
+                                assignment_source='selected' if assignment_type == 'selected' else 'bulk'
+                            )
+                            db.session.add(new_ecm)
+                
                 db.session.commit()
                 
                 # Obtener materiales asociados
                 materials = StudyMaterial.query.filter_by(exam_id=exam_id, is_published=True).all()
                 
-                return jsonify({
+                r_response = {
                     'message': 'Examen reactivado exitosamente',
                     'assignment': existing.to_dict(include_exam=True, include_materials=True, include_members=True),
                     'study_materials_count': len(material_ids) if material_ids else len(materials),
                     'assigned_members_count': len(member_ids) if assignment_type == 'selected' else group.members.count()
-                })
+                }
+                
+                if r_already_assigned:
+                    r_response['already_assigned'] = r_already_assigned
+                    r_response['already_assigned_count'] = len(r_already_assigned)
+                
+                return jsonify(r_response)
         
         # Configuración del examen
         time_limit_minutes = data.get('time_limit_minutes')
@@ -4060,6 +4110,56 @@ def assign_exam_to_group(group_id):
                 created_by_id=coordinator_id
             )
         
+        # ========== ASIGNACIONES ECM PERMANENTES ==========
+        already_assigned = []
+        new_assignments = []
+        ecm_id = exam.competency_standard_id
+        
+        if ecm_id:
+            from app.models.partner import EcmCandidateAssignment
+            
+            # Determinar lista de user_ids afectados
+            if assignment_type == 'selected':
+                target_user_ids = member_ids
+            else:
+                target_user_ids = [m.user_id for m in group.members.all()]
+            
+            for uid in target_user_ids:
+                # Verificar si ya tiene este ECM asignado
+                existing_assignment = EcmCandidateAssignment.query.filter_by(
+                    user_id=uid,
+                    competency_standard_id=ecm_id
+                ).first()
+                
+                if existing_assignment:
+                    # Ya tienen asignación - recopilar info para resumen
+                    user_obj = User.query.get(uid)
+                    already_assigned.append({
+                        'user_id': uid,
+                        'user_name': user_obj.full_name if user_obj else uid,
+                        'user_email': user_obj.email if user_obj else '',
+                        'user_curp': user_obj.curp if user_obj else '',
+                        'assignment_number': existing_assignment.assignment_number,
+                        'assigned_at': existing_assignment.assigned_at.isoformat() if existing_assignment.assigned_at else None,
+                        'original_group': existing_assignment.group_name,
+                    })
+                else:
+                    # Nueva asignación
+                    new_ecm = EcmCandidateAssignment(
+                        assignment_number=EcmCandidateAssignment.generate_assignment_number(),
+                        user_id=uid,
+                        competency_standard_id=ecm_id,
+                        exam_id=exam_id,
+                        campus_id=group.campus_id,
+                        group_id=group_id,
+                        group_name=group.name,
+                        group_exam_id=group_exam.id,
+                        assigned_by_id=g.current_user.id,
+                        assignment_source='selected' if assignment_type == 'selected' else 'bulk'
+                    )
+                    db.session.add(new_ecm)
+                    new_assignments.append(new_ecm)
+        
         db.session.commit()
         
         # Obtener materiales asociados al examen
@@ -4075,12 +4175,22 @@ def assign_exam_to_group(group_id):
         if materials_count > 0:
             message += f' Con {materials_count} material(es) de estudio.'
         
-        return jsonify({
+        if already_assigned:
+            message += f' {len(already_assigned)} candidato(s) ya tenían este ECM asignado previamente.'
+        
+        response_data = {
             'message': message,
             'assignment': group_exam.to_dict(include_exam=True, include_materials=True, include_members=True),
             'study_materials_count': materials_count,
-            'assigned_members_count': len(member_ids) if assignment_type == 'selected' else group.members.count()
-        }), 201
+            'assigned_members_count': len(member_ids) if assignment_type == 'selected' else group.members.count(),
+            'new_ecm_assignments_count': len(new_assignments),
+        }
+        
+        if already_assigned:
+            response_data['already_assigned'] = already_assigned
+            response_data['already_assigned_count'] = len(already_assigned)
+        
+        return jsonify(response_data), 201
         
     except Exception as e:
         db.session.rollback()
@@ -9043,6 +9153,19 @@ def get_ecm_assignment_detail(ecm_id):
                         }
 
         # ── Build JSON response ──
+        # Batch-fetch assignment numbers for this page
+        assignment_number_map = {}
+        if data_rows:
+            page_uids = list(set(row.user_id for row in data_rows))
+            if page_uids:
+                uid_placeholders = ','.join(f"'{str(u)}'" for u in page_uids)
+                ecm_assigns = db.session.execute(text(
+                    f"SELECT user_id, assignment_number FROM ecm_candidate_assignments "
+                    f"WHERE user_id IN ({uid_placeholders}) AND competency_standard_id = :ecm_id"
+                ), {'ecm_id': ecm_id}).fetchall()
+                for ea in ecm_assigns:
+                    assignment_number_map[ea.user_id] = ea.assignment_number
+        
         assignments = []
         for row in data_rows:
             # Certificate types from campus config
@@ -9071,6 +9194,7 @@ def get_ecm_assignment_detail(ecm_id):
                 'user_email': row.user_email,
                 'user_role': row.user_role,
                 'user_curp': row.user_curp,
+                'assignment_number': assignment_number_map.get(row.user_id),
                 'group_id': row.group_id,
                 'group_name': row.group_name,
                 'group_code': row.group_code,
@@ -9409,6 +9533,20 @@ def export_ecm_assignments_excel(ecm_id):
 
         rows = db.session.execute(data_sql, params).fetchall()
 
+        # Batch-fetch assignment numbers for all rows
+        export_assignment_map = {}
+        if rows:
+            export_uids = list(set(row.user_id for row in rows))
+            for i in range(0, len(export_uids), 500):
+                batch = export_uids[i:i+500]
+                uid_str = ','.join(f"'{u}'" for u in batch)
+                ea_rows = db.session.execute(text(
+                    f"SELECT user_id, assignment_number FROM ecm_candidate_assignments "
+                    f"WHERE user_id IN ({uid_str}) AND competency_standard_id = :ecm_id"
+                ), {'ecm_id': ecm_id}).fetchall()
+                for ea in ea_rows:
+                    export_assignment_map[ea.user_id] = ea.assignment_number
+
         # ── Build Excel ──
         wb = Workbook()
         ws = wb.active
@@ -9441,7 +9579,7 @@ def export_ecm_assignments_excel(ecm_id):
 
         # Headers (row 4)
         headers = [
-            'Nombre', 'Email', 'CURP', 'Rol', 'Grupo', 'Código Grupo',
+            'Nº Asignación', 'Nombre', 'Email', 'CURP', 'Rol', 'Grupo', 'Código Grupo',
             'Sede', 'Partner', 'Examen', 'Fecha Asignación',
             'Costo', 'Calificación', 'Estado', 'Aprobado',
             'Fecha Resultado', 'Duración (min)', 'Código Certificado',
@@ -9480,6 +9618,7 @@ def export_ecm_assignments_excel(ecm_id):
             result_date = row.result_date.strftime('%Y-%m-%d %H:%M') if row.result_date else ''
 
             data = [
+                export_assignment_map.get(row.user_id, ''),
                 row.user_name,
                 row.user_email,
                 row.user_curp or '',
@@ -9512,7 +9651,7 @@ def export_ecm_assignments_excel(ecm_id):
                     cell.alignment = center_align
 
         # Column widths
-        col_widths = [30, 30, 20, 14, 20, 14, 20, 20, 30, 14,
+        col_widths = [16, 30, 30, 20, 14, 20, 14, 20, 20, 30, 14,
                       10, 12, 12, 10, 18, 14, 18, 14, 12, 14, 14, 12, 12, 16]
         for i, w in enumerate(col_widths, 1):
             ws.column_dimensions[get_column_letter(i)].width = w

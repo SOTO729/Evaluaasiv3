@@ -979,3 +979,72 @@ class GroupStudyMaterialMember(db.Model):
             }
         
         return data
+
+
+class EcmCandidateAssignment(db.Model):
+    """Asignación permanente de un ECM a un candidato.
+    
+    Cada vez que se asigna un examen (que tiene competency_standard_id) a candidatos,
+    se crea un registro aquí con un número de asignación único de 12 caracteres.
+    Estas asignaciones son PERMANENTES: no se borran aunque el grupo sea eliminado
+    o el candidato cambie de grupo.
+    """
+    
+    __tablename__ = 'ecm_candidate_assignments'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    assignment_number = db.Column(db.String(12), unique=True, nullable=False, index=True)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id'), nullable=False)
+    exam_id = db.Column(db.Integer, db.ForeignKey('exams.id'), nullable=False)
+    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='SET NULL'), nullable=True)
+    group_id = db.Column(db.Integer, nullable=True)  # Solo referencia, sin FK para que persista si se borra el grupo
+    group_name = db.Column(db.String(200), nullable=True)  # Nombre del grupo al momento de la asignación
+    group_exam_id = db.Column(db.Integer, nullable=True)  # Referencia al group_exam original
+    assigned_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    assigned_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    assignment_source = db.Column(db.String(20), default='bulk', nullable=False)  # 'bulk' o 'selected'
+    
+    # Relaciones (sin cascade delete - estas asignaciones son permanentes)
+    user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('ecm_assignments', lazy='dynamic'))
+    competency_standard = db.relationship('CompetencyStandard', backref=db.backref('candidate_assignments', lazy='dynamic'))
+    exam = db.relationship('Exam', backref=db.backref('ecm_candidate_assignments', lazy='dynamic'))
+    campus = db.relationship('Campus', backref=db.backref('ecm_candidate_assignments', lazy='dynamic'))
+    assigned_by = db.relationship('User', foreign_keys=[assigned_by_id])
+    
+    __table_args__ = (
+        db.Index('ix_ecm_candidate_user_ecm', 'user_id', 'competency_standard_id'),
+    )
+    
+    @staticmethod
+    def generate_assignment_number():
+        """Genera un número de asignación único de 12 caracteres alfanuméricos"""
+        import secrets
+        import string
+        chars = string.ascii_uppercase + string.digits
+        while True:
+            number = ''.join(secrets.choice(chars) for _ in range(12))
+            existing = EcmCandidateAssignment.query.filter_by(assignment_number=number).first()
+            if not existing:
+                return number
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'assignment_number': self.assignment_number,
+            'user_id': self.user_id,
+            'user_name': self.user.full_name if self.user else None,
+            'user_email': self.user.email if self.user else None,
+            'user_curp': self.user.curp if self.user else None,
+            'competency_standard_id': self.competency_standard_id,
+            'ecm_code': self.competency_standard.code if self.competency_standard else None,
+            'ecm_name': self.competency_standard.name if self.competency_standard else None,
+            'exam_id': self.exam_id,
+            'campus_id': self.campus_id,
+            'group_id': self.group_id,
+            'group_name': self.group_name,
+            'group_exam_id': self.group_exam_id,
+            'assigned_at': self.assigned_at.isoformat() if self.assigned_at else None,
+            'assigned_by_id': self.assigned_by_id,
+            'assignment_source': self.assignment_source,
+        }

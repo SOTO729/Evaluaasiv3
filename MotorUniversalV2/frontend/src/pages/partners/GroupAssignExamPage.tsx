@@ -59,6 +59,7 @@ import {
   ExamContentType,
   ExamAssignmentConfig,
   ExamMaterialForAssignment,
+  AlreadyAssignedCandidate,
 } from '../../services/partnersService';
 import {
   getAssignmentCostPreview,
@@ -165,6 +166,11 @@ export default function GroupAssignExamPage() {
   // Modal de examen ya asignado
   const [showAlreadyAssignedModal, setShowAlreadyAssignedModal] = useState(false);
   const [attemptedExam, setAttemptedExam] = useState<AvailableExam | null>(null);
+
+  // ECM ya asignados previamente
+  const [ecmAlreadyAssigned, setEcmAlreadyAssigned] = useState<AlreadyAssignedCandidate[]>([]);
+  const [ecmNewCount, setEcmNewCount] = useState(0);
+  const [showEcmSummary, setShowEcmSummary] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -422,10 +428,17 @@ export default function GroupAssignExamPage() {
         require_security_pin: requireSecurityPin,
       };
       
-      await assignExamToGroup(Number(groupId), config);
+      const result = await assignExamToGroup(Number(groupId), config);
       
-      // Redirigir directamente
-      navigate(`/partners/groups/${groupId}`);
+      // Si hay candidatos que ya tenían este ECM asignado, mostrar resumen
+      if (result.already_assigned && result.already_assigned.length > 0) {
+        setEcmAlreadyAssigned(result.already_assigned);
+        setEcmNewCount(result.new_ecm_assignments_count || 0);
+        setShowEcmSummary(true);
+        setSaving(false);
+      } else {
+        navigate(`/partners/groups/${groupId}`);
+      }
     } catch (err: any) {
       const errorType = err.response?.data?.error_type;
       if (errorType === 'insufficient_balance') {
@@ -444,6 +457,83 @@ export default function GroupAssignExamPage() {
 
   if (saving) {
     return <LoadingSpinner message="Asignando examen al grupo..." fullScreen />;
+  }
+
+  // Vista de resumen de ECM ya asignados
+  if (showEcmSummary && ecmAlreadyAssigned.length > 0) {
+    return (
+      <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
+        <div className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl">
+          <div className="flex items-center fluid-gap-4">
+            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+              <CheckCircle2 className="fluid-icon-lg" />
+            </div>
+            <div>
+              <h1 className="fluid-text-2xl font-bold">Asignación Completada</h1>
+              <p className="fluid-text-sm text-white/80 mt-1">
+                {ecmNewCount > 0 && `${ecmNewCount} nueva(s) asignación(es) ECM creada(s). `}
+                {ecmAlreadyAssigned.length} candidato(s) ya tenían este ECM asignado previamente.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-amber-200 fluid-p-5 fluid-mb-6">
+          <div className="flex items-center fluid-gap-3 fluid-mb-4">
+            <div className="w-10 h-10 bg-amber-100 rounded-fluid-xl flex items-center justify-center">
+              <AlertCircle className="fluid-icon-base text-amber-600" />
+            </div>
+            <div>
+              <h2 className="fluid-text-lg font-semibold text-gray-900">Candidatos con ECM ya asignado</h2>
+              <p className="fluid-text-sm text-gray-500">Los siguientes candidatos ya contaban con una asignación previa de este ECM</p>
+            </div>
+          </div>
+
+          <div className="border border-gray-200 rounded-fluid-xl overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b">
+                  <th className="text-left py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase">Candidato</th>
+                  <th className="text-left py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase">Email</th>
+                  <th className="text-left py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase">CURP</th>
+                  <th className="text-center py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase">Nº Asignación</th>
+                  <th className="text-center py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase">Fecha Asignación</th>
+                  <th className="text-left py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase">Grupo Original</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {ecmAlreadyAssigned.map((c, idx) => (
+                  <tr key={`${c.user_id}-${idx}`} className="hover:bg-amber-50/50 transition-colors">
+                    <td className="py-3 px-4 font-medium text-gray-900 fluid-text-sm">{c.user_name}</td>
+                    <td className="py-3 px-4 fluid-text-sm text-gray-600">{c.user_email}</td>
+                    <td className="py-3 px-4 fluid-text-sm text-gray-600">{c.user_curp || '—'}</td>
+                    <td className="py-3 px-4 text-center">
+                      <span className="inline-block bg-blue-100 text-blue-800 font-mono font-semibold fluid-text-sm px-2.5 py-1 rounded-fluid-lg tracking-wider">
+                        {c.assignment_number}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-center fluid-text-sm text-gray-600">
+                      {c.assigned_at ? new Date(c.assigned_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                    </td>
+                    <td className="py-3 px-4 fluid-text-sm text-gray-600">{c.original_group || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            onClick={() => navigate(`/partners/groups/${groupId}`)}
+            className="fluid-px-6 fluid-py-3 bg-blue-600 text-white rounded-fluid-xl hover:bg-blue-700 flex items-center fluid-gap-2 font-medium shadow-lg transition-all fluid-text-sm"
+          >
+            <CheckCircle2 className="fluid-icon-base" />
+            Ir al Grupo
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (!group) {

@@ -511,6 +511,9 @@ export default function EcmAssignmentDetailPage() {
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
+                  <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                    Nº Asignación
+                  </th>
                   <th className="text-left py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
                     <button onClick={() => handleSort('role')} className="flex items-center fluid-gap-1 hover:text-gray-900 transition-colors">
                       Rol
@@ -580,6 +583,16 @@ export default function EcmAssignmentDetailPage() {
                           <p className="fluid-text-xs text-gray-400">CURP: {a.user_curp}</p>
                         )}
                       </div>
+                    </td>
+                    {/* Nº Asignación */}
+                    <td className="py-3 px-3 text-center">
+                      {a.assignment_number ? (
+                        <span className="inline-block bg-blue-100 text-blue-800 font-mono font-semibold fluid-text-xs px-2 py-0.5 rounded-fluid-lg tracking-wider">
+                          {a.assignment_number}
+                        </span>
+                      ) : (
+                        <span className="fluid-text-xs text-gray-400">—</span>
+                      )}
                     </td>
                     {/* Rol */}
                     <td className="py-3 px-3">
