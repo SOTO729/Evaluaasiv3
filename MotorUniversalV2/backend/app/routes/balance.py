@@ -37,7 +37,7 @@ def coordinator_required(f):
     def decorated(*args, **kwargs):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
-        if not user or user.role not in ['admin', 'gerente', 'coordinator']:
+        if not user or user.role not in ['admin', 'developer', 'gerente', 'coordinator']:
             return jsonify({'error': 'Se requiere rol de coordinador'}), 403
         return f(*args, **kwargs)
     return decorated
@@ -51,7 +51,7 @@ def financiero_required(f):
             return f(*args, **kwargs)
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
-        if not user or user.role not in ['admin', 'gerente', 'financiero']:
+        if not user or user.role not in ['admin', 'developer', 'gerente', 'financiero']:
             return jsonify({'error': 'Se requiere rol de financiero'}), 403
         return f(*args, **kwargs)
     return decorated
@@ -65,7 +65,7 @@ def approver_required(f):
             return f(*args, **kwargs)
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
-        if not user or user.role not in ['admin', 'gerente']:
+        if not user or user.role not in ['admin', 'developer', 'gerente']:
             return jsonify({'error': 'Se requiere rol de gerente o administrador'}), 403
         return f(*args, **kwargs)
     return decorated
@@ -854,7 +854,7 @@ def upload_attachment():
         return jsonify({'error': 'Token de autenticación requerido'}), 401
     
     user = User.query.get(user_id)
-    if not user or user.role not in ['admin', 'gerente', 'coordinator']:
+    if not user or user.role not in ['admin', 'developer', 'gerente', 'coordinator']:
         return jsonify({'error': 'No autorizado'}), 403
     
     import json

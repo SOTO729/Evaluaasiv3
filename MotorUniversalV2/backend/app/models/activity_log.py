@@ -84,7 +84,7 @@ ENTITY_TYPES = {
 }
 
 # Roles considerados "personal" (visible para gerente)
-PERSONAL_ROLES = ['admin', 'gerente', 'financiero', 'coordinator', 'editor', 'soporte', 'auxiliar']
+PERSONAL_ROLES = ['admin', 'developer', 'gerente', 'financiero', 'coordinator', 'editor', 'soporte', 'auxiliar']
 
 
 class ActivityLog(db.Model):

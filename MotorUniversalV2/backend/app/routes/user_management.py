@@ -13,39 +13,40 @@ import re
 bp = Blueprint('user_management', __name__, url_prefix='/api/user-management')
 
 # Roles disponibles en el sistema (sin alumno)
-AVAILABLE_ROLES = ['admin', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar']
+AVAILABLE_ROLES = ['admin', 'developer', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar']
 
 # Roles que puede crear cada tipo de usuario
 ROLE_CREATE_PERMISSIONS = {
-    'admin': ['editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin
+    'admin': ['developer', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin
+    'developer': ['editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin y developer
     'coordinator': ['responsable', 'responsable_partner', 'candidato']  # Responsables, Responsables del Partner y candidatos
 }
 
 
 def management_required(f):
-    """Decorador que requiere rol de admin o coordinator"""
+    """Decorador que requiere rol de admin, developer o coordinator"""
     @wraps(f)
     def decorated(*args, **kwargs):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         if not user:
             return jsonify({'error': 'No autorizado'}), 401
-        if user.role not in ['admin', 'coordinator']:
-            return jsonify({'error': 'Acceso denegado. Se requiere rol de administrador o coordinador'}), 403
+        if user.role not in ['admin', 'developer', 'coordinator']:
+            return jsonify({'error': 'Acceso denegado. Se requiere rol de administrador, desarrollador o coordinador'}), 403
         g.current_user = user
         return f(*args, **kwargs)
     return decorated
 
 
 def admin_required(f):
-    """Decorador que requiere rol de admin"""
+    """Decorador que requiere rol de admin o developer"""
     @wraps(f)
     def decorated(*args, **kwargs):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         if not user:
             return jsonify({'error': 'No autorizado'}), 401
-        if user.role != 'admin':
+        if user.role not in ['admin', 'developer']:
             return jsonify({'error': 'Acceso denegado. Se requiere rol de administrador'}), 403
         g.current_user = user
         return f(*args, **kwargs)
@@ -541,12 +542,12 @@ def update_user(user_id):
             user.email = email
         
         # Campos que solo admin puede cambiar
-        if current_user.role == 'admin':
+        if current_user.role in ['admin', 'developer']:
             if 'role' in data:
                 new_role = data['role']
-                # Admin no puede crear otros admins
-                if new_role == 'admin' and user.role != 'admin':
-                    return jsonify({'error': 'No se puede asignar rol de administrador'}), 403
+                # Admin/developer no puede crear otros admins o developers
+                if new_role in ['admin', 'developer'] and user.role not in ['admin', 'developer']:
+                    return jsonify({'error': 'No se puede asignar rol de administrador o desarrollador'}), 403
                 # Si cambia a editor/editor_invitado o candidato, limpiar phone
                 if new_role in ['editor', 'editor_invitado', 'candidato'] and user.role not in ['editor', 'editor_invitado', 'candidato']:
                     user.phone = None
@@ -688,6 +689,10 @@ def toggle_user_active(user_id):
         current_user = g.current_user
         user = User.query.get_or_404(user_id)
         
+        # Developers no pueden desactivar usuarios
+        if current_user.role == 'developer':
+            return jsonify({'error': 'Los desarrolladores no pueden desactivar usuarios'}), 403
+        
         # Coordinadores pueden manejar candidatos, responsables y responsables del partner
         if current_user.role == 'coordinator' and user.role not in ['candidato', 'responsable', 'responsable_partner']:
             return jsonify({'error': 'No tienes permiso para modificar este usuario'}), 403
@@ -749,9 +754,14 @@ def update_user_document_options(user_id):
 @jwt_required()
 @admin_required
 def delete_user(user_id):
-    """Eliminar un usuario permanentemente (solo admin)"""
+    """Eliminar un usuario permanentemente (solo admin, no developer)"""
     try:
         current_user = g.current_user
+        
+        # Solo admin puede eliminar usuarios, developer no
+        if current_user.role != 'admin':
+            return jsonify({'error': 'Solo el administrador puede eliminar usuarios'}), 403
+        
         user = User.query.get_or_404(user_id)
         
         # No se puede eliminar a uno mismo
@@ -831,7 +841,7 @@ def get_user_stats():
             users_by_role.append({'role': stat.role, 'count': stat.total})
         
         # Asegurar que todos los roles aparezcan (aunque tengan 0)
-        if current_user.role == 'admin':
+        if current_user.role in ['admin', 'developer']:
             for role in AVAILABLE_ROLES:
                 if role not in role_counts:
                     users_by_role.append({'role': role, 'count': 0})
@@ -910,7 +920,7 @@ def get_available_roles():
             'all_roles': [
                 {'value': role, 'label': role.capitalize(), 'description': role_descriptions.get(role, '')}
                 for role in AVAILABLE_ROLES
-            ] if current_user.role == 'admin' else None
+            ] if current_user.role in ['admin', 'developer'] else None
         })
         
     except Exception as e:

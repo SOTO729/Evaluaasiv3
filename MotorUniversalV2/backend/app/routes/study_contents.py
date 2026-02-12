@@ -38,7 +38,7 @@ def admin_or_editor_required(fn):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
-        if not user or user.role not in ['admin', 'editor', 'editor_invitado']:
+        if not user or user.role not in ['admin', 'developer', 'editor', 'editor_invitado']:
             return jsonify({'error': 'Permiso denegado'}), 403
         
         return fn(*args, **kwargs)

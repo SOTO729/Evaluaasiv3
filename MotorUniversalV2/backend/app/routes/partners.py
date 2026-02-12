@@ -28,14 +28,14 @@ bp = Blueprint('partners', __name__)
 
 
 def coordinator_required(f):
-    """Decorador que requiere rol de coordinador o admin"""
+    """Decorador que requiere rol de coordinador, developer o admin"""
     @wraps(f)
     def decorated(*args, **kwargs):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         if not user:
             return jsonify({'error': 'No autorizado'}), 401
-        if user.role not in ['admin', 'coordinator']:
+        if user.role not in ['admin', 'developer', 'coordinator']:
             return jsonify({'error': 'Acceso denegado. Se requiere rol de coordinador'}), 403
         g.current_user = user
         return f(*args, **kwargs)
@@ -655,7 +655,7 @@ def permanent_delete_campus(campus_id):
         # Verificar que el usuario sea admin
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
-        if not user or user.role != 'admin':
+        if not user or user.role not in ['admin', 'developer']:
             return jsonify({'error': 'Acceso denegado. Solo administradores pueden eliminar planteles permanentemente'}), 403
         
         campus = Campus.query.get_or_404(campus_id)
@@ -2054,7 +2054,7 @@ def permanent_delete_cycle(cycle_id):
         # Verificar que el usuario sea admin
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
-        if not user or user.role != 'admin':
+        if not user or user.role not in ['admin', 'developer']:
             return jsonify({'error': 'Acceso denegado. Solo administradores pueden eliminar ciclos permanentemente'}), 403
         
         cycle = SchoolCycle.query.get_or_404(cycle_id)
@@ -3801,7 +3801,7 @@ def assignment_cost_preview(group_id):
         has_sufficient_balance = remaining_balance >= 0
         
         # Info del coordinador
-        is_admin = g.current_user.role == 'admin'
+        is_admin = g.current_user.role in ['admin', 'developer']
         
         return jsonify({
             'unit_cost': unit_cost,
@@ -6511,7 +6511,7 @@ def hard_delete_group(group_id):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
-        if not user or user.role != 'admin':
+        if not user or user.role not in ['admin', 'developer']:
             return jsonify({'error': 'Solo los administradores pueden eliminar grupos permanentemente'}), 403
         
         group = CandidateGroup.query.get(group_id)
@@ -6586,7 +6586,7 @@ def cleanup_orphan_memberships():
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
-        if not user or user.role != 'admin':
+        if not user or user.role not in ['admin', 'developer']:
             return jsonify({'error': 'Solo los administradores pueden ejecutar esta operación'}), 403
         
         # Encontrar membresías huérfanas
@@ -7829,7 +7829,7 @@ def get_ecm_assignments():
 
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
-        if not user or user.role not in ['admin', 'coordinator']:
+        if not user or user.role not in ['admin', 'developer', 'coordinator']:
             return jsonify({'error': 'Acceso denegado'}), 403
 
         search = request.args.get('search', '').strip()
@@ -7966,7 +7966,7 @@ def get_ecm_assignment_detail(ecm_id):
 
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
-        if not user or user.role not in ['admin', 'coordinator']:
+        if not user or user.role not in ['admin', 'developer', 'coordinator']:
             return jsonify({'error': 'Acceso denegado'}), 403
 
         ecm = CompetencyStandard.query.get(ecm_id)
@@ -8494,7 +8494,7 @@ def export_ecm_assignments_excel(ecm_id):
 
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
-        if not user or user.role not in ['admin', 'coordinator']:
+        if not user or user.role not in ['admin', 'developer', 'coordinator']:
             return jsonify({'error': 'Acceso denegado'}), 403
 
         ecm = CompetencyStandard.query.get(ecm_id)

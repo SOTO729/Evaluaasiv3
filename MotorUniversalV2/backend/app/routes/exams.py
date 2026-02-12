@@ -1045,7 +1045,7 @@ def get_questions(topic_id):
     # Solo mostrar respuestas correctas a editores/admins
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
-    if user and user.role not in ['admin', 'editor']:
+    if user and user.role not in ['admin', 'developer', 'editor']:
         include_correct = False
     
     return jsonify({

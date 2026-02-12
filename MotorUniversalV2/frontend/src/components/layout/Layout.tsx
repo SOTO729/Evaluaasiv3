@@ -110,6 +110,8 @@ const Layout = ({ children }: LayoutProps) => {
     switch (role) {
       case 'admin':
         return 'bg-red-100 text-red-800'
+      case 'developer':
+        return 'bg-orange-100 text-orange-800'
       case 'editor':
         return 'bg-blue-100 text-blue-800'
       case 'editor_invitado':
@@ -134,6 +136,8 @@ const Layout = ({ children }: LayoutProps) => {
     switch (role) {
       case 'admin':
         return 'Administrador'
+      case 'developer':
+        return 'Desarrollador'
       case 'editor':
         return 'Editor'
       case 'editor_invitado':
@@ -259,7 +263,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Materiales
                   </Link>
                 )}
-                {['candidato', 'admin', 'coordinator'].includes(user?.role ?? '') && (
+                {['candidato', 'admin', 'developer', 'coordinator'].includes(user?.role ?? '') && (
                   <Link 
                     to="/vm-sessions" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -283,7 +287,7 @@ const Layout = ({ children }: LayoutProps) => {
                     ECM
                   </Link>
                 )}
-                {(user?.role === 'admin' || user?.role === 'coordinator') && (
+                {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
                   <Link 
                     to="/partners/dashboard" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -295,7 +299,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Partners
                   </Link>
                 )}
-                {(user?.role === 'admin' || user?.role === 'coordinator') && (
+                {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
                   <Link 
                     to="/asignaciones-ecm" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -319,7 +323,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Mi Plantel
                   </Link>
                 )}
-                {['financiero', 'admin'].includes(user?.role ?? '') && (
+                {['financiero', 'admin', 'developer'].includes(user?.role ?? '') && (
                   <Link 
                     to="/financiero" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -331,7 +335,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Financiero
                   </Link>
                 )}
-                {['gerente', 'admin'].includes(user?.role ?? '') && (
+                {['gerente', 'admin', 'developer'].includes(user?.role ?? '') && (
                   <Link 
                     to="/gerente" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -343,7 +347,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Gerencia
                   </Link>
                 )}
-                {(user?.role === 'admin' || user?.role === 'coordinator') && (
+                {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
                   <Link 
                     to="/grupos" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -355,7 +359,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Grupos
                   </Link>
                 )}
-                {['coordinator', 'admin'].includes(user?.role ?? '') && (
+                {['coordinator', 'admin', 'developer'].includes(user?.role ?? '') && (
                   <Link 
                     to="/mi-saldo" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -367,7 +371,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Mi Saldo
                   </Link>
                 )}
-                {(user?.role === 'admin' || user?.role === 'coordinator') && (
+                {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
                   <Link 
                     to="/user-management" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -552,7 +556,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {['candidato', 'admin', 'coordinator'].includes(user?.role ?? '') && (
+              {['candidato', 'admin', 'developer', 'coordinator'].includes(user?.role ?? '') && (
                 <Link 
                   to="/vm-sessions" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -587,7 +591,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {(user?.role === 'admin' || user?.role === 'coordinator') && (
+              {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
                 <Link 
                   to="/partners/dashboard" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -604,7 +608,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {(user?.role === 'admin' || user?.role === 'coordinator') && (
+              {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
                 <Link 
                   to="/asignaciones-ecm" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -638,9 +642,9 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {['financiero', 'admin'].includes(user?.role ?? '') && (
+              {['financiero', 'admin', 'developer'].includes(user?.role ?? '') && (
                 <Link 
-                  to="/financiero" 
+                  to="/financiero"
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
                     location.pathname.startsWith('/financiero') 
                       ? 'bg-primary-50 text-primary-600 font-medium' 
@@ -655,9 +659,9 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {['gerente', 'admin'].includes(user?.role ?? '') && (
+              {['gerente', 'admin', 'developer'].includes(user?.role ?? '') && (
                 <Link 
-                  to="/gerente" 
+                  to="/gerente"
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
                     location.pathname.startsWith('/gerente') 
                       ? 'bg-primary-50 text-primary-600 font-medium' 
@@ -672,7 +676,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {(user?.role === 'admin' || user?.role === 'coordinator') && (
+              {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
                 <Link 
                   to="/grupos" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -689,9 +693,9 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {['coordinator', 'admin'].includes(user?.role ?? '') && (
+              {['coordinator', 'admin', 'developer'].includes(user?.role ?? '') && (
                 <Link 
-                  to="/mi-saldo" 
+                  to="/mi-saldo"
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
                     location.pathname.startsWith('/mi-saldo') || location.pathname.startsWith('/solicitar-') || location.pathname.startsWith('/historial-')
                       ? 'bg-primary-50 text-primary-600 font-medium' 
@@ -706,7 +710,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {(user?.role === 'admin' || user?.role === 'coordinator') && (
+              {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
                 <Link 
                   to="/user-management" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${

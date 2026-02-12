@@ -253,7 +253,7 @@ export default function UserDetailPage() {
               >
                 <Edit className="fluid-icon-sm" />
               </Link>
-              {user.id !== currentUser?.id && (
+              {user.id !== currentUser?.id && currentUser?.role !== 'developer' && (
                 <button
                   onClick={handleToggleActive}
                   className={`fluid-p-2 rounded-fluid-lg transition-colors ${
@@ -379,7 +379,7 @@ export default function UserDetailPage() {
               Cambiar Contraseña
             </button>
 
-            {currentUser?.role === 'admin' && user.id !== currentUser?.id && (
+            {(currentUser?.role === 'admin' || currentUser?.role === 'developer') && user.id !== currentUser?.id && (
               <button
                 onClick={handleViewUserPassword}
                 disabled={loadingPassword}
@@ -399,7 +399,7 @@ export default function UserDetailPage() {
               </button>
             )}
 
-            {user.id !== currentUser?.id && (
+            {user.id !== currentUser?.id && currentUser?.role !== 'developer' && (
               <button
                 onClick={handleToggleActive}
                 className={`inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 rounded-fluid-lg font-medium transition-colors ${

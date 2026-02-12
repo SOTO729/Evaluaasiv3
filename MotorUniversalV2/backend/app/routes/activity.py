@@ -29,24 +29,24 @@ bp = Blueprint('activity', __name__)
 # =====================================================
 
 def gerente_required(f):
-    """Requiere rol de gerente o admin"""
+    """Requiere rol de gerente, developer o admin"""
     @wraps(f)
     def decorated(*args, **kwargs):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
-        if not user or user.role not in ['admin', 'gerente']:
+        if not user or user.role not in ['admin', 'developer', 'gerente']:
             return jsonify({'error': 'Se requiere rol de gerente o administrador'}), 403
         return f(*args, **kwargs)
     return decorated
 
 
 def admin_required(f):
-    """Requiere rol de admin"""
+    """Requiere rol de admin o developer"""
     @wraps(f)
     def decorated(*args, **kwargs):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
-        if not user or user.role != 'admin':
+        if not user or user.role not in ['admin', 'developer']:
             return jsonify({'error': 'Se requiere rol de administrador'}), 403
         return f(*args, **kwargs)
     return decorated

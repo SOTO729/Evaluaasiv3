@@ -321,7 +321,7 @@ def upload_certificate():
     current_user = User.query.get(current_user_id)
     
     # Verificar permisos
-    if current_user.role not in ['admin', 'editor']:
+    if current_user.role not in ['admin', 'developer', 'editor']:
         return jsonify({'error': 'No tiene permisos para esta acción'}), 403
     
     # Validar archivo
@@ -433,7 +433,7 @@ def archive_certificate(certificate_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if current_user.role != 'admin':
+    if current_user.role not in ['admin', 'developer']:
         return jsonify({'error': 'Solo administradores pueden archivar certificados'}), 403
     
     certificate = ConocerCertificate.query.get(certificate_id)
@@ -478,7 +478,7 @@ def get_user_certificates_admin(user_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if current_user.role not in ['admin', 'editor', 'soporte']:
+    if current_user.role not in ['admin', 'developer', 'editor', 'soporte']:
         return jsonify({'error': 'No tiene permisos para esta acción'}), 403
     
     certificates = ConocerCertificate.query.filter_by(user_id=user_id)\

@@ -121,7 +121,7 @@ def get_sessions():
     if status_filter != 'all':
         query = query.filter(VmSession.status == status_filter)
     
-    if user.role == 'admin':
+    if user.role in ['admin', 'developer']:
         if campus_id_param:
             query = query.filter(VmSession.campus_id == campus_id_param)
     elif user.role == 'coordinator':
@@ -342,7 +342,7 @@ def update_session_status(session_id):
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
     
-    if not user or user.role not in ['admin', 'coordinator']:
+    if not user or user.role not in ['admin', 'developer', 'coordinator']:
         return jsonify({'error': 'Acceso denegado'}), 403
     
     session = VmSession.query.get(session_id)

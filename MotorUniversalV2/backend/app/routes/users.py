@@ -93,7 +93,7 @@ def update_user(user_id):
         return jsonify({'error': 'Usuario no encontrado'}), 404
     
     # Solo el mismo usuario o admin pueden actualizar
-    if user_id != current_user_id and current_user.role != 'admin':
+    if user_id != current_user_id and current_user.role not in ['admin', 'developer']:
         return jsonify({'error': 'Permiso denegado'}), 403
     
     data = request.get_json()
@@ -109,7 +109,7 @@ def update_user(user_id):
             setattr(user, field, data[field])
     
     # Solo admin puede cambiar role y estado
-    if current_user.role == 'admin':
+    if current_user.role in ['admin', 'developer']:
         for field in admin_only_fields:
             if field in data:
                 setattr(user, field, data[field])
@@ -163,7 +163,7 @@ def update_document_options(user_id):
     current_user = User.query.get(current_user_id)
     
     # Solo admin puede actualizar opciones de documentos
-    if current_user.role != 'admin':
+    if current_user.role not in ['admin', 'developer']:
         return jsonify({'error': 'Permiso denegado. Solo administradores pueden modificar estas opciones'}), 403
     
     user = User.query.get(user_id)

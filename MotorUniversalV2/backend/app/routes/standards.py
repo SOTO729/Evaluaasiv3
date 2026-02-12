@@ -77,7 +77,7 @@ def create_standard():
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'editor']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
         return jsonify({'error': 'No tiene permisos para crear estándares'}), 403
     
     data = request.get_json()
@@ -139,7 +139,7 @@ def update_standard(standard_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'editor']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
         return jsonify({'error': 'No tiene permisos para editar estándares'}), 403
     
     standard = CompetencyStandard.query.get(standard_id)
@@ -172,7 +172,7 @@ def update_standard(standard_id):
             standard.certifying_body = data['certifying_body']
         if 'brand_id' in data:
             standard.brand_id = data['brand_id']
-        if 'is_active' in data and current_user.role == 'admin':
+        if 'is_active' in data and current_user.role in ['admin', 'developer']:
             standard.is_active = data['is_active']
         
         # No permitir cambiar el código una vez creado
@@ -209,7 +209,7 @@ def delete_standard(standard_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role != 'admin':
+    if not current_user or current_user.role not in ['admin', 'developer']:
         return jsonify({'error': 'Solo administradores pueden eliminar estándares'}), 403
     
     standard = CompetencyStandard.query.get(standard_id)
@@ -257,7 +257,7 @@ def request_deletion(standard_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'editor']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
         return jsonify({'error': 'No tiene permisos para esta acción'}), 403
     
     standard = CompetencyStandard.query.get(standard_id)
@@ -338,7 +338,7 @@ def get_deletion_requests():
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role != 'admin':
+    if not current_user or current_user.role not in ['admin', 'developer']:
         return jsonify({'error': 'Solo administradores pueden ver las solicitudes'}), 403
     
     status_filter = request.args.get('status')
@@ -369,7 +369,7 @@ def review_deletion_request(request_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role != 'admin':
+    if not current_user or current_user.role not in ['admin', 'developer']:
         return jsonify({'error': 'Solo administradores pueden revisar solicitudes'}), 403
     
     deletion_request = DeletionRequest.query.get(request_id)
@@ -474,7 +474,7 @@ def create_brand():
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
     
-    if not user or user.role not in ['admin', 'coordinador']:
+    if not user or user.role not in ['admin', 'developer', 'coordinador']:
         return jsonify({'error': 'No tienes permisos para crear marcas'}), 403
     
     data = request.get_json()
@@ -522,7 +522,7 @@ def update_brand(brand_id):
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
     
-    if not user or user.role not in ['admin', 'coordinador']:
+    if not user or user.role not in ['admin', 'developer', 'coordinador']:
         return jsonify({'error': 'No tienes permisos para editar marcas'}), 403
     
     brand = Brand.query.get_or_404(brand_id)
@@ -569,7 +569,7 @@ def delete_brand(brand_id):
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
     
-    if not user or user.role != 'admin':
+    if not user or user.role not in ['admin', 'developer']:
         return jsonify({'error': 'Solo administradores pueden eliminar marcas'}), 403
     
     brand = Brand.query.get_or_404(brand_id)
@@ -617,7 +617,7 @@ def upload_standard_logo(standard_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'editor']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
         return jsonify({'error': 'No tiene permisos para subir logos'}), 403
     
     standard = CompetencyStandard.query.get(standard_id)
@@ -685,7 +685,7 @@ def delete_standard_logo(standard_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'editor']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
         return jsonify({'error': 'No tiene permisos para eliminar logos'}), 403
     
     standard = CompetencyStandard.query.get(standard_id)
@@ -745,7 +745,7 @@ def upload_brand_logo(brand_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'editor']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
         return jsonify({'error': 'No tiene permisos para subir logos'}), 403
     
     brand = Brand.query.get(brand_id)
@@ -811,7 +811,7 @@ def delete_brand_logo(brand_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'editor']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
         return jsonify({'error': 'No tiene permisos para eliminar logos'}), 403
     
     brand = Brand.query.get(brand_id)
