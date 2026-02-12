@@ -6260,6 +6260,694 @@ def get_mi_plantel_exams():
 
 
 # =====================================================
+# RESPONSABLE - GESTIÓN AVANZADA DEL PLANTEL
+# =====================================================
+
+def _validate_responsable_campus(user):
+    """Helper: valida que el responsable tenga campus y retorna (campus, error_response)"""
+    campus = Campus.query.get(user.campus_id)
+    if not campus:
+        return None, (jsonify({'error': 'No se encontró el plantel asignado'}), 404)
+    if campus.responsable_id != user.id:
+        return None, (jsonify({'error': 'No eres el responsable de este plantel'}), 403)
+    return campus, None
+
+
+def _validate_responsable_group(user, group_id):
+    """Helper: valida que el grupo pertenece al campus del responsable"""
+    campus, err = _validate_responsable_campus(user)
+    if err:
+        return None, None, err
+    group = CandidateGroup.query.get(group_id)
+    if not group or group.campus_id != campus.id:
+        return None, None, (jsonify({'error': 'Grupo no encontrado en tu plantel'}), 404)
+    return campus, group, None
+
+
+@bp.route('/mi-plantel/dashboard-advanced', methods=['GET'])
+@jwt_required()
+@responsable_required
+def get_mi_plantel_dashboard_advanced():
+    """Dashboard avanzado con datos para gráficas"""
+    from app.models import Result, Exam
+    from app.models.student_progress import StudentContentProgress
+    from sqlalchemy import func, extract, case
+    
+    try:
+        user = g.current_user
+        campus, err = _validate_responsable_campus(user)
+        if err:
+            return err
+        
+        groups = CandidateGroup.query.filter_by(campus_id=campus.id, is_active=True).all()
+        group_ids = [gr.id for gr in groups]
+        group_map = {gr.id: gr.name for gr in groups}
+        
+        candidate_ids = []
+        if group_ids:
+            candidate_ids = [c[0] for c in db.session.query(GroupMember.user_id).filter(
+                GroupMember.group_id.in_(group_ids), GroupMember.status == 'active'
+            ).distinct().all()]
+        
+        # ---- Approval by group ----
+        approval_by_group = []
+        for gr in groups:
+            member_ids = [m.user_id for m in GroupMember.query.filter_by(group_id=gr.id, status='active').all()]
+            if not member_ids:
+                approval_by_group.append({'group_name': gr.name, 'group_id': gr.id, 'approved': 0, 'failed': 0, 'pending': len(member_ids), 'rate': 0})
+                continue
+            approved = Result.query.filter(Result.user_id.in_(member_ids), Result.status == 1, Result.result == 1).count()
+            failed = Result.query.filter(Result.user_id.in_(member_ids), Result.status == 1, Result.result == 0).count()
+            total = approved + failed
+            approval_by_group.append({
+                'group_name': gr.name, 'group_id': gr.id,
+                'approved': approved, 'failed': failed,
+                'total_members': len(member_ids),
+                'rate': round(approved / total * 100, 1) if total > 0 else 0
+            })
+        
+        # ---- Scores by group ----
+        scores_by_group = []
+        for gr in groups:
+            member_ids = [m.user_id for m in GroupMember.query.filter_by(group_id=gr.id, status='active').all()]
+            if not member_ids:
+                scores_by_group.append({'group_name': gr.name, 'average': 0, 'min': 0, 'max': 0})
+                continue
+            stats = db.session.query(
+                func.avg(Result.score), func.min(Result.score), func.max(Result.score)
+            ).filter(Result.user_id.in_(member_ids), Result.status == 1).first()
+            scores_by_group.append({
+                'group_name': gr.name,
+                'average': round(float(stats[0] or 0), 1),
+                'min': round(float(stats[1] or 0), 1),
+                'max': round(float(stats[2] or 0), 1)
+            })
+        
+        # ---- Score distribution ----
+        score_distribution = []
+        if candidate_ids:
+            for low in range(0, 100, 10):
+                high = low + 10
+                label = f"{low}-{high}"
+                if low == 90:
+                    count = Result.query.filter(
+                        Result.user_id.in_(candidate_ids), Result.status == 1,
+                        Result.score >= low, Result.score <= 100
+                    ).count()
+                    label = "90-100"
+                else:
+                    count = Result.query.filter(
+                        Result.user_id.in_(candidate_ids), Result.status == 1,
+                        Result.score >= low, Result.score < high
+                    ).count()
+                score_distribution.append({'range': label, 'count': count})
+        
+        # ---- Evaluations over time (last 6 months) ----
+        evaluations_over_time = []
+        if candidate_ids:
+            from datetime import datetime as dt
+            now = dt.utcnow()
+            for i in range(5, -1, -1):
+                month = now.month - i
+                year = now.year
+                if month <= 0:
+                    month += 12
+                    year -= 1
+                month_start = dt(year, month, 1)
+                if month == 12:
+                    month_end = dt(year + 1, 1, 1)
+                else:
+                    month_end = dt(year, month + 1, 1)
+                
+                approved = Result.query.filter(
+                    Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1,
+                    Result.end_date >= month_start, Result.end_date < month_end
+                ).count()
+                failed = Result.query.filter(
+                    Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 0,
+                    Result.end_date >= month_start, Result.end_date < month_end
+                ).count()
+                evaluations_over_time.append({
+                    'month': f"{year}-{month:02d}",
+                    'approved': approved, 'failed': failed
+                })
+        
+        # ---- Material progress by group ----
+        material_progress_by_group = []
+        for gr in groups:
+            member_ids = [m.user_id for m in GroupMember.query.filter_by(group_id=gr.id, status='active').all()]
+            if not member_ids:
+                material_progress_by_group.append({'group_name': gr.name, 'completed': 0, 'in_progress': 0, 'not_started': len(member_ids)})
+                continue
+            total_p = StudentContentProgress.query.filter(StudentContentProgress.user_id.in_(member_ids)).count()
+            completed_p = StudentContentProgress.query.filter(
+                StudentContentProgress.user_id.in_(member_ids), StudentContentProgress.is_completed == True
+            ).count()
+            in_progress_p = total_p - completed_p
+            material_progress_by_group.append({
+                'group_name': gr.name,
+                'completed': completed_p, 'in_progress': in_progress_p,
+                'total_members': len(member_ids)
+            })
+        
+        # ---- Certification by type ----
+        certification_by_type = {
+            'constancia_eduit': 0, 'certificado_eduit': 0,
+            'certificado_conocer': 0, 'insignia_digital': 0
+        }
+        if candidate_ids:
+            certified_users = db.session.query(Result.user_id).filter(
+                Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1
+            ).distinct().all()
+            certified_user_ids = [u[0] for u in certified_users]
+            for uid in certified_user_ids:
+                u = User.query.get(uid)
+                if u:
+                    if getattr(u, 'enable_evaluation_report', False):
+                        certification_by_type['constancia_eduit'] += 1
+                    if getattr(u, 'enable_certificate', False):
+                        certification_by_type['certificado_eduit'] += 1
+                    if getattr(u, 'enable_conocer_certificate', False):
+                        certification_by_type['certificado_conocer'] += 1
+                    if getattr(u, 'enable_digital_badge', False):
+                        certification_by_type['insignia_digital'] += 1
+        
+        # ---- Summary stats ----
+        total_candidates = len(candidate_ids)
+        total_evals = Result.query.filter(Result.user_id.in_(candidate_ids), Result.status == 1).count() if candidate_ids else 0
+        passed = Result.query.filter(Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1).count() if candidate_ids else 0
+        failed = total_evals - passed
+        avg_score = 0
+        if candidate_ids:
+            avg = db.session.query(func.avg(Result.score)).filter(Result.user_id.in_(candidate_ids), Result.status == 1).scalar()
+            avg_score = round(float(avg or 0), 1)
+        
+        return jsonify({
+            'campus': {'id': campus.id, 'name': campus.name, 'code': campus.code},
+            'stats': {
+                'total_candidates': total_candidates,
+                'total_groups': len(groups),
+                'total_evaluations': total_evals,
+                'passed_evaluations': passed,
+                'failed_evaluations': failed,
+                'approval_rate': round(passed / total_evals * 100, 1) if total_evals > 0 else 0,
+                'average_score': avg_score,
+                'certification_rate': round(len([u for u in (db.session.query(Result.user_id).filter(Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1).distinct().all() if candidate_ids else [])]) / total_candidates * 100, 1) if total_candidates > 0 else 0
+            },
+            'charts': {
+                'approval_by_group': approval_by_group,
+                'scores_by_group': scores_by_group,
+                'score_distribution': score_distribution,
+                'evaluations_over_time': evaluations_over_time,
+                'material_progress_by_group': material_progress_by_group,
+                'certification_by_type': certification_by_type
+            }
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/certificates-by-group', methods=['GET'])
+@jwt_required()
+@responsable_required
+def get_mi_plantel_certificates_by_group():
+    """Certificados emitidos por grupo con tipos habilitados"""
+    from app.models import Result, Exam
+    
+    try:
+        user = g.current_user
+        campus, err = _validate_responsable_campus(user)
+        if err:
+            return err
+        
+        groups = CandidateGroup.query.filter_by(campus_id=campus.id, is_active=True).order_by(CandidateGroup.name).all()
+        
+        # Tipos habilitados en el campus
+        campus_tiers = {
+            'constancia_eduit': campus.enable_tier_basic or False,
+            'certificado_eduit': campus.enable_tier_standard or False,
+            'certificado_conocer': campus.enable_tier_advanced or False,
+            'insignia_digital': campus.enable_digital_badge or False
+        }
+        
+        groups_data = []
+        for gr in groups:
+            members = GroupMember.query.filter_by(group_id=gr.id, status='active').all()
+            member_ids = [m.user_id for m in members]
+            
+            # Obtener tiers del grupo (override o herencia del campus)
+            group_tiers = {
+                'constancia_eduit': gr.enable_tier_basic if gr.enable_tier_basic is not None else campus_tiers['constancia_eduit'],
+                'certificado_eduit': gr.enable_tier_standard if gr.enable_tier_standard is not None else campus_tiers['certificado_eduit'],
+                'certificado_conocer': gr.enable_tier_advanced if gr.enable_tier_advanced is not None else campus_tiers['certificado_conocer'],
+                'insignia_digital': gr.enable_digital_badge if gr.enable_digital_badge is not None else campus_tiers['insignia_digital']
+            }
+            
+            certificates = []
+            if member_ids:
+                results = Result.query.filter(
+                    Result.user_id.in_(member_ids), Result.status == 1, Result.result == 1
+                ).all()
+                
+                for r in results:
+                    u = User.query.get(r.user_id)
+                    exam = Exam.query.get(r.exam_id) if r.exam_id else None
+                    if u:
+                        certificates.append({
+                            'user_id': r.user_id,
+                            'user_name': u.full_name,
+                            'user_curp': getattr(u, 'curp', ''),
+                            'exam_name': exam.name if exam else 'N/A',
+                            'score': float(r.score) if r.score else 0,
+                            'date': r.end_date.isoformat() if r.end_date else None,
+                            'certificate_code': r.certificate_code,
+                            'certificate_url': r.certificate_url,
+                            'report_url': getattr(r, 'report_url', None),
+                            'document_options': {
+                                'evaluation_report': getattr(u, 'enable_evaluation_report', False),
+                                'certificate': getattr(u, 'enable_certificate', False),
+                                'conocer_certificate': getattr(u, 'enable_conocer_certificate', False),
+                                'digital_badge': getattr(u, 'enable_digital_badge', False)
+                            }
+                        })
+            
+            groups_data.append({
+                'group_id': gr.id,
+                'group_name': gr.name,
+                'group_code': gr.code,
+                'total_members': len(member_ids),
+                'total_certificates': len(certificates),
+                'enabled_tiers': group_tiers,
+                'certificates': certificates
+            })
+        
+        return jsonify({
+            'campus': {'id': campus.id, 'name': campus.name, 'code': campus.code},
+            'campus_tiers': campus_tiers,
+            'groups': groups_data
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/campus', methods=['PUT'])
+@jwt_required()
+@responsable_required
+def update_mi_plantel_campus():
+    """Editar datos de contacto y dirección del campus (no configuración de tiers/licencias)"""
+    try:
+        user = g.current_user
+        campus, err = _validate_responsable_campus(user)
+        if err:
+            return err
+        
+        data = request.get_json()
+        editable_fields = [
+            'address', 'city', 'state_name', 'postal_code', 'country',
+            'email', 'phone', 'website',
+            'director_name', 'director_first_surname', 'director_second_surname',
+            'director_email', 'director_phone', 'director_curp', 'director_gender',
+            'director_date_of_birth'
+        ]
+        
+        for field in editable_fields:
+            if field in data:
+                setattr(campus, field, data[field])
+        
+        campus.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Datos del plantel actualizados',
+            'campus': campus.to_dict(include_config=True)
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/groups', methods=['POST'])
+@jwt_required()
+@responsable_required
+def create_mi_plantel_group():
+    """Crear grupo en el plantel del responsable (requiere can_manage_groups)"""
+    try:
+        user = g.current_user
+        if not user.can_manage_groups:
+            return jsonify({'error': 'No tienes permisos para gestionar grupos'}), 403
+        
+        campus, err = _validate_responsable_campus(user)
+        if err:
+            return err
+        
+        data = request.get_json()
+        if not data.get('name'):
+            return jsonify({'error': 'El nombre es requerido'}), 400
+        
+        school_cycle_id = data.get('school_cycle_id')
+        if school_cycle_id:
+            cycle = SchoolCycle.query.get(school_cycle_id)
+            if not cycle or cycle.campus_id != campus.id:
+                return jsonify({'error': 'Ciclo escolar no válido'}), 400
+        
+        group = CandidateGroup(
+            campus_id=campus.id,
+            school_cycle_id=school_cycle_id,
+            name=data['name'],
+            code=data.get('code'),
+            description=data.get('description'),
+            start_date=data.get('start_date'),
+            end_date=data.get('end_date'),
+            is_active=data.get('is_active', True)
+        )
+        db.session.add(group)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Grupo creado exitosamente',
+            'group': group.to_dict(include_cycle=True)
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/groups/<int:group_id>', methods=['GET'])
+@jwt_required()
+@responsable_required
+def get_mi_plantel_group_detail(group_id):
+    """Detalle de un grupo del plantel"""
+    try:
+        user = g.current_user
+        campus, group, err = _validate_responsable_group(user, group_id)
+        if err:
+            return err
+        return jsonify({
+            'group': group.to_dict(include_members=True, include_campus=True, include_cycle=True, include_config=True)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/groups/<int:group_id>', methods=['PUT'])
+@jwt_required()
+@responsable_required
+def update_mi_plantel_group(group_id):
+    """Actualizar grupo del plantel (requiere can_manage_groups)"""
+    try:
+        user = g.current_user
+        if not user.can_manage_groups:
+            return jsonify({'error': 'No tienes permisos para gestionar grupos'}), 403
+        
+        campus, group, err = _validate_responsable_group(user, group_id)
+        if err:
+            return err
+        
+        data = request.get_json()
+        for field in ['name', 'code', 'description', 'start_date', 'end_date', 'is_active']:
+            if field in data:
+                setattr(group, field, data[field])
+        
+        if 'school_cycle_id' in data:
+            school_cycle_id = data['school_cycle_id']
+            if school_cycle_id:
+                cycle = SchoolCycle.query.get(school_cycle_id)
+                if not cycle or cycle.campus_id != campus.id:
+                    return jsonify({'error': 'Ciclo escolar no válido'}), 400
+            group.school_cycle_id = school_cycle_id
+        
+        db.session.commit()
+        return jsonify({
+            'message': 'Grupo actualizado',
+            'group': group.to_dict(include_cycle=True)
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/groups/<int:group_id>', methods=['DELETE'])
+@jwt_required()
+@responsable_required
+def delete_mi_plantel_group(group_id):
+    """Desactivar grupo (requiere can_manage_groups)"""
+    try:
+        user = g.current_user
+        if not user.can_manage_groups:
+            return jsonify({'error': 'No tienes permisos para gestionar grupos'}), 403
+        
+        campus, group, err = _validate_responsable_group(user, group_id)
+        if err:
+            return err
+        
+        group.is_active = False
+        db.session.commit()
+        return jsonify({'message': 'Grupo desactivado exitosamente'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/groups/<int:group_id>/members', methods=['GET'])
+@jwt_required()
+@responsable_required
+def get_mi_plantel_group_members(group_id):
+    """Listar miembros de un grupo del plantel"""
+    from sqlalchemy import text
+    try:
+        user = g.current_user
+        campus, group, err = _validate_responsable_group(user, group_id)
+        if err:
+            return err
+        
+        members = GroupMember.query.filter_by(group_id=group_id).all()
+        members_data = []
+        for m in members:
+            u = User.query.get(m.user_id)
+            if u:
+                members_data.append({
+                    'id': m.id,
+                    'user_id': m.user_id,
+                    'user_name': u.full_name,
+                    'user_email': u.email,
+                    'user_curp': getattr(u, 'curp', ''),
+                    'status': m.status,
+                    'notes': m.notes,
+                    'joined_at': m.joined_at.isoformat() if m.joined_at else None
+                })
+        
+        return jsonify({
+            'group_id': group_id,
+            'group_name': group.name,
+            'members': members_data,
+            'total': len(members_data)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/groups/<int:group_id>/members', methods=['POST'])
+@jwt_required()
+@responsable_required
+def add_mi_plantel_group_member(group_id):
+    """Agregar candidato a grupo (requiere can_manage_groups)"""
+    try:
+        user = g.current_user
+        if not user.can_manage_groups:
+            return jsonify({'error': 'No tienes permisos para gestionar grupos'}), 403
+        
+        campus, group, err = _validate_responsable_group(user, group_id)
+        if err:
+            return err
+        
+        data = request.get_json()
+        user_id = data.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'El ID del usuario es requerido'}), 400
+        
+        target_user = User.query.get(user_id)
+        if not target_user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        if target_user.role != 'candidato':
+            return jsonify({'error': 'Solo se pueden agregar candidatos'}), 400
+        
+        existing = GroupMember.query.filter_by(group_id=group_id, user_id=user_id).first()
+        if existing:
+            return jsonify({'error': 'El usuario ya es miembro de este grupo'}), 400
+        
+        member = GroupMember(
+            group_id=group_id, user_id=user_id,
+            status=data.get('status', 'active'), notes=data.get('notes')
+        )
+        db.session.add(member)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Miembro agregado exitosamente',
+            'member': member.to_dict(include_user=True)
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/groups/<int:group_id>/members/bulk', methods=['POST'])
+@jwt_required()
+@responsable_required
+def add_mi_plantel_group_members_bulk(group_id):
+    """Agregar múltiples candidatos (requiere can_bulk_create_candidates)"""
+    try:
+        user = g.current_user
+        if not user.can_bulk_create_candidates:
+            return jsonify({'error': 'No tienes permisos para altas masivas'}), 403
+        
+        campus, group, err = _validate_responsable_group(user, group_id)
+        if err:
+            return err
+        
+        data = request.get_json()
+        user_ids = data.get('user_ids', [])
+        if not user_ids:
+            return jsonify({'error': 'Se requiere al menos un ID'}), 400
+        
+        added = []
+        errors = []
+        for uid in user_ids:
+            target = User.query.get(uid)
+            if not target:
+                errors.append({'user_id': uid, 'error': 'No encontrado'})
+                continue
+            if target.role != 'candidato':
+                errors.append({'user_id': uid, 'error': 'No es candidato'})
+                continue
+            existing = GroupMember.query.filter_by(group_id=group_id, user_id=uid).first()
+            if existing:
+                errors.append({'user_id': uid, 'error': 'Ya es miembro'})
+                continue
+            m = GroupMember(group_id=group_id, user_id=uid, status='active')
+            db.session.add(m)
+            added.append(uid)
+        
+        db.session.commit()
+        return jsonify({
+            'message': f'{len(added)} miembros agregados',
+            'added': len(added), 'errors': errors
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/groups/<int:group_id>/members/<int:member_id>', methods=['DELETE'])
+@jwt_required()
+@responsable_required
+def remove_mi_plantel_group_member(group_id, member_id):
+    """Eliminar miembro de grupo (requiere can_manage_groups)"""
+    try:
+        user = g.current_user
+        if not user.can_manage_groups:
+            return jsonify({'error': 'No tienes permisos'}), 403
+        
+        campus, group, err = _validate_responsable_group(user, group_id)
+        if err:
+            return err
+        
+        member = GroupMember.query.filter_by(id=member_id, group_id=group_id).first_or_404()
+        db.session.delete(member)
+        db.session.commit()
+        return jsonify({'message': 'Miembro eliminado del grupo'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/groups/<int:group_id>/exams', methods=['GET'])
+@jwt_required()
+@responsable_required
+def get_mi_plantel_group_exams(group_id):
+    """Exámenes asignados a un grupo del plantel"""
+    try:
+        user = g.current_user
+        campus, group, err = _validate_responsable_group(user, group_id)
+        if err:
+            return err
+        
+        group_exams = GroupExam.query.filter_by(group_id=group_id, is_active=True).all()
+        return jsonify({
+            'group_id': group_id, 'group_name': group.name,
+            'assigned_exams': [ge.to_dict(include_exam=True, include_materials=True) for ge in group_exams],
+            'total': len(group_exams)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/candidates/search', methods=['GET'])
+@jwt_required()
+@responsable_required
+def search_mi_plantel_candidates():
+    """Buscar candidatos para agregar a grupos del plantel"""
+    try:
+        user = g.current_user
+        campus, err = _validate_responsable_campus(user)
+        if err:
+            return err
+        
+        search = request.args.get('search', '')
+        exclude_group_id = request.args.get('exclude_group_id', type=int)
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        query = User.query.filter(User.role == 'candidato', User.is_active == True)
+        
+        # Filtrar solo candidatos que pertenecen al campus del responsable
+        campus_group_ids = [g.id for g in CandidateGroup.query.filter_by(campus_id=campus.id).all()]
+        if campus_group_ids:
+            campus_candidate_ids = [m.user_id for m in GroupMember.query.filter(GroupMember.group_id.in_(campus_group_ids)).all()]
+            if campus_candidate_ids:
+                query = query.filter(User.id.in_(campus_candidate_ids))
+            else:
+                query = query.filter(User.id == None)
+        else:
+            query = query.filter(User.id == None)
+        
+        if exclude_group_id:
+            existing_ids = [m.user_id for m in GroupMember.query.filter_by(group_id=exclude_group_id).all()]
+            if existing_ids:
+                query = query.filter(~User.id.in_(existing_ids))
+        
+        if search:
+            search_filter = f"%{search}%"
+            query = query.filter(
+                db.or_(
+                    User.name.ilike(search_filter),
+                    User.first_surname.ilike(search_filter),
+                    User.email.ilike(search_filter),
+                    User.curp.ilike(search_filter)
+                )
+            )
+        
+        paginated = query.order_by(User.name).paginate(page=page, per_page=per_page, error_out=False)
+        
+        return jsonify({
+            'candidates': [{
+                'id': u.id, 'name': u.name, 'first_surname': u.first_surname,
+                'second_surname': u.second_surname, 'full_name': u.full_name,
+                'email': u.email, 'curp': getattr(u, 'curp', '')
+            } for u in paginated.items],
+            'total': paginated.total,
+            'page': page,
+            'pages': paginated.pages
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# =====================================================
 # ENDPOINTS PARA CANDIDATOS - Exámenes y Materiales Asignados
 # =====================================================
 

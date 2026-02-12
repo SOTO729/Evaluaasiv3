@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore'
 import { dashboardService, DashboardData } from '../services/dashboardService'
 import EditorDashboard from './EditorDashboard'
 import CoordinatorDashboard from './coordinador/CoordinatorDashboard'
+import ResponsableDashboard from './responsable/ResponsableDashboard'
 import { 
   BookOpen, 
   FileText, 
@@ -32,6 +33,9 @@ const HomePage = () => {
   // El coordinador ve su propio dashboard de partners
   const isCoordinator = user?.role === 'coordinator'
 
+  // El responsable ve su dashboard avanzado de plantel
+  const isResponsable = user?.role === 'responsable'
+
   const loadDashboard = async () => {
     try {
       setLoading(true)
@@ -48,10 +52,10 @@ const HomePage = () => {
 
   useEffect(() => {
     // Solo cargar el dashboard del candidato si no es admin, editor ni coordinador
-    if (!isAdminOrEditor && !isCoordinator) {
+    if (!isAdminOrEditor && !isCoordinator && !isResponsable) {
       loadDashboard()
     }
-  }, [isAdminOrEditor, isCoordinator])
+  }, [isAdminOrEditor, isCoordinator, isResponsable])
 
   // Si es admin o editor, mostrar el dashboard de gestión
   if (isAdminOrEditor) {
@@ -61,6 +65,11 @@ const HomePage = () => {
   // Si es coordinador, mostrar el dashboard de bienvenida
   if (isCoordinator) {
     return <CoordinatorDashboard />
+  }
+
+  // Si es responsable, mostrar el dashboard avanzado de plantel
+  if (isResponsable) {
+    return <ResponsableDashboard />
   }
 
   if (loading) {

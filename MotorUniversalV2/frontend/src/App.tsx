@@ -117,6 +117,8 @@ const EcmAssignmentDetailPage = lazy(() => import('./pages/partners/EcmAssignmen
 // Responsable de Plantel
 const MiPlantelPage = lazy(() => import('./pages/responsable/MiPlantelPage'))
 const MiPlantelReportesPage = lazy(() => import('./pages/responsable/MiPlantelReportesPage'))
+const MiPlantelCertificadosPage = lazy(() => import('./pages/responsable/MiPlantelCertificadosPage'))
+const MiPlantelGrupoDetailPage = lazy(() => import('./pages/responsable/MiPlantelGrupoDetailPage'))
 
 // Financiero (Gestión de saldos)
 const FinancieroDashboard = lazy(() => import('./pages/financiero/FinancieroDashboard'))
@@ -276,6 +278,8 @@ function App() {
               {/* Responsable de Plantel */}
               <Route path="/mi-plantel" element={<MiPlantelPage />} />
               <Route path="/mi-plantel/reportes" element={<MiPlantelReportesPage />} />
+              <Route path="/mi-plantel/certificados" element={<MiPlantelCertificadosPage />} />
+              <Route path="/mi-plantel/grupos/:groupId" element={<MiPlantelGrupoDetailPage />} />
               
               {/* Financiero - Gestión de Solicitudes de Saldo */}
               <Route path="/financiero" element={<FinancieroDashboard />} />

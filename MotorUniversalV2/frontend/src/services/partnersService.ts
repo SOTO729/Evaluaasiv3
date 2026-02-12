@@ -1829,6 +1829,117 @@ export async function getMiPlantelExams(): Promise<{
   return response.data;
 }
 
+// ============== RESPONSABLE: GESTIÓN AVANZADA DE PLANTEL ==============
+
+/**
+ * Dashboard avanzado con gráficos y estadísticas para el responsable
+ */
+export async function getMiPlantelDashboardAdvanced(): Promise<any> {
+  const response = await api.get('/partners/mi-plantel/dashboard-advanced');
+  return response.data;
+}
+
+/**
+ * Obtener todos los tipos de certificado por grupo del plantel
+ */
+export async function getMiPlantelCertificatesByGroup(): Promise<any> {
+  const response = await api.get('/partners/mi-plantel/certificates-by-group');
+  return response.data;
+}
+
+/**
+ * Editar datos del plantel (contacto, dirección, director)
+ * No permite editar tiers ni licencias
+ */
+export async function updateMiPlantelCampus(data: {
+  address?: string; city?: string; state_name?: string;
+  postal_code?: string; country?: string; email?: string;
+  phone?: string; website?: string;
+  director_name?: string; director_email?: string;
+  director_phone?: string; director_title?: string;
+}): Promise<any> {
+  const response = await api.put('/partners/mi-plantel/campus', data);
+  return response.data;
+}
+
+/**
+ * Crear un nuevo grupo en el plantel del responsable
+ */
+export async function createMiPlantelGroup(data: {
+  name: string; description?: string;
+}): Promise<any> {
+  const response = await api.post('/partners/mi-plantel/groups', data);
+  return response.data;
+}
+
+/**
+ * Obtener detalle de un grupo del plantel
+ */
+export async function getMiPlantelGroupDetail(groupId: number): Promise<any> {
+  const response = await api.get(`/partners/mi-plantel/groups/${groupId}`);
+  return response.data;
+}
+
+/**
+ * Editar un grupo del plantel del responsable
+ */
+export async function updateMiPlantelGroup(groupId: number, data: {
+  name?: string; description?: string;
+}): Promise<any> {
+  const response = await api.put(`/partners/mi-plantel/groups/${groupId}`, data);
+  return response.data;
+}
+
+/**
+ * Eliminar (desactivar) un grupo del plantel del responsable
+ */
+export async function deleteMiPlantelGroup(groupId: number): Promise<any> {
+  const response = await api.delete(`/partners/mi-plantel/groups/${groupId}`);
+  return response.data;
+}
+
+/**
+ * Obtener miembros de un grupo del plantel
+ */
+export async function getMiPlantelGroupMembers(groupId: number): Promise<any> {
+  const response = await api.get(`/partners/mi-plantel/groups/${groupId}/members`);
+  return response.data;
+}
+
+/**
+ * Agregar un candidato a un grupo del plantel
+ */
+export async function addMiPlantelGroupMember(groupId: number, userId: string): Promise<any> {
+  const response = await api.post(`/partners/mi-plantel/groups/${groupId}/members`, { user_id: userId });
+  return response.data;
+}
+
+/**
+ * Eliminar un miembro de un grupo del plantel
+ */
+export async function removeMiPlantelGroupMember(groupId: number, memberId: number): Promise<any> {
+  const response = await api.delete(`/partners/mi-plantel/groups/${groupId}/members/${memberId}`);
+  return response.data;
+}
+
+/**
+ * Obtener exámenes asignados a un grupo del plantel
+ */
+export async function getMiPlantelGroupExams(groupId: number): Promise<any> {
+  const response = await api.get(`/partners/mi-plantel/groups/${groupId}/exams`);
+  return response.data;
+}
+
+/**
+ * Buscar candidatos del plantel para agregar a un grupo
+ */
+export async function searchMiPlantelCandidates(q: string, excludeGroupId?: number): Promise<any> {
+  const params: any = { q };
+  if (excludeGroupId) params.exclude_group = excludeGroupId;
+  const response = await api.get('/partners/mi-plantel/candidates/search', { params });
+  return response.data;
+}
+
 /**
  * Obtener exámenes asignados al candidato/responsable
  * Fallback: si el endpoint no existe (404), usa el endpoint original

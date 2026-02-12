@@ -20,6 +20,8 @@ export interface User {
   phone?: string
   campus_id?: number
   subsystem_id?: number
+  can_manage_groups?: boolean
+  can_bulk_create_candidates?: boolean
 }
 
 export interface Exam {

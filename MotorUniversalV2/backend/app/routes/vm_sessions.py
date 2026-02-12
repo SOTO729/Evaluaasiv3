@@ -77,6 +77,16 @@ def check_vm_access():
             'group_id': group_id,
         })
     
+    if user.role == 'responsable' and user.campus_id:
+        campus = Campus.query.get(user.campus_id)
+        vm_enabled = campus.enable_virtual_machines if campus else False
+        return jsonify({
+            'has_access': vm_enabled,
+            'role': user.role,
+            'scope': 'self',
+            'campus_id': user.campus_id,
+        })
+    
     return jsonify({'has_access': False}), 200
 
 
@@ -152,6 +162,11 @@ def get_sessions():
         if not vm_enabled:
             return jsonify({'error': 'Máquinas virtuales no habilitadas para tu grupo'}), 403
         query = query.filter(VmSession.campus_id == campus_id)
+    elif user.role == 'responsable' and user.campus_id:
+        campus = Campus.query.get(user.campus_id)
+        if not campus or not campus.enable_virtual_machines:
+            return jsonify({'error': 'Máquinas virtuales no habilitadas para tu plantel'}), 403
+        query = query.filter(VmSession.campus_id == user.campus_id)
     else:
         return jsonify({'error': 'Acceso denegado'}), 403
     
@@ -218,6 +233,15 @@ def create_session():
         target_user_id = user_id
         target_campus_id = campus_id
         target_group_id = group_id
+    
+    elif user.role == 'responsable' and user.campus_id:
+        campus = Campus.query.get(user.campus_id)
+        if not campus or not campus.enable_virtual_machines:
+            return jsonify({'error': 'Máquinas virtuales no habilitadas para tu plantel'}), 403
+        target_user_id = user_id
+        target_campus_id = user.campus_id
+        membership = GroupMember.query.filter_by(user_id=str(user_id), status='active').first()
+        target_group_id = membership.group_id if membership else None
         
     elif user.role in ['admin', 'coordinator']:
         target_user_id = data.get('user_id', user_id)
