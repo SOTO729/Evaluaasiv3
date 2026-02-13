@@ -18,6 +18,10 @@ class Result(db.Model):
     # Relación con Estándar de Competencia (ECM) - los resultados se asocian al ECM
     competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id'), nullable=True, index=True)
     
+    # Contexto de grupo - de qué asignación proviene este resultado
+    group_id = db.Column(db.Integer, nullable=True, index=True)
+    group_exam_id = db.Column(db.Integer, nullable=True, index=True)
+    
     # Resultado
     score = db.Column(db.Integer, nullable=False)  # Puntaje obtenido (0-100)
     status = db.Column(db.Integer, default=0, nullable=False)  # 0=en proceso, 1=completado, 2=abandonado
@@ -73,6 +77,8 @@ class Result(db.Model):
             'id': self.id,
             'exam_id': self.exam_id,
             'competency_standard_id': self.competency_standard_id,
+            'group_id': self.group_id,
+            'group_exam_id': self.group_exam_id,
             'score': self.score,
             'status': self.status,
             'result': self.result,

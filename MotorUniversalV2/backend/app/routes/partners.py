@@ -7125,10 +7125,13 @@ def get_mis_examenes():
             
             # Filtrar por asignación específica si es individual
             exam_ids = set()
+            exam_group_context = {}  # exam_id -> {group_id, group_exam_id}
             for ge in group_exams:
                 if ge.assignment_type == 'all' or ge.assignment_type is None:
                     # Asignado a todos los miembros del grupo
                     exam_ids.add(ge.exam_id)
+                    if ge.exam_id not in exam_group_context:
+                        exam_group_context[ge.exam_id] = {'group_id': ge.group_id, 'group_exam_id': ge.id}
                 elif ge.assignment_type == 'selected':
                     # Verificar si el candidato está asignado específicamente
                     member_assignment = GroupExamMember.query.filter_by(
@@ -7137,6 +7140,8 @@ def get_mis_examenes():
                     ).first()
                     if member_assignment:
                         exam_ids.add(ge.exam_id)
+                        if ge.exam_id not in exam_group_context:
+                            exam_group_context[ge.exam_id] = {'group_id': ge.group_id, 'group_exam_id': ge.id}
             
             exam_ids = list(exam_ids)
         
@@ -7149,8 +7154,18 @@ def get_mis_examenes():
             Exam.is_published == True
         ).order_by(Exam.updated_at.desc()).all()
         
+        # Enriquecer con contexto de grupo
+        exams_data = []
+        for exam in exams:
+            d = exam.to_dict()
+            ctx = exam_group_context.get(exam.id) if user.role == 'candidato' else None
+            if ctx:
+                d['group_id'] = ctx['group_id']
+                d['group_exam_id'] = ctx['group_exam_id']
+            exams_data.append(d)
+        
         return jsonify({
-            'exams': [exam.to_dict() for exam in exams],
+            'exams': exams_data,
             'total': len(exams),
             'pages': 1,
             'current_page': 1
@@ -10064,6 +10079,38 @@ def get_mi_partner_certificates():
                 'filters': _get_partner_cert_filters(partner.id)
             })
         
+        # Precomputar configuración de certificados por grupo
+        # enable_tier_basic → reporte_evaluacion
+        # enable_tier_standard → certificado_eduit
+        # enable_tier_advanced → certificado_conocer
+        # enable_digital_badge → insignia_digital
+        group_config_map = {}
+        for grp in all_groups:
+            cmp = campus_map.get(grp.campus_id)
+            if cmp:
+                group_config_map[grp.id] = {
+                    'reporte_evaluacion': grp.enable_tier_basic_override if grp.enable_tier_basic_override is not None else (cmp.enable_tier_basic if cmp.enable_tier_basic is not None else True),
+                    'certificado_eduit': grp.enable_tier_standard_override if grp.enable_tier_standard_override is not None else (cmp.enable_tier_standard if cmp.enable_tier_standard is not None else False),
+                    'certificado_conocer': grp.enable_tier_advanced_override if grp.enable_tier_advanced_override is not None else (cmp.enable_tier_advanced if cmp.enable_tier_advanced is not None else False),
+                    'insignia_digital': grp.enable_digital_badge_override if grp.enable_digital_badge_override is not None else (cmp.enable_digital_badge if cmp.enable_digital_badge is not None else False),
+                }
+            else:
+                group_config_map[grp.id] = {
+                    'reporte_evaluacion': grp.enable_tier_basic_override or True,
+                    'certificado_eduit': grp.enable_tier_standard_override or False,
+                    'certificado_conocer': grp.enable_tier_advanced_override or False,
+                    'insignia_digital': grp.enable_digital_badge_override or False,
+                }
+        
+        def is_cert_type_enabled(cert_type, user_id, result_group_id=None):
+            """Verificar si un tipo de certificado está habilitado para el grupo del usuario"""
+            # Usar group_id del resultado si disponible, sino del mapeo de miembros
+            gid = result_group_id or user_group_map.get(user_id)
+            if not gid or gid not in group_config_map:
+                # Sin grupo identificado, mostrar por defecto (compatibilidad)
+                return True
+            return group_config_map[gid].get(cert_type, False)
+        
         # Construir lista de certificados según tipo
         certificates = []
         
@@ -10089,8 +10136,10 @@ def get_mi_partner_certificates():
                     results_q = results_q.filter(False)  # No results
             
             for r in results_q.all():
+                if not is_cert_type_enabled('reporte_evaluacion', r.user_id, r.group_id):
+                    continue
                 u = User.query.get(r.user_id)
-                gid = user_group_map.get(r.user_id)
+                gid = r.group_id or user_group_map.get(r.user_id)
                 grp = group_map.get(gid) if gid else None
                 cmp = campus_map.get(grp.campus_id) if grp else None
                 certificates.append({
@@ -10133,8 +10182,10 @@ def get_mi_partner_certificates():
                     results_q = results_q.filter(False)
             
             for r in results_q.all():
+                if not is_cert_type_enabled('certificado_eduit', r.user_id, r.group_id):
+                    continue
                 u = User.query.get(r.user_id)
-                gid = user_group_map.get(r.user_id)
+                gid = r.group_id or user_group_map.get(r.user_id)
                 grp = group_map.get(gid) if gid else None
                 cmp = campus_map.get(grp.campus_id) if grp else None
                 certificates.append({
@@ -10177,6 +10228,8 @@ def get_mi_partner_certificates():
                     conocer_q = conocer_q.filter(False)
             
             for cc in conocer_q.all():
+                if not is_cert_type_enabled('certificado_conocer', cc.user_id):
+                    continue
                 u = User.query.get(cc.user_id)
                 gid = user_group_map.get(cc.user_id)
                 grp = group_map.get(gid) if gid else None
@@ -10217,7 +10270,9 @@ def get_mi_partner_certificates():
                     if search.lower() in (u.full_name or '').lower() or search.lower() in (u.curp or '').lower()
                 ]
             for r, u in badge_results:
-                gid = user_group_map.get(r.user_id)
+                if not is_cert_type_enabled('insignia_digital', r.user_id, r.group_id):
+                    continue
+                gid = r.group_id or user_group_map.get(r.user_id)
                 grp = group_map.get(gid) if gid else None
                 cmp = campus_map.get(grp.campus_id) if grp else None
                 certificates.append({

@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../../services/examService';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
@@ -34,6 +34,8 @@ interface ExamData {
 const ExamModeSelectorPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const groupQueryString = ['gid', 'geid'].filter(k => searchParams.get(k)).map(k => `${k}=${searchParams.get(k)}`).join('&');
 
   // Obtener datos del examen
   const { data: exam, isLoading } = useQuery<ExamData>({
@@ -44,7 +46,7 @@ const ExamModeSelectorPage = () => {
 
   const handleSelectMode = (mode: 'exam' | 'simulator') => {
     // Navegar directamente al onboarding (flujo de inicio)
-    navigate(`/exams/${id}/onboarding/${mode}`);
+    navigate(`/exams/${id}/onboarding/${mode}${groupQueryString ? '?' + groupQueryString : ''}`);
   };
 
   // Determinar qué modos están disponibles

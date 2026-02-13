@@ -351,6 +351,8 @@ export const examService = {
     duration_seconds?: number;
     answers_data?: any;
     questions_order?: string[];
+    group_id?: number;
+    group_exam_id?: number;
   }): Promise<{
     message: string;
     result: {

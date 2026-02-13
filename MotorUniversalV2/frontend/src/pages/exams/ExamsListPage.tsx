@@ -55,7 +55,11 @@ const ExamCard = ({
 
   const handleCardClick = () => {
     if (isCandidate) {
-      navigate(`/exams/${exam.id}/select-mode`);
+      const params = new URLSearchParams();
+      if (exam.group_id) params.set('gid', String(exam.group_id));
+      if (exam.group_exam_id) params.set('geid', String(exam.group_exam_id));
+      const qs = params.toString();
+      navigate(`/exams/${exam.id}/select-mode${qs ? '?' + qs : ''}`);
     } else {
       navigate(`/exams/${exam.id}/edit`);
     }

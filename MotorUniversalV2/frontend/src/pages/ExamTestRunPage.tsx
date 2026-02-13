@@ -33,10 +33,12 @@ const ExamTestRunPage: React.FC = () => {
   const { user } = useAuthStore();
   
   // Obtener valores del state o valores por defecto (se restaurarán desde localStorage)
-  const stateData = location.state as { questionCount?: number; exerciseCount?: number; mode?: 'exam' | 'simulator' } | null;
+  const stateData = location.state as { questionCount?: number; exerciseCount?: number; mode?: 'exam' | 'simulator'; groupId?: number; groupExamId?: number } | null;
   const questionCount = stateData?.questionCount ?? 0;
   const exerciseCount = stateData?.exerciseCount ?? 0;
   const mode = stateData?.mode;
+  const groupId = stateData?.groupId;
+  const groupExamId = stateData?.groupExamId;
   
   // Modo actual (por defecto 'exam' si no viene especificado)
   const currentMode = mode || 'exam';
@@ -849,7 +851,9 @@ const ExamTestRunPage: React.FC = () => {
             summary: resultsWithBreakdown.summary || {},
             evaluation_breakdown: evaluationBreakdown
           },
-          questions_order: selectedItems.map(item => item.id.toString())
+          questions_order: selectedItems.map(item => item.id.toString()),
+          group_id: groupId,
+          group_exam_id: groupExamId
         });
         savedResultId = saveResponse.result?.id;
         console.log('✅ Resultado guardado en la base de datos, ID:', savedResultId);
@@ -1005,7 +1009,9 @@ const ExamTestRunPage: React.FC = () => {
             summary: resultsWithBreakdown.summary || {},
             evaluation_breakdown: evaluationBreakdown
           },
-          questions_order: selectedItems.map(item => item.id.toString())
+          questions_order: selectedItems.map(item => item.id.toString()),
+          group_id: groupId,
+          group_exam_id: groupExamId
         });
         savedResultId = saveResponse.result?.id;
         console.log('✅ Resultado guardado en la base de datos, ID:', savedResultId);

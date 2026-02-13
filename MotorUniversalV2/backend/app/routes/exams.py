@@ -3022,6 +3022,37 @@ def save_exam_result(exam_id):
         answers_data = data.get('answers_data')
         questions_order = data.get('questions_order')
         
+        # Contexto de grupo (enviado por el frontend desde la cadena de asignación)
+        group_id = data.get('group_id')
+        group_exam_id = data.get('group_exam_id')
+        
+        # Fallback: si no se envió contexto de grupo, intentar resolverlo
+        if not group_id or not group_exam_id:
+            try:
+                from app.models.partner import GroupExam, GroupMember, GroupExamMember
+                # Buscar grupos activos donde el usuario es miembro
+                memberships = GroupMember.query.filter_by(user_id=str(user_id), status='active').all()
+                for m in memberships:
+                    ge = GroupExam.query.filter_by(
+                        group_id=m.group_id, exam_id=exam_id, is_active=True
+                    ).first()
+                    if ge:
+                        # Verificar que el usuario tiene acceso a este group_exam
+                        if ge.assignment_type == 'all' or ge.assignment_type is None:
+                            group_id = ge.group_id
+                            group_exam_id = ge.id
+                            break
+                        elif ge.assignment_type == 'selected':
+                            member_assign = GroupExamMember.query.filter_by(
+                                group_exam_id=ge.id, user_id=str(user_id)
+                            ).first()
+                            if member_assign:
+                                group_id = ge.group_id
+                                group_exam_id = ge.id
+                                break
+            except Exception as resolve_err:
+                print(f"⚠️ No se pudo resolver contexto de grupo: {resolve_err}")
+        
         # DEBUG: Ver qué se está guardando
         print(f"📋 SAVE - answers_data keys: {list(answers_data.keys()) if isinstance(answers_data, dict) else 'No es dict'}")
         if isinstance(answers_data, dict):
@@ -3043,6 +3074,8 @@ def save_exam_result(exam_id):
             voucher_id=None,  # Sin voucher - campo es nullable
             exam_id=exam_id,
             competency_standard_id=exam.competency_standard_id,  # Asociar al ECM para historial unificado
+            group_id=group_id,
+            group_exam_id=group_exam_id,
             score=int(round(percentage)),
             status=status,
             result=result_value,

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../../services/examService';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -49,6 +49,9 @@ interface ExamData {
 const ExamOnboardingPage = () => {
   const { id, mode } = useParams<{ id: string; mode: 'exam' | 'simulator' }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const groupId = searchParams.get('gid') ? Number(searchParams.get('gid')) : undefined;
+  const groupExamId = searchParams.get('geid') ? Number(searchParams.get('geid')) : undefined;
   const [currentStep, setCurrentStep] = useState(0);
   const [showScrollHint, setShowScrollHint] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -179,7 +182,9 @@ const ExamOnboardingPage = () => {
       state: {
         questionCount: exam?.total_questions || 0,
         exerciseCount: exam?.total_exercises || 0,
-        mode: currentMode
+        mode: currentMode,
+        groupId,
+        groupExamId
       }
     });
   };
