@@ -338,36 +338,6 @@ export default function GroupFormPage() {
     );
   };
 
-  // Componente de solo lectura para configuraciones no editables
-  const ConfigReadOnly = ({ 
-    label, 
-    icon: Icon,
-    value,
-    description 
-  }: { 
-    label: string;
-    icon: React.ComponentType<any>;
-    value: boolean;
-    description?: string;
-  }) => {
-    return (
-      <div className="flex items-center fluid-gap-3 fluid-p-3 rounded-fluid-lg bg-gray-100 opacity-75">
-        <div className={`fluid-p-2 rounded-fluid-lg ${value ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-400'}`}>
-          <Icon className="fluid-icon-base" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <span className="font-medium text-gray-600 fluid-text-sm">{label}</span>
-          {description && (
-            <p className="fluid-text-xs text-gray-400">{description}</p>
-          )}
-        </div>
-        <div className="fluid-px-3 fluid-py-2 bg-gray-200 text-gray-500 rounded-fluid-lg fluid-text-sm min-w-[140px] text-center cursor-not-allowed">
-          {value ? 'Siempre Activo' : 'Inactivo'}
-        </div>
-      </div>
-    );
-  };
-
   if (loading) {
     return (
       <div className="fluid-p-6 max-w-[2800px] mx-auto">
@@ -733,11 +703,7 @@ export default function GroupFormPage() {
                           Niveles de Certificación
                         </h3>
                         <div className="fluid-space-y-2">
-                          <ConfigReadOnly 
-                            label="Constancia de Evaluación" 
-                            icon={Award} 
-                            value={true}
-                          />
+                          <ConfigSelect field="enable_tier_basic_override" label="Constancia de Evaluación" icon={Award} />
                           <ConfigSelect field="enable_tier_standard_override" label="Certificado Eduit" icon={Award} />
                           <ConfigSelect field="enable_tier_advanced_override" label="Certificado CONOCER" icon={Shield} />
                           <ConfigSelect field="enable_digital_badge_override" label="Insignia Digital" icon={Zap} />

@@ -6608,10 +6608,10 @@ def get_mi_plantel_certificates_by_group():
             
             # Obtener tiers del grupo (override o herencia del campus)
             group_tiers = {
-                'constancia_eduit': gr.enable_tier_basic if gr.enable_tier_basic is not None else campus_tiers['constancia_eduit'],
-                'certificado_eduit': gr.enable_tier_standard if gr.enable_tier_standard is not None else campus_tiers['certificado_eduit'],
-                'certificado_conocer': gr.enable_tier_advanced if gr.enable_tier_advanced is not None else campus_tiers['certificado_conocer'],
-                'insignia_digital': gr.enable_digital_badge if gr.enable_digital_badge is not None else campus_tiers['insignia_digital']
+                'constancia_eduit': gr.enable_tier_basic_override if gr.enable_tier_basic_override is not None else campus_tiers['constancia_eduit'],
+                'certificado_eduit': gr.enable_tier_standard_override if gr.enable_tier_standard_override is not None else campus_tiers['certificado_eduit'],
+                'certificado_conocer': gr.enable_tier_advanced_override if gr.enable_tier_advanced_override is not None else campus_tiers['certificado_conocer'],
+                'insignia_digital': gr.enable_digital_badge_override if gr.enable_digital_badge_override is not None else campus_tiers['insignia_digital']
             }
             
             certificates = []
@@ -10096,10 +10096,10 @@ def get_mi_partner_certificates():
                 }
             else:
                 group_config_map[grp.id] = {
-                    'reporte_evaluacion': grp.enable_tier_basic_override or True,
-                    'certificado_eduit': grp.enable_tier_standard_override or False,
-                    'certificado_conocer': grp.enable_tier_advanced_override or False,
-                    'insignia_digital': grp.enable_digital_badge_override or False,
+                    'reporte_evaluacion': grp.enable_tier_basic_override if grp.enable_tier_basic_override is not None else True,
+                    'certificado_eduit': grp.enable_tier_standard_override if grp.enable_tier_standard_override is not None else False,
+                    'certificado_conocer': grp.enable_tier_advanced_override if grp.enable_tier_advanced_override is not None else False,
+                    'insignia_digital': grp.enable_digital_badge_override if grp.enable_digital_badge_override is not None else False,
                 }
         
         def is_cert_type_enabled(cert_type, user_id, result_group_id=None):
