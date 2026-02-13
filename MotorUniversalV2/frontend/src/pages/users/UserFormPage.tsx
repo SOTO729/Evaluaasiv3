@@ -26,10 +26,12 @@ import {
   updateUser,
   getAvailableRoles,
   getAvailableCampuses,
+  getAvailablePartners,
   CreateUserData,
   UpdateUserData,
   RoleOption,
   AvailableCampus,
+  AvailablePartner,
 } from '../../services/userManagementService';
 import { useAuthStore } from '../../store/authStore';
 
@@ -49,6 +51,9 @@ export default function UserFormPage() {
   // Estados para responsable
   const [availableCampuses, setAvailableCampuses] = useState<AvailableCampus[]>([]);
   const [loadingCampuses, setLoadingCampuses] = useState(false);
+  // Estados para responsable_partner
+  const [availablePartners, setAvailablePartners] = useState<AvailablePartner[]>([]);
+  const [loadingPartners, setLoadingPartners] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState<{ username: string; password: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -67,6 +72,8 @@ export default function UserFormPage() {
     campus_id: 0,
     can_bulk_create_candidates: false,
     can_manage_groups: false,
+    // Campos adicionales para responsable_partner
+    partner_id: 0,
   });
 
   useEffect(() => {
@@ -81,6 +88,9 @@ export default function UserFormPage() {
     if (formData.role === 'responsable' && !isEditing) {
       loadCampuses();
     }
+    if (formData.role === 'responsable_partner' && !isEditing) {
+      loadPartners();
+    }
   }, [formData.role, isEditing]);
 
   const loadCampuses = async () => {
@@ -92,6 +102,18 @@ export default function UserFormPage() {
       console.error('Error loading campuses:', err);
     } finally {
       setLoadingCampuses(false);
+    }
+  };
+
+  const loadPartners = async () => {
+    try {
+      setLoadingPartners(true);
+      const data = await getAvailablePartners();
+      setAvailablePartners(data.partners);
+    } catch (err) {
+      console.error('Error loading partners:', err);
+    } finally {
+      setLoadingPartners(false);
     }
   };
 
@@ -132,6 +154,7 @@ export default function UserFormPage() {
         campus_id: 0,
         can_bulk_create_candidates: false,
         can_manage_groups: false,
+        partner_id: 0,
       });
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar usuario');
@@ -219,6 +242,14 @@ export default function UserFormPage() {
       }
     }
 
+    // Para responsable_partner, partner_id es obligatorio
+    if (formData.role === 'responsable_partner') {
+      if (!formData.partner_id || formData.partner_id === 0) {
+        setError('Debe seleccionar un partner para el responsable del partner');
+        return;
+      }
+    }
+
     try {
       setSaving(true);
 
@@ -257,6 +288,11 @@ export default function UserFormPage() {
           createData.campus_id = formData.campus_id;
           createData.can_bulk_create_candidates = formData.can_bulk_create_candidates;
           createData.can_manage_groups = formData.can_manage_groups;
+        }
+
+        // Campos adicionales para responsable_partner
+        if (formData.role === 'responsable_partner') {
+          createData.partner_id = formData.partner_id;
         }
 
         const result = await createUser(createData);
@@ -638,6 +674,39 @@ export default function UserFormPage() {
                 </div>
               </div>
             </>
+          )}
+
+          {/* Selector de Partner para responsable_partner */}
+          {formData.role === 'responsable_partner' && !isEditing && (
+            <div className="md:col-span-2">
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                Partner <span className="text-red-500">*</span>
+              </label>
+              {loadingPartners ? (
+                <div className="flex items-center fluid-gap-2 fluid-py-2 text-gray-500">
+                  <div className="w-4 h-4 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
+                  Cargando partners...
+                </div>
+              ) : (
+                <StyledSelect
+                  value={formData.partner_id.toString()}
+                  onChange={(value) => setFormData(prev => ({ ...prev, partner_id: parseInt(value) || 0 }))}
+                  options={availablePartners.map(partner => ({
+                    value: partner.id.toString(),
+                    label: `${partner.name} (${partner.code}) — ${partner.total_campuses} planteles`
+                  }))}
+                  placeholder="Seleccionar partner..."
+                  icon={Building2}
+                  colorScheme="purple"
+                  required
+                />
+              )}
+              {availablePartners.length === 0 && !loadingPartners && (
+                <p className="fluid-text-xs text-amber-600 fluid-mt-1">
+                  No hay partners disponibles para asignar.
+                </p>
+              )}
+            </div>
           )}
 
           {isEditing && (

@@ -47,6 +47,8 @@ export interface CreateUserData {
   campus_id?: number;
   can_bulk_create_candidates?: boolean;
   can_manage_groups?: boolean;
+  // Campos adicionales para responsable_partner
+  partner_id?: number;
 }
 
 export interface UpdateUserData {
@@ -231,6 +233,25 @@ export async function getAvailableCampuses(): Promise<{
   return response.data;
 }
 
+// ============== PARTNERS DISPONIBLES (para responsable_partner) ==============
+
+export interface AvailablePartner {
+  id: number;
+  name: string;
+  code: string;
+  contact_email: string;
+  country: string;
+  total_campuses: number;
+}
+
+export async function getAvailablePartners(): Promise<{
+  partners: AvailablePartner[];
+  total: number;
+}> {
+  const response = await api.get('/user-management/available-partners');
+  return response.data;
+}
+
 // ============== HELPERS ==============
 
 export const ROLE_LABELS: Record<string, string> = {
@@ -241,6 +262,7 @@ export const ROLE_LABELS: Record<string, string> = {
   soporte: 'Soporte',
   coordinator: 'Coordinador',
   responsable: 'Responsable',
+  responsable_partner: 'Resp. Partner',
   candidato: 'Candidato',
   auxiliar: 'Auxiliar'
 };
@@ -253,6 +275,7 @@ export const ROLE_COLORS: Record<string, string> = {
   soporte: 'bg-blue-100 text-blue-800',
   coordinator: 'bg-amber-100 text-amber-800',
   responsable: 'bg-indigo-100 text-indigo-800',
+  responsable_partner: 'bg-violet-100 text-violet-800',
   candidato: 'bg-green-100 text-green-800',
   auxiliar: 'bg-gray-100 text-gray-800'
 };

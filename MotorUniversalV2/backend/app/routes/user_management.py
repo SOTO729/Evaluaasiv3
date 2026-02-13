@@ -384,6 +384,15 @@ def create_user():
             if data['gender'] not in ['M', 'F', 'O']:
                 return jsonify({'error': 'Género inválido. Use M (masculino), F (femenino) u O (otro)'}), 400
         
+        # Para responsable_partner, partner_id es obligatorio
+        if role == 'responsable_partner':
+            if not data.get('partner_id'):
+                return jsonify({'error': 'Debe seleccionar un partner para el responsable del partner'}), 400
+            from app.models.partner import Partner
+            partner = Partner.query.get(data['partner_id'])
+            if not partner:
+                return jsonify({'error': 'El partner especificado no existe'}), 404
+        
         # Email es opcional para candidatos
         email = None
         if data.get('email'):
@@ -476,6 +485,15 @@ def create_user():
         new_user.set_password(password)  # Usar la variable password (puede ser generada automáticamente)
         
         db.session.add(new_user)
+        
+        # Para responsable_partner, crear la asociación en user_partners
+        if role == 'responsable_partner' and data.get('partner_id'):
+            from app.models.partner import user_partners
+            db.session.execute(user_partners.insert().values(
+                user_id=new_user.id,
+                partner_id=data['partner_id']
+            ))
+        
         db.session.commit()
         
         # Incluir la contraseña temporal en la respuesta para TODOS los roles
@@ -966,6 +984,34 @@ def get_available_campuses():
                 'certification_cost': float(c.certification_cost) if c.certification_cost else 500.0
             } for c in campuses],
             'total': len(campuses)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ============== PARTNERS DISPONIBLES (para responsable_partner) ==============
+
+@bp.route('/available-partners', methods=['GET'])
+@jwt_required()
+@management_required
+def get_available_partners():
+    """Obtener lista de partners disponibles para asignar a responsable_partner"""
+    try:
+        from app.models.partner import Partner
+        
+        partners = Partner.query.filter_by(is_active=True).order_by(Partner.name).all()
+        
+        return jsonify({
+            'partners': [{
+                'id': p.id,
+                'name': p.name,
+                'code': p.code,
+                'contact_email': p.contact_email,
+                'country': p.country,
+                'total_campuses': len(p.campuses) if p.campuses else 0
+            } for p in partners],
+            'total': len(partners)
         })
         
     except Exception as e:
