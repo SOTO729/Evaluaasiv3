@@ -10475,3 +10475,188 @@ def export_mi_partner_certificates_excel():
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
+
+@bp.route('/mi-partner/certificates/download-zip', methods=['GET'])
+@jwt_required()
+@responsable_partner_required
+def download_mi_partner_certificates_zip():
+    """Descargar todos los certificados filtrados como ZIP organizado por candidato"""
+    from app.models import Result, Exam
+    from app.models.conocer_certificate import ConocerCertificate
+    from app.services.conocer_blob_service import get_conocer_blob_service
+    import zipfile
+    import re
+    import urllib.request
+    import urllib.error
+    
+    try:
+        partner = g.partner
+        state_filter = request.args.get('state', '')
+        campus_filter = request.args.get('campus_id', '')
+        group_filter = request.args.get('group_id', '')
+        cert_type_filter = request.args.get('cert_type', '')
+        search = request.args.get('search', '').strip()
+        
+        # Obtener campuses
+        campus_query = Campus.query.filter_by(partner_id=partner.id)
+        if state_filter:
+            campus_query = campus_query.filter_by(state_name=state_filter)
+        if campus_filter:
+            campus_query = campus_query.filter_by(id=int(campus_filter))
+        campuses = campus_query.all()
+        campus_ids = [c.id for c in campuses]
+        campus_map = {c.id: c for c in campuses}
+        
+        # Obtener grupos y miembros
+        group_query = CandidateGroup.query.filter(CandidateGroup.campus_id.in_(campus_ids))
+        if group_filter:
+            group_query = group_query.filter_by(id=int(group_filter))
+        all_groups = group_query.all()
+        group_ids = [gr.id for gr in all_groups]
+        group_map = {gr.id: gr for gr in all_groups}
+        
+        member_rows = db.session.query(GroupMember.user_id, GroupMember.group_id).filter(
+            GroupMember.group_id.in_(group_ids), GroupMember.status == 'active'
+        ).all() if group_ids else []
+        
+        user_group_map = {}
+        for uid, gid in member_rows:
+            if uid not in user_group_map:
+                user_group_map[uid] = gid
+        candidate_ids = list(user_group_map.keys())
+        
+        if not candidate_ids:
+            return jsonify({'error': 'No se encontraron candidatos con los filtros seleccionados'}), 404
+        
+        # Helper: limpiar nombre para filesystem
+        def safe_name(name):
+            name = re.sub(r'[<>:"/\\|?*]', '_', name or 'Sin_Nombre')
+            return name.strip().replace('  ', ' ')[:80]
+        
+        # Recolectar archivos para el ZIP: lista de (folder, filename, get_content_fn)
+        zip_entries = []
+        errors = []
+        
+        # Búsqueda común
+        search_uids = None
+        if search and candidate_ids:
+            matching = User.query.filter(
+                User.id.in_(candidate_ids),
+                db.or_(User.name.ilike(f'%{search}%'), User.first_surname.ilike(f'%{search}%'), User.curp.ilike(f'%{search}%'))
+            ).with_entities(User.id).all()
+            search_uids = [u[0] for u in matching]
+        
+        # Cache de usuarios
+        user_cache = {}
+        def get_user(uid):
+            if uid not in user_cache:
+                user_cache[uid] = User.query.get(uid)
+            return user_cache[uid]
+        
+        def make_folder(u):
+            name = safe_name(u.full_name if u else 'Sin_Nombre')
+            curp = (getattr(u, 'curp', '') or '').strip()
+            return f"{name}_{curp}" if curp else name
+        
+        # --- Reportes de Evaluación ---
+        if not cert_type_filter or cert_type_filter == 'reporte_evaluacion':
+            base_q = Result.query.filter(
+                Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1,
+                Result.report_url.isnot(None)
+            ) if candidate_ids else Result.query.filter(False)
+            if search_uids is not None:
+                base_q = base_q.filter(Result.user_id.in_(search_uids)) if search_uids else base_q.filter(False)
+            
+            for r in base_q.all():
+                u = get_user(r.user_id)
+                folder = make_folder(u)
+                code = r.certificate_code or str(r.id)
+                filename = f"Reporte_Evaluacion_{code}.pdf"
+                url = r.report_url
+                zip_entries.append((folder, filename, 'url', url))
+        
+        # --- Certificados Eduit ---
+        if not cert_type_filter or cert_type_filter == 'certificado_eduit':
+            base_q = Result.query.filter(
+                Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1,
+                Result.certificate_url.isnot(None)
+            ) if candidate_ids else Result.query.filter(False)
+            if search_uids is not None:
+                base_q = base_q.filter(Result.user_id.in_(search_uids)) if search_uids else base_q.filter(False)
+            
+            for r in base_q.all():
+                u = get_user(r.user_id)
+                folder = make_folder(u)
+                code = r.eduit_certificate_code or str(r.id)
+                filename = f"Certificado_Eduit_{code}.pdf"
+                url = r.certificate_url
+                zip_entries.append((folder, filename, 'url', url))
+        
+        # --- Certificados CONOCER ---
+        if not cert_type_filter or cert_type_filter == 'certificado_conocer':
+            conocer_q = ConocerCertificate.query.filter(
+                ConocerCertificate.user_id.in_(candidate_ids), ConocerCertificate.status == 'active'
+            ) if candidate_ids else ConocerCertificate.query.filter(False)
+            if search_uids is not None:
+                conocer_q = conocer_q.filter(ConocerCertificate.user_id.in_(search_uids)) if search_uids else conocer_q.filter(False)
+            
+            for cc in conocer_q.all():
+                if cc.blob_name:
+                    u = get_user(cc.user_id)
+                    folder = make_folder(u)
+                    code = cc.certificate_number or str(cc.id)
+                    std = cc.standard_code or ''
+                    filename = f"CONOCER_{std}_{code}.pdf"
+                    zip_entries.append((folder, filename, 'blob', cc.blob_name))
+        
+        if not zip_entries:
+            return jsonify({'error': 'No se encontraron certificados descargables con los filtros seleccionados'}), 404
+        
+        # Crear ZIP en memoria
+        zip_buffer = BytesIO()
+        blob_service = None
+        
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+            added_paths = set()
+            for folder, filename, source_type, source in zip_entries:
+                path = f"{folder}/{filename}"
+                # Evitar duplicados
+                if path in added_paths:
+                    continue
+                added_paths.add(path)
+                
+                try:
+                    if source_type == 'url':
+                        req = urllib.request.Request(source, headers={'User-Agent': 'Mozilla/5.0'})
+                        with urllib.request.urlopen(req, timeout=30) as resp:
+                            content = resp.read()
+                    elif source_type == 'blob':
+                        if blob_service is None:
+                            blob_service = get_conocer_blob_service()
+                        content, _ = blob_service.download_certificate(source)
+                    else:
+                        continue
+                    
+                    zf.writestr(path, content)
+                except Exception as e:
+                    errors.append(f"{path}: {str(e)[:100]}")
+                    continue
+        
+        zip_buffer.seek(0)
+        
+        if errors:
+            from flask import current_app
+            current_app.logger.warning(f"ZIP download: {len(errors)} errores de {len(zip_entries)} archivos: {errors[:5]}")
+        
+        filename = f"Certificados_{safe_name(partner.name)}_{datetime.now().strftime('%Y%m%d_%H%M')}.zip"
+        
+        return send_file(
+            zip_buffer,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=filename,
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500

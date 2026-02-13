@@ -7,13 +7,14 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   getMiPartnerCertificates,
   exportMiPartnerCertificatesExcel,
+  downloadMiPartnerCertificatesZip,
   PartnerCertificate,
   PartnerCertificatesResponse
 } from '../../services/partnersService'
 import {
   Award, Download, FileSpreadsheet, Search, Filter, X,
   ChevronLeft, ChevronRight, Building2, MapPin,
-  RefreshCw, ExternalLink
+  RefreshCw, ExternalLink, FolderArchive
 } from 'lucide-react'
 
 const CERT_TYPE_COLORS: Record<string, string> = {
@@ -27,6 +28,7 @@ const ResponsablePartnerCertificadosPage = () => {
   const [data, setData] = useState<PartnerCertificatesResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
+  const [downloadingZip, setDownloadingZip] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Filtros
@@ -98,6 +100,26 @@ const ResponsablePartnerCertificadosPage = () => {
     }
   }
 
+  const handleDownloadZip = async () => {
+    try {
+      setDownloadingZip(true)
+      const params: any = {}
+      if (stateFilter) params.state = stateFilter
+      if (campusFilter) params.campus_id = campusFilter
+      if (groupFilter) params.group_id = groupFilter
+      if (certTypeFilter) params.cert_type = certTypeFilter
+      if (searchQuery) params.search = searchQuery
+      await downloadMiPartnerCertificatesZip(params)
+    } catch (err: any) {
+      const errorMsg = err.response?.status === 404
+        ? 'No se encontraron certificados descargables con los filtros seleccionados'
+        : 'Error al descargar ZIP: ' + (err.response?.data?.error || err.message)
+      alert(errorMsg)
+    } finally {
+      setDownloadingZip(false)
+    }
+  }
+
   const openDownload = (cert: PartnerCertificate) => {
     if (cert.download_url) {
       window.open(cert.download_url, '_blank')
@@ -144,6 +166,14 @@ const ResponsablePartnerCertificadosPage = () => {
           >
             <FileSpreadsheet className="w-4 h-4" />
             {exporting ? 'Exportando...' : 'Exportar Excel'}
+          </button>
+          <button
+            onClick={handleDownloadZip}
+            disabled={downloadingZip}
+            className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-indigo-600 text-white rounded-fluid-lg fluid-text-sm font-medium hover:bg-indigo-700 transition-all disabled:opacity-50"
+          >
+            <FolderArchive className="w-4 h-4" />
+            {downloadingZip ? 'Generando ZIP...' : 'Descargar ZIP'}
           </button>
         </div>
       </div>

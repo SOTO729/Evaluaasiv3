@@ -2444,6 +2444,34 @@ export async function exportEcmAssignmentsExcel(ecmId: number, params?: {
   window.URL.revokeObjectURL(url);
 }
 
+/**
+ * Descargar todos los certificados del partner como ZIP
+ */
+export async function downloadMiPartnerCertificatesZip(params: {
+  state?: string; campus_id?: string; group_id?: string;
+  cert_type?: string; search?: string;
+}): Promise<void> {
+  const response = await api.get('/partners/mi-partner/certificates/download-zip', {
+    params,
+    responseType: 'blob',
+    timeout: 300000, // 5 min timeout for large ZIPs
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  const contentDisposition = response.headers['content-disposition'];
+  let filename = 'certificados_partner.zip';
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename=(.+)/);
+    if (match) filename = match[1].replace(/"/g, '');
+  }
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 
 // ============== RESPONSABLE PARTNER: DASHBOARD Y CERTIFICADOS ==============
 
