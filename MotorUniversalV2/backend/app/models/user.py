@@ -75,7 +75,7 @@ class User(db.Model):
     date_of_birth = db.Column(db.Date)
     
     # Rol y permisos
-    role = db.Column(db.String(20), nullable=False, default='candidato')  # admin, developer, gerente, financiero, editor, editor_invitado, soporte, coordinator, candidato, auxiliar, responsable
+    role = db.Column(db.String(25), nullable=False, default='candidato')  # admin, developer, gerente, financiero, editor, editor_invitado, soporte, coordinator, candidato, auxiliar, responsable, responsable_partner
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
     
@@ -148,6 +148,7 @@ class User(db.Model):
             'soporte': ['users:read', 'vouchers:create', 'vouchers:read'],
             'coordinator': ['users:read', 'users:create', 'exams:read', 'groups:manage', 'balance:request'],
             'responsable': ['users:read', 'users:create', 'exams:read', 'groups:manage'],  # Permisos base, extendidos por can_bulk_create_candidates y can_manage_groups
+            'responsable_partner': ['users:read', 'exams:read', 'groups:manage', 'reports:read', 'certificates:read'],  # Ve todos los planteles de su partner
             'candidato': ['exams:read', 'evaluations:create'],
             'auxiliar': ['users:read', 'exams:read']
         }

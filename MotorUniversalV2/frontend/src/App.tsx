@@ -52,13 +52,13 @@ const DownloadableEditorPage = lazy(() => import('./pages/study-contents/Downloa
 // Componente que decide qué página de detalle mostrar según el rol
 const StudyContentDetailRouter = () => {
   const { user } = useAuthStore()
-  return (user?.role === 'candidato' || user?.role === 'responsable') ? <StudyContentCandidatePage /> : <StudyContentDetailPage />
+  return (user?.role === 'candidato' || user?.role === 'responsable' || user?.role === 'responsable_partner') ? <StudyContentCandidatePage /> : <StudyContentDetailPage />
 }
 
 // Componente que envuelve ExamTestResultsPage en Layout para candidatos
 const ExamTestResultsRouter = () => {
   const { user } = useAuthStore()
-  if (user?.role === 'candidato' || user?.role === 'responsable') {
+  if (user?.role === 'candidato' || user?.role === 'responsable' || user?.role === 'responsable_partner') {
     return (
       <Layout>
         <ExamTestResultsPage />
@@ -119,6 +119,10 @@ const MiPlantelPage = lazy(() => import('./pages/responsable/MiPlantelPage'))
 const MiPlantelReportesPage = lazy(() => import('./pages/responsable/MiPlantelReportesPage'))
 const MiPlantelCertificadosPage = lazy(() => import('./pages/responsable/MiPlantelCertificadosPage'))
 const MiPlantelGrupoDetailPage = lazy(() => import('./pages/responsable/MiPlantelGrupoDetailPage'))
+
+// Responsable de Partner
+const ResponsablePartnerDashboard = lazy(() => import('./pages/responsable_partner/ResponsablePartnerDashboard'))
+const ResponsablePartnerCertificadosPage = lazy(() => import('./pages/responsable_partner/ResponsablePartnerCertificadosPage'))
 
 // Financiero (Gestión de saldos)
 const FinancieroDashboard = lazy(() => import('./pages/financiero/FinancieroDashboard'))
@@ -280,6 +284,10 @@ function App() {
               <Route path="/mi-plantel/reportes" element={<MiPlantelReportesPage />} />
               <Route path="/mi-plantel/certificados" element={<MiPlantelCertificadosPage />} />
               <Route path="/mi-plantel/grupos/:groupId" element={<MiPlantelGrupoDetailPage />} />
+              
+              {/* Responsable de Partner */}
+              <Route path="/mi-partner" element={<ResponsablePartnerDashboard />} />
+              <Route path="/mi-partner/certificados" element={<ResponsablePartnerCertificadosPage />} />
               
               {/* Financiero - Gestión de Solicitudes de Saldo */}
               <Route path="/financiero" element={<FinancieroDashboard />} />

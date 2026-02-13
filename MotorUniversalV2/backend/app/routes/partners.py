@@ -9680,3 +9680,769 @@ def export_ecm_assignments_excel(ecm_id):
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
+
+# =====================================================
+# ENDPOINTS PARA RESPONSABLE DE PARTNER
+# =====================================================
+
+def responsable_partner_required(f):
+    """Decorador que requiere rol de responsable_partner y asocia el partner"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'No autorizado'}), 401
+        if user.role != 'responsable_partner':
+            return jsonify({'error': 'Acceso denegado. Se requiere rol de responsable_partner'}), 403
+        # Buscar el partner asociado en la tabla user_partners
+        from app.models.partner import user_partners
+        partner_row = db.session.query(user_partners).filter(
+            user_partners.c.user_id == user.id
+        ).first()
+        if not partner_row:
+            return jsonify({'error': 'No tienes un partner asignado'}), 403
+        partner = Partner.query.get(partner_row.partner_id)
+        if not partner:
+            return jsonify({'error': 'Partner no encontrado'}), 404
+        g.current_user = user
+        g.partner = partner
+        return f(*args, **kwargs)
+    return decorated
+
+
+@bp.route('/mi-partner', methods=['GET'])
+@jwt_required()
+@responsable_partner_required
+def get_mi_partner():
+    """Obtener información del partner y sus planteles"""
+    try:
+        partner = g.partner
+        campuses = Campus.query.filter_by(partner_id=partner.id).all()
+        
+        # Obtener estados únicos de los campus
+        states = sorted(set([c.state_name for c in campuses if c.state_name]))
+        
+        return jsonify({
+            'partner': partner.to_dict(include_states=True),
+            'campuses': [c.to_dict() for c in campuses],
+            'states': states
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-partner/dashboard', methods=['GET'])
+@jwt_required()
+@responsable_partner_required
+def get_mi_partner_dashboard():
+    """Dashboard con KPIs y gráficos para el responsable del partner"""
+    from app.models import Result, Exam
+    from app.models.student_progress import StudentContentProgress
+    from app.models.conocer_certificate import ConocerCertificate
+    from sqlalchemy import func
+    
+    try:
+        partner = g.partner
+        state_filter = request.args.get('state', '')
+        
+        # Obtener campuses del partner (opcionalmente filtrados por estado)
+        campus_query = Campus.query.filter_by(partner_id=partner.id)
+        if state_filter:
+            campus_query = campus_query.filter_by(state_name=state_filter)
+        campuses = campus_query.all()
+        campus_ids = [c.id for c in campuses]
+        
+        if not campus_ids:
+            return jsonify({
+                'partner': {'id': partner.id, 'name': partner.name},
+                'filter': {'state': state_filter},
+                'stats': {
+                    'total_campuses': 0, 'total_groups': 0, 'total_candidates': 0,
+                    'total_evaluations': 0, 'passed_evaluations': 0, 'failed_evaluations': 0,
+                    'approval_rate': 0, 'average_score': 0, 'certification_rate': 0
+                },
+                'charts': {
+                    'approval_by_campus': [], 'scores_by_campus': [],
+                    'score_distribution': [], 'evaluations_over_time': [],
+                    'certification_by_type': {}, 'candidates_by_state': []
+                }
+            })
+        
+        # Obtener todos los grupos de estos campus
+        groups = CandidateGroup.query.filter(
+            CandidateGroup.campus_id.in_(campus_ids),
+            CandidateGroup.is_active == True
+        ).all()
+        group_ids = [gr.id for gr in groups]
+        
+        # Obtener todos los candidatos
+        candidate_ids = []
+        if group_ids:
+            candidate_ids = [c[0] for c in db.session.query(GroupMember.user_id).filter(
+                GroupMember.group_id.in_(group_ids), GroupMember.status == 'active'
+            ).distinct().all()]
+        
+        # ---- Stats generales ----
+        total_evals = Result.query.filter(Result.user_id.in_(candidate_ids), Result.status == 1).count() if candidate_ids else 0
+        passed = Result.query.filter(Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1).count() if candidate_ids else 0
+        failed = total_evals - passed
+        avg_score = 0
+        if candidate_ids:
+            avg = db.session.query(func.avg(Result.score)).filter(Result.user_id.in_(candidate_ids), Result.status == 1).scalar()
+            avg_score = round(float(avg or 0), 1)
+        
+        certified_count = 0
+        if candidate_ids:
+            certified_count = db.session.query(Result.user_id).filter(
+                Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1
+            ).distinct().count()
+        
+        # ---- Aprobación por campus ----
+        campus_map = {c.id: c for c in campuses}
+        approval_by_campus = []
+        scores_by_campus = []
+        for c in campuses:
+            c_groups = [gr for gr in groups if gr.campus_id == c.id]
+            c_group_ids = [gr.id for gr in c_groups]
+            if not c_group_ids:
+                approval_by_campus.append({'campus_name': c.name, 'campus_id': c.id, 'state': c.state_name or '', 'approved': 0, 'failed': 0, 'rate': 0, 'total_members': 0})
+                scores_by_campus.append({'campus_name': c.name, 'average': 0, 'min': 0, 'max': 0})
+                continue
+            c_member_ids = [m[0] for m in db.session.query(GroupMember.user_id).filter(
+                GroupMember.group_id.in_(c_group_ids), GroupMember.status == 'active'
+            ).distinct().all()]
+            if not c_member_ids:
+                approval_by_campus.append({'campus_name': c.name, 'campus_id': c.id, 'state': c.state_name or '', 'approved': 0, 'failed': 0, 'rate': 0, 'total_members': 0})
+                scores_by_campus.append({'campus_name': c.name, 'average': 0, 'min': 0, 'max': 0})
+                continue
+            c_approved = Result.query.filter(Result.user_id.in_(c_member_ids), Result.status == 1, Result.result == 1).count()
+            c_failed = Result.query.filter(Result.user_id.in_(c_member_ids), Result.status == 1, Result.result == 0).count()
+            c_total = c_approved + c_failed
+            approval_by_campus.append({
+                'campus_name': c.name, 'campus_id': c.id, 'state': c.state_name or '',
+                'approved': c_approved, 'failed': c_failed,
+                'total_members': len(c_member_ids),
+                'rate': round(c_approved / c_total * 100, 1) if c_total > 0 else 0
+            })
+            c_stats = db.session.query(
+                func.avg(Result.score), func.min(Result.score), func.max(Result.score)
+            ).filter(Result.user_id.in_(c_member_ids), Result.status == 1).first()
+            scores_by_campus.append({
+                'campus_name': c.name,
+                'average': round(float(c_stats[0] or 0), 1),
+                'min': round(float(c_stats[1] or 0), 1),
+                'max': round(float(c_stats[2] or 0), 1)
+            })
+        
+        # ---- Distribución de calificaciones ----
+        score_distribution = []
+        if candidate_ids:
+            for low in range(0, 100, 10):
+                high = low + 10
+                label = f"{low}-{high}"
+                if low == 90:
+                    count = Result.query.filter(
+                        Result.user_id.in_(candidate_ids), Result.status == 1,
+                        Result.score >= low, Result.score <= 100
+                    ).count()
+                    label = "90-100"
+                else:
+                    count = Result.query.filter(
+                        Result.user_id.in_(candidate_ids), Result.status == 1,
+                        Result.score >= low, Result.score < high
+                    ).count()
+                score_distribution.append({'range': label, 'count': count})
+        
+        # ---- Evaluaciones en el tiempo (últimos 6 meses) ----
+        evaluations_over_time = []
+        if candidate_ids:
+            from datetime import datetime as dt
+            now = dt.utcnow()
+            for i in range(5, -1, -1):
+                month = now.month - i
+                year = now.year
+                if month <= 0:
+                    month += 12
+                    year -= 1
+                month_start = dt(year, month, 1)
+                if month == 12:
+                    month_end = dt(year + 1, 1, 1)
+                else:
+                    month_end = dt(year, month + 1, 1)
+                approved_m = Result.query.filter(
+                    Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1,
+                    Result.end_date >= month_start, Result.end_date < month_end
+                ).count()
+                failed_m = Result.query.filter(
+                    Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 0,
+                    Result.end_date >= month_start, Result.end_date < month_end
+                ).count()
+                evaluations_over_time.append({
+                    'month': f"{year}-{month:02d}",
+                    'approved': approved_m, 'failed': failed_m
+                })
+        
+        # ---- Certificación por tipo ----
+        certification_by_type = {
+            'reporte_evaluacion': 0, 'certificado_eduit': 0,
+            'certificado_conocer': 0, 'insignia_digital': 0
+        }
+        if candidate_ids:
+            # Contar resultados con reporte/certificado generado
+            with_report = Result.query.filter(
+                Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1,
+                Result.report_url.isnot(None)
+            ).count()
+            with_cert = Result.query.filter(
+                Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1,
+                Result.certificate_url.isnot(None)
+            ).count()
+            conocer_count = ConocerCertificate.query.filter(
+                ConocerCertificate.user_id.in_(candidate_ids),
+                ConocerCertificate.status == 'active'
+            ).count()
+            # Insignias digitales: candidatos habilitados con resultado aprobado
+            badge_count = db.session.query(Result.user_id).join(
+                User, Result.user_id == User.id
+            ).filter(
+                Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1,
+                User.enable_digital_badge == True
+            ).distinct().count()
+            
+            certification_by_type = {
+                'reporte_evaluacion': with_report,
+                'certificado_eduit': with_cert,
+                'certificado_conocer': conocer_count,
+                'insignia_digital': badge_count
+            }
+        
+        # ---- Candidatos por estado ----
+        candidates_by_state = []
+        state_groups = {}
+        for c in campuses:
+            st = c.state_name or 'Sin estado'
+            if st not in state_groups:
+                state_groups[st] = {'groups': [], 'campuses': 0}
+            state_groups[st]['campuses'] += 1
+            state_groups[st]['groups'].extend([gr for gr in groups if gr.campus_id == c.id])
+        
+        for st_name, st_info in sorted(state_groups.items()):
+            st_group_ids = [gr.id for gr in st_info['groups']]
+            st_member_count = 0
+            if st_group_ids:
+                st_member_count = db.session.query(GroupMember.user_id).filter(
+                    GroupMember.group_id.in_(st_group_ids), GroupMember.status == 'active'
+                ).distinct().count()
+            candidates_by_state.append({
+                'state': st_name,
+                'campuses': st_info['campuses'],
+                'candidates': st_member_count
+            })
+        
+        # Obtener estados disponibles para el filtro
+        all_states = sorted(set([c.state_name for c in Campus.query.filter_by(partner_id=partner.id).all() if c.state_name]))
+        
+        return jsonify({
+            'partner': {'id': partner.id, 'name': partner.name, 'logo_url': partner.logo_url},
+            'filter': {'state': state_filter, 'available_states': all_states},
+            'stats': {
+                'total_campuses': len(campuses),
+                'total_groups': len(groups),
+                'total_candidates': len(candidate_ids),
+                'total_evaluations': total_evals,
+                'passed_evaluations': passed,
+                'failed_evaluations': failed,
+                'approval_rate': round(passed / total_evals * 100, 1) if total_evals > 0 else 0,
+                'average_score': avg_score,
+                'certification_rate': round(certified_count / len(candidate_ids) * 100, 1) if candidate_ids else 0
+            },
+            'charts': {
+                'approval_by_campus': approval_by_campus,
+                'scores_by_campus': scores_by_campus,
+                'score_distribution': score_distribution,
+                'evaluations_over_time': evaluations_over_time,
+                'certification_by_type': certification_by_type,
+                'candidates_by_state': candidates_by_state
+            }
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-partner/certificates', methods=['GET'])
+@jwt_required()
+@responsable_partner_required
+def get_mi_partner_certificates():
+    """Tabla plana de certificados con filtros para el responsable del partner"""
+    from app.models import Result, Exam
+    from app.models.conocer_certificate import ConocerCertificate
+    
+    try:
+        partner = g.partner
+        
+        # Filtros
+        state_filter = request.args.get('state', '')
+        campus_filter = request.args.get('campus_id', '', type=str)
+        group_filter = request.args.get('group_id', '', type=str)
+        cert_type_filter = request.args.get('cert_type', '')  # reporte_evaluacion, certificado_eduit, certificado_conocer, insignia_digital
+        search = request.args.get('search', '').strip()
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 25, type=int)
+        per_page = min(per_page, 100)
+        
+        # Obtener campuses del partner filtrados
+        campus_query = Campus.query.filter_by(partner_id=partner.id)
+        if state_filter:
+            campus_query = campus_query.filter_by(state_name=state_filter)
+        if campus_filter:
+            campus_query = campus_query.filter_by(id=int(campus_filter))
+        campuses = campus_query.all()
+        campus_ids = [c.id for c in campuses]
+        campus_map = {c.id: c for c in campuses}
+        
+        if not campus_ids:
+            return jsonify({
+                'certificates': [], 'pagination': {'total': 0, 'page': page, 'per_page': per_page, 'pages': 0},
+                'filters': {'states': [], 'campuses': [], 'groups': []}
+            })
+        
+        # Obtener grupos
+        group_query = CandidateGroup.query.filter(CandidateGroup.campus_id.in_(campus_ids))
+        if group_filter:
+            group_query = group_query.filter_by(id=int(group_filter))
+        all_groups = group_query.all()
+        group_ids = [gr.id for gr in all_groups]
+        group_map = {gr.id: gr for gr in all_groups}
+        group_campus_map = {gr.id: gr.campus_id for gr in all_groups}
+        
+        # Obtener miembros y mapeo usuario -> grupo
+        member_rows = db.session.query(GroupMember.user_id, GroupMember.group_id).filter(
+            GroupMember.group_id.in_(group_ids), GroupMember.status == 'active'
+        ).all() if group_ids else []
+        
+        user_group_map = {}
+        for uid, gid in member_rows:
+            if uid not in user_group_map:
+                user_group_map[uid] = gid  # Tomar el primer grupo
+        candidate_ids = list(user_group_map.keys())
+        
+        if not candidate_ids:
+            return jsonify({
+                'certificates': [], 'pagination': {'total': 0, 'page': page, 'per_page': per_page, 'pages': 0},
+                'filters': _get_partner_cert_filters(partner.id)
+            })
+        
+        # Construir lista de certificados según tipo
+        certificates = []
+        
+        if not cert_type_filter or cert_type_filter == 'reporte_evaluacion':
+            results_q = Result.query.filter(
+                Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1,
+                Result.report_url.isnot(None)
+            )
+            if search:
+                # Buscar por nombre de usuario
+                matching_users = User.query.filter(
+                    User.id.in_(candidate_ids),
+                    db.or_(
+                        User.name.ilike(f'%{search}%'),
+                        User.first_surname.ilike(f'%{search}%'),
+                        User.curp.ilike(f'%{search}%')
+                    )
+                ).with_entities(User.id).all()
+                matching_ids = [u[0] for u in matching_users]
+                if matching_ids:
+                    results_q = results_q.filter(Result.user_id.in_(matching_ids))
+                else:
+                    results_q = results_q.filter(False)  # No results
+            
+            for r in results_q.all():
+                u = User.query.get(r.user_id)
+                gid = user_group_map.get(r.user_id)
+                grp = group_map.get(gid) if gid else None
+                cmp = campus_map.get(grp.campus_id) if grp else None
+                certificates.append({
+                    'id': f'report_{r.id}',
+                    'cert_type': 'reporte_evaluacion',
+                    'cert_type_label': 'Reporte de Evaluación',
+                    'user_id': r.user_id,
+                    'user_name': u.full_name if u else 'N/A',
+                    'user_curp': getattr(u, 'curp', '') if u else '',
+                    'score': float(r.score) if r.score else 0,
+                    'date': r.end_date.isoformat() if r.end_date else None,
+                    'code': r.certificate_code or '',
+                    'download_url': r.report_url,
+                    'group_name': grp.name if grp else 'N/A',
+                    'group_id': gid,
+                    'campus_name': cmp.name if cmp else 'N/A',
+                    'campus_id': cmp.id if cmp else None,
+                    'state': cmp.state_name if cmp else '',
+                    'status': 'generado'
+                })
+        
+        if not cert_type_filter or cert_type_filter == 'certificado_eduit':
+            results_q = Result.query.filter(
+                Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1,
+                Result.certificate_url.isnot(None)
+            )
+            if search:
+                matching_users = User.query.filter(
+                    User.id.in_(candidate_ids),
+                    db.or_(
+                        User.name.ilike(f'%{search}%'),
+                        User.first_surname.ilike(f'%{search}%'),
+                        User.curp.ilike(f'%{search}%')
+                    )
+                ).with_entities(User.id).all()
+                matching_ids = [u[0] for u in matching_users]
+                if matching_ids:
+                    results_q = results_q.filter(Result.user_id.in_(matching_ids))
+                else:
+                    results_q = results_q.filter(False)
+            
+            for r in results_q.all():
+                u = User.query.get(r.user_id)
+                gid = user_group_map.get(r.user_id)
+                grp = group_map.get(gid) if gid else None
+                cmp = campus_map.get(grp.campus_id) if grp else None
+                certificates.append({
+                    'id': f'eduit_{r.id}',
+                    'cert_type': 'certificado_eduit',
+                    'cert_type_label': 'Certificado Eduit',
+                    'user_id': r.user_id,
+                    'user_name': u.full_name if u else 'N/A',
+                    'user_curp': getattr(u, 'curp', '') if u else '',
+                    'score': float(r.score) if r.score else 0,
+                    'date': r.end_date.isoformat() if r.end_date else None,
+                    'code': r.eduit_certificate_code or '',
+                    'download_url': r.certificate_url,
+                    'group_name': grp.name if grp else 'N/A',
+                    'group_id': gid,
+                    'campus_name': cmp.name if cmp else 'N/A',
+                    'campus_id': cmp.id if cmp else None,
+                    'state': cmp.state_name if cmp else '',
+                    'status': 'generado'
+                })
+        
+        if not cert_type_filter or cert_type_filter == 'certificado_conocer':
+            conocer_q = ConocerCertificate.query.filter(
+                ConocerCertificate.user_id.in_(candidate_ids),
+                ConocerCertificate.status == 'active'
+            )
+            if search:
+                matching_users = User.query.filter(
+                    User.id.in_(candidate_ids),
+                    db.or_(
+                        User.name.ilike(f'%{search}%'),
+                        User.first_surname.ilike(f'%{search}%'),
+                        User.curp.ilike(f'%{search}%')
+                    )
+                ).with_entities(User.id).all()
+                matching_ids = [u[0] for u in matching_users]
+                if matching_ids:
+                    conocer_q = conocer_q.filter(ConocerCertificate.user_id.in_(matching_ids))
+                else:
+                    conocer_q = conocer_q.filter(False)
+            
+            for cc in conocer_q.all():
+                u = User.query.get(cc.user_id)
+                gid = user_group_map.get(cc.user_id)
+                grp = group_map.get(gid) if gid else None
+                cmp = campus_map.get(grp.campus_id) if grp else None
+                certificates.append({
+                    'id': f'conocer_{cc.id}',
+                    'cert_type': 'certificado_conocer',
+                    'cert_type_label': 'Certificado CONOCER',
+                    'user_id': cc.user_id,
+                    'user_name': u.full_name if u else 'N/A',
+                    'user_curp': cc.curp or (getattr(u, 'curp', '') if u else ''),
+                    'score': 0,
+                    'date': cc.issue_date.isoformat() if cc.issue_date else None,
+                    'code': cc.certificate_number or '',
+                    'download_url': None,  # CONOCER uses blob download endpoint
+                    'conocer_id': cc.id,
+                    'standard_code': cc.standard_code,
+                    'standard_name': cc.standard_name,
+                    'group_name': grp.name if grp else 'N/A',
+                    'group_id': gid,
+                    'campus_name': cmp.name if cmp else 'N/A',
+                    'campus_id': cmp.id if cmp else None,
+                    'state': cmp.state_name if cmp else '',
+                    'status': cc.status
+                })
+        
+        if not cert_type_filter or cert_type_filter == 'insignia_digital':
+            # Insignias digitales: usuarios habilitados con resultado aprobado
+            badge_results = db.session.query(Result, User).join(
+                User, Result.user_id == User.id
+            ).filter(
+                Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1,
+                User.enable_digital_badge == True
+            ).all()
+            if search:
+                badge_results = [
+                    (r, u) for r, u in badge_results
+                    if search.lower() in (u.full_name or '').lower() or search.lower() in (u.curp or '').lower()
+                ]
+            for r, u in badge_results:
+                gid = user_group_map.get(r.user_id)
+                grp = group_map.get(gid) if gid else None
+                cmp = campus_map.get(grp.campus_id) if grp else None
+                certificates.append({
+                    'id': f'badge_{r.id}',
+                    'cert_type': 'insignia_digital',
+                    'cert_type_label': 'Insignia Digital',
+                    'user_id': r.user_id,
+                    'user_name': u.full_name if u else 'N/A',
+                    'user_curp': getattr(u, 'curp', '') if u else '',
+                    'score': float(r.score) if r.score else 0,
+                    'date': r.end_date.isoformat() if r.end_date else None,
+                    'code': '',
+                    'download_url': None,
+                    'group_name': grp.name if grp else 'N/A',
+                    'group_id': gid,
+                    'campus_name': cmp.name if cmp else 'N/A',
+                    'campus_id': cmp.id if cmp else None,
+                    'state': cmp.state_name if cmp else '',
+                    'status': 'habilitado'
+                })
+        
+        # Ordenar por fecha descendente
+        certificates.sort(key=lambda x: x.get('date') or '', reverse=True)
+        
+        # Paginación manual
+        total = len(certificates)
+        pages = (total + per_page - 1) // per_page
+        start = (page - 1) * per_page
+        end = start + per_page
+        paginated = certificates[start:end]
+        
+        return jsonify({
+            'certificates': paginated,
+            'pagination': {'total': total, 'page': page, 'per_page': per_page, 'pages': pages},
+            'filters': _get_partner_cert_filters(partner.id)
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+def _get_partner_cert_filters(partner_id):
+    """Helper: obtener opciones de filtro disponibles para certificados del partner"""
+    campuses = Campus.query.filter_by(partner_id=partner_id).all()
+    campus_ids = [c.id for c in campuses]
+    states = sorted(set([c.state_name for c in campuses if c.state_name]))
+    
+    groups = []
+    if campus_ids:
+        groups = CandidateGroup.query.filter(CandidateGroup.campus_id.in_(campus_ids)).order_by(CandidateGroup.name).all()
+    
+    return {
+        'states': states,
+        'campuses': [{'id': c.id, 'name': c.name, 'state': c.state_name or ''} for c in campuses],
+        'groups': [{'id': g.id, 'name': g.name, 'campus_id': g.campus_id} for g in groups],
+        'cert_types': [
+            {'value': 'reporte_evaluacion', 'label': 'Reporte de Evaluación'},
+            {'value': 'certificado_eduit', 'label': 'Certificado Eduit'},
+            {'value': 'certificado_conocer', 'label': 'Certificado CONOCER'},
+            {'value': 'insignia_digital', 'label': 'Insignia Digital'}
+        ]
+    }
+
+
+@bp.route('/mi-partner/certificates/export', methods=['GET'])
+@jwt_required()
+@responsable_partner_required
+def export_mi_partner_certificates_excel():
+    """Exportar certificados del partner a Excel"""
+    from app.models import Result, Exam
+    from app.models.conocer_certificate import ConocerCertificate
+    from openpyxl.utils import get_column_letter
+    
+    try:
+        partner = g.partner
+        state_filter = request.args.get('state', '')
+        campus_filter = request.args.get('campus_id', '')
+        group_filter = request.args.get('group_id', '')
+        cert_type_filter = request.args.get('cert_type', '')
+        search = request.args.get('search', '').strip()
+        
+        # Obtener campuses
+        campus_query = Campus.query.filter_by(partner_id=partner.id)
+        if state_filter:
+            campus_query = campus_query.filter_by(state_name=state_filter)
+        if campus_filter:
+            campus_query = campus_query.filter_by(id=int(campus_filter))
+        campuses = campus_query.all()
+        campus_ids = [c.id for c in campuses]
+        campus_map = {c.id: c for c in campuses}
+        
+        # Obtener grupos y miembros
+        group_query = CandidateGroup.query.filter(CandidateGroup.campus_id.in_(campus_ids))
+        if group_filter:
+            group_query = group_query.filter_by(id=int(group_filter))
+        all_groups = group_query.all()
+        group_ids = [gr.id for gr in all_groups]
+        group_map = {gr.id: gr for gr in all_groups}
+        
+        member_rows = db.session.query(GroupMember.user_id, GroupMember.group_id).filter(
+            GroupMember.group_id.in_(group_ids), GroupMember.status == 'active'
+        ).all() if group_ids else []
+        
+        user_group_map = {}
+        for uid, gid in member_rows:
+            if uid not in user_group_map:
+                user_group_map[uid] = gid
+        candidate_ids = list(user_group_map.keys())
+        
+        # Recolectar certificados (misma lógica pero sin paginación)
+        rows = []
+        
+        if not cert_type_filter or cert_type_filter in ['reporte_evaluacion', 'certificado_eduit']:
+            search_uids = None
+            if search and candidate_ids:
+                matching = User.query.filter(
+                    User.id.in_(candidate_ids),
+                    db.or_(User.name.ilike(f'%{search}%'), User.first_surname.ilike(f'%{search}%'), User.curp.ilike(f'%{search}%'))
+                ).with_entities(User.id).all()
+                search_uids = [u[0] for u in matching]
+            
+            base_q = Result.query.filter(Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1) if candidate_ids else Result.query.filter(False)
+            if search_uids is not None:
+                base_q = base_q.filter(Result.user_id.in_(search_uids)) if search_uids else base_q.filter(False)
+            
+            if not cert_type_filter or cert_type_filter == 'reporte_evaluacion':
+                for r in base_q.filter(Result.report_url.isnot(None)).all():
+                    u = User.query.get(r.user_id)
+                    gid = user_group_map.get(r.user_id)
+                    grp = group_map.get(gid) if gid else None
+                    cmp = campus_map.get(grp.campus_id) if grp else None
+                    rows.append([
+                        'Reporte de Evaluación', u.full_name if u else '', getattr(u, 'curp', '') if u else '',
+                        float(r.score) if r.score else 0, r.certificate_code or '',
+                        r.end_date.strftime('%Y-%m-%d') if r.end_date else '',
+                        grp.name if grp else '', cmp.name if cmp else '', cmp.state_name if cmp else '', 'Generado'
+                    ])
+            
+            if not cert_type_filter or cert_type_filter == 'certificado_eduit':
+                for r in base_q.filter(Result.certificate_url.isnot(None)).all():
+                    u = User.query.get(r.user_id)
+                    gid = user_group_map.get(r.user_id)
+                    grp = group_map.get(gid) if gid else None
+                    cmp = campus_map.get(grp.campus_id) if grp else None
+                    rows.append([
+                        'Certificado Eduit', u.full_name if u else '', getattr(u, 'curp', '') if u else '',
+                        float(r.score) if r.score else 0, r.eduit_certificate_code or '',
+                        r.end_date.strftime('%Y-%m-%d') if r.end_date else '',
+                        grp.name if grp else '', cmp.name if cmp else '', cmp.state_name if cmp else '', 'Generado'
+                    ])
+        
+        if not cert_type_filter or cert_type_filter == 'certificado_conocer':
+            conocer_q = ConocerCertificate.query.filter(
+                ConocerCertificate.user_id.in_(candidate_ids), ConocerCertificate.status == 'active'
+            ) if candidate_ids else ConocerCertificate.query.filter(False)
+            if search and candidate_ids:
+                matching = User.query.filter(
+                    User.id.in_(candidate_ids),
+                    db.or_(User.name.ilike(f'%{search}%'), User.first_surname.ilike(f'%{search}%'), User.curp.ilike(f'%{search}%'))
+                ).with_entities(User.id).all()
+                matching_ids = [u[0] for u in matching]
+                conocer_q = conocer_q.filter(ConocerCertificate.user_id.in_(matching_ids)) if matching_ids else conocer_q.filter(False)
+            for cc in conocer_q.all():
+                u = User.query.get(cc.user_id)
+                gid = user_group_map.get(cc.user_id)
+                grp = group_map.get(gid) if gid else None
+                cmp = campus_map.get(grp.campus_id) if grp else None
+                rows.append([
+                    'Certificado CONOCER', u.full_name if u else '', cc.curp or '',
+                    0, cc.certificate_number or '',
+                    cc.issue_date.strftime('%Y-%m-%d') if cc.issue_date else '',
+                    grp.name if grp else '', cmp.name if cmp else '', cmp.state_name if cmp else '', cc.status
+                ])
+        
+        if not cert_type_filter or cert_type_filter == 'insignia_digital':
+            if candidate_ids:
+                badge_results = db.session.query(Result, User).join(
+                    User, Result.user_id == User.id
+                ).filter(
+                    Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1,
+                    User.enable_digital_badge == True
+                ).all()
+                if search:
+                    badge_results = [(r, u) for r, u in badge_results if search.lower() in (u.full_name or '').lower() or search.lower() in (u.curp or '').lower()]
+                for r, u in badge_results:
+                    gid = user_group_map.get(r.user_id)
+                    grp = group_map.get(gid) if gid else None
+                    cmp = campus_map.get(grp.campus_id) if grp else None
+                    rows.append([
+                        'Insignia Digital', u.full_name if u else '', getattr(u, 'curp', '') if u else '',
+                        float(r.score) if r.score else 0, '',
+                        r.end_date.strftime('%Y-%m-%d') if r.end_date else '',
+                        grp.name if grp else '', cmp.name if cmp else '', cmp.state_name if cmp else '', 'Habilitado'
+                    ])
+        
+        # Crear Excel
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Certificados'
+        
+        # Título
+        ws.merge_cells('A1:J1')
+        ws['A1'] = f'Certificados - {partner.name}'
+        ws['A1'].font = Font(bold=True, size=14)
+        ws.merge_cells('A2:J2')
+        ws['A2'] = f'Generado: {datetime.now().strftime("%Y-%m-%d %H:%M")}'
+        ws['A2'].font = Font(size=10, color='666666')
+        
+        # Headers
+        headers = ['Tipo', 'Nombre', 'CURP', 'Calificación', 'Código', 'Fecha', 'Grupo', 'Plantel', 'Estado', 'Estatus']
+        header_font = Font(bold=True, color='FFFFFF', size=11)
+        header_fill = PatternFill(start_color='1F4E79', end_color='1F4E79', fill_type='solid')
+        thin_border = Border(
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin')
+        )
+        
+        for col_idx, header in enumerate(headers, 1):
+            cell = ws.cell(row=4, column=col_idx, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = thin_border
+        
+        # Datos
+        for row_idx, row_data in enumerate(rows, 5):
+            for col_idx, value in enumerate(row_data, 1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                cell.border = thin_border
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+        
+        # Anchos
+        col_widths = [22, 30, 20, 14, 18, 14, 25, 25, 20, 14]
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+        
+        ws.auto_filter.ref = f"A4:J{4 + len(rows)}"
+        ws.freeze_panes = 'A5'
+        
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        filename = f"Certificados_{partner.name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename,
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+

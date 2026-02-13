@@ -122,6 +122,8 @@ const Layout = ({ children }: LayoutProps) => {
         return 'bg-amber-100 text-amber-800'
       case 'responsable':
         return 'bg-purple-100 text-purple-800'
+      case 'responsable_partner':
+        return 'bg-violet-100 text-violet-800'
       case 'financiero':
         return 'bg-teal-100 text-teal-800'
       case 'gerente':
@@ -148,6 +150,8 @@ const Layout = ({ children }: LayoutProps) => {
         return 'Coordinador'
       case 'responsable':
         return 'Responsable'
+      case 'responsable_partner':
+        return 'Resp. Partner'
       case 'financiero':
         return 'Financiero'
       case 'gerente':
@@ -263,7 +267,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Materiales
                   </Link>
                 )}
-                {['candidato', 'admin', 'developer', 'coordinator', 'responsable'].includes(user?.role ?? '') && (
+                {['candidato', 'admin', 'developer', 'coordinator', 'responsable', 'responsable_partner'].includes(user?.role ?? '') && (
                   <Link 
                     to="/vm-sessions" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -275,7 +279,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Sesiones
                   </Link>
                 )}
-                {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && (
+                {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && user?.role !== 'responsable_partner' && (
                   <Link 
                     to="/standards" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -328,6 +332,30 @@ const Layout = ({ children }: LayoutProps) => {
                     to="/mi-plantel/certificados" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/mi-plantel/certificados') 
+                        ? 'text-primary-600 font-semibold bg-primary-50' 
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Certificados
+                  </Link>
+                )}
+                {user?.role === 'responsable_partner' && (
+                  <Link 
+                    to="/mi-partner" 
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname === '/mi-partner' 
+                        ? 'text-primary-600 font-semibold bg-primary-50' 
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Mi Partner
+                  </Link>
+                )}
+                {user?.role === 'responsable_partner' && (
+                  <Link 
+                    to="/mi-partner/certificados" 
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/mi-partner/certificados') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
                     }`}
@@ -568,7 +596,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {['candidato', 'admin', 'developer', 'coordinator', 'responsable'].includes(user?.role ?? '') && (
+              {['candidato', 'admin', 'developer', 'coordinator', 'responsable', 'responsable_partner'].includes(user?.role ?? '') && (
                 <Link 
                   to="/vm-sessions" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -586,7 +614,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && (
+              {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && user?.role !== 'responsable_partner' && (
                 <Link 
                   to="/standards" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -659,6 +687,40 @@ const Layout = ({ children }: LayoutProps) => {
                   to="/mi-plantel/certificados" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
                     location.pathname.startsWith('/mi-plantel/certificados') 
+                      ? 'bg-primary-50 text-primary-600 font-medium' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                    </svg>
+                    Certificados
+                  </div>
+                </Link>
+              )}
+              {user?.role === 'responsable_partner' && (
+                <Link 
+                  to="/mi-partner" 
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
+                    location.pathname === '/mi-partner' 
+                      ? 'bg-primary-50 text-primary-600 font-medium' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    Mi Partner
+                  </div>
+                </Link>
+              )}
+              {user?.role === 'responsable_partner' && (
+                <Link 
+                  to="/mi-partner/certificados" 
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
+                    location.pathname.startsWith('/mi-partner/certificados') 
                       ? 'bg-primary-50 text-primary-600 font-medium' 
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}

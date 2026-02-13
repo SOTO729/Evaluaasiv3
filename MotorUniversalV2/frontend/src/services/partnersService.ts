@@ -2443,3 +2443,113 @@ export async function exportEcmAssignmentsExcel(ecmId: number, params?: {
   link.remove();
   window.URL.revokeObjectURL(url);
 }
+
+
+// ============== RESPONSABLE PARTNER: DASHBOARD Y CERTIFICADOS ==============
+
+export interface PartnerDashboardData {
+  partner: { id: number; name: string; logo_url: string | null }
+  filter: { state: string; available_states: string[] }
+  stats: {
+    total_campuses: number; total_groups: number; total_candidates: number
+    total_evaluations: number; passed_evaluations: number; failed_evaluations: number
+    approval_rate: number; average_score: number; certification_rate: number
+  }
+  charts: {
+    approval_by_campus: Array<{ campus_name: string; campus_id: number; state: string; approved: number; failed: number; rate: number; total_members: number }>
+    scores_by_campus: Array<{ campus_name: string; average: number; min: number; max: number }>
+    score_distribution: Array<{ range: string; count: number }>
+    evaluations_over_time: Array<{ month: string; approved: number; failed: number }>
+    certification_by_type: { reporte_evaluacion: number; certificado_eduit: number; certificado_conocer: number; insignia_digital: number }
+    candidates_by_state: Array<{ state: string; campuses: number; candidates: number }>
+  }
+}
+
+export interface PartnerCertificate {
+  id: string
+  cert_type: string
+  cert_type_label: string
+  user_id: string
+  user_name: string
+  user_curp: string
+  score: number
+  date: string | null
+  code: string
+  download_url: string | null
+  conocer_id?: number
+  standard_code?: string
+  standard_name?: string
+  group_name: string
+  group_id: number | null
+  campus_name: string
+  campus_id: number | null
+  state: string
+  status: string
+}
+
+export interface PartnerCertificatesResponse {
+  certificates: PartnerCertificate[]
+  pagination: { total: number; page: number; per_page: number; pages: number }
+  filters: {
+    states: string[]
+    campuses: Array<{ id: number; name: string; state: string }>
+    groups: Array<{ id: number; name: string; campus_id: number }>
+    cert_types: Array<{ value: string; label: string }>
+  }
+}
+
+/**
+ * Obtener info del partner y sus planteles
+ */
+export async function getMiPartner(): Promise<any> {
+  const response = await api.get('/partners/mi-partner');
+  return response.data;
+}
+
+/**
+ * Dashboard con KPIs y gráficos para el responsable del partner
+ */
+export async function getMiPartnerDashboard(state?: string): Promise<PartnerDashboardData> {
+  const params: any = {};
+  if (state) params.state = state;
+  const response = await api.get('/partners/mi-partner/dashboard', { params });
+  return response.data;
+}
+
+/**
+ * Obtener certificados del partner con filtros y paginación
+ */
+export async function getMiPartnerCertificates(params: {
+  state?: string; campus_id?: string; group_id?: string;
+  cert_type?: string; search?: string; page?: number; per_page?: number;
+}): Promise<PartnerCertificatesResponse> {
+  const response = await api.get('/partners/mi-partner/certificates', { params });
+  return response.data;
+}
+
+/**
+ * Exportar certificados del partner a Excel
+ */
+export async function exportMiPartnerCertificatesExcel(params: {
+  state?: string; campus_id?: string; group_id?: string;
+  cert_type?: string; search?: string;
+}): Promise<void> {
+  const response = await api.get('/partners/mi-partner/certificates/export', {
+    params,
+    responseType: 'blob',
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  const contentDisposition = response.headers['content-disposition'];
+  let filename = 'certificados_partner.xlsx';
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename=(.+)/);
+    if (match) filename = match[1].replace(/"/g, '');
+  }
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
