@@ -9685,13 +9685,43 @@ def export_ecm_assignments_excel(ecm_id):
 # =====================================================
 
 def responsable_partner_required(f):
-    """Decorador que requiere rol de responsable_partner y asocia el partner"""
+    """Decorador que requiere rol de responsable_partner (o admin/developer) y asocia el partner"""
     @wraps(f)
     def decorated(*args, **kwargs):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         if not user:
             return jsonify({'error': 'No autorizado'}), 401
+        
+        # Admin y developer pueden acceder si pasan partner_id como query param
+        if user.role in ['admin', 'developer']:
+            partner_id = request.args.get('partner_id', type=int)
+            if partner_id:
+                partner = Partner.query.get(partner_id)
+                if not partner:
+                    return jsonify({'error': 'Partner no encontrado'}), 404
+                g.current_user = user
+                g.partner = partner
+                return f(*args, **kwargs)
+            # Si es admin sin partner_id, buscar si tiene asociación en user_partners
+            from app.models.partner import user_partners
+            partner_row = db.session.query(user_partners).filter(
+                user_partners.c.user_id == user.id
+            ).first()
+            if partner_row:
+                partner = Partner.query.get(partner_row.partner_id)
+                if partner:
+                    g.current_user = user
+                    g.partner = partner
+                    return f(*args, **kwargs)
+            # Si admin no tiene partner asociado, mostrar el primer partner
+            first_partner = Partner.query.filter_by(is_active=True).first()
+            if first_partner:
+                g.current_user = user
+                g.partner = first_partner
+                return f(*args, **kwargs)
+            return jsonify({'error': 'No hay partners disponibles'}), 404
+        
         if user.role != 'responsable_partner':
             return jsonify({'error': 'Acceso denegado. Se requiere rol de responsable_partner'}), 403
         # Buscar el partner asociado en la tabla user_partners
