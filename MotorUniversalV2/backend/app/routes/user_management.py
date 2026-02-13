@@ -485,6 +485,7 @@ def create_user():
         new_user.set_password(password)  # Usar la variable password (puede ser generada automáticamente)
         
         db.session.add(new_user)
+        db.session.flush()  # Persistir el user para que exista antes de la FK en user_partners
         
         # Para responsable_partner, crear la asociación en user_partners
         if role == 'responsable_partner' and data.get('partner_id'):
