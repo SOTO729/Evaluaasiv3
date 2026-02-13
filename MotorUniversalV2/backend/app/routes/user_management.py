@@ -1006,10 +1006,10 @@ def get_available_partners():
             'partners': [{
                 'id': p.id,
                 'name': p.name,
-                'code': p.code,
-                'contact_email': p.contact_email,
-                'country': p.country,
-                'total_campuses': len(p.campuses) if p.campuses else 0
+                'rfc': p.rfc or '',
+                'contact_email': p.email or '',
+                'country': p.country or 'México',
+                'total_campuses': p.campuses.count() if p.campuses else 0
             } for p in partners],
             'total': len(partners)
         })

@@ -238,7 +238,7 @@ export async function getAvailableCampuses(): Promise<{
 export interface AvailablePartner {
   id: number;
   name: string;
-  code: string;
+  rfc: string;
   contact_email: string;
   country: string;
   total_campuses: number;

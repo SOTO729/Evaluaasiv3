@@ -693,7 +693,7 @@ export default function UserFormPage() {
                   onChange={(value) => setFormData(prev => ({ ...prev, partner_id: parseInt(value) || 0 }))}
                   options={availablePartners.map(partner => ({
                     value: partner.id.toString(),
-                    label: `${partner.name} (${partner.code}) — ${partner.total_campuses} planteles`
+                    label: `${partner.name} — ${partner.total_campuses} planteles`
                   }))}
                   placeholder="Seleccionar partner..."
                   icon={Building2}
