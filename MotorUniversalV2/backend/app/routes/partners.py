@@ -1326,7 +1326,6 @@ def add_campus_responsable(campus_id):
                 break
         password = secrets.token_urlsafe(12)
 
-        from werkzeug.security import generate_password_hash
         new_user = User(
             id=str(uuid.uuid4()),
             email=email,
@@ -1341,10 +1340,10 @@ def add_campus_responsable(campus_id):
             campus_id=campus.id,
             is_active=True,
             is_verified=True,
-            password_hash=generate_password_hash(password),
             can_bulk_create_candidates=bool(data.get('can_bulk_create_candidates', False)),
             can_manage_groups=bool(data.get('can_manage_groups', False)),
         )
+        new_user.set_password(password)
 
         db.session.add(new_user)
 
