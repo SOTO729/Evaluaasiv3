@@ -1,7 +1,7 @@
 /**
  * Página de certificados para el responsable del partner
  * Tabla plana con filtros por estado, plantel, grupo y tipo de certificado
- * Incluye descarga individual y exportación a Excel
+ * Incluye descarga individual, exportación a Excel y descarga ZIP con modal de carga
  */
 import { useState, useEffect, useCallback } from 'react'
 import {
@@ -140,6 +140,23 @@ const ResponsablePartnerCertificadosPage = () => {
 
   return (
     <div className="fluid-gap-5 flex flex-col">
+      {/* Loading Overlay Modal for ZIP/Excel generation */}
+      {(downloadingZip || exporting) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center max-w-sm mx-4">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-blue-900 mb-4"></div>
+            <p className="text-lg font-semibold text-gray-800 mb-1">
+              {downloadingZip ? 'Generando archivo ZIP...' : 'Exportando a Excel...'}
+            </p>
+            <p className="text-sm text-gray-500 text-center">
+              {downloadingZip
+                ? 'Esto puede tardar varios minutos dependiendo de la cantidad de certificados.'
+                : 'Preparando el archivo de exportación...'}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-4">
         <div>
@@ -151,10 +168,11 @@ const ResponsablePartnerCertificadosPage = () => {
             Todos los certificados emitidos en los planteles del partner
           </p>
         </div>
-        <div className="flex fluid-gap-2">
+        <div className="flex fluid-gap-2 flex-wrap">
           <button
             onClick={loadCertificates}
-            className="inline-flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 bg-white border border-gray-300 rounded-fluid-lg fluid-text-sm text-gray-700 hover:bg-gray-50 transition-all"
+            disabled={loading}
+            className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2.5 bg-white border border-gray-300 rounded-fluid-lg fluid-text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm active:scale-[0.97]"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Actualizar
@@ -162,46 +180,48 @@ const ResponsablePartnerCertificadosPage = () => {
           <button
             onClick={handleExport}
             disabled={exporting}
-            className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-green-600 text-white rounded-fluid-lg fluid-text-sm font-medium hover:bg-green-700 transition-all disabled:opacity-50"
+            className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2.5 bg-emerald-600 text-white rounded-fluid-lg fluid-text-sm font-medium hover:bg-emerald-700 transition-all shadow-sm shadow-emerald-200 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <FileSpreadsheet className="w-4 h-4" />
-            {exporting ? 'Exportando...' : 'Exportar Excel'}
+            Exportar Excel
           </button>
           <button
             onClick={handleDownloadZip}
             disabled={downloadingZip}
-            className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-indigo-600 text-white rounded-fluid-lg fluid-text-sm font-medium hover:bg-indigo-700 transition-all disabled:opacity-50"
+            className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2.5 bg-indigo-600 text-white rounded-fluid-lg fluid-text-sm font-medium hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-200 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <FolderArchive className="w-4 h-4" />
-            {downloadingZip ? 'Generando ZIP...' : 'Descargar ZIP'}
+            Descargar ZIP
           </button>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-4">
-        <div className="flex items-center fluid-gap-2 fluid-mb-3">
-          <Filter className="w-4 h-4 text-gray-500" />
+      <div className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-5 shadow-sm">
+        <div className="flex items-center fluid-gap-2 fluid-mb-4">
+          <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
+            <Filter className="w-4 h-4 text-gray-600" />
+          </div>
           <span className="fluid-text-sm font-semibold text-gray-700">Filtros</span>
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="ml-auto inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 bg-red-50 text-red-600 rounded-lg fluid-text-xs hover:bg-red-100 transition-all"
+              className="ml-auto inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1.5 bg-red-50 text-red-600 rounded-fluid-lg fluid-text-xs font-medium hover:bg-red-100 transition-all border border-red-200"
             >
-              <X className="w-3 h-3" /> Limpiar
+              <X className="w-3 h-3" /> Limpiar filtros
             </button>
           )}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 fluid-gap-3">
           {/* Estado */}
           <div>
-            <label className="fluid-text-xs text-gray-500 font-medium fluid-mb-1 block">Estado</label>
+            <label className="fluid-text-xs text-gray-500 font-medium fluid-mb-1.5 block">Estado</label>
             <select
               value={stateFilter}
               onChange={(e) => { setStateFilter(e.target.value); setCampusFilter(''); setGroupFilter(''); setPage(1) }}
-              className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full fluid-px-3 fluid-py-2.5 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white hover:border-gray-400 transition-colors"
             >
-              <option value="">Todos</option>
+              <option value="">Todos los estados</option>
               {data?.filters?.states?.map(st => (
                 <option key={st} value={st}>{st}</option>
               ))}
@@ -210,13 +230,13 @@ const ResponsablePartnerCertificadosPage = () => {
           
           {/* Plantel */}
           <div>
-            <label className="fluid-text-xs text-gray-500 font-medium fluid-mb-1 block">Plantel</label>
+            <label className="fluid-text-xs text-gray-500 font-medium fluid-mb-1.5 block">Plantel</label>
             <select
               value={campusFilter}
               onChange={(e) => { setCampusFilter(e.target.value); setGroupFilter(''); setPage(1) }}
-              className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full fluid-px-3 fluid-py-2.5 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white hover:border-gray-400 transition-colors"
             >
-              <option value="">Todos</option>
+              <option value="">Todos los planteles</option>
               {filteredCampuses.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
@@ -225,13 +245,13 @@ const ResponsablePartnerCertificadosPage = () => {
           
           {/* Grupo */}
           <div>
-            <label className="fluid-text-xs text-gray-500 font-medium fluid-mb-1 block">Grupo</label>
+            <label className="fluid-text-xs text-gray-500 font-medium fluid-mb-1.5 block">Grupo</label>
             <select
               value={groupFilter}
               onChange={(e) => { setGroupFilter(e.target.value); setPage(1) }}
-              className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full fluid-px-3 fluid-py-2.5 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white hover:border-gray-400 transition-colors"
             >
-              <option value="">Todos</option>
+              <option value="">Todos los grupos</option>
               {filteredGroups.map(g => (
                 <option key={g.id} value={g.id}>{g.name}</option>
               ))}
@@ -240,13 +260,13 @@ const ResponsablePartnerCertificadosPage = () => {
           
           {/* Tipo de certificado */}
           <div>
-            <label className="fluid-text-xs text-gray-500 font-medium fluid-mb-1 block">Tipo</label>
+            <label className="fluid-text-xs text-gray-500 font-medium fluid-mb-1.5 block">Tipo</label>
             <select
               value={certTypeFilter}
               onChange={(e) => { setCertTypeFilter(e.target.value); setPage(1) }}
-              className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full fluid-px-3 fluid-py-2.5 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white hover:border-gray-400 transition-colors"
             >
-              <option value="">Todos</option>
+              <option value="">Todos los tipos</option>
               {data?.filters?.cert_types?.map(ct => (
                 <option key={ct.value} value={ct.value}>{ct.label}</option>
               ))}
@@ -255,7 +275,7 @@ const ResponsablePartnerCertificadosPage = () => {
           
           {/* Búsqueda */}
           <div>
-            <label className="fluid-text-xs text-gray-500 font-medium fluid-mb-1 block">Buscar</label>
+            <label className="fluid-text-xs text-gray-500 font-medium fluid-mb-1.5 block">Buscar</label>
             <div className="relative">
               <input
                 type="text"
@@ -263,7 +283,7 @@ const ResponsablePartnerCertificadosPage = () => {
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
                 placeholder="Nombre o CURP..."
-                className="w-full fluid-px-3 fluid-py-2 pr-9 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full fluid-px-3 fluid-py-2.5 pr-9 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 transition-colors"
               />
               <button
                 onClick={handleSearch}

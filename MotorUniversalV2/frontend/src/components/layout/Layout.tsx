@@ -267,7 +267,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Materiales
                   </Link>
                 )}
-                {['candidato', 'admin', 'developer', 'coordinator', 'responsable', 'responsable_partner'].includes(user?.role ?? '') && (
+                {['candidato', 'admin', 'developer', 'coordinator', 'responsable'].includes(user?.role ?? '') && (
                   <Link 
                     to="/vm-sessions" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -596,7 +596,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {['candidato', 'admin', 'developer', 'coordinator', 'responsable', 'responsable_partner'].includes(user?.role ?? '') && (
+              {['candidato', 'admin', 'developer', 'coordinator', 'responsable'].includes(user?.role ?? '') && (
                 <Link 
                   to="/vm-sessions" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${

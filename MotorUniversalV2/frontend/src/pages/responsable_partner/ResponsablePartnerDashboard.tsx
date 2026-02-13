@@ -82,20 +82,37 @@ const ResponsablePartnerDashboard = () => {
 
   return (
     <div className="fluid-gap-5 flex flex-col">
-      {/* Hero */}
-      <div className="bg-gradient-to-r from-purple-700 via-indigo-600 to-blue-700 rounded-fluid-xl fluid-p-8 text-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-36 h-36 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+      {/* Animated gradient keyframes */}
+      <style>{`
+        @keyframes gradientShift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
+
+      {/* Hero with animated gradient */}
+      <div
+        className="rounded-fluid-xl fluid-p-8 text-white relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(270deg, #7c3aed, #4f46e5, #2563eb, #7c3aed)',
+          backgroundSize: '300% 300%',
+          animation: 'gradientShift 8s ease infinite',
+        }}
+      >
+        <div className="absolute top-0 right-0 w-56 h-56 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+        <div className="absolute top-1/2 right-1/4 w-24 h-24 bg-white/5 rounded-full" />
         <div className="relative z-10">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-4">
             <div className="flex-1">
               <div className="flex items-center fluid-gap-2 fluid-mb-2">
                 <Building className="fluid-icon-lg text-purple-200" />
-                <span className="fluid-text-sm text-purple-200 font-medium">Responsable de Partner</span>
+                <span className="fluid-text-sm text-purple-200 font-medium tracking-wide uppercase">Responsable de Partner</span>
               </div>
-              <h1 className="fluid-text-3xl font-bold fluid-mb-1">{partner.name}</h1>
-              <p className="text-purple-100 fluid-text-base">
-                Panel de gestión — Hola, <span className="font-medium text-white">{user?.name}</span>
+              <h1 className="fluid-text-3xl font-bold fluid-mb-1 tracking-tight">{partner.name}</h1>
+              <p className="text-white/80 fluid-text-base">
+                Hola, <span className="font-semibold text-white">{user?.name}</span> — Panel de gestión
               </p>
             </div>
             <div className="flex fluid-gap-3 flex-wrap">
@@ -104,21 +121,21 @@ const ResponsablePartnerDashboard = () => {
                 <select
                   value={selectedState}
                   onChange={(e) => setSelectedState(e.target.value)}
-                  className="appearance-none bg-white/10 hover:bg-white/20 border border-white/20 rounded-fluid-lg fluid-px-4 fluid-py-2.5 text-white font-medium fluid-text-sm transition-all cursor-pointer pr-8"
+                  className="appearance-none bg-white/15 hover:bg-white/25 border border-white/30 rounded-fluid-lg fluid-px-4 fluid-py-2.5 text-white font-medium fluid-text-sm transition-all cursor-pointer pr-10 backdrop-blur-sm"
                 >
                   <option value="" className="text-gray-800">Todos los estados</option>
                   {filter.available_states.map(st => (
                     <option key={st} value={st} className="text-gray-800">{st}</option>
                   ))}
                 </select>
-                <Filter className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60 pointer-events-none" />
+                <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/70 pointer-events-none" />
               </div>
               <button
                 onClick={() => navigate('/mi-partner/certificados')}
-                className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2.5 bg-white/10 hover:bg-white/20 rounded-fluid-lg font-medium fluid-text-sm transition-all border border-white/20"
+                className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-2.5 bg-white/15 hover:bg-white/25 rounded-fluid-lg font-semibold fluid-text-sm transition-all border border-white/30 backdrop-blur-sm hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Award className="fluid-icon" />
-                Certificados
+                Ver Certificados
               </button>
             </div>
           </div>
@@ -128,19 +145,19 @@ const ResponsablePartnerDashboard = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 fluid-gap-4">
         {[
-          { label: 'Planteles', value: stats.total_campuses, icon: Building2, color: 'purple' },
-          { label: 'Candidatos', value: stats.total_candidates, icon: Users, color: 'blue' },
-          { label: 'Grupos', value: stats.total_groups, icon: GraduationCap, color: 'indigo' },
-          { label: 'Evaluaciones', value: stats.total_evaluations, icon: FileText, color: 'amber' },
-          { label: 'Tasa Aprob.', value: `${stats.approval_rate}%`, icon: TrendingUp, color: 'green' },
-          { label: 'Promedio', value: `${stats.average_score}%`, icon: Award, color: 'emerald' },
+          { label: 'Planteles', value: stats.total_campuses, icon: Building2, iconBg: 'bg-purple-100', iconColor: 'text-purple-600' },
+          { label: 'Candidatos', value: stats.total_candidates, icon: Users, iconBg: 'bg-blue-100', iconColor: 'text-blue-600' },
+          { label: 'Grupos', value: stats.total_groups, icon: GraduationCap, iconBg: 'bg-indigo-100', iconColor: 'text-indigo-600' },
+          { label: 'Evaluaciones', value: stats.total_evaluations, icon: FileText, iconBg: 'bg-amber-100', iconColor: 'text-amber-600' },
+          { label: 'Tasa Aprob.', value: `${stats.approval_rate}%`, icon: TrendingUp, iconBg: 'bg-green-100', iconColor: 'text-green-600' },
+          { label: 'Promedio', value: `${stats.average_score}%`, icon: Award, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600' },
         ].map((stat) => (
-          <div key={stat.label} className="bg-white rounded-fluid-lg border border-gray-200 fluid-p-4">
-            <div className={`w-9 h-9 rounded-lg bg-${stat.color}-100 flex items-center justify-center fluid-mb-2`}>
-              <stat.icon className={`w-5 h-5 text-${stat.color}-600`} />
+          <div key={stat.label} className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-4 hover:shadow-md transition-shadow">
+            <div className={`w-10 h-10 rounded-xl ${stat.iconBg} flex items-center justify-center fluid-mb-3`}>
+              <stat.icon className={`w-5 h-5 ${stat.iconColor}`} />
             </div>
             <p className="fluid-text-2xl font-bold text-gray-800">{stat.value}</p>
-            <p className="fluid-text-xs text-gray-500">{stat.label}</p>
+            <p className="fluid-text-xs text-gray-500 mt-0.5">{stat.label}</p>
           </div>
         ))}
       </div>
@@ -302,27 +319,33 @@ const ResponsablePartnerDashboard = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 fluid-gap-4">
-        {[
-          { label: 'Certificados', route: '/mi-partner/certificados', icon: Award, color: 'amber', desc: 'Todos los certificados por plantel y estado' },
-          { label: 'Dashboard', route: '/dashboard', icon: BarChart3, color: 'blue', desc: 'KPIs y gráficos generales' },
-          { label: 'Materiales', route: '/study-contents', icon: FileText, color: 'purple', desc: 'Material de estudio disponible' },
-        ].map(action => (
-          <div
-            key={action.route}
-            onClick={() => navigate(action.route)}
-            className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-5 cursor-pointer group hover:shadow-lg hover:border-gray-300 transition-all active:scale-[0.98]"
-          >
-            <div className="flex items-start justify-between fluid-mb-3">
-              <div className={`w-10 h-10 rounded-lg bg-${action.color}-100 flex items-center justify-center`}>
-                <action.icon className={`w-5 h-5 text-${action.color}-600`} />
-              </div>
-              <ArrowRight className="fluid-icon text-gray-300 group-hover:text-gray-500 group-hover:translate-x-1 transition-all" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 fluid-gap-4">
+        <div
+          onClick={() => navigate('/mi-partner/certificados')}
+          className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-5 cursor-pointer group hover:shadow-lg hover:border-amber-200 transition-all active:scale-[0.98]"
+        >
+          <div className="flex items-start justify-between fluid-mb-3">
+            <div className="w-11 h-11 rounded-xl bg-amber-100 flex items-center justify-center">
+              <Award className="w-5 h-5 text-amber-600" />
             </div>
-            <h3 className="font-semibold text-gray-800 fluid-text-base">{action.label}</h3>
-            <p className="fluid-text-sm text-gray-500 fluid-mt-1">{action.desc}</p>
+            <ArrowRight className="fluid-icon text-gray-300 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
           </div>
-        ))}
+          <h3 className="font-semibold text-gray-800 fluid-text-base">Certificados</h3>
+          <p className="fluid-text-sm text-gray-500 fluid-mt-1">Todos los certificados por plantel y estado</p>
+        </div>
+        <div
+          onClick={() => navigate('/dashboard')}
+          className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-5 cursor-pointer group hover:shadow-lg hover:border-blue-200 transition-all active:scale-[0.98]"
+        >
+          <div className="flex items-start justify-between fluid-mb-3">
+            <div className="w-11 h-11 rounded-xl bg-blue-100 flex items-center justify-center">
+              <BarChart3 className="w-5 h-5 text-blue-600" />
+            </div>
+            <ArrowRight className="fluid-icon text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+          </div>
+          <h3 className="font-semibold text-gray-800 fluid-text-base">Dashboard General</h3>
+          <p className="fluid-text-sm text-gray-500 fluid-mt-1">KPIs y gráficos generales de la plataforma</p>
+        </div>
       </div>
     </div>
   )
