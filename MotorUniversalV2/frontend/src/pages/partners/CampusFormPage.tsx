@@ -39,6 +39,8 @@ import {
   Trash2,
   Star,
   Users,
+  Search,
+  GraduationCap,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
@@ -85,6 +87,7 @@ export default function CampusFormPage() {
   const [availableEcm, setAvailableEcm] = useState<AvailableCompetencyStandard[]>([]);
   const [selectedEcmIds, setSelectedEcmIds] = useState<number[]>([]);
   const [loadingEcm, setLoadingEcm] = useState(false);
+  const [ecmSearch, setEcmSearch] = useState('');
 
   // Responsables
   const [responsables, setResponsables] = useState<CampusResponsableItem[]>([]);
@@ -1190,55 +1193,123 @@ export default function CampusFormPage() {
                       <p>No hay estándares de competencia disponibles</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 fluid-gap-4">
-                      {availableEcm.map((ecm) => {
-                        const isSelected = selectedEcmIds.includes(ecm.id);
-                        return (
+                    <>
+                      {/* Buscador */}
+                      <div className="relative fluid-mb-4">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          value={ecmSearch}
+                          onChange={(e) => setEcmSearch(e.target.value)}
+                          placeholder="Buscar por código, nombre, marca o sector..."
+                          className="w-full pl-10 pr-4 fluid-py-2.5 border border-gray-300 rounded-fluid-xl fluid-text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                        />
+                        {ecmSearch && (
                           <button
-                            key={ecm.id}
                             type="button"
-                            onClick={() => toggleEcmSelection(ecm.id)}
-                            className={`flex items-start fluid-gap-3 fluid-p-4 rounded-fluid-xl border-2 transition-all duration-300 text-left ${
-                              isSelected
-                                ? 'border-emerald-500 bg-emerald-50 shadow-md'
-                                : 'border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-white'
-                            }`}
+                            onClick={() => setEcmSearch('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                           >
-                            <div className={`fluid-p-2 rounded-fluid-lg flex-shrink-0 transition-all duration-300 ${
-                              isSelected
-                                ? 'bg-emerald-500 text-white'
-                                : 'bg-gray-200 text-gray-400'
-                            }`}>
-                              <FileCheck className="fluid-icon-base" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className={`font-semibold fluid-text-sm truncate ${
-                                isSelected ? 'text-emerald-700' : 'text-gray-700'
-                              }`}>
-                                {ecm.code}
-                              </div>
-                              <div className="fluid-text-xs text-gray-500 line-clamp-2">
-                                {ecm.name}
-                              </div>
-                              {ecm.sector && (
-                                <div className="fluid-text-xs text-gray-400 mt-1">
-                                  {ecm.sector}
-                                </div>
-                              )}
-                            </div>
-                            {isSelected && (
-                              <div className="flex-shrink-0">
-                                <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
-                                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                </div>
-                              </div>
-                            )}
+                            ✕
                           </button>
-                        );
-                      })}
-                    </div>
+                        )}
+                      </div>
+
+                      {/* Lista scrolleable */}
+                      <div className="border border-gray-200 rounded-fluid-xl overflow-hidden">
+                        <div className="max-h-96 overflow-y-auto overscroll-contain divide-y divide-gray-100">
+                          {availableEcm
+                            .filter((ecm) => {
+                              if (!ecmSearch.trim()) return true;
+                              const q = ecmSearch.toLowerCase();
+                              return (
+                                ecm.code.toLowerCase().includes(q) ||
+                                ecm.name.toLowerCase().includes(q) ||
+                                (ecm.brand && ecm.brand.toLowerCase().includes(q)) ||
+                                (ecm.sector && ecm.sector.toLowerCase().includes(q))
+                              );
+                            })
+                            .map((ecm) => {
+                              const isSelected = selectedEcmIds.includes(ecm.id);
+                              return (
+                                <div
+                                  key={ecm.id}
+                                  onClick={() => toggleEcmSelection(ecm.id)}
+                                  className={`flex items-center fluid-gap-4 fluid-px-4 fluid-py-3 cursor-pointer transition-all ${
+                                    isSelected
+                                      ? 'bg-emerald-50 hover:bg-emerald-100'
+                                      : 'bg-white hover:bg-gray-50'
+                                  }`}
+                                >
+                                  {/* Logo / Brand image */}
+                                  <div className="w-10 h-10 rounded-fluid-lg bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden border border-gray-200">
+                                    {ecm.brand_logo_url ? (
+                                      <img src={ecm.brand_logo_url} alt={ecm.brand || ''} className="w-full h-full object-contain p-1" />
+                                    ) : ecm.logo_url ? (
+                                      <img src={ecm.logo_url} alt={ecm.code} className="w-full h-full object-contain p-1" />
+                                    ) : (
+                                      <GraduationCap className="w-5 h-5 text-gray-400" />
+                                    )}
+                                  </div>
+
+                                  {/* Info */}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center fluid-gap-2 flex-wrap">
+                                      <span className="font-mono fluid-text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded font-semibold">
+                                        {ecm.code}
+                                      </span>
+                                      {ecm.brand && (
+                                        <span className="fluid-text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                                          {ecm.brand}
+                                        </span>
+                                      )}
+                                      {ecm.level && (
+                                        <span className="fluid-text-xs bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded">
+                                          Nivel {ecm.level}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="fluid-text-sm font-medium text-gray-800 mt-0.5 truncate">{ecm.name}</p>
+                                    <div className="flex items-center fluid-gap-3 mt-0.5">
+                                      {ecm.sector && (
+                                        <span className="fluid-text-xs text-gray-500">{ecm.sector}</span>
+                                      )}
+                                      {ecm.validity_years && (
+                                        <span className="fluid-text-xs text-gray-400">Vigencia: {ecm.validity_years} años</span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Check indicator */}
+                                  {isSelected && (
+                                    <div className="flex-shrink-0">
+                                      <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+                                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          {availableEcm.filter((ecm) => {
+                            if (!ecmSearch.trim()) return true;
+                            const q = ecmSearch.toLowerCase();
+                            return (
+                              ecm.code.toLowerCase().includes(q) ||
+                              ecm.name.toLowerCase().includes(q) ||
+                              (ecm.brand && ecm.brand.toLowerCase().includes(q)) ||
+                              (ecm.sector && ecm.sector.toLowerCase().includes(q))
+                            );
+                          }).length === 0 && (
+                            <div className="fluid-py-8 text-center text-gray-400 fluid-text-sm">
+                              No se encontraron estándares con "{ecmSearch}"
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
 

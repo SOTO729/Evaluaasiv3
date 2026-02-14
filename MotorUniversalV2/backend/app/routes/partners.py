@@ -1923,8 +1923,14 @@ def get_available_competency_standards():
                     'id': s.id,
                     'code': s.code,
                     'name': s.name,
+                    'description': s.description,
                     'sector': s.sector,
-                    'level': s.level
+                    'level': s.level,
+                    'validity_years': s.validity_years,
+                    'certifying_body': s.certifying_body,
+                    'logo_url': s.logo_url,
+                    'brand': s.brand.name if s.brand else None,
+                    'brand_logo_url': s.brand.logo_url if s.brand else None,
                 }
                 for s in standards
             ],

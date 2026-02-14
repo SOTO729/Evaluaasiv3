@@ -2026,11 +2026,14 @@ export interface AvailableCompetencyStandard {
   id: number;
   code: string;
   name: string;
+  description: string | null;
   brand: string | null;
   brand_logo_url: string | null;
   logo_url: string | null;
   sector: string | null;
   level: number | null;
+  validity_years: number | null;
+  certifying_body: string | null;
 }
 
 /**
