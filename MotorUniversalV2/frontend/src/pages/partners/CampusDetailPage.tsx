@@ -683,6 +683,7 @@ export default function CampusDetailPage() {
               <div className="flex flex-wrap fluid-gap-3">
                 {campus.responsable.can_manage_groups && <span className="fluid-text-xs bg-indigo-100 text-indigo-700 fluid-px-3 fluid-py-1.5 rounded-full font-semibold border border-indigo-200">Grupos</span>}
                 {campus.responsable.can_bulk_create_candidates && <span className="fluid-text-xs bg-indigo-100 text-indigo-700 fluid-px-3 fluid-py-1.5 rounded-full font-semibold border border-indigo-200">Altas masivas</span>}
+                {campus.responsable.can_view_reports && <span className="fluid-text-xs bg-indigo-100 text-indigo-700 fluid-px-3 fluid-py-1.5 rounded-full font-semibold border border-indigo-200">Reportes</span>}
               </div>
             </div>
           ) : (

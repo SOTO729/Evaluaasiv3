@@ -85,6 +85,7 @@ class User(db.Model):
     # Permisos específicos para responsables de plantel
     can_bulk_create_candidates = db.Column(db.Boolean, default=False, nullable=False)  # Puede crear altas masivas de candidatos
     can_manage_groups = db.Column(db.Boolean, default=False, nullable=False)  # Puede crear grupos y asignar exámenes/materiales
+    can_view_reports = db.Column(db.Boolean, default=True, nullable=False)  # Puede ver reportes (habilitado por default)
     
     # Opciones de documentos/certificados habilitados para el usuario
     # El reporte de evaluación está habilitado por default para todos
@@ -192,7 +193,8 @@ class User(db.Model):
                 'subsystem_id': self.subsystem_id,
                 'date_of_birth': self.date_of_birth.isoformat() if self.date_of_birth else None,
                 'can_bulk_create_candidates': self.can_bulk_create_candidates,
-                'can_manage_groups': self.can_manage_groups
+                'can_manage_groups': self.can_manage_groups,
+                'can_view_reports': self.can_view_reports
             })
         
         if include_partners:

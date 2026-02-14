@@ -314,6 +314,7 @@ class Campus(db.Model):
                 'date_of_birth': self.responsable.date_of_birth.isoformat() if self.responsable.date_of_birth else None,
                 'can_bulk_create_candidates': self.responsable.can_bulk_create_candidates,
                 'can_manage_groups': self.responsable.can_manage_groups,
+                'can_view_reports': self.responsable.can_view_reports,
                 'is_active': self.responsable.is_active
             }
         

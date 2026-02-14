@@ -110,7 +110,7 @@ def list_users():
             User.second_surname, User.gender, User.role, User.is_active,
             User.is_verified, User.created_at, User.last_login, User.curp,
             User.phone, User.campus_id, User.date_of_birth,
-            User.can_bulk_create_candidates, User.can_manage_groups,
+            User.can_bulk_create_candidates, User.can_manage_groups, User.can_view_reports,
             User.enable_evaluation_report, User.enable_certificate,
             User.enable_conocer_certificate, User.enable_digital_badge
         ]
@@ -242,6 +242,7 @@ def list_users():
                 'date_of_birth': row.date_of_birth.isoformat() if row.date_of_birth else None,
                 'can_bulk_create_candidates': row.can_bulk_create_candidates,
                 'can_manage_groups': row.can_manage_groups,
+                'can_view_reports': row.can_view_reports,
                 'document_options': {
                     'evaluation_report': row.enable_evaluation_report,
                     'certificate': row.enable_certificate,
@@ -494,7 +495,8 @@ def create_user():
             is_active=data.get('is_active', True),
             is_verified=True if role == 'responsable' else data.get('is_verified', False),
             can_bulk_create_candidates=data.get('can_bulk_create_candidates', False) if role == 'responsable' else False,
-            can_manage_groups=data.get('can_manage_groups', False) if role == 'responsable' else False
+            can_manage_groups=data.get('can_manage_groups', False) if role == 'responsable' else False,
+            can_view_reports=data.get('can_view_reports', True) if role == 'responsable' else True
         )
         new_user.set_password(password)  # Usar la variable password (puede ser generada automáticamente)
         

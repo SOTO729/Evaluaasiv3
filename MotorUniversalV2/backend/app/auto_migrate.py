@@ -520,6 +520,7 @@ def check_and_add_campus_activation_columns():
                 'date_of_birth': 'DATE',
                 'can_bulk_create_candidates': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
                 'can_manage_groups': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                'can_view_reports': 'BIT DEFAULT 1' if db_type == 'mssql' else 'BOOLEAN DEFAULT TRUE',
             }
             
             for column_name, column_def in user_columns.items():

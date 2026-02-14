@@ -568,7 +568,8 @@ def create_campus(partner_id):
             is_active=True,
             is_verified=True,
             can_bulk_create_candidates=False,
-            can_manage_groups=False
+            can_manage_groups=False,
+            can_view_reports=True
         )
         director_user.set_password(director_password)
         director_user.encrypted_password = encrypt_password(director_password)
@@ -912,6 +913,7 @@ def create_campus_responsable(campus_id):
                 existing_email_user.date_of_birth = date_of_birth
                 existing_email_user.can_bulk_create_candidates = data.get('can_bulk_create_candidates', False)
                 existing_email_user.can_manage_groups = data.get('can_manage_groups', False)
+                existing_email_user.can_view_reports = data.get('can_view_reports', True)
                 existing_email_user.campus_id = campus.id
                 
                 db.session.commit()
@@ -927,7 +929,8 @@ def create_campus_responsable(campus_id):
                         'gender': existing_email_user.gender,
                         'date_of_birth': existing_email_user.date_of_birth.isoformat(),
                         'can_bulk_create_candidates': existing_email_user.can_bulk_create_candidates,
-                        'can_manage_groups': existing_email_user.can_manage_groups
+                        'can_manage_groups': existing_email_user.can_manage_groups,
+                        'can_view_reports': existing_email_user.can_view_reports
                         # No incluimos temporary_password porque no cambia
                     },
                     'campus': {
@@ -960,9 +963,10 @@ def create_campus_responsable(campus_id):
         # Generar contraseña segura
         password = secrets.token_urlsafe(12)
         
-        # Obtener permisos configurables (defaults a False)
+        # Obtener permisos configurables (defaults a False, excepto can_view_reports)
         can_bulk_create = data.get('can_bulk_create_candidates', False)
         can_manage_groups = data.get('can_manage_groups', False)
+        can_view_reports = data.get('can_view_reports', True)
         
         # Si hay un responsable anterior y estamos creando uno nuevo, desvincularlo
         if replace_existing and current_responsable:
@@ -985,7 +989,8 @@ def create_campus_responsable(campus_id):
             is_active=True,
             is_verified=True,  # Pre-verificado ya que lo crea un admin/coordinator
             can_bulk_create_candidates=can_bulk_create,
-            can_manage_groups=can_manage_groups
+            can_manage_groups=can_manage_groups,
+            can_view_reports=can_view_reports
         )
         new_user.set_password(password)
         new_user.encrypted_password = encrypt_password(password)
@@ -1010,6 +1015,7 @@ def create_campus_responsable(campus_id):
                 'date_of_birth': new_user.date_of_birth.isoformat(),
                 'can_bulk_create_candidates': new_user.can_bulk_create_candidates,
                 'can_manage_groups': new_user.can_manage_groups,
+                'can_view_reports': new_user.can_view_reports,
                 'temporary_password': password  # Solo se muestra una vez
             },
             'campus': {
@@ -1174,6 +1180,7 @@ def get_available_responsables(campus_id):
                     'username': resp.username,
                     'can_bulk_create_candidates': resp.can_bulk_create_candidates,
                     'can_manage_groups': resp.can_manage_groups,
+                    'can_view_reports': resp.can_view_reports,
                     'is_current': is_current,
                     'is_director': is_director,
                     'campus_id': resp.campus_id
@@ -1250,6 +1257,8 @@ def assign_existing_responsable(campus_id):
             responsable.can_bulk_create_candidates = bool(data['can_bulk_create_candidates'])
         if 'can_manage_groups' in data:
             responsable.can_manage_groups = bool(data['can_manage_groups'])
+        if 'can_view_reports' in data:
+            responsable.can_view_reports = bool(data['can_view_reports'])
         
         # Avanzar el estado de activación
         if campus.activation_status == 'pending':
@@ -1269,6 +1278,7 @@ def assign_existing_responsable(campus_id):
                 'date_of_birth': responsable.date_of_birth.isoformat() if responsable.date_of_birth else None,
                 'can_bulk_create_candidates': responsable.can_bulk_create_candidates,
                 'can_manage_groups': responsable.can_manage_groups,
+                'can_view_reports': responsable.can_view_reports,
                 'is_active': responsable.is_active
             },
             'campus': {
@@ -1312,6 +1322,7 @@ def list_campus_responsables(campus_id):
                 'date_of_birth': r.date_of_birth.isoformat() if r.date_of_birth else None,
                 'can_bulk_create_candidates': r.can_bulk_create_candidates,
                 'can_manage_groups': r.can_manage_groups,
+                'can_view_reports': r.can_view_reports,
                 'is_active': r.is_active,
                 'is_primary': r.id == campus.responsable_id,
                 'created_at': r.created_at.isoformat() if r.created_at else None
@@ -1413,6 +1424,7 @@ def add_campus_responsable(campus_id):
             is_verified=True,
             can_bulk_create_candidates=bool(data.get('can_bulk_create_candidates', False)),
             can_manage_groups=bool(data.get('can_manage_groups', False)),
+            can_view_reports=bool(data.get('can_view_reports', True)),
         )
         new_user.set_password(password)
 
@@ -1438,6 +1450,7 @@ def add_campus_responsable(campus_id):
                 'date_of_birth': new_user.date_of_birth.isoformat(),
                 'can_bulk_create_candidates': new_user.can_bulk_create_candidates,
                 'can_manage_groups': new_user.can_manage_groups,
+                'can_view_reports': new_user.can_view_reports,
                 'is_active': True,
                 'is_primary': new_user.id == campus.responsable_id,
                 'temporary_password': password,
@@ -1471,6 +1484,8 @@ def update_responsable_permissions(campus_id, user_id):
             responsable.can_bulk_create_candidates = bool(data['can_bulk_create_candidates'])
         if 'can_manage_groups' in data:
             responsable.can_manage_groups = bool(data['can_manage_groups'])
+        if 'can_view_reports' in data:
+            responsable.can_view_reports = bool(data['can_view_reports'])
         if 'is_active' in data:
             responsable.is_active = bool(data['is_active'])
 
@@ -1485,6 +1500,7 @@ def update_responsable_permissions(campus_id, user_id):
                 'email': responsable.email,
                 'can_bulk_create_candidates': responsable.can_bulk_create_candidates,
                 'can_manage_groups': responsable.can_manage_groups,
+                'can_view_reports': responsable.can_view_reports,
                 'is_active': responsable.is_active,
                 'is_primary': responsable.id == campus.responsable_id,
             }

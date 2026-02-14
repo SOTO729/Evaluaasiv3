@@ -47,6 +47,7 @@ export interface CreateUserData {
   campus_id?: number;
   can_bulk_create_candidates?: boolean;
   can_manage_groups?: boolean;
+  can_view_reports?: boolean;
   // Campos adicionales para responsable_partner
   partner_id?: number;
 }

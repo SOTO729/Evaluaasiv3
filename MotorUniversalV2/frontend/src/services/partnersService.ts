@@ -62,6 +62,7 @@ export interface CampusResponsable {
   date_of_birth?: string;
   can_bulk_create_candidates: boolean;
   can_manage_groups: boolean;
+  can_view_reports: boolean;
   is_active: boolean;
   created_at?: string;
   temporary_password?: string;  // Solo se devuelve al crear
@@ -260,6 +261,7 @@ export interface CreateResponsableData {
   date_of_birth: string;  // Formato YYYY-MM-DD
   can_bulk_create_candidates?: boolean;
   can_manage_groups?: boolean;
+  can_view_reports?: boolean;
   replace_existing?: boolean;  // Si es true, reemplaza el responsable actual
 }
 
@@ -272,6 +274,7 @@ export interface UpdateResponsableData {
   phone?: string;
   can_bulk_create_candidates?: boolean;
   can_manage_groups?: boolean;
+  can_view_reports?: boolean;
   is_active?: boolean;
 }
 
@@ -464,6 +467,7 @@ export interface AvailableResponsable {
   username: string;
   can_bulk_create_candidates: boolean;
   can_manage_groups: boolean;
+  can_view_reports: boolean;
   is_current: boolean;  // Si ya está asignado al plantel actual
   is_director: boolean;  // Si es el director del plantel
   campus_id?: number;
@@ -485,6 +489,7 @@ export async function assignExistingResponsable(
     responsable_id: string;
     can_bulk_create_candidates?: boolean;
     can_manage_groups?: boolean;
+    can_view_reports?: boolean;
   }
 ): Promise<{
   message: string;
@@ -512,6 +517,7 @@ export interface CampusResponsableItem {
   date_of_birth?: string;
   can_bulk_create_candidates: boolean;
   can_manage_groups: boolean;
+  can_view_reports: boolean;
   is_active: boolean;
   is_primary: boolean;
   temporary_password?: string;
@@ -542,7 +548,7 @@ export async function addCampusResponsable(
 export async function updateResponsablePermissions(
   campusId: number,
   userId: string,
-  data: { can_bulk_create_candidates?: boolean; can_manage_groups?: boolean; is_active?: boolean }
+  data: { can_bulk_create_candidates?: boolean; can_manage_groups?: boolean; can_view_reports?: boolean; is_active?: boolean }
 ): Promise<{
   message: string;
   responsable: CampusResponsableItem;

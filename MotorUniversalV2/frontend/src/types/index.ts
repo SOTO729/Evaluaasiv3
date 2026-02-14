@@ -22,6 +22,7 @@ export interface User {
   subsystem_id?: number
   can_manage_groups?: boolean
   can_bulk_create_candidates?: boolean
+  can_view_reports?: boolean
 }
 
 export interface Exam {

@@ -72,6 +72,7 @@ export default function UserFormPage() {
     campus_id: 0,
     can_bulk_create_candidates: false,
     can_manage_groups: false,
+    can_view_reports: true,
     // Campos adicionales para responsable_partner
     partner_id: 0,
   });
@@ -154,6 +155,7 @@ export default function UserFormPage() {
         campus_id: 0,
         can_bulk_create_candidates: false,
         can_manage_groups: false,
+        can_view_reports: true,
         partner_id: 0,
       });
     } catch (err: any) {
@@ -288,6 +290,7 @@ export default function UserFormPage() {
           createData.campus_id = formData.campus_id;
           createData.can_bulk_create_candidates = formData.can_bulk_create_candidates;
           createData.can_manage_groups = formData.can_manage_groups;
+          createData.can_view_reports = formData.can_view_reports;
         }
 
         // Campos adicionales para responsable_partner
@@ -670,6 +673,16 @@ export default function UserFormPage() {
                       className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <span className="fluid-text-sm text-blue-700">Gestión de grupos</span>
+                  </label>
+                  <label className="flex items-center fluid-gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="can_view_reports"
+                      checked={formData.can_view_reports}
+                      onChange={handleChange}
+                      className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="fluid-text-sm text-blue-700">Ver Reportes</span>
                   </label>
                 </div>
               </div>

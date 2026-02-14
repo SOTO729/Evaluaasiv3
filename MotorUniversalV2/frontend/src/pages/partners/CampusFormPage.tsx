@@ -98,7 +98,7 @@ export default function CampusFormPage() {
     name: '', first_surname: '', second_surname: '',
     email: '', curp: '', gender: '' as '' | 'M' | 'F' | 'O',
     date_of_birth: '',
-    can_bulk_create_candidates: false, can_manage_groups: false,
+    can_bulk_create_candidates: false, can_manage_groups: false, can_view_reports: true,
   });
 
   // Datos básicos del plantel
@@ -285,9 +285,10 @@ export default function CampusFormPage() {
         date_of_birth: newResp.date_of_birth,
         can_bulk_create_candidates: newResp.can_bulk_create_candidates,
         can_manage_groups: newResp.can_manage_groups,
+        can_view_reports: newResp.can_view_reports,
       });
       setNewRespPassword(res.responsable.temporary_password || null);
-      setNewResp({ name: '', first_surname: '', second_surname: '', email: '', curp: '', gender: '', date_of_birth: '', can_bulk_create_candidates: false, can_manage_groups: false });
+      setNewResp({ name: '', first_surname: '', second_surname: '', email: '', curp: '', gender: '', date_of_birth: '', can_bulk_create_candidates: false, can_manage_groups: false, can_view_reports: true });
       await loadResponsables(Number(campusId));
       if (!res.responsable.temporary_password) setShowAddResp(false);
     } catch (err: any) {
@@ -297,7 +298,7 @@ export default function CampusFormPage() {
     }
   };
 
-  const handleToggleRespPermission = async (userId: string, field: 'can_bulk_create_candidates' | 'can_manage_groups', value: boolean) => {
+  const handleToggleRespPermission = async (userId: string, field: 'can_bulk_create_candidates' | 'can_manage_groups' | 'can_view_reports', value: boolean) => {
     if (!campusId) return;
     try {
       await updateResponsablePermissions(Number(campusId), userId, { [field]: value });
@@ -1374,6 +1375,15 @@ export default function CampusFormPage() {
                                 />
                                 <span className="fluid-text-xs text-gray-700 font-medium select-none">Altas masivas</span>
                               </div>
+                              <div className="flex items-center fluid-gap-2">
+                                <ToggleSwitch
+                                  size="sm"
+                                  checked={resp.can_view_reports}
+                                  onChange={(v) => handleToggleRespPermission(resp.id, 'can_view_reports', v)}
+                                  colorScheme="indigo"
+                                />
+                                <span className="fluid-text-xs text-gray-700 font-medium select-none">Reportes</span>
+                              </div>
                               {!resp.is_primary && (
                                 <button
                                   type="button"
@@ -1506,6 +1516,15 @@ export default function CampusFormPage() {
                                   colorScheme="indigo"
                                 />
                                 <span className="fluid-text-xs text-gray-700 font-medium select-none">Altas Masivas</span>
+                              </div>
+                              <div className="flex items-center fluid-gap-2">
+                                <ToggleSwitch
+                                  size="sm"
+                                  checked={newResp.can_view_reports}
+                                  onChange={(v) => setNewResp(p => ({ ...p, can_view_reports: v }))}
+                                  colorScheme="indigo"
+                                />
+                                <span className="fluid-text-xs text-gray-700 font-medium select-none">Ver Reportes</span>
                               </div>
                             </div>
                           </div>

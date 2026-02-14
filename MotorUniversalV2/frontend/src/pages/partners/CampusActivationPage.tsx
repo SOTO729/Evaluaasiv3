@@ -85,7 +85,7 @@ export default function CampusActivationPage() {
   const [availableResponsables, setAvailableResponsables] = useState<AvailableResponsable[]>([]);
   const [loadingResponsables, setLoadingResponsables] = useState(false);
   const [selectedResponsableId, setSelectedResponsableId] = useState<string | null>(null);
-  const [assignPerms, setAssignPerms] = useState({ can_bulk_create_candidates: false, can_manage_groups: false });
+  const [assignPerms, setAssignPerms] = useState({ can_bulk_create_candidates: false, can_manage_groups: false, can_view_reports: true });
   
   const [formData, setFormData] = useState<CreateResponsableData>({
     name: '',
@@ -96,7 +96,8 @@ export default function CampusActivationPage() {
     gender: 'M',
     date_of_birth: '',
     can_bulk_create_candidates: false,
-    can_manage_groups: false
+    can_manage_groups: false,
+    can_view_reports: true
   });
 
   // Estado para responsables adicionales
@@ -110,7 +111,7 @@ export default function CampusActivationPage() {
     name: '', first_surname: '', second_surname: '',
     email: '', curp: '', gender: '' as '' | 'M' | 'F' | 'O',
     date_of_birth: '',
-    can_bulk_create_candidates: false, can_manage_groups: false,
+    can_bulk_create_candidates: false, can_manage_groups: false, can_view_reports: true,
   });
 
   // Estado del formulario de configuración
@@ -236,6 +237,7 @@ export default function CampusActivationPage() {
         responsable_id: selectedResponsableId,
         can_bulk_create_candidates: assignPerms.can_bulk_create_candidates,
         can_manage_groups: assignPerms.can_manage_groups,
+        can_view_reports: assignPerms.can_view_reports,
       });
 
       // Actualizar el estado del campus
@@ -363,7 +365,8 @@ export default function CampusActivationPage() {
         gender: 'M',
         date_of_birth: '',
         can_bulk_create_candidates: campus.responsable.can_bulk_create_candidates || false,
-        can_manage_groups: campus.responsable.can_manage_groups || false
+        can_manage_groups: campus.responsable.can_manage_groups || false,
+        can_view_reports: campus.responsable.can_view_reports ?? true
       });
     }
     // Navegar al paso 1
@@ -818,6 +821,20 @@ export default function CampusActivationPage() {
                               colorScheme="blue"
                             />
                           </div>
+                          
+                          <div className="flex items-center justify-between fluid-p-3 border border-gray-200 fluid-rounded-lg hover:bg-gray-50">
+                            <div>
+                              <span className="font-medium text-gray-800">Ver Reportes</span>
+                              <p className="fluid-text-sm text-gray-500">
+                                Puede acceder a los reportes de evaluación y resultados
+                              </p>
+                            </div>
+                            <ToggleSwitch
+                              checked={assignPerms.can_view_reports}
+                              onChange={(v) => setAssignPerms(prev => ({ ...prev, can_view_reports: v }))}
+                              colorScheme="blue"
+                            />
+                          </div>
                         </div>
                       </div>
 
@@ -1014,6 +1031,20 @@ export default function CampusActivationPage() {
                         colorScheme="blue"
                       />
                     </div>
+                    
+                    <div className="flex items-center justify-between fluid-p-3 border border-gray-200 fluid-rounded-lg hover:bg-gray-50">
+                      <div>
+                        <span className="font-medium text-gray-800">Ver Reportes</span>
+                        <p className="fluid-text-sm text-gray-500">
+                          Puede acceder a los reportes de evaluación y resultados
+                        </p>
+                      </div>
+                      <ToggleSwitch
+                        checked={formData.can_view_reports}
+                        onChange={(v) => setFormData(prev => ({ ...prev, can_view_reports: v }))}
+                        colorScheme="blue"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1204,7 +1235,7 @@ export default function CampusActivationPage() {
                       </div>
                       <div className="flex gap-2 mt-3">
                         <button type="button" onClick={() => { setAddMorePassword(null); setShowAddMore(false); setShowAddMorePwd(false); }} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">Entendido</button>
-                        <button type="button" onClick={() => { setAddMorePassword(null); setAddMoreForm({ name: '', first_surname: '', second_surname: '', email: '', curp: '', gender: '', date_of_birth: '', can_bulk_create_candidates: false, can_manage_groups: false }); }} className="px-3 py-1.5 border border-green-300 text-green-700 rounded-lg text-sm font-medium hover:bg-green-50 transition-colors">Agregar otro</button>
+                        <button type="button" onClick={() => { setAddMorePassword(null); setAddMoreForm({ name: '', first_surname: '', second_surname: '', email: '', curp: '', gender: '', date_of_birth: '', can_bulk_create_candidates: false, can_manage_groups: false, can_view_reports: true }); }} className="px-3 py-1.5 border border-green-300 text-green-700 rounded-lg text-sm font-medium hover:bg-green-50 transition-colors">Agregar otro</button>
                       </div>
                     </div>
                   ) : (
@@ -1246,6 +1277,7 @@ export default function CampusActivationPage() {
                       <div className="flex gap-6 mb-3 p-3 bg-indigo-50/70 rounded-xl border border-indigo-200">
                         <div className="flex items-center gap-2"><ToggleSwitch size="sm" checked={addMoreForm.can_manage_groups} onChange={v => setAddMoreForm(p => ({...p, can_manage_groups: v}))} colorScheme="indigo" /><span className="text-xs text-gray-700 font-medium select-none">Gestionar Grupos</span></div>
                         <div className="flex items-center gap-2"><ToggleSwitch size="sm" checked={addMoreForm.can_bulk_create_candidates} onChange={v => setAddMoreForm(p => ({...p, can_bulk_create_candidates: v}))} colorScheme="indigo" /><span className="text-xs text-gray-700 font-medium select-none">Altas Masivas</span></div>
+                        <div className="flex items-center gap-2"><ToggleSwitch size="sm" checked={addMoreForm.can_view_reports} onChange={v => setAddMoreForm(p => ({...p, can_view_reports: v}))} colorScheme="indigo" /><span className="text-xs text-gray-700 font-medium select-none">Ver Reportes</span></div>
                       </div>
                       <div className="flex gap-2 justify-end">
                         <button type="button" onClick={() => setShowAddMore(false)} className="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-100">Cancelar</button>
@@ -1253,7 +1285,7 @@ export default function CampusActivationPage() {
                           if (!addMoreForm.name || !addMoreForm.first_surname || !addMoreForm.second_surname || !addMoreForm.email || !addMoreForm.curp || !addMoreForm.gender || !addMoreForm.date_of_birth) { setAddMoreError('Todos los campos son requeridos'); return; }
                           setAddMoreLoading(true); setAddMoreError(null);
                           try {
-                            const res = await addCampusResponsable(Number(campusId), { name: addMoreForm.name, first_surname: addMoreForm.first_surname, second_surname: addMoreForm.second_surname, email: addMoreForm.email, curp: addMoreForm.curp, gender: addMoreForm.gender as 'M'|'F'|'O', date_of_birth: addMoreForm.date_of_birth, can_bulk_create_candidates: addMoreForm.can_bulk_create_candidates, can_manage_groups: addMoreForm.can_manage_groups });
+                            const res = await addCampusResponsable(Number(campusId), { name: addMoreForm.name, first_surname: addMoreForm.first_surname, second_surname: addMoreForm.second_surname, email: addMoreForm.email, curp: addMoreForm.curp, gender: addMoreForm.gender as 'M'|'F'|'O', date_of_birth: addMoreForm.date_of_birth, can_bulk_create_candidates: addMoreForm.can_bulk_create_candidates, can_manage_groups: addMoreForm.can_manage_groups, can_view_reports: addMoreForm.can_view_reports });
                             setAdditionalResps(prev => [...prev, res.responsable]);
                             setAddMorePassword(res.responsable.temporary_password || null);
                           } catch (err: any) { setAddMoreError(err?.response?.data?.error || 'Error al crear'); }
