@@ -1914,8 +1914,11 @@ def get_available_competency_standards():
     """Obtener lista de todos los ECM activos disponibles para asignar"""
     try:
         from app.models.competency_standard import CompetencyStandard
+        from sqlalchemy.orm import joinedload
         
-        standards = CompetencyStandard.query.filter_by(is_active=True).order_by(CompetencyStandard.code).all()
+        standards = CompetencyStandard.query.options(
+            joinedload(CompetencyStandard.brand)
+        ).filter_by(is_active=True).order_by(CompetencyStandard.code).all()
         
         return jsonify({
             'competency_standards': [
