@@ -3,6 +3,7 @@
  * Guía al usuario a través del proceso de activación paso a paso
  */
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -698,9 +699,9 @@ export default function CampusActivationPage() {
               </div>
 
               {/* Error modal */}
-              {formError && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setFormError(null)}>
-                  <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+              {formError && createPortal(
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setFormError(null)}>
+                  <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
                     <div className="flex flex-col items-center text-center gap-4">
                       <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
                         <AlertCircle className="w-7 h-7 text-red-600" />
@@ -717,7 +718,8 @@ export default function CampusActivationPage() {
                       </button>
                     </div>
                   </div>
-                </div>
+                </div>,
+                document.body
               )}
 
               {/* Modo: Asignar Responsable Existente */}
@@ -1218,10 +1220,9 @@ export default function CampusActivationPage() {
                         <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2"><UserPlus className="w-4 h-4 text-indigo-600" />Nuevo Responsable Adicional</h4>
                         <button type="button" onClick={() => setShowAddMore(false)} className="p-1 hover:bg-gray-200 rounded"><span className="sr-only">Cerrar</span>✕</button>
                       </div>
-                      {addMoreError && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setAddMoreError(null)}>
-                          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-                          <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
+                      {addMoreError && createPortal(
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setAddMoreError(null)}>
+                          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
                             <div className="flex flex-col items-center text-center">
                               <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mb-4">
                                 <AlertCircle className="w-8 h-8 text-red-600" />
@@ -1231,7 +1232,8 @@ export default function CampusActivationPage() {
                               <button onClick={() => setAddMoreError(null)} className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 px-6 rounded-xl transition-colors">Entendido</button>
                             </div>
                           </div>
-                        </div>
+                        </div>,
+                        document.body
                       )}
                       <div className="grid grid-cols-3 gap-3 mb-3">
                         <input type="text" placeholder="Nombre(s)*" value={addMoreForm.name} onChange={e => setAddMoreForm(p => ({...p, name: e.target.value}))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
@@ -1347,9 +1349,9 @@ export default function CampusActivationPage() {
 
                 <form onSubmit={handleSubmitConfig} className="p-6 space-y-8">
                   {/* Error modal */}
-                  {configError && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setConfigError(null)}>
-                      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+                  {configError && createPortal(
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setConfigError(null)}>
+                      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
                         <div className="flex flex-col items-center text-center gap-4">
                           <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
                             <AlertCircle className="w-7 h-7 text-red-600" />
@@ -1366,7 +1368,8 @@ export default function CampusActivationPage() {
                           </button>
                         </div>
                       </div>
-                    </div>
+                    </div>,
+                    document.body
                   )}
 
                   {/* Versión de Office */}
@@ -1973,9 +1976,9 @@ function ActivateCampusButton({
 
   return (
     <div>
-      {error && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setError(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+      {error && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setError(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
             <div className="flex flex-col items-center text-center gap-4">
               <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
                 <AlertCircle className="w-7 h-7 text-red-600" />
@@ -1992,7 +1995,8 @@ function ActivateCampusButton({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       
       <button
