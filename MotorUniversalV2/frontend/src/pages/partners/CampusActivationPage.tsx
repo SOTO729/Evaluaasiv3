@@ -561,7 +561,7 @@ export default function CampusActivationPage() {
   const currentStep = activeStep !== null ? activeStep : naturalStep;
 
   return (
-    <div className="fluid-p-4 md:fluid-p-6 lg:fluid-p-8 w-full animate-fade-in-up">
+    <div className="fluid-p-4 md:fluid-p-6 lg:fluid-p-8 w-full">
       {/* Breadcrumb */}
       <PartnersBreadcrumb 
         items={[
@@ -572,7 +572,7 @@ export default function CampusActivationPage() {
       />
       
       {/* Header */}
-      <div className="flex items-center fluid-gap-4 fluid-mb-6 lg:fluid-mb-8">
+      <div className="flex items-center fluid-gap-4 fluid-mb-6 lg:fluid-mb-8 animate-fade-in-up">
         <Link
           to={`/partners/campuses/${campusId}`}
           className="fluid-p-2 hover:bg-gray-100 fluid-rounded-xl transition-colors"
@@ -591,8 +591,8 @@ export default function CampusActivationPage() {
 
       <div className="grid lg:grid-cols-4 fluid-gap-6">
         {/* Panel de Progreso */}
-        <div className="lg:col-span-1">
-          <div className="bg-white fluid-rounded-2xl shadow-sm border border-gray-200 fluid-p-4 md:fluid-p-6 lg:sticky z-10" style={{ top: 'calc(var(--header-height) + 1.5rem)' }}>
+        <div className="lg:col-span-1 lg:self-start lg:sticky z-10" style={{ top: 'calc(var(--header-height) + 1.5rem)' }}>
+          <div className="bg-white fluid-rounded-2xl shadow-sm border border-gray-200 fluid-p-4 md:fluid-p-6">
             <h2 className="font-semibold text-gray-800 fluid-mb-6 fluid-text-base">Progreso de Activación</h2>
             
             <div className="fluid-space-y-4">
@@ -649,7 +649,7 @@ export default function CampusActivationPage() {
         </div>
 
         {/* Contenido Principal */}
-        <div className="lg:col-span-3 fluid-space-y-6">
+        <div className="lg:col-span-3 fluid-space-y-6 animate-fade-in-up">
           {/* Paso 1: Crear/Asignar Responsable */}
           {currentStep === 1 && !createdResponsable && (
             <div className="bg-white fluid-rounded-2xl shadow-sm border border-gray-200">
