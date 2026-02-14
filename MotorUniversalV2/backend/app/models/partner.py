@@ -215,7 +215,7 @@ class Campus(db.Model):
     # Vigencia del plantel (licencia)
     license_start_date = db.Column(db.Date)  # Fecha de inicio de vigencia (legacy)
     license_end_date = db.Column(db.Date)  # Fecha de fin de vigencia (legacy)
-    assignment_validity_months = db.Column(db.Integer, default=6)  # Meses de vigencia tras asignación
+    assignment_validity_months = db.Column(db.Integer, default=12)  # Meses de vigencia tras asignación
     
     # Costos
     certification_cost = db.Column(db.Numeric(10, 2), default=0)  # Costo por certificación
@@ -281,7 +281,7 @@ class Campus(db.Model):
             'enable_unscheduled_partials': self.enable_unscheduled_partials if self.enable_unscheduled_partials is not None else False,
             'enable_virtual_machines': self.enable_virtual_machines if self.enable_virtual_machines is not None else False,
             'enable_online_payments': self.enable_online_payments if self.enable_online_payments is not None else False,
-            'assignment_validity_months': self.assignment_validity_months or 6,
+            'assignment_validity_months': self.assignment_validity_months or 12,
             'certification_cost': float(self.certification_cost) if self.certification_cost else 0,
             'retake_cost': float(self.retake_cost) if self.retake_cost else 0,
         }
@@ -298,7 +298,7 @@ class Campus(db.Model):
                 'enable_unscheduled_partials': self.enable_unscheduled_partials if self.enable_unscheduled_partials is not None else False,
                 'enable_virtual_machines': self.enable_virtual_machines if self.enable_virtual_machines is not None else False,
                 'enable_online_payments': self.enable_online_payments if self.enable_online_payments is not None else False,
-                'assignment_validity_months': self.assignment_validity_months or 6,
+                'assignment_validity_months': self.assignment_validity_months or 12,
                 'certification_cost': float(self.certification_cost) if self.certification_cost else 0,
                 'retake_cost': float(self.retake_cost) if self.retake_cost else 0,
             }
@@ -551,7 +551,7 @@ class CandidateGroup(db.Model):
                     'enable_online_payments': self.enable_online_payments_override if self.enable_online_payments_override is not None else self.campus.enable_online_payments,
                     'certification_cost': float(self.certification_cost_override) if self.certification_cost_override is not None else (float(self.campus.certification_cost) if self.campus.certification_cost else 0),
                     'retake_cost': float(self.retake_cost_override) if self.retake_cost_override is not None else (float(self.campus.retake_cost) if self.campus.retake_cost else 0),
-                    'assignment_validity_months': self.assignment_validity_months_override if self.assignment_validity_months_override is not None else (self.campus.assignment_validity_months or 6),
+                    'assignment_validity_months': self.assignment_validity_months_override if self.assignment_validity_months_override is not None else (self.campus.assignment_validity_months or 12),
                 }
         
         if include_members:

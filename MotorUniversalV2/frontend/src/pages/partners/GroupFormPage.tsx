@@ -671,17 +671,38 @@ export default function GroupFormPage() {
                             <span className="text-purple-600 font-medium"> (Campus: {groupConfig.campus_config.assignment_validity_months} meses)</span>
                           )}
                         </p>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            min="1"
-                            max="120"
-                            value={configOverrides.assignment_validity_months_override ?? groupConfig?.campus_config?.assignment_validity_months ?? ''}
-                            onChange={(e) => handleConfigChange('assignment_validity_months_override', e.target.value ? parseInt(e.target.value) : null)}
-                            placeholder={String(groupConfig?.campus_config?.assignment_validity_months || 6)}
-                            className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm"
-                          />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 fluid-text-xs">meses</span>
+                        <div className="flex items-center gap-0 border border-gray-300 rounded-fluid-lg overflow-hidden bg-white shadow-sm">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const current = configOverrides.assignment_validity_months_override ?? groupConfig?.campus_config?.assignment_validity_months ?? 12;
+                              handleConfigChange('assignment_validity_months_override', Math.max(1, current - 1));
+                            }}
+                            className="flex items-center justify-center w-11 h-10 bg-gray-50 hover:bg-purple-50 text-gray-500 hover:text-purple-600 transition-colors border-r border-gray-300 text-lg font-bold select-none active:bg-purple-100"
+                          >
+                            −
+                          </button>
+                          <div className="flex-1 flex items-center justify-center h-10 px-3">
+                            <input
+                              type="number"
+                              min="1"
+                              max="120"
+                              value={configOverrides.assignment_validity_months_override ?? groupConfig?.campus_config?.assignment_validity_months ?? ''}
+                              onChange={(e) => handleConfigChange('assignment_validity_months_override', e.target.value ? Math.min(120, Math.max(1, parseInt(e.target.value))) : null)}
+                              placeholder={String(groupConfig?.campus_config?.assignment_validity_months || 12)}
+                              className="w-full text-center font-semibold text-gray-800 border-none focus:ring-0 focus:outline-none p-0 fluid-text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const current = configOverrides.assignment_validity_months_override ?? groupConfig?.campus_config?.assignment_validity_months ?? 12;
+                              handleConfigChange('assignment_validity_months_override', Math.min(120, current + 1));
+                            }}
+                            className="flex items-center justify-center w-11 h-10 bg-gray-50 hover:bg-purple-50 text-gray-500 hover:text-purple-600 transition-colors border-l border-gray-300 text-lg font-bold select-none active:bg-purple-100"
+                          >
+                            +
+                          </button>
                         </div>
                       </div>
                     </div>

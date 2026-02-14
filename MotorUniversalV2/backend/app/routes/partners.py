@@ -1652,7 +1652,7 @@ def configure_campus(campus_id):
         # Vigencia de asignaciones (meses)
         if 'assignment_validity_months' in data:
             val = data['assignment_validity_months']
-            campus.assignment_validity_months = int(val) if val else 6
+            campus.assignment_validity_months = int(val) if val else 12
         
         # Costos
         if 'certification_cost' in data:
@@ -1748,7 +1748,7 @@ def get_campus_config(campus_id):
                 'enable_unscheduled_partials': campus.enable_unscheduled_partials or False,
                 'enable_virtual_machines': campus.enable_virtual_machines or False,
                 'enable_online_payments': campus.enable_online_payments or False,
-                'assignment_validity_months': campus.assignment_validity_months or 6,
+                'assignment_validity_months': campus.assignment_validity_months or 12,
                 'certification_cost': float(campus.certification_cost) if campus.certification_cost else 0,
                 'retake_cost': float(campus.retake_cost) if campus.retake_cost else 0,
                 'configuration_completed': campus.configuration_completed or False,
@@ -2465,7 +2465,7 @@ def get_group_config(group_id):
             'enable_online_payments': campus.enable_online_payments,
             'certification_cost': float(campus.certification_cost) if campus.certification_cost else 0,
             'retake_cost': float(campus.retake_cost) if campus.retake_cost else 0,
-            'assignment_validity_months': campus.assignment_validity_months or 6,
+            'assignment_validity_months': campus.assignment_validity_months or 12,
         }
         
         # Overrides del grupo
@@ -2497,7 +2497,7 @@ def get_group_config(group_id):
             'enable_online_payments': group.enable_online_payments_override if group.enable_online_payments_override is not None else campus.enable_online_payments,
             'certification_cost': float(group.certification_cost_override) if group.certification_cost_override is not None else (float(campus.certification_cost) if campus.certification_cost else 0),
             'retake_cost': float(group.retake_cost_override) if group.retake_cost_override is not None else (float(campus.retake_cost) if campus.retake_cost else 0),
-            'assignment_validity_months': group.assignment_validity_months_override if group.assignment_validity_months_override is not None else (campus.assignment_validity_months or 6),
+            'assignment_validity_months': group.assignment_validity_months_override if group.assignment_validity_months_override is not None else (campus.assignment_validity_months or 12),
         }
         
         # Obtener conteo de candidatos sin CURP/email para advertencias

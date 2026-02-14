@@ -135,7 +135,7 @@ export default function CampusFormPage() {
     enable_unscheduled_partials: false,
     enable_virtual_machines: false,
     enable_online_payments: false,
-    assignment_validity_months: 6,
+    assignment_validity_months: 12,
     certification_cost: 0,
     retake_cost: 0,
   });
@@ -197,7 +197,7 @@ export default function CampusFormPage() {
           enable_unscheduled_partials: campus.enable_unscheduled_partials ?? false,
           enable_virtual_machines: campus.enable_virtual_machines ?? false,
           enable_online_payments: campus.enable_online_payments ?? false,
-          assignment_validity_months: campus.assignment_validity_months || 6,
+          assignment_validity_months: campus.assignment_validity_months || 12,
           certification_cost: campus.certification_cost || 0,
           retake_cost: campus.retake_cost || 0,
         });
@@ -435,7 +435,7 @@ export default function CampusFormPage() {
         enable_unscheduled_partials: configData.enable_unscheduled_partials,
         enable_virtual_machines: configData.enable_virtual_machines,
         enable_online_payments: configData.enable_online_payments,
-        assignment_validity_months: configData.assignment_validity_months || 6,
+        assignment_validity_months: configData.assignment_validity_months || 12,
         certification_cost: configData.certification_cost,
         retake_cost: configData.retake_cost,
         competency_standard_ids: selectedEcmIds,
@@ -1114,17 +1114,31 @@ export default function CampusFormPage() {
                         <Calendar className="w-3 h-3 text-purple-500" />
                         Meses de vigencia
                       </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          min="1"
-                          max="120"
-                          value={configData.assignment_validity_months || ''}
-                          onChange={(e) => handleConfigChange('assignment_validity_months', parseInt(e.target.value) || 0)}
-                          placeholder="6"
-                          className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 fluid-text-xs">meses</span>
+                      <div className="flex items-center gap-0 border border-gray-300 rounded-fluid-lg overflow-hidden bg-white shadow-sm">
+                        <button
+                          type="button"
+                          onClick={() => handleConfigChange('assignment_validity_months', Math.max(1, (configData.assignment_validity_months || 12) - 1))}
+                          className="flex items-center justify-center w-11 h-10 bg-gray-50 hover:bg-purple-50 text-gray-500 hover:text-purple-600 transition-colors border-r border-gray-300 text-lg font-bold select-none active:bg-purple-100"
+                        >
+                          −
+                        </button>
+                        <div className="flex-1 flex items-center justify-center h-10 px-3">
+                          <input
+                            type="number"
+                            min="1"
+                            max="120"
+                            value={configData.assignment_validity_months || ''}
+                            onChange={(e) => handleConfigChange('assignment_validity_months', Math.min(120, Math.max(0, parseInt(e.target.value) || 0)))}
+                            className="w-full text-center font-semibold text-gray-800 border-none focus:ring-0 focus:outline-none p-0 fluid-text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleConfigChange('assignment_validity_months', Math.min(120, (configData.assignment_validity_months || 12) + 1))}
+                          className="flex items-center justify-center w-11 h-10 bg-gray-50 hover:bg-purple-50 text-gray-500 hover:text-purple-600 transition-colors border-l border-gray-300 text-lg font-bold select-none active:bg-purple-100"
+                        >
+                          +
+                        </button>
                       </div>
                       {(configData.assignment_validity_months ?? 0) > 0 && (
                         <p className="fluid-text-xs text-purple-600 fluid-mt-1 font-medium">

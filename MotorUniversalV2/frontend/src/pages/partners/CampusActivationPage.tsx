@@ -128,7 +128,7 @@ export default function CampusActivationPage() {
     enable_unscheduled_partials: false,
     enable_virtual_machines: false,
     enable_online_payments: false,
-    assignment_validity_months: 6,
+    assignment_validity_months: 12,
     certification_cost: 0,
     retake_cost: 0,
     competency_standard_ids: [],
@@ -1686,24 +1686,38 @@ export default function CampusActivationPage() {
                       Define cuántos meses tiene un candidato para aprovechar sus materiales y exámenes después de que se le crea una asignación.
                     </p>
                     <div className="max-w-xs">
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-purple-500" />
                         Meses de vigencia <span className="text-red-500">*</span>
                       </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          min="1"
-                          max="120"
-                          value={configData.assignment_validity_months || ''}
-                          onChange={(e) => setConfigData(prev => ({ ...prev, assignment_validity_months: parseInt(e.target.value) || 0 }))}
-                          placeholder="6"
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">meses</span>
+                      <div className="flex items-center gap-0 border border-gray-300 rounded-xl overflow-hidden bg-white shadow-sm">
+                        <button
+                          type="button"
+                          onClick={() => setConfigData(prev => ({ ...prev, assignment_validity_months: Math.max(1, (prev.assignment_validity_months || 12) - 1) }))}
+                          className="flex items-center justify-center w-12 h-11 bg-gray-50 hover:bg-purple-50 text-gray-500 hover:text-purple-600 transition-colors border-r border-gray-300 text-lg font-bold select-none active:bg-purple-100"
+                        >
+                          −
+                        </button>
+                        <div className="flex-1 flex items-center justify-center h-11 px-3">
+                          <input
+                            type="number"
+                            min="1"
+                            max="120"
+                            value={configData.assignment_validity_months || ''}
+                            onChange={(e) => setConfigData(prev => ({ ...prev, assignment_validity_months: Math.min(120, Math.max(0, parseInt(e.target.value) || 0)) }))}
+                            className="w-full text-center text-base font-semibold text-gray-800 border-none focus:ring-0 focus:outline-none p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setConfigData(prev => ({ ...prev, assignment_validity_months: Math.min(120, (prev.assignment_validity_months || 12) + 1) }))}
+                          className="flex items-center justify-center w-12 h-11 bg-gray-50 hover:bg-purple-50 text-gray-500 hover:text-purple-600 transition-colors border-l border-gray-300 text-lg font-bold select-none active:bg-purple-100"
+                        >
+                          +
+                        </button>
                       </div>
                       {(configData.assignment_validity_months ?? 0) > 0 && (
-                        <p className="text-xs text-purple-600 mt-1 font-medium">
+                        <p className="text-xs text-purple-600 mt-2 font-medium">
                           {configData.assignment_validity_months} {configData.assignment_validity_months === 1 ? 'mes' : 'meses'} de vigencia tras cada asignación
                         </p>
                       )}
@@ -1858,7 +1872,7 @@ export default function CampusActivationPage() {
                   <div className="bg-gray-50 rounded-lg p-3">
                     <p className="text-gray-500 text-xs mb-1">Vigencia de Asignaciones</p>
                     <p className="font-medium">
-                      {campus.assignment_validity_months || 6} {(campus.assignment_validity_months || 6) === 1 ? 'mes' : 'meses'}
+                      {campus.assignment_validity_months || 12} {(campus.assignment_validity_months || 12) === 1 ? 'mes' : 'meses'}
                     </p>
                   </div>
 
