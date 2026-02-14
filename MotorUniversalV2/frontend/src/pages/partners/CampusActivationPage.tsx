@@ -534,7 +534,7 @@ export default function CampusActivationPage() {
 
   if (loading) {
     return (
-      <div className="fluid-p-6 fluid-p-8 w-full">
+      <div className="fluid-p-6 lg:fluid-p-8 w-full">
         <LoadingSpinner message="Cargando plantel..." />
       </div>
     );
@@ -542,7 +542,7 @@ export default function CampusActivationPage() {
 
   if (error || !campus) {
     return (
-      <div className="fluid-p-6 fluid-p-8 w-full">
+      <div className="fluid-p-6 lg:fluid-p-8 w-full">
         <div className="bg-red-50 border border-red-200 fluid-rounded-xl fluid-p-6 flex items-center fluid-gap-4">
           <AlertCircle className="fluid-w-8 fluid-h-8 text-red-600" />
           <div>
@@ -561,7 +561,7 @@ export default function CampusActivationPage() {
   const currentStep = activeStep !== null ? activeStep : naturalStep;
 
   return (
-    <div className="fluid-p-4 fluid-p-6 fluid-p-8 w-full animate-fade-in-up" style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+    <div className="fluid-p-4 md:fluid-p-6 lg:fluid-p-8 w-full animate-fade-in-up">
       {/* Breadcrumb */}
       <PartnersBreadcrumb 
         items={[
@@ -572,7 +572,7 @@ export default function CampusActivationPage() {
       />
       
       {/* Header */}
-      <div className="flex items-center fluid-gap-4 fluid-mb-6 fluid-mb-8">
+      <div className="flex items-center fluid-gap-4 fluid-mb-6 lg:fluid-mb-8">
         <Link
           to={`/partners/campuses/${campusId}`}
           className="fluid-p-2 hover:bg-gray-100 fluid-rounded-xl transition-colors"
@@ -592,7 +592,7 @@ export default function CampusActivationPage() {
       <div className="grid lg:grid-cols-4 fluid-gap-6">
         {/* Panel de Progreso */}
         <div className="lg:col-span-1">
-          <div className="bg-white fluid-rounded-2xl shadow-sm border border-gray-200 fluid-p-4 fluid-p-6 sticky top-6">
+          <div className="bg-white fluid-rounded-2xl shadow-sm border border-gray-200 fluid-p-4 md:fluid-p-6 sticky" style={{ top: 'calc(var(--header-height) + 1.5rem)' }}>
             <h2 className="font-semibold text-gray-800 fluid-mb-6 fluid-text-base">Progreso de Activación</h2>
             
             <div className="fluid-space-y-4">
