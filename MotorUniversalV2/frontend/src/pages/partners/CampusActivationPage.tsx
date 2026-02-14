@@ -592,7 +592,7 @@ export default function CampusActivationPage() {
       <div className="grid lg:grid-cols-4 fluid-gap-6">
         {/* Panel de Progreso */}
         <div className="lg:col-span-1">
-          <div className="bg-white fluid-rounded-2xl shadow-sm border border-gray-200 fluid-p-4 md:fluid-p-6 sticky" style={{ top: 'calc(var(--header-height) + 1.5rem)' }}>
+          <div className="bg-white fluid-rounded-2xl shadow-sm border border-gray-200 fluid-p-4 md:fluid-p-6 lg:sticky z-10" style={{ top: 'calc(var(--header-height) + 1.5rem)' }}>
             <h2 className="font-semibold text-gray-800 fluid-mb-6 fluid-text-base">Progreso de Activación</h2>
             
             <div className="fluid-space-y-4">

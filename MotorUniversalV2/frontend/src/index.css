@@ -678,8 +678,7 @@ input[type="password"]::-webkit-password-viewable-toggle-button {
 }
 
 .animate-fade-in-up {
-  animation: fade-in-up 0.5s ease-out forwards;
-  opacity: 0;
+  animation: fade-in-up 0.5s ease-out backwards;
 }
 
 /* Animación stagger para grids */
