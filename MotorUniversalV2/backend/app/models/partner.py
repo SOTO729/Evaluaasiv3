@@ -44,6 +44,9 @@ class Partner(db.Model):
     # País de origen
     country = db.Column(db.String(100), default='México', nullable=False)
     
+    # Coordinador dueño (multi-tenant)
+    coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
+    
     # Contacto
     email = db.Column(db.String(255))
     phone = db.Column(db.String(20))
@@ -68,6 +71,8 @@ class Partner(db.Model):
     # Relación muchos-a-muchos con usuarios (candidatos)
     users = db.relationship('User', secondary='user_partners', lazy='dynamic',
                            backref=db.backref('partners', lazy='dynamic'))
+    # Relación con el coordinador dueño
+    coordinator = db.relationship('User', foreign_keys=[coordinator_id], backref=db.backref('owned_partners', lazy='dynamic'))
     
     def to_dict(self, include_states=False, include_campuses=False):
         """Convertir a diccionario"""
@@ -77,6 +82,7 @@ class Partner(db.Model):
             'legal_name': self.legal_name,
             'rfc': self.rfc,
             'country': self.country or 'México',
+            'coordinator_id': self.coordinator_id,
             'email': self.email,
             'phone': self.phone,
             'website': self.website,

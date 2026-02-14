@@ -59,6 +59,55 @@ def get_countries():
     return jsonify({'countries': AVAILABLE_COUNTRIES})
 
 
+# ============== HELPERS MULTI-TENANT ==============
+
+def _get_coordinator_filter(user):
+    """
+    Retorna el coordinator_id para filtrar datos, o None si el usuario es admin/developer (ve todo).
+    """
+    if user.role == 'coordinator':
+        return user.id
+    return None
+
+
+def _verify_partner_access(partner_id, user):
+    """Verifica que el coordinador tenga acceso al partner. 
+    Retorna (partner, None) si ok, o (None, error_response) si no tiene acceso."""
+    partner = Partner.query.get_or_404(partner_id)
+    coord_id = _get_coordinator_filter(user)
+    if coord_id and partner.coordinator_id != coord_id:
+        return None, (jsonify({'error': 'No tienes acceso a este partner'}), 403)
+    return partner, None
+
+
+def _verify_campus_access(campus_id, user):
+    """Verifica que el coordinador tenga acceso al campus (a través de su partner)."""
+    from app.models.partner import Campus
+    campus = Campus.query.get_or_404(campus_id)
+    coord_id = _get_coordinator_filter(user)
+    if coord_id:
+        partner = Partner.query.get(campus.partner_id)
+        if not partner or partner.coordinator_id != coord_id:
+            return None, (jsonify({'error': 'No tienes acceso a este plantel'}), 403)
+    return campus, None
+
+
+def _verify_group_access(group_id, user):
+    """Verifica que el coordinador tenga acceso al grupo (a través de campus → partner)."""
+    from app.models.partner import Campus
+    group = CandidateGroup.query.get_or_404(group_id)
+    coord_id = _get_coordinator_filter(user)
+    if coord_id:
+        campus = Campus.query.get(group.campus_id)
+        if campus:
+            partner = Partner.query.get(campus.partner_id)
+            if not partner or partner.coordinator_id != coord_id:
+                return None, (jsonify({'error': 'No tienes acceso a este grupo'}), 403)
+        else:
+            return None, (jsonify({'error': 'No tienes acceso a este grupo'}), 403)
+    return group, None
+
+
 # ============== PARTNERS ==============
 
 @bp.route('', methods=['GET'])
@@ -73,6 +122,11 @@ def get_partners():
         active_only = request.args.get('active_only', 'true').lower() == 'true'
         
         query = Partner.query
+        
+        # Multi-tenant: coordinadores solo ven sus partners
+        coord_id = _get_coordinator_filter(g.current_user)
+        if coord_id:
+            query = query.filter(Partner.coordinator_id == coord_id)
         
         if active_only:
             query = query.filter(Partner.is_active == True)
@@ -108,7 +162,9 @@ def get_partners():
 def get_partner(partner_id):
     """Obtener detalle de un partner"""
     try:
-        partner = Partner.query.get_or_404(partner_id)
+        partner, error = _verify_partner_access(partner_id, g.current_user)
+        if error:
+            return error
         return jsonify({
             'partner': partner.to_dict(include_states=True, include_campuses=True)
         })
@@ -138,6 +194,7 @@ def create_partner():
             legal_name=data.get('legal_name'),
             rfc=data.get('rfc'),
             country=data.get('country', 'México'),
+            coordinator_id=_get_coordinator_filter(g.current_user) or data.get('coordinator_id'),
             email=data.get('email'),
             phone=data.get('phone'),
             website=data.get('website'),
@@ -165,7 +222,9 @@ def create_partner():
 def update_partner(partner_id):
     """Actualizar un partner"""
     try:
-        partner = Partner.query.get_or_404(partner_id)
+        partner, error = _verify_partner_access(partner_id, g.current_user)
+        if error:
+            return error
         data = request.get_json()
         
         # Verificar RFC único si cambia
@@ -197,7 +256,9 @@ def update_partner(partner_id):
 def delete_partner(partner_id):
     """Eliminar un partner (soft delete)"""
     try:
-        partner = Partner.query.get_or_404(partner_id)
+        partner, error = _verify_partner_access(partner_id, g.current_user)
+        if error:
+            return error
         partner.is_active = False
         db.session.commit()
         
@@ -305,7 +366,9 @@ def remove_partner_state(partner_id, presence_id):
 def get_campuses(partner_id):
     """Listar planteles de un partner"""
     try:
-        partner = Partner.query.get_or_404(partner_id)
+        partner, error = _verify_partner_access(partner_id, g.current_user)
+        if error:
+            return error
         
         state_filter = request.args.get('state')
         active_only = request.args.get('active_only', 'true').lower() == 'true'
@@ -349,7 +412,9 @@ def create_campus(partner_id):
                 return code
     
     try:
-        partner = Partner.query.get_or_404(partner_id)
+        partner, error = _verify_partner_access(partner_id, g.current_user)
+        if error:
+            return error
         data = request.get_json()
         
         if not data.get('name'):
@@ -544,7 +609,9 @@ def create_campus(partner_id):
 def get_campus(campus_id):
     """Obtener detalle de un plantel con ciclos escolares"""
     try:
-        campus = Campus.query.get_or_404(campus_id)
+        campus, error = _verify_campus_access(campus_id, g.current_user)
+        if error:
+            return error
         return jsonify({
             'campus': campus.to_dict(include_groups=True, include_partner=True, include_cycles=True, include_responsable=True)
         })
@@ -558,7 +625,9 @@ def get_campus(campus_id):
 def update_campus(campus_id):
     """Actualizar un plantel"""
     try:
-        campus = Campus.query.get_or_404(campus_id)
+        campus, error = _verify_campus_access(campus_id, g.current_user)
+        if error:
+            return error
         data = request.get_json()
         
         # Validar estado solo si el país es México
@@ -619,7 +688,9 @@ def update_campus(campus_id):
 def delete_campus(campus_id):
     """Eliminar un plantel (soft delete)"""
     try:
-        campus = Campus.query.get_or_404(campus_id)
+        campus, error = _verify_campus_access(campus_id, g.current_user)
+        if error:
+            return error
         campus.is_active = False
         db.session.commit()
         
@@ -2125,7 +2196,9 @@ def permanent_delete_cycle(cycle_id):
 def get_groups(campus_id):
     """Listar grupos de un plantel"""
     try:
-        campus = Campus.query.get_or_404(campus_id)
+        campus, error = _verify_campus_access(campus_id, g.current_user)
+        if error:
+            return error
         
         active_only = request.args.get('active_only', 'true').lower() == 'true'
         cycle_id = request.args.get('cycle_id', type=int)
@@ -2164,7 +2237,9 @@ def get_groups(campus_id):
 def create_group(campus_id):
     """Crear un nuevo grupo"""
     try:
-        campus = Campus.query.get_or_404(campus_id)
+        campus, error = _verify_campus_access(campus_id, g.current_user)
+        if error:
+            return error
         data = request.get_json()
         
         if not data.get('name'):
@@ -2235,7 +2310,14 @@ def list_all_groups():
             member_count_sub, CandidateGroup.id == member_count_sub.c.group_id
         ).filter(
             CandidateGroup.is_active == True
-        ).order_by(CandidateGroup.name).all()
+        )
+        
+        # Multi-tenant: coordinadores solo ven grupos de sus partners
+        coord_id = _get_coordinator_filter(g.current_user)
+        if coord_id:
+            groups = groups.filter(Partner.coordinator_id == coord_id)
+        
+        groups = groups.order_by(CandidateGroup.name).all()
         
         result = [{
             'id': g.id,
@@ -2289,7 +2371,9 @@ def get_group_members_count(group_id):
 def get_group(group_id):
     """Obtener detalle de un grupo"""
     try:
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         return jsonify({
             'group': group.to_dict(include_members=True, include_campus=True, include_cycle=True, include_config=True)
         })
@@ -2303,7 +2387,9 @@ def get_group(group_id):
 def update_group(group_id):
     """Actualizar un grupo"""
     try:
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         data = request.get_json()
         
         # Validar el ciclo escolar si se proporciona
@@ -2338,7 +2424,9 @@ def update_group(group_id):
 def delete_group(group_id):
     """Eliminar un grupo (soft delete)"""
     try:
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         group.is_active = False
         db.session.commit()
         
@@ -2989,6 +3077,11 @@ def search_candidates():
             User.is_active == True
         )
         
+        # Multi-tenant: coordinadores solo ven candidatos que les pertenecen
+        coord_id = _get_coordinator_filter(g.current_user)
+        if coord_id:
+            query = query.filter(User.coordinator_id == coord_id)
+        
         if search:
             search_term = f'%{search}%'
             # Si hay un campo específico, buscar solo en ese campo
@@ -3346,23 +3439,70 @@ def upload_group_members(group_id):
 def get_dashboard():
     """Obtener estadísticas generales para coordinador"""
     try:
-        total_partners = Partner.query.filter_by(is_active=True).count()
-        total_campuses = Campus.query.filter_by(is_active=True).count()
-        total_groups = CandidateGroup.query.filter_by(is_active=True).count()
-        total_members = GroupMember.query.filter_by(status='active').count()
+        coord_id = _get_coordinator_filter(g.current_user)
         
-        # Partners por estado
-        partners_by_state = db.session.query(
-            PartnerStatePresence.state_name,
-            db.func.count(PartnerStatePresence.id)
-        ).filter(
-            PartnerStatePresence.is_active == True
-        ).group_by(PartnerStatePresence.state_name).all()
+        # Base queries con scoping por coordinador
+        partner_query = Partner.query.filter_by(is_active=True)
+        if coord_id:
+            partner_query = partner_query.filter(Partner.coordinator_id == coord_id)
+        
+        total_partners = partner_query.count()
+        
+        # Obtener IDs de partners del coordinador para filtrar campuses/grupos
+        if coord_id:
+            partner_ids = [p.id for p in partner_query.with_entities(Partner.id).all()]
+            campus_query = Campus.query.filter(Campus.partner_id.in_(partner_ids), Campus.is_active == True) if partner_ids else Campus.query.filter(db.false())
+            campus_ids = [c.id for c in campus_query.with_entities(Campus.id).all()]
+            group_query = CandidateGroup.query.filter(CandidateGroup.campus_id.in_(campus_ids), CandidateGroup.is_active == True) if campus_ids else CandidateGroup.query.filter(db.false())
+            group_ids = [gr.id for gr in group_query.with_entities(CandidateGroup.id).all()]
+        else:
+            campus_query = Campus.query.filter_by(is_active=True)
+            group_query = CandidateGroup.query.filter_by(is_active=True)
+            campus_ids = None
+            group_ids = None
+        
+        total_campuses = campus_query.count() if coord_id else Campus.query.filter_by(is_active=True).count()
+        total_groups = group_query.count() if coord_id else CandidateGroup.query.filter_by(is_active=True).count()
+        
+        if coord_id and group_ids:
+            total_members = GroupMember.query.filter(GroupMember.group_id.in_(group_ids), GroupMember.status == 'active').count()
+        elif coord_id:
+            total_members = 0
+        else:
+            total_members = GroupMember.query.filter_by(status='active').count()
+        
+        # Partners por estado (via campus states)
+        if coord_id and partner_ids:
+            partners_by_state = db.session.query(
+                Campus.state_name,
+                db.func.count(db.func.distinct(Campus.partner_id))
+            ).filter(
+                Campus.partner_id.in_(partner_ids),
+                Campus.is_active == True,
+                Campus.state_name.isnot(None)
+            ).group_by(Campus.state_name).all()
+        elif coord_id:
+            partners_by_state = []
+        else:
+            partners_by_state = db.session.query(
+                PartnerStatePresence.state_name,
+                db.func.count(PartnerStatePresence.id)
+            ).filter(
+                PartnerStatePresence.is_active == True
+            ).group_by(PartnerStatePresence.state_name).all()
         
         # Últimos grupos creados
-        recent_groups = CandidateGroup.query.filter_by(is_active=True).order_by(
-            CandidateGroup.created_at.desc()
-        ).limit(5).all()
+        if coord_id and campus_ids:
+            recent_groups = CandidateGroup.query.filter(
+                CandidateGroup.campus_id.in_(campus_ids),
+                CandidateGroup.is_active == True
+            ).order_by(CandidateGroup.created_at.desc()).limit(5).all()
+        elif coord_id:
+            recent_groups = []
+        else:
+            recent_groups = CandidateGroup.query.filter_by(is_active=True).order_by(
+                CandidateGroup.created_at.desc()
+            ).limit(5).all()
         
         return jsonify({
             'stats': {
@@ -3390,7 +3530,9 @@ def get_dashboard():
 def get_partner_users(partner_id):
     """Obtener usuarios (candidatos) asociados a un partner"""
     try:
-        partner = Partner.query.get_or_404(partner_id)
+        partner, error = _verify_partner_access(partner_id, g.current_user)
+        if error:
+            return error
         
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
@@ -5565,6 +5707,11 @@ def search_candidates_advanced():
             User.role == 'candidato',
             User.is_active == True
         )
+        
+        # Multi-tenant: coordinadores solo ven candidatos que les pertenecen
+        coord_id = _get_coordinator_filter(g.current_user)
+        if coord_id:
+            query = query.filter(User.coordinator_id == coord_id)
         
         # Filtro de búsqueda textual
         if search:

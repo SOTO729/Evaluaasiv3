@@ -79,6 +79,9 @@ class User(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
     
+    # Multi-tenant: coordinador que creó/gestiona este usuario
+    coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
+    
     # Permisos específicos para responsables de plantel
     can_bulk_create_candidates = db.Column(db.Boolean, default=False, nullable=False)  # Puede crear altas masivas de candidatos
     can_manage_groups = db.Column(db.Boolean, default=False, nullable=False)  # Puede crear grupos y asignar exámenes/materiales
