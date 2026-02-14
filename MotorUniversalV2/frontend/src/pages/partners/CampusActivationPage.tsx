@@ -697,11 +697,26 @@ export default function CampusActivationPage() {
                 </div>
               </div>
 
-              {/* Error message */}
+              {/* Error modal */}
               {formError && (
-                <div className="fluid-mx-6 fluid-mt-4 bg-red-50 border border-red-200 fluid-rounded-xl fluid-p-4 flex items-center fluid-gap-3">
-                  <AlertCircle className="fluid-w-5 fluid-h-5 text-red-600 flex-shrink-0" />
-                  <p className="fluid-text-sm text-red-700">{formError}</p>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setFormError(null)}>
+                  <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+                    <div className="flex flex-col items-center text-center gap-4">
+                      <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
+                        <AlertCircle className="w-7 h-7 text-red-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1">Error</h3>
+                        <p className="text-sm text-gray-600">{formError}</p>
+                      </div>
+                      <button
+                        onClick={() => setFormError(null)}
+                        className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 px-6 rounded-xl transition-colors"
+                      >
+                        Entendido
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1331,11 +1346,26 @@ export default function CampusActivationPage() {
                 </div>
 
                 <form onSubmit={handleSubmitConfig} className="p-6 space-y-8">
-                  {/* Error message */}
+                  {/* Error modal */}
                   {configError && (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
-                      <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-                      <p className="text-sm text-red-700">{configError}</p>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setConfigError(null)}>
+                      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+                        <div className="flex flex-col items-center text-center gap-4">
+                          <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
+                            <AlertCircle className="w-7 h-7 text-red-600" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-1">Error de Configuración</h3>
+                            <p className="text-sm text-gray-600">{configError}</p>
+                          </div>
+                          <button
+                            onClick={() => setConfigError(null)}
+                            className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 px-6 rounded-xl transition-colors"
+                          >
+                            Entendido
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -1944,9 +1974,24 @@ function ActivateCampusButton({
   return (
     <div>
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4 flex items-center gap-2">
-          <AlertCircle className="w-5 h-5 text-red-600" />
-          <p className="text-sm text-red-700">{error}</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setError(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center gap-4">
+              <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertCircle className="w-7 h-7 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">Error de Activación</h3>
+                <p className="text-sm text-gray-600">{error}</p>
+              </div>
+              <button
+                onClick={() => setError(null)}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 px-6 rounded-xl transition-colors"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
         </div>
       )}
       
