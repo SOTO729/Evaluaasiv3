@@ -491,27 +491,24 @@ export default function CampusDetailPage() {
                 {campus.address && <p className="fluid-text-xs text-gray-500 truncate fluid-mt-0.5">{campus.address}</p>}
               </div>
             </div>
-            {campus.email && (
-              <div className="flex items-center fluid-gap-4 fluid-p-4 bg-gray-50 rounded-fluid-xl hover:bg-blue-50 transition-colors group">
-                <Mail className="fluid-icon-base text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
-                <a href={`mailto:${campus.email}`} className="fluid-text-sm text-blue-600 hover:underline truncate">{campus.email}</a>
-              </div>
-            )}
-            {campus.phone && (
-              <div className="flex items-center fluid-gap-4 fluid-p-4 bg-gray-50 rounded-fluid-xl hover:bg-green-50 transition-colors group">
-                <Phone className="fluid-icon-base text-gray-400 group-hover:text-green-500 transition-colors flex-shrink-0" />
-                <span className="fluid-text-sm font-medium text-gray-900">{campus.phone}</span>
-              </div>
-            )}
             {campus.director_name && (
               <div className="fluid-p-4 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-fluid-xl border border-purple-100">
                 <div className="flex items-center fluid-gap-2 fluid-mb-2">
                   <UserCog className="fluid-icon-base text-purple-500" />
-                  <span className="fluid-text-xs font-bold text-purple-700 uppercase">Director</span>
+                  <span className="fluid-text-xs font-bold text-purple-700 uppercase">Director / Contacto</span>
                 </div>
                 <p className="fluid-text-sm font-semibold text-gray-900">{campus.director_full_name || campus.director_name}</p>
                 {campus.director_email && (
-                  <p className="fluid-text-xs text-gray-500 fluid-mt-2">{campus.director_email}</p>
+                  <div className="flex items-center fluid-gap-2 fluid-mt-2">
+                    <Mail className="fluid-icon-xs text-gray-400" />
+                    <a href={`mailto:${campus.director_email}`} className="fluid-text-xs text-blue-600 hover:underline">{campus.director_email}</a>
+                  </div>
+                )}
+                {campus.director_phone && (
+                  <div className="flex items-center fluid-gap-2 fluid-mt-1.5">
+                    <Phone className="fluid-icon-xs text-gray-400" />
+                    <span className="fluid-text-xs text-gray-500">{campus.director_phone}</span>
+                  </div>
                 )}
                 {campus.director_curp && (
                   <p className="fluid-text-xs text-gray-400 fluid-mt-1.5 font-mono">{campus.director_curp}</p>

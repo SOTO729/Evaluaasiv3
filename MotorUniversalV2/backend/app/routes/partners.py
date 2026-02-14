@@ -435,12 +435,6 @@ def create_campus(partner_id):
             
         # Código postal es opcional
             
-        if not data.get('email'):
-            return jsonify({'error': 'El correo de contacto es requerido'}), 400
-            
-        if not data.get('phone'):
-            return jsonify({'error': 'El teléfono de contacto es requerido'}), 400
-            
         if not data.get('director_name'):
             return jsonify({'error': 'El nombre del director es requerido'}), 400
         
@@ -518,8 +512,8 @@ def create_campus(partner_id):
             city=data.get('city'),
             address=data.get('address'),
             postal_code=data.get('postal_code'),
-            email=data.get('email'),
-            phone=data.get('phone'),
+            email=data.get('director_email'),
+            phone=data.get('director_phone'),
             website=data.get('website'),
             # Director del plantel (datos completos)
             director_name=data.get('director_name'),
@@ -664,12 +658,18 @@ def update_campus(campus_id):
         
         # Actualizar campos (incluyendo los nuevos del director)
         for field in ['name', 'country', 'state_name', 'city', 'address', 'postal_code',
-                      'email', 'phone', 'website', 
+                      'website', 
                       'director_name', 'director_first_surname', 'director_second_surname',
                       'director_email', 'director_phone', 'director_curp', 'director_gender', 
                       'director_date_of_birth', 'is_active']:
             if field in data:
                 setattr(campus, field, data[field])
+        
+        # Auto-sync email/phone from director fields
+        if campus.director_email:
+            campus.email = campus.director_email
+        if campus.director_phone:
+            campus.phone = campus.director_phone
         
         db.session.commit()
         
@@ -6822,7 +6822,7 @@ def update_mi_plantel_campus():
         data = request.get_json()
         editable_fields = [
             'address', 'city', 'state_name', 'postal_code', 'country',
-            'email', 'phone', 'website',
+            'website',
             'director_name', 'director_first_surname', 'director_second_surname',
             'director_email', 'director_phone', 'director_curp', 'director_gender',
             'director_date_of_birth'
@@ -6831,6 +6831,12 @@ def update_mi_plantel_campus():
         for field in editable_fields:
             if field in data:
                 setattr(campus, field, data[field])
+        
+        # Auto-sync email/phone from director fields
+        if campus.director_email:
+            campus.email = campus.director_email
+        if campus.director_phone:
+            campus.phone = campus.director_phone
         
         campus.updated_at = datetime.utcnow()
         db.session.commit()

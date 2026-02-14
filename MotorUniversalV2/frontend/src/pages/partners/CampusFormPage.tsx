@@ -107,8 +107,6 @@ export default function CampusFormPage() {
     country: 'México',
     state_name: '',
     postal_code: '',
-    email: '',
-    phone: '',
     city: '',
     address: '',
     website: '',
@@ -169,8 +167,6 @@ export default function CampusFormPage() {
           country: campus.country || 'México',
           state_name: campus.state_name || '',
           postal_code: campus.postal_code || '',
-          email: campus.email || '',
-          phone: campus.phone || '',
           city: campus.city || '',
           address: campus.address || '',
           website: campus.website || '',
@@ -343,14 +339,6 @@ export default function CampusFormPage() {
       return;
     }
     // Código postal es opcional
-    if (!formData.phone.trim()) {
-      setError('El teléfono de contacto es requerido');
-      return;
-    }
-    if (!formData.email.trim()) {
-      setError('El correo de contacto es requerido');
-      return;
-    }
     
     // Validaciones del director
     if (!formData.director_name.trim()) {
@@ -703,8 +691,8 @@ export default function CampusFormPage() {
               />
             </div>
 
-            {/* Dirección - Ocupa 3 columnas */}
-            <div className="xl:col-span-3">
+            {/* Dirección - Ocupa 2 columnas */}
+            <div className="xl:col-span-2">
               <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                 <FileText className="fluid-icon-sm text-gray-400" />
                 Dirección Completa
@@ -715,53 +703,6 @@ export default function CampusFormPage() {
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400"
                 placeholder="Calle, número, colonia, etc."
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Sección: Contacto del Plantel */}
-        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-6 hover:shadow-lg transition-all duration-300 group">
-          <div className="flex items-center fluid-gap-3 fluid-mb-6">
-            <div className="fluid-p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-fluid-xl text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
-              <Phone className="fluid-icon-lg" />
-            </div>
-            <div>
-              <h2 className="fluid-text-xl font-bold text-gray-800">Contacto del Plantel</h2>
-              <p className="fluid-text-sm text-gray-500">Información de contacto general</p>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 fluid-gap-5">
-            {/* Correo */}
-            <div>
-              <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
-                <Mail className="fluid-icon-sm text-gray-400" />
-                Correo Electrónico <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400"
-                placeholder="plantel@ejemplo.com"
-                required
-              />
-            </div>
-
-            {/* Teléfono */}
-            <div>
-              <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
-                <Phone className="fluid-icon-sm text-gray-400" />
-                Teléfono <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400"
-                placeholder="(55) 1234-5678"
-                required
               />
             </div>
 
@@ -790,7 +731,7 @@ export default function CampusFormPage() {
             </div>
             <div>
               <h2 className="fluid-text-xl font-bold text-gray-800">Director del Plantel</h2>
-              <p className="fluid-text-sm text-gray-500">Datos completos del responsable académico</p>
+              <p className="fluid-text-sm text-gray-500">Responsable académico y contacto del plantel</p>
             </div>
             <span className="ml-auto fluid-px-3 fluid-py-1 bg-red-100 text-red-600 rounded-full fluid-text-xs font-medium">
               * Todos los campos son obligatorios
