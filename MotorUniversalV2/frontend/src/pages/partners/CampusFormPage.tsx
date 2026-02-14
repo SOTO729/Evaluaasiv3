@@ -135,8 +135,7 @@ export default function CampusFormPage() {
     enable_unscheduled_partials: false,
     enable_virtual_machines: false,
     enable_online_payments: false,
-    license_start_date: '' as string,
-    license_end_date: '' as string,
+    assignment_validity_months: 6,
     certification_cost: 0,
     retake_cost: 0,
   });
@@ -198,8 +197,7 @@ export default function CampusFormPage() {
           enable_unscheduled_partials: campus.enable_unscheduled_partials ?? false,
           enable_virtual_machines: campus.enable_virtual_machines ?? false,
           enable_online_payments: campus.enable_online_payments ?? false,
-          license_start_date: campus.license_start_date || '',
-          license_end_date: campus.license_end_date || '',
+          assignment_validity_months: campus.assignment_validity_months || 6,
           certification_cost: campus.certification_cost || 0,
           retake_cost: campus.retake_cost || 0,
         });
@@ -436,8 +434,7 @@ export default function CampusFormPage() {
         enable_unscheduled_partials: configData.enable_unscheduled_partials,
         enable_virtual_machines: configData.enable_virtual_machines,
         enable_online_payments: configData.enable_online_payments,
-        license_start_date: configData.license_start_date || null,
-        license_end_date: configData.license_end_date || null,
+        assignment_validity_months: configData.assignment_validity_months || 6,
         certification_cost: configData.certification_cost,
         retake_cost: configData.retake_cost,
         competency_standard_ids: selectedEcmIds,
@@ -1100,50 +1097,39 @@ export default function CampusFormPage() {
                     </div>
                   </div>
 
-                  {/* Vigencia de Licencia */}
+                  {/* Vigencia de Asignaciones */}
                   <div className="bg-white fluid-p-5 rounded-fluid-xl border border-gray-200 hover:shadow-lg transition-all duration-300 hover:border-purple-300">
                     <div className="flex items-center fluid-gap-3 fluid-mb-4">
                       <div className="fluid-p-2.5 rounded-fluid-lg bg-purple-100 text-purple-600">
                         <Calendar className="fluid-icon-base" />
                       </div>
-                      <span className="font-semibold text-gray-800 fluid-text-sm">Vigencia de Licencia</span>
+                      <span className="font-semibold text-gray-800 fluid-text-sm">Vigencia de Asignaciones</span>
                     </div>
-                    <div className="grid grid-cols-2 fluid-gap-4">
-                      <div>
-                        <label className="block fluid-text-xs text-gray-500 fluid-mb-2 flex items-center gap-1">
-                          <Calendar className="w-3 h-3 text-green-500" />
-                          Inicio
-                        </label>
-                        <DatePickerInput
-                          value={configData.license_start_date ? new Date(configData.license_start_date + 'T00:00:00') : null}
-                          onChange={(date) => handleConfigChange('license_start_date', date ? date.toISOString().split('T')[0] : '')}
-                          placeholder="Fecha inicio"
-                          colorScheme="green"
+                    <p className="fluid-text-xs text-gray-500 fluid-mb-3">
+                      Meses que tiene un candidato para aprovechar materiales y exámenes tras una asignación.
+                    </p>
+                    <div>
+                      <label className="block fluid-text-xs text-gray-500 fluid-mb-2 flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-purple-500" />
+                        Meses de vigencia
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="1"
+                          max="120"
+                          value={configData.assignment_validity_months || ''}
+                          onChange={(e) => handleConfigChange('assignment_validity_months', parseInt(e.target.value) || 0)}
+                          placeholder="6"
+                          className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                         />
-                        {configData.license_start_date && (
-                          <p className="fluid-text-xs text-green-600 fluid-mt-1 font-medium">
-                            {new Date(configData.license_start_date + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          </p>
-                        )}
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 fluid-text-xs">meses</span>
                       </div>
-                      <div>
-                        <label className="block fluid-text-xs text-gray-500 fluid-mb-2 flex items-center gap-1">
-                          <Calendar className="w-3 h-3 text-indigo-500" />
-                          Fin
-                        </label>
-                        <DatePickerInput
-                          value={configData.license_end_date ? new Date(configData.license_end_date + 'T00:00:00') : null}
-                          onChange={(date) => handleConfigChange('license_end_date', date ? date.toISOString().split('T')[0] : '')}
-                          placeholder="Fecha fin"
-                          minDate={configData.license_start_date ? new Date(configData.license_start_date + 'T00:00:00') : null}
-                          colorScheme="indigo"
-                        />
-                        {configData.license_end_date && (
-                          <p className="fluid-text-xs text-indigo-600 fluid-mt-1 font-medium">
-                            {new Date(configData.license_end_date + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          </p>
-                        )}
-                      </div>
+                      {(configData.assignment_validity_months ?? 0) > 0 && (
+                        <p className="fluid-text-xs text-purple-600 fluid-mt-1 font-medium">
+                          {configData.assignment_validity_months} {configData.assignment_validity_months === 1 ? 'mes' : 'meses'}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

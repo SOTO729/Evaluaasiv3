@@ -110,6 +110,7 @@ export interface Campus {
   enable_online_payments?: boolean;
   license_start_date?: string;
   license_end_date?: string;
+  assignment_validity_months?: number;
   certification_cost?: number;
   retake_cost?: number;
   configuration_completed?: boolean;
@@ -155,6 +156,7 @@ export interface CandidateGroup {
     retake_cost: number;
     license_start_date: string | null;
     license_end_date: string | null;
+    assignment_validity_months: number;
   };
 }
 
@@ -596,8 +598,7 @@ export interface CampusConfiguration {
   enable_online_payments: boolean;   // Pagos en línea
   
   // Vigencia
-  license_start_date: string | null;  // Fecha inicio de licencia
-  license_end_date: string | null;    // Fecha fin de licencia
+  assignment_validity_months: number;  // Meses de vigencia tras asignación
   
   // Costos
   certification_cost: number;  // Costo por certificación
@@ -618,8 +619,7 @@ export interface ConfigureCampusRequest {
   enable_unscheduled_partials?: boolean;
   enable_virtual_machines?: boolean;
   enable_online_payments?: boolean;
-  license_start_date?: string | null;
-  license_end_date?: string | null;
+  assignment_validity_months?: number;
   certification_cost?: number;
   retake_cost?: number;
   competency_standard_ids?: number[];  // IDs de ECM asignados al plantel
@@ -753,8 +753,7 @@ export interface GroupConfigOverrides {
   enable_online_payments_override?: boolean | null;
   certification_cost_override?: number | null;
   retake_cost_override?: number | null;
-  group_start_date?: string | null;
-  group_end_date?: string | null;
+  assignment_validity_months_override?: number | null;
 }
 
 export interface GroupConfigWarning {
@@ -785,8 +784,7 @@ export interface GroupConfigResponse {
     enable_online_payments: boolean;
     certification_cost: number;
     retake_cost: number;
-    license_start_date: string | null;
-    license_end_date: string | null;
+    assignment_validity_months: number;
   };
   group_overrides: GroupConfigOverrides;
   effective_config: {
@@ -801,8 +799,7 @@ export interface GroupConfigResponse {
     enable_online_payments: boolean;
     certification_cost: number;
     retake_cost: number;
-    start_date: string | null;
-    end_date: string | null;
+    assignment_validity_months: number;
   };
   warnings?: GroupConfigWarning[];
 }

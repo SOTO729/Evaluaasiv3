@@ -213,8 +213,9 @@ class Campus(db.Model):
     enable_online_payments = db.Column(db.Boolean, default=False)  # Habilitar pagos en línea
     
     # Vigencia del plantel (licencia)
-    license_start_date = db.Column(db.Date)  # Fecha de inicio de vigencia
-    license_end_date = db.Column(db.Date)  # Fecha de fin de vigencia
+    license_start_date = db.Column(db.Date)  # Fecha de inicio de vigencia (legacy)
+    license_end_date = db.Column(db.Date)  # Fecha de fin de vigencia (legacy)
+    assignment_validity_months = db.Column(db.Integer, default=6)  # Meses de vigencia tras asignación
     
     # Costos
     certification_cost = db.Column(db.Numeric(10, 2), default=0)  # Costo por certificación
@@ -280,8 +281,7 @@ class Campus(db.Model):
             'enable_unscheduled_partials': self.enable_unscheduled_partials if self.enable_unscheduled_partials is not None else False,
             'enable_virtual_machines': self.enable_virtual_machines if self.enable_virtual_machines is not None else False,
             'enable_online_payments': self.enable_online_payments if self.enable_online_payments is not None else False,
-            'license_start_date': self.license_start_date.isoformat() if self.license_start_date else None,
-            'license_end_date': self.license_end_date.isoformat() if self.license_end_date else None,
+            'assignment_validity_months': self.assignment_validity_months or 6,
             'certification_cost': float(self.certification_cost) if self.certification_cost else 0,
             'retake_cost': float(self.retake_cost) if self.retake_cost else 0,
         }
@@ -298,8 +298,7 @@ class Campus(db.Model):
                 'enable_unscheduled_partials': self.enable_unscheduled_partials if self.enable_unscheduled_partials is not None else False,
                 'enable_virtual_machines': self.enable_virtual_machines if self.enable_virtual_machines is not None else False,
                 'enable_online_payments': self.enable_online_payments if self.enable_online_payments is not None else False,
-                'license_start_date': self.license_start_date.isoformat() if self.license_start_date else None,
-                'license_end_date': self.license_end_date.isoformat() if self.license_end_date else None,
+                'assignment_validity_months': self.assignment_validity_months or 6,
                 'certification_cost': float(self.certification_cost) if self.certification_cost else 0,
                 'retake_cost': float(self.retake_cost) if self.retake_cost else 0,
             }
@@ -491,8 +490,9 @@ class CandidateGroup(db.Model):
     retake_cost_override = db.Column(db.Numeric(10, 2))
     
     # Vigencia específica del grupo
-    group_start_date = db.Column(db.Date)
-    group_end_date = db.Column(db.Date)
+    group_start_date = db.Column(db.Date)  # legacy
+    group_end_date = db.Column(db.Date)  # legacy
+    assignment_validity_months_override = db.Column(db.Integer)  # Override de meses de vigencia
     
     # ========== FIN CONFIGURACIÓN ==========
     
@@ -533,8 +533,7 @@ class CandidateGroup(db.Model):
                 'enable_online_payments_override': self.enable_online_payments_override,
                 'certification_cost_override': float(self.certification_cost_override) if self.certification_cost_override is not None else None,
                 'retake_cost_override': float(self.retake_cost_override) if self.retake_cost_override is not None else None,
-                'group_start_date': self.group_start_date.isoformat() if self.group_start_date else None,
-                'group_end_date': self.group_end_date.isoformat() if self.group_end_date else None,
+                'assignment_validity_months_override': self.assignment_validity_months_override,
             }
             
             # Incluir también la configuración efectiva (combinando grupo y campus)
@@ -551,8 +550,7 @@ class CandidateGroup(db.Model):
                     'enable_online_payments': self.enable_online_payments_override if self.enable_online_payments_override is not None else self.campus.enable_online_payments,
                     'certification_cost': float(self.certification_cost_override) if self.certification_cost_override is not None else (float(self.campus.certification_cost) if self.campus.certification_cost else 0),
                     'retake_cost': float(self.retake_cost_override) if self.retake_cost_override is not None else (float(self.campus.retake_cost) if self.campus.retake_cost else 0),
-                    'license_start_date': self.group_start_date.isoformat() if self.group_start_date else (self.campus.license_start_date.isoformat() if self.campus.license_start_date else None),
-                    'license_end_date': self.group_end_date.isoformat() if self.group_end_date else (self.campus.license_end_date.isoformat() if self.campus.license_end_date else None),
+                    'assignment_validity_months': self.assignment_validity_months_override if self.assignment_validity_months_override is not None else (self.campus.assignment_validity_months or 6),
                 }
         
         if include_members:

@@ -127,8 +127,7 @@ export default function CampusActivationPage() {
     enable_unscheduled_partials: false,
     enable_virtual_machines: false,
     enable_online_payments: false,
-    license_start_date: new Date().toISOString().split('T')[0],
-    license_end_date: null,
+    assignment_validity_months: 6,
     certification_cost: 0,
     retake_cost: 0,
     competency_standard_ids: [],
@@ -435,19 +434,13 @@ export default function CampusActivationPage() {
       return 'Debe seleccionar al menos un Estándar de Competencia (ECM)';
     }
     
-    // Fecha de inicio es requerida
-    if (!configData.license_start_date) {
-      return 'La fecha de inicio de vigencia es requerida';
+    // Vigencia de asignaciones
+    const validityMonths = configData.assignment_validity_months || 0;
+    if (!validityMonths || validityMonths <= 0) {
+      return 'Debe establecer los meses de vigencia de las asignaciones';
     }
-    
-    // Fecha de fin es requerida
-    if (!configData.license_end_date) {
-      return 'La fecha de fin de vigencia es requerida';
-    }
-    
-    // Fecha fin debe ser mayor a fecha inicio
-    if (new Date(configData.license_end_date) <= new Date(configData.license_start_date)) {
-      return 'La fecha de fin debe ser posterior a la fecha de inicio';
+    if (validityMonths > 120) {
+      return 'La vigencia no puede ser mayor a 120 meses (10 años)';
     }
     
     // Costos deben ser mayores a 0
@@ -520,7 +513,7 @@ export default function CampusActivationPage() {
       {
         id: 2,
         title: 'Configurar Plantel',
-        description: 'Define versión de Office, certificaciones, vigencia y costos',
+        description: 'Define versión de Office, certificaciones, vigencia de asignaciones y costos',
         icon: <Settings className="w-6 h-6" />,
         status: hasResponsable ? (hasConfiguration ? 'completed' : 'current') : 'pending'
       },
@@ -1651,50 +1644,37 @@ export default function CampusActivationPage() {
                     </div>
                   </div>
 
-                  {/* Vigencia del Plantel */}
+                  {/* Vigencia de Asignaciones */}
                   <div>
                     <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
-                      Vigencia del Plantel
+                      Vigencia de Asignaciones
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-green-500" />
-                          Fecha de Inicio <span className="text-red-500">*</span>
-                        </label>
-                        <DatePickerInput
-                          value={configData.license_start_date ? new Date(configData.license_start_date + 'T00:00:00') : null}
-                          onChange={(date) => setConfigData(prev => ({ ...prev, license_start_date: date ? date.toISOString().split('T')[0] : '' }))}
-                          placeholder="Seleccionar fecha de inicio"
-                          colorScheme="green"
+                    <p className="text-xs text-gray-500 mb-3">
+                      Define cuántos meses tiene un candidato para aprovechar sus materiales y exámenes después de que se le crea una asignación.
+                    </p>
+                    <div className="max-w-xs">
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-purple-500" />
+                        Meses de vigencia <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="1"
+                          max="120"
+                          value={configData.assignment_validity_months || ''}
+                          onChange={(e) => setConfigData(prev => ({ ...prev, assignment_validity_months: parseInt(e.target.value) || 0 }))}
+                          placeholder="6"
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                         />
-                        {configData.license_start_date && (
-                          <p className="text-xs text-green-600 mt-1 font-medium">
-                            {new Date(configData.license_start_date + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                          </p>
-                        )}
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">meses</span>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-indigo-500" />
-                          Fecha de Fin <span className="text-red-500">*</span>
-                        </label>
-                        <DatePickerInput
-                          value={configData.license_end_date ? new Date(configData.license_end_date + 'T00:00:00') : null}
-                          onChange={(date) => setConfigData(prev => ({ ...prev, license_end_date: date ? date.toISOString().split('T')[0] : '' }))}
-                          placeholder="Seleccionar fecha de fin"
-                          minDate={configData.license_start_date ? new Date(configData.license_start_date + 'T00:00:00') : null}
-                          colorScheme="indigo"
-                        />
-                        {configData.license_end_date ? (
-                          <p className="text-xs text-indigo-600 mt-1 font-medium">
-                            {new Date(configData.license_end_date + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                          </p>
-                        ) : (
-                          <p className="text-xs text-gray-500 mt-1">Selecciona la fecha de fin de vigencia</p>
-                        )}
-                      </div>
+                      {(configData.assignment_validity_months ?? 0) > 0 && (
+                        <p className="text-xs text-purple-600 mt-1 font-medium">
+                          {configData.assignment_validity_months} {configData.assignment_validity_months === 1 ? 'mes' : 'meses'} de vigencia tras cada asignación
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -1844,10 +1824,9 @@ export default function CampusActivationPage() {
                   </div>
                   
                   <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-gray-500 text-xs mb-1">Vigencia</p>
+                    <p className="text-gray-500 text-xs mb-1">Vigencia de Asignaciones</p>
                     <p className="font-medium">
-                      {campus.license_start_date ? new Date(campus.license_start_date).toLocaleDateString('es-MX') : '-'}
-                      {campus.license_end_date ? ` - ${new Date(campus.license_end_date).toLocaleDateString('es-MX')}` : ' - Indefinida'}
+                      {campus.assignment_validity_months || 6} {(campus.assignment_validity_months || 6) === 1 ? 'mes' : 'meses'}
                     </p>
                   </div>
 

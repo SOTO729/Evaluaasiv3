@@ -587,6 +587,7 @@ def check_and_add_campus_activation_columns():
                 # Vigencia
                 'license_start_date': 'DATE',
                 'license_end_date': 'DATE',
+                'assignment_validity_months': 'INT DEFAULT 6',
                 # Costos
                 'certification_cost': 'DECIMAL(10,2) DEFAULT 0',
                 'retake_cost': 'DECIMAL(10,2) DEFAULT 0',

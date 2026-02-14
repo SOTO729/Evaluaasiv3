@@ -636,14 +636,14 @@ export default function CampusDetailPage() {
                 <p className="fluid-text-sm text-blue-600 font-semibold fluid-mt-2">Retoma</p>
               </div>
             </div>
-            {(campus.license_start_date || campus.license_end_date) ? (
+            {campus.assignment_validity_months ? (
               <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-fluid-xl fluid-p-5 border border-purple-100">
                 <div className="flex items-center fluid-gap-3 fluid-mb-4">
                   <CalendarRange className="fluid-icon-base text-purple-600" />
-                  <span className="fluid-text-sm font-bold text-purple-700">Vigencia</span>
+                  <span className="fluid-text-sm font-bold text-purple-700">Vigencia de Asignaciones</span>
                 </div>
                 <p className="fluid-text-sm text-purple-900 font-medium">
-                  {campus.license_start_date ? new Date(campus.license_start_date).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'} - {campus.license_end_date ? new Date(campus.license_end_date).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                  {campus.assignment_validity_months} {campus.assignment_validity_months === 1 ? 'mes' : 'meses'} tras cada asignación
                 </p>
               </div>
             ) : (

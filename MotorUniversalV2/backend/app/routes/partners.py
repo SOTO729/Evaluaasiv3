@@ -1633,18 +1633,10 @@ def configure_campus(campus_id):
         if 'enable_online_payments' in data:
             campus.enable_online_payments = bool(data['enable_online_payments'])
         
-        # Vigencia del plantel
-        if 'license_start_date' in data:
-            if data['license_start_date']:
-                campus.license_start_date = datetime.strptime(data['license_start_date'], '%Y-%m-%d').date()
-            else:
-                campus.license_start_date = None
-                
-        if 'license_end_date' in data:
-            if data['license_end_date']:
-                campus.license_end_date = datetime.strptime(data['license_end_date'], '%Y-%m-%d').date()
-            else:
-                campus.license_end_date = None
+        # Vigencia de asignaciones (meses)
+        if 'assignment_validity_months' in data:
+            val = data['assignment_validity_months']
+            campus.assignment_validity_months = int(val) if val else 6
         
         # Costos
         if 'certification_cost' in data:
@@ -1683,14 +1675,8 @@ def configure_campus(campus_id):
             from app.models.partner import CampusCompetencyStandard
             
             # Validar que se hayan configurado los campos requeridos
-            if not campus.license_start_date:
-                return jsonify({'error': 'Debe establecer la fecha de inicio de vigencia del plantel'}), 400
-            
-            if not campus.license_end_date:
-                return jsonify({'error': 'Debe establecer la fecha de fin de vigencia del plantel'}), 400
-            
-            if campus.license_end_date <= campus.license_start_date:
-                return jsonify({'error': 'La fecha de fin debe ser posterior a la fecha de inicio'}), 400
+            if not campus.assignment_validity_months or campus.assignment_validity_months <= 0:
+                return jsonify({'error': 'Debe establecer los meses de vigencia de las asignaciones'}), 400
             
             # Validar costos > 0
             if not campus.certification_cost or campus.certification_cost <= 0:
@@ -1746,8 +1732,7 @@ def get_campus_config(campus_id):
                 'enable_unscheduled_partials': campus.enable_unscheduled_partials or False,
                 'enable_virtual_machines': campus.enable_virtual_machines or False,
                 'enable_online_payments': campus.enable_online_payments or False,
-                'license_start_date': campus.license_start_date.isoformat() if campus.license_start_date else None,
-                'license_end_date': campus.license_end_date.isoformat() if campus.license_end_date else None,
+                'assignment_validity_months': campus.assignment_validity_months or 6,
                 'certification_cost': float(campus.certification_cost) if campus.certification_cost else 0,
                 'retake_cost': float(campus.retake_cost) if campus.retake_cost else 0,
                 'configuration_completed': campus.configuration_completed or False,
@@ -2464,8 +2449,7 @@ def get_group_config(group_id):
             'enable_online_payments': campus.enable_online_payments,
             'certification_cost': float(campus.certification_cost) if campus.certification_cost else 0,
             'retake_cost': float(campus.retake_cost) if campus.retake_cost else 0,
-            'license_start_date': campus.license_start_date.isoformat() if campus.license_start_date else None,
-            'license_end_date': campus.license_end_date.isoformat() if campus.license_end_date else None,
+            'assignment_validity_months': campus.assignment_validity_months or 6,
         }
         
         # Overrides del grupo
@@ -2481,8 +2465,7 @@ def get_group_config(group_id):
             'enable_online_payments_override': group.enable_online_payments_override,
             'certification_cost_override': float(group.certification_cost_override) if group.certification_cost_override is not None else None,
             'retake_cost_override': float(group.retake_cost_override) if group.retake_cost_override is not None else None,
-            'group_start_date': group.group_start_date.isoformat() if group.group_start_date else None,
-            'group_end_date': group.group_end_date.isoformat() if group.group_end_date else None,
+            'assignment_validity_months_override': group.assignment_validity_months_override,
         }
         
         # Configuración efectiva (combinando campus y grupo)
@@ -2498,8 +2481,7 @@ def get_group_config(group_id):
             'enable_online_payments': group.enable_online_payments_override if group.enable_online_payments_override is not None else campus.enable_online_payments,
             'certification_cost': float(group.certification_cost_override) if group.certification_cost_override is not None else (float(campus.certification_cost) if campus.certification_cost else 0),
             'retake_cost': float(group.retake_cost_override) if group.retake_cost_override is not None else (float(campus.retake_cost) if campus.retake_cost else 0),
-            'start_date': group.group_start_date.isoformat() if group.group_start_date else (campus.license_start_date.isoformat() if campus.license_start_date else None),
-            'end_date': group.group_end_date.isoformat() if group.group_end_date else (campus.license_end_date.isoformat() if campus.license_end_date else None),
+            'assignment_validity_months': group.assignment_validity_months_override if group.assignment_validity_months_override is not None else (campus.assignment_validity_months or 6),
         }
         
         # Obtener conteo de candidatos sin CURP/email para advertencias
@@ -2592,11 +2574,10 @@ def update_group_config(group_id):
         if 'retake_cost_override' in data:
             group.retake_cost_override = data['retake_cost_override']
         
-        # Fechas del grupo
-        if 'group_start_date' in data:
-            group.group_start_date = data['group_start_date'] if data['group_start_date'] else None
-        if 'group_end_date' in data:
-            group.group_end_date = data['group_end_date'] if data['group_end_date'] else None
+        # Vigencia de asignaciones
+        if 'assignment_validity_months_override' in data:
+            val = data['assignment_validity_months_override']
+            group.assignment_validity_months_override = int(val) if val else None
         
         # Flag de configuración personalizada
         if 'use_custom_config' in data:
@@ -2637,6 +2618,7 @@ def reset_group_config(group_id):
         group.retake_cost_override = None
         group.group_start_date = None
         group.group_end_date = None
+        group.assignment_validity_months_override = None
         
         db.session.commit()
         

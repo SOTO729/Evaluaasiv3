@@ -26,7 +26,6 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
-import DatePickerInput from '../../components/DatePickerInput';
 import StyledSelect from '../../components/StyledSelect';
 import {
   getCampus,
@@ -86,8 +85,7 @@ export default function GroupFormPage() {
     enable_online_payments_override: null as boolean | null,
     certification_cost_override: null as number | null,
     retake_cost_override: null as number | null,
-    group_start_date: null as string | null,
-    group_end_date: null as string | null,
+    assignment_validity_months_override: null as number | null,
   });
 
   useEffect(() => {
@@ -179,8 +177,7 @@ export default function GroupFormPage() {
         enable_online_payments_override: config.group_overrides.enable_online_payments_override ?? null,
         certification_cost_override: config.group_overrides.certification_cost_override ?? null,
         retake_cost_override: config.group_overrides.retake_cost_override ?? null,
-        group_start_date: config.group_overrides.group_start_date || null,
-        group_end_date: config.group_overrides.group_end_date || null,
+        assignment_validity_months_override: config.group_overrides.assignment_validity_months_override ?? null,
       });
     } catch (err: any) {
       console.error('Error loading group config:', err);
@@ -660,36 +657,31 @@ export default function GroupFormPage() {
                         </div>
                       </div>
 
-                      {/* Vigencia */}
+                      {/* Vigencia de Asignaciones */}
                       <div className="fluid-p-4 rounded-fluid-xl bg-gray-50">
                         <div className="flex items-center fluid-gap-3 fluid-mb-3">
                           <div className="fluid-p-2 rounded-fluid-lg bg-purple-100 text-purple-600">
                             <Calendar className="fluid-icon-base" />
                           </div>
-                          <span className="font-medium text-gray-800 fluid-text-sm">Vigencia</span>
+                          <span className="font-medium text-gray-800 fluid-text-sm">Vigencia de Asignaciones</span>
                         </div>
-                        <div className="grid grid-cols-2 fluid-gap-2">
-                          <div>
-                            <label className="block fluid-text-xs text-gray-500 fluid-mb-1">Inicio</label>
-                            <DatePickerInput
-                              value={configOverrides.group_start_date ? new Date(configOverrides.group_start_date + 'T00:00:00') : 
-                                     groupConfig.campus_config.license_start_date ? new Date(groupConfig.campus_config.license_start_date + 'T00:00:00') : null}
-                              onChange={(date) => handleConfigChange('group_start_date', date ? date.toISOString().split('T')[0] : null)}
-                              placeholder="Fecha inicio"
-                              colorScheme="green"
-                            />
-                          </div>
-                          <div>
-                            <label className="block fluid-text-xs text-gray-500 fluid-mb-1">Fin</label>
-                            <DatePickerInput
-                              value={configOverrides.group_end_date ? new Date(configOverrides.group_end_date + 'T00:00:00') : 
-                                     groupConfig.campus_config.license_end_date ? new Date(groupConfig.campus_config.license_end_date + 'T00:00:00') : null}
-                              onChange={(date) => handleConfigChange('group_end_date', date ? date.toISOString().split('T')[0] : null)}
-                              placeholder="Fecha fin"
-                              minDate={configOverrides.group_start_date ? new Date(configOverrides.group_start_date + 'T00:00:00') : null}
-                              colorScheme="indigo"
-                            />
-                          </div>
+                        <p className="fluid-text-xs text-gray-500 fluid-mb-2">
+                          Meses que tiene un candidato para aprovechar materiales y exámenes tras una asignación.
+                          {groupConfig?.campus_config?.assignment_validity_months && (
+                            <span className="text-purple-600 font-medium"> (Campus: {groupConfig.campus_config.assignment_validity_months} meses)</span>
+                          )}
+                        </p>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="1"
+                            max="120"
+                            value={configOverrides.assignment_validity_months_override ?? groupConfig?.campus_config?.assignment_validity_months ?? ''}
+                            onChange={(e) => handleConfigChange('assignment_validity_months_override', e.target.value ? parseInt(e.target.value) : null)}
+                            placeholder={String(groupConfig?.campus_config?.assignment_validity_months || 6)}
+                            className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 fluid-text-xs">meses</span>
                         </div>
                       </div>
                     </div>

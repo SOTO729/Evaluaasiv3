@@ -1303,6 +1303,7 @@ def run_group_config_migration():
             ("retake_cost_override", "DECIMAL(10,2) NULL"),
             ("group_start_date", "DATE NULL"),
             ("group_end_date", "DATE NULL"),
+            ("assignment_validity_months_override", "INT NULL"),
         ]
         
         for column_name, column_type in columns:

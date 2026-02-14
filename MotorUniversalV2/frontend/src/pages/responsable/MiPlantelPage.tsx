@@ -336,10 +336,10 @@ const MiPlantelPage = () => {
               </div>
             ))}
           </div>
-          {campus.license_start_date && campus.license_end_date && (
+          {campus.assignment_validity_months && (
             <div className="mt-4 pt-3 border-t flex items-center gap-2 text-sm text-gray-500">
               <Calendar className="w-4 h-4" />
-              Vigencia: {new Date(campus.license_start_date).toLocaleDateString('es-MX')} — {new Date(campus.license_end_date).toLocaleDateString('es-MX')}
+              Vigencia: {campus.assignment_validity_months} {campus.assignment_validity_months === 1 ? 'mes' : 'meses'} tras cada asignación
             </div>
           )}
         </div>
