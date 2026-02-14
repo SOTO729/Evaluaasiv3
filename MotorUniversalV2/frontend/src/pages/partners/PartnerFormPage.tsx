@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   Building2,
-  Save,
   ArrowLeft,
   AlertCircle,
   X,
@@ -172,7 +171,6 @@ export default function PartnerFormPage() {
               </>
             ) : (
               <>
-                <Save className="fluid-icon-base" />
                 {isEditing ? 'Guardar Cambios' : 'Crear Partner'}
               </>
             )}
@@ -405,7 +403,6 @@ export default function PartnerFormPage() {
                   </>
                 ) : (
                   <>
-                    <Save className="fluid-icon-base" />
                     {isEditing ? 'Guardar Cambios' : 'Crear Partner'}
                   </>
                 )}
