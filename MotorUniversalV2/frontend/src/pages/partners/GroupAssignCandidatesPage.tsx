@@ -105,7 +105,6 @@ export default function GroupAssignCandidatesPage() {
   
   // Estado de selección
   const [selectedCandidates, setSelectedCandidates] = useState<Set<string>>(new Set());
-  const [selectAllOnPage, setSelectAllOnPage] = useState(false);
   
   // Estado de acciones
   const [addingMembers, setAddingMembers] = useState(false);
@@ -127,11 +126,18 @@ export default function GroupAssignCandidatesPage() {
   
   // Modo liviano para page sizes grandes (>100)
   const isLightweight = pageSize > 100;
+
+  // Computed: todos los candidatos de la página actual están seleccionados
+  const allOnPageSelected = searchResults.length > 0 && searchResults.every(c => selectedCandidates.has(c.id));
   
   // Estado para panel de seleccionados
   const [showSelectedPanel, setShowSelectedPanel] = useState(false);
   const [selectedPanelSearch, setSelectedPanelSearch] = useState('');
   const [selectedCandidatesData, setSelectedCandidatesData] = useState<Map<string, CandidateSearchResult>>(new Map());
+
+  // Estado para modal de confirmación
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalSearch, setConfirmModalSearch] = useState('');
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -188,7 +194,6 @@ export default function GroupAssignCandidatesPage() {
       setTotalPages(results.pages);
       setTotalResults(results.total);
       setCurrentPage(page);
-      setSelectAllOnPage(false);
     } catch (err: any) {
       console.error('Error searching candidates:', err);
       setError('Error al buscar candidatos');
@@ -234,7 +239,7 @@ export default function GroupAssignCandidatesPage() {
     
     const newDataMap = new Map(selectedCandidatesData);
     
-    if (selectAllOnPage) {
+    if (allOnPageSelected) {
       const newSelected = new Set(selectedCandidates);
       searchResults.forEach(c => {
         newSelected.delete(c.id);
@@ -242,7 +247,6 @@ export default function GroupAssignCandidatesPage() {
       });
       setSelectedCandidates(newSelected);
       setSelectedCandidatesData(newDataMap);
-      setSelectAllOnPage(false);
     } else {
       const newSelected = new Set(selectedCandidates);
       for (const candidate of searchResults) {
@@ -251,16 +255,15 @@ export default function GroupAssignCandidatesPage() {
       }
       setSelectedCandidates(newSelected);
       setSelectedCandidatesData(newDataMap);
-      setSelectAllOnPage(true);
     }
   };
 
   const handleClearSelection = () => {
     setSelectedCandidates(new Set());
     setSelectedCandidatesData(new Map());
-    setSelectAllOnPage(false);
     setSelectAllMatching(false);
     setShowSelectedPanel(false);
+    setShowConfirmModal(false);
   };
   
   // Seleccionar TODOS los candidatos que coinciden con los criterios (cross-page)
@@ -268,10 +271,20 @@ export default function GroupAssignCandidatesPage() {
     setSelectAllMatching(true);
     setSelectedCandidates(new Set());
     setSelectedCandidatesData(new Map());
-    setSelectAllOnPage(false);
     setShowSelectedPanel(false);
   };
   
+  // Filtrar candidatos seleccionados para el modal de confirmación
+  const filteredConfirmCandidates = Array.from(selectedCandidatesData.values()).filter(candidate => {
+    if (!confirmModalSearch) return true;
+    const search = confirmModalSearch.toLowerCase();
+    return (
+      candidate.full_name?.toLowerCase().includes(search) ||
+      candidate.email?.toLowerCase().includes(search) ||
+      candidate.curp?.toLowerCase().includes(search)
+    );
+  });
+
   // Filtrar candidatos seleccionados para el panel
   const filteredSelectedCandidates = Array.from(selectedCandidatesData.values()).filter(candidate => {
     if (!selectedPanelSearch) return true;
@@ -299,8 +312,8 @@ export default function GroupAssignCandidatesPage() {
         setCurrentMemberCount(prev => prev + result.added.length);
         setSelectedCandidates(new Set());
         setSelectedCandidatesData(new Map());
-        setSelectAllOnPage(false);
         setShowSelectedPanel(false);
+        setShowConfirmModal(false);
         handleSearch(currentPage, pageSize);
       }
       
@@ -634,10 +647,10 @@ export default function GroupAssignCandidatesPage() {
                   </div>
                 )}
                 
-                {/* Botón asignar seleccionados */}
+                {/* Botón asignar seleccionados — abre modal de confirmación */}
                 {!selectAllMatching && (
                   <button
-                    onClick={handleAddSelectedCandidates}
+                    onClick={() => { setConfirmModalSearch(''); setShowConfirmModal(true); }}
                     disabled={selectedCandidates.size === 0 || addingMembers}
                     className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-lg font-medium transition-colors"
                   >
@@ -646,7 +659,7 @@ export default function GroupAssignCandidatesPage() {
                     ) : (
                       <UserPlus className="fluid-icon-sm" />
                     )}
-                    Agregar
+                    Agregar ({selectedCandidates.size || ''})
                   </button>
                 )}
                 
@@ -851,7 +864,7 @@ export default function GroupAssignCandidatesPage() {
                     </div>
                   )}
                   
-                  {totalResults > searchResults.length && !selectAllMatching && selectAllOnPage && (
+                  {totalResults > searchResults.length && !selectAllMatching && allOnPageSelected && (
                     <div className="bg-blue-50 border-b border-blue-200 px-4 py-2">
                       <p className="text-sm text-blue-700 flex items-center gap-2">
                         Se seleccionaron los {searchResults.length} candidatos de esta página.
@@ -873,7 +886,7 @@ export default function GroupAssignCandidatesPage() {
                           onClick={handleToggleSelectAllOnPage}
                           className="fluid-p-1 hover:bg-gray-200 rounded transition-colors"
                         >
-                          {selectAllOnPage || selectAllMatching ? (
+                          {allOnPageSelected || selectAllMatching ? (
                             <CheckSquare className="fluid-icon text-blue-600" />
                           ) : (
                             <Square className="fluid-icon text-gray-400" />
@@ -1182,6 +1195,122 @@ export default function GroupAssignCandidatesPage() {
           </div>
         )}
       </div>
+
+      {/* ===== MODAL DE CONFIRMACIÓN DE ASIGNACIÓN ===== */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowConfirmModal(false)}>
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-blue-600" />
+                  Confirmar Asignación
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  {selectedCandidates.size} candidato(s) serán asignados al grupo <strong>"{group?.name}"</strong>
+                </p>
+              </div>
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Barra de búsqueda */}
+            <div className="px-6 pt-4 pb-2 flex-shrink-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={confirmModalSearch}
+                  onChange={(e) => setConfirmModalSearch(e.target.value)}
+                  placeholder="Buscar en candidatos seleccionados..."
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              {confirmModalSearch && filteredConfirmCandidates.length !== selectedCandidates.size && (
+                <p className="text-xs text-gray-500 mt-1.5">
+                  Mostrando {filteredConfirmCandidates.length} de {selectedCandidates.size} seleccionados
+                </p>
+              )}
+            </div>
+
+            {/* Lista de candidatos */}
+            <div className="flex-1 overflow-y-auto px-6 py-2 min-h-0">
+              {selectedCandidates.size === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                  <Users className="w-12 h-12 mb-3" />
+                  <p className="text-sm font-medium">No hay candidatos seleccionados</p>
+                </div>
+              ) : filteredConfirmCandidates.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                  <Search className="w-10 h-10 mb-2" />
+                  <p className="text-sm">No se encontraron candidatos con "{confirmModalSearch}"</p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {filteredConfirmCandidates.map((candidate) => (
+                    <div
+                      key={candidate.id}
+                      className="flex items-center justify-between py-2.5 px-3 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                          {candidate.name?.charAt(0).toUpperCase() || '?'}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-gray-900 text-sm truncate">
+                            {candidate.full_name}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {candidate.email}
+                            {candidate.curp && <span className="ml-2 text-gray-400">• {candidate.curp}</span>}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleToggleCandidate(candidate.id, candidate)}
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 ml-2 opacity-0 group-hover:opacity-100"
+                        title="Quitar de selección"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50 rounded-b-2xl flex-shrink-0">
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 font-medium text-sm transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => { setShowConfirmModal(false); handleAddSelectedCandidates(); }}
+                disabled={selectedCandidates.size === 0 || addingMembers}
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl font-medium text-sm transition-colors"
+              >
+                {addingMembers ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <UserPlus className="w-4 h-4" />
+                )}
+                Confirmar Asignación ({selectedCandidates.size})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
