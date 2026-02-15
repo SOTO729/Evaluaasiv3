@@ -195,6 +195,11 @@ export default function GroupFormPage() {
       return;
     }
 
+    if (!formData.school_cycle_id) {
+      setError('Debes seleccionar un ciclo escolar para el grupo');
+      return;
+    }
+
     try {
       setSaving(true);
       setError(null);
@@ -423,7 +428,6 @@ export default function GroupFormPage() {
                 </>
               ) : (
                 <>
-                  <Save className="fluid-icon-base" />
                   {isEditing ? 'Guardar Cambios' : 'Crear Grupo'}
                 </>
               )}
@@ -459,8 +463,8 @@ export default function GroupFormPage() {
       {/* Formulario */}
       <form id="group-form" onSubmit={handleSubmit}>
         {/* Card: Información del Grupo */}
-        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-mb-6 overflow-hidden hover:shadow-lg transition-all duration-300">
-          <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white">
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-mb-6 hover:shadow-lg transition-all duration-300">
+          <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white rounded-t-fluid-2xl">
             <h2 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-3">
               <div className="fluid-p-2 bg-blue-100 rounded-fluid-lg">
                 <Layers className="fluid-icon-base text-blue-600" />
@@ -487,31 +491,37 @@ export default function GroupFormPage() {
               </div>
 
               {/* Ciclo Escolar */}
-              {cycles.length > 0 && (
-                <div>
-                  <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2 flex items-center fluid-gap-2">
-                    <GraduationCap className="fluid-icon-sm text-indigo-500" />
-                    Ciclo Escolar
-                  </label>
+              <div>
+                <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2 flex items-center fluid-gap-2">
+                  <GraduationCap className="fluid-icon-sm text-indigo-500" />
+                  Ciclo Escolar <span className="text-red-500">*</span>
+                </label>
+                {cycles.length > 0 ? (
                   <StyledSelect
                     value={formData.school_cycle_id ? String(formData.school_cycle_id) : ''}
                     onChange={(val) => setFormData({ ...formData, school_cycle_id: val ? parseInt(val) : undefined })}
-                    options={[
-                      { value: '', label: 'Sin ciclo asignado' },
-                      ...cycles.map((cycle) => ({
-                        value: String(cycle.id),
-                        label: `${cycle.name}${cycle.is_current ? ' (Actual)' : ''}`,
-                      }))
-                    ]}
+                    options={cycles.map((cycle) => ({
+                      value: String(cycle.id),
+                      label: cycle.name,
+                    }))}
                     icon={GraduationCap}
                     colorScheme="indigo"
                     placeholder="Seleccionar ciclo"
+                    required
                   />
-                </div>
-              )}
+                ) : (
+                  <div className="bg-amber-50 border-2 border-amber-200 rounded-fluid-xl fluid-px-4 fluid-py-3 flex items-center fluid-gap-3">
+                    <AlertCircle className="fluid-icon-base text-amber-500 flex-shrink-0" />
+                    <div>
+                      <p className="fluid-text-sm font-medium text-amber-800">No hay ciclos escolares</p>
+                      <p className="fluid-text-xs text-amber-600">Debes crear un ciclo escolar en el plantel antes de crear un grupo.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Descripción */}
-              <div className={cycles.length > 0 ? '' : 'md:col-span-2'}>
+              <div>
                 <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2 flex items-center fluid-gap-2">
                   <FileText className="fluid-icon-sm text-gray-500" />
                   Descripción
