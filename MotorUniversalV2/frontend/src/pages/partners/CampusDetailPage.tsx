@@ -3,6 +3,7 @@
  * Con header con gradiente, listas scrolleables y mejor UX
  */
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   MapPin,
@@ -78,6 +79,8 @@ export default function CampusDetailPage() {
   const [cyclesAvailable, setCyclesAvailable] = useState(true);
   const [showCycleSuccessModal, setShowCycleSuccessModal] = useState(false);
   const [createdCycleName, setCreatedCycleName] = useState('');
+  const [cycleFormError, setCycleFormError] = useState<string | null>(null);
+  const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   
   // Estados para modal de confirmación de desactivar/borrar ciclo
@@ -132,13 +135,13 @@ export default function CampusDetailPage() {
     }
   };
   
-  // Actualizar nombre del ciclo cuando cambien las fechas
+  // Actualizar nombre del ciclo cuando cambien las fechas (solo si no fue editado manualmente)
   useEffect(() => {
-    if (newCycleForm.start_date && newCycleForm.end_date) {
+    if (newCycleForm.start_date && newCycleForm.end_date && !nameManuallyEdited) {
       const generatedName = generateCycleName(newCycleForm.start_date, newCycleForm.end_date);
       setNewCycleForm(prev => ({ ...prev, name: generatedName }));
     }
-  }, [newCycleForm.start_date, newCycleForm.end_date]);
+  }, [newCycleForm.start_date, newCycleForm.end_date, nameManuallyEdited]);
   
   // Estado para eliminación permanente (solo admin)
   const [showPermanentDeleteModal, setShowPermanentDeleteModal] = useState(false);
@@ -211,6 +214,25 @@ export default function CampusDetailPage() {
     }
   };
 
+  // Aplicar un preset de fechas rápido
+  const applyDatePreset = (preset: 'sem1' | 'sem2' | 'annual') => {
+    const now = new Date();
+    const year = now.getFullYear();
+    let start = '', end = '';
+    if (preset === 'sem1') {
+      start = `${year}-01-15`;
+      end = `${year}-06-30`;
+    } else if (preset === 'sem2') {
+      start = `${year}-08-15`;
+      end = `${year + 1}-01-31`;
+    } else {
+      start = `${year}-08-15`;
+      end = `${year + 1}-07-15`;
+    }
+    setNameManuallyEdited(false);
+    setNewCycleForm(prev => ({ ...prev, start_date: start, end_date: end }));
+  };
+
   const handleCreateCycle = async () => {
     if (!newCycleForm.start_date || !newCycleForm.end_date) return;
     
@@ -219,6 +241,7 @@ export default function CampusDetailPage() {
     
     try {
       setIsCreatingCycle(true);
+      setCycleFormError(null);
       const cycleData = { ...newCycleForm, name: cycleName };
       const newCycle = await createSchoolCycle(Number(campusId), cycleData);
       setCycles(prev => [newCycle, ...prev]);
@@ -226,9 +249,10 @@ export default function CampusDetailPage() {
       setCreatedCycleName(cycleName);
       setShowNewCycleModal(false);
       setNewCycleForm({ name: '', cycle_type: 'annual', start_date: '', end_date: '', is_current: true });
+      setNameManuallyEdited(false);
       setShowCycleSuccessModal(true);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al crear el ciclo escolar');
+      setCycleFormError(err.response?.data?.error || 'Error al crear el ciclo escolar');
     } finally {
       setIsCreatingCycle(false);
     }
@@ -900,7 +924,7 @@ export default function CampusDetailPage() {
       </div>
 
       {/* Modal para crear ciclo escolar */}
-      {showNewCycleModal && campus.is_active && (
+      {showNewCycleModal && campus.is_active && createPortal(
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:fluid-p-4 overflow-y-auto" onClick={handleModalBackdropClick}>
           <div ref={modalRef} className="bg-white rounded-3xl shadow-2xl max-w-xl w-full my-auto overflow-visible animate-fade-in-up border border-gray-100">
             <div className="fluid-p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-3xl">
@@ -913,6 +937,47 @@ export default function CampusDetailPage() {
               <p className="fluid-text-sm text-gray-500 fluid-mt-2">Crea un nuevo ciclo escolar para organizar los grupos del plantel</p>
             </div>
             <div className="fluid-p-6 fluid-space-y-5">
+              {/* Error inline dentro del modal */}
+              {cycleFormError && (
+                <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-4 flex items-start fluid-gap-3">
+                  <AlertCircle className="fluid-icon-sm text-red-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="fluid-text-sm font-medium text-red-800">{cycleFormError}</p>
+                  </div>
+                  <button onClick={() => setCycleFormError(null)} className="text-red-400 hover:text-red-600">
+                    <X className="fluid-icon-xs" />
+                  </button>
+                </div>
+              )}
+
+              {/* Presets rápidos */}
+              <div>
+                <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2">Presets rápidos</label>
+                <div className="flex flex-wrap fluid-gap-2">
+                  <button
+                    type="button"
+                    onClick={() => applyDatePreset('sem1')}
+                    className="fluid-px-3 fluid-py-1.5 fluid-text-xs font-semibold rounded-full border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                  >
+                    Semestre Ene-Jun {new Date().getFullYear()}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyDatePreset('sem2')}
+                    className="fluid-px-3 fluid-py-1.5 fluid-text-xs font-semibold rounded-full border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
+                  >
+                    Semestre Ago-Ene {new Date().getFullYear()}-{new Date().getFullYear() + 1}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyDatePreset('annual')}
+                    className="fluid-px-3 fluid-py-1.5 fluid-text-xs font-semibold rounded-full border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors"
+                  >
+                    Anual {new Date().getFullYear()}-{new Date().getFullYear() + 1}
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 fluid-gap-5">
                 <div>
                   <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2 flex items-center fluid-gap-2">
@@ -956,21 +1021,83 @@ export default function CampusDetailPage() {
                   )}
                 </div>
               </div>
+
+              {/* Nombre editable */}
               {newCycleForm.start_date && newCycleForm.end_date && (
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-fluid-xl fluid-p-4 border border-blue-200">
+                <div>
                   <div className="flex items-center justify-between fluid-mb-2">
-                    <label className="fluid-text-sm font-medium text-blue-700">Nombre del ciclo (generado automáticamente)</label>
-                    <span className="fluid-text-xs bg-blue-100 text-blue-700 fluid-px-2 fluid-py-1 rounded-full font-semibold">
-                      {Math.ceil((new Date(newCycleForm.end_date).getTime() - new Date(newCycleForm.start_date).getTime()) / (1000 * 60 * 60 * 24 * 30))} meses
-                    </span>
+                    <label className="fluid-text-sm font-bold text-gray-700 flex items-center fluid-gap-2">
+                      Nombre del ciclo
+                      <span className="fluid-text-xs bg-blue-100 text-blue-700 fluid-px-2 fluid-py-0.5 rounded-full font-semibold">
+                        {Math.ceil((new Date(newCycleForm.end_date).getTime() - new Date(newCycleForm.start_date).getTime()) / (1000 * 60 * 60 * 24 * 30))} meses
+                      </span>
+                    </label>
+                    {nameManuallyEdited && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNameManuallyEdited(false);
+                          const generatedName = generateCycleName(newCycleForm.start_date, newCycleForm.end_date);
+                          setNewCycleForm(prev => ({ ...prev, name: generatedName }));
+                        }}
+                        className="fluid-text-xs text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        Restaurar nombre automático
+                      </button>
+                    )}
                   </div>
-                  <p className="fluid-text-lg font-bold text-blue-900">{newCycleForm.name || 'Selecciona las fechas'}</p>
+                  <input
+                    type="text"
+                    value={newCycleForm.name}
+                    onChange={(e) => {
+                      setNameManuallyEdited(true);
+                      setNewCycleForm(prev => ({ ...prev, name: e.target.value }));
+                    }}
+                    className="w-full fluid-px-4 fluid-py-3 border-2 border-blue-200 rounded-fluid-xl fluid-text-base font-semibold text-blue-900 bg-blue-50/50 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+                    placeholder="Nombre del ciclo escolar"
+                  />
                 </div>
               )}
+
+              {/* Toggle Ciclo Actual */}
+              <div className="bg-gray-50 rounded-fluid-xl fluid-p-4 border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="fluid-text-sm font-bold text-gray-700">Marcar como ciclo actual</label>
+                    <p className="fluid-text-xs text-gray-500 fluid-mt-0.5">
+                      {newCycleForm.is_current
+                        ? cycles.some(c => c.is_current) 
+                          ? 'El ciclo actual existente será desmarcado'
+                          : 'Este ciclo será marcado como el vigente'
+                        : 'No se marcará como ciclo vigente'
+                      }
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setNewCycleForm(prev => ({ ...prev, is_current: !prev.is_current }))}
+                    className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${
+                      newCycleForm.is_current ? 'bg-blue-600' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform duration-200 ${
+                      newCycleForm.is_current ? 'translate-x-5' : 'translate-x-0'
+                    }`} />
+                  </button>
+                </div>
+                {newCycleForm.is_current && cycles.some(c => c.is_current) && (
+                  <div className="fluid-mt-3 bg-amber-50 border border-amber-200 rounded-lg fluid-p-3 flex items-start fluid-gap-2">
+                    <AlertTriangle className="fluid-icon-xs text-amber-500 flex-shrink-0 mt-0.5" />
+                    <p className="fluid-text-xs text-amber-700">
+                      El ciclo <strong>"{cycles.find(c => c.is_current)?.name}"</strong> dejará de ser el ciclo actual.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="fluid-p-6 border-t border-gray-200 flex justify-end fluid-gap-4 bg-gray-50 rounded-b-3xl">
               <button
-                onClick={() => setShowNewCycleModal(false)}
+                onClick={() => { setShowNewCycleModal(false); setCycleFormError(null); }}
                 className="fluid-px-6 fluid-py-3 text-gray-700 hover:bg-gray-200 rounded-fluid-xl transition-all fluid-text-sm font-bold hover:shadow-md"
               >
                 Cancelar
@@ -993,7 +1120,8 @@ export default function CampusDetailPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal de confirmación de ciclo creado */}
@@ -1011,7 +1139,7 @@ export default function CampusDetailPage() {
               <p className="fluid-text-sm text-gray-500 fluid-mb-6">Ya puedes agregar grupos a este ciclo escolar.</p>
               <div className="flex flex-col fluid-gap-3">
                 <Link
-                  to={`/partners/campuses/${campusId}/groups/new?cycle=${selectedCycleId}`}
+                  to={`/partners/campuses/${campusId}/groups/new?cycleId=${selectedCycleId}`}
                   className="fluid-px-6 fluid-py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-fluid-xl transition-all fluid-text-sm font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center fluid-gap-2"
                 >
                   <Plus className="fluid-icon-sm" />Crear Primer Grupo

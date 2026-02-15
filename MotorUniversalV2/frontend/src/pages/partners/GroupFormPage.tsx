@@ -48,7 +48,7 @@ export default function GroupFormPage() {
   const isEditing = Boolean(groupId);
   
   // Obtener el ciclo desde la URL si viene desde un ciclo específico
-  const defaultCycleId = searchParams.get('cycle');
+  const defaultCycleId = searchParams.get('cycleId') || searchParams.get('cycle');
   
   const [campus, setCampus] = useState<Partial<Campus> | null>(null);
   const [cycles, setCycles] = useState<SchoolCycle[]>([]);
