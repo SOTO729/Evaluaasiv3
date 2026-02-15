@@ -36,11 +36,27 @@ export interface Exam {
   duration_minutes?: number
   passing_score: number
   pause_on_disconnect?: boolean
+  // Configuración de asignación por defecto
+  default_max_attempts?: number
+  default_max_disconnections?: number
+  default_exam_content_type?: string
+  default_exam_questions_count?: number | null
+  default_exam_exercises_count?: number | null
+  default_simulator_questions_count?: number | null
+  default_simulator_exercises_count?: number | null
+  linked_material_ids?: number[]
   is_active: boolean
   is_published: boolean
   total_questions: number
   total_exercises: number
   total_categories: number
+  // Conteos por modo (exam/simulator)
+  exam_questions_count?: number
+  simulator_questions_count?: number
+  exam_exercises_count?: number
+  simulator_exercises_count?: number
+  has_exam_content?: boolean
+  has_simulator_content?: boolean
   created_at: string
   updated_at?: string
   categories?: Category[]

@@ -617,7 +617,10 @@ def update_exam(exam_id):
     # Actualizar campos permitidos
     updatable_fields = [
         'name', 'version', 'standard', 'description', 'instructions',
-        'duration_minutes', 'passing_score', 'pause_on_disconnect', 'is_active', 'is_published', 'image_url'
+        'duration_minutes', 'passing_score', 'pause_on_disconnect', 'is_active', 'is_published', 'image_url',
+        'default_max_attempts', 'default_max_disconnections', 'default_exam_content_type',
+        'default_exam_questions_count', 'default_exam_exercises_count',
+        'default_simulator_questions_count', 'default_simulator_exercises_count',
     ]
     
     for field in updatable_fields:

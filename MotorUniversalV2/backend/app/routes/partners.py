@@ -5282,6 +5282,23 @@ def get_available_exams():
             except Exception:
                 pass
             
+            # Obtener IDs de materiales vinculados al examen
+            linked_material_ids = []
+            try:
+                lm_result = db.session.execute(text('''
+                    SELECT DISTINCT sme.study_material_id 
+                    FROM study_material_exams sme
+                    JOIN study_contents sc ON sme.study_material_id = sc.id
+                    WHERE sme.exam_id = :exam_id AND sc.is_published = 1
+                '''), {'exam_id': exam.id})
+                linked_material_ids = [row[0] for row in lm_result.fetchall()]
+                
+                # También incluir materiales con relación legacy
+                legacy_ids = [m.id for m in StudyMaterial.query.filter_by(exam_id=exam.id, is_published=True).all()]
+                linked_material_ids = list(set(linked_material_ids + legacy_ids))
+            except Exception:
+                pass
+            
             # Contar preguntas por tipo (exam vs simulator)
             exam_questions = 0
             simulator_questions = 0
@@ -5357,6 +5374,16 @@ def get_available_exams():
                 'exam_exercises_count': exam_exercises,
                 'simulator_exercises_count': simulator_exercises,
                 'is_assigned_to_group': exam.id in assigned_exam_ids,
+                # Configuración de asignación por defecto del editor
+                'default_max_attempts': exam.default_max_attempts if exam.default_max_attempts is not None else 2,
+                'default_max_disconnections': exam.default_max_disconnections if exam.default_max_disconnections is not None else 3,
+                'default_exam_content_type': exam.default_exam_content_type or 'mixed',
+                'default_exam_questions_count': exam.default_exam_questions_count,
+                'default_exam_exercises_count': exam.default_exam_exercises_count,
+                'default_simulator_questions_count': exam.default_simulator_questions_count,
+                'default_simulator_exercises_count': exam.default_simulator_exercises_count,
+                # IDs de materiales vinculados para aceptación rápida
+                'linked_material_ids': linked_material_ids,
             })
         
         response_data = {

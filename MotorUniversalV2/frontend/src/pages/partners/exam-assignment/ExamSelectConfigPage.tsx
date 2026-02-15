@@ -18,7 +18,7 @@ import {
   getGroup, getAvailableExams,
   CandidateGroup, AvailableExam, ExamContentType,
 } from '../../../services/partnersService';
-import { EXAM_CONTENT_TYPES, type ExamConfig, type SelectExamState } from './types';
+import { EXAM_CONTENT_TYPES, type ExamConfig, type SelectExamState, type SelectMaterialsState } from './types';
 
 const EXAMS_PER_PAGE = 10;
 
@@ -62,7 +62,7 @@ export default function ExamSelectConfigPage() {
   const [useAllSimulatorExercises, setUseAllSimulatorExercises] = useState(true);
 
   // Step within this page
-  const [step, setStep] = useState<'select' | 'configure'>('select');
+  const [step, setStep] = useState<'select' | 'accept-or-customize' | 'configure'>('select');
 
   // Already assigned modal
   const [showAlreadyAssignedModal, setShowAlreadyAssignedModal] = useState(false);
@@ -106,6 +106,58 @@ export default function ExamSelectConfigPage() {
     if (!selectedExam) return;
     if (selectedExam.duration_minutes) setTimeLimitMinutes(selectedExam.duration_minutes);
     if (selectedExam.passing_score) setPassingScore(selectedExam.passing_score);
+    setStep('accept-or-customize');
+  };
+
+  /** Aceptar configuración del editor: usar defaults del examen + materiales ligados → saltar a candidatos (paso 3) */
+  const handleAcceptEditorConfig = () => {
+    if (!selectedExam) return;
+    const config: ExamConfig = {
+      timeLimitMinutes: null, // usar default del examen
+      useExamDefaultTime: true,
+      passingScore: selectedExam.passing_score,
+      useExamDefaultScore: true,
+      maxAttempts: selectedExam.default_max_attempts ?? 2,
+      maxDisconnections: selectedExam.default_max_disconnections ?? 3,
+      examContentType: (selectedExam.default_exam_content_type || 'mixed') as ExamContentType,
+      examQuestionsCount: selectedExam.default_exam_questions_count ?? null,
+      examExercisesCount: selectedExam.default_exam_exercises_count ?? null,
+      useAllExamQuestions: selectedExam.default_exam_questions_count == null,
+      useAllExamExercises: selectedExam.default_exam_exercises_count == null,
+      simulatorQuestionsCount: selectedExam.default_simulator_questions_count ?? null,
+      simulatorExercisesCount: selectedExam.default_simulator_exercises_count ?? null,
+      useAllSimulatorQuestions: selectedExam.default_simulator_questions_count == null,
+      useAllSimulatorExercises: selectedExam.default_simulator_exercises_count == null,
+    };
+    const materialIds = selectedExam.linked_material_ids || [];
+    const state: SelectMaterialsState = { selectedExam, config, selectedMaterialIds: materialIds };
+    // Saltar directamente al paso 3 (candidatos)
+    navigate(`/partners/groups/${groupId}/assign-exam/members`, { state });
+  };
+
+  /** Ir a la sub-página de configuración manual */
+  const handleCustomize = () => {
+    if (!selectedExam) return;
+    // Pre-cargar defaults del editor en los controles
+    setMaxAttempts(selectedExam.default_max_attempts ?? 2);
+    setMaxDisconnections(selectedExam.default_max_disconnections ?? 3);
+    setExamContentType((selectedExam.default_exam_content_type || 'mixed') as ExamContentType);
+    if (selectedExam.default_exam_questions_count != null) {
+      setUseAllExamQuestions(false);
+      setExamQuestionsCount(selectedExam.default_exam_questions_count);
+    }
+    if (selectedExam.default_exam_exercises_count != null) {
+      setUseAllExamExercises(false);
+      setExamExercisesCount(selectedExam.default_exam_exercises_count);
+    }
+    if (selectedExam.default_simulator_questions_count != null) {
+      setUseAllSimulatorQuestions(false);
+      setSimulatorQuestionsCount(selectedExam.default_simulator_questions_count);
+    }
+    if (selectedExam.default_simulator_exercises_count != null) {
+      setUseAllSimulatorExercises(false);
+      setSimulatorExercisesCount(selectedExam.default_simulator_exercises_count);
+    }
     setStep('configure');
   };
 
@@ -300,8 +352,118 @@ export default function ExamSelectConfigPage() {
           <div className="mt-6 flex justify-end">
             <button onClick={handleContinueToConfig} disabled={!selectedExam}
               className="fluid-px-6 fluid-py-3 bg-blue-600 text-white rounded-fluid-xl font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 shadow-lg transition-all fluid-text-sm">
-              Configurar <ChevronRight className="fluid-icon-base" />
+              Continuar <ChevronRight className="fluid-icon-base" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* === SUB-STEP: ACCEPT OR CUSTOMIZE === */}
+      {step === 'accept-or-customize' && selectedExam && (
+        <div className="space-y-6">
+          {/* Exam banner */}
+          <div className="bg-blue-50 border border-blue-200 rounded-fluid-xl fluid-p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="fluid-text-sm text-blue-600 font-medium">Examen seleccionado</p>
+                <h3 className="font-semibold text-gray-900 mt-1 fluid-text-base">{selectedExam.name}</h3>
+                {(selectedExam.ecm_code || selectedExam.standard) && <p className="fluid-text-sm text-gray-600">ECM: {selectedExam.ecm_code || selectedExam.standard}</p>}
+              </div>
+              <button onClick={() => setStep('select')} className="text-blue-600 hover:text-blue-800 fluid-text-sm font-medium">Cambiar</button>
+            </div>
+          </div>
+
+          {/* Resumen de configuración del editor */}
+          <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-500 fluid-p-5">
+              <div className="flex items-center fluid-gap-3">
+                <div className="fluid-p-2.5 bg-white/20 rounded-fluid-xl">
+                  <CheckCircle2 className="fluid-icon-lg text-white" />
+                </div>
+                <div>
+                  <h2 className="fluid-text-lg font-bold text-white">Configuración del Editor</h2>
+                  <p className="fluid-text-sm text-white/80">Esta configuración fue definida por el editor del examen</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="fluid-p-5 fluid-space-y-5">
+              {/* Config summary cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 fluid-gap-4">
+                <div className="bg-gray-50 rounded-fluid-xl fluid-p-4 text-center border border-gray-100">
+                  <Clock className="fluid-icon-base text-blue-500 mx-auto fluid-mb-2" />
+                  <p className="fluid-text-xl font-bold text-gray-800">{selectedExam.duration_minutes || 0}</p>
+                  <p className="fluid-text-xs text-gray-500">Minutos</p>
+                </div>
+                <div className="bg-gray-50 rounded-fluid-xl fluid-p-4 text-center border border-gray-100">
+                  <Target className="fluid-icon-base text-green-500 mx-auto fluid-mb-2" />
+                  <p className="fluid-text-xl font-bold text-gray-800">{selectedExam.passing_score}%</p>
+                  <p className="fluid-text-xs text-gray-500">Puntaje Mín.</p>
+                </div>
+                <div className="bg-gray-50 rounded-fluid-xl fluid-p-4 text-center border border-gray-100">
+                  <RefreshCw className="fluid-icon-base text-orange-500 mx-auto fluid-mb-2" />
+                  <p className="fluid-text-xl font-bold text-gray-800">{selectedExam.default_max_attempts ?? 2}</p>
+                  <p className="fluid-text-xs text-gray-500">Reintentos</p>
+                </div>
+                <div className="bg-gray-50 rounded-fluid-xl fluid-p-4 text-center border border-gray-100">
+                  <EyeOff className="fluid-icon-base text-red-500 mx-auto fluid-mb-2" />
+                  <p className="fluid-text-xl font-bold text-gray-800">{selectedExam.default_max_disconnections ?? 3}</p>
+                  <p className="fluid-text-xs text-gray-500">Desconexiones</p>
+                </div>
+              </div>
+
+              {/* Tipo de contenido + cantidades */}
+              <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
+                <div className="bg-blue-50 rounded-fluid-xl fluid-p-4 border border-blue-100">
+                  <p className="fluid-text-xs font-semibold text-blue-700 uppercase tracking-wide fluid-mb-2">Tipo de Contenido</p>
+                  <p className="fluid-text-base font-bold text-blue-900">
+                    {(selectedExam.default_exam_content_type || 'mixed') === 'mixed' ? 'Preguntas y Ejercicios' : 
+                     (selectedExam.default_exam_content_type || 'mixed') === 'questions_only' ? 'Solo Preguntas' : 'Solo Ejercicios'}
+                  </p>
+                </div>
+                <div className="bg-purple-50 rounded-fluid-xl fluid-p-4 border border-purple-100">
+                  <p className="fluid-text-xs font-semibold text-purple-700 uppercase tracking-wide fluid-mb-2">Materiales Ligados</p>
+                  <p className="fluid-text-base font-bold text-purple-900">{selectedExam.linked_material_ids?.length || 0} materiales</p>
+                  <p className="fluid-text-xs text-purple-600 fluid-mt-1">Se asignarán automáticamente</p>
+                </div>
+              </div>
+
+              {/* Cantidades de contenido */}
+              <div className="grid grid-cols-2 md:grid-cols-4 fluid-gap-3">
+                <div className="fluid-p-3 bg-gray-50 rounded-fluid-lg border border-gray-100 text-center">
+                  <p className="fluid-text-lg font-bold text-gray-700">{selectedExam.default_exam_questions_count ?? `${selectedExam.exam_questions_count || 0}`}</p>
+                  <p className="fluid-text-xs text-gray-500">{selectedExam.default_exam_questions_count == null ? 'Todas las' : ''} Preg. Examen</p>
+                </div>
+                <div className="fluid-p-3 bg-gray-50 rounded-fluid-lg border border-gray-100 text-center">
+                  <p className="fluid-text-lg font-bold text-gray-700">{selectedExam.default_exam_exercises_count ?? `${selectedExam.exam_exercises_count || 0}`}</p>
+                  <p className="fluid-text-xs text-gray-500">{selectedExam.default_exam_exercises_count == null ? 'Todos los' : ''} Ejer. Examen</p>
+                </div>
+                <div className="fluid-p-3 bg-gray-50 rounded-fluid-lg border border-gray-100 text-center">
+                  <p className="fluid-text-lg font-bold text-gray-700">{selectedExam.default_simulator_questions_count ?? `${selectedExam.simulator_questions_count || 0}`}</p>
+                  <p className="fluid-text-xs text-gray-500">{selectedExam.default_simulator_questions_count == null ? 'Todas las' : ''} Preg. Simulador</p>
+                </div>
+                <div className="fluid-p-3 bg-gray-50 rounded-fluid-lg border border-gray-100 text-center">
+                  <p className="fluid-text-lg font-bold text-gray-700">{selectedExam.default_simulator_exercises_count ?? `${selectedExam.simulator_exercises_count || 0}`}</p>
+                  <p className="fluid-text-xs text-gray-500">{selectedExam.default_simulator_exercises_count == null ? 'Todos los' : ''} Ejer. Simulador</p>
+                </div>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex flex-col sm:flex-row fluid-gap-4 pt-4 border-t border-gray-100">
+                <button onClick={handleAcceptEditorConfig}
+                  className="flex-1 fluid-px-6 fluid-py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-fluid-xl font-semibold hover:from-emerald-700 hover:to-teal-700 shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center fluid-gap-3 fluid-text-base">
+                  <CheckCircle2 className="fluid-icon-lg" />
+                  Aceptar Configuración del Editor
+                </button>
+                <button onClick={handleCustomize}
+                  className="flex-1 fluid-px-6 fluid-py-4 bg-white text-gray-700 border-2 border-gray-300 rounded-fluid-xl font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all flex items-center justify-center fluid-gap-3 fluid-text-base">
+                  <svg className="fluid-icon-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Personalizar Configuración
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -317,7 +479,7 @@ export default function ExamSelectConfigPage() {
                 <h3 className="font-semibold text-gray-900 mt-1 fluid-text-base">{selectedExam.name}</h3>
                 {(selectedExam.ecm_code || selectedExam.standard) && <p className="fluid-text-sm text-gray-600">ECM: {selectedExam.ecm_code || selectedExam.standard}</p>}
               </div>
-              <button onClick={() => setStep('select')} className="text-blue-600 hover:text-blue-800 fluid-text-sm font-medium">Cambiar</button>
+              <button onClick={() => setStep('accept-or-customize')} className="text-blue-600 hover:text-blue-800 fluid-text-sm font-medium">← Volver</button>
             </div>
           </div>
 
@@ -493,7 +655,7 @@ export default function ExamSelectConfigPage() {
 
             {/* Navigation */}
             <div className="flex justify-between pt-4 border-t">
-              <button onClick={() => setStep('select')} className="fluid-px-4 fluid-py-2 text-gray-600 hover:text-gray-900 fluid-text-sm font-medium transition-colors">← Volver</button>
+              <button onClick={() => setStep('accept-or-customize')} className="fluid-px-4 fluid-py-2 text-gray-600 hover:text-gray-900 fluid-text-sm font-medium transition-colors">← Volver</button>
               <button onClick={handleGoToMaterials} className="fluid-px-6 fluid-py-3 bg-blue-600 text-white rounded-fluid-xl hover:bg-blue-700 fluid-text-sm font-medium shadow-lg transition-all">
                 Continuar: Materiales →
               </button>

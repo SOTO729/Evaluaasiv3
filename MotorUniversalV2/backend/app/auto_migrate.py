@@ -1103,3 +1103,45 @@ def check_and_add_balance_attachments_column():
     except Exception as e:
         print(f"❌ Error agregando columna attachments: {e}")
         db.session.rollback()
+
+
+def check_and_add_exam_default_config_columns():
+    """Verificar y agregar columnas de configuración de asignación por defecto en exams"""
+    print("🔍 Verificando columnas de config de asignación en exams...")
+    
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        if 'exams' not in tables:
+            print("  ⚠️  Tabla exams no existe, saltando...")
+            return
+        
+        columns = [col['name'] for col in inspector.get_columns('exams')]
+        
+        exam_config_columns = {
+            'default_max_attempts': 'INT DEFAULT 2',
+            'default_max_disconnections': 'INT DEFAULT 3',
+            'default_exam_content_type': "NVARCHAR(20) DEFAULT 'mixed'",
+            'default_exam_questions_count': 'INT NULL',
+            'default_exam_exercises_count': 'INT NULL',
+            'default_simulator_questions_count': 'INT NULL',
+            'default_simulator_exercises_count': 'INT NULL',
+        }
+        
+        for col_name, col_def in exam_config_columns.items():
+            if col_name not in columns:
+                print(f"  📝 Agregando columna '{col_name}' a exams...")
+                db.session.execute(text(f"""
+                    ALTER TABLE exams ADD {col_name} {col_def}
+                """))
+                db.session.commit()
+                print(f"  ✓ Columna '{col_name}' agregada a exams")
+            else:
+                print(f"  ✓ Columna '{col_name}' ya existe en exams")
+        
+        print("✅ Verificación de config de asignación en exams completada")
+        
+    except Exception as e:
+        print(f"❌ Error en auto-migración de exams config: {e}")
+        db.session.rollback()

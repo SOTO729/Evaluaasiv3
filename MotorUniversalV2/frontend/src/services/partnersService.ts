@@ -1343,6 +1343,15 @@ export interface AvailableExam {
   exam_exercises_count: number;  // Ejercicios tipo examen
   simulator_exercises_count: number;  // Ejercicios tipo simulador
   is_assigned_to_group?: boolean;  // Ya está asignado al grupo actual
+  // Configuración de asignación por defecto del editor
+  default_max_attempts?: number;
+  default_max_disconnections?: number;
+  default_exam_content_type?: string;
+  default_exam_questions_count?: number | null;
+  default_exam_exercises_count?: number | null;
+  default_simulator_questions_count?: number | null;
+  default_simulator_exercises_count?: number | null;
+  linked_material_ids?: number[];
 }
 
 /**

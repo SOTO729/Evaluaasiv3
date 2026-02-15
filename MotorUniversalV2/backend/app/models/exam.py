@@ -29,6 +29,15 @@ class Exam(db.Model):
     image_url = db.Column(db.Text)  # URL o base64 de la imagen del examen
     pause_on_disconnect = db.Column(db.Boolean, default=True, nullable=False)  # Pausar tiempo al desconectarse
     
+    # Configuración de asignación por defecto (heredable al asignar a grupos)
+    default_max_attempts = db.Column(db.Integer, default=2)  # Intentos permitidos
+    default_max_disconnections = db.Column(db.Integer, default=3)  # Desconexiones permitidas
+    default_exam_content_type = db.Column(db.String(20), default='mixed')  # mixed|questions_only|exercises_only
+    default_exam_questions_count = db.Column(db.Integer, nullable=True)  # null = usar todas
+    default_exam_exercises_count = db.Column(db.Integer, nullable=True)
+    default_simulator_questions_count = db.Column(db.Integer, nullable=True)
+    default_simulator_exercises_count = db.Column(db.Integer, nullable=True)
+    
     # Relación con Estándar de Competencia (ECM)
     competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id'), nullable=True)
     
@@ -112,6 +121,14 @@ class Exam(db.Model):
             'passing_score': self.passing_score,
             'pause_on_disconnect': self.pause_on_disconnect,
             'image_url': transform_to_cdn_url(self.image_url),
+            # Configuración de asignación por defecto
+            'default_max_attempts': self.default_max_attempts if self.default_max_attempts is not None else 2,
+            'default_max_disconnections': self.default_max_disconnections if self.default_max_disconnections is not None else 3,
+            'default_exam_content_type': self.default_exam_content_type or 'mixed',
+            'default_exam_questions_count': self.default_exam_questions_count,
+            'default_exam_exercises_count': self.default_exam_exercises_count,
+            'default_simulator_questions_count': self.default_simulator_questions_count,
+            'default_simulator_exercises_count': self.default_simulator_exercises_count,
             'is_active': self.is_active,
             'is_published': self.is_published,
             'total_questions': self.get_total_questions(),
@@ -150,6 +167,9 @@ class Exam(db.Model):
         except Exception:
             # La tabla puede no existir aún
             data['linked_study_materials'] = []
+        
+        # IDs de materiales vinculados (para uso rápido en asignación)
+        data['linked_material_ids'] = [m['id'] for m in data.get('linked_study_materials', [])]
         
         if include_details:
             data['instructions'] = self.instructions

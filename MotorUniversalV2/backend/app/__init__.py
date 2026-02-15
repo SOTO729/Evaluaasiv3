@@ -343,6 +343,9 @@ def ensure_label_style_column(app):
     
     # Verificar y crear tabla ecm_candidate_assignments
     _ensure_ecm_candidate_assignments_table()
+    
+    # Agregar columnas de config de asignación por defecto a exams
+    _ensure_exam_default_config_columns()
 
 
 def _ensure_balance_attachments_column():
@@ -354,6 +357,17 @@ def _ensure_balance_attachments_column():
         check_and_add_balance_attachments_column()
     except Exception as e:
         print(f"[AUTO-MIGRATE] Error en migración de attachments: {e}")
+
+
+def _ensure_exam_default_config_columns():
+    """Agregar columnas de configuración de asignación por defecto a exams"""
+    from app.auto_migrate import check_and_add_exam_default_config_columns
+    
+    try:
+        print("[AUTO-MIGRATE] Ejecutando migración de config de asignación en exams...")
+        check_and_add_exam_default_config_columns()
+    except Exception as e:
+        print(f"[AUTO-MIGRATE] Error en migración de config de asignación: {e}")
 
 
 def _ensure_email_nullable():

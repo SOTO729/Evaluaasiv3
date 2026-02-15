@@ -107,6 +107,17 @@ const ExamEditPage = () => {
   const [testExerciseCount, setTestExerciseCount] = useState(0)
   const [dominantColor, setDominantColor] = useState<string | null>(null)
   const [isDownloadingContent, setIsDownloadingContent] = useState(false)
+  
+  // Estados para configuración de asignación por defecto
+  const [showAssignConfigEditor, setShowAssignConfigEditor] = useState(false)
+  const [assignMaxAttempts, setAssignMaxAttempts] = useState(2)
+  const [assignMaxDisconnections, setAssignMaxDisconnections] = useState(3)
+  const [assignContentType, setAssignContentType] = useState('mixed')
+  const [assignExamQuestionsCount, setAssignExamQuestionsCount] = useState<number | null>(null)
+  const [assignExamExercisesCount, setAssignExamExercisesCount] = useState<number | null>(null)
+  const [assignSimulatorQuestionsCount, setAssignSimulatorQuestionsCount] = useState<number | null>(null)
+  const [assignSimulatorExercisesCount, setAssignSimulatorExercisesCount] = useState<number | null>(null)
+  const [savingAssignConfig, setSavingAssignConfig] = useState(false)
 
   const { data: exam, isLoading, error } = useQuery({
     queryKey: ['exam', id],
@@ -549,6 +560,43 @@ const ExamEditPage = () => {
         pause_on_disconnect: editExamPauseOnDisconnect,
         image_url: editExamImageUrl || undefined
       })
+    }
+  }
+
+  // Funciones para configuración de asignación por defecto
+  const openAssignConfigEditor = () => {
+    if (exam) {
+      setAssignMaxAttempts(exam.default_max_attempts ?? 2)
+      setAssignMaxDisconnections(exam.default_max_disconnections ?? 3)
+      setAssignContentType(exam.default_exam_content_type || 'mixed')
+      setAssignExamQuestionsCount(exam.default_exam_questions_count ?? null)
+      setAssignExamExercisesCount(exam.default_exam_exercises_count ?? null)
+      setAssignSimulatorQuestionsCount(exam.default_simulator_questions_count ?? null)
+      setAssignSimulatorExercisesCount(exam.default_simulator_exercises_count ?? null)
+      setShowAssignConfigEditor(true)
+    }
+  }
+
+  const handleSaveAssignConfig = async () => {
+    if (!exam) return
+    try {
+      setSavingAssignConfig(true)
+      await examService.updateExam(Number(id), {
+        default_max_attempts: assignMaxAttempts,
+        default_max_disconnections: assignMaxDisconnections,
+        default_exam_content_type: assignContentType,
+        default_exam_questions_count: assignExamQuestionsCount,
+        default_exam_exercises_count: assignExamExercisesCount,
+        default_simulator_questions_count: assignSimulatorQuestionsCount,
+        default_simulator_exercises_count: assignSimulatorExercisesCount,
+      } as any)
+      await queryClient.invalidateQueries({ queryKey: ['exam', id] })
+      setShowAssignConfigEditor(false)
+      setToast({ message: 'Configuración de asignación actualizada', type: 'success' })
+    } catch (error: any) {
+      setToast({ message: `Error: ${error.response?.data?.error || error.message}`, type: 'error' })
+    } finally {
+      setSavingAssignConfig(false)
     }
   }
 
@@ -1124,6 +1172,196 @@ const ExamEditPage = () => {
             {exam.updated_at ? new Date(exam.updated_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }) : 'No disponible'}
           </p>
         </div>
+      </div>
+
+      {/* Configuración de Asignación por Defecto */}
+      <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-6 fluid-mb-6 hover:shadow-lg hover:border-blue-200 transition-all duration-300">
+        <div className="flex items-center justify-between fluid-mb-5">
+          <div className="flex items-center fluid-gap-3">
+            <div className="fluid-p-2.5 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-fluid-xl">
+              <svg className="fluid-icon-base text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="fluid-text-lg font-bold text-gray-900">Configuración de Asignación</h3>
+              <p className="fluid-text-xs text-gray-500">Se hereda al asignar este examen a grupos</p>
+            </div>
+          </div>
+          <button
+            onClick={() => showAssignConfigEditor ? setShowAssignConfigEditor(false) : openAssignConfigEditor()}
+            className="fluid-px-4 fluid-py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-fluid-lg font-medium fluid-text-sm transition-colors flex items-center fluid-gap-2"
+          >
+            <svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            {showAssignConfigEditor ? 'Cancelar' : 'Editar'}
+          </button>
+        </div>
+
+        {!showAssignConfigEditor ? (
+          /* Vista de solo lectura */
+          <div className="grid grid-cols-2 md:grid-cols-4 fluid-gap-4">
+            <div className="bg-gray-50 rounded-fluid-xl fluid-p-4 text-center border border-gray-100">
+              <p className="fluid-text-2xl font-bold text-gray-800">{exam.default_max_attempts ?? 2}</p>
+              <p className="fluid-text-xs text-gray-500 font-medium fluid-mt-1">Reintentos</p>
+            </div>
+            <div className="bg-gray-50 rounded-fluid-xl fluid-p-4 text-center border border-gray-100">
+              <p className="fluid-text-2xl font-bold text-gray-800">{exam.default_max_disconnections ?? 3}</p>
+              <p className="fluid-text-xs text-gray-500 font-medium fluid-mt-1">Desconexiones</p>
+            </div>
+            <div className="bg-gray-50 rounded-fluid-xl fluid-p-4 text-center border border-gray-100">
+              <p className="fluid-text-base font-bold text-gray-800 capitalize">
+                {(exam.default_exam_content_type || 'mixed') === 'mixed' ? 'Mixto' : 
+                 (exam.default_exam_content_type || 'mixed') === 'questions_only' ? 'Solo Preguntas' : 'Solo Ejercicios'}
+              </p>
+              <p className="fluid-text-xs text-gray-500 font-medium fluid-mt-1">Tipo Contenido</p>
+            </div>
+            <div className="bg-gray-50 rounded-fluid-xl fluid-p-4 text-center border border-gray-100">
+              <p className="fluid-text-base font-bold text-gray-800">
+                {exam.linked_material_ids?.length || 0}
+              </p>
+              <p className="fluid-text-xs text-gray-500 font-medium fluid-mt-1">Materiales Ligados</p>
+            </div>
+          </div>
+        ) : (
+          /* Vista de edición */
+          <div className="fluid-space-y-5 border-t border-gray-100 fluid-pt-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-5">
+              {/* Reintentos */}
+              <div>
+                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">Reintentos Permitidos</label>
+                <input type="number" min={1} max={10} value={assignMaxAttempts}
+                  onChange={e => setAssignMaxAttempts(parseInt(e.target.value) || 1)}
+                  className="w-full fluid-px-4 fluid-py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm" />
+              </div>
+              {/* Desconexiones */}
+              <div>
+                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">Oportunidades de Desconexión</label>
+                <input type="number" min={0} max={10} value={assignMaxDisconnections}
+                  onChange={e => setAssignMaxDisconnections(parseInt(e.target.value) || 0)}
+                  className="w-full fluid-px-4 fluid-py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm" />
+              </div>
+            </div>
+
+            {/* Tipo de contenido */}
+            <div>
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">Tipo de Contenido</label>
+              <div className="grid grid-cols-3 fluid-gap-3">
+                {[
+                  { value: 'mixed', label: 'Mixto', desc: 'Preguntas + Ejercicios' },
+                  { value: 'questions_only', label: 'Solo Preguntas', desc: 'Únicamente preguntas' },
+                  { value: 'exercises_only', label: 'Solo Ejercicios', desc: 'Únicamente ejercicios' },
+                ].map(opt => (
+                  <button key={opt.value} type="button" onClick={() => setAssignContentType(opt.value)}
+                    className={`fluid-p-3 rounded-fluid-lg border-2 text-left transition-all ${
+                      assignContentType === opt.value 
+                        ? 'border-blue-500 bg-blue-50 text-blue-800' 
+                        : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                    }`}>
+                    <p className="font-semibold fluid-text-sm">{opt.label}</p>
+                    <p className="fluid-text-xs text-gray-500">{opt.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Cantidades personalizadas - Examen */}
+            {assignContentType !== 'exercises_only' && (
+              <div className="bg-blue-50 rounded-fluid-xl fluid-p-4 border border-blue-100">
+                <p className="fluid-text-sm font-semibold text-blue-800 fluid-mb-3">Cantidades — Examen</p>
+                <div className="grid grid-cols-2 fluid-gap-4">
+                  {(assignContentType === 'mixed' || assignContentType === 'questions_only') && (
+                    <div>
+                      <label className="flex items-center fluid-gap-2 fluid-mb-2">
+                        <input type="checkbox" checked={assignExamQuestionsCount === null}
+                          onChange={e => setAssignExamQuestionsCount(e.target.checked ? null : (exam.exam_questions_count || 0))}
+                          className="rounded border-gray-300 text-blue-600" />
+                        <span className="fluid-text-sm text-gray-700">Usar todas las preguntas</span>
+                      </label>
+                      {assignExamQuestionsCount !== null && (
+                        <input type="number" min={1} max={exam.exam_questions_count || 999} value={assignExamQuestionsCount}
+                          onChange={e => setAssignExamQuestionsCount(parseInt(e.target.value) || 1)}
+                          className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm"
+                          placeholder={`Máx: ${exam.exam_questions_count || 0}`} />
+                      )}
+                    </div>
+                  )}
+                  {(assignContentType === 'mixed' || assignContentType === 'exercises_only') && (
+                    <div>
+                      <label className="flex items-center fluid-gap-2 fluid-mb-2">
+                        <input type="checkbox" checked={assignExamExercisesCount === null}
+                          onChange={e => setAssignExamExercisesCount(e.target.checked ? null : (exam.exam_exercises_count || 0))}
+                          className="rounded border-gray-300 text-blue-600" />
+                        <span className="fluid-text-sm text-gray-700">Usar todos los ejercicios</span>
+                      </label>
+                      {assignExamExercisesCount !== null && (
+                        <input type="number" min={1} max={exam.exam_exercises_count || 999} value={assignExamExercisesCount}
+                          onChange={e => setAssignExamExercisesCount(parseInt(e.target.value) || 1)}
+                          className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm"
+                          placeholder={`Máx: ${exam.exam_exercises_count || 0}`} />
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Cantidades personalizadas - Simulador */}
+            {assignContentType !== 'exercises_only' && (
+              <div className="bg-purple-50 rounded-fluid-xl fluid-p-4 border border-purple-100">
+                <p className="fluid-text-sm font-semibold text-purple-800 fluid-mb-3">Cantidades — Simulador</p>
+                <div className="grid grid-cols-2 fluid-gap-4">
+                  <div>
+                    <label className="flex items-center fluid-gap-2 fluid-mb-2">
+                      <input type="checkbox" checked={assignSimulatorQuestionsCount === null}
+                        onChange={e => setAssignSimulatorQuestionsCount(e.target.checked ? null : (exam.simulator_questions_count || 0))}
+                        className="rounded border-gray-300 text-purple-600" />
+                      <span className="fluid-text-sm text-gray-700">Usar todas las preguntas</span>
+                    </label>
+                    {assignSimulatorQuestionsCount !== null && (
+                      <input type="number" min={1} max={exam.simulator_questions_count || 999} value={assignSimulatorQuestionsCount}
+                        onChange={e => setAssignSimulatorQuestionsCount(parseInt(e.target.value) || 1)}
+                        className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm"
+                        placeholder={`Máx: ${exam.simulator_questions_count || 0}`} />
+                    )}
+                  </div>
+                  <div>
+                    <label className="flex items-center fluid-gap-2 fluid-mb-2">
+                      <input type="checkbox" checked={assignSimulatorExercisesCount === null}
+                        onChange={e => setAssignSimulatorExercisesCount(e.target.checked ? null : (exam.simulator_exercises_count || 0))}
+                        className="rounded border-gray-300 text-purple-600" />
+                      <span className="fluid-text-sm text-gray-700">Usar todos los ejercicios</span>
+                    </label>
+                    {assignSimulatorExercisesCount !== null && (
+                      <input type="number" min={1} max={exam.simulator_exercises_count || 999} value={assignSimulatorExercisesCount}
+                        onChange={e => setAssignSimulatorExercisesCount(parseInt(e.target.value) || 1)}
+                        className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm"
+                        placeholder={`Máx: ${exam.simulator_exercises_count || 0}`} />
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Botón guardar */}
+            <div className="flex justify-end fluid-gap-3">
+              <button type="button" onClick={() => setShowAssignConfigEditor(false)}
+                className="fluid-px-5 fluid-py-2.5 text-gray-600 hover:text-gray-900 font-medium fluid-text-sm transition-colors">
+                Cancelar
+              </button>
+              <button type="button" onClick={handleSaveAssignConfig} disabled={savingAssignConfig}
+                className="fluid-px-6 fluid-py-2.5 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400 rounded-fluid-xl font-semibold fluid-text-sm transition-colors flex items-center fluid-gap-2">
+                {savingAssignConfig ? (
+                  <><div className="animate-spin fluid-icon-sm border-2 border-white border-t-transparent rounded-full" /> Guardando...</>
+                ) : (
+                  <><svg className="fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Guardar Configuración</>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Advertencia de contenido publicado */}
