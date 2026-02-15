@@ -659,7 +659,7 @@ export default function GroupAssignCandidatesPage() {
                     ) : (
                       <UserPlus className="fluid-icon-sm" />
                     )}
-                    Agregar ({selectedCandidates.size || ''})
+                    {selectedCandidates.size > 0 ? `Agregar (${selectedCandidates.size})` : 'Agregar'}
                   </button>
                 )}
                 
@@ -1291,12 +1291,13 @@ export default function GroupAssignCandidatesPage() {
             <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50 rounded-b-2xl flex-shrink-0">
               <button
                 onClick={() => setShowConfirmModal(false)}
-                className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 font-medium text-sm transition-colors"
+                disabled={addingMembers}
+                className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 disabled:opacity-50 font-medium text-sm transition-colors"
               >
                 Cancelar
               </button>
               <button
-                onClick={() => { setShowConfirmModal(false); handleAddSelectedCandidates(); }}
+                onClick={handleAddSelectedCandidates}
                 disabled={selectedCandidates.size === 0 || addingMembers}
                 className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl font-medium text-sm transition-colors"
               >
@@ -1305,7 +1306,7 @@ export default function GroupAssignCandidatesPage() {
                 ) : (
                   <UserPlus className="w-4 h-4" />
                 )}
-                Confirmar Asignación ({selectedCandidates.size})
+                {addingMembers ? 'Asignando...' : `Confirmar Asignación (${selectedCandidates.size})`}
               </button>
             </div>
           </div>
