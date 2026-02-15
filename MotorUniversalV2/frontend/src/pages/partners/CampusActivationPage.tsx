@@ -2085,6 +2085,7 @@ function ActivateCampusButton({
 }) {
   const [activating, setActivating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleActivate = async () => {
     try {
@@ -2095,7 +2096,7 @@ function ActivateCampusButton({
       const { activateCampus } = await import('../../services/partnersService');
       await activateCampus(campusId);
       
-      onSuccess();
+      setShowSuccess(true);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al activar el plantel');
     } finally {
@@ -2121,6 +2122,30 @@ function ActivateCampusButton({
                 className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 px-6 rounded-xl transition-colors"
               >
                 Entendido
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {showSuccess && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-fade-in-up">
+            <div className="flex flex-col items-center text-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                <Sparkles className="w-8 h-8 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-1">¡Plantel Activado Exitosamente!</h3>
+                <p className="text-sm text-gray-600">El plantel ha sido activado correctamente. Ahora podrás crear grupos de candidatos y asignar exámenes.</p>
+              </div>
+              <button
+                onClick={onSuccess}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                <CheckCircle2 className="w-5 h-5" />
+                Ir al Plantel
               </button>
             </div>
           </div>
