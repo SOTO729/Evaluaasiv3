@@ -113,9 +113,17 @@ export default function UsersListPage() {
     return roles;
   }, [roles]);
 
+  // Debounce ref para búsqueda
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   useEffect(() => {
     loadData();
-  }, [page, perPage, roleFilter, activeFilter, sortField, sortDirection]);
+  }, [page, perPage, debouncedSearch, roleFilter, activeFilter, createdFrom, createdTo, sortField, sortDirection]);
 
   useEffect(() => {
     loadRoles();
@@ -151,9 +159,11 @@ export default function UsersListPage() {
       const params: Parameters<typeof getUsers>[0] = {
         page,
         per_page: perPage,
-        search: search || undefined,
+        search: debouncedSearch || undefined,
         role: roleFilter || undefined,
         is_active: activeFilter || undefined,
+        created_from: createdFrom || undefined,
+        created_to: createdTo || undefined,
         sort_by: sortField,
         sort_order: sortDirection,
       };
@@ -207,7 +217,7 @@ export default function UsersListPage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
-    loadData();
+    // loadData se disparará automáticamente por el useEffect con debouncedSearch
   };
 
   // Función para toggle de estado (se puede usar desde el detalle del usuario)
@@ -225,6 +235,7 @@ export default function UsersListPage() {
 
   const clearFilters = () => {
     setSearch('');
+    setDebouncedSearch('');
     setRoleFilter('');
     setActiveFilter('');
     setCreatedFrom('');

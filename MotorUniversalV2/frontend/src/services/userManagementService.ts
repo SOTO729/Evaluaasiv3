@@ -93,6 +93,8 @@ export async function getUsers(params?: {
   search?: string;
   role?: string;
   is_active?: string;
+  created_from?: string;
+  created_to?: string;
   sort_by?: string;
   sort_order?: 'asc' | 'desc';
   // Cursor pagination (opcional, más eficiente para grandes datasets)

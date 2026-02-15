@@ -4,7 +4,9 @@ Rutas para gestión de usuarios (admin y coordinadores)
 from flask import Blueprint, request, jsonify, g
 from functools import wraps
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app import db
+from sqlalchemy import or_, and_
+from datetime import datetime
+from app import db, cache
 from app.models import User
 from app.models.user import encrypt_password
 import uuid
@@ -101,6 +103,8 @@ def list_users():
         search = request.args.get('search', '').strip()
         role_filter = request.args.get('role', '')
         active_filter = request.args.get('is_active', '')
+        created_from = request.args.get('created_from', '').strip()
+        created_to = request.args.get('created_to', '').strip()
         sort_by = request.args.get('sort_by', 'created_at')
         sort_order = request.args.get('sort_order', 'desc')
         
@@ -160,6 +164,20 @@ def list_users():
                         User.username.ilike(search_term)
                     )
                 )
+        
+        # Filtros de fecha de creación
+        if created_from:
+            try:
+                date_from = datetime.fromisoformat(created_from)
+                query = query.filter(User.created_at >= date_from)
+            except ValueError:
+                pass
+        if created_to:
+            try:
+                date_to = datetime.fromisoformat(created_to + 'T23:59:59') if 'T' not in created_to else datetime.fromisoformat(created_to)
+                query = query.filter(User.created_at <= date_to)
+            except ValueError:
+                pass
         
         # Ordenamiento dinámico
         sort_columns = {
