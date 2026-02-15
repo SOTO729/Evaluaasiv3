@@ -2,7 +2,7 @@
  * Página de listado de usuarios
  * Optimizada para escalar a 100K+ usuarios con cursor pagination
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Users,
@@ -102,6 +102,10 @@ export default function UsersListPage() {
   const isCoordinator = currentUser?.role === 'coordinator';
   const canManageUsers = isAdmin || isCoordinator;
   
+  // Animación: primera carga anima todo, recargas solo la tabla
+  const isFirstLoad = useRef(true);
+  const [tableAnimKey, setTableAnimKey] = useState(0);
+  
   // Ordenamiento
   type SortField = 'full_name' | 'email' | 'curp' | 'role' | 'is_active' | 'created_at';
   type SortDirection = 'asc' | 'desc';
@@ -178,6 +182,12 @@ export default function UsersListPage() {
       setUsers(data.users);
       setTotalPages(data.pages > 0 ? data.pages : Math.ceil(data.total / perPage));
       setTotal(data.total);
+      
+      // Animar tabla en recargas (no en primera carga)
+      if (!isFirstLoad.current) {
+        setTableAnimKey(prev => prev + 1);
+      }
+      isFirstLoad.current = false;
       
       // Guardar cursor para siguiente página
       if (data.has_more !== undefined) {
@@ -428,7 +438,7 @@ export default function UsersListPage() {
   }
 
   return (
-    <div className="fluid-p-6 max-w-[1920px] mx-auto animate-fade-in-up">
+    <div className={`fluid-p-6 max-w-[1920px] mx-auto ${isFirstLoad.current ? 'animate-fade-in-up' : ''}`}>
       {/* Header con gradiente */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-fluid-xl fluid-p-6 fluid-mb-6 text-white shadow-lg">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4">
@@ -698,7 +708,7 @@ export default function UsersListPage() {
       )}
 
       {/* Tabla de usuarios */}
-      <div className="bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 overflow-hidden">
+      <div key={tableAnimKey} className={`bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 overflow-hidden ${tableAnimKey > 0 ? 'animate-fade-in-up' : ''}`}>
         {/* Paginación Superior */}
         {totalPages >= 1 && (
           <div className="fluid-px-4 fluid-py-3 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center justify-between fluid-gap-4">
