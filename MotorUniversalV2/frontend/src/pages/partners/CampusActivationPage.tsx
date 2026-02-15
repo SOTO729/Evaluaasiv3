@@ -164,6 +164,29 @@ export default function CampusActivationPage() {
     }
   }, [campus?.responsable_id, campusId]);
 
+  // Pre-cargar datos de configuración existentes cuando se vuelve al paso 2
+  useEffect(() => {
+    if (campus?.configuration_completed) {
+      setConfigData(prev => ({
+        ...prev,
+        office_version: campus.office_version || prev.office_version,
+        enable_tier_basic: campus.enable_tier_basic ?? prev.enable_tier_basic,
+        enable_tier_standard: campus.enable_tier_standard ?? prev.enable_tier_standard,
+        enable_tier_advanced: campus.enable_tier_advanced ?? prev.enable_tier_advanced,
+        enable_digital_badge: campus.enable_digital_badge ?? prev.enable_digital_badge,
+        enable_partial_evaluations: campus.enable_partial_evaluations ?? prev.enable_partial_evaluations,
+        enable_unscheduled_partials: campus.enable_unscheduled_partials ?? prev.enable_unscheduled_partials,
+        enable_virtual_machines: campus.enable_virtual_machines ?? prev.enable_virtual_machines,
+        enable_online_payments: campus.enable_online_payments ?? prev.enable_online_payments,
+        assignment_validity_months: campus.assignment_validity_months ?? prev.assignment_validity_months,
+        certification_cost: campus.certification_cost ?? prev.certification_cost,
+        retake_cost: campus.retake_cost ?? prev.retake_cost,
+      }));
+      setCertificationCostInput(String(campus.certification_cost ?? 0));
+      setRetakeCostInput(String(campus.retake_cost ?? 0));
+    }
+  }, [campus?.configuration_completed]);
+
   const loadAvailableEcm = async () => {
     try {
       setLoadingEcm(true);
@@ -1316,7 +1339,7 @@ export default function CampusActivationPage() {
           )}
 
           {/* Paso 2: Configurar Plantel */}
-          {currentStep === 2 && campus.responsable && !campus.configuration_completed && (
+          {currentStep === 2 && campus.responsable && (
             <>
               {/* Resumen del Responsable */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
