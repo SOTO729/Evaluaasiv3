@@ -145,6 +145,19 @@ export default function CampusActivationPage() {
   const [selectedEcmIds, setSelectedEcmIds] = useState<number[]>([]);
   const [ecmSearch, setEcmSearch] = useState('');
 
+  // Track header visibility for sticky progress bar
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [showStickyBar, setShowStickyBar] = useState(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowStickyBar(!entry.isIntersecting),
+      { threshold: 0, rootMargin: '-1px 0px 0px 0px' }
+    );
+    if (headerRef.current) observer.observe(headerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     loadCampus();
   }, [campusId]);
@@ -561,19 +574,6 @@ export default function CampusActivationPage() {
   const currentStep = activeStep !== null ? activeStep : naturalStep;
   const completedCount = steps.filter(s => s.status === 'completed').length;
   const progressPercent = Math.round((completedCount / steps.length) * 100);
-
-  // Track header visibility for sticky progress bar
-  const headerRef = useRef<HTMLDivElement>(null);
-  const [showStickyBar, setShowStickyBar] = useState(false);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => setShowStickyBar(!entry.isIntersecting),
-      { threshold: 0, rootMargin: '-1px 0px 0px 0px' }
-    );
-    if (headerRef.current) observer.observe(headerRef.current);
-    return () => observer.disconnect();
-  }, []);
 
   return (
     <div className="fluid-p-4 md:fluid-p-6 lg:fluid-p-8 w-full">
