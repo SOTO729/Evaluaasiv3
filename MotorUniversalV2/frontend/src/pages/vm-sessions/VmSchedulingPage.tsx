@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Clock, Calendar, X, AlertCircle, CheckCircle, Loader2, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Calendar, X, AlertCircle, CheckCircle, Loader2, Monitor } from 'lucide-react';
+import LoadingSpinner from '../../components/LoadingSpinner';
 import { useAuthStore } from '../../store/authStore';
 import {
   checkVmAccess,
@@ -223,8 +224,8 @@ export default function VmSchedulingPage() {
   // Loading
   if (accessLoading) {
     return (
-      <div className="fluid-p-6 flex items-center justify-center min-h-[400px]">
-        <Loader2 className="fluid-icon-xl text-blue-600 animate-spin" />
+      <div className="fluid-p-6 max-w-[2800px] mx-auto">
+        <LoadingSpinner message="Cargando calendario..." />
       </div>
     );
   }
@@ -232,11 +233,11 @@ export default function VmSchedulingPage() {
   // No access
   if (!access?.has_access) {
     return (
-      <div className="fluid-p-6 animate-fade-in-up">
-        <div className="bg-white rounded-fluid-2xl shadow-lg fluid-p-8 text-center max-w-lg mx-auto">
+      <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
+        <div className="bg-amber-50 border border-amber-200 rounded-fluid-2xl fluid-p-8 text-center max-w-lg mx-auto">
           <AlertCircle className="fluid-icon-xl text-amber-500 mx-auto fluid-mb-4" />
-          <h2 className="fluid-text-xl font-bold text-gray-800 fluid-mb-2">Calendario No Disponible</h2>
-          <p className="fluid-text-base text-gray-600">
+          <h2 className="fluid-text-xl font-bold text-amber-800 fluid-mb-2">Calendario No Disponible</h2>
+          <p className="fluid-text-base text-amber-600">
             El calendario de sesiones no está habilitado para tu grupo. Contacta a tu coordinador si necesitas acceso.
           </p>
         </div>
@@ -245,7 +246,7 @@ export default function VmSchedulingPage() {
   }
 
   return (
-    <div className="fluid-p-6 animate-fade-in-up">
+    <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Toast */}
       {toast && (
         <div className={`fixed top-4 right-4 z-50 flex items-center fluid-gap-2 fluid-px-5 fluid-py-3 rounded-fluid-lg shadow-lg animate-fadeSlideIn ${
@@ -256,34 +257,61 @@ export default function VmSchedulingPage() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center fluid-gap-4 fluid-mb-6">
-        <div>
-          <h1 className="fluid-text-3xl font-bold text-gray-800 flex items-center fluid-gap-3">
-            <CalendarDays className="fluid-icon-xl text-blue-600" />
-            Calendario de Sesiones
-          </h1>
-          <p className="fluid-text-base text-gray-600 fluid-mt-2">
-            Agenda tus sesiones de práctica. Solo una sesión por hora y sin empalmes.
-          </p>
+      {/* Header con gradiente - estilo Partners */}
+      <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl relative overflow-hidden">
+        {/* Decorative circles */}
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full" />
+        <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full" />
+        
+        <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4">
+          <div className="flex items-center fluid-gap-4">
+            <div className="fluid-p-3 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
+              <Monitor className="fluid-icon-xl text-white" />
+            </div>
+            <div>
+              <h1 className="fluid-text-2xl font-bold">Calendario de Sesiones</h1>
+              <p className="fluid-text-sm text-white/80 fluid-mt-1">
+                Agenda tus sesiones de práctica. Solo una sesión por hora y sin empalmes.
+              </p>
+            </div>
+          </div>
+
+          {/* Leyenda inline */}
+          <div className="flex items-center fluid-gap-4 flex-wrap">
+            <div className="flex items-center fluid-gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-blue-300/60 border border-blue-200/50"></div>
+              <span className="fluid-text-xs text-white/80">Disponible</span>
+            </div>
+            <div className="flex items-center fluid-gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-green-400"></div>
+              <span className="fluid-text-xs text-white/80">Tu sesión</span>
+            </div>
+            <div className="flex items-center fluid-gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-red-300/60 border border-red-200/50"></div>
+              <span className="fluid-text-xs text-white/80">Ocupado</span>
+            </div>
+            <div className="flex items-center fluid-gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-white/20 border border-white/20"></div>
+              <span className="fluid-text-xs text-white/80">Pasado</span>
+            </div>
+          </div>
         </div>
-        {/* Leyenda inline */}
-        <div className="flex items-center fluid-gap-4 flex-wrap">
-          <div className="flex items-center fluid-gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-blue-100 border border-blue-300"></div>
-            <span className="fluid-text-xs text-gray-600">Disponible</span>
+
+        {/* Stats en header */}
+        <div className="relative grid grid-cols-3 fluid-gap-4 fluid-mt-5">
+          <div className="bg-white/10 rounded-fluid-xl fluid-p-3 text-center backdrop-blur-sm">
+            <p className="fluid-text-xl font-bold">{mySessions.length}</p>
+            <p className="fluid-text-xs text-white/70">Mis Sesiones</p>
           </div>
-          <div className="flex items-center fluid-gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-green-500"></div>
-            <span className="fluid-text-xs text-gray-600">Tu sesión</span>
+          <div className="bg-white/10 rounded-fluid-xl fluid-p-3 text-center backdrop-blur-sm">
+            <p className="fluid-text-xl font-bold">{Object.values(weekSlots).reduce((sum, slots) => sum + slots.filter(s => s.available).length, 0)}</p>
+            <p className="fluid-text-xs text-white/70">Disponibles</p>
           </div>
-          <div className="flex items-center fluid-gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-red-100 border border-red-300"></div>
-            <span className="fluid-text-xs text-gray-600">Ocupado</span>
-          </div>
-          <div className="flex items-center fluid-gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-gray-100 border border-gray-200"></div>
-            <span className="fluid-text-xs text-gray-600">Pasado</span>
+          <div className="bg-white/10 rounded-fluid-xl fluid-p-3 text-center backdrop-blur-sm">
+            <p className="fluid-text-xl font-bold">
+              {weekDays[0].getDate()}-{weekDays[6].getDate()} {MONTHS_ES[weekDays[0].getMonth()].substring(0, 3)}
+            </p>
+            <p className="fluid-text-xs text-white/70">Semana Actual</p>
           </div>
         </div>
       </div>
@@ -291,7 +319,7 @@ export default function VmSchedulingPage() {
       <div className="grid grid-cols-1 xl:grid-cols-4 fluid-gap-6">
         {/* ========== MINI CALENDAR (left sidebar) ========== */}
         <div className="xl:col-span-1">
-          <div className="bg-white rounded-fluid-xl shadow fluid-p-4 sticky top-4">
+          <div className="bg-white rounded-fluid-xl border border-gray-200 shadow-sm fluid-p-4 sticky top-4">
             {/* Mini calendar header */}
             <div className="flex items-center justify-between fluid-mb-3">
               <button onClick={prevMonth} className="p-1 hover:bg-gray-100 rounded-fluid transition-colors">
@@ -387,14 +415,14 @@ export default function VmSchedulingPage() {
 
         {/* ========== WEEKLY CALENDAR GRID ========== */}
         <div className="xl:col-span-3">
-          <div className="bg-white rounded-fluid-xl shadow overflow-hidden">
+          <div className="bg-white rounded-fluid-xl border border-gray-200 shadow-sm overflow-hidden">
             {/* Week navigation bar */}
-            <div className="flex items-center justify-between fluid-px-5 fluid-py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+            <div className="flex items-center justify-between fluid-px-5 fluid-py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
               <button onClick={prevWeek} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <div className="flex items-center fluid-gap-3">
-                <Calendar className="w-5 h-5 text-blue-200" />
+                <Calendar className="w-5 h-5 text-purple-200" />
                 <span className="font-semibold fluid-text-base">
                   {weekDays[0].getDate()} {MONTHS_ES[weekDays[0].getMonth()].substring(0, 3)} — {weekDays[6].getDate()} {MONTHS_ES[weekDays[6].getMonth()].substring(0, 3)} {weekDays[6].getFullYear()}
                 </span>
@@ -534,7 +562,7 @@ export default function VmSchedulingPage() {
 
       {/* Modal: Confirmar Reserva */}
       {bookingSlot && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 fluid-p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4">
           <div className="bg-white rounded-fluid-2xl shadow-2xl fluid-p-6 max-w-md w-full animate-fadeSlideIn">
             <div className="flex items-center justify-between fluid-mb-4">
               <h3 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-2">
@@ -546,11 +574,11 @@ export default function VmSchedulingPage() {
               </button>
             </div>
 
-            <div className="bg-blue-50 rounded-fluid-lg fluid-p-4 fluid-mb-4">
-              <p className="fluid-text-sm text-blue-800">
+            <div className="bg-purple-50 border border-purple-100 rounded-fluid-lg fluid-p-4 fluid-mb-4">
+              <p className="fluid-text-sm text-purple-800">
                 <strong>Fecha:</strong> {DAYS_ES[bookingSlot.date.getDay()]} {bookingSlot.date.getDate()} de {MONTHS_ES[bookingSlot.date.getMonth()]} de {bookingSlot.date.getFullYear()}
               </p>
-              <p className="fluid-text-sm text-blue-800 fluid-mt-1">
+              <p className="fluid-text-sm text-purple-800 fluid-mt-1">
                 <strong>Horario:</strong> {bookingSlot.slot.label}
               </p>
             </div>
@@ -561,7 +589,7 @@ export default function VmSchedulingPage() {
                 value={bookingNotes}
                 onChange={(e) => setBookingNotes(e.target.value)}
                 placeholder="Ej: Práctica de Excel avanzado"
-                className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-sm resize-none"
+                className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent fluid-text-sm resize-none"
                 rows={3}
               />
             </div>
@@ -583,7 +611,7 @@ export default function VmSchedulingPage() {
               <button
                 onClick={handleBook}
                 disabled={bookingLoading}
-                className="flex-1 fluid-py-3 bg-blue-600 text-white rounded-fluid-lg hover:bg-blue-700 transition-colors fluid-text-sm font-medium disabled:opacity-50 flex items-center justify-center fluid-gap-2"
+                className="flex-1 fluid-py-3 bg-purple-600 text-white rounded-fluid-lg hover:bg-purple-700 transition-colors fluid-text-sm font-medium disabled:opacity-50 flex items-center justify-center fluid-gap-2"
               >
                 {bookingLoading ? <Loader2 className="fluid-icon-sm animate-spin" /> : <CheckCircle className="fluid-icon-sm" />}
                 {bookingLoading ? 'Agendando...' : 'Confirmar'}
@@ -595,7 +623,7 @@ export default function VmSchedulingPage() {
 
       {/* Modal: Cancelar Sesión */}
       {cancelSession && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 fluid-p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4">
           <div className="bg-white rounded-fluid-2xl shadow-2xl fluid-p-6 max-w-md w-full animate-fadeSlideIn">
             <div className="flex items-center justify-between fluid-mb-4">
               <h3 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-2">
@@ -622,7 +650,7 @@ export default function VmSchedulingPage() {
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
                 placeholder="Motivo de cancelación"
-                className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-red-500 focus:border-transparent fluid-text-sm resize-none"
+                className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent fluid-text-sm resize-none"
                 rows={2}
               />
             </div>
