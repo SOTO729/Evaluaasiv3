@@ -4,7 +4,7 @@ Rutas para gestión de usuarios (admin y coordinadores)
 from flask import Blueprint, request, jsonify, g
 from functools import wraps
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from sqlalchemy import or_, and_, func
+from sqlalchemy import or_, and_, func, case
 from datetime import datetime
 from app import db, cache
 from app.models import User
@@ -893,8 +893,8 @@ def get_user_stats():
         stats_query = db.session.query(
             User.role,
             func.count(User.id).label('total'),
-            func.sum(func.cast(User.is_active == True, db.Integer)).label('active'),
-            func.sum(func.cast(User.is_verified == True, db.Integer)).label('verified')
+            func.sum(case((User.is_active == True, 1), else_=0)).label('active'),
+            func.sum(case((User.is_verified == True, 1), else_=0)).label('verified')
         )
         
         if current_user.role == 'coordinator':
