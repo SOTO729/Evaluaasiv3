@@ -74,14 +74,7 @@ const SEARCH_FIELDS = [
   { key: 'curp', label: 'CURP' },
 ];
 
-const PAGE_SIZE_OPTIONS = [
-  { value: 25, label: '25' },
-  { value: 50, label: '50' },
-  { value: 100, label: '100' },
-  { value: 250, label: '250 (rápido)' },
-  { value: 500, label: '500 (rápido)' },
-  { value: 1000, label: '1000 (máx)' },
-];
+const MAX_PAGE_SIZE = 1000;
 
 export default function GroupAssignCandidatesPage() {
   const { groupId } = useParams();
@@ -100,7 +93,8 @@ export default function GroupAssignCandidatesPage() {
   const [searchResults, setSearchResults] = useState<CandidateSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(500);
+  const [pageSizeInput, setPageSizeInput] = useState('500');
   const [totalPages, setTotalPages] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
   
@@ -622,8 +616,19 @@ export default function GroupAssignCandidatesPage() {
   };
 
   const handlePageSizeChange = (newSize: number) => {
-    setPageSize(newSize);
-    handleSearch(1, newSize);
+    const clamped = Math.max(1, Math.min(MAX_PAGE_SIZE, newSize));
+    setPageSize(clamped);
+    setPageSizeInput(String(clamped));
+    handleSearch(1, clamped);
+  };
+
+  const handlePageSizeInputSubmit = () => {
+    const val = parseInt(pageSizeInput, 10);
+    if (!isNaN(val) && val >= 1) {
+      handlePageSizeChange(val);
+    } else {
+      setPageSizeInput(String(pageSize));
+    }
   };
 
   if (loading) {
@@ -790,6 +795,21 @@ export default function GroupAssignCandidatesPage() {
                   <Filter className="fluid-icon-sm" />
                   Filtros
                 </button>
+                
+                {/* Registros por página */}
+                <div className="flex items-center fluid-gap-1.5">
+                  <span className="fluid-text-xs text-gray-500">Mostrar</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={pageSizeInput}
+                    onChange={(e) => setPageSizeInput(e.target.value.replace(/[^0-9]/g, ''))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handlePageSizeInputSubmit(); }}
+                    onBlur={handlePageSizeInputSubmit}
+                    className="w-16 text-center py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    title={`Registros por página (máx ${MAX_PAGE_SIZE})`}
+                  />
+                </div>
                 
                 {/* Botón refrescar */}
                 <button
@@ -1178,19 +1198,6 @@ export default function GroupAssignCandidatesPage() {
                   </div>
                   
                   <div className="flex items-center fluid-gap-4">
-                    <div className="flex items-center fluid-gap-2">
-                      <span className="fluid-text-sm text-gray-600">Por página:</span>
-                      <select
-                        value={pageSize}
-                        onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                        className="fluid-px-2 py-1 border border-gray-300 rounded fluid-text-sm"
-                      >
-                        {PAGE_SIZE_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                    
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handlePageChange(1)}
