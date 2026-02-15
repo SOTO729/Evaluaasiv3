@@ -490,21 +490,19 @@ export default function GroupAssignCandidatesPage() {
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-gray-50">
+    <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* ===== BREADCRUMB ===== */}
-      <div className="flex-shrink-0 fluid-px-6 fluid-pt-4">
-        <PartnersBreadcrumb 
-          items={[
-            { label: group?.campus?.partner?.name || 'Partner', path: `/partners/${group?.campus?.partner_id}` },
-            { label: group?.campus?.name || 'Plantel', path: `/partners/campuses/${group?.campus_id}` },
-            { label: group?.name || 'Grupo', path: `/partners/groups/${groupId}` },
-            { label: 'Asignar Candidatos' }
-          ]} 
-        />
-      </div>
+      <PartnersBreadcrumb 
+        items={[
+          { label: group?.campus?.partner?.name || 'Partner', path: `/partners/${group?.campus?.partner_id}` },
+          { label: group?.campus?.name || 'Plantel', path: `/partners/campuses/${group?.campus_id}` },
+          { label: group?.name || 'Grupo', path: `/partners/groups/${groupId}` },
+          { label: 'Asignar Candidatos' }
+        ]} 
+      />
 
       {/* ===== HEADER CON GRADIENTE ===== */}
-      <div className="flex-shrink-0 bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 fluid-px-6 fluid-pt-5 fluid-pb-4 fluid-mx-6 rounded-fluid-2xl text-white relative overflow-hidden">
+      <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white relative overflow-hidden">
         {/* Decorative circles */}
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full" />
         <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full" />
@@ -547,7 +545,7 @@ export default function GroupAssignCandidatesPage() {
       </div>
 
       {/* ===== TABS ===== */}
-      <div className="bg-white border-b border-gray-200 flex-shrink-0 fluid-px-6">
+      <div className="bg-white rounded-t-fluid-xl border border-b-0 border-gray-200 fluid-px-6">
         <nav className="flex fluid-gap-6">
           <button
             onClick={() => setActiveTab('search')}
@@ -580,7 +578,7 @@ export default function GroupAssignCandidatesPage() {
 
       {/* ===== MENSAJES DE ESTADO ===== */}
       {(error || successMessage) && (
-        <div className="fluid-px-6 fluid-py-2 bg-white border-b">
+        <div className="fluid-mb-4">
           {error && (
             <div className="fluid-p-3 bg-red-50 border border-red-200 rounded-fluid-lg flex items-center fluid-gap-2 text-red-700">
               <XCircle className="fluid-icon flex-shrink-0" />
@@ -603,13 +601,12 @@ export default function GroupAssignCandidatesPage() {
       )}
 
       {/* ===== CONTENIDO PRINCIPAL ===== */}
-      <div className="flex-1 overflow-auto flex flex-col">
         
         {/* ==================== TAB 1: BUSCAR Y ASIGNAR ==================== */}
         {activeTab === 'search' && (
           <>
             {/* Barra de herramientas */}
-            <div className="bg-white border-b border-gray-200 fluid-px-6 fluid-py-3">
+            <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4 fluid-mb-5">
               <div className="flex flex-wrap items-center fluid-gap-3">
                 {/* Campo de búsqueda */}
                 <div className="flex-1 min-w-[300px] relative">
@@ -857,7 +854,7 @@ export default function GroupAssignCandidatesPage() {
 
             {/* Banner de selección masiva */}
             {selectAllMatching && (
-              <div className="bg-emerald-50 border-b border-emerald-200 fluid-px-6 fluid-py-3">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-fluid-lg fluid-px-6 fluid-py-3 fluid-mb-5">
                 <div className="flex items-center fluid-gap-3">
                   <Zap className="fluid-icon text-emerald-600 flex-shrink-0" />
                   <p className="fluid-text-sm text-emerald-800 flex-1">
@@ -875,7 +872,7 @@ export default function GroupAssignCandidatesPage() {
             )}
 
             {/* Tabla de resultados */}
-            <div className="flex-1 overflow-auto">
+            <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
               {searching && searchResults.length === 0 ? (
                 <div className="flex items-center justify-center fluid-py-20">
                   <Loader2 className="fluid-icon-lg animate-spin text-purple-500" />
@@ -923,7 +920,7 @@ export default function GroupAssignCandidatesPage() {
                   )}
                   
                   <table className="w-full">
-                  <thead className="bg-gray-50 sticky top-0 z-10">
+                  <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
                     <tr>
                       <th className="w-12 fluid-px-4 fluid-py-3 text-left">
                         <button
@@ -1019,7 +1016,7 @@ export default function GroupAssignCandidatesPage() {
 
             {/* Paginación */}
             {totalResults > 0 && (
-              <div className="bg-white border-t border-gray-200 fluid-px-6 fluid-py-3">
+              <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4 fluid-mt-5">
                 <div className="flex flex-wrap items-center justify-between fluid-gap-4">
                   <div className="fluid-text-sm text-gray-600">
                     Mostrando <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span>
@@ -1071,7 +1068,7 @@ export default function GroupAssignCandidatesPage() {
 
         {/* ==================== TAB 2: CARGA MASIVA EXCEL ==================== */}
         {activeTab === 'excel' && (
-          <div className="flex-1 overflow-auto fluid-p-6">
+          <div className="fluid-mt-5">
             <div className="max-w-4xl mx-auto">
               {/* Paso 1: Descargar plantilla */}
               <div className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-6 fluid-mb-6">
@@ -1238,7 +1235,6 @@ export default function GroupAssignCandidatesPage() {
             </div>
           </div>
         )}
-      </div>{/* cierre contenido principal */}
 
       {/* ===== MODAL DE CONFIRMACIÓN DE ASIGNACIÓN ===== */}
       {showConfirmModal && (
