@@ -2,7 +2,7 @@
  * Página de Activación de Plantel
  * Guía al usuario a través del proceso de activación paso a paso
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
@@ -144,19 +144,6 @@ export default function CampusActivationPage() {
   const [loadingEcm, setLoadingEcm] = useState(false);
   const [selectedEcmIds, setSelectedEcmIds] = useState<number[]>([]);
   const [ecmSearch, setEcmSearch] = useState('');
-
-  // Track header visibility for sticky progress bar
-  const headerRef = useRef<HTMLDivElement>(null);
-  const [showStickyBar, setShowStickyBar] = useState(false);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => setShowStickyBar(!entry.isIntersecting),
-      { threshold: 0, rootMargin: '-1px 0px 0px 0px' }
-    );
-    if (headerRef.current) observer.observe(headerRef.current);
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     loadCampus();
@@ -575,57 +562,6 @@ export default function CampusActivationPage() {
 
   return (
     <div className="fluid-p-4 md:fluid-p-6 lg:fluid-p-8 w-full">
-      {/* Sticky progress bar - appears when header scrolls out */}
-      {createPortal(
-        <div
-          className={`fixed left-0 right-0 z-30 transition-all duration-300 ${
-            showStickyBar ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
-          }`}
-          style={{ top: 'var(--header-height)' }}
-        >
-          <div className="bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
-            <div className="max-w-5xl mx-auto px-6 py-3">
-              <div className="flex items-center justify-between">
-                {steps.map((step, index) => (
-                  <div key={step.id} className="contents">
-                    <button
-                      onClick={() => goToStep(step.id)}
-                      disabled={step.status === 'pending'}
-                      className={`flex items-center gap-2 transition-all ${
-                        step.status === 'pending' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-                      }`}
-                    >
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
-                        step.status === 'completed'
-                          ? 'bg-green-500 text-white'
-                          : currentStep === step.id
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-200 text-gray-500'
-                      }`}>
-                        {step.status === 'completed' ? (
-                          <Check className="w-3.5 h-3.5" />
-                        ) : (
-                          step.id
-                        )}
-                      </div>
-                      <span className={`hidden sm:block text-sm font-medium ${
-                        currentStep === step.id ? 'text-blue-700' : step.status === 'completed' ? 'text-green-700' : 'text-gray-500'
-                      }`}>{step.title}</span>
-                    </button>
-                    {index < steps.length - 1 && (
-                      <div className={`w-16 md:w-24 h-0.5 rounded-full mx-2 ${
-                        step.status === 'completed' ? 'bg-green-300' : 'bg-gray-200'
-                      }`} />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
       {/* Breadcrumb */}
       <PartnersBreadcrumb 
         items={[
@@ -636,7 +572,7 @@ export default function CampusActivationPage() {
       />
       
       {/* Header */}
-      <div ref={headerRef} className="flex items-center fluid-gap-4 fluid-mb-4 animate-fade-in-up">
+      <div className="flex items-center fluid-gap-4 fluid-mb-6 lg:fluid-mb-8 animate-fade-in-up">
         <Link
           to={`/partners/campuses/${campusId}`}
           className="fluid-p-2 hover:bg-gray-100 fluid-rounded-xl transition-colors"
@@ -653,55 +589,67 @@ export default function CampusActivationPage() {
         </span>
       </div>
 
-      {/* Inline Progress Steps */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 px-6 py-5 mb-8">
-        <div className="flex items-start justify-between">
-          {steps.map((step, index) => (
-            <div key={step.id} className="contents">
-              {/* Step */}
-              <button
-                onClick={() => goToStep(step.id)}
-                disabled={step.status === 'pending'}
-                className={`flex flex-col items-center text-center gap-2 transition-all ${
-                  step.status === 'pending' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer group'
-                }`}
-                style={{ width: '140px' }}
-              >
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-                  step.status === 'completed'
-                    ? 'bg-green-500 text-white group-hover:bg-green-600'
-                    : currentStep === step.id
-                    ? 'bg-blue-500 text-white ring-4 ring-blue-100'
-                    : 'bg-gray-200 text-gray-500'
-                }`}>
-                  {step.status === 'completed' && currentStep !== step.id ? (
-                    <Check className="w-5 h-5" />
-                  ) : (
-                    <span className="text-sm font-bold">{step.id}</span>
-                  )}
-                </div>
-                <div>
-                  <p className={`text-sm font-semibold leading-tight ${
-                    currentStep === step.id ? 'text-blue-700' : step.status === 'completed' ? 'text-green-700' : 'text-gray-500'
-                  }`}>{step.title}</p>
-                  <p className="text-xs text-gray-400 mt-1 leading-tight hidden lg:block">{step.description}</p>
-                </div>
-              </button>
-              {/* Connector line */}
-              {index < steps.length - 1 && (
-                <div className="flex items-center flex-1 pt-5">
-                  <div className={`w-full h-0.5 rounded-full ${
-                    step.status === 'completed' ? 'bg-green-300' : 'bg-gray-200'
-                  }`} />
-                </div>
-              )}
+      <div className="grid lg:grid-cols-4 fluid-gap-6">
+        {/* Panel de Progreso */}
+        <div className="lg:col-span-1 lg:self-start lg:sticky z-10" style={{ top: 'calc(var(--header-height) + 1.5rem)' }}>
+          <div className="bg-white fluid-rounded-2xl shadow-sm border border-gray-200 fluid-p-4 md:fluid-p-6">
+            <h2 className="font-semibold text-gray-800 fluid-mb-6 fluid-text-base">Progreso de Activación</h2>
+            
+            <div className="fluid-space-y-4">
+              {steps.map((step, index) => (
+                <button
+                  key={step.id}
+                  onClick={() => goToStep(step.id)}
+                  disabled={step.status === 'pending'}
+                  className={`flex fluid-gap-3 w-full text-left transition-all ${
+                    step.status !== 'pending' ? 'cursor-pointer hover:bg-gray-50 fluid-rounded-xl fluid-p-2 -fluid-mx-2' : 'cursor-not-allowed'
+                  } ${currentStep === step.id ? 'bg-blue-50 fluid-rounded-xl fluid-p-2 -fluid-mx-2' : ''}`}
+                >
+                  {/* Línea de conexión */}
+                  <div className="flex flex-col items-center">
+                    <div className={`fluid-w-10 fluid-h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                      step.status === 'completed' 
+                        ? 'bg-green-100 text-green-600' 
+                        : step.status === 'current' || currentStep === step.id
+                        ? 'bg-blue-100 text-blue-600'
+                        : 'bg-gray-100 text-gray-400'
+                    }`}>
+                      {step.status === 'completed' && currentStep !== step.id ? (
+                        <Check className="fluid-w-5 fluid-h-5" />
+                      ) : (
+                        step.icon
+                      )}
+                    </div>
+                    {index < steps.length - 1 && (
+                      <div className={`w-0.5 flex-1 mt-2 ${
+                        step.status === 'completed' ? 'bg-green-200' : 'bg-gray-200'
+                      }`} />
+                    )}
+                  </div>
+                  
+                  <div className="fluid-pb-6">
+                    <h3 className={`font-medium fluid-text-sm ${
+                      currentStep === step.id
+                        ? 'text-blue-700' 
+                        : step.status === 'completed' 
+                        ? 'text-green-700' 
+                        : 'text-gray-500'
+                    }`}>
+                      {step.title}
+                      {step.status === 'completed' && currentStep !== step.id && (
+                        <span className="fluid-ml-2 fluid-text-xs text-green-600">(editar)</span>
+                      )}
+                    </h3>
+                    <p className="fluid-text-xs text-gray-500 fluid-mt-1">{step.description}</p>
+                  </div>
+                </button>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
-      </div>
 
-      {/* Contenido Principal */}
-      <div className="fluid-space-y-6 animate-fade-in-up max-w-5xl mx-auto">
+        {/* Contenido Principal */}
+        <div className="lg:col-span-3 fluid-space-y-6 animate-fade-in-up">
           {/* Paso 1: Crear/Asignar Responsable */}
           {currentStep === 1 && !createdResponsable && (
             <div className="bg-white fluid-rounded-2xl shadow-sm border border-gray-200">
@@ -2099,6 +2047,7 @@ export default function CampusActivationPage() {
             </>
           )}
         </div>
+      </div>
     </div>
   );
 }
