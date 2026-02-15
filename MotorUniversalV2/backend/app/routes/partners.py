@@ -6154,33 +6154,44 @@ def search_candidates_advanced():
             # Procesar en chunks de 500 para evitar limits de IN clause
             for i in range(0, len(user_ids_in_page), 500):
                 chunk_ids = user_ids_in_page[i:i + 500]
+                # Obtener el grupo más reciente por joined_at para cada usuario
                 membership_rows = db.session.execute(text("""
-                    SELECT gm.user_id, g.id as group_id, g.name as group_name,
-                           c.id as campus_id, c.name as campus_name, c.state_name, c.city,
-                           sc.id as cycle_id, sc.name as cycle_name,
-                           p.id as partner_id, p.name as partner_name
-                    FROM group_members gm
-                    JOIN candidate_groups g ON gm.group_id = g.id
-                    LEFT JOIN campuses c ON g.campus_id = c.id
-                    LEFT JOIN school_cycles sc ON g.school_cycle_id = sc.id
-                    LEFT JOIN partners p ON c.partner_id = p.id
-                    WHERE gm.user_id IN :user_ids AND gm.status = 'active'
+                    SELECT t.user_id, t.group_id, t.group_name,
+                           t.campus_id, t.campus_name, t.state_name, t.city,
+                           t.cycle_id, t.cycle_name,
+                           t.partner_id, t.partner_name,
+                           t.joined_at
+                    FROM (
+                        SELECT gm.user_id, g.id as group_id, g.name as group_name,
+                               c.id as campus_id, c.name as campus_name, c.state_name, c.city,
+                               sc.id as cycle_id, sc.name as cycle_name,
+                               p.id as partner_id, p.name as partner_name,
+                               gm.joined_at,
+                               ROW_NUMBER() OVER (PARTITION BY gm.user_id ORDER BY gm.joined_at DESC) as rn
+                        FROM group_members gm
+                        JOIN candidate_groups g ON gm.group_id = g.id
+                        LEFT JOIN campuses c ON g.campus_id = c.id
+                        LEFT JOIN school_cycles sc ON g.school_cycle_id = sc.id
+                        LEFT JOIN partners p ON c.partner_id = p.id
+                        WHERE gm.user_id IN :user_ids AND gm.status = 'active'
+                    ) t
+                    WHERE t.rn = 1
                 """), {'user_ids': tuple(chunk_ids)})
                 
                 for row in membership_rows:
-                    if row[0] not in membership_map:
-                        membership_map[row[0]] = {
-                            'group_id': row[1],
-                            'group_name': row[2],
-                            'campus_id': row[3],
-                            'campus_name': row[4],
-                            'state_name': row[5],
-                            'city': row[6],
-                            'school_cycle_id': row[7],
-                            'school_cycle_name': row[8],
-                            'partner_id': row[9],
-                            'partner_name': row[10],
-                        }
+                    membership_map[row[0]] = {
+                        'group_id': row[1],
+                        'group_name': row[2],
+                        'campus_id': row[3],
+                        'campus_name': row[4],
+                        'state_name': row[5],
+                        'city': row[6],
+                        'school_cycle_id': row[7],
+                        'school_cycle_name': row[8],
+                        'partner_id': row[9],
+                        'partner_name': row[10],
+                        'joined_at': row[11].isoformat() if row[11] else None,
+                    }
         
         candidates = []
         for user in pagination.items:
