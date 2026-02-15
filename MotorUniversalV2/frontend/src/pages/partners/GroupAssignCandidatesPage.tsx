@@ -135,8 +135,8 @@ export default function GroupAssignCandidatesPage() {
   const [selectAllMatching, setSelectAllMatching] = useState(false);
   const [assigningAll, setAssigningAll] = useState(false);
   
-  // Modo liviano para page sizes grandes (>100)
-  const isLightweight = pageSize > 100;
+  // Modo liviano para page sizes extremos (>1000) — en la práctica nunca se activa
+  const isLightweight = pageSize > 1000;
 
   // Computed: todos los candidatos de la página actual están seleccionados
   const allOnPageSelected = searchResults.length > 0 && searchResults.every(c => selectedCandidates.has(c.id));
@@ -1060,15 +1060,6 @@ export default function GroupAssignCandidatesPage() {
                     </div>
                   )}
                   
-                  {/* Banner "Seleccionar todos los N resultados" */}
-                  {isLightweight && (
-                    <div className="bg-indigo-50 border-b border-indigo-200 px-6 py-2">
-                      <p className="text-sm text-indigo-700 flex items-center gap-2">
-                        <Zap className="w-4 h-4" />
-                        Modo rápido: mostrando {pageSize} registros por página. Algunas columnas se ocultan para mayor velocidad.
-                      </p>
-                    </div>
-                  )}
                   
                   {totalResults > searchResults.length && !selectAllMatching && allOnPageSelected && (
                     <div className="bg-purple-50 border-b border-purple-200 px-6 py-2">

@@ -6033,8 +6033,8 @@ def search_candidates_advanced():
         state = request.args.get('state')
         gender = request.args.get('gender')
         
-        # Modo liviano: solo devolver IDs+nombre para pageSizes > 100
-        lightweight = per_page > 100
+        # Modo liviano: solo devolver IDs+nombre para pageSizes muy grandes
+        lightweight = per_page > 1000
         
         query = User.query.filter(
             User.role == 'candidato',
