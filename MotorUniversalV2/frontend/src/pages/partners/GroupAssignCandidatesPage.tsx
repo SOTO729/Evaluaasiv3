@@ -398,15 +398,26 @@ export default function GroupAssignCandidatesPage() {
       
       const result = await uploadGroupMembersExcel(Number(groupId), uploadFile, 'add');
       
-      if (result.added.length > 0) {
-        setSuccessMessage(`${result.added.length} candidato(s) agregado(s) al grupo`);
-        setCurrentMemberCount(prev => prev + result.added.length);
+      const addedCount = result.added?.length || 0;
+      const errorsCount = result.errors?.length || 0;
+      
+      if (addedCount > 0) {
+        setSuccessMessage(`${addedCount} candidato(s) agregado(s) al grupo`);
+        setCurrentMemberCount(prev => prev + addedCount);
+        setUploadFile(null);
+        setPreviewData(null);
+        // Refrescar búsqueda para excluir los recién agregados
+        handleSearch(1, pageSize);
+      } else if (errorsCount > 0) {
+        setError(`${errorsCount} candidato(s) con errores. Ninguno fue agregado.`);
+      } else {
+        setSuccessMessage('Todos los candidatos del archivo ya eran miembros del grupo.');
         setUploadFile(null);
         setPreviewData(null);
       }
       
-      if (result.errors.length > 0) {
-        setError(`${result.errors.length} candidato(s) con errores`);
+      if (addedCount > 0 && errorsCount > 0) {
+        setError(`${errorsCount} candidato(s) con errores`);
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al procesar el archivo');
