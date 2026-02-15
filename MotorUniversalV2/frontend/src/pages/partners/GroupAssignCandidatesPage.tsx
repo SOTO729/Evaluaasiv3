@@ -54,7 +54,6 @@ import {
   uploadGroupMembersExcel,
   downloadGroupMembersTemplate,
   previewGroupMembersExcel,
-  getMexicanStates,
   bulkAssignByCriteria,
   CandidateGroup,
   CandidateSearchResult,
@@ -100,10 +99,7 @@ export default function GroupAssignCandidatesPage() {
   
   // Filtros avanzados
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [filterHasGroup, setFilterHasGroup] = useState<'all' | 'yes' | 'no'>('all');
   const [filterGender, setFilterGender] = useState<string>('');
-  const [filterState, setFilterState] = useState<string>('');
-  const [mexicanStates, setMexicanStates] = useState<string[]>([]);
   
   // Estado de selección
   const [selectedCandidates, setSelectedCandidates] = useState<Set<string>>(new Set());
@@ -160,7 +156,6 @@ export default function GroupAssignCandidatesPage() {
   // Cargar datos iniciales
   useEffect(() => {
     loadGroupData();
-    loadMexicanStates();
     loadGroupExams();
   }, [groupId]);
 
@@ -177,15 +172,6 @@ export default function GroupAssignCandidatesPage() {
       setError(err.response?.data?.error || 'Error al cargar el grupo');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadMexicanStates = async () => {
-    try {
-      const states = await getMexicanStates();
-      setMexicanStates(states);
-    } catch (err) {
-      console.error('Error loading states:', err);
     }
   };
 
@@ -209,15 +195,13 @@ export default function GroupAssignCandidatesPage() {
       setSelectAllMatching(false);
       
       // Si no hay término de búsqueda ni filtros avanzados, mostrar los más recientes
-      const isDefaultView = !searchQuery && filterHasGroup === 'all' && !filterGender && !filterState;
+      const isDefaultView = !searchQuery && !filterGender;
       
       const results = await searchCandidatesAdvanced({
         search: searchQuery.length >= 2 ? searchQuery : undefined,
         search_field: searchField !== 'all' ? searchField : undefined,
         exclude_group_id: Number(groupId),
-        has_group: filterHasGroup !== 'all' ? filterHasGroup : undefined,
         gender: filterGender || undefined,
-        state: filterState || undefined,
         page,
         per_page: perPage,
         sort_by: isDefaultView ? 'recent' : 'name',
@@ -237,7 +221,7 @@ export default function GroupAssignCandidatesPage() {
         setSearching(false);
       }
     }
-  }, [searchQuery, searchField, groupId, pageSize, filterHasGroup, filterGender, filterState]);
+  }, [searchQuery, searchField, groupId, pageSize, filterGender]);
 
   // Debounce de búsqueda
   useEffect(() => {
@@ -497,9 +481,7 @@ export default function GroupAssignCandidatesPage() {
       const criteria: Record<string, string | undefined> = {};
       if (searchQuery.length >= 2) criteria.search = searchQuery;
       if (searchField !== 'all') criteria.search_field = searchField;
-      if (filterHasGroup !== 'all') criteria.has_group = filterHasGroup;
       if (filterGender) criteria.gender = filterGender;
-      if (filterState) criteria.state = filterState;
       
       const result = await bulkAssignByCriteria(Number(groupId), criteria);
       
@@ -895,22 +877,9 @@ export default function GroupAssignCandidatesPage() {
                 )}
               </div>
               
-              {/* Filtros avanzados */}
+              {/* Filtro de género */}
               {showAdvancedFilters && (
                 <div className="fluid-mt-3 fluid-pt-3 border-t border-gray-100 flex flex-wrap items-center fluid-gap-4">
-                  <div className="flex items-center fluid-gap-2">
-                    <label className="fluid-text-sm text-gray-600">Con grupo:</label>
-                    <select
-                      value={filterHasGroup}
-                      onChange={(e) => setFilterHasGroup(e.target.value as 'all' | 'yes' | 'no')}
-                      className="fluid-px-3 py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm"
-                    >
-                      <option value="all">Todos</option>
-                      <option value="no">Sin grupo (disponibles)</option>
-                      <option value="yes">Con grupo asignado</option>
-                    </select>
-                  </div>
-                  
                   <div className="flex items-center fluid-gap-2">
                     <label className="fluid-text-sm text-gray-600">Género:</label>
                     <select
@@ -924,33 +893,14 @@ export default function GroupAssignCandidatesPage() {
                       <option value="O">Otro</option>
                     </select>
                   </div>
-                  
-                  <div className="flex items-center fluid-gap-2">
-                    <label className="fluid-text-sm text-gray-600">Estado:</label>
-                    <select
-                      value={filterState}
-                      onChange={(e) => setFilterState(e.target.value)}
-                      className="fluid-px-3 py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm"
+                  {filterGender && (
+                    <button
+                      onClick={() => setFilterGender('')}
+                      className="fluid-text-sm text-purple-600 hover:text-purple-700"
                     >
-                      <option value="">Todos</option>
-                      {mexicanStates.map((state) => (
-                        <option key={state} value={state}>
-                          {state}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <button
-                    onClick={() => {
-                      setFilterHasGroup('no');
-                      setFilterGender('');
-                      setFilterState('');
-                    }}
-                    className="fluid-text-sm text-purple-600 hover:text-purple-700"
-                  >
-                    Limpiar filtros
-                  </button>
+                      Limpiar filtro
+                    </button>
+                  )}
                 </div>
               )}
               
@@ -1060,7 +1010,7 @@ export default function GroupAssignCandidatesPage() {
               ) : (
                 <>
                   {/* Mensaje indicando qué está viendo */}
-                  {!searchQuery && filterHasGroup === 'all' && !filterGender && !filterState && (
+                  {!searchQuery && !filterGender && (
                     <div className="bg-purple-50 border-b border-purple-100 px-6 py-2">
                       <p className="text-sm text-purple-700 flex items-center gap-2">
                         <Users className="w-4 h-4" />
