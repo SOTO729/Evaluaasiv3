@@ -5828,22 +5828,25 @@ def preview_group_members_upload(group_id):
 @jwt_required()
 @coordinator_required
 def search_candidates_advanced():
-    """Búsqueda avanzada de candidatos con filtros múltiples"""
+    """Búsqueda avanzada de candidatos con filtros múltiples - optimizado para 100K+ registros"""
     try:
         # Parámetros de búsqueda básica
         search = request.args.get('search', '')
         search_field = request.args.get('search_field', '')
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
+        per_page = min(request.args.get('per_page', 25, type=int), 1000)  # Cap a 1000 max
         
         # Filtros avanzados
-        has_group = request.args.get('has_group')  # 'yes', 'no', o vacío para todos
-        group_id = request.args.get('group_id', type=int)  # Candidatos de un grupo específico
-        exclude_group_id = request.args.get('exclude_group_id', type=int)  # Excluir candidatos de un grupo
-        partner_id = request.args.get('partner_id', type=int)  # Candidatos de un partner específico
-        campus_id = request.args.get('campus_id', type=int)  # Candidatos de un campus específico
-        state = request.args.get('state')  # Estado del campus
-        gender = request.args.get('gender')  # M, F, O
+        has_group = request.args.get('has_group')
+        group_id = request.args.get('group_id', type=int)
+        exclude_group_id = request.args.get('exclude_group_id', type=int)
+        partner_id = request.args.get('partner_id', type=int)
+        campus_id = request.args.get('campus_id', type=int)
+        state = request.args.get('state')
+        gender = request.args.get('gender')
+        
+        # Modo liviano: solo devolver IDs+nombre para pageSizes > 100
+        lightweight = per_page > 100
         
         query = User.query.filter(
             User.role == 'candidato',
@@ -5954,56 +5957,64 @@ def search_candidates_advanced():
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         
         # Batch: obtener membresías activas para todos los usuarios de la página
+        # Para pages grandes (>100 items), skip membresía para acelerar respuesta
         user_ids_in_page = [user.id for user in pagination.items]
         
         membership_map = {}
-        if user_ids_in_page:
+        if user_ids_in_page and not lightweight:
             from sqlalchemy import text
-            membership_rows = db.session.execute(text("""
-                SELECT gm.user_id, g.id as group_id, g.name as group_name,
-                       c.id as campus_id, c.name as campus_name, c.state_name, c.city,
-                       sc.id as cycle_id, sc.name as cycle_name,
-                       p.id as partner_id, p.name as partner_name
-                FROM group_members gm
-                JOIN candidate_groups g ON gm.group_id = g.id
-                LEFT JOIN campuses c ON g.campus_id = c.id
-                LEFT JOIN school_cycles sc ON g.school_cycle_id = sc.id
-                LEFT JOIN partners p ON c.partner_id = p.id
-                WHERE gm.user_id IN :user_ids AND gm.status = 'active'
-            """), {'user_ids': tuple(user_ids_in_page) if user_ids_in_page else (0,)})
-            
-            for row in membership_rows:
-                # Solo guardar la primera membresía activa por usuario
-                if row[0] not in membership_map:
-                    membership_map[row[0]] = {
-                        'group_id': row[1],
-                        'group_name': row[2],
-                        'campus_id': row[3],
-                        'campus_name': row[4],
-                        'state_name': row[5],
-                        'city': row[6],
-                        'school_cycle_id': row[7],
-                        'school_cycle_name': row[8],
-                        'partner_id': row[9],
-                        'partner_name': row[10],
-                    }
+            # Procesar en chunks de 500 para evitar limits de IN clause
+            for i in range(0, len(user_ids_in_page), 500):
+                chunk_ids = user_ids_in_page[i:i + 500]
+                membership_rows = db.session.execute(text("""
+                    SELECT gm.user_id, g.id as group_id, g.name as group_name,
+                           c.id as campus_id, c.name as campus_name, c.state_name, c.city,
+                           sc.id as cycle_id, sc.name as cycle_name,
+                           p.id as partner_id, p.name as partner_name
+                    FROM group_members gm
+                    JOIN candidate_groups g ON gm.group_id = g.id
+                    LEFT JOIN campuses c ON g.campus_id = c.id
+                    LEFT JOIN school_cycles sc ON g.school_cycle_id = sc.id
+                    LEFT JOIN partners p ON c.partner_id = p.id
+                    WHERE gm.user_id IN :user_ids AND gm.status = 'active'
+                """), {'user_ids': tuple(chunk_ids)})
+                
+                for row in membership_rows:
+                    if row[0] not in membership_map:
+                        membership_map[row[0]] = {
+                            'group_id': row[1],
+                            'group_name': row[2],
+                            'campus_id': row[3],
+                            'campus_name': row[4],
+                            'state_name': row[5],
+                            'city': row[6],
+                            'school_cycle_id': row[7],
+                            'school_cycle_name': row[8],
+                            'partner_id': row[9],
+                            'partner_name': row[10],
+                        }
         
         candidates = []
         for user in pagination.items:
             group_info = membership_map.get(user.id)
             
-            candidates.append({
+            candidate = {
                 'id': user.id,
                 'email': user.email,
                 'name': user.name,
                 'first_surname': user.first_surname,
                 'second_surname': user.second_surname,
                 'full_name': f"{user.name} {user.first_surname} {user.second_surname or ''}".strip(),
-                'curp': user.curp,
-                'gender': user.gender,
-                'created_at': user.created_at.isoformat() if user.created_at else None,
                 'current_group': group_info,
-            })
+            }
+            
+            # Campos extra solo en modo normal (<=100 per_page)
+            if not lightweight:
+                candidate['curp'] = user.curp
+                candidate['gender'] = user.gender
+                candidate['created_at'] = user.created_at.isoformat() if user.created_at else None
+            
+            candidates.append(candidate)
         
         return jsonify({
             'candidates': candidates,

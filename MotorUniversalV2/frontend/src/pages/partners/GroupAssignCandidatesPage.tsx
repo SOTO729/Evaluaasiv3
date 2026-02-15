@@ -66,7 +66,14 @@ const SEARCH_FIELDS = [
   { key: 'curp', label: 'CURP' },
 ];
 
-const PAGE_SIZE_OPTIONS = [25, 50, 100, 250, 500];
+const PAGE_SIZE_OPTIONS = [
+  { value: 25, label: '25' },
+  { value: 50, label: '50' },
+  { value: 100, label: '100' },
+  { value: 250, label: '250 (rápido)' },
+  { value: 500, label: '500 (rápido)' },
+  { value: 1000, label: '1000 (máx)' },
+];
 
 export default function GroupAssignCandidatesPage() {
   const { groupId } = useParams();
@@ -117,6 +124,9 @@ export default function GroupAssignCandidatesPage() {
   // Estado para asignación masiva por criterios
   const [selectAllMatching, setSelectAllMatching] = useState(false);
   const [assigningAll, setAssigningAll] = useState(false);
+  
+  // Modo liviano para page sizes grandes (>100)
+  const isLightweight = pageSize > 100;
   
   // Estado para panel de seleccionados
   const [showSelectedPanel, setShowSelectedPanel] = useState(false);
@@ -821,6 +831,15 @@ export default function GroupAssignCandidatesPage() {
                   )}
                   
                   {/* Banner "Seleccionar todos los N resultados" */}
+                  {isLightweight && (
+                    <div className="bg-amber-50 border-b border-amber-200 px-4 py-2">
+                      <p className="text-sm text-amber-700 flex items-center gap-2">
+                        <Zap className="w-4 h-4" />
+                        Modo rápido: mostrando {pageSize} registros por página. Algunas columnas se ocultan para mayor velocidad.
+                      </p>
+                    </div>
+                  )}
+                  
                   {totalResults > searchResults.length && !selectAllMatching && selectAllOnPage && (
                     <div className="bg-purple-50 border-b border-purple-200 px-4 py-2">
                       <p className="text-sm text-purple-700 flex items-center gap-2">
@@ -852,9 +871,9 @@ export default function GroupAssignCandidatesPage() {
                       </th>
                       <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase">Candidato</th>
                       <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden md:table-cell">Email</th>
-                      <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell">CURP</th>
-                      <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell">Género</th>
-                      <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden xl:table-cell">Otros Grupos</th>
+                      {!isLightweight && <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell">CURP</th>}
+                      {!isLightweight && <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell">Género</th>}
+                      {!isLightweight && <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden xl:table-cell">Otros Grupos</th>}
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -892,9 +911,12 @@ export default function GroupAssignCandidatesPage() {
                               {candidate.email}
                             </div>
                           </td>
+                          {!isLightweight && (
                           <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600 hidden lg:table-cell font-mono">
                             {candidate.curp || <span className="text-gray-400">-</span>}
                           </td>
+                          )}
+                          {!isLightweight && (
                           <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600 hidden lg:table-cell">
                             {candidate.gender ? (
                               <div className="flex items-center gap-1">
@@ -905,6 +927,8 @@ export default function GroupAssignCandidatesPage() {
                               <span className="text-gray-400">-</span>
                             )}
                           </td>
+                          )}
+                          {!isLightweight && (
                           <td className="fluid-px-4 fluid-py-3 fluid-text-sm hidden xl:table-cell">
                             {candidate.current_group ? (
                               <span className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 bg-blue-50 text-blue-700 rounded-full fluid-text-xs font-medium">
@@ -915,6 +939,7 @@ export default function GroupAssignCandidatesPage() {
                               <span className="text-gray-400 fluid-text-xs italic">Sin grupo</span>
                             )}
                           </td>
+                          )}
                         </tr>
                       );
                     })}
@@ -944,8 +969,8 @@ export default function GroupAssignCandidatesPage() {
                         onChange={(e) => handlePageSizeChange(Number(e.target.value))}
                         className="fluid-px-2 py-1 border border-gray-300 rounded fluid-text-sm"
                       >
-                        {PAGE_SIZE_OPTIONS.map((size) => (
-                          <option key={size} value={size}>{size}</option>
+                        {PAGE_SIZE_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                       </select>
                     </div>
