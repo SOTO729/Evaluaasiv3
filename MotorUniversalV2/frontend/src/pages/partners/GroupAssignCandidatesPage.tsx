@@ -133,6 +133,10 @@ export default function GroupAssignCandidatesPage() {
   const [previewSortCol, setPreviewSortCol] = useState<string>('row');
   const [previewSortDir, setPreviewSortDir] = useState<'asc' | 'desc'>('asc');
   
+  // Estado de ordenamiento en tabla de búsqueda
+  const [searchSortCol, setSearchSortCol] = useState<string>('');
+  const [searchSortDir, setSearchSortDir] = useState<'asc' | 'desc'>('asc');
+  
   // Estado para asignación masiva por criterios
   const [selectAllMatching, setSelectAllMatching] = useState(false);
   const [assigningAll, setAssigningAll] = useState(false);
@@ -374,6 +378,43 @@ export default function GroupAssignCandidatesPage() {
       setPreviewSortCol(col);
       setPreviewSortDir('asc');
     }
+  };
+
+  // Ordenar resultados de búsqueda localmente
+  const sortedSearchResults = useMemo(() => {
+    if (!searchSortCol) return searchResults;
+    return [...searchResults].sort((a, b) => {
+      let va = '', vb = '';
+      switch (searchSortCol) {
+        case 'name': va = a.full_name || ''; vb = b.full_name || ''; break;
+        case 'email': va = a.email || ''; vb = b.email || ''; break;
+        case 'curp': va = a.curp || ''; vb = b.curp || ''; break;
+        case 'gender': va = a.gender || ''; vb = b.gender || ''; break;
+        case 'group': va = a.current_group?.group_name || ''; vb = b.current_group?.group_name || ''; break;
+        case 'eligibility': {
+          const score = (c: CandidateSearchResult) => (c.curp ? 1 : 0) + (c.email ? 1 : 0);
+          return searchSortDir === 'asc' ? score(a) - score(b) : score(b) - score(a);
+        }
+        default: return 0;
+      }
+      return searchSortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    });
+  }, [searchResults, searchSortCol, searchSortDir]);
+
+  const handleSearchSort = (col: string) => {
+    if (searchSortCol === col) {
+      setSearchSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSearchSortCol(col);
+      setSearchSortDir('asc');
+    }
+  };
+
+  const renderSearchSortIcon = (col: string) => {
+    if (searchSortCol === col) {
+      return searchSortDir === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 inline" /> : <ArrowDown className="h-3 w-3 ml-1 inline" />;
+    }
+    return <ArrowUpDown className="h-3 w-3 ml-1 inline opacity-30" />;
   };
 
   // Helper: renderizar badges de elegibilidad de certificados
@@ -1021,16 +1062,16 @@ export default function GroupAssignCandidatesPage() {
                           )}
                         </button>
                       </th>
-                      <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase">Candidato</th>
-                      <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden md:table-cell">Email</th>
-                      {!isLightweight && <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell">CURP</th>}
-                      {!isLightweight && <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell">Género</th>}
-                      {!isLightweight && <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden xl:table-cell">Otros Grupos</th>}
-                      {!isLightweight && <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell">Elegibilidad</th>}
+                      <th onClick={() => handleSearchSort('name')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100 select-none">Candidato{renderSearchSortIcon('name')}</th>
+                      <th onClick={() => handleSearchSort('email')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden md:table-cell cursor-pointer hover:bg-gray-100 select-none">Email{renderSearchSortIcon('email')}</th>
+                      {!isLightweight && <th onClick={() => handleSearchSort('curp')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell cursor-pointer hover:bg-gray-100 select-none">CURP{renderSearchSortIcon('curp')}</th>}
+                      {!isLightweight && <th onClick={() => handleSearchSort('gender')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell cursor-pointer hover:bg-gray-100 select-none">Género{renderSearchSortIcon('gender')}</th>}
+                      {!isLightweight && <th onClick={() => handleSearchSort('group')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden xl:table-cell cursor-pointer hover:bg-gray-100 select-none">Otros Grupos{renderSearchSortIcon('group')}</th>}
+                      {!isLightweight && <th onClick={() => handleSearchSort('eligibility')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell cursor-pointer hover:bg-gray-100 select-none">Elegibilidad{renderSearchSortIcon('eligibility')}</th>}
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {searchResults.map((candidate) => {
+                    {sortedSearchResults.map((candidate) => {
                       const isSelected = selectAllMatching || selectedCandidates.has(candidate.id);
                       return (
                         <tr
