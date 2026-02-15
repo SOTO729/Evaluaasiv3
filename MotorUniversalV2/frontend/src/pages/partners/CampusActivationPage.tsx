@@ -2,7 +2,7 @@
  * Página de Activación de Plantel
  * Guía al usuario a través del proceso de activación paso a paso
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
@@ -559,9 +559,84 @@ export default function CampusActivationPage() {
   const steps = getSteps();
   const naturalStep = steps.find(s => s.status === 'current')?.id || 1;
   const currentStep = activeStep !== null ? activeStep : naturalStep;
+  const completedCount = steps.filter(s => s.status === 'completed').length;
+  const progressPercent = Math.round((completedCount / steps.length) * 100);
+
+  // Track header visibility for sticky progress bar
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [showStickyBar, setShowStickyBar] = useState(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowStickyBar(!entry.isIntersecting),
+      { threshold: 0, rootMargin: '-1px 0px 0px 0px' }
+    );
+    if (headerRef.current) observer.observe(headerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div className="fluid-p-4 md:fluid-p-6 lg:fluid-p-8 w-full">
+      {/* Sticky progress bar - appears when header scrolls out */}
+      {createPortal(
+        <div
+          className={`fixed left-0 right-0 z-30 transition-all duration-300 ${
+            showStickyBar ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
+          }`}
+          style={{ top: 'var(--header-height)' }}
+        >
+          <div className="bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
+            <div className="max-w-fluid-full mx-auto fluid-px-4">
+              <div className="flex items-center fluid-gap-3 h-12">
+                {/* Progress bar background */}
+                <div className="flex items-center fluid-gap-1 flex-1">
+                  {steps.map((step, index) => (
+                    <div key={step.id} className="flex items-center flex-1">
+                      <button
+                        onClick={() => goToStep(step.id)}
+                        disabled={step.status === 'pending'}
+                        className={`flex items-center fluid-gap-2 fluid-px-3 fluid-py-1.5 fluid-rounded-lg transition-all fluid-text-xs font-medium whitespace-nowrap ${
+                          step.status === 'pending'
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : currentStep === step.id
+                            ? 'bg-blue-100 text-blue-700'
+                            : step.status === 'completed'
+                            ? 'text-green-700 hover:bg-green-50 cursor-pointer'
+                            : 'text-gray-600 hover:bg-gray-100 cursor-pointer'
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          step.status === 'completed'
+                            ? 'bg-green-500 text-white'
+                            : currentStep === step.id
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-300 text-white'
+                        }`}>
+                          {step.status === 'completed' ? (
+                            <Check className="w-3 h-3" />
+                          ) : (
+                            <span className="text-[10px] font-bold">{step.id}</span>
+                          )}
+                        </div>
+                        <span className="hidden sm:inline">{step.title}</span>
+                      </button>
+                      {index < steps.length - 1 && (
+                        <div className={`flex-1 h-0.5 mx-1 rounded-full ${
+                          step.status === 'completed' ? 'bg-green-300' : 'bg-gray-200'
+                        }`} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {/* Percentage */}
+                <span className="fluid-text-xs font-semibold text-gray-500 tabular-nums">{progressPercent}%</span>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Breadcrumb */}
       <PartnersBreadcrumb 
         items={[
@@ -572,7 +647,7 @@ export default function CampusActivationPage() {
       />
       
       {/* Header */}
-      <div className="flex items-center fluid-gap-4 fluid-mb-6 lg:fluid-mb-8 animate-fade-in-up">
+      <div ref={headerRef} className="flex items-center fluid-gap-4 fluid-mb-4 animate-fade-in-up">
         <Link
           to={`/partners/campuses/${campusId}`}
           className="fluid-p-2 hover:bg-gray-100 fluid-rounded-xl transition-colors"
@@ -589,67 +664,54 @@ export default function CampusActivationPage() {
         </span>
       </div>
 
-      <div className="grid lg:grid-cols-4 fluid-gap-6">
-        {/* Panel de Progreso */}
-        <div className="lg:col-span-1 lg:self-start lg:sticky z-10" style={{ top: 'calc(var(--header-height) + 1.5rem)' }}>
-          <div className="bg-white fluid-rounded-2xl shadow-sm border border-gray-200 fluid-p-4 md:fluid-p-6">
-            <h2 className="font-semibold text-gray-800 fluid-mb-6 fluid-text-base">Progreso de Activación</h2>
-            
-            <div className="fluid-space-y-4">
-              {steps.map((step, index) => (
-                <button
-                  key={step.id}
-                  onClick={() => goToStep(step.id)}
-                  disabled={step.status === 'pending'}
-                  className={`flex fluid-gap-3 w-full text-left transition-all ${
-                    step.status !== 'pending' ? 'cursor-pointer hover:bg-gray-50 fluid-rounded-xl fluid-p-2 -fluid-mx-2' : 'cursor-not-allowed'
-                  } ${currentStep === step.id ? 'bg-blue-50 fluid-rounded-xl fluid-p-2 -fluid-mx-2' : ''}`}
-                >
-                  {/* Línea de conexión */}
-                  <div className="flex flex-col items-center">
-                    <div className={`fluid-w-10 fluid-h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-                      step.status === 'completed' 
-                        ? 'bg-green-100 text-green-600' 
-                        : step.status === 'current' || currentStep === step.id
-                        ? 'bg-blue-100 text-blue-600'
-                        : 'bg-gray-100 text-gray-400'
-                    }`}>
-                      {step.status === 'completed' && currentStep !== step.id ? (
-                        <Check className="fluid-w-5 fluid-h-5" />
-                      ) : (
-                        step.icon
-                      )}
-                    </div>
-                    {index < steps.length - 1 && (
-                      <div className={`w-0.5 flex-1 mt-2 ${
-                        step.status === 'completed' ? 'bg-green-200' : 'bg-gray-200'
-                      }`} />
-                    )}
-                  </div>
-                  
-                  <div className="fluid-pb-6">
-                    <h3 className={`font-medium fluid-text-sm ${
-                      currentStep === step.id
-                        ? 'text-blue-700' 
-                        : step.status === 'completed' 
-                        ? 'text-green-700' 
-                        : 'text-gray-500'
-                    }`}>
-                      {step.title}
-                      {step.status === 'completed' && currentStep !== step.id && (
-                        <span className="fluid-ml-2 fluid-text-xs text-green-600">(editar)</span>
-                      )}
-                    </h3>
-                    <p className="fluid-text-xs text-gray-500 fluid-mt-1">{step.description}</p>
-                  </div>
-                </button>
-              ))}
+      {/* Inline Progress Steps */}
+      <div className="bg-white fluid-rounded-2xl shadow-sm border border-gray-200 fluid-p-4 fluid-mb-6">
+        <div className="flex items-center fluid-gap-2">
+          {steps.map((step, index) => (
+            <div key={step.id} className="flex items-center flex-1">
+              <button
+                onClick={() => goToStep(step.id)}
+                disabled={step.status === 'pending'}
+                className={`flex items-center fluid-gap-2.5 fluid-px-3 fluid-py-2 fluid-rounded-xl transition-all fluid-text-sm font-medium whitespace-nowrap ${
+                  step.status === 'pending'
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : currentStep === step.id
+                    ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200'
+                    : step.status === 'completed'
+                    ? 'text-green-700 hover:bg-green-50 cursor-pointer'
+                    : 'text-gray-600 hover:bg-gray-100 cursor-pointer'
+                }`}
+              >
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                  step.status === 'completed'
+                    ? 'bg-green-500 text-white'
+                    : currentStep === step.id
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 text-gray-500'
+                }`}>
+                  {step.status === 'completed' && currentStep !== step.id ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <span className="text-xs font-bold">{step.id}</span>
+                  )}
+                </div>
+                <div className="hidden md:block">
+                  <p className="leading-tight">{step.title}</p>
+                  <p className="fluid-text-xs font-normal text-gray-400 leading-tight">{step.description.length > 50 ? step.description.slice(0, 50) + '…' : step.description}</p>
+                </div>
+              </button>
+              {index < steps.length - 1 && (
+                <div className={`flex-1 h-0.5 mx-2 rounded-full min-w-[1rem] ${
+                  step.status === 'completed' ? 'bg-green-300' : 'bg-gray-200'
+                }`} />
+              )}
             </div>
-          </div>
+          ))}
         </div>
+      </div>
 
-        {/* Contenido Principal */}
-        <div className="lg:col-span-3 fluid-space-y-6 animate-fade-in-up">
+      {/* Contenido Principal */}
+      <div className="fluid-space-y-6 animate-fade-in-up max-w-5xl mx-auto">
           {/* Paso 1: Crear/Asignar Responsable */}
           {currentStep === 1 && !createdResponsable && (
             <div className="bg-white fluid-rounded-2xl shadow-sm border border-gray-200">
@@ -2047,7 +2109,6 @@ export default function CampusActivationPage() {
             </>
           )}
         </div>
-      </div>
     </div>
   );
 }
