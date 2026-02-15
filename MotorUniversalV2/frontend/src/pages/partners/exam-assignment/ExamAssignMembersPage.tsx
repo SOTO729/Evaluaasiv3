@@ -118,18 +118,23 @@ export default function ExamAssignMembersPage() {
 
   const handleBulkFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) { setBulkFile(file); setBulkResult(null); }
+    if (file) {
+      setBulkFile(file);
+      setBulkResult(null);
+      // Auto-procesar al seleccionar archivo
+      processFile(file);
+    }
   };
 
-  const handleBulkUpload = async () => {
-    if (!bulkFile || !prevState?.selectedExam) return;
+  const processFile = async (file: File) => {
+    if (!prevState?.selectedExam) return;
     const ecmCode = prevState.selectedExam.ecm_code || prevState.selectedExam.standard;
     if (!ecmCode) { setError('El examen seleccionado no tiene código ECM'); return; }
     setBulkUploading(true);
     setBulkResult(null);
     try {
       const { config } = prevState;
-      const result = await bulkAssignExamsByECM(Number(groupId), bulkFile, ecmCode, {
+      const result = await bulkAssignExamsByECM(Number(groupId), file, ecmCode, {
         time_limit_minutes: config.useExamDefaultTime ? undefined : (config.timeLimitMinutes || undefined),
         passing_score: config.useExamDefaultScore ? undefined : config.passingScore,
         max_attempts: config.maxAttempts,
@@ -143,6 +148,8 @@ export default function ExamAssignMembersPage() {
       setBulkUploading(false);
     }
   };
+
+  // handleBulkUpload removed - processing now auto-triggered by handleBulkFileChange
 
   const filteredMembers = members.filter(m => {
     if (!memberSearchQuery.trim()) return true;
@@ -304,28 +311,17 @@ export default function ExamAssignMembersPage() {
               <p className="fluid-text-xs text-gray-500 mt-1">La plantilla incluye los miembros del grupo y un catálogo de códigos ECM disponibles.</p>
             </div>
 
-            {/* Step 2: Upload file */}
+            {/* Step 2: Upload file - auto-processes on selection */}
             <div className="fluid-mb-4">
               <h5 className="font-medium text-gray-700 fluid-mb-2 fluid-text-base">2. Completa y sube el archivo</h5>
               <div className="flex items-center fluid-gap-4">
-                <label className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-green-600 text-white rounded-fluid-xl hover:bg-green-700 cursor-pointer transition-all fluid-text-sm">
-                  <Upload className="fluid-icon-sm" />Seleccionar Archivo
-                  <input type="file" accept=".xlsx,.xls" onChange={handleBulkFileChange} className="hidden" />
+                <label className={`flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 rounded-fluid-xl transition-all fluid-text-sm ${bulkUploading ? 'bg-gray-400 cursor-wait' : 'bg-green-600 hover:bg-green-700 cursor-pointer'} text-white`}>
+                  {bulkUploading ? <><Loader2 className="fluid-icon-sm animate-spin" />Procesando...</> : <><Upload className="fluid-icon-sm" />Seleccionar Archivo</>}
+                  <input type="file" accept=".xlsx,.xls" onChange={handleBulkFileChange} className="hidden" disabled={bulkUploading} />
                 </label>
-                {bulkFile && <span className="fluid-text-sm text-gray-600">{bulkFile.name}</span>}
+                {bulkFile && !bulkUploading && <span className="fluid-text-sm text-gray-600">{bulkFile.name}</span>}
               </div>
             </div>
-
-            {/* Step 3: Process */}
-            {bulkFile && !bulkResult && (
-              <div className="fluid-mb-4">
-                <h5 className="font-medium text-gray-700 fluid-mb-2 fluid-text-base">3. Procesar asignaciones</h5>
-                <button onClick={handleBulkUpload} disabled={bulkUploading}
-                  className="flex items-center fluid-gap-2 fluid-px-6 fluid-py-2 bg-green-600 text-white rounded-fluid-xl hover:bg-green-700 disabled:opacity-50 transition-all fluid-text-sm shadow-lg">
-                  {bulkUploading ? <><Loader2 className="fluid-icon-sm animate-spin" />Procesando...</> : <><CheckCircle2 className="fluid-icon-sm" />Procesar Asignaciones</>}
-                </button>
-              </div>
-            )}
 
             {/* Results */}
             {bulkResult && (
