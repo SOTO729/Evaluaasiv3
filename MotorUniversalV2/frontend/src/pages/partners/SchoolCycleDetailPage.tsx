@@ -120,11 +120,6 @@ export default function SchoolCycleDetailPage() {
             <div>
               <div className="flex items-center fluid-gap-3 flex-wrap">
                 <h1 className="fluid-text-2xl font-bold">{cycle.name}</h1>
-                {cycle.is_current && (
-                  <span className="fluid-text-sm bg-white/20 fluid-px-3 fluid-py-1 rounded-full font-semibold backdrop-blur-sm border border-white/30">
-                    Ciclo Actual
-                  </span>
-                )}
                 {!cycle.is_active && (
                   <span className="fluid-text-sm bg-red-500/80 fluid-px-3 fluid-py-1 rounded-full font-semibold">
                     Inactivo

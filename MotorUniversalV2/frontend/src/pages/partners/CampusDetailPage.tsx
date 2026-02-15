@@ -73,7 +73,6 @@ export default function CampusDetailPage() {
     cycle_type: 'annual' as 'annual' | 'semester',
     start_date: '',
     end_date: '',
-    is_current: true,
   });
   const [isCreatingCycle, setIsCreatingCycle] = useState(false);
   const [cyclesAvailable, setCyclesAvailable] = useState(true);
@@ -248,7 +247,7 @@ export default function CampusDetailPage() {
       setSelectedCycleId(newCycle.id);
       setCreatedCycleName(cycleName);
       setShowNewCycleModal(false);
-      setNewCycleForm({ name: '', cycle_type: 'annual', start_date: '', end_date: '', is_current: true });
+      setNewCycleForm({ name: '', cycle_type: 'annual', start_date: '', end_date: '' });
       setNameManuallyEdited(false);
       setShowCycleSuccessModal(true);
     } catch (err: any) {
@@ -869,7 +868,7 @@ export default function CampusDetailPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center fluid-gap-2 flex-wrap">
                               <span className="fluid-text-base font-semibold text-gray-900 truncate">{cycle.name}</span>
-                              {cycle.is_current && <span className="fluid-text-xs bg-blue-100 text-blue-700 fluid-px-2 fluid-py-0.5 rounded-full font-semibold border border-blue-200">Actual</span>}
+
                               {!cycle.is_active && <span className="fluid-text-xs bg-red-100 text-red-600 fluid-px-2 fluid-py-0.5 rounded-full font-semibold border border-red-200">Inactivo</span>}
                             </div>
                             <div className="flex items-center fluid-gap-4 fluid-text-sm text-gray-500 fluid-mt-1">
@@ -1059,41 +1058,7 @@ export default function CampusDetailPage() {
                 </div>
               )}
 
-              {/* Toggle Ciclo Actual */}
-              <div className="bg-gray-50 rounded-fluid-xl fluid-p-4 border border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="fluid-text-sm font-bold text-gray-700">Marcar como ciclo actual</label>
-                    <p className="fluid-text-xs text-gray-500 fluid-mt-0.5">
-                      {newCycleForm.is_current
-                        ? cycles.some(c => c.is_current) 
-                          ? 'El ciclo actual existente será desmarcado'
-                          : 'Este ciclo será marcado como el vigente'
-                        : 'No se marcará como ciclo vigente'
-                      }
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setNewCycleForm(prev => ({ ...prev, is_current: !prev.is_current }))}
-                    className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${
-                      newCycleForm.is_current ? 'bg-blue-600' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform duration-200 ${
-                      newCycleForm.is_current ? 'translate-x-5' : 'translate-x-0'
-                    }`} />
-                  </button>
-                </div>
-                {newCycleForm.is_current && cycles.some(c => c.is_current) && (
-                  <div className="fluid-mt-3 bg-amber-50 border border-amber-200 rounded-lg fluid-p-3 flex items-start fluid-gap-2">
-                    <AlertTriangle className="fluid-icon-xs text-amber-500 flex-shrink-0 mt-0.5" />
-                    <p className="fluid-text-xs text-amber-700">
-                      El ciclo <strong>"{cycles.find(c => c.is_current)?.name}"</strong> dejará de ser el ciclo actual.
-                    </p>
-                  </div>
-                )}
-              </div>
+
             </div>
             <div className="fluid-p-6 border-t border-gray-200 flex justify-end fluid-gap-4 bg-gray-50 rounded-b-3xl">
               <button
