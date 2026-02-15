@@ -6073,6 +6073,20 @@ def search_candidates_advanced():
         if gender and gender in ['M', 'F', 'O']:
             query = query.filter(User.gender == gender)
         
+        # Filtro: tiene email / sin email
+        has_email = request.args.get('has_email')
+        if has_email == 'yes':
+            query = query.filter(User.email.isnot(None), User.email != '')
+        elif has_email == 'no':
+            query = query.filter(db.or_(User.email.is_(None), User.email == ''))
+        
+        # Filtro: tiene CURP / sin CURP
+        has_curp = request.args.get('has_curp')
+        if has_curp == 'yes':
+            query = query.filter(User.curp.isnot(None), User.curp != '')
+        elif has_curp == 'no':
+            query = query.filter(db.or_(User.curp.is_(None), User.curp == ''))
+        
         # Filtro: tiene grupo / sin grupo
         if has_group == 'yes':
             # Candidatos que tienen al menos un grupo activo

@@ -1046,6 +1046,8 @@ export interface AdvancedSearchParams {
   campus_id?: number;
   state?: string;
   gender?: string;
+  has_email?: string;
+  has_curp?: string;
   sort_by?: 'name' | 'recent';
 }
 

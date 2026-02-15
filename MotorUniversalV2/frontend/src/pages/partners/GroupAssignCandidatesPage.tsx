@@ -100,6 +100,9 @@ export default function GroupAssignCandidatesPage() {
   // Filtros avanzados
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [filterGender, setFilterGender] = useState<string>('');
+  const [filterHasEmail, setFilterHasEmail] = useState<'' | 'yes' | 'no'>('');
+  const [filterHasCurp, setFilterHasCurp] = useState<'' | 'yes' | 'no'>('');
+  const [filterEligibility, setFilterEligibility] = useState<string>('');
   
   // Estado de selección
   const [selectedCandidates, setSelectedCandidates] = useState<Set<string>>(new Set());
@@ -195,13 +198,24 @@ export default function GroupAssignCandidatesPage() {
       setSelectAllMatching(false);
       
       // Si no hay término de búsqueda ni filtros avanzados, mostrar los más recientes
-      const isDefaultView = !searchQuery && !filterGender;
+      const hasActiveFilters = filterGender || filterHasEmail || filterHasCurp || filterEligibility;
+      const isDefaultView = !searchQuery && !hasActiveFilters;
+      
+      // Elegibilidad mapea a has_email / has_curp en el backend
+      let effectiveHasEmail = filterHasEmail || undefined;
+      let effectiveHasCurp = filterHasCurp || undefined;
+      if (filterEligibility === 'CC') effectiveHasCurp = 'yes'; // CC requiere CURP
+      if (filterEligibility === 'ID') effectiveHasEmail = 'yes'; // ID requiere email
+      if (filterEligibility === 'no_CC') effectiveHasCurp = 'no'; // Sin CC = sin CURP
+      if (filterEligibility === 'no_ID') effectiveHasEmail = 'no'; // Sin ID = sin email
       
       const results = await searchCandidatesAdvanced({
         search: searchQuery.length >= 2 ? searchQuery : undefined,
         search_field: searchField !== 'all' ? searchField : undefined,
         exclude_group_id: Number(groupId),
         gender: filterGender || undefined,
+        has_email: effectiveHasEmail as string | undefined,
+        has_curp: effectiveHasCurp as string | undefined,
         page,
         per_page: perPage,
         sort_by: isDefaultView ? 'recent' : 'name',
@@ -221,7 +235,7 @@ export default function GroupAssignCandidatesPage() {
         setSearching(false);
       }
     }
-  }, [searchQuery, searchField, groupId, pageSize, filterGender]);
+  }, [searchQuery, searchField, groupId, pageSize, filterGender, filterHasEmail, filterHasCurp, filterEligibility]);
 
   // Debounce de búsqueda
   useEffect(() => {
@@ -482,6 +496,12 @@ export default function GroupAssignCandidatesPage() {
       if (searchQuery.length >= 2) criteria.search = searchQuery;
       if (searchField !== 'all') criteria.search_field = searchField;
       if (filterGender) criteria.gender = filterGender;
+      if (filterHasEmail) criteria.has_email = filterHasEmail;
+      if (filterHasCurp) criteria.has_curp = filterHasCurp;
+      if (filterEligibility === 'CC') criteria.has_curp = 'yes';
+      if (filterEligibility === 'ID') criteria.has_email = 'yes';
+      if (filterEligibility === 'no_CC') criteria.has_curp = 'no';
+      if (filterEligibility === 'no_ID') criteria.has_email = 'no';
       
       const result = await bulkAssignByCriteria(Number(groupId), criteria);
       
@@ -877,7 +897,7 @@ export default function GroupAssignCandidatesPage() {
                 )}
               </div>
               
-              {/* Filtro de género */}
+              {/* Filtros */}
               {showAdvancedFilters && (
                 <div className="fluid-mt-3 fluid-pt-3 border-t border-gray-100 flex flex-wrap items-center fluid-gap-4">
                   <div className="flex items-center fluid-gap-2">
@@ -893,12 +913,59 @@ export default function GroupAssignCandidatesPage() {
                       <option value="O">Otro</option>
                     </select>
                   </div>
-                  {filterGender && (
+                  
+                  <div className="flex items-center fluid-gap-2">
+                    <label className="fluid-text-sm text-gray-600">Email:</label>
+                    <select
+                      value={filterHasEmail}
+                      onChange={(e) => setFilterHasEmail(e.target.value as '' | 'yes' | 'no')}
+                      className="fluid-px-3 py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm"
+                    >
+                      <option value="">Todos</option>
+                      <option value="yes">Con email</option>
+                      <option value="no">Sin email</option>
+                    </select>
+                  </div>
+                  
+                  <div className="flex items-center fluid-gap-2">
+                    <label className="fluid-text-sm text-gray-600">CURP:</label>
+                    <select
+                      value={filterHasCurp}
+                      onChange={(e) => setFilterHasCurp(e.target.value as '' | 'yes' | 'no')}
+                      className="fluid-px-3 py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm"
+                    >
+                      <option value="">Todos</option>
+                      <option value="yes">Con CURP</option>
+                      <option value="no">Sin CURP</option>
+                    </select>
+                  </div>
+                  
+                  <div className="flex items-center fluid-gap-2">
+                    <label className="fluid-text-sm text-gray-600">Elegibilidad:</label>
+                    <select
+                      value={filterEligibility}
+                      onChange={(e) => setFilterEligibility(e.target.value)}
+                      className="fluid-px-3 py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm"
+                    >
+                      <option value="">Todos</option>
+                      <option value="CC">Elegible CC (con CURP)</option>
+                      <option value="no_CC">No elegible CC (sin CURP)</option>
+                      <option value="ID">Elegible ID (con email)</option>
+                      <option value="no_ID">No elegible ID (sin email)</option>
+                    </select>
+                  </div>
+                  
+                  {(filterGender || filterHasEmail || filterHasCurp || filterEligibility) && (
                     <button
-                      onClick={() => setFilterGender('')}
+                      onClick={() => {
+                        setFilterGender('');
+                        setFilterHasEmail('');
+                        setFilterHasCurp('');
+                        setFilterEligibility('');
+                      }}
                       className="fluid-text-sm text-purple-600 hover:text-purple-700"
                     >
-                      Limpiar filtro
+                      Limpiar filtros
                     </button>
                   )}
                 </div>
@@ -1010,7 +1077,7 @@ export default function GroupAssignCandidatesPage() {
               ) : (
                 <>
                   {/* Mensaje indicando qué está viendo */}
-                  {!searchQuery && !filterGender && (
+                  {!searchQuery && !filterGender && !filterHasEmail && !filterHasCurp && !filterEligibility && (
                     <div className="bg-purple-50 border-b border-purple-100 px-6 py-2">
                       <p className="text-sm text-purple-700 flex items-center gap-2">
                         <Users className="w-4 h-4" />
