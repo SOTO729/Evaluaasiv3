@@ -40,8 +40,6 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Phone,
-  Calendar,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
@@ -342,7 +340,6 @@ export default function GroupAssignCandidatesPage() {
         r.user?.full_name?.toLowerCase().includes(s) ||
         r.user?.email?.toLowerCase().includes(s) ||
         r.user?.curp?.toLowerCase().includes(s) ||
-        r.user?.phone?.toLowerCase().includes(s) ||
         r.user?.username?.toLowerCase().includes(s) ||
         r.status.toLowerCase().includes(s) ||
         (r.error || '').toLowerCase().includes(s)
@@ -360,8 +357,6 @@ export default function GroupAssignCandidatesPage() {
         case 'email': va = a.user?.email || ''; vb = b.user?.email || ''; break;
         case 'curp': va = a.user?.curp || ''; vb = b.user?.curp || ''; break;
         case 'gender': va = a.user?.gender || ''; vb = b.user?.gender || ''; break;
-        case 'phone': va = a.user?.phone || ''; vb = b.user?.phone || ''; break;
-        case 'date_of_birth': va = a.user?.date_of_birth || ''; vb = b.user?.date_of_birth || ''; break;
         default: va = a.row; vb = b.row;
       }
       if (typeof va === 'string') {
@@ -1378,7 +1373,7 @@ export default function GroupAssignCandidatesPage() {
                       type="text"
                       value={previewSearch}
                       onChange={(e) => setPreviewSearch(e.target.value)}
-                      placeholder="Buscar en la previsualización por nombre, email, CURP, teléfono..."
+                      placeholder="Buscar en la previsualización por nombre, email, CURP..."
                       className="w-full pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                     />
                     {previewSearch && (
@@ -1404,8 +1399,6 @@ export default function GroupAssignCandidatesPage() {
                             { key: 'email', label: 'Email', cls: '' },
                             { key: 'curp', label: 'CURP', cls: '' },
                             { key: 'gender', label: 'Género', cls: 'w-20' },
-                            { key: 'phone', label: 'Teléfono', cls: '' },
-                            { key: 'date_of_birth', label: 'F. Nac.', cls: 'w-24' },
                           ].map(col => (
                             <th
                               key={col.key}
@@ -1453,16 +1446,6 @@ export default function GroupAssignCandidatesPage() {
                             <td className="fluid-px-3 fluid-py-2 fluid-text-xs text-gray-600 whitespace-nowrap">
                               {row.user?.gender === 'M' ? 'Masc' : row.user?.gender === 'F' ? 'Fem' : row.user?.gender === 'O' ? 'Otro' : '-'}
                             </td>
-                            <td className="fluid-px-3 fluid-py-2 fluid-text-xs text-gray-600 whitespace-nowrap">
-                              {row.user?.phone ? (
-                                <span className="flex items-center gap-1"><Phone className="h-3 w-3 text-gray-400" />{row.user.phone}</span>
-                              ) : <span className="text-gray-300">—</span>}
-                            </td>
-                            <td className="fluid-px-3 fluid-py-2 fluid-text-xs text-gray-600 whitespace-nowrap">
-                              {row.user?.date_of_birth ? (
-                                <span className="flex items-center gap-1"><Calendar className="h-3 w-3 text-gray-400" />{row.user.date_of_birth}</span>
-                              ) : <span className="text-gray-300">—</span>}
-                            </td>
                             <td className="fluid-px-3 fluid-py-2">
                               {row.user ? renderEligibilityBadges(row.user.email, row.user.curp) : '-'}
                             </td>
@@ -1473,7 +1456,7 @@ export default function GroupAssignCandidatesPage() {
                         ))}
                         {filteredPreview.length === 0 && previewSearch && (
                           <tr>
-                            <td colSpan={13} className="fluid-px-4 fluid-py-8 text-center text-gray-400 fluid-text-sm">
+                            <td colSpan={11} className="fluid-px-4 fluid-py-8 text-center text-gray-400 fluid-text-sm">
                               No se encontraron filas que coincidan con "{previewSearch}"
                             </td>
                           </tr>

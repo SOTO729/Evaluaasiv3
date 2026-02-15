@@ -227,8 +227,6 @@ export interface CandidateSearchResult {
   full_name: string;
   curp?: string;
   gender?: string;
-  phone?: string;
-  date_of_birth?: string;
   created_at?: string;
   current_group?: {
     group_id: number;
@@ -979,8 +977,6 @@ export interface ExcelPreviewRow {
     full_name: string;
     curp?: string;
     gender?: string;
-    phone?: string;
-    date_of_birth?: string;
     created_at?: string;
   };
 }

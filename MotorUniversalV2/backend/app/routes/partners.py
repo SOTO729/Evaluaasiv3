@@ -5976,8 +5976,6 @@ def preview_group_members_upload(group_id):
                         'full_name': f"{user.name} {user.first_surname} {user.second_surname or ''}".strip(),
                         'curp': user.curp,
                         'gender': user.gender,
-                        'phone': user.phone,
-                        'date_of_birth': user.date_of_birth.isoformat() if user.date_of_birth else None,
                         'created_at': user.created_at.isoformat() if user.created_at else None,
                     }
             
@@ -6226,8 +6224,6 @@ def search_candidates_advanced():
             if not lightweight:
                 candidate['curp'] = user.curp
                 candidate['gender'] = user.gender
-                candidate['phone'] = user.phone
-                candidate['date_of_birth'] = user.date_of_birth.isoformat() if user.date_of_birth else None
                 candidate['created_at'] = user.created_at.isoformat() if user.created_at else None
             
             candidates.append(candidate)
