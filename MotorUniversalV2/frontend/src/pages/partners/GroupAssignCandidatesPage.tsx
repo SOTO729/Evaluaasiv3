@@ -122,6 +122,9 @@ export default function GroupAssignCandidatesPage() {
   // Ref para scroll automático al preview
   const previewRef = useRef<HTMLDivElement>(null);
   
+  // Ref para cancelar respuestas stale de búsquedas anteriores
+  const searchRequestRef = useRef(0);
+  
   // Estado de búsqueda y ordenamiento en preview
   const [previewSearch, setPreviewSearch] = useState('');
   const [previewSortCol, setPreviewSortCol] = useState<string>('row');
@@ -200,6 +203,7 @@ export default function GroupAssignCandidatesPage() {
 
   // Búsqueda de candidatos con filtros avanzados
   const handleSearch = useCallback(async (page: number = 1, perPage: number = pageSize) => {
+    const requestId = ++searchRequestRef.current;
     try {
       setSearching(true);
       setSelectAllMatching(false);
@@ -218,15 +222,20 @@ export default function GroupAssignCandidatesPage() {
         per_page: perPage,
         sort_by: isDefaultView ? 'recent' : 'name',
       });
+      // Ignorar respuestas de búsquedas anteriores (race condition)
+      if (requestId !== searchRequestRef.current) return;
       setSearchResults(results.candidates);
       setTotalPages(results.pages);
       setTotalResults(results.total);
       setCurrentPage(page);
     } catch (err: any) {
+      if (requestId !== searchRequestRef.current) return;
       console.error('Error searching candidates:', err);
       setError('Error al buscar candidatos');
     } finally {
-      setSearching(false);
+      if (requestId === searchRequestRef.current) {
+        setSearching(false);
+      }
     }
   }, [searchQuery, searchField, groupId, pageSize, filterHasGroup, filterGender, filterState]);
 
@@ -619,7 +628,7 @@ export default function GroupAssignCandidatesPage() {
     const clamped = Math.max(1, Math.min(MAX_PAGE_SIZE, newSize));
     setPageSize(clamped);
     setPageSizeInput(String(clamped));
-    handleSearch(1, clamped);
+    // No llamar handleSearch directamente: el debounce se encarga al detectar el cambio de pageSize
   };
 
   const handlePageSizeInputSubmit = () => {
