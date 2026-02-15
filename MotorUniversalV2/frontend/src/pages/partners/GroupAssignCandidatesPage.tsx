@@ -59,8 +59,6 @@ import {
   GroupExamAssignment,
 } from '../../services/partnersService';
 
-type TabType = 'search' | 'excel';
-
 // Campos de búsqueda disponibles
 const SEARCH_FIELDS = [
   { key: 'all', label: 'Todos los campos' },
@@ -76,8 +74,8 @@ const MAX_PAGE_SIZE = 1000;
 export default function GroupAssignCandidatesPage() {
   const { groupId } = useParams();
   
-  // Estado del tab activo
-  const [activeTab, setActiveTab] = useState<TabType>('search');
+  // Estado de sección Excel
+  const [showExcelSection, setShowExcelSection] = useState(false);
   
   // Estado del grupo
   const [group, setGroup] = useState<CandidateGroup | null>(null);
@@ -700,38 +698,6 @@ export default function GroupAssignCandidatesPage() {
         </div>
       </div>
 
-      {/* ===== TABS ===== */}
-      <div className="bg-white rounded-t-fluid-xl border border-b-0 border-gray-200 fluid-px-6">
-        <nav className="flex fluid-gap-6">
-          <button
-            onClick={() => setActiveTab('search')}
-            className={`fluid-py-3 px-1 border-b-2 font-medium fluid-text-sm transition-colors ${
-              activeTab === 'search'
-                ? 'border-purple-600 text-purple-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <div className="flex items-center fluid-gap-2">
-              <Search className="fluid-icon-sm" />
-              Buscar y Asignar
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab('excel')}
-            className={`fluid-py-3 px-1 border-b-2 font-medium fluid-text-sm transition-colors ${
-              activeTab === 'excel'
-                ? 'border-purple-600 text-purple-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <div className="flex items-center fluid-gap-2">
-              <FileSpreadsheet className="fluid-icon-sm" />
-              Carga Masiva Excel
-            </div>
-          </button>
-        </nav>
-      </div>
-
       {/* ===== MENSAJES DE ESTADO ===== */}
       {(error || successMessage) && (
         <div className="fluid-mb-4">
@@ -758,8 +724,7 @@ export default function GroupAssignCandidatesPage() {
 
       {/* ===== CONTENIDO PRINCIPAL ===== */}
         
-        {/* ==================== TAB 1: BUSCAR Y ASIGNAR ==================== */}
-        {activeTab === 'search' && (
+        {/* ==================== BÚSQUEDA Y ASIGNACIÓN ==================== */}
           <>
             {/* Barra de herramientas */}
             <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4 fluid-mb-5">
@@ -1257,11 +1222,27 @@ export default function GroupAssignCandidatesPage() {
 
 
           </>
-        )}
 
-        {/* ==================== TAB 2: CARGA MASIVA EXCEL ==================== */}
-        {activeTab === 'excel' && (
-          <div className="fluid-mt-5">
+        {/* ==================== CARGA MASIVA EXCEL ==================== */}
+        <div className="fluid-mt-5">
+          <button
+            onClick={() => setShowExcelSection(!showExcelSection)}
+            className="w-full flex items-center justify-between bg-white rounded-fluid-xl border border-gray-200 fluid-px-6 fluid-py-4 hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center fluid-gap-3">
+              <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                <FileSpreadsheet className="fluid-icon-sm text-purple-600" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-gray-900 fluid-text-sm">Carga Masiva desde Excel</p>
+                <p className="fluid-text-xs text-gray-500">Descarga la plantilla, llénala con los identificadores y súbela para asignar candidatos</p>
+              </div>
+            </div>
+            <ChevronRight className={`fluid-icon-sm text-gray-400 transition-transform ${showExcelSection ? 'rotate-90' : ''}`} />
+          </button>
+          
+          {showExcelSection && (
+          <div className="fluid-mt-3">
             <div className="max-w-4xl mx-auto">
               {/* Paso 1: Descargar plantilla */}
               <div className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-6 fluid-mb-6">
@@ -1492,7 +1473,8 @@ export default function GroupAssignCandidatesPage() {
               )}
             </div>
           </div>
-        )}
+          )}
+        </div>
 
       {/* ===== MODAL DE CONFIRMACIÓN DE ASIGNACIÓN ===== */}
       {showConfirmModal && (
