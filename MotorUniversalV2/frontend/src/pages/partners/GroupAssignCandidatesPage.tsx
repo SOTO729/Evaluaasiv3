@@ -495,7 +495,7 @@ export default function GroupAssignCandidatesPage() {
               onClick={() => setActiveTab('search')}
               className={`fluid-py-3 px-1 border-b-2 font-medium fluid-text-sm transition-colors ${
                 activeTab === 'search'
-                  ? 'border-purple-600 text-purple-600'
+                  ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -508,7 +508,7 @@ export default function GroupAssignCandidatesPage() {
               onClick={() => setActiveTab('excel')}
               className={`fluid-py-3 px-1 border-b-2 font-medium fluid-text-sm transition-colors ${
                 activeTab === 'excel'
-                  ? 'border-amber-600 text-amber-600'
+                  ? 'border-purple-600 text-purple-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -562,7 +562,7 @@ export default function GroupAssignCandidatesPage() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Buscar por nombre, email o CURP (mín. 2 caracteres)..."
-                    className="w-full pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 fluid-text-sm"
+                    className="w-full pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm"
                   />
                 </div>
                 
@@ -570,7 +570,7 @@ export default function GroupAssignCandidatesPage() {
                 <select
                   value={searchField}
                   onChange={(e) => setSearchField(e.target.value)}
-                  className="fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500"
+                  className="fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-500"
                 >
                   {SEARCH_FIELDS.map((field) => (
                     <option key={field.key} value={field.key}>
@@ -584,7 +584,7 @@ export default function GroupAssignCandidatesPage() {
                   onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                   className={`inline-flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 border rounded-fluid-lg fluid-text-sm transition-colors ${
                     showAdvancedFilters
-                      ? 'bg-purple-100 border-purple-300 text-purple-700'
+                      ? 'bg-blue-100 border-blue-300 text-blue-700'
                       : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                   }`}
                 >
@@ -607,7 +607,7 @@ export default function GroupAssignCandidatesPage() {
                 {/* Info de selección */}
                 {(selectedCandidates.size > 0 || selectAllMatching) && (
                   <div className="flex items-center fluid-gap-2 fluid-text-sm">
-                    <span className="font-medium text-purple-700">
+                    <span className="font-medium text-blue-700">
                       {selectAllMatching 
                         ? `${totalResults.toLocaleString()} (todos)` 
                         : `${selectedCandidates.size} seleccionado(s)`}
@@ -617,8 +617,8 @@ export default function GroupAssignCandidatesPage() {
                         onClick={() => setShowSelectedPanel(!showSelectedPanel)}
                         className={`inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 rounded transition-colors ${
                           showSelectedPanel 
-                            ? 'bg-purple-100 text-purple-700' 
-                            : 'text-purple-600 hover:bg-purple-50'
+                            ? 'bg-blue-100 text-blue-700' 
+                            : 'text-blue-600 hover:bg-blue-50'
                         }`}
                       >
                         <Eye className="h-3.5 w-3.5" />
@@ -639,7 +639,7 @@ export default function GroupAssignCandidatesPage() {
                   <button
                     onClick={handleAddSelectedCandidates}
                     disabled={selectedCandidates.size === 0 || addingMembers}
-                    className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-lg font-medium transition-colors"
+                    className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-lg font-medium transition-colors"
                   >
                     {addingMembers ? (
                       <Loader2 className="fluid-icon-sm animate-spin" />
@@ -719,7 +719,7 @@ export default function GroupAssignCandidatesPage() {
                       setFilterGender('');
                       setFilterState('');
                     }}
-                    className="fluid-text-sm text-purple-600 hover:text-purple-700"
+                    className="fluid-text-sm text-blue-600 hover:text-blue-700"
                   >
                     Limpiar filtros
                   </button>
@@ -729,19 +729,19 @@ export default function GroupAssignCandidatesPage() {
               {/* Panel de candidatos seleccionados */}
               {showSelectedPanel && selectedCandidates.size > 0 && !selectAllMatching && (
                 <div className="fluid-mt-3 fluid-pt-3 border-t border-gray-200">
-                  <div className="bg-purple-50 border border-purple-200 rounded-fluid-lg fluid-p-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-fluid-lg fluid-p-4">
                     <div className="flex items-center justify-between fluid-mb-3">
                       <div className="flex items-center fluid-gap-2">
-                        <UserCheck className="fluid-icon text-purple-600" />
-                        <span className="font-medium text-purple-800">
+                        <UserCheck className="fluid-icon text-blue-600" />
+                        <span className="font-medium text-blue-800">
                           {selectedCandidates.size} candidato(s) seleccionado(s)
                         </span>
                       </div>
                       <button
                         onClick={() => setShowSelectedPanel(false)}
-                        className="fluid-p-1 hover:bg-purple-100 rounded transition-colors"
+                        className="fluid-p-1 hover:bg-blue-100 rounded transition-colors"
                       >
-                        <X className="fluid-icon-sm text-purple-600" />
+                        <X className="fluid-icon-sm text-blue-600" />
                       </button>
                     </div>
                     
@@ -753,24 +753,24 @@ export default function GroupAssignCandidatesPage() {
                         value={selectedPanelSearch}
                         onChange={(e) => setSelectedPanelSearch(e.target.value)}
                         placeholder="Buscar en seleccionados..."
-                        className="w-full fluid-pl-10 fluid-pr-4 fluid-py-2 border border-purple-200 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500 bg-white"
+                        className="w-full fluid-pl-10 fluid-pr-4 fluid-py-2 border border-blue-200 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-500 bg-white"
                       />
                     </div>
                     
                     {/* Lista de seleccionados */}
                     <div className="max-h-48 overflow-y-auto space-y-1">
                       {filteredSelectedCandidates.length === 0 ? (
-                        <p className="fluid-text-sm text-purple-600 text-center fluid-py-2">
+                        <p className="fluid-text-sm text-blue-600 text-center fluid-py-2">
                           No se encontraron candidatos
                         </p>
                       ) : (
                         filteredSelectedCandidates.map((candidate) => (
                           <div
                             key={candidate.id}
-                            className="flex items-center justify-between bg-white fluid-px-3 fluid-py-2 rounded-fluid-lg border border-purple-100 hover:border-purple-300 transition-colors"
+                            className="flex items-center justify-between bg-white fluid-px-3 fluid-py-2 rounded-fluid-lg border border-blue-100 hover:border-blue-300 transition-colors"
                           >
                             <div className="flex items-center fluid-gap-3 min-w-0 flex-1">
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold fluid-text-xs flex-shrink-0">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-pink-500 flex items-center justify-center text-white font-bold fluid-text-xs flex-shrink-0">
                                 {candidate.name?.charAt(0).toUpperCase() || '?'}
                               </div>
                               <div className="min-w-0 flex-1">
@@ -821,7 +821,7 @@ export default function GroupAssignCandidatesPage() {
             <div className="flex-1 overflow-auto">
               {searching && searchResults.length === 0 ? (
                 <div className="flex items-center justify-center fluid-py-20">
-                  <Loader2 className="fluid-icon-lg animate-spin text-purple-500" />
+                  <Loader2 className="fluid-icon-lg animate-spin text-blue-500" />
                 </div>
               ) : searchResults.length === 0 ? (
                 <div className="flex flex-col items-center justify-center fluid-py-20 text-gray-500">
@@ -843,8 +843,8 @@ export default function GroupAssignCandidatesPage() {
                   
                   {/* Banner "Seleccionar todos los N resultados" */}
                   {isLightweight && (
-                    <div className="bg-amber-50 border-b border-amber-200 px-4 py-2">
-                      <p className="text-sm text-amber-700 flex items-center gap-2">
+                    <div className="bg-purple-50 border-b border-purple-200 px-4 py-2">
+                      <p className="text-sm text-purple-700 flex items-center gap-2">
                         <Zap className="w-4 h-4" />
                         Modo rápido: mostrando {pageSize} registros por página. Algunas columnas se ocultan para mayor velocidad.
                       </p>
@@ -852,12 +852,12 @@ export default function GroupAssignCandidatesPage() {
                   )}
                   
                   {totalResults > searchResults.length && !selectAllMatching && selectAllOnPage && (
-                    <div className="bg-purple-50 border-b border-purple-200 px-4 py-2">
-                      <p className="text-sm text-purple-700 flex items-center gap-2">
+                    <div className="bg-blue-50 border-b border-blue-200 px-4 py-2">
+                      <p className="text-sm text-blue-700 flex items-center gap-2">
                         Se seleccionaron los {searchResults.length} candidatos de esta página.
                         <button
                           onClick={handleSelectAllMatching}
-                          className="font-semibold underline hover:text-purple-900"
+                          className="font-semibold underline hover:text-blue-900"
                         >
                           Seleccionar los {totalResults.toLocaleString()} candidatos que coinciden
                         </button>
@@ -874,7 +874,7 @@ export default function GroupAssignCandidatesPage() {
                           className="fluid-p-1 hover:bg-gray-200 rounded transition-colors"
                         >
                           {selectAllOnPage || selectAllMatching ? (
-                            <CheckSquare className="fluid-icon text-purple-600" />
+                            <CheckSquare className="fluid-icon text-blue-600" />
                           ) : (
                             <Square className="fluid-icon text-gray-400" />
                           )}
@@ -895,19 +895,19 @@ export default function GroupAssignCandidatesPage() {
                           key={candidate.id}
                           onClick={() => handleToggleCandidate(candidate.id, candidate)}
                           className={`cursor-pointer transition-colors ${
-                            isSelected ? 'bg-purple-50 hover:bg-purple-100' : 'hover:bg-gray-50'
+                            isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'
                           }`}
                         >
                           <td className="fluid-px-4 fluid-py-3">
                             {isSelected ? (
-                              <CheckSquare className="fluid-icon text-purple-600" />
+                              <CheckSquare className="fluid-icon text-blue-600" />
                             ) : (
                               <Square className="fluid-icon text-gray-300" />
                             )}
                           </td>
                           <td className="fluid-px-4 fluid-py-3">
                             <div className="flex items-center fluid-gap-3">
-                              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold fluid-text-sm">
+                              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold fluid-text-sm">
                                 {candidate.name?.charAt(0).toUpperCase() || '?'}
                               </div>
                               <div>
@@ -1019,8 +1019,8 @@ export default function GroupAssignCandidatesPage() {
               {/* Paso 1: Descargar plantilla */}
               <div className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-6 fluid-mb-6">
                 <div className="flex items-start fluid-gap-4">
-                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                    <Download className="fluid-icon text-amber-600" />
+                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                    <Download className="fluid-icon text-purple-600" />
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900 fluid-mb-1">Paso 1: Descargar Plantilla</h3>
@@ -1029,7 +1029,7 @@ export default function GroupAssignCandidatesPage() {
                     </p>
                     <button
                       onClick={handleDownloadTemplate}
-                      className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-fluid-lg font-medium transition-colors"
+                      className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-fluid-lg font-medium transition-colors"
                     >
                       <Download className="fluid-icon-sm" />
                       Descargar Plantilla
@@ -1041,8 +1041,8 @@ export default function GroupAssignCandidatesPage() {
               {/* Paso 2: Subir archivo */}
               <div className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-6 fluid-mb-6">
                 <div className="flex items-start fluid-gap-4">
-                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                    <Upload className="fluid-icon text-amber-600" />
+                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                    <Upload className="fluid-icon text-purple-600" />
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900 fluid-mb-1">Paso 2: Subir Archivo</h3>
@@ -1053,7 +1053,7 @@ export default function GroupAssignCandidatesPage() {
                     
                     {/* Selector de archivo */}
                     <div className="flex items-center fluid-gap-4">
-                      <label className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-fluid-lg font-medium transition-colors cursor-pointer">
+                      <label className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-fluid-lg font-medium transition-colors cursor-pointer">
                         <Upload className="fluid-icon-sm" />
                         {uploadFile ? 'Cambiar archivo' : 'Seleccionar archivo'}
                         <input
@@ -1067,10 +1067,10 @@ export default function GroupAssignCandidatesPage() {
                       {uploadFile && (
                         <div className="flex items-center fluid-gap-3">
                           <span className="fluid-text-sm text-gray-600 bg-gray-100 fluid-px-3 py-1.5 rounded-fluid-lg flex items-center fluid-gap-2">
-                            <FileSpreadsheet className="fluid-icon-sm text-amber-600" />
+                            <FileSpreadsheet className="fluid-icon-sm text-purple-600" />
                             {uploadFile.name}
                           </span>
-                          {uploading && <Loader2 className="fluid-icon-sm animate-spin text-amber-600" />}
+                          {uploading && <Loader2 className="fluid-icon-sm animate-spin text-purple-600" />}
                           <button
                             onClick={handleResetUpload}
                             className="text-gray-400 hover:text-gray-600"
@@ -1088,8 +1088,8 @@ export default function GroupAssignCandidatesPage() {
               {previewData && (
                 <div ref={previewRef} className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-6">
                   <div className="flex items-start fluid-gap-4 fluid-mb-6">
-                    <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                      <CheckCircle2 className="fluid-icon text-amber-600" />
+                    <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                      <CheckCircle2 className="fluid-icon text-purple-600" />
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900 fluid-mb-1">Paso 3: Confirmar Asignación</h3>
