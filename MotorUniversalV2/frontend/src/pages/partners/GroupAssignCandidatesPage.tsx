@@ -210,7 +210,7 @@ export default function GroupAssignCandidatesPage() {
       setSearching(true);
       setSelectAllMatching(false);
       
-      // Si no hay término de búsqueda ni filtros avanzados, mostrar los 10 más recientes
+      // Si no hay término de búsqueda ni filtros avanzados, mostrar los más recientes
       const isDefaultView = !searchQuery && filterHasGroup === 'all' && !filterGender && !filterState;
       
       const results = await searchCandidatesAdvanced({
@@ -221,7 +221,7 @@ export default function GroupAssignCandidatesPage() {
         gender: filterGender || undefined,
         state: filterState || undefined,
         page,
-        per_page: isDefaultView ? 10 : perPage,
+        per_page: perPage,
         sort_by: isDefaultView ? 'recent' : 'name',
       });
       setSearchResults(results.candidates);
@@ -597,10 +597,27 @@ export default function GroupAssignCandidatesPage() {
     setPreviewData(null);
   };
 
+  // Estado local para el input de página (permite escribir libremente)
+  const [pageInputValue, setPageInputValue] = useState(String(currentPage));
+  
+  // Sincronizar cuando la página real cambia
+  useEffect(() => {
+    setPageInputValue(String(currentPage));
+  }, [currentPage]);
+
   // Paginación
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
       handleSearch(newPage, pageSize);
+    }
+  };
+
+  const handlePageInputSubmit = () => {
+    const val = parseInt(pageInputValue, 10);
+    if (!isNaN(val) && val >= 1 && val <= totalPages) {
+      handlePageChange(val);
+    } else {
+      setPageInputValue(String(currentPage));
     }
   };
 
@@ -1018,7 +1035,7 @@ export default function GroupAssignCandidatesPage() {
                     <div className="bg-purple-50 border-b border-purple-100 px-6 py-2">
                       <p className="text-sm text-purple-700 flex items-center gap-2">
                         <Users className="w-4 h-4" />
-                        <span>Mostrando los <strong>10 candidatos más recientes</strong> que aún no pertenecen a este grupo. Usa el buscador para encontrar candidatos específicos.</span>
+                        <span>Mostrando los <strong>candidatos más recientes</strong> que aún no pertenecen a este grupo. Usa el buscador para encontrar candidatos específicos.</span>
                       </p>
                     </div>
                   )}
@@ -1191,16 +1208,14 @@ export default function GroupAssignCandidatesPage() {
                         <ChevronLeft className="fluid-icon-sm" />
                       </button>
                       <input
-                        type="number"
-                        min={1}
-                        max={totalPages}
-                        value={currentPage}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value, 10);
-                          if (val >= 1 && val <= totalPages) handlePageChange(val);
-                        }}
+                        type="text"
+                        inputMode="numeric"
+                        value={pageInputValue}
+                        onChange={(e) => setPageInputValue(e.target.value.replace(/[^0-9]/g, ''))}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handlePageInputSubmit(); }}
+                        onBlur={handlePageInputSubmit}
                         className="w-16 text-center py-1.5 border border-gray-300 rounded fluid-text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                        title="Ir a página"
+                        title="Escribe el número de página y presiona Enter"
                       />
                       <span className="fluid-text-sm text-gray-400">/ {totalPages}</span>
                       <button
