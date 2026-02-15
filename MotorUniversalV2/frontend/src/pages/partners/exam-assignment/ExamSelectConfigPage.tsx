@@ -10,7 +10,7 @@ import {
   BookOpen, ClipboardList, FileQuestion, Dumbbell, Layers,
   CheckCircle2, AlertCircle, X, Loader2,
   ChevronRight, ChevronLeft, EyeOff,
-  ChevronsLeft, ChevronsRight, Search, Lock, Hash,
+  ChevronsLeft, ChevronsRight, Search, Hash, Lock,
 } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../../components/PartnersBreadcrumb';
@@ -60,10 +60,6 @@ export default function ExamSelectConfigPage() {
   const [simulatorExercisesCount, setSimulatorExercisesCount] = useState<number | null>(null);
   const [useAllSimulatorQuestions, setUseAllSimulatorQuestions] = useState(true);
   const [useAllSimulatorExercises, setUseAllSimulatorExercises] = useState(true);
-
-  // PIN
-  const [requireSecurityPin, setRequireSecurityPin] = useState(false);
-  const [securityPin, setSecurityPin] = useState('');
 
   // Step within this page
   const [step, setStep] = useState<'select' | 'configure'>('select');
@@ -125,7 +121,6 @@ export default function ExamSelectConfigPage() {
       simulatorQuestionsCount: useAllSimulatorQuestions ? null : simulatorQuestionsCount,
       simulatorExercisesCount: useAllSimulatorExercises ? null : simulatorExercisesCount,
       useAllSimulatorQuestions, useAllSimulatorExercises,
-      requireSecurityPin, securityPin,
     };
     const state: SelectExamState = { selectedExam, config };
     navigate(`/partners/groups/${groupId}/assign-exam/materials`, { state });
@@ -495,28 +490,6 @@ export default function ExamSelectConfigPage() {
                 </div>
               )}
             </div>
-
-            {/* Security PIN */}
-            {((selectedExam.exam_questions_count || 0) > 0 || (selectedExam.exam_exercises_count || 0) > 0) && (
-              <div className="border-t pt-6 fluid-mb-6">
-                <h3 className="fluid-text-base font-medium text-gray-900 fluid-mb-4 flex items-center fluid-gap-2">
-                  <Lock className="fluid-icon-base text-red-500" />PIN de Seguridad <span className="fluid-text-xs font-normal text-gray-400">(solo para Examen)</span>
-                </h3>
-                <p className="fluid-text-sm text-gray-500 fluid-mb-4">Si se activa, el candidato deberá introducir un PIN para poder iniciar el examen.</p>
-                <label className="flex items-center fluid-mb-4">
-                  <input type="checkbox" checked={requireSecurityPin} onChange={(e) => { setRequireSecurityPin(e.target.checked); if (!e.target.checked) setSecurityPin(''); }}
-                    className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
-                  <span className="ml-2 fluid-text-sm text-gray-600">Requerir PIN de seguridad para iniciar el examen</span>
-                </label>
-                {requireSecurityPin && (
-                  <div className="flex items-center fluid-gap-2">
-                    <input type="text" value={securityPin} onChange={(e) => setSecurityPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-                      maxLength={6} placeholder="Ej: 1234" className="w-32 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-red-500 text-center fluid-text-lg tracking-widest font-mono" />
-                    <span className="text-gray-500 fluid-text-sm">PIN de 4-6 dígitos</span>
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Navigation */}
             <div className="flex justify-between pt-4 border-t">

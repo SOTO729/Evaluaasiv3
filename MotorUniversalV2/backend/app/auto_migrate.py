@@ -585,6 +585,10 @@ def check_and_add_campus_activation_columns():
                 # Características adicionales
                 'enable_virtual_machines': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
                 'enable_online_payments': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                # PIN de seguridad diario
+                'require_exam_pin': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                'daily_exam_pin': 'NVARCHAR(4) NULL' if db_type == 'mssql' else 'VARCHAR(4) NULL',
+                'daily_exam_pin_date': 'DATE NULL',
                 # Vigencia
                 'license_start_date': 'DATE',
                 'license_end_date': 'DATE',
@@ -641,6 +645,31 @@ def check_and_add_campus_activation_columns():
                         db.session.rollback()
         
         print("✅ Verificación de esquema activación de planteles completada")
+        
+        # ============== CANDIDATE_GROUPS - Campo require_exam_pin_override ==============
+        if 'candidate_groups' in tables:
+            existing_columns = [col['name'] for col in inspector.get_columns('candidate_groups')]
+            
+            group_pin_columns = {
+                'require_exam_pin_override': 'BIT NULL' if db_type == 'mssql' else 'BOOLEAN NULL',
+            }
+            
+            for column_name, column_def in group_pin_columns.items():
+                if column_name not in existing_columns:
+                    print(f"  📝 [candidate_groups] Agregando columna: {column_name}...")
+                    try:
+                        sql = f"ALTER TABLE candidate_groups ADD {column_name} {column_def}"
+                        db.session.execute(text(sql))
+                        db.session.commit()
+                        print(f"     ✓ Columna {column_name} agregada a candidate_groups")
+                    except Exception as e:
+                        if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+                            print(f"     ⚠️  Columna {column_name} ya existe")
+                        else:
+                            print(f"     ❌ Error al agregar {column_name}: {e}")
+                            db.session.rollback()
+                else:
+                    print(f"  ✓ Columna {column_name} ya existe en candidate_groups")
                 
     except Exception as e:
         print(f"❌ Error en auto-migración de activación de planteles: {e}")

@@ -89,8 +89,6 @@ export default function ExamAssignmentReviewPage() {
         exam_exercises_count: config.useAllExamExercises ? null : config.examExercisesCount,
         simulator_questions_count: config.useAllSimulatorQuestions ? null : config.simulatorQuestionsCount,
         simulator_exercises_count: config.useAllSimulatorExercises ? null : config.simulatorExercisesCount,
-        security_pin: config.requireSecurityPin ? config.securityPin : null,
-        require_security_pin: config.requireSecurityPin,
       };
 
       const result = await assignExamToGroup(Number(groupId), assignConfig);

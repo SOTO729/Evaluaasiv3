@@ -109,6 +109,8 @@ export interface Campus {
   enable_unscheduled_partials?: boolean;
   enable_virtual_machines?: boolean;
   enable_online_payments?: boolean;
+  require_exam_pin?: boolean;
+  daily_exam_pin?: string | null;
   license_start_date?: string;
   license_end_date?: string;
   assignment_validity_months?: number;
@@ -603,6 +605,10 @@ export interface CampusConfiguration {
   enable_virtual_machines: boolean;  // Máquinas virtuales para exámenes
   enable_online_payments: boolean;   // Pagos en línea
   
+  // PIN de seguridad para exámenes
+  require_exam_pin: boolean;   // Requerir PIN diario para iniciar examenes
+  daily_exam_pin?: string | null;  // PIN de 4 dígitos generado diariamente
+  
   // Vigencia
   assignment_validity_months: number;  // Meses de vigencia tras asignación
   
@@ -625,6 +631,7 @@ export interface ConfigureCampusRequest {
   enable_unscheduled_partials?: boolean;
   enable_virtual_machines?: boolean;
   enable_online_payments?: boolean;
+  require_exam_pin?: boolean;
   assignment_validity_months?: number;
   certification_cost?: number;
   retake_cost?: number;
@@ -757,6 +764,7 @@ export interface GroupConfigOverrides {
   enable_unscheduled_partials_override?: boolean | null;
   enable_virtual_machines_override?: boolean | null;
   enable_online_payments_override?: boolean | null;
+  require_exam_pin_override?: boolean | null;
   certification_cost_override?: number | null;
   retake_cost_override?: number | null;
   assignment_validity_months_override?: number | null;
@@ -1312,8 +1320,8 @@ export interface ExamAssignmentConfig {
   simulator_questions_count?: number | null;
   simulator_exercises_count?: number | null;
   // PIN solo para examen
-  security_pin?: string | null;
-  require_security_pin?: boolean;
+  security_pin?: string | null;  // deprecated - moved to campus level
+  require_security_pin?: boolean;  // deprecated - moved to campus level
 }
 
 export interface AvailableExam {

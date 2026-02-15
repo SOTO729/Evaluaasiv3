@@ -36,6 +36,7 @@ import {
   Search,
   X,
   Power,
+  Lock,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
@@ -632,8 +633,35 @@ export default function CampusDetailPage() {
                   </div>
                   {campus.enable_online_payments && <CheckCircle2 className="fluid-icon-sm text-green-600" />}
                 </div>
+                <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${campus.require_exam_pin ? 'bg-amber-100 text-amber-800 border-2 border-amber-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
+                  <div className="flex items-center fluid-gap-2">
+                    <Lock className="fluid-icon-sm" />
+                    <span className="fluid-text-xs font-semibold">PIN Examen</span>
+                  </div>
+                  {campus.require_exam_pin && <CheckCircle2 className="fluid-icon-sm text-amber-600" />}
+                </div>
               </div>
             </div>
+
+            {/* PIN Diario del Plantel */}
+            {campus.require_exam_pin && campus.daily_exam_pin && (
+              <div className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-fluid-xl fluid-p-5 border-2 border-amber-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center fluid-gap-3">
+                    <div className="fluid-p-2.5 bg-amber-200 rounded-fluid-lg">
+                      <Lock className="fluid-icon-sm text-amber-700" />
+                    </div>
+                    <div>
+                      <p className="fluid-text-xs font-bold text-amber-700 uppercase tracking-wide">PIN de Examen del Día</p>
+                      <p className="fluid-text-xs text-amber-600">Se genera automáticamente cada día</p>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-fluid-xl fluid-px-5 fluid-py-3 border-2 border-amber-300 shadow-sm">
+                    <p className="fluid-text-2xl font-mono font-black text-amber-800 tracking-[0.3em]">{campus.daily_exam_pin}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

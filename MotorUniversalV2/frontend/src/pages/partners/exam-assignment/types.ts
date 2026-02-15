@@ -22,9 +22,6 @@ export interface ExamConfig {
   simulatorExercisesCount: number | null;
   useAllSimulatorQuestions: boolean;
   useAllSimulatorExercises: boolean;
-  // PIN
-  requireSecurityPin: boolean;
-  securityPin: string;
 }
 
 /** State passed from Page 1 → Page 2 */

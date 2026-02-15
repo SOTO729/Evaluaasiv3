@@ -23,6 +23,7 @@ import {
   Info,
   DollarSign,
   CheckCircle2,
+  Lock,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
@@ -83,6 +84,7 @@ export default function GroupFormPage() {
     enable_unscheduled_partials_override: null as boolean | null,
     enable_virtual_machines_override: null as boolean | null,
     enable_online_payments_override: null as boolean | null,
+    require_exam_pin_override: null as boolean | null,
     certification_cost_override: null as number | null,
     retake_cost_override: null as number | null,
     assignment_validity_months_override: null as number | null,
@@ -175,6 +177,7 @@ export default function GroupFormPage() {
         enable_unscheduled_partials_override: config.group_overrides.enable_unscheduled_partials_override ?? null,
         enable_virtual_machines_override: config.group_overrides.enable_virtual_machines_override ?? null,
         enable_online_payments_override: config.group_overrides.enable_online_payments_override ?? null,
+        require_exam_pin_override: config.group_overrides.require_exam_pin_override ?? null,
         certification_cost_override: config.group_overrides.certification_cost_override ?? null,
         retake_cost_override: config.group_overrides.retake_cost_override ?? null,
         assignment_validity_months_override: config.group_overrides.assignment_validity_months_override ?? null,
@@ -744,6 +747,7 @@ export default function GroupFormPage() {
                           <ConfigSelect field="enable_unscheduled_partials_override" label="Parciales Sin Agendar" icon={Calendar} />
                           <ConfigSelect field="enable_virtual_machines_override" label="Calendario de Sesiones" icon={Calendar} />
                           <ConfigSelect field="enable_online_payments_override" label="Pagos en Línea" icon={CreditCard} />
+                          <ConfigSelect field="require_exam_pin_override" label="PIN de Examen" icon={Lock} />
                         </div>
                       </div>
                     </div>

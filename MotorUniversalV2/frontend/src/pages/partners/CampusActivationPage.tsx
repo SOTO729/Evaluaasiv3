@@ -31,6 +31,7 @@ import {
   BadgeCheck,
   Sparkles,
   Clock,
+  Lock,
   UserPlus,
   UserCheck,
   Search,
@@ -129,6 +130,7 @@ export default function CampusActivationPage() {
     enable_unscheduled_partials: false,
     enable_virtual_machines: false,
     enable_online_payments: false,
+    require_exam_pin: false,
     assignment_validity_months: 12,
     certification_cost: 0,
     retake_cost: 0,
@@ -178,6 +180,7 @@ export default function CampusActivationPage() {
         enable_unscheduled_partials: campus.enable_unscheduled_partials ?? prev.enable_unscheduled_partials,
         enable_virtual_machines: campus.enable_virtual_machines ?? prev.enable_virtual_machines,
         enable_online_payments: campus.enable_online_payments ?? prev.enable_online_payments,
+        require_exam_pin: campus.require_exam_pin ?? prev.require_exam_pin,
         assignment_validity_months: campus.assignment_validity_months ?? prev.assignment_validity_months,
         certification_cost: campus.certification_cost ?? prev.certification_cost,
         retake_cost: campus.retake_cost ?? prev.retake_cost,
@@ -1775,6 +1778,24 @@ export default function CampusActivationPage() {
                           checked={configData.enable_online_payments}
                           onChange={(v) => setConfigData(prev => ({ ...prev, enable_online_payments: v }))}
                           colorScheme="rose"
+                        />
+                      </div>
+
+                      {/* PIN de Seguridad para Exámenes */}
+                      <div className={`flex items-center justify-between p-4 border-2 rounded-xl transition-all ${
+                        configData.require_exam_pin ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-gray-300'
+                      }`}>
+                        <div className="flex items-center gap-3">
+                          <Lock className="w-5 h-5 text-amber-600" />
+                          <div>
+                            <span className="font-medium text-gray-800">PIN de Examen</span>
+                            <p className="text-xs text-gray-500 mt-0.5">PIN de 4 dígitos generado diariamente para iniciar exámenes</p>
+                          </div>
+                        </div>
+                        <ToggleSwitch
+                          checked={configData.require_exam_pin ?? false}
+                          onChange={(v) => setConfigData(prev => ({ ...prev, require_exam_pin: v }))}
+                          colorScheme="amber"
                         />
                       </div>
                     </div>

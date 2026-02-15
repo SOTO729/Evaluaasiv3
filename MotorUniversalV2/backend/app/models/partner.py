@@ -212,6 +212,11 @@ class Campus(db.Model):
     # Pagos en línea
     enable_online_payments = db.Column(db.Boolean, default=False)  # Habilitar pagos en línea
     
+    # PIN de seguridad para exámenes (generado diariamente)
+    require_exam_pin = db.Column(db.Boolean, default=False)  # Requerir PIN para iniciar exámenes
+    daily_exam_pin = db.Column(db.String(4))  # PIN de 4 dígitos
+    daily_exam_pin_date = db.Column(db.Date)  # Fecha en que se generó el PIN
+    
     # Vigencia del plantel (licencia)
     license_start_date = db.Column(db.Date)  # Fecha de inicio de vigencia (legacy)
     license_end_date = db.Column(db.Date)  # Fecha de fin de vigencia (legacy)
@@ -281,6 +286,8 @@ class Campus(db.Model):
             'enable_unscheduled_partials': self.enable_unscheduled_partials if self.enable_unscheduled_partials is not None else False,
             'enable_virtual_machines': self.enable_virtual_machines if self.enable_virtual_machines is not None else False,
             'enable_online_payments': self.enable_online_payments if self.enable_online_payments is not None else False,
+            'require_exam_pin': self.require_exam_pin if self.require_exam_pin is not None else False,
+            'daily_exam_pin': self.get_daily_pin() if self.require_exam_pin else None,
             'assignment_validity_months': self.assignment_validity_months or 12,
             'certification_cost': float(self.certification_cost) if self.certification_cost else 0,
             'retake_cost': float(self.retake_cost) if self.retake_cost else 0,
@@ -298,6 +305,8 @@ class Campus(db.Model):
                 'enable_unscheduled_partials': self.enable_unscheduled_partials if self.enable_unscheduled_partials is not None else False,
                 'enable_virtual_machines': self.enable_virtual_machines if self.enable_virtual_machines is not None else False,
                 'enable_online_payments': self.enable_online_payments if self.enable_online_payments is not None else False,
+                'require_exam_pin': self.require_exam_pin if self.require_exam_pin is not None else False,
+                'daily_exam_pin': self.get_daily_pin() if self.require_exam_pin else None,
                 'assignment_validity_months': self.assignment_validity_months or 12,
                 'certification_cost': float(self.certification_cost) if self.certification_cost else 0,
                 'retake_cost': float(self.retake_cost) if self.retake_cost else 0,
@@ -336,6 +345,16 @@ class Campus(db.Model):
     def get_competency_standard_ids(self):
         """Obtener lista de IDs de estándares de competencia asignados"""
         return [cs.competency_standard_id for cs in self.competency_standards.all()]
+    
+    def get_daily_pin(self):
+        """Obtener PIN diario. Genera uno nuevo si el actual es de otro día."""
+        import random
+        today = datetime.utcnow().date()
+        if not self.daily_exam_pin or self.daily_exam_pin_date != today:
+            self.daily_exam_pin = str(random.randint(1000, 9999))
+            self.daily_exam_pin_date = today
+            db.session.commit()
+        return self.daily_exam_pin
     
     def get_competency_standards_list(self):
         """Obtener lista de estándares de competencia con info básica"""
@@ -486,6 +505,9 @@ class CandidateGroup(db.Model):
     # Pagos en línea
     enable_online_payments_override = db.Column(db.Boolean)
     
+    # PIN de seguridad para exámenes
+    require_exam_pin_override = db.Column(db.Boolean)
+    
     # Costos
     certification_cost_override = db.Column(db.Numeric(10, 2))
     retake_cost_override = db.Column(db.Numeric(10, 2))
@@ -532,6 +554,7 @@ class CandidateGroup(db.Model):
                 'enable_unscheduled_partials_override': self.enable_unscheduled_partials_override,
                 'enable_virtual_machines_override': self.enable_virtual_machines_override,
                 'enable_online_payments_override': self.enable_online_payments_override,
+                'require_exam_pin_override': self.require_exam_pin_override,
                 'certification_cost_override': float(self.certification_cost_override) if self.certification_cost_override is not None else None,
                 'retake_cost_override': float(self.retake_cost_override) if self.retake_cost_override is not None else None,
                 'assignment_validity_months_override': self.assignment_validity_months_override,
@@ -549,6 +572,7 @@ class CandidateGroup(db.Model):
                     'enable_unscheduled_partials': self.enable_unscheduled_partials_override if self.enable_unscheduled_partials_override is not None else self.campus.enable_unscheduled_partials,
                     'enable_virtual_machines': self.enable_virtual_machines_override if self.enable_virtual_machines_override is not None else self.campus.enable_virtual_machines,
                     'enable_online_payments': self.enable_online_payments_override if self.enable_online_payments_override is not None else self.campus.enable_online_payments,
+                    'require_exam_pin': self.require_exam_pin_override if self.require_exam_pin_override is not None else (self.campus.require_exam_pin if self.campus.require_exam_pin is not None else False),
                     'certification_cost': float(self.certification_cost_override) if self.certification_cost_override is not None else (float(self.campus.certification_cost) if self.campus.certification_cost else 0),
                     'retake_cost': float(self.retake_cost_override) if self.retake_cost_override is not None else (float(self.campus.retake_cost) if self.campus.retake_cost else 0),
                     'assignment_validity_months': self.assignment_validity_months_override if self.assignment_validity_months_override is not None else (self.campus.assignment_validity_months or 12),
