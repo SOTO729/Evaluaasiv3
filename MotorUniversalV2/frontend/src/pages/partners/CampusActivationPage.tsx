@@ -572,8 +572,6 @@ export default function CampusActivationPage() {
   const steps = getSteps();
   const naturalStep = steps.find(s => s.status === 'current')?.id || 1;
   const currentStep = activeStep !== null ? activeStep : naturalStep;
-  const completedCount = steps.filter(s => s.status === 'completed').length;
-  const progressPercent = Math.round((completedCount / steps.length) * 100);
 
   return (
     <div className="fluid-p-4 md:fluid-p-6 lg:fluid-p-8 w-full">
@@ -586,51 +584,41 @@ export default function CampusActivationPage() {
           style={{ top: 'var(--header-height)' }}
         >
           <div className="bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
-            <div className="max-w-fluid-full mx-auto px-4 md:px-8">
-              <div className="flex items-center gap-4 h-14">
-                <div className="flex items-center gap-2 flex-1">
-                  {steps.map((step, index) => (
-                    <div key={step.id} className="flex items-center flex-1 min-w-0">
-                      <button
-                        onClick={() => goToStep(step.id)}
-                        disabled={step.status === 'pending'}
-                        className={`flex items-center gap-2.5 px-4 py-2 rounded-lg transition-all text-sm font-medium whitespace-nowrap ${
-                          step.status === 'pending'
-                            ? 'text-gray-400 cursor-not-allowed'
-                            : currentStep === step.id
-                            ? 'bg-blue-100 text-blue-700'
-                            : step.status === 'completed'
-                            ? 'text-green-700 hover:bg-green-50 cursor-pointer'
-                            : 'text-gray-600 hover:bg-gray-100 cursor-pointer'
-                        }`}
-                      >
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          step.status === 'completed'
-                            ? 'bg-green-500 text-white'
-                            : currentStep === step.id
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-300 text-white'
-                        }`}>
-                          {step.status === 'completed' ? (
-                            <Check className="w-3.5 h-3.5" />
-                          ) : (
-                            <span className="text-xs font-bold">{step.id}</span>
-                          )}
-                        </div>
-                        <span className="hidden sm:inline">{step.title}</span>
-                      </button>
-                      {index < steps.length - 1 && (
-                        <div className={`flex-1 h-0.5 mx-3 rounded-full min-w-[1.5rem] ${
-                          step.status === 'completed' ? 'bg-green-300' : 'bg-gray-200'
-                        }`} />
-                      )}
-                    </div>
-                  ))}
-                </div>
-                {/* Percentage badge */}
-                <div className="flex-shrink-0 bg-gray-100 rounded-full px-3 py-1">
-                  <span className="text-xs font-semibold text-gray-600 tabular-nums">{progressPercent}%</span>
-                </div>
+            <div className="max-w-5xl mx-auto px-6 py-3">
+              <div className="flex items-center justify-between">
+                {steps.map((step, index) => (
+                  <div key={step.id} className="contents">
+                    <button
+                      onClick={() => goToStep(step.id)}
+                      disabled={step.status === 'pending'}
+                      className={`flex items-center gap-2 transition-all ${
+                        step.status === 'pending' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                      }`}
+                    >
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
+                        step.status === 'completed'
+                          ? 'bg-green-500 text-white'
+                          : currentStep === step.id
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-200 text-gray-500'
+                      }`}>
+                        {step.status === 'completed' ? (
+                          <Check className="w-3.5 h-3.5" />
+                        ) : (
+                          step.id
+                        )}
+                      </div>
+                      <span className={`hidden sm:block text-sm font-medium ${
+                        currentStep === step.id ? 'text-blue-700' : step.status === 'completed' ? 'text-green-700' : 'text-gray-500'
+                      }`}>{step.title}</span>
+                    </button>
+                    {index < steps.length - 1 && (
+                      <div className={`w-16 md:w-24 h-0.5 rounded-full mx-2 ${
+                        step.status === 'completed' ? 'bg-green-300' : 'bg-gray-200'
+                      }`} />
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -666,45 +654,46 @@ export default function CampusActivationPage() {
       </div>
 
       {/* Inline Progress Steps */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 px-6 py-5 mb-6">
-        <div className="flex items-center gap-3">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 px-6 py-5 mb-8">
+        <div className="flex items-start justify-between">
           {steps.map((step, index) => (
-            <div key={step.id} className="flex items-center flex-1 min-w-0">
+            <div key={step.id} className="contents">
+              {/* Step */}
               <button
                 onClick={() => goToStep(step.id)}
                 disabled={step.status === 'pending'}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all text-sm font-medium whitespace-nowrap ${
-                  step.status === 'pending'
-                    ? 'text-gray-400 cursor-not-allowed'
-                    : currentStep === step.id
-                    ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200 shadow-sm'
-                    : step.status === 'completed'
-                    ? 'text-green-700 hover:bg-green-50 cursor-pointer'
-                    : 'text-gray-600 hover:bg-gray-100 cursor-pointer'
+                className={`flex flex-col items-center text-center gap-2 transition-all ${
+                  step.status === 'pending' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer group'
                 }`}
+                style={{ width: '140px' }}
               >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
                   step.status === 'completed'
-                    ? 'bg-green-500 text-white'
+                    ? 'bg-green-500 text-white group-hover:bg-green-600'
                     : currentStep === step.id
-                    ? 'bg-blue-500 text-white'
+                    ? 'bg-blue-500 text-white ring-4 ring-blue-100'
                     : 'bg-gray-200 text-gray-500'
                 }`}>
                   {step.status === 'completed' && currentStep !== step.id ? (
-                    <Check className="w-4 h-4" />
+                    <Check className="w-5 h-5" />
                   ) : (
                     <span className="text-sm font-bold">{step.id}</span>
                   )}
                 </div>
-                <div className="hidden md:block min-w-0">
-                  <p className="leading-tight truncate">{step.title}</p>
-                  <p className="text-xs font-normal text-gray-400 leading-tight mt-0.5 truncate">{step.description}</p>
+                <div>
+                  <p className={`text-sm font-semibold leading-tight ${
+                    currentStep === step.id ? 'text-blue-700' : step.status === 'completed' ? 'text-green-700' : 'text-gray-500'
+                  }`}>{step.title}</p>
+                  <p className="text-xs text-gray-400 mt-1 leading-tight hidden lg:block">{step.description}</p>
                 </div>
               </button>
+              {/* Connector line */}
               {index < steps.length - 1 && (
-                <div className={`flex-1 h-0.5 mx-4 rounded-full min-w-[2rem] ${
-                  step.status === 'completed' ? 'bg-green-300' : 'bg-gray-200'
-                }`} />
+                <div className="flex items-center flex-1 pt-5">
+                  <div className={`w-full h-0.5 rounded-full ${
+                    step.status === 'completed' ? 'bg-green-300' : 'bg-gray-200'
+                  }`} />
+                </div>
               )}
             </div>
           ))}
