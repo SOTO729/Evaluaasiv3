@@ -224,7 +224,7 @@ export default function VmSchedulingPage() {
   // Loading
   if (accessLoading) {
     return (
-      <div className="max-w-fluid-full mx-auto">
+      <div className="fluid-p-6 max-w-[2800px] mx-auto">
         <LoadingSpinner message="Cargando calendario..." />
       </div>
     );
@@ -233,7 +233,7 @@ export default function VmSchedulingPage() {
   // No access
   if (!access?.has_access) {
     return (
-      <div className="max-w-fluid-full mx-auto animate-fade-in-up">
+      <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
         <div className="bg-amber-50 border border-amber-200 rounded-fluid-2xl fluid-p-8 text-center max-w-lg mx-auto">
           <AlertCircle className="fluid-icon-xl text-amber-500 mx-auto fluid-mb-4" />
           <h2 className="fluid-text-xl font-bold text-amber-800 fluid-mb-2">Calendario No Disponible</h2>

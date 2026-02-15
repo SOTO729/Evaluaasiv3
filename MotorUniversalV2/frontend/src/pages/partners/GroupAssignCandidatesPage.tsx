@@ -483,7 +483,7 @@ export default function GroupAssignCandidatesPage() {
 
   if (loading) {
     return (
-      <div className="max-w-fluid-full mx-auto fluid-p-6">
+      <div className="fluid-p-6 max-w-[2800px] mx-auto">
         <LoadingSpinner message="Cargando candidatos..." />
       </div>
     );
@@ -491,7 +491,6 @@ export default function GroupAssignCandidatesPage() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-gray-50">
-     <div className="max-w-fluid-full mx-auto w-full h-full flex flex-col overflow-hidden">
       {/* ===== BREADCRUMB ===== */}
       <div className="flex-shrink-0 fluid-px-6 fluid-pt-4">
         <PartnersBreadcrumb 
@@ -1240,7 +1239,6 @@ export default function GroupAssignCandidatesPage() {
           </div>
         )}
       </div>{/* cierre contenido principal */}
-     </div>{/* cierre max-w-fluid-full wrapper */}
 
       {/* ===== MODAL DE CONFIRMACIÓN DE ASIGNACIÓN ===== */}
       {showConfirmModal && (
