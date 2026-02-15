@@ -1063,7 +1063,7 @@ export default function GroupAssignCandidatesPage() {
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900 fluid-mb-1">Paso 1: Descargar Plantilla</h3>
                     <p className="fluid-text-sm text-gray-600 fluid-mb-4">
-                      Descarga la plantilla Excel, llena la columna con los emails o CURPs de los candidatos que deseas asignar.
+                      Descarga la plantilla Excel, llena la columna con el identificador de cada candidato: email, CURP, nombre de usuario o nombre completo.
                     </p>
                     <button
                       onClick={handleDownloadTemplate}

@@ -3365,6 +3365,124 @@ def search_candidates():
 
 # ============== PLANTILLA Y CARGA MASIVA DE ASIGNACIÓN ==============
 
+def _resolve_identifiers_to_users(all_identifiers):
+    """Resolver una lista de identificadores a objetos User.
+    
+    Intenta matchear por (en orden de prioridad):
+    1. Email (case-insensitive)
+    2. CURP (case-insensitive)
+    3. Username (case-insensitive)
+    4. Nombre completo (nombre + primer_apellido + segundo_apellido, case-insensitive)
+    
+    Returns:
+        dict: {identifier_original: User} para los encontrados
+        dict: {identifier_original: [User, ...]} para los ambiguos (múltiples matches por nombre)
+    """
+    from sqlalchemy import func as sa_func
+    
+    user_by_identifier = {}
+    ambiguous = {}
+    resolved = set()
+    CHUNK_SIZE = 500
+    
+    # --- 1. Match por Email (case-insensitive) ---
+    for i in range(0, len(all_identifiers), CHUNK_SIZE):
+        chunk = all_identifiers[i:i + CHUNK_SIZE]
+        chunk_lower = [c.strip().lower() for c in chunk]
+        users = User.query.filter(
+            sa_func.lower(User.email).in_(chunk_lower),
+            User.role == 'candidato',
+            User.is_active == True
+        ).all()
+        email_map = {}
+        for u in users:
+            if u.email:
+                email_map.setdefault(u.email.lower(), u)
+        for c in chunk:
+            key = c.strip().lower()
+            if key in email_map and c not in resolved:
+                user_by_identifier[c] = email_map[key]
+                resolved.add(c)
+    
+    # --- 2. Match por CURP (case-insensitive) ---
+    remaining = [c for c in all_identifiers if c not in resolved]
+    if remaining:
+        for i in range(0, len(remaining), CHUNK_SIZE):
+            chunk = remaining[i:i + CHUNK_SIZE]
+            chunk_upper = [c.strip().upper() for c in chunk]
+            users = User.query.filter(
+                sa_func.upper(User.curp).in_(chunk_upper),
+                User.role == 'candidato',
+                User.is_active == True
+            ).all()
+            curp_map = {}
+            for u in users:
+                if u.curp:
+                    curp_map.setdefault(u.curp.upper(), u)
+            for c in chunk:
+                key = c.strip().upper()
+                if key in curp_map and c not in resolved:
+                    user_by_identifier[c] = curp_map[key]
+                    resolved.add(c)
+    
+    # --- 3. Match por Username (case-insensitive) ---
+    remaining = [c for c in all_identifiers if c not in resolved]
+    if remaining:
+        for i in range(0, len(remaining), CHUNK_SIZE):
+            chunk = remaining[i:i + CHUNK_SIZE]
+            chunk_lower = [c.strip().lower() for c in chunk]
+            users = User.query.filter(
+                sa_func.lower(User.username).in_(chunk_lower),
+                User.role == 'candidato',
+                User.is_active == True
+            ).all()
+            uname_map = {}
+            for u in users:
+                if u.username:
+                    uname_map.setdefault(u.username.lower(), u)
+            for c in chunk:
+                key = c.strip().lower()
+                if key in uname_map and c not in resolved:
+                    user_by_identifier[c] = uname_map[key]
+                    resolved.add(c)
+    
+    # --- 4. Match por Nombre Completo (case-insensitive) ---
+    # Para cada identificador no resuelto, buscar por nombre completo
+    # full_name = "nombre primer_apellido [segundo_apellido]"
+    remaining = [c for c in all_identifiers if c not in resolved]
+    if remaining:
+        for identifier in remaining:
+            clean = identifier.strip()
+            if not clean or len(clean) < 3:
+                continue
+            
+            # Buscar donde el nombre completo concatenado coincide
+            # MSSQL: RTRIM(LTRIM(name)) + ' ' + RTRIM(LTRIM(first_surname)) + COALESCE(' ' + NULLIF(RTRIM(LTRIM(second_surname)),''), '')
+            full_name_expr = (
+                sa_func.rtrim(sa_func.ltrim(User.name)) + ' ' +
+                sa_func.rtrim(sa_func.ltrim(User.first_surname)) +
+                sa_func.coalesce(
+                    ' ' + sa_func.nullif(sa_func.rtrim(sa_func.ltrim(User.second_surname)), ''),
+                    ''
+                )
+            )
+            
+            users = User.query.filter(
+                User.role == 'candidato',
+                User.is_active == True,
+                sa_func.lower(full_name_expr) == clean.lower()
+            ).all()
+            
+            if len(users) == 1:
+                user_by_identifier[identifier] = users[0]
+                resolved.add(identifier)
+            elif len(users) > 1:
+                # Múltiples candidatos con el mismo nombre
+                ambiguous[identifier] = users
+    
+    return user_by_identifier, ambiguous
+
+
 @bp.route('/groups/members/template', methods=['GET'])
 @jwt_required()
 @coordinator_required
@@ -3392,7 +3510,7 @@ def download_group_members_template():
         
         # Encabezados
         headers = [
-            ("Identificador (Email o CURP)", 40),
+            ("Identificador (Email, CURP, Usuario o Nombre Completo)", 55),
             ("Notas (Opcional)", 30),
         ]
         
@@ -3406,9 +3524,10 @@ def download_group_members_template():
         
         # Ejemplos
         examples = [
-            ("candidato@ejemplo.com", "Alumno nuevo"),
-            ("ABCD123456HDFRRR00", ""),
-            ("otro@email.com", "Transferido de otro grupo"),
+            ("candidato@ejemplo.com", "Búsqueda por email"),
+            ("ABCD123456HDFRRR00", "Búsqueda por CURP"),
+            ("juan.perez", "Búsqueda por nombre de usuario"),
+            ("Juan Pérez López", "Búsqueda por nombre completo"),
         ]
         
         example_fill = PatternFill(start_color="F3F4F6", end_color="F3F4F6", fill_type="solid")
@@ -3423,15 +3542,22 @@ def download_group_members_template():
         instructions = [
             "INSTRUCCIONES PARA ASIGNACIÓN MASIVA DE CANDIDATOS",
             "",
-            "1. En la columna 'Identificador' ingrese el email o CURP del candidato.",
-            "2. El candidato debe existir previamente en el sistema como usuario activo.",
-            "3. El candidato debe tener el rol 'candidato'.",
-            "4. Las notas son opcionales y se guardan con la membresía.",
-            "5. Si el candidato ya está en el grupo, se omitirá.",
-            "6. Elimine las filas de ejemplo antes de subir el archivo.",
+            "1. En la columna 'Identificador' ingrese UNO de los siguientes datos del candidato:",
+            "   - Email (ej: candidato@ejemplo.com)",
+            "   - CURP (ej: ABCD123456HDFRRR00)",
+            "   - Nombre de usuario (ej: juan.perez)",
+            "   - Nombre completo (ej: Juan Pérez López)",
+            "",
+            "2. El sistema buscará en este orden: email → CURP → usuario → nombre completo.",
+            "3. El candidato debe existir previamente en el sistema como usuario activo.",
+            "4. El candidato debe tener el rol 'candidato'.",
+            "5. Las notas son opcionales y se guardan como referencia.",
+            "6. Si el candidato ya está en el grupo, se omitirá.",
+            "7. Elimine las filas de ejemplo antes de subir el archivo.",
             "",
             "IMPORTANTE:",
-            "- Solo se pueden asignar candidatos hasta la capacidad máxima del grupo.",
+            "- Si un nombre completo coincide con múltiples candidatos, se marcará como ambiguo.",
+            "- Para evitar ambigüedades, prefiera usar email, CURP o nombre de usuario.",
             "- Los candidatos deben estar registrados previamente en el sistema.",
         ]
         
@@ -3504,27 +3630,8 @@ def upload_group_members(group_id):
             all_identifiers.append(identifier)
             row_data.append((row_num, identifier, notes))
         
-        # Batch: buscar todos los usuarios por email o CURP
-        user_by_identifier = {}
-        CHUNK_SIZE = 500
-        for i in range(0, len(all_identifiers), CHUNK_SIZE):
-            chunk = all_identifiers[i:i + CHUNK_SIZE]
-            chunk_upper = [c.upper() for c in chunk]
-            users = User.query.filter(
-                db.or_(
-                    User.email.in_(chunk),
-                    User.curp.in_(chunk_upper)
-                ),
-                User.role == 'candidato',
-                User.is_active == True
-            ).all()
-            for u in users:
-                if u.email and u.email in chunk:
-                    user_by_identifier[u.email] = u
-                if u.curp:
-                    for c in chunk:
-                        if c.upper() == u.curp:
-                            user_by_identifier[c] = u
+        # Resolver identificadores: email → CURP → username → nombre completo
+        user_by_identifier, ambiguous = _resolve_identifiers_to_users(all_identifiers)
         
         # Batch: obtener membresías existentes en ESTE grupo
         found_user_ids = list(set(u.id for u in user_by_identifier.values()))
@@ -3555,12 +3662,21 @@ def upload_group_members(group_id):
         
         # Procesar cada fila con los datos pre-cargados
         for row_num, identifier, notes in row_data:
+            # Verificar si es ambiguo (múltiples matches por nombre)
+            if identifier in ambiguous:
+                names = [f"{u.name} {u.first_surname} ({u.email or u.curp or u.username})" for u in ambiguous[identifier][:3]]
+                errors.append({
+                    'identifier': identifier,
+                    'error': f'Nombre ambiguo: {len(ambiguous[identifier])} candidatos coinciden. Use email, CURP o usuario. Ej: {", ".join(names)}'
+                })
+                continue
+            
             user = user_by_identifier.get(identifier)
             
             if not user:
                 errors.append({
                     'identifier': identifier,
-                    'error': 'Candidato no encontrado o inactivo'
+                    'error': 'Candidato no encontrado. Verifique que el email, CURP, usuario o nombre completo sea correcto'
                 })
                 continue
             
@@ -5812,31 +5928,13 @@ def preview_group_members_upload(group_id):
             all_identifiers.append(identifier)
             row_data.append((row_num, identifier, notes))
         
-        # Batch: buscar todos los usuarios en chunks (por email o CURP)
-        user_by_identifier = {}
-        CHUNK_SIZE = 500
-        for i in range(0, len(all_identifiers), CHUNK_SIZE):
-            chunk = all_identifiers[i:i + CHUNK_SIZE]
-            chunk_upper = [c.upper() for c in chunk]
-            users = User.query.filter(
-                db.or_(
-                    User.email.in_(chunk),
-                    User.curp.in_(chunk_upper)
-                ),
-                User.role == 'candidato',
-                User.is_active == True
-            ).all()
-            for u in users:
-                if u.email and u.email in chunk:
-                    user_by_identifier[u.email] = u
-                if u.curp:
-                    for c in chunk:
-                        if c.upper() == u.curp:
-                            user_by_identifier[c] = u
+        # Resolver identificadores: email → CURP → username → nombre completo
+        user_by_identifier, ambiguous = _resolve_identifiers_to_users(all_identifiers)
         
         # Batch: obtener membresías existentes para este grupo
-        found_user_ids = [u.id for u in user_by_identifier.values()]
+        found_user_ids = list(set(u.id for u in user_by_identifier.values()))
         existing_member_ids = set()
+        CHUNK_SIZE = 500
         if found_user_ids:
             for i in range(0, len(found_user_ids), CHUNK_SIZE):
                 chunk = found_user_ids[i:i + CHUNK_SIZE]
@@ -5848,29 +5946,36 @@ def preview_group_members_upload(group_id):
         
         # Construir preview
         for row_num, identifier, notes in row_data:
-            user = user_by_identifier.get(identifier)
             status = 'ready'
             user_info = None
             error_message = None
             
-            if not user:
+            # Verificar si es ambiguo
+            if identifier in ambiguous:
                 status = 'not_found'
-                error_message = 'Candidato no encontrado o inactivo'
+                names = [f"{u.name} {u.first_surname} ({u.email or u.curp or u.username})" for u in ambiguous[identifier][:3]]
+                error_message = f'Nombre ambiguo: {len(ambiguous[identifier])} candidatos coinciden. Use email, CURP o usuario. Ej: {", ".join(names)}'
             else:
-                if user.id in existing_member_ids:
-                    status = 'already_member'
-                    error_message = 'Ya es miembro del grupo'
+                user = user_by_identifier.get(identifier)
                 
-                user_info = {
-                    'id': user.id,
-                    'email': user.email,
-                    'name': user.name,
-                    'first_surname': user.first_surname,
-                    'second_surname': user.second_surname,
-                    'full_name': f"{user.name} {user.first_surname} {user.second_surname or ''}".strip(),
-                    'curp': user.curp,
-                    'gender': user.gender
-                }
+                if not user:
+                    status = 'not_found'
+                    error_message = 'Candidato no encontrado. Verifique email, CURP, usuario o nombre completo'
+                else:
+                    if user.id in existing_member_ids:
+                        status = 'already_member'
+                        error_message = 'Ya es miembro del grupo'
+                    
+                    user_info = {
+                        'id': user.id,
+                        'email': user.email,
+                        'name': user.name,
+                        'first_surname': user.first_surname,
+                        'second_surname': user.second_surname,
+                        'full_name': f"{user.name} {user.first_surname} {user.second_surname or ''}".strip(),
+                        'curp': user.curp,
+                        'gender': user.gender
+                    }
             
             preview.append({
                 'row': row_num,
