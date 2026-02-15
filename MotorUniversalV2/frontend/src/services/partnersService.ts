@@ -2120,20 +2120,30 @@ export interface BulkExamAssignResult {
     processed: number;
     assigned: Array<{
       row: number;
-      user_id: string;
-      ecm: string;
+      user_id?: string;
+      username?: string;
+      user_name?: string;
+      email?: string;
+      curp?: string;
+      ecm?: string;
       exam_name: string;
     }>;
     skipped: Array<{
       row: number;
-      user_id: string;
-      ecm: string;
+      user_id?: string;
+      username?: string;
+      user_name?: string;
+      email?: string;
+      curp?: string;
+      ecm?: string;
       reason: string;
     }>;
     errors: Array<{
       row: number;
-      user_id: string;
-      ecm: string;
+      user_id?: string;
+      identifier?: string;
+      user_name?: string;
+      ecm?: string;
       error: string;
     }>;
   };

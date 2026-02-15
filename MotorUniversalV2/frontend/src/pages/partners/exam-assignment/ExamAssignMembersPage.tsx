@@ -329,7 +329,7 @@ export default function ExamAssignMembersPage() {
 
             {/* Results */}
             {bulkResult && (
-              <div className="mt-4 space-y-3">
+              <div className="mt-4 space-y-4">
                 <div className={`fluid-p-4 rounded-fluid-xl ${bulkResult.summary.errors > 0 ? 'bg-yellow-50 border border-yellow-200' : 'bg-green-50 border border-green-200'}`}>
                   <h5 className={`font-medium fluid-mb-2 fluid-text-base ${bulkResult.summary.errors > 0 ? 'text-yellow-800' : 'text-green-800'}`}>{bulkResult.message}</h5>
                   <div className="grid grid-cols-4 fluid-gap-4 fluid-text-sm">
@@ -340,26 +340,100 @@ export default function ExamAssignMembersPage() {
                   </div>
                 </div>
 
+                {/* Tabla de asignaciones exitosas */}
                 {bulkResult.results.assigned.length > 0 && (
-                  <details className="bg-green-50 rounded-fluid-xl p-2">
-                    <summary className="cursor-pointer fluid-text-sm text-green-700 font-medium px-2">Ver asignaciones exitosas ({bulkResult.results.assigned.length})</summary>
-                    <div className="max-h-40 overflow-y-auto mt-2">
-                      {bulkResult.results.assigned.map((item, i) => (
-                        <div key={i} className="fluid-text-xs px-2 py-1 border-b border-green-100 last:border-0"><span className="text-gray-500">Fila {item.row}:</span> {item.ecm} → {item.exam_name}</div>
-                      ))}
+                  <div className="bg-white border border-green-200 rounded-fluid-xl overflow-hidden">
+                    <div className="bg-green-50 fluid-px-4 fluid-py-3 border-b border-green-200 flex items-center fluid-gap-2">
+                      <CheckCircle2 className="fluid-icon-base text-green-600" />
+                      <h5 className="font-medium text-green-800 fluid-text-sm">Candidatos Asignados Exitosamente ({bulkResult.results.assigned.length})</h5>
                     </div>
-                  </details>
+                    <div className="max-h-64 overflow-y-auto">
+                      <table className="w-full fluid-text-sm">
+                        <thead className="bg-green-50/50 sticky top-0">
+                          <tr>
+                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Fila</th>
+                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Nombre</th>
+                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Email</th>
+                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">CURP</th>
+                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Examen</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-green-100">
+                          {bulkResult.results.assigned.map((item, i) => (
+                            <tr key={i} className="hover:bg-green-50/30">
+                              <td className="fluid-px-4 fluid-py-2 text-gray-500 font-mono">{item.row}</td>
+                              <td className="fluid-px-4 fluid-py-2 font-medium text-gray-900">{item.user_name || item.username || '-'}</td>
+                              <td className="fluid-px-4 fluid-py-2 text-gray-600">{item.email || '-'}</td>
+                              <td className="fluid-px-4 fluid-py-2 text-gray-500 font-mono text-xs">{item.curp || '-'}</td>
+                              <td className="fluid-px-4 fluid-py-2 text-green-700">{item.exam_name}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 )}
 
-                {bulkResult.results.errors.length > 0 && (
-                  <details className="bg-red-50 rounded-fluid-xl p-2">
-                    <summary className="cursor-pointer fluid-text-sm text-red-700 font-medium px-2">Ver errores ({bulkResult.results.errors.length})</summary>
-                    <div className="max-h-40 overflow-y-auto mt-2">
-                      {bulkResult.results.errors.map((item, i) => (
-                        <div key={i} className="fluid-text-xs px-2 py-1 border-b border-red-100 last:border-0"><span className="text-gray-500">Fila {item.row}:</span> {item.ecm} - <span className="text-red-600">{item.error}</span></div>
-                      ))}
+                {/* Tabla de omitidos */}
+                {bulkResult.results.skipped.length > 0 && (
+                  <div className="bg-white border border-yellow-200 rounded-fluid-xl overflow-hidden">
+                    <div className="bg-yellow-50 fluid-px-4 fluid-py-3 border-b border-yellow-200 flex items-center fluid-gap-2">
+                      <AlertCircle className="fluid-icon-base text-yellow-600" />
+                      <h5 className="font-medium text-yellow-800 fluid-text-sm">Candidatos Omitidos ({bulkResult.results.skipped.length})</h5>
                     </div>
-                  </details>
+                    <div className="max-h-48 overflow-y-auto">
+                      <table className="w-full fluid-text-sm">
+                        <thead className="bg-yellow-50/50 sticky top-0">
+                          <tr>
+                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Fila</th>
+                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Nombre</th>
+                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Email</th>
+                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Motivo</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-yellow-100">
+                          {bulkResult.results.skipped.map((item, i) => (
+                            <tr key={i} className="hover:bg-yellow-50/30">
+                              <td className="fluid-px-4 fluid-py-2 text-gray-500 font-mono">{item.row}</td>
+                              <td className="fluid-px-4 fluid-py-2 font-medium text-gray-900">{item.user_name || item.username || '-'}</td>
+                              <td className="fluid-px-4 fluid-py-2 text-gray-600">{item.email || '-'}</td>
+                              <td className="fluid-px-4 fluid-py-2 text-yellow-700">{item.reason}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tabla de errores */}
+                {bulkResult.results.errors.length > 0 && (
+                  <div className="bg-white border border-red-200 rounded-fluid-xl overflow-hidden">
+                    <div className="bg-red-50 fluid-px-4 fluid-py-3 border-b border-red-200 flex items-center fluid-gap-2">
+                      <AlertCircle className="fluid-icon-base text-red-600" />
+                      <h5 className="font-medium text-red-800 fluid-text-sm">Candidatos No Encontrados ({bulkResult.results.errors.length})</h5>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto">
+                      <table className="w-full fluid-text-sm">
+                        <thead className="bg-red-50/50 sticky top-0">
+                          <tr>
+                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Fila</th>
+                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Candidato</th>
+                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Error</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-red-100">
+                          {bulkResult.results.errors.map((item, i) => (
+                            <tr key={i} className="hover:bg-red-50/30">
+                              <td className="fluid-px-4 fluid-py-2 text-gray-500 font-mono">{item.row}</td>
+                              <td className="fluid-px-4 fluid-py-2 font-medium text-gray-900">{item.user_name || item.identifier || '-'}</td>
+                              <td className="fluid-px-4 fluid-py-2 text-red-600">{item.error}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 )}
 
                 {bulkResult.summary.assigned > 0 && (

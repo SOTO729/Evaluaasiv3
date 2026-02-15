@@ -8029,6 +8029,7 @@ def bulk_assign_exams_by_ecm(group_id):
                 results['errors'].append({
                     'row': row_num,
                     'identifier': username,
+                    'user_name': username,
                     'error': 'Usuario no encontrado en el grupo'
                 })
                 continue
@@ -8040,18 +8041,26 @@ def bulk_assign_exams_by_ecm(group_id):
             ).first()
             
             if existing_member:
+                user_info = group_members.get(user_id)
                 results['skipped'].append({
                     'row': row_num,
                     'username': username,
+                    'user_name': user_info.full_name if user_info else username,
+                    'email': user_info.email if user_info else '',
+                    'curp': user_info.curp if user_info else '',
                     'reason': 'Usuario ya tiene este examen asignado'
                 })
                 continue
             
             # Si el GroupExam es tipo 'all', verificar
             if group_exam.assignment_type == 'all':
+                user_info = group_members.get(user_id)
                 results['skipped'].append({
                     'row': row_num,
                     'username': username,
+                    'user_name': user_info.full_name if user_info else username,
+                    'email': user_info.email if user_info else '',
+                    'curp': user_info.curp if user_info else '',
                     'reason': 'El examen está asignado a todo el grupo'
                 })
                 continue
@@ -8068,6 +8077,8 @@ def bulk_assign_exams_by_ecm(group_id):
                 'row': row_num,
                 'username': username,
                 'user_name': user.full_name if user else username,
+                'email': user.email if user else '',
+                'curp': user.curp if user else '',
                 'exam_name': exam.name
             })
         
