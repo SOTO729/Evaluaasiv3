@@ -42,7 +42,9 @@ export default function ExamAssignMembersPage() {
   // Bulk
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkPreview, setBulkPreview] = useState<BulkExamAssignResult | null>(null);
   const [bulkResult, setBulkResult] = useState<BulkExamAssignResult | null>(null);
+  const [bulkConfirming, setBulkConfirming] = useState(false);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
 
   // Result table controls
@@ -129,18 +131,19 @@ export default function ExamAssignMembersPage() {
     const file = e.target.files?.[0];
     if (file) {
       setBulkFile(file);
+      setBulkPreview(null);
       setBulkResult(null);
-      // Auto-procesar al seleccionar archivo
-      processFile(file);
+      // Previsualizar al seleccionar archivo (dry_run)
+      previewFile(file);
     }
   };
 
-  const processFile = async (file: File) => {
+  const previewFile = async (file: File) => {
     if (!prevState?.selectedExam) return;
     const ecmCode = prevState.selectedExam.ecm_code || prevState.selectedExam.standard;
     if (!ecmCode) { setError('El examen seleccionado no tiene código ECM'); return; }
     setBulkUploading(true);
-    setBulkResult(null);
+    setBulkPreview(null);
     try {
       const { config } = prevState;
       const result = await bulkAssignExamsByECM(Number(groupId), file, ecmCode, {
@@ -149,8 +152,8 @@ export default function ExamAssignMembersPage() {
         max_attempts: config.maxAttempts,
         max_disconnections: config.maxDisconnections,
         exam_content_type: config.examContentType,
-      });
-      setBulkResult(result);
+      }, true); // dry_run = true
+      setBulkPreview(result);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al procesar el archivo');
     } finally {
@@ -158,10 +161,32 @@ export default function ExamAssignMembersPage() {
     }
   };
 
-  // handleBulkUpload removed - processing now auto-triggered by handleBulkFileChange
+  const handleConfirmBulkAssign = async () => {
+    if (!prevState?.selectedExam || !bulkFile) return;
+    const ecmCode = prevState.selectedExam.ecm_code || prevState.selectedExam.standard;
+    if (!ecmCode) { setError('El examen seleccionado no tiene código ECM'); return; }
+    setBulkConfirming(true);
+    try {
+      const { config } = prevState;
+      const result = await bulkAssignExamsByECM(Number(groupId), bulkFile, ecmCode, {
+        time_limit_minutes: config.useExamDefaultTime ? undefined : (config.timeLimitMinutes || undefined),
+        passing_score: config.useExamDefaultScore ? undefined : config.passingScore,
+        max_attempts: config.maxAttempts,
+        max_disconnections: config.maxDisconnections,
+        exam_content_type: config.examContentType,
+      }, false); // dry_run = false → asignación real
+      setBulkResult(result);
+      setBulkPreview(null);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al confirmar la asignación');
+    } finally {
+      setBulkConfirming(false);
+    }
+  };
 
   const handleClearFile = () => {
     setBulkFile(null);
+    setBulkPreview(null);
     setBulkResult(null);
     setResultSearch('');
   };
@@ -193,37 +218,40 @@ export default function ExamAssignMembersPage() {
   };
 
   const filteredAssigned = useMemo(() => {
-    if (!bulkResult) return [];
+    const source = bulkResult || bulkPreview;
+    if (!source) return [];
     const q = resultSearch.toLowerCase();
-    const filtered = q ? bulkResult.results.assigned.filter(item =>
+    const filtered = q ? source.results.assigned.filter(item =>
       (item.user_name || '').toLowerCase().includes(q) ||
       (item.email || '').toLowerCase().includes(q) ||
       (item.curp || '').toLowerCase().includes(q) ||
       (item.exam_name || '').toLowerCase().includes(q)
-    ) : bulkResult.results.assigned;
+    ) : source.results.assigned;
     return sortItems(filtered, 'assigned');
-  }, [bulkResult, resultSearch, sortConfig]);
+  }, [bulkResult, bulkPreview, resultSearch, sortConfig]);
 
   const filteredSkipped = useMemo(() => {
-    if (!bulkResult) return [];
+    const source = bulkResult || bulkPreview;
+    if (!source) return [];
     const q = resultSearch.toLowerCase();
-    const filtered = q ? bulkResult.results.skipped.filter(item =>
+    const filtered = q ? source.results.skipped.filter(item =>
       (item.user_name || '').toLowerCase().includes(q) ||
       (item.email || '').toLowerCase().includes(q) ||
       (item.reason || '').toLowerCase().includes(q)
-    ) : bulkResult.results.skipped;
+    ) : source.results.skipped;
     return sortItems(filtered, 'skipped');
-  }, [bulkResult, resultSearch, sortConfig]);
+  }, [bulkResult, bulkPreview, resultSearch, sortConfig]);
 
   const filteredErrors = useMemo(() => {
-    if (!bulkResult) return [];
+    const source = bulkResult || bulkPreview;
+    if (!source) return [];
     const q = resultSearch.toLowerCase();
-    const filtered = q ? bulkResult.results.errors.filter(item =>
+    const filtered = q ? source.results.errors.filter(item =>
       (item.user_name || item.identifier || '').toLowerCase().includes(q) ||
       (item.error || '').toLowerCase().includes(q)
-    ) : bulkResult.results.errors;
+    ) : source.results.errors;
     return sortItems(filtered, 'errors');
-  }, [bulkResult, resultSearch, sortConfig]);
+  }, [bulkResult, bulkPreview, resultSearch, sortConfig]);
 
   const filteredMembers = members.filter(m => {
     if (!memberSearchQuery.trim()) return true;
@@ -405,21 +433,37 @@ export default function ExamAssignMembersPage() {
               </div>
             </div>
 
-            {/* Results */}
-            {bulkResult && (
+            {/* Preview / Results */}
+            {(bulkPreview || bulkResult) && (() => {
+              const source = bulkResult || bulkPreview!;
+              const isPreview = !bulkResult && !!bulkPreview;
+              return (
               <div className="mt-4 space-y-4">
-                <div className={`fluid-p-4 rounded-fluid-xl ${bulkResult.summary.errors > 0 ? 'bg-yellow-50 border border-yellow-200' : 'bg-green-50 border border-green-200'}`}>
-                  <h5 className={`font-medium fluid-mb-2 fluid-text-base ${bulkResult.summary.errors > 0 ? 'text-yellow-800' : 'text-green-800'}`}>{bulkResult.message}</h5>
+                {/* Preview banner */}
+                {isPreview && (
+                  <div className="bg-blue-50 border-2 border-blue-300 rounded-fluid-xl fluid-p-4 flex items-start fluid-gap-3">
+                    <AlertCircle className="fluid-icon-base text-blue-500 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h5 className="font-semibold text-blue-800 fluid-text-base">Vista Previa — Aún no se han creado asignaciones</h5>
+                      <p className="fluid-text-sm text-blue-700 mt-1">Revisa el resumen a continuación. Cuando estés conforme, presiona <strong>"Confirmar Asignación"</strong> para aplicar los cambios.</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className={`fluid-p-4 rounded-fluid-xl ${source.summary.errors > 0 ? 'bg-yellow-50 border border-yellow-200' : isPreview ? 'bg-blue-50 border border-blue-200' : 'bg-green-50 border border-green-200'}`}>
+                  <h5 className={`font-medium fluid-mb-2 fluid-text-base ${source.summary.errors > 0 ? 'text-yellow-800' : isPreview ? 'text-blue-800' : 'text-green-800'}`}>
+                    {isPreview ? `Vista previa: ${source.summary.assigned} asignaciones pendientes` : source.message}
+                  </h5>
                   <div className="grid grid-cols-4 fluid-gap-4 fluid-text-sm">
-                    <div><p className="text-gray-500">Procesados</p><p className="font-semibold fluid-text-lg">{bulkResult.summary.total_processed}</p></div>
-                    <div><p className="text-green-600">Asignados</p><p className="font-semibold fluid-text-lg text-green-700">{bulkResult.summary.assigned}</p></div>
-                    <div><p className="text-yellow-600">Omitidos</p><p className="font-semibold fluid-text-lg text-yellow-700">{bulkResult.summary.skipped}</p></div>
-                    <div><p className="text-red-600">Errores</p><p className="font-semibold fluid-text-lg text-red-700">{bulkResult.summary.errors}</p></div>
+                    <div><p className="text-gray-500">Procesados</p><p className="font-semibold fluid-text-lg">{source.summary.total_processed}</p></div>
+                    <div><p className={isPreview ? 'text-blue-600' : 'text-green-600'}>{isPreview ? 'Se asignarán' : 'Asignados'}</p><p className={`font-semibold fluid-text-lg ${isPreview ? 'text-blue-700' : 'text-green-700'}`}>{source.summary.assigned}</p></div>
+                    <div><p className="text-yellow-600">Omitidos</p><p className="font-semibold fluid-text-lg text-yellow-700">{source.summary.skipped}</p></div>
+                    <div><p className="text-red-600">Errores</p><p className="font-semibold fluid-text-lg text-red-700">{source.summary.errors}</p></div>
                   </div>
                 </div>
 
                 {/* Barra de búsqueda global para tablas */}
-                {(bulkResult.results.assigned.length > 0 || bulkResult.results.skipped.length > 0 || bulkResult.results.errors.length > 0) && (
+                {(source.results.assigned.length > 0 || source.results.skipped.length > 0 || source.results.errors.length > 0) && (
                   <div className="relative max-w-md">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 fluid-icon-sm" />
                     <input type="text" placeholder="Buscar en resultados..." value={resultSearch} onChange={(e) => setResultSearch(e.target.value)}
@@ -433,12 +477,12 @@ export default function ExamAssignMembersPage() {
                 )}
 
                 {/* Tabla de asignaciones exitosas */}
-                {bulkResult.results.assigned.length > 0 && (
+                {source.results.assigned.length > 0 && (
                   <div className="bg-white border border-green-200 rounded-fluid-xl overflow-hidden">
                     <div className="bg-green-50 fluid-px-4 fluid-py-3 border-b border-green-200 flex items-center justify-between">
                       <div className="flex items-center fluid-gap-2">
                         <CheckCircle2 className="fluid-icon-base text-green-600" />
-                        <h5 className="font-medium text-green-800 fluid-text-sm">Candidatos Asignados Exitosamente ({filteredAssigned.length}{resultSearch ? ` de ${bulkResult.results.assigned.length}` : ''})</h5>
+                        <h5 className="font-medium text-green-800 fluid-text-sm">{isPreview ? 'Candidatos que se Asignarán' : 'Candidatos Asignados Exitosamente'} ({filteredAssigned.length}{resultSearch ? ` de ${source.results.assigned.length}` : ''})</h5>
                       </div>
                     </div>
                     <div className="overflow-x-auto">
@@ -474,12 +518,12 @@ export default function ExamAssignMembersPage() {
                 )}
 
                 {/* Tabla de omitidos */}
-                {bulkResult.results.skipped.length > 0 && (
+                {source.results.skipped.length > 0 && (
                   <div className="bg-white border border-yellow-200 rounded-fluid-xl overflow-hidden">
                     <div className="bg-yellow-50 fluid-px-4 fluid-py-3 border-b border-yellow-200 flex items-center justify-between">
                       <div className="flex items-center fluid-gap-2">
                         <AlertCircle className="fluid-icon-base text-yellow-600" />
-                        <h5 className="font-medium text-yellow-800 fluid-text-sm">Candidatos Omitidos ({filteredSkipped.length}{resultSearch ? ` de ${bulkResult.results.skipped.length}` : ''})</h5>
+                        <h5 className="font-medium text-yellow-800 fluid-text-sm">Candidatos Omitidos ({filteredSkipped.length}{resultSearch ? ` de ${source.results.skipped.length}` : ''})</h5>
                       </div>
                     </div>
                     <div className="overflow-x-auto">
@@ -513,12 +557,12 @@ export default function ExamAssignMembersPage() {
                 )}
 
                 {/* Tabla de errores */}
-                {bulkResult.results.errors.length > 0 && (
+                {source.results.errors.length > 0 && (
                   <div className="bg-white border border-red-200 rounded-fluid-xl overflow-hidden">
                     <div className="bg-red-50 fluid-px-4 fluid-py-3 border-b border-red-200 flex items-center justify-between">
                       <div className="flex items-center fluid-gap-2">
                         <AlertCircle className="fluid-icon-base text-red-600" />
-                        <h5 className="font-medium text-red-800 fluid-text-sm">Candidatos No Encontrados ({filteredErrors.length}{resultSearch ? ` de ${bulkResult.results.errors.length}` : ''})</h5>
+                        <h5 className="font-medium text-red-800 fluid-text-sm">Candidatos No Encontrados ({filteredErrors.length}{resultSearch ? ` de ${source.results.errors.length}` : ''})</h5>
                       </div>
                     </div>
                     <div className="overflow-x-auto">
@@ -549,7 +593,20 @@ export default function ExamAssignMembersPage() {
                   </div>
                 )}
 
-                {bulkResult.summary.assigned > 0 && (
+                {/* Botones de acción */}
+                {isPreview && source.summary.assigned > 0 && (
+                  <div className="flex items-center justify-center fluid-gap-4 mt-6 pt-4 border-t border-gray-200">
+                    <button onClick={handleClearFile} className="fluid-px-5 fluid-py-3 border border-gray-300 text-gray-700 rounded-fluid-xl hover:bg-gray-50 fluid-text-sm font-medium transition-all">
+                      Cancelar y Cambiar Archivo
+                    </button>
+                    <button onClick={handleConfirmBulkAssign} disabled={bulkConfirming}
+                      className="fluid-px-8 fluid-py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-fluid-xl hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 fluid-text-sm font-semibold shadow-lg transition-all">
+                      {bulkConfirming ? <><Loader2 className="fluid-icon-sm animate-spin" />Asignando candidatos...</> : <><CheckCircle2 className="fluid-icon-sm" />Confirmar Asignación ({source.summary.assigned} candidatos)</>}
+                    </button>
+                  </div>
+                )}
+
+                {!isPreview && source.summary.assigned > 0 && (
                   <div className="flex justify-center mt-4">
                     <Link to={`/partners/groups/${groupId}`} className="fluid-px-6 fluid-py-3 bg-blue-600 text-white rounded-fluid-xl hover:bg-blue-700 fluid-text-sm font-medium shadow-lg transition-all">
                       Volver al Detalle del Grupo
@@ -557,7 +614,8 @@ export default function ExamAssignMembersPage() {
                   </div>
                 )}
               </div>
-            )}
+              );
+            })()}
           </div>
         )}
 

@@ -7943,6 +7943,7 @@ def bulk_assign_exams_by_ecm(group_id):
     - max_attempts: Máximo de intentos (default: 2)
     - max_disconnections: Máximo de desconexiones (default: 3)
     - exam_content_type: 'questions_only', 'exercises_only', 'mixed' (default: 'questions_only')
+    - dry_run: 'true' para solo previsualizar sin crear asignaciones
     """
     import io
     from openpyxl import load_workbook
@@ -7981,6 +7982,9 @@ def bulk_assign_exams_by_ecm(group_id):
         
         if not exam:
             return jsonify({'error': f'No hay examen publicado para el ECM "{ecm_code}"'}), 400
+        
+        # Modo dry_run: solo previsualizar sin crear asignaciones
+        dry_run = request.form.get('dry_run', 'false').lower() == 'true'
         
         # Obtener configuración adicional
         config = {
@@ -8026,14 +8030,14 @@ def bulk_assign_exams_by_ecm(group_id):
         # Crear índice para búsqueda rápida por username
         users_by_username = {u.username.lower(): uid for uid, u in group_members.items() if u.username}
         
-        # Verificar/crear GroupExam
+        # Verificar/crear GroupExam (solo si no es dry_run)
         group_exam = GroupExam.query.filter_by(
             group_id=group_id, 
             exam_id=exam.id,
             is_active=True
         ).first()
         
-        if not group_exam:
+        if not group_exam and not dry_run:
             group_exam = GroupExam(
                 group_id=group_id,
                 exam_id=exam.id,
@@ -8073,42 +8077,44 @@ def bulk_assign_exams_by_ecm(group_id):
                 continue
             
             # Verificar si el usuario ya tiene este examen asignado
-            existing_member = GroupExamMember.query.filter_by(
-                group_exam_id=group_exam.id,
-                user_id=user_id
-            ).first()
+            if group_exam:
+                existing_member = GroupExamMember.query.filter_by(
+                    group_exam_id=group_exam.id,
+                    user_id=user_id
+                ).first()
+                
+                if existing_member:
+                    user_info = group_members.get(user_id)
+                    results['skipped'].append({
+                        'row': row_num,
+                        'username': username,
+                        'user_name': user_info.full_name if user_info else username,
+                        'email': user_info.email if user_info else '',
+                        'curp': user_info.curp if user_info else '',
+                        'reason': 'Usuario ya tiene este examen asignado'
+                    })
+                    continue
+                
+                # Si el GroupExam es tipo 'all', verificar
+                if group_exam.assignment_type == 'all':
+                    user_info = group_members.get(user_id)
+                    results['skipped'].append({
+                        'row': row_num,
+                        'username': username,
+                        'user_name': user_info.full_name if user_info else username,
+                        'email': user_info.email if user_info else '',
+                        'curp': user_info.curp if user_info else '',
+                        'reason': 'El examen está asignado a todo el grupo'
+                    })
+                    continue
             
-            if existing_member:
-                user_info = group_members.get(user_id)
-                results['skipped'].append({
-                    'row': row_num,
-                    'username': username,
-                    'user_name': user_info.full_name if user_info else username,
-                    'email': user_info.email if user_info else '',
-                    'curp': user_info.curp if user_info else '',
-                    'reason': 'Usuario ya tiene este examen asignado'
-                })
-                continue
-            
-            # Si el GroupExam es tipo 'all', verificar
-            if group_exam.assignment_type == 'all':
-                user_info = group_members.get(user_id)
-                results['skipped'].append({
-                    'row': row_num,
-                    'username': username,
-                    'user_name': user_info.full_name if user_info else username,
-                    'email': user_info.email if user_info else '',
-                    'curp': user_info.curp if user_info else '',
-                    'reason': 'El examen está asignado a todo el grupo'
-                })
-                continue
-            
-            # Crear asignación de miembro
-            member = GroupExamMember(
-                group_exam_id=group_exam.id,
-                user_id=user_id
-            )
-            db.session.add(member)
+            # Crear asignación de miembro (solo si no es dry_run)
+            if not dry_run:
+                member = GroupExamMember(
+                    group_exam_id=group_exam.id,
+                    user_id=user_id
+                )
+                db.session.add(member)
             
             user = group_members[user_id]
             results['assigned'].append({
@@ -8120,10 +8126,13 @@ def bulk_assign_exams_by_ecm(group_id):
                 'exam_name': exam.name
             })
         
-        db.session.commit()
+        if not dry_run:
+            db.session.commit()
         
+        action_word = 'previsualizadas' if dry_run else 'realizadas'
         return jsonify({
-            'message': f'Procesamiento completado. {len(results["assigned"])} asignaciones realizadas.',
+            'message': f'Procesamiento completado. {len(results["assigned"])} asignaciones {action_word}.',
+            'dry_run': dry_run,
             'results': results,
             'summary': {
                 'total_processed': results['processed'],

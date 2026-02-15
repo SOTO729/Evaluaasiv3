@@ -2187,11 +2187,13 @@ export async function bulkAssignExamsByECM(
     max_attempts?: number;
     max_disconnections?: number;
     exam_content_type?: 'questions_only' | 'exercises_only' | 'mixed';
-  }
+  },
+  dryRun: boolean = false
 ): Promise<BulkExamAssignResult> {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('ecm_code', ecmCode);
+  if (dryRun) formData.append('dry_run', 'true');
   
   if (config) {
     if (config.time_limit_minutes) formData.append('time_limit_minutes', config.time_limit_minutes.toString());
