@@ -4,7 +4,7 @@ Rutas para gestión de usuarios (admin y coordinadores)
 from flask import Blueprint, request, jsonify, g
 from functools import wraps
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, func
 from datetime import datetime
 from app import db, cache
 from app.models import User
