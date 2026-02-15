@@ -864,12 +864,17 @@ export async function addGroupMember(groupId: number, data: {
   return response.data.member;
 }
 
-export async function addGroupMembersBulk(groupId: number, userIds: string[]): Promise<{
+export async function addGroupMembersBulk(groupId: number, userIds: string[], autoAssignExamIds?: number[]): Promise<{
   message: string;
   added: string[];
   errors: Array<{ user_id: string; error: string }>;
+  auto_assigned_exams?: number;
 }> {
-  const response = await api.post(`/partners/groups/${groupId}/members/bulk`, { user_ids: userIds });
+  const payload: Record<string, unknown> = { user_ids: userIds };
+  if (autoAssignExamIds && autoAssignExamIds.length > 0) {
+    payload.auto_assign_exam_ids = autoAssignExamIds;
+  }
+  const response = await api.post(`/partners/groups/${groupId}/members/bulk`, payload);
   return response.data;
 }
 

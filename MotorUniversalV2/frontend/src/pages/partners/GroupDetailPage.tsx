@@ -23,9 +23,6 @@ import {
   FileText,
   Sparkles,
   ArrowRight,
-  BookOpen,
-  UserCheck,
-  DollarSign,
   TrendingUp,
   BarChart3,
   Layers,
@@ -149,14 +146,6 @@ export default function GroupDetailPage() {
       </div>
     );
   }
-
-  // Exam assignment flow steps
-  const examFlowSteps = [
-    { label: 'Seleccionar Examen', desc: 'Elige y configura el examen', icon: ClipboardList, color: 'indigo', link: `/partners/groups/${groupId}/assign-exam` },
-    { label: 'Materiales', desc: 'Asigna materiales de estudio', icon: BookOpen, color: 'cyan', link: `/partners/groups/${groupId}/assign-exam/materials` },
-    { label: 'Candidatos', desc: 'Selecciona a quién asignar', icon: UserCheck, color: 'purple', link: `/partners/groups/${groupId}/assign-exam/members` },
-    { label: 'Confirmar', desc: 'Revisa costo y confirma', icon: DollarSign, color: 'emerald', link: `/partners/groups/${groupId}/assign-exam/review` },
-  ];
 
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
@@ -290,69 +279,33 @@ export default function GroupDetailPage() {
         {/* COLUMNA IZQUIERDA (3/5): Flujo de asignación de examen */}
         <div className="lg:col-span-3 space-y-6">
 
-          {/* Flujo de Asignación de Examen - 4 pasos */}
+          {/* Asignar Examen — CTA compacto */}
           <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="bg-gradient-to-r from-indigo-600 to-blue-600 fluid-px-6 fluid-py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center fluid-gap-3">
-                  <Layers className="fluid-icon-base text-white/80" />
-                  <div>
-                    <h3 className="font-semibold text-white fluid-text-base">Asignar Examen</h3>
-                    <p className="fluid-text-xs text-white/70">Flujo de certificación en 4 pasos</p>
-                  </div>
-                </div>
-                {stats.totalMembers > 0 && (
-                  <Link to={`/partners/groups/${groupId}/assign-exam`}
-                    className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 text-white rounded-fluid-xl fluid-text-sm font-medium transition-all border border-white/20">
-                    Iniciar <ArrowRight className="fluid-icon-sm" />
-                  </Link>
-                )}
-              </div>
-            </div>
-            
             <div className="fluid-p-6">
               {stats.totalMembers === 0 ? (
                 <div className="text-center fluid-py-4">
                   <Users className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-3" />
-                  <p className="fluid-text-sm text-gray-500">Agrega candidatos primero para poder asignar exámenes</p>
+                  <p className="fluid-text-sm text-gray-500 fluid-mb-4">Agrega candidatos primero para poder asignar exámenes</p>
                   <Link to={`/partners/groups/${groupId}/assign-candidates`}
-                    className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-purple-600 text-white rounded-fluid-xl fluid-text-sm font-medium hover:bg-purple-700 transition-all mt-4">
+                    className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-purple-600 text-white rounded-fluid-xl fluid-text-sm font-medium hover:bg-purple-700 transition-all">
                     <UserPlus className="fluid-icon-sm" />Agregar Candidatos
                   </Link>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 fluid-gap-3">
-                  {examFlowSteps.map((step, i) => {
-                    const Icon = step.icon;
-                    const colors: Record<string, string> = {
-                      indigo: 'from-indigo-500 to-indigo-600 group-hover:from-indigo-600 group-hover:to-indigo-700',
-                      cyan: 'from-cyan-500 to-cyan-600 group-hover:from-cyan-600 group-hover:to-cyan-700',
-                      purple: 'from-purple-500 to-purple-600 group-hover:from-purple-600 group-hover:to-purple-700',
-                      emerald: 'from-emerald-500 to-emerald-600 group-hover:from-emerald-600 group-hover:to-emerald-700',
-                    };
-                    const borderColors: Record<string, string> = {
-                      indigo: 'hover:border-indigo-300',
-                      cyan: 'hover:border-cyan-300',
-                      purple: 'hover:border-purple-300',
-                      emerald: 'hover:border-emerald-300',
-                    };
-                    return (
-                      <Link key={i} to={step.link}
-                        className={`group flex items-center fluid-gap-3 fluid-p-4 rounded-fluid-xl border border-gray-200 ${borderColors[step.color]} hover:shadow-md transition-all`}>
-                        <div className={`fluid-p-2.5 bg-gradient-to-br ${colors[step.color]} rounded-fluid-lg shadow-md group-hover:scale-110 transition-transform`}>
-                          <Icon className="fluid-icon-base text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center fluid-gap-2">
-                            <span className="fluid-text-xs font-bold text-gray-400">PASO {i + 1}</span>
-                          </div>
-                          <p className="font-semibold text-gray-900 fluid-text-sm">{step.label}</p>
-                          <p className="fluid-text-xs text-gray-500 truncate">{step.desc}</p>
-                        </div>
-                        <ChevronRight className="fluid-icon-base text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
-                      </Link>
-                    );
-                  })}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-4">
+                  <div className="flex items-center fluid-gap-4">
+                    <div className="fluid-p-3 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-fluid-xl shadow-lg">
+                      <Layers className="fluid-icon-lg text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900 fluid-text-base">Asignar Certificación</h3>
+                      <p className="fluid-text-xs text-gray-500">Selecciona un examen, materiales y candidatos en 4 pasos</p>
+                    </div>
+                  </div>
+                  <Link to={`/partners/groups/${groupId}/assign-exam`}
+                    className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-fluid-xl font-medium fluid-text-sm transition-all shadow-md whitespace-nowrap">
+                    <ClipboardList className="fluid-icon-sm" />Iniciar Asignación
+                  </Link>
                 </div>
               )}
             </div>

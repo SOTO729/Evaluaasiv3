@@ -2951,12 +2951,20 @@ def add_group_member(group_id):
 @jwt_required()
 @coordinator_required
 def add_group_members_bulk(group_id):
-    """Agregar múltiples candidatos al grupo - optimizado para miles de candidatos"""
+    """Agregar múltiples candidatos al grupo - optimizado para miles de candidatos.
+    
+    Parámetros opcionales:
+    - auto_assign_exam_ids: lista de IDs de GroupExam. Si se envía, los nuevos
+      miembros se agregan como GroupExamMember a esas asignaciones 'selected'.
+      Para asignaciones 'all', no hace falta (ya están cubiertos).
+    """
     try:
         group = CandidateGroup.query.get_or_404(group_id)
         data = request.get_json()
         
         user_ids = data.get('user_ids', [])
+        auto_assign_exam_ids = data.get('auto_assign_exam_ids', [])
+        
         if not user_ids:
             return jsonify({'error': 'Se requiere al menos un ID de usuario'}), 400
         
@@ -2985,7 +2993,6 @@ def add_group_members_bulk(group_id):
             
             for user_id in chunk_ids:
                 if user_id not in valid_user_map:
-                    # Check if user exists at all but isn't candidato
                     errors.append({'user_id': user_id, 'error': 'Usuario no encontrado o no es candidato'})
                     continue
                     
@@ -3005,12 +3012,46 @@ def add_group_members_bulk(group_id):
             if added:
                 db.session.flush()
         
+        # Auto-asignar a exámenes si se solicitó
+        auto_assigned_exams = 0
+        if added and auto_assign_exam_ids:
+            from app.models import GroupExam
+            from app.models.partner import GroupExamMember
+            
+            for ge_id in auto_assign_exam_ids:
+                group_exam = GroupExam.query.filter_by(id=ge_id, group_id=group_id, is_active=True).first()
+                if not group_exam:
+                    continue
+                
+                # Para asignaciones 'all' no necesitamos agregar GroupExamMember
+                if group_exam.assignment_type == 'all':
+                    continue
+                
+                # Obtener miembros ya asignados a este examen
+                existing_exam_members = set(
+                    m.user_id for m in GroupExamMember.query.filter(
+                        GroupExamMember.group_exam_id == ge_id,
+                        GroupExamMember.user_id.in_(added)
+                    ).all()
+                )
+                
+                count = 0
+                for uid in added:
+                    if uid not in existing_exam_members:
+                        db.session.add(GroupExamMember(group_exam_id=ge_id, user_id=uid))
+                        count += 1
+                
+                if count > 0:
+                    auto_assigned_exams += 1
+                    db.session.flush()
+        
         db.session.commit()
         
         return jsonify({
             'message': f'{len(added)} miembros agregados',
             'added': added,
-            'errors': errors
+            'errors': errors,
+            'auto_assigned_exams': auto_assigned_exams
         }), 201
         
     except Exception as e:

@@ -36,12 +36,14 @@ import {
   Eye,
   UserCheck,
   Zap,
+  Award,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import {
   getGroup,
   getGroupMembersCount,
+  getGroupExams,
   searchCandidatesAdvanced,
   addGroupMembersBulk,
   uploadGroupMembersExcel,
@@ -52,6 +54,7 @@ import {
   CandidateGroup,
   CandidateSearchResult,
   ExcelPreviewResult,
+  GroupExamAssignment,
 } from '../../services/partnersService';
 
 type TabType = 'search' | 'excel';
@@ -139,10 +142,15 @@ export default function GroupAssignCandidatesPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmModalSearch, setConfirmModalSearch] = useState('');
 
+  // Estado para ECMs activos del grupo (auto-asignación)
+  const [groupExams, setGroupExams] = useState<GroupExamAssignment[]>([]);
+  const [selectedExamIds, setSelectedExamIds] = useState<Set<number>>(new Set());
+
   // Cargar datos iniciales
   useEffect(() => {
     loadGroupData();
     loadMexicanStates();
+    loadGroupExams();
   }, [groupId]);
 
   const loadGroupData = async () => {
@@ -167,6 +175,18 @@ export default function GroupAssignCandidatesPage() {
       setMexicanStates(states);
     } catch (err) {
       console.error('Error loading states:', err);
+    }
+  };
+
+  const loadGroupExams = async () => {
+    try {
+      const data = await getGroupExams(Number(groupId));
+      const activeExams = (data.assigned_exams || []).filter(e => e.is_active);
+      setGroupExams(activeExams);
+      // Auto-seleccionar todos los ECMs activos por defecto
+      setSelectedExamIds(new Set(activeExams.map(e => e.id)));
+    } catch (err) {
+      console.error('Error loading group exams:', err);
     }
   };
 
@@ -305,10 +325,15 @@ export default function GroupAssignCandidatesPage() {
       setError(null);
       
       const userIds = Array.from(selectedCandidates);
-      const result = await addGroupMembersBulk(Number(groupId), userIds);
+      const autoAssignExamIds = groupExams.length > 0 ? Array.from(selectedExamIds) : undefined;
+      const result = await addGroupMembersBulk(Number(groupId), userIds, autoAssignExamIds);
       
       if (result.added.length > 0) {
-        setSuccessMessage(`${result.added.length} candidato(s) agregado(s) al grupo`);
+        let msg = `${result.added.length} candidato(s) agregado(s) al grupo`;
+        if (result.auto_assigned_exams && result.auto_assigned_exams > 0) {
+          msg += ` y asignado(s) a ${result.auto_assigned_exams} certificación(es)`;
+        }
+        setSuccessMessage(msg);
         setCurrentMemberCount(prev => prev + result.added.length);
         setSelectedCandidates(new Set());
         setSelectedCandidatesData(new Map());
@@ -1240,6 +1265,47 @@ export default function GroupAssignCandidatesPage() {
                 </p>
               )}
             </div>
+
+            {/* Certificaciones activas — auto-asignar */}
+            {groupExams.length > 0 && (
+              <div className="px-6 pb-2 flex-shrink-0">
+                <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3.5">
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <Award className="w-4 h-4 text-indigo-600" />
+                    <span className="text-sm font-semibold text-indigo-800">Asignar también a certificaciones</span>
+                  </div>
+                  <p className="text-xs text-indigo-600 mb-2.5">
+                    Los nuevos candidatos se asignarán automáticamente a las certificaciones seleccionadas:
+                  </p>
+                  <div className="space-y-1.5">
+                    {groupExams.map((ge) => {
+                      const isChecked = selectedExamIds.has(ge.id);
+                      const label = ge.exam?.ecm?.code
+                        ? `${ge.exam.ecm.code} — ${ge.exam.name}`
+                        : ge.exam?.name || `Examen #${ge.exam_id}`;
+                      return (
+                        <label key={ge.id} className="flex items-center gap-2.5 cursor-pointer py-1 px-2 rounded-lg hover:bg-indigo-100/50 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              const next = new Set(selectedExamIds);
+                              isChecked ? next.delete(ge.id) : next.add(ge.id);
+                              setSelectedExamIds(next);
+                            }}
+                            className="w-4 h-4 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className="text-sm text-indigo-900">{label}</span>
+                          {ge.assignment_type === 'all' && (
+                            <span className="text-[10px] bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded-full font-medium">auto</span>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Lista de candidatos */}
             <div className="flex-1 overflow-y-auto px-6 py-2 min-h-0">
