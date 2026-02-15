@@ -220,12 +220,15 @@ export interface GroupMember {
 export interface CandidateSearchResult {
   id: string;
   email: string;
+  username?: string;
   name: string;
   first_surname: string;
   second_surname?: string;
   full_name: string;
   curp?: string;
   gender?: string;
+  phone?: string;
+  date_of_birth?: string;
   created_at?: string;
   current_group?: {
     group_id: number;
@@ -969,12 +972,16 @@ export interface ExcelPreviewRow {
   user?: {
     id: string;
     email: string;
+    username?: string;
     name: string;
     first_surname: string;
     second_surname?: string;
     full_name: string;
     curp?: string;
     gender?: string;
+    phone?: string;
+    date_of_birth?: string;
+    created_at?: string;
   };
 }
 

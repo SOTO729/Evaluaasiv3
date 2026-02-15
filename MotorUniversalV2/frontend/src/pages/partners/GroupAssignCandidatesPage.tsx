@@ -9,7 +9,7 @@
  * - La asignación a un grupo es permanente (no se puede deshacer)
  * - La tabla está optimizada para manejar cientos de miles de registros
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -37,6 +37,11 @@ import {
   UserCheck,
   Zap,
   Award,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Phone,
+  Calendar,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
@@ -122,6 +127,11 @@ export default function GroupAssignCandidatesPage() {
   
   // Ref para scroll automático al preview
   const previewRef = useRef<HTMLDivElement>(null);
+  
+  // Estado de búsqueda y ordenamiento en preview
+  const [previewSearch, setPreviewSearch] = useState('');
+  const [previewSortCol, setPreviewSortCol] = useState<string>('row');
+  const [previewSortDir, setPreviewSortDir] = useState<'asc' | 'desc'>('asc');
   
   // Estado para asignación masiva por criterios
   const [selectAllMatching, setSelectAllMatching] = useState(false);
@@ -315,6 +325,83 @@ export default function GroupAssignCandidatesPage() {
       candidate.curp?.toLowerCase().includes(search)
     );
   });
+
+  // Preview: filtrar y ordenar
+  const filteredPreview = useMemo(() => {
+    if (!previewData) return [];
+    let rows = [...previewData.preview];
+    if (previewSearch) {
+      const s = previewSearch.toLowerCase();
+      rows = rows.filter(r =>
+        r.identifier.toLowerCase().includes(s) ||
+        r.user?.full_name?.toLowerCase().includes(s) ||
+        r.user?.email?.toLowerCase().includes(s) ||
+        r.user?.curp?.toLowerCase().includes(s) ||
+        r.user?.phone?.toLowerCase().includes(s) ||
+        r.user?.username?.toLowerCase().includes(s) ||
+        r.status.toLowerCase().includes(s) ||
+        (r.error || '').toLowerCase().includes(s)
+      );
+    }
+    rows.sort((a, b) => {
+      let va: string | number = 0, vb: string | number = 0;
+      switch (previewSortCol) {
+        case 'row': va = a.row; vb = b.row; break;
+        case 'status': va = a.status; vb = b.status; break;
+        case 'identifier': va = a.identifier; vb = b.identifier; break;
+        case 'name': va = a.user?.name || ''; vb = b.user?.name || ''; break;
+        case 'first_surname': va = a.user?.first_surname || ''; vb = b.user?.first_surname || ''; break;
+        case 'second_surname': va = a.user?.second_surname || ''; vb = b.user?.second_surname || ''; break;
+        case 'email': va = a.user?.email || ''; vb = b.user?.email || ''; break;
+        case 'curp': va = a.user?.curp || ''; vb = b.user?.curp || ''; break;
+        case 'gender': va = a.user?.gender || ''; vb = b.user?.gender || ''; break;
+        case 'phone': va = a.user?.phone || ''; vb = b.user?.phone || ''; break;
+        case 'date_of_birth': va = a.user?.date_of_birth || ''; vb = b.user?.date_of_birth || ''; break;
+        default: va = a.row; vb = b.row;
+      }
+      if (typeof va === 'string') {
+        return previewSortDir === 'asc' ? va.localeCompare(vb as string) : (vb as string).localeCompare(va);
+      }
+      return previewSortDir === 'asc' ? (va as number) - (vb as number) : (vb as number) - (va as number);
+    });
+    return rows;
+  }, [previewData, previewSearch, previewSortCol, previewSortDir]);
+
+  const handlePreviewSort = (col: string) => {
+    if (previewSortCol === col) {
+      setPreviewSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setPreviewSortCol(col);
+      setPreviewSortDir('asc');
+    }
+  };
+
+  // Helper: renderizar badges de elegibilidad de certificados
+  const renderEligibilityBadges = (email?: string | null, curp?: string | null) => {
+    const badges = [
+      { label: 'RE', title: 'Reporte de Evaluación', eligible: true },
+      { label: 'CE', title: 'Certificado EDUIT', eligible: true },
+      { label: 'CC', title: 'Certificado CONOCER', eligible: !!curp, requirement: 'Requiere CURP' },
+      { label: 'ID', title: 'Insignia Digital', eligible: !!email, requirement: 'Requiere email' },
+    ];
+    return (
+      <div className="flex items-center gap-1 flex-wrap">
+        {badges.map(b => (
+          <span
+            key={b.label}
+            title={b.eligible ? `${b.title}: Elegible` : `${b.title}: No elegible — ${b.requirement}`}
+            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold leading-none ${
+              b.eligible
+                ? 'bg-green-100 text-green-700 border border-green-200'
+                : 'bg-red-50 text-red-400 border border-red-200 line-through'
+            }`}
+          >
+            {b.label}
+          </span>
+        ))}
+      </div>
+    );
+  };
 
   // Agregar candidatos seleccionados (individual selection)
   const handleAddSelectedCandidates = async () => {
@@ -939,6 +1026,7 @@ export default function GroupAssignCandidatesPage() {
                       {!isLightweight && <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell">CURP</th>}
                       {!isLightweight && <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell">Género</th>}
                       {!isLightweight && <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden xl:table-cell">Otros Grupos</th>}
+                      {!isLightweight && <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell">Elegibilidad</th>}
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -1003,6 +1091,11 @@ export default function GroupAssignCandidatesPage() {
                             ) : (
                               <span className="text-gray-400 fluid-text-xs italic">Sin grupo</span>
                             )}
+                          </td>
+                          )}
+                          {!isLightweight && (
+                          <td className="fluid-px-4 fluid-py-3 hidden lg:table-cell">
+                            {renderEligibilityBadges(candidate.email, candidate.curp)}
                           </td>
                           )}
                         </tr>
@@ -1173,39 +1266,116 @@ export default function GroupAssignCandidatesPage() {
                     </div>
                   </div>
                   
-                  {/* Lista de preview */}
-                  <div className="border border-gray-200 rounded-fluid-lg overflow-hidden max-h-80 overflow-y-auto fluid-mb-6">
-                    <table className="w-full">
-                      <thead className="bg-gray-50 sticky top-0">
+                  {/* Buscador en preview */}
+                  <div className="relative fluid-mb-4">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400" />
+                    <input
+                      type="text"
+                      value={previewSearch}
+                      onChange={(e) => setPreviewSearch(e.target.value)}
+                      placeholder="Buscar en la previsualización por nombre, email, CURP, teléfono..."
+                      className="w-full pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                    {previewSearch && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 fluid-text-xs text-gray-400">
+                        {filteredPreview.length} de {previewData.preview.length}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Lista de preview — tabla completa */}
+                  <div className="border border-gray-200 rounded-fluid-lg overflow-hidden fluid-mb-6">
+                    <div className="max-h-[28rem] overflow-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-gray-50 sticky top-0 z-10">
                         <tr>
-                          <th className="fluid-px-4 fluid-py-2 text-left fluid-text-xs font-semibold text-gray-600">Estado</th>
-                          <th className="fluid-px-4 fluid-py-2 text-left fluid-text-xs font-semibold text-gray-600">Identificador</th>
-                          <th className="fluid-px-4 fluid-py-2 text-left fluid-text-xs font-semibold text-gray-600">Candidato</th>
-                          <th className="fluid-px-4 fluid-py-2 text-left fluid-text-xs font-semibold text-gray-600">Mensaje</th>
+                          {[
+                            { key: 'row', label: '#', cls: 'w-12' },
+                            { key: 'status', label: 'Estado', cls: 'w-20' },
+                            { key: 'identifier', label: 'Identificador', cls: '' },
+                            { key: 'name', label: 'Nombre', cls: '' },
+                            { key: 'first_surname', label: 'Ap. Paterno', cls: '' },
+                            { key: 'second_surname', label: 'Ap. Materno', cls: '' },
+                            { key: 'email', label: 'Email', cls: '' },
+                            { key: 'curp', label: 'CURP', cls: '' },
+                            { key: 'gender', label: 'Género', cls: 'w-20' },
+                            { key: 'phone', label: 'Teléfono', cls: '' },
+                            { key: 'date_of_birth', label: 'F. Nac.', cls: 'w-24' },
+                          ].map(col => (
+                            <th
+                              key={col.key}
+                              onClick={() => handlePreviewSort(col.key)}
+                              className={`fluid-px-3 fluid-py-2 fluid-text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap ${col.cls}`}
+                            >
+                              <span className="inline-flex items-center gap-1">
+                                {col.label}
+                                {previewSortCol === col.key ? (
+                                  previewSortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                                ) : (
+                                  <ArrowUpDown className="h-3 w-3 opacity-30" />
+                                )}
+                              </span>
+                            </th>
+                          ))}
+                          <th className="fluid-px-3 fluid-py-2 fluid-text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Elegibilidad</th>
+                          <th className="fluid-px-3 fluid-py-2 fluid-text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Mensaje</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {previewData.preview.map((row) => (
+                        {filteredPreview.map((row) => (
                           <tr key={row.row} className={
                             row.status === 'ready' ? 'bg-green-50' :
                             row.status === 'already_member' ? 'bg-yellow-50' : 'bg-red-50'
                           }>
-                            <td className="fluid-px-4 fluid-py-2">
-                              {row.status === 'ready' && <Check className="fluid-icon-sm text-green-600" />}
-                              {row.status === 'already_member' && <AlertTriangle className="fluid-icon-sm text-yellow-600" />}
-                              {row.status === 'not_found' && <XCircle className="fluid-icon-sm text-red-600" />}
+                            <td className="fluid-px-3 fluid-py-2 fluid-text-xs text-gray-500 font-mono">{row.row}</td>
+                            <td className="fluid-px-3 fluid-py-2">
+                              {row.status === 'ready' && <span className="inline-flex items-center gap-1 text-green-600 fluid-text-xs font-medium"><Check className="h-3.5 w-3.5" /> Listo</span>}
+                              {row.status === 'already_member' && <span className="inline-flex items-center gap-1 text-yellow-600 fluid-text-xs font-medium"><AlertTriangle className="h-3.5 w-3.5" /> Ya</span>}
+                              {row.status === 'not_found' && <span className="inline-flex items-center gap-1 text-red-600 fluid-text-xs font-medium"><XCircle className="h-3.5 w-3.5" /> No</span>}
                             </td>
-                            <td className="fluid-px-4 fluid-py-2 fluid-text-sm font-mono">{row.identifier}</td>
-                            <td className="fluid-px-4 fluid-py-2 fluid-text-sm">
-                              {row.user ? row.user.full_name : '-'}
+                            <td className="fluid-px-3 fluid-py-2 fluid-text-xs font-mono text-gray-700 whitespace-nowrap">{row.identifier}</td>
+                            <td className="fluid-px-3 fluid-py-2 fluid-text-sm text-gray-900 whitespace-nowrap">{row.user?.name || '-'}</td>
+                            <td className="fluid-px-3 fluid-py-2 fluid-text-sm text-gray-900 whitespace-nowrap">{row.user?.first_surname || '-'}</td>
+                            <td className="fluid-px-3 fluid-py-2 fluid-text-sm text-gray-900 whitespace-nowrap">{row.user?.second_surname || '-'}</td>
+                            <td className="fluid-px-3 fluid-py-2 fluid-text-xs text-gray-600 whitespace-nowrap">
+                              {row.user?.email ? (
+                                <span className="flex items-center gap-1"><Mail className="h-3 w-3 text-gray-400" />{row.user.email}</span>
+                              ) : '-'}
                             </td>
-                            <td className="fluid-px-4 fluid-py-2 fluid-text-sm text-gray-600">
+                            <td className="fluid-px-3 fluid-py-2 fluid-text-xs text-gray-600 font-mono whitespace-nowrap">
+                              {row.user?.curp || <span className="text-gray-300">—</span>}
+                            </td>
+                            <td className="fluid-px-3 fluid-py-2 fluid-text-xs text-gray-600 whitespace-nowrap">
+                              {row.user?.gender === 'M' ? 'Masc' : row.user?.gender === 'F' ? 'Fem' : row.user?.gender === 'O' ? 'Otro' : '-'}
+                            </td>
+                            <td className="fluid-px-3 fluid-py-2 fluid-text-xs text-gray-600 whitespace-nowrap">
+                              {row.user?.phone ? (
+                                <span className="flex items-center gap-1"><Phone className="h-3 w-3 text-gray-400" />{row.user.phone}</span>
+                              ) : <span className="text-gray-300">—</span>}
+                            </td>
+                            <td className="fluid-px-3 fluid-py-2 fluid-text-xs text-gray-600 whitespace-nowrap">
+                              {row.user?.date_of_birth ? (
+                                <span className="flex items-center gap-1"><Calendar className="h-3 w-3 text-gray-400" />{row.user.date_of_birth}</span>
+                              ) : <span className="text-gray-300">—</span>}
+                            </td>
+                            <td className="fluid-px-3 fluid-py-2">
+                              {row.user ? renderEligibilityBadges(row.user.email, row.user.curp) : '-'}
+                            </td>
+                            <td className="fluid-px-3 fluid-py-2 fluid-text-xs text-gray-500 max-w-[200px] truncate" title={row.status === 'ready' ? 'Listo para asignar' : row.error}>
                               {row.status === 'ready' ? 'Listo para asignar' : row.error}
                             </td>
                           </tr>
                         ))}
+                        {filteredPreview.length === 0 && previewSearch && (
+                          <tr>
+                            <td colSpan={13} className="fluid-px-4 fluid-py-8 text-center text-gray-400 fluid-text-sm">
+                              No se encontraron filas que coincidan con "{previewSearch}"
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                   
                   {/* Botón de confirmación */}
