@@ -61,7 +61,7 @@ class Config:
     
     # Pagination
     DEFAULT_PAGE_SIZE = int(os.getenv('DEFAULT_PAGE_SIZE', 20))
-    MAX_PAGE_SIZE = int(os.getenv('MAX_PAGE_SIZE', 100))
+    MAX_PAGE_SIZE = int(os.getenv('MAX_PAGE_SIZE', 1000))
     
     # Rate Limiting
     RATELIMIT_STORAGE_URL = os.getenv('RATELIMIT_STORAGE_URL', 'redis://localhost:6379/1')

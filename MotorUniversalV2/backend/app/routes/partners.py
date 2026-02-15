@@ -143,7 +143,7 @@ def get_partners():
         
         query = query.order_by(Partner.name)
         
-        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        pagination = query.paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
         
         return jsonify({
             'partners': [p.to_dict(include_states=True) for p in pagination.items],
@@ -3309,7 +3309,7 @@ def search_candidates():
         
         query = query.order_by(User.first_surname, User.name)
         
-        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        pagination = query.paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
         
         candidates = []
         for user in pagination.items:
@@ -3860,7 +3860,7 @@ def get_partner_users(partner_id):
                 )
             )
         
-        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        pagination = query.paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
         
         return jsonify({
             'partner_id': partner_id,
@@ -5274,7 +5274,7 @@ def get_available_study_materials():
             )
         
         query = query.order_by(StudyMaterial.title)
-        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        pagination = query.paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
         
         materials_data = []
         for mat in pagination.items:
@@ -5377,7 +5377,7 @@ def get_available_exams():
             )
         
         query = query.order_by(Exam.name)
-        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        pagination = query.paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
         
         exams_data = []
         for exam in pagination.items:
@@ -6142,7 +6142,7 @@ def search_candidates_advanced():
             query = query.order_by(User.created_at.desc())
         else:
             query = query.order_by(User.first_surname, User.name)
-        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        pagination = query.paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
         
         # Batch: obtener membresías activas para todos los usuarios de la página
         # Para pages grandes (>100 items), skip membresía para acelerar respuesta
@@ -6603,7 +6603,7 @@ def get_mi_plantel_evaluations():
         query = query.order_by(Result.end_date.desc())
         
         # Paginación
-        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        pagination = query.paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
         
         evaluations = []
         for result in pagination.items:
@@ -7548,7 +7548,7 @@ def search_mi_plantel_candidates():
                 )
             )
         
-        paginated = query.order_by(User.name).paginate(page=page, per_page=per_page, error_out=False)
+        paginated = query.order_by(User.name).paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
         
         return jsonify({
             'candidates': [{
