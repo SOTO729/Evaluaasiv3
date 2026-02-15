@@ -4,12 +4,13 @@
  * Para 'all' y 'selected': Navega a → /assign-exam/review con AssignMembersState
  * Para 'bulk': Proceso completo se maneja aquí (carga masiva por ECM)
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, Users, UserCheck, ClipboardList,
   CheckCircle2, AlertCircle, X, Loader2, Search,
   FileSpreadsheet, Upload, Download, DollarSign,
+  ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../../components/PartnersBreadcrumb';
@@ -43,6 +44,14 @@ export default function ExamAssignMembersPage() {
   const [bulkUploading, setBulkUploading] = useState(false);
   const [bulkResult, setBulkResult] = useState<BulkExamAssignResult | null>(null);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
+
+  // Result table controls
+  const [resultSearch, setResultSearch] = useState('');
+  const [sortConfig, setSortConfig] = useState<Record<string, { key: string; dir: 'asc' | 'desc' }>>({
+    assigned: { key: 'row', dir: 'asc' },
+    skipped: { key: 'row', dir: 'asc' },
+    errors: { key: 'row', dir: 'asc' },
+  });
 
   // Cost preview loading
   const [loadingCostPreview] = useState(false);
@@ -150,6 +159,71 @@ export default function ExamAssignMembersPage() {
   };
 
   // handleBulkUpload removed - processing now auto-triggered by handleBulkFileChange
+
+  const handleClearFile = () => {
+    setBulkFile(null);
+    setBulkResult(null);
+    setResultSearch('');
+  };
+
+  const toggleSort = (table: string, key: string) => {
+    setSortConfig(prev => ({
+      ...prev,
+      [table]: prev[table]?.key === key && prev[table]?.dir === 'asc'
+        ? { key, dir: 'desc' as const }
+        : { key, dir: 'asc' as const },
+    }));
+  };
+
+  const sortItems = <T extends Record<string, any>>(items: T[], table: string): T[] => {
+    const cfg = sortConfig[table];
+    if (!cfg) return items;
+    return [...items].sort((a, b) => {
+      const aVal = a[cfg.key] ?? '';
+      const bVal = b[cfg.key] ?? '';
+      if (typeof aVal === 'number' && typeof bVal === 'number') return cfg.dir === 'asc' ? aVal - bVal : bVal - aVal;
+      return cfg.dir === 'asc' ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
+    });
+  };
+
+  const SortIcon = ({ table, column }: { table: string; column: string }) => {
+    const cfg = sortConfig[table];
+    if (cfg?.key !== column) return <ArrowUpDown className="inline fluid-icon-xs ml-1 text-gray-400" />;
+    return cfg.dir === 'asc' ? <ArrowUp className="inline fluid-icon-xs ml-1" /> : <ArrowDown className="inline fluid-icon-xs ml-1" />;
+  };
+
+  const filteredAssigned = useMemo(() => {
+    if (!bulkResult) return [];
+    const q = resultSearch.toLowerCase();
+    const filtered = q ? bulkResult.results.assigned.filter(item =>
+      (item.user_name || '').toLowerCase().includes(q) ||
+      (item.email || '').toLowerCase().includes(q) ||
+      (item.curp || '').toLowerCase().includes(q) ||
+      (item.exam_name || '').toLowerCase().includes(q)
+    ) : bulkResult.results.assigned;
+    return sortItems(filtered, 'assigned');
+  }, [bulkResult, resultSearch, sortConfig]);
+
+  const filteredSkipped = useMemo(() => {
+    if (!bulkResult) return [];
+    const q = resultSearch.toLowerCase();
+    const filtered = q ? bulkResult.results.skipped.filter(item =>
+      (item.user_name || '').toLowerCase().includes(q) ||
+      (item.email || '').toLowerCase().includes(q) ||
+      (item.reason || '').toLowerCase().includes(q)
+    ) : bulkResult.results.skipped;
+    return sortItems(filtered, 'skipped');
+  }, [bulkResult, resultSearch, sortConfig]);
+
+  const filteredErrors = useMemo(() => {
+    if (!bulkResult) return [];
+    const q = resultSearch.toLowerCase();
+    const filtered = q ? bulkResult.results.errors.filter(item =>
+      (item.user_name || item.identifier || '').toLowerCase().includes(q) ||
+      (item.error || '').toLowerCase().includes(q)
+    ) : bulkResult.results.errors;
+    return sortItems(filtered, 'errors');
+  }, [bulkResult, resultSearch, sortConfig]);
 
   const filteredMembers = members.filter(m => {
     if (!memberSearchQuery.trim()) return true;
@@ -314,12 +388,20 @@ export default function ExamAssignMembersPage() {
             {/* Step 2: Upload file - auto-processes on selection */}
             <div className="fluid-mb-4">
               <h5 className="font-medium text-gray-700 fluid-mb-2 fluid-text-base">2. Completa y sube el archivo</h5>
-              <div className="flex items-center fluid-gap-4">
+              <div className="flex items-center fluid-gap-3">
                 <label className={`flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 rounded-fluid-xl transition-all fluid-text-sm ${bulkUploading ? 'bg-gray-400 cursor-wait' : 'bg-green-600 hover:bg-green-700 cursor-pointer'} text-white`}>
                   {bulkUploading ? <><Loader2 className="fluid-icon-sm animate-spin" />Procesando...</> : <><Upload className="fluid-icon-sm" />Seleccionar Archivo</>}
                   <input type="file" accept=".xlsx,.xls" onChange={handleBulkFileChange} className="hidden" disabled={bulkUploading} />
                 </label>
-                {bulkFile && !bulkUploading && <span className="fluid-text-sm text-gray-600">{bulkFile.name}</span>}
+                {bulkFile && !bulkUploading && (
+                  <div className="flex items-center fluid-gap-2 bg-gray-100 rounded-fluid-lg fluid-px-3 fluid-py-1.5">
+                    <FileSpreadsheet className="fluid-icon-sm text-green-600" />
+                    <span className="fluid-text-sm text-gray-700">{bulkFile.name}</span>
+                    <button onClick={handleClearFile} className="ml-1 text-gray-400 hover:text-red-500 transition-colors" title="Quitar archivo">
+                      <X className="fluid-icon-sm" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -336,36 +418,57 @@ export default function ExamAssignMembersPage() {
                   </div>
                 </div>
 
+                {/* Barra de búsqueda global para tablas */}
+                {(bulkResult.results.assigned.length > 0 || bulkResult.results.skipped.length > 0 || bulkResult.results.errors.length > 0) && (
+                  <div className="relative max-w-md">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 fluid-icon-sm" />
+                    <input type="text" placeholder="Buscar en resultados..." value={resultSearch} onChange={(e) => setResultSearch(e.target.value)}
+                      className="w-full pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400" />
+                    {resultSearch && (
+                      <button onClick={() => setResultSearch('')} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        <X className="fluid-icon-sm" />
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* Tabla de asignaciones exitosas */}
                 {bulkResult.results.assigned.length > 0 && (
                   <div className="bg-white border border-green-200 rounded-fluid-xl overflow-hidden">
-                    <div className="bg-green-50 fluid-px-4 fluid-py-3 border-b border-green-200 flex items-center fluid-gap-2">
-                      <CheckCircle2 className="fluid-icon-base text-green-600" />
-                      <h5 className="font-medium text-green-800 fluid-text-sm">Candidatos Asignados Exitosamente ({bulkResult.results.assigned.length})</h5>
+                    <div className="bg-green-50 fluid-px-4 fluid-py-3 border-b border-green-200 flex items-center justify-between">
+                      <div className="flex items-center fluid-gap-2">
+                        <CheckCircle2 className="fluid-icon-base text-green-600" />
+                        <h5 className="font-medium text-green-800 fluid-text-sm">Candidatos Asignados Exitosamente ({filteredAssigned.length}{resultSearch ? ` de ${bulkResult.results.assigned.length}` : ''})</h5>
+                      </div>
                     </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      <table className="w-full fluid-text-sm">
-                        <thead className="bg-green-50/50 sticky top-0">
-                          <tr>
-                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Fila</th>
-                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Nombre</th>
-                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Email</th>
-                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">CURP</th>
-                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Examen</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-green-100">
-                          {bulkResult.results.assigned.map((item, i) => (
-                            <tr key={i} className="hover:bg-green-50/30">
-                              <td className="fluid-px-4 fluid-py-2 text-gray-500 font-mono">{item.row}</td>
-                              <td className="fluid-px-4 fluid-py-2 font-medium text-gray-900">{item.user_name || item.username || '-'}</td>
-                              <td className="fluid-px-4 fluid-py-2 text-gray-600">{item.email || '-'}</td>
-                              <td className="fluid-px-4 fluid-py-2 text-gray-500 font-mono text-xs">{item.curp || '-'}</td>
-                              <td className="fluid-px-4 fluid-py-2 text-green-700">{item.exam_name}</td>
+                    <div className="overflow-x-auto">
+                      <div className="max-h-72 overflow-y-auto">
+                        <table className="w-full fluid-text-sm min-w-[600px]">
+                          <thead className="bg-green-50/50 sticky top-0 z-10">
+                            <tr>
+                              <th onClick={() => toggleSort('assigned', 'row')} className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium cursor-pointer hover:text-gray-900 select-none whitespace-nowrap">Fila<SortIcon table="assigned" column="row" /></th>
+                              <th onClick={() => toggleSort('assigned', 'user_name')} className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium cursor-pointer hover:text-gray-900 select-none whitespace-nowrap">Nombre<SortIcon table="assigned" column="user_name" /></th>
+                              <th onClick={() => toggleSort('assigned', 'email')} className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium cursor-pointer hover:text-gray-900 select-none whitespace-nowrap">Email<SortIcon table="assigned" column="email" /></th>
+                              <th onClick={() => toggleSort('assigned', 'curp')} className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium cursor-pointer hover:text-gray-900 select-none whitespace-nowrap">CURP<SortIcon table="assigned" column="curp" /></th>
+                              <th onClick={() => toggleSort('assigned', 'exam_name')} className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium cursor-pointer hover:text-gray-900 select-none whitespace-nowrap">Examen<SortIcon table="assigned" column="exam_name" /></th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-green-100">
+                            {filteredAssigned.map((item, i) => (
+                              <tr key={i} className="hover:bg-green-50/30">
+                                <td className="fluid-px-4 fluid-py-2 text-gray-500 font-mono">{item.row}</td>
+                                <td className="fluid-px-4 fluid-py-2 font-medium text-gray-900 whitespace-nowrap">{item.user_name || item.username || '-'}</td>
+                                <td className="fluid-px-4 fluid-py-2 text-gray-600">{item.email || '-'}</td>
+                                <td className="fluid-px-4 fluid-py-2 text-gray-500 font-mono text-xs">{item.curp || '-'}</td>
+                                <td className="fluid-px-4 fluid-py-2 text-green-700">{item.exam_name}</td>
+                              </tr>
+                            ))}
+                            {filteredAssigned.length === 0 && resultSearch && (
+                              <tr><td colSpan={5} className="fluid-px-4 fluid-py-3 text-center text-gray-400 fluid-text-sm">Sin coincidencias</td></tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -373,31 +476,38 @@ export default function ExamAssignMembersPage() {
                 {/* Tabla de omitidos */}
                 {bulkResult.results.skipped.length > 0 && (
                   <div className="bg-white border border-yellow-200 rounded-fluid-xl overflow-hidden">
-                    <div className="bg-yellow-50 fluid-px-4 fluid-py-3 border-b border-yellow-200 flex items-center fluid-gap-2">
-                      <AlertCircle className="fluid-icon-base text-yellow-600" />
-                      <h5 className="font-medium text-yellow-800 fluid-text-sm">Candidatos Omitidos ({bulkResult.results.skipped.length})</h5>
+                    <div className="bg-yellow-50 fluid-px-4 fluid-py-3 border-b border-yellow-200 flex items-center justify-between">
+                      <div className="flex items-center fluid-gap-2">
+                        <AlertCircle className="fluid-icon-base text-yellow-600" />
+                        <h5 className="font-medium text-yellow-800 fluid-text-sm">Candidatos Omitidos ({filteredSkipped.length}{resultSearch ? ` de ${bulkResult.results.skipped.length}` : ''})</h5>
+                      </div>
                     </div>
-                    <div className="max-h-48 overflow-y-auto">
-                      <table className="w-full fluid-text-sm">
-                        <thead className="bg-yellow-50/50 sticky top-0">
-                          <tr>
-                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Fila</th>
-                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Nombre</th>
-                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Email</th>
-                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Motivo</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-yellow-100">
-                          {bulkResult.results.skipped.map((item, i) => (
-                            <tr key={i} className="hover:bg-yellow-50/30">
-                              <td className="fluid-px-4 fluid-py-2 text-gray-500 font-mono">{item.row}</td>
-                              <td className="fluid-px-4 fluid-py-2 font-medium text-gray-900">{item.user_name || item.username || '-'}</td>
-                              <td className="fluid-px-4 fluid-py-2 text-gray-600">{item.email || '-'}</td>
-                              <td className="fluid-px-4 fluid-py-2 text-yellow-700">{item.reason}</td>
+                    <div className="overflow-x-auto">
+                      <div className="max-h-56 overflow-y-auto">
+                        <table className="w-full fluid-text-sm min-w-[500px]">
+                          <thead className="bg-yellow-50/50 sticky top-0 z-10">
+                            <tr>
+                              <th onClick={() => toggleSort('skipped', 'row')} className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium cursor-pointer hover:text-gray-900 select-none whitespace-nowrap">Fila<SortIcon table="skipped" column="row" /></th>
+                              <th onClick={() => toggleSort('skipped', 'user_name')} className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium cursor-pointer hover:text-gray-900 select-none whitespace-nowrap">Nombre<SortIcon table="skipped" column="user_name" /></th>
+                              <th onClick={() => toggleSort('skipped', 'email')} className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium cursor-pointer hover:text-gray-900 select-none whitespace-nowrap">Email<SortIcon table="skipped" column="email" /></th>
+                              <th onClick={() => toggleSort('skipped', 'reason')} className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium cursor-pointer hover:text-gray-900 select-none whitespace-nowrap">Motivo<SortIcon table="skipped" column="reason" /></th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-yellow-100">
+                            {filteredSkipped.map((item, i) => (
+                              <tr key={i} className="hover:bg-yellow-50/30">
+                                <td className="fluid-px-4 fluid-py-2 text-gray-500 font-mono">{item.row}</td>
+                                <td className="fluid-px-4 fluid-py-2 font-medium text-gray-900 whitespace-nowrap">{item.user_name || item.username || '-'}</td>
+                                <td className="fluid-px-4 fluid-py-2 text-gray-600">{item.email || '-'}</td>
+                                <td className="fluid-px-4 fluid-py-2 text-yellow-700">{item.reason}</td>
+                              </tr>
+                            ))}
+                            {filteredSkipped.length === 0 && resultSearch && (
+                              <tr><td colSpan={4} className="fluid-px-4 fluid-py-3 text-center text-gray-400 fluid-text-sm">Sin coincidencias</td></tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -405,29 +515,36 @@ export default function ExamAssignMembersPage() {
                 {/* Tabla de errores */}
                 {bulkResult.results.errors.length > 0 && (
                   <div className="bg-white border border-red-200 rounded-fluid-xl overflow-hidden">
-                    <div className="bg-red-50 fluid-px-4 fluid-py-3 border-b border-red-200 flex items-center fluid-gap-2">
-                      <AlertCircle className="fluid-icon-base text-red-600" />
-                      <h5 className="font-medium text-red-800 fluid-text-sm">Candidatos No Encontrados ({bulkResult.results.errors.length})</h5>
+                    <div className="bg-red-50 fluid-px-4 fluid-py-3 border-b border-red-200 flex items-center justify-between">
+                      <div className="flex items-center fluid-gap-2">
+                        <AlertCircle className="fluid-icon-base text-red-600" />
+                        <h5 className="font-medium text-red-800 fluid-text-sm">Candidatos No Encontrados ({filteredErrors.length}{resultSearch ? ` de ${bulkResult.results.errors.length}` : ''})</h5>
+                      </div>
                     </div>
-                    <div className="max-h-48 overflow-y-auto">
-                      <table className="w-full fluid-text-sm">
-                        <thead className="bg-red-50/50 sticky top-0">
-                          <tr>
-                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Fila</th>
-                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Candidato</th>
-                            <th className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium">Error</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-red-100">
-                          {bulkResult.results.errors.map((item, i) => (
-                            <tr key={i} className="hover:bg-red-50/30">
-                              <td className="fluid-px-4 fluid-py-2 text-gray-500 font-mono">{item.row}</td>
-                              <td className="fluid-px-4 fluid-py-2 font-medium text-gray-900">{item.user_name || item.identifier || '-'}</td>
-                              <td className="fluid-px-4 fluid-py-2 text-red-600">{item.error}</td>
+                    <div className="overflow-x-auto">
+                      <div className="max-h-56 overflow-y-auto">
+                        <table className="w-full fluid-text-sm min-w-[400px]">
+                          <thead className="bg-red-50/50 sticky top-0 z-10">
+                            <tr>
+                              <th onClick={() => toggleSort('errors', 'row')} className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium cursor-pointer hover:text-gray-900 select-none whitespace-nowrap">Fila<SortIcon table="errors" column="row" /></th>
+                              <th onClick={() => toggleSort('errors', 'user_name')} className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium cursor-pointer hover:text-gray-900 select-none whitespace-nowrap">Candidato<SortIcon table="errors" column="user_name" /></th>
+                              <th onClick={() => toggleSort('errors', 'error')} className="text-left fluid-px-4 fluid-py-2 text-gray-600 font-medium cursor-pointer hover:text-gray-900 select-none whitespace-nowrap">Error<SortIcon table="errors" column="error" /></th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-red-100">
+                            {filteredErrors.map((item, i) => (
+                              <tr key={i} className="hover:bg-red-50/30">
+                                <td className="fluid-px-4 fluid-py-2 text-gray-500 font-mono">{item.row}</td>
+                                <td className="fluid-px-4 fluid-py-2 font-medium text-gray-900 whitespace-nowrap">{item.user_name || item.identifier || '-'}</td>
+                                <td className="fluid-px-4 fluid-py-2 text-red-600">{item.error}</td>
+                              </tr>
+                            ))}
+                            {filteredErrors.length === 0 && resultSearch && (
+                              <tr><td colSpan={3} className="fluid-px-4 fluid-py-3 text-center text-gray-400 fluid-text-sm">Sin coincidencias</td></tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
                 )}
