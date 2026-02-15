@@ -54,8 +54,9 @@ export default function ExamSelectMaterialsPage() {
         setLoadingMaterials(true);
         const data = await getExamMaterialsForAssignment(prevState.selectedExam.id);
         setAvailableMaterials(data.materials || []);
-        const linkedIds = (data.materials || []).filter(m => m.is_linked).map(m => m.id);
-        setSelectedMaterialIds(linkedIds);
+        // Preseleccionar todos los materiales disponibles
+        const allIds = (data.materials || []).map(m => m.id);
+        setSelectedMaterialIds(allIds);
       } catch (err: any) {
         setError(err.response?.data?.error || 'Error al cargar datos');
       } finally {
