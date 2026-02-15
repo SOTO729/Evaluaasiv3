@@ -1058,6 +1058,24 @@ export async function listAllGroups(): Promise<{
   return response.data;
 }
 
+// ============== ASIGNACIÓN MASIVA POR CRITERIOS ==============
+
+export async function bulkAssignByCriteria(groupId: number, criteria: {
+  search?: string;
+  search_field?: string;
+  has_group?: string;
+  gender?: string;
+  state?: string;
+}): Promise<{
+  message: string;
+  added: number;
+  skipped: number;
+  total_matched: number;
+}> {
+  const response = await api.post(`/partners/groups/${groupId}/members/bulk-assign-by-criteria`, criteria);
+  return response.data;
+}
+
 // ============== DASHBOARD ==============
 
 export async function getPartnersDashboard(): Promise<DashboardStats> {

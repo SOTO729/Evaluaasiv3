@@ -12,7 +12,6 @@ import {
   XCircle,
   X,
   UserPlus,
-  UserMinus,
   BookOpen,
   Search,
   ChevronDown,
@@ -31,7 +30,6 @@ import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import {
   getGroup,
   getGroupMembers,
-  removeGroupMember,
   exportGroupMembersToExcel,
   CandidateGroup,
   GroupMember,
@@ -164,21 +162,7 @@ export default function GroupMembersPage() {
       : <ChevronDown className="w-3.5 h-3.5 text-purple-600" />;
   };
 
-  const handleRemoveMember = async (memberId: number) => {
-    if (!confirm('¿Estás seguro de remover este candidato del grupo?')) return;
-    
-    try {
-      await removeGroupMember(Number(groupId), memberId);
-      setMembers(members.filter(m => m.id !== memberId));
-      setSelectedMembers(prev => {
-        const next = new Set(prev);
-        next.delete(memberId);
-        return next;
-      });
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al remover candidato');
-    }
-  };
+
 
   const handleSelectAll = () => {
     if (selectedMembers.size === filteredMembers.length) {
@@ -639,15 +623,7 @@ export default function GroupMembersPage() {
                   </span>
                 </div>
                 
-                <div className="w-16 flex justify-center">
-                  <button
-                    onClick={() => handleRemoveMember(member.id)}
-                    className="p-2 hover:bg-orange-100 rounded-lg text-orange-500 hover:text-orange-600 transition-colors"
-                    title="Remover del grupo"
-                  >
-                    <UserMinus className="w-4 h-4" />
-                  </button>
-                </div>
+
               </div>
             ))}
           </div>

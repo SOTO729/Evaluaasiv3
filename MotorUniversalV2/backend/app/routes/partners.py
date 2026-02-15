@@ -3018,6 +3018,141 @@ def add_group_members_bulk(group_id):
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/groups/<int:group_id>/members/bulk-assign-by-criteria', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def bulk_assign_by_criteria(group_id):
+    """Asignar masivamente candidatos por criterios de búsqueda - optimizado para cientos de miles"""
+    try:
+        group = CandidateGroup.query.get_or_404(group_id)
+        data = request.get_json() or {}
+        
+        # Mismos filtros que search_candidates_advanced
+        search = data.get('search', '')
+        search_field = data.get('search_field', '')
+        has_group = data.get('has_group')
+        gender = data.get('gender')
+        state = data.get('state')
+        
+        query = User.query.filter(
+            User.role == 'candidato',
+            User.is_active == True
+        )
+        
+        # Multi-tenant
+        coord_id = _get_coordinator_filter(g.current_user)
+        if coord_id:
+            query = query.filter(User.coordinator_id == coord_id)
+        
+        # Filtro de búsqueda textual
+        if search:
+            search_term = f'%{search}%'
+            if search_field and search_field in ['name', 'first_surname', 'second_surname', 'email', 'curp']:
+                field_map = {
+                    'name': User.name,
+                    'first_surname': User.first_surname,
+                    'second_surname': User.second_surname,
+                    'email': User.email,
+                    'curp': User.curp,
+                }
+                query = query.filter(field_map[search_field].ilike(search_term))
+            else:
+                query = query.filter(
+                    db.or_(
+                        User.name.ilike(search_term),
+                        User.first_surname.ilike(search_term),
+                        User.second_surname.ilike(search_term),
+                        User.email.ilike(search_term),
+                        User.curp.ilike(search_term)
+                    )
+                )
+        
+        # Filtro por género
+        if gender and gender in ['M', 'F', 'O']:
+            query = query.filter(User.gender == gender)
+        
+        # Filtro: tiene grupo / sin grupo
+        if has_group == 'yes':
+            candidates_with_group = db.session.query(GroupMember.user_id).filter(
+                GroupMember.status == 'active'
+            ).subquery()
+            query = query.filter(User.id.in_(candidates_with_group))
+        elif has_group == 'no':
+            candidates_with_group = db.session.query(GroupMember.user_id).filter(
+                GroupMember.status == 'active'
+            ).subquery()
+            query = query.filter(~User.id.in_(candidates_with_group))
+        
+        # Filtro por estado
+        if state:
+            groups_of_state = db.session.query(CandidateGroup.id).join(Campus).filter(
+                Campus.state_name == state
+            ).subquery()
+            members_of_state = db.session.query(GroupMember.user_id).filter(
+                GroupMember.group_id.in_(groups_of_state),
+                GroupMember.status == 'active'
+            ).subquery()
+            query = query.filter(User.id.in_(members_of_state))
+        
+        # SIEMPRE excluir candidatos que ya están en este grupo
+        members_of_group = db.session.query(GroupMember.user_id).filter(
+            GroupMember.group_id == group_id
+        ).subquery()
+        query = query.filter(~User.id.in_(members_of_group))
+        
+        # Obtener TODOS los IDs que coinciden
+        all_user_ids = [row[0] for row in query.with_entities(User.id).all()]
+        
+        if not all_user_ids:
+            return jsonify({
+                'message': 'No hay candidatos que coincidan con los criterios',
+                'added': 0,
+                'skipped': 0,
+                'total_matched': 0,
+            }), 200
+        
+        # Asignar en chunks
+        added = []
+        CHUNK_SIZE = 500
+        
+        for i in range(0, len(all_user_ids), CHUNK_SIZE):
+            chunk_ids = all_user_ids[i:i + CHUNK_SIZE]
+            
+            existing_members = GroupMember.query.filter(
+                GroupMember.group_id == group_id,
+                GroupMember.user_id.in_(chunk_ids)
+            ).all()
+            existing_member_ids = {m.user_id for m in existing_members}
+            
+            for user_id in chunk_ids:
+                if user_id in existing_member_ids:
+                    continue
+                
+                member = GroupMember(
+                    group_id=group_id,
+                    user_id=user_id,
+                    status='active'
+                )
+                db.session.add(member)
+                added.append(user_id)
+            
+            if added:
+                db.session.flush()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'{len(added)} candidatos asignados al grupo',
+            'added': len(added),
+            'skipped': len(all_user_ids) - len(added),
+            'total_matched': len(all_user_ids),
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/groups/<int:group_id>/members/<int:member_id>', methods=['PUT'])
 @jwt_required()
 @coordinator_required
