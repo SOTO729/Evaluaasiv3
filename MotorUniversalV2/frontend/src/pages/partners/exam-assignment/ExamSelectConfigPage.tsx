@@ -3,14 +3,15 @@
  * Seleccionar un examen publicado + configurar parámetros
  * Navega a → /assign-exam/materials con el state
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Clock, Target, RefreshCw, Users,
   BookOpen, ClipboardList, FileQuestion, Dumbbell, Layers,
   CheckCircle2, AlertCircle, X, Loader2,
-  ChevronRight, ChevronLeft, EyeOff,
-  ChevronsLeft, ChevronsRight, Search, Hash, Lock,
+  ChevronRight, EyeOff,
+  Search, Hash, Lock,
+  ChevronDown, FolderOpen,
 } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../../components/PartnersBreadcrumb';
@@ -20,7 +21,14 @@ import {
 } from '../../../services/partnersService';
 import { EXAM_CONTENT_TYPES, type ExamConfig, type SelectExamState, type SelectMaterialsState } from './types';
 
-const EXAMS_PER_PAGE = 10;
+const EXAMS_PER_PAGE = 500;
+
+/** Grupo de exámenes bajo un ECM */
+interface EcmGroup {
+  ecmCode: string;
+  ecmName: string;
+  exams: AvailableExam[];
+}
 
 export default function ExamSelectConfigPage() {
   const { groupId } = useParams();
@@ -36,9 +44,11 @@ export default function ExamSelectConfigPage() {
   const [selectedExam, setSelectedExam] = useState<AvailableExam | null>(null);
   const [examDropdownOpen, setExamDropdownOpen] = useState(false);
   const [examPage, setExamPage] = useState(1);
-  const [examTotalPages, setExamTotalPages] = useState(1);
   const [examTotal, setExamTotal] = useState(0);
   const [examSearchQuery, setExamSearchQuery] = useState('');
+
+  // Expanded ECM groups in dropdown
+  const [expandedEcms, setExpandedEcms] = useState<Set<string>>(new Set());
 
   // Configuration
   const [timeLimitMinutes, setTimeLimitMinutes] = useState<number | null>(null);
@@ -95,12 +105,46 @@ export default function ExamSelectConfigPage() {
         search: examSearchQuery || undefined, group_id: Number(groupId),
       });
       setAvailableExams(data.exams);
-      setExamTotalPages(data.pages);
       setExamTotal(data.total);
     } catch { /* ignore */ } finally { setLoadingExams(false); }
   };
 
   const handleExamSearchChange = (q: string) => { setExamSearchQuery(q); setExamPage(1); };
+
+  /** Agrupar exámenes por ECM */
+  const groupedByEcm = useMemo<EcmGroup[]>(() => {
+    const ecmMap = new Map<string, EcmGroup>();
+    for (const exam of availableExams) {
+      const key = exam.ecm_code || exam.standard || '__sin_ecm__';
+      if (!ecmMap.has(key)) {
+        ecmMap.set(key, {
+          ecmCode: exam.ecm_code || exam.standard || '',
+          ecmName: exam.ecm_name || exam.standard || 'Sin ECM',
+          exams: [],
+        });
+      }
+      ecmMap.get(key)!.exams.push(exam);
+    }
+    const groups = Array.from(ecmMap.values());
+    groups.sort((a, b) => a.ecmCode.localeCompare(b.ecmCode));
+    return groups;
+  }, [availableExams]);
+
+  /** Auto-expandir todos los ECMs cuando se cargan o cambia búsqueda */
+  useEffect(() => {
+    if (groupedByEcm.length > 0) {
+      setExpandedEcms(new Set(groupedByEcm.map(g => g.ecmCode || '__sin_ecm__')));
+    }
+  }, [groupedByEcm]);
+
+  const toggleEcmGroup = (ecmCode: string) => {
+    setExpandedEcms(prev => {
+      const next = new Set(prev);
+      const key = ecmCode || '__sin_ecm__';
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   const handleContinueToConfig = () => {
     if (!selectedExam) return;
@@ -273,59 +317,97 @@ export default function ExamSelectConfigPage() {
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="fluid-icon-lg animate-spin text-blue-600" /><span className="ml-2 text-gray-500 fluid-text-sm">Cargando exámenes...</span>
                   </div>
-                ) : availableExams.length > 0 ? (
+                ) : groupedByEcm.length > 0 ? (
                   <>
-                    <div className="max-h-72 overflow-y-auto">
-                      {availableExams.map((exam) => (
-                        <div key={exam.id}
-                          onClick={() => {
-                            if (exam.is_assigned_to_group) { setAttemptedExam(exam); setShowAlreadyAssignedModal(true); return; }
-                            setSelectedExam(exam); setExamDropdownOpen(false);
-                          }}
-                          className={`fluid-p-4 border-b border-gray-100 last:border-b-0 transition-all ${
-                            exam.is_assigned_to_group ? 'bg-gray-50 cursor-not-allowed opacity-70'
-                            : selectedExam?.id === exam.id ? 'bg-blue-50 border-l-4 border-l-blue-500 cursor-pointer'
-                            : 'hover:bg-blue-50 cursor-pointer'
-                          }`}>
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center fluid-gap-2">
-                                <h3 className={`font-medium fluid-text-base ${exam.is_assigned_to_group ? 'text-gray-500' : 'text-gray-900'}`}>{exam.name}</h3>
-                                {exam.is_assigned_to_group && (
-                                  <span className="inline-flex items-center fluid-px-2 py-0.5 rounded fluid-text-xs font-medium bg-orange-100 text-orange-800"><Lock className="w-3 h-3 mr-1" />Ya asignado</span>
+                    <div className="max-h-[28rem] overflow-y-auto">
+                      {groupedByEcm.map((ecmGroup) => {
+                        const ecmKey = ecmGroup.ecmCode || '__sin_ecm__';
+                        const isExpanded = expandedEcms.has(ecmKey);
+                        const assignedCount = ecmGroup.exams.filter(e => e.is_assigned_to_group).length;
+                        return (
+                          <div key={ecmKey}>
+                            {/* ECM Header */}
+                            <div
+                              onClick={(e) => { e.stopPropagation(); toggleEcmGroup(ecmGroup.ecmCode); }}
+                              className="flex items-center justify-between fluid-px-4 fluid-py-3 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-indigo-200 cursor-pointer hover:from-indigo-100 hover:to-blue-100 transition-all sticky top-0 z-10"
+                            >
+                              <div className="flex items-center fluid-gap-2 min-w-0">
+                                <ChevronDown className={`w-4 h-4 text-indigo-500 transition-transform flex-shrink-0 ${isExpanded ? '' : '-rotate-90'}`} />
+                                <FolderOpen className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                                <div className="min-w-0">
+                                  <span className="font-semibold text-indigo-800 fluid-text-sm">{ecmGroup.ecmCode || 'Sin código'}</span>
+                                  {ecmGroup.ecmName && ecmGroup.ecmName !== ecmGroup.ecmCode && (
+                                    <span className="text-indigo-600 fluid-text-xs ml-2 truncate">— {ecmGroup.ecmName}</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center fluid-gap-2 flex-shrink-0">
+                                <span className="inline-flex items-center fluid-px-2 py-0.5 rounded-full fluid-text-xs font-medium bg-indigo-100 text-indigo-700">
+                                  {ecmGroup.exams.length} {ecmGroup.exams.length === 1 ? 'examen' : 'exámenes'}
+                                </span>
+                                {assignedCount > 0 && (
+                                  <span className="inline-flex items-center fluid-px-2 py-0.5 rounded-full fluid-text-xs font-medium bg-orange-100 text-orange-700">
+                                    <Lock className="w-3 h-3 mr-0.5" />{assignedCount}
+                                  </span>
                                 )}
                               </div>
-                              {(exam.ecm_code || exam.standard) && <p className={`fluid-text-sm mt-0.5 ${exam.is_assigned_to_group ? 'text-gray-400' : 'text-blue-600'}`}>ECM: {exam.ecm_code || exam.standard}</p>}
-                              <div className={`flex items-center fluid-gap-4 mt-2 fluid-text-sm ${exam.is_assigned_to_group ? 'text-gray-400' : 'text-gray-500'}`}>
-                                <span className="flex items-center"><Clock className="w-3.5 h-3.5 mr-1" />{exam.duration_minutes} min</span>
-                                <span className="flex items-center"><Target className="w-3.5 h-3.5 mr-1" />{exam.passing_score}%</span>
-                                <span className="flex items-center"><BookOpen className="w-3.5 h-3.5 mr-1" />{exam.study_materials_count} materiales</span>
-                              </div>
                             </div>
-                            {exam.is_assigned_to_group ? <Lock className="fluid-icon-base text-orange-500 flex-shrink-0" />
-                            : selectedExam?.id === exam.id ? <CheckCircle2 className="fluid-icon-base text-blue-600 flex-shrink-0" /> : null}
+
+                            {/* Exams under this ECM */}
+                            {isExpanded && ecmGroup.exams.map((exam) => (
+                              <div key={exam.id}
+                                onClick={() => {
+                                  if (exam.is_assigned_to_group) { setAttemptedExam(exam); setShowAlreadyAssignedModal(true); return; }
+                                  setSelectedExam(exam); setExamDropdownOpen(false);
+                                }}
+                                className={`fluid-p-4 border-b border-gray-100 last:border-b-0 transition-all pl-10 ${
+                                  exam.is_assigned_to_group ? 'bg-gray-50 cursor-not-allowed opacity-70'
+                                  : selectedExam?.id === exam.id ? 'bg-blue-50 border-l-4 border-l-blue-500 cursor-pointer'
+                                  : 'hover:bg-blue-50 cursor-pointer'
+                                }`}>
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center fluid-gap-2">
+                                      <h3 className={`font-medium fluid-text-base ${exam.is_assigned_to_group ? 'text-gray-500' : 'text-gray-900'}`}>{exam.name}</h3>
+                                      {exam.version && <span className="fluid-text-xs text-gray-400">v{exam.version}</span>}
+                                      {exam.is_assigned_to_group && (
+                                        <span className="inline-flex items-center fluid-px-2 py-0.5 rounded fluid-text-xs font-medium bg-orange-100 text-orange-800"><Lock className="w-3 h-3 mr-1" />Ya asignado</span>
+                                      )}
+                                    </div>
+                                    <div className={`flex items-center fluid-gap-4 mt-2 fluid-text-sm ${exam.is_assigned_to_group ? 'text-gray-400' : 'text-gray-500'}`}>
+                                      <span className="flex items-center"><Clock className="w-3.5 h-3.5 mr-1" />{exam.duration_minutes} min</span>
+                                      <span className="flex items-center"><Target className="w-3.5 h-3.5 mr-1" />{exam.passing_score}%</span>
+                                      <span className="flex items-center"><FileQuestion className="w-3.5 h-3.5 mr-1" />{exam.total_questions} preg</span>
+                                      <span className="flex items-center"><Dumbbell className="w-3.5 h-3.5 mr-1" />{exam.total_exercises} ejer</span>
+                                      <span className="flex items-center"><BookOpen className="w-3.5 h-3.5 mr-1" />{exam.study_materials_count} mat</span>
+                                    </div>
+                                  </div>
+                                  {exam.is_assigned_to_group ? <Lock className="fluid-icon-base text-orange-500 flex-shrink-0" />
+                                  : selectedExam?.id === exam.id ? <CheckCircle2 className="fluid-icon-base text-blue-600 flex-shrink-0" /> : null}
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
-                    {/* Pagination */}
+                    {/* Summary footer */}
                     <div className="fluid-px-4 fluid-py-3 bg-gray-50 border-t border-gray-200 rounded-b-fluid-xl">
-                      <div className="flex items-center justify-between">
-                        <p className="fluid-text-sm text-gray-500">Mostrando {(examPage - 1) * EXAMS_PER_PAGE + 1}-{Math.min(examPage * EXAMS_PER_PAGE, examTotal)} de {examTotal}</p>
-                        <div className="flex items-center fluid-gap-1">
-                          <button onClick={(e) => { e.stopPropagation(); setExamPage(1); }} disabled={examPage === 1} className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-40"><ChevronsLeft className="w-4 h-4" /></button>
-                          <button onClick={(e) => { e.stopPropagation(); setExamPage(p => Math.max(1, p - 1)); }} disabled={examPage === 1} className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-40"><ChevronLeft className="w-4 h-4" /></button>
-                          <span className="fluid-px-3 fluid-py-1 fluid-text-sm font-medium text-gray-700">{examPage} / {examTotalPages}</span>
-                          <button onClick={(e) => { e.stopPropagation(); setExamPage(p => Math.min(examTotalPages, p + 1)); }} disabled={examPage === examTotalPages} className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-40"><ChevronRight className="w-4 h-4" /></button>
-                          <button onClick={(e) => { e.stopPropagation(); setExamPage(examTotalPages); }} disabled={examPage === examTotalPages} className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-40"><ChevronsRight className="w-4 h-4" /></button>
-                        </div>
-                      </div>
+                      <p className="fluid-text-sm text-gray-500">
+                        {examTotal} {examTotal === 1 ? 'examen' : 'exámenes'} en {groupedByEcm.length} {groupedByEcm.length === 1 ? 'ECM' : 'ECMs'}
+                      </p>
                     </div>
                   </>
                 ) : (
                   <div className="text-center py-8 text-gray-500">
-                    <ClipboardList className="w-12 h-12 mx-auto text-gray-300 fluid-mb-3" /><p className="fluid-text-base">No hay exámenes publicados</p>
+                    <ClipboardList className="w-12 h-12 mx-auto text-gray-300 fluid-mb-3" />
+                    <p className="fluid-text-base">{examSearchQuery ? 'No se encontraron exámenes con esa búsqueda' : 'No hay exámenes publicados'}</p>
+                    {examSearchQuery && (
+                      <button onClick={() => handleExamSearchChange('')} className="mt-2 fluid-text-sm text-blue-600 hover:text-blue-800 font-medium">
+                        Limpiar búsqueda
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

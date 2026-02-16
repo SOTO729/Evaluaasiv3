@@ -5480,19 +5480,27 @@ def get_available_exams():
         if campus_ecm_ids is not None:
             query = query.filter(Exam.competency_standard_id.in_(campus_ecm_ids))
         
+        # Siempre hacer outerjoin con CompetencyStandard para búsqueda y ordenamiento
+        query = query.outerjoin(CompetencyStandard, Exam.competency_standard_id == CompetencyStandard.id)
+        
         if search:
             search_term = f'%{search}%'
             # Buscar también por código ECM
-            query = query.outerjoin(CompetencyStandard).filter(
+            query = query.filter(
                 db.or_(
                     Exam.name.ilike(search_term),
                     Exam.standard.ilike(search_term),
                     Exam.description.ilike(search_term),
-                    CompetencyStandard.code.ilike(search_term)
+                    CompetencyStandard.code.ilike(search_term),
+                    CompetencyStandard.name.ilike(search_term)
                 )
             )
         
-        query = query.order_by(Exam.name)
+        # Ordenar por código ECM primero, luego por nombre de examen
+        query = query.order_by(
+            db.func.coalesce(CompetencyStandard.code, ''),
+            Exam.name
+        )
         pagination = query.paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
         
         exams_data = []
