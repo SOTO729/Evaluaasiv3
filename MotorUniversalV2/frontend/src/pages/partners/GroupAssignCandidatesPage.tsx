@@ -78,8 +78,8 @@ export default function GroupAssignCandidatesPage() {
   const [searchResults, setSearchResults] = useState<CandidateSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(500);
-  const [pageSizeInput, setPageSizeInput] = useState('500');
+  const [pageSize, setPageSize] = useState(150);
+  const [pageSizeInput, setPageSizeInput] = useState('150');
   const [totalPages, setTotalPages] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
   
