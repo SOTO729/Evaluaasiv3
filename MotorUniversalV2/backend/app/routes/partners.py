@@ -5440,6 +5440,7 @@ def get_available_exams():
         from app.models import Exam, GroupExam
         from app.models.study_content import StudyMaterial
         from app.models.competency_standard import CompetencyStandard
+        from app.models.brand import Brand
         from app.models.partner import CampusCompetencyStandard
         from sqlalchemy import text
         from sqlalchemy.orm import joinedload
@@ -5473,8 +5474,10 @@ def get_available_exams():
             if campus_ecm_relations:
                 campus_ecm_ids = {rel.competency_standard_id for rel in campus_ecm_relations}
         
-        # Cargar la relación competency_standard para tener el código ECM
-        query = Exam.query.options(joinedload(Exam.competency_standard)).filter(Exam.is_published == True)
+        # Cargar la relación competency_standard y su brand para tener el código ECM y logo
+        query = Exam.query.options(
+            joinedload(Exam.competency_standard).joinedload(CompetencyStandard.brand)
+        ).filter(Exam.is_published == True)
         
         # Filtrar por ECM del campus si corresponde
         if campus_ecm_ids is not None:
@@ -5586,14 +5589,28 @@ def get_available_exams():
             total_questions = exam_questions + simulator_questions
             total_exercises = exam_exercises + simulator_exercises
             
-            # Obtener código ECM si existe
+            # Obtener datos ECM si existe
             ecm_code = None
             ecm_name = None
-            if exam.competency_standard:
-                ecm_code = exam.competency_standard.code
-                ecm_name = exam.competency_standard.name
-            
-            print(f"[DEBUG] Exam {exam.id} ({exam.name}): standard='{exam.standard}', ecm_code='{ecm_code}', competency_standard_id={exam.competency_standard_id}")
+            ecm_logo_url = None
+            ecm_sector = None
+            ecm_level = None
+            ecm_brand_name = None
+            ecm_brand_logo_url = None
+            ecm_certifying_body = None
+            ecm_validity_years = None
+            cs = exam.competency_standard
+            if cs:
+                ecm_code = cs.code
+                ecm_name = cs.name
+                ecm_logo_url = cs.logo_url
+                ecm_sector = cs.sector
+                ecm_level = cs.level
+                ecm_certifying_body = cs.certifying_body
+                ecm_validity_years = cs.validity_years
+                if cs.brand:
+                    ecm_brand_name = cs.brand.name
+                    ecm_brand_logo_url = cs.brand.logo_url
             
             exams_data.append({
                 'id': exam.id,
@@ -5602,6 +5619,13 @@ def get_available_exams():
                 'standard': exam.standard,
                 'ecm_code': ecm_code,
                 'ecm_name': ecm_name,
+                'ecm_logo_url': ecm_logo_url,
+                'ecm_sector': ecm_sector,
+                'ecm_level': ecm_level,
+                'ecm_brand_name': ecm_brand_name,
+                'ecm_brand_logo_url': ecm_brand_logo_url,
+                'ecm_certifying_body': ecm_certifying_body,
+                'ecm_validity_years': ecm_validity_years,
                 'description': exam.description,
                 'duration_minutes': exam.duration_minutes,
                 'passing_score': exam.passing_score,

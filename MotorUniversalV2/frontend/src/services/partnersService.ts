@@ -1362,6 +1362,13 @@ export interface AvailableExam {
   standard?: string;
   ecm_code?: string;  // Código ECM del estándar de competencia
   ecm_name?: string;  // Nombre del estándar de competencia
+  ecm_logo_url?: string;  // Logo del ECM
+  ecm_sector?: string;  // Sector productivo
+  ecm_level?: number;  // Nivel de competencia (1-5)
+  ecm_brand_name?: string;  // Marca del ECM (Microsoft, Huawei, etc.)
+  ecm_brand_logo_url?: string;  // Logo de la marca
+  ecm_certifying_body?: string;  // Organismo certificador
+  ecm_validity_years?: number;  // Años de vigencia
   description?: string;
   duration_minutes: number;
   passing_score: number;

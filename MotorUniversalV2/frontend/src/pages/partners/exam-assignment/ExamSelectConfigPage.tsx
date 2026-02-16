@@ -27,6 +27,13 @@ const EXAMS_PER_PAGE = 500;
 interface EcmGroup {
   ecmCode: string;
   ecmName: string;
+  ecmLogoUrl?: string;
+  ecmSector?: string;
+  ecmLevel?: number;
+  ecmBrandName?: string;
+  ecmBrandLogoUrl?: string;
+  ecmCertifyingBody?: string;
+  ecmValidityYears?: number;
   exams: AvailableExam[];
 }
 
@@ -120,6 +127,13 @@ export default function ExamSelectConfigPage() {
         ecmMap.set(key, {
           ecmCode: exam.ecm_code || exam.standard || '',
           ecmName: exam.ecm_name || exam.standard || 'Sin ECM',
+          ecmLogoUrl: exam.ecm_logo_url,
+          ecmSector: exam.ecm_sector,
+          ecmLevel: exam.ecm_level,
+          ecmBrandName: exam.ecm_brand_name,
+          ecmBrandLogoUrl: exam.ecm_brand_logo_url,
+          ecmCertifyingBody: exam.ecm_certifying_body,
+          ecmValidityYears: exam.ecm_validity_years,
           exams: [],
         });
       }
@@ -324,6 +338,8 @@ export default function ExamSelectConfigPage() {
                         const ecmKey = ecmGroup.ecmCode || '__sin_ecm__';
                         const isExpanded = expandedEcms.has(ecmKey);
                         const assignedCount = ecmGroup.exams.filter(e => e.is_assigned_to_group).length;
+                        // Determinar logo: ECM propio o el de la marca
+                        const logoUrl = ecmGroup.ecmLogoUrl || ecmGroup.ecmBrandLogoUrl;
                         return (
                           <div key={ecmKey}>
                             {/* ECM Header */}
@@ -331,17 +347,44 @@ export default function ExamSelectConfigPage() {
                               onClick={(e) => { e.stopPropagation(); toggleEcmGroup(ecmGroup.ecmCode); }}
                               className="flex items-center justify-between fluid-px-4 fluid-py-3 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-indigo-200 cursor-pointer hover:from-indigo-100 hover:to-blue-100 transition-all sticky top-0 z-10"
                             >
-                              <div className="flex items-center fluid-gap-2 min-w-0">
+                              <div className="flex items-center fluid-gap-3 min-w-0 flex-1">
                                 <ChevronDown className={`w-4 h-4 text-indigo-500 transition-transform flex-shrink-0 ${isExpanded ? '' : '-rotate-90'}`} />
-                                <FolderOpen className="w-4 h-4 text-indigo-500 flex-shrink-0" />
-                                <div className="min-w-0">
-                                  <span className="font-semibold text-indigo-800 fluid-text-sm">{ecmGroup.ecmCode || 'Sin código'}</span>
-                                  {ecmGroup.ecmName && ecmGroup.ecmName !== ecmGroup.ecmCode && (
-                                    <span className="text-indigo-600 fluid-text-xs ml-2 truncate">— {ecmGroup.ecmName}</span>
-                                  )}
+                                {logoUrl ? (
+                                  <img src={logoUrl} alt={ecmGroup.ecmCode} className="w-8 h-8 rounded-lg object-contain bg-white border border-gray-200 p-0.5 flex-shrink-0" />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                                    <FolderOpen className="w-4 h-4 text-indigo-500" />
+                                  </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center fluid-gap-2 flex-wrap">
+                                    <span className="font-semibold text-indigo-800 fluid-text-sm">{ecmGroup.ecmCode || 'Sin código'}</span>
+                                    {ecmGroup.ecmBrandName && (
+                                      <span className="inline-flex items-center fluid-px-1.5 py-0.5 rounded fluid-text-xs font-medium bg-white/80 text-gray-600 border border-gray-200">
+                                        {ecmGroup.ecmBrandLogoUrl && <img src={ecmGroup.ecmBrandLogoUrl} alt="" className="w-3 h-3 mr-1 object-contain" />}
+                                        {ecmGroup.ecmBrandName}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-indigo-600 fluid-text-xs truncate">{ecmGroup.ecmName}</p>
+                                  {/* ECM details row */}
+                                  <div className="flex items-center fluid-gap-2 mt-0.5 flex-wrap">
+                                    {ecmGroup.ecmSector && (
+                                      <span className="fluid-text-xs text-gray-500">{ecmGroup.ecmSector}</span>
+                                    )}
+                                    {ecmGroup.ecmLevel && (
+                                      <span className="fluid-text-xs text-gray-400">• Nivel {ecmGroup.ecmLevel}</span>
+                                    )}
+                                    {ecmGroup.ecmCertifyingBody && (
+                                      <span className="fluid-text-xs text-gray-400">• {ecmGroup.ecmCertifyingBody}</span>
+                                    )}
+                                    {ecmGroup.ecmValidityYears && (
+                                      <span className="fluid-text-xs text-gray-400">• {ecmGroup.ecmValidityYears} años</span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                              <div className="flex items-center fluid-gap-2 flex-shrink-0">
+                              <div className="flex items-center fluid-gap-2 flex-shrink-0 ml-2">
                                 <span className="inline-flex items-center fluid-px-2 py-0.5 rounded-full fluid-text-xs font-medium bg-indigo-100 text-indigo-700">
                                   {ecmGroup.exams.length} {ecmGroup.exams.length === 1 ? 'examen' : 'exámenes'}
                                 </span>
