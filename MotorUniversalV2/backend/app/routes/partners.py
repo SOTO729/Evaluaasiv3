@@ -4729,6 +4729,21 @@ def assign_exam_to_group(group_id):
         
         db.session.commit()
         
+        # Build detailed list of new ECM assignments
+        new_assignments_detail = []
+        for ecm_assign in new_assignments:
+            user_obj = User.query.get(ecm_assign.user_id)
+            new_assignments_detail.append({
+                'user_id': str(ecm_assign.user_id),
+                'user_name': user_obj.full_name if user_obj else str(ecm_assign.user_id),
+                'user_email': user_obj.email if user_obj else '',
+                'user_curp': user_obj.curp if user_obj else '',
+                'assignment_number': ecm_assign.assignment_number,
+                'assigned_at': ecm_assign.assigned_at.isoformat() if ecm_assign.assigned_at else None,
+                'exam_name': exam.name if exam else '',
+                'group_name': group.name,
+            })
+        
         # Obtener materiales asociados al examen
         materials = StudyMaterial.query.filter_by(exam_id=exam_id, is_published=True).all()
         materials_count = len(material_ids) if material_ids else len(materials)
@@ -4751,6 +4766,7 @@ def assign_exam_to_group(group_id):
             'study_materials_count': materials_count,
             'assigned_members_count': len(member_ids) if assignment_type == 'selected' else group.members.count(),
             'new_ecm_assignments_count': len(new_assignments),
+            'new_assignments': new_assignments_detail,
         }
         
         if already_assigned:
