@@ -3,7 +3,7 @@
  * Permite descargar plantilla, subir archivo y previsualizar antes de confirmar
  */
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Search,
@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
+import CandidateAssignmentSuccessModal from './CandidateAssignmentSuccessModal';
+import type { BulkUploadResult } from './CandidateAssignmentSuccessModal';
 import {
   getGroup,
   getGroupMembersCount,
@@ -36,6 +38,7 @@ import {
 
 export default function GroupBulkUploadPage() {
   const { groupId } = useParams();
+  const navigate = useNavigate();
 
   // Estado del grupo
   const [group, setGroup] = useState<CandidateGroup | null>(null);
@@ -54,6 +57,11 @@ export default function GroupBulkUploadPage() {
 
   // Ref para scroll automático al preview
   const previewRef = useRef<HTMLDivElement>(null);
+
+  // Modal de éxito
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [bulkModalResult, setBulkModalResult] = useState<BulkUploadResult | null>(null);
+  const [candidateInfoMap, setCandidateInfoMap] = useState<Map<string, { full_name: string; email: string; curp?: string }>>(new Map());
 
   // Estado de búsqueda y ordenamiento en preview
   const [previewSearch, setPreviewSearch] = useState('');
@@ -200,7 +208,26 @@ export default function GroupBulkUploadPage() {
       const errorsCount = result.errors?.length || 0;
 
       if (addedCount > 0) {
-        setSuccessMessage(`${addedCount} candidato(s) agregado(s) al grupo`);
+        // Build candidate info map from preview data
+        const infoMap = new Map<string, { full_name: string; email: string; curp?: string }>();
+        if (previewData) {
+          for (const row of previewData.preview) {
+            if (row.user && row.status === 'ready') {
+              infoMap.set(row.user.id, {
+                full_name: row.user.full_name,
+                email: row.user.email,
+                curp: row.user.curp,
+              });
+            }
+          }
+        }
+        setCandidateInfoMap(infoMap);
+        setBulkModalResult({
+          added: result.added || [],
+          errors: result.errors || [],
+          total_processed: result.total_processed || 0,
+        });
+        setShowSuccessModal(true);
         setCurrentMemberCount(prev => prev + addedCount);
         setUploadFile(null);
         setPreviewData(null);
@@ -536,6 +563,16 @@ export default function GroupBulkUploadPage() {
           </div>
         )}
       </div>
+
+      {/* Modal de éxito */}
+      <CandidateAssignmentSuccessModal
+        open={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        groupName={group?.name || ''}
+        bulkResult={bulkModalResult || undefined}
+        candidateInfoMap={candidateInfoMap}
+        onNavigateToGroup={() => navigate(`/partners/groups/${groupId}`)}
+      />
     </div>
   );
 }

@@ -38,6 +38,8 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
+import CandidateAssignmentSuccessModal from './CandidateAssignmentSuccessModal';
+import type { AddedCandidateInfo } from './CandidateAssignmentSuccessModal';
 import {
   getGroup,
   getGroupMembersCount,
@@ -132,6 +134,15 @@ export default function GroupAssignCandidatesPage() {
   // Estado para ECMs activos del grupo (auto-asignación)
   const [groupExams, setGroupExams] = useState<GroupExamAssignment[]>([]);
   const [selectedExamIds, setSelectedExamIds] = useState<Set<number>>(new Set());
+
+  // Estado para modal de éxito de asignación de candidatos
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successModalData, setSuccessModalData] = useState<{
+    addedCandidates?: AddedCandidateInfo[];
+    addErrors?: Array<{ user_id: string; error: string }>;
+    autoAssignedExams?: number;
+    criteriaResult?: { added: number; skipped: number; total_matched: number };
+  }>({});
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -384,22 +395,32 @@ export default function GroupAssignCandidatesPage() {
       const autoAssignExamIds = groupExams.length > 0 ? Array.from(selectedExamIds) : undefined;
       const result = await addGroupMembersBulk(Number(groupId), userIds, autoAssignExamIds);
       
-      if (result.added.length > 0) {
-        let msg = `${result.added.length} candidato(s) agregado(s) al grupo`;
-        if (result.auto_assigned_exams && result.auto_assigned_exams > 0) {
-          msg += ` y asignado(s) a ${result.auto_assigned_exams} certificación(es)`;
-        }
-        setSuccessMessage(msg);
+      // Build added candidates info from selectedCandidatesData
+      const addedInfoList: AddedCandidateInfo[] = result.added
+        .map(uid => {
+          const cand = selectedCandidatesData.get(uid);
+          return {
+            user_id: uid,
+            full_name: cand?.full_name || uid,
+            email: cand?.email || '-',
+            curp: cand?.curp || '-',
+          };
+        });
+      const addErrorsList = result.errors;
+
+      if (result.added.length > 0 || result.errors.length > 0) {
+        setSuccessModalData({
+          addedCandidates: addedInfoList,
+          addErrors: addErrorsList.length > 0 ? addErrorsList : undefined,
+          autoAssignedExams: result.auto_assigned_exams,
+        });
+        setShowSuccessModal(true);
         setCurrentMemberCount(prev => prev + result.added.length);
         setSelectedCandidates(new Set());
         setSelectedCandidatesData(new Map());
         setShowSelectedPanel(false);
         setShowConfirmModal(false);
         handleSearch(currentPage, pageSize);
-      }
-      
-      if (result.errors.length > 0) {
-        setError(`${result.errors.length} candidato(s) no pudieron ser agregados`);
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al agregar candidatos');
@@ -433,17 +454,20 @@ export default function GroupAssignCandidatesPage() {
       const result = await bulkAssignByCriteria(Number(groupId), criteria);
       
       if (result.added > 0) {
-        setSuccessMessage(`${result.added.toLocaleString()} candidato(s) asignado(s) al grupo`);
+        setSuccessModalData({
+          criteriaResult: {
+            added: result.added,
+            skipped: result.skipped,
+            total_matched: result.total_matched,
+          },
+        });
+        setShowSuccessModal(true);
         setCurrentMemberCount(prev => prev + result.added);
         setSelectAllMatching(false);
         setSelectedCandidates(new Set());
         handleSearch(1, pageSize);
       } else {
         setSuccessMessage('No se encontraron candidatos nuevos para asignar');
-      }
-      
-      if (result.skipped > 0) {
-        setError(`${result.skipped} candidato(s) ya eran miembros del grupo`);
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al asignar candidatos masivamente');
@@ -1248,6 +1272,18 @@ export default function GroupAssignCandidatesPage() {
           </div>
         </div>
       )}
+
+      {/* Modal de éxito de asignación de candidatos */}
+      <CandidateAssignmentSuccessModal
+        open={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        groupName={group?.name || ''}
+        addedCandidates={successModalData.addedCandidates}
+        addErrors={successModalData.addErrors}
+        autoAssignedExams={successModalData.autoAssignedExams}
+        criteriaResult={successModalData.criteriaResult}
+        onNavigateToGroup={() => navigate(`/partners/groups/${groupId}`)}
+      />
     </div>
   );
 }
