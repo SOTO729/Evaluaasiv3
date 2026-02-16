@@ -4,13 +4,14 @@
  * Para 'all' y 'selected': Navega a → /assign-exam/review con AssignMembersState
  * Para 'bulk': Proceso completo se maneja aquí (carga masiva por ECM)
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useLayoutEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, Users, UserCheck, ClipboardList,
   CheckCircle2, AlertCircle, X, Loader2, Search,
   FileSpreadsheet, Upload, Download, DollarSign,
   ArrowUpDown, ArrowUp, ArrowDown,
+  Filter, RefreshCw, ChevronLeft, ChevronRight, Mail,
 } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../../components/PartnersBreadcrumb';
@@ -29,6 +30,9 @@ export default function ExamAssignMembersPage() {
 
   const prevState = location.state as SelectMaterialsState | undefined;
 
+  // Scroll to top on mount
+  useLayoutEffect(() => { window.scrollTo(0, 0); }, []);
+
   const [group, setGroup] = useState<CandidateGroup | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +41,24 @@ export default function ExamAssignMembersPage() {
   // Assignment type
   const [assignmentType, setAssignmentType] = useState<'all' | 'selected' | 'bulk'>('all');
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
-  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+
+  // Server-side search & pagination for "candidatos específicos"
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchField, setSearchField] = useState('all');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [filterHasEmail, setFilterHasEmail] = useState<'' | 'yes' | 'no'>('');
+  const [filterHasCurp, setFilterHasCurp] = useState<'' | 'yes' | 'no'>('');
+  const [filterEligibility, setFilterEligibility] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(150);
+  const [pageSizeInput, setPageSizeInput] = useState('150');
+  const [pageInputValue, setPageInputValue] = useState('1');
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalResults, setTotalResults] = useState(0);
+  const [sortCol, setSortCol] = useState<string>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [searching, setSearching] = useState(false);
+  const searchRequestRef = useRef(0);
 
   // Bulk
   const [bulkFile, setBulkFile] = useState<File | null>(null);
@@ -70,12 +91,8 @@ export default function ExamAssignMembersPage() {
     (async () => {
       try {
         setLoading(true);
-        const [groupData, membersData] = await Promise.all([
-          getGroup(Number(groupId)),
-          getGroupMembers(Number(groupId)),
-        ]);
+        const groupData = await getGroup(Number(groupId));
         setGroup(groupData);
-        setMembers(membersData.members);
       } catch (err: any) {
         setError(err.response?.data?.error || 'Error al cargar datos');
       } finally {
@@ -84,13 +101,107 @@ export default function ExamAssignMembersPage() {
     })();
   }, [groupId]);
 
+  // Server-side search for members table
+  const handleMemberSearch = useCallback(async (page: number = 1, perPage: number = pageSize) => {
+    const requestId = ++searchRequestRef.current;
+    try {
+      setSearching(true);
+      let effectiveHasEmail: string | undefined = filterHasEmail || undefined;
+      let effectiveHasCurp: string | undefined = filterHasCurp || undefined;
+      if (filterEligibility === 'CC') effectiveHasCurp = 'yes';
+      if (filterEligibility === 'ID') effectiveHasEmail = 'yes';
+      if (filterEligibility === 'no_CC') effectiveHasCurp = 'no';
+      if (filterEligibility === 'no_ID') effectiveHasEmail = 'no';
+
+      const results = await getGroupMembers(Number(groupId), {
+        page,
+        per_page: perPage,
+        search: searchQuery || undefined,
+        search_field: searchField !== 'all' ? searchField : undefined,
+        has_email: effectiveHasEmail,
+        has_curp: effectiveHasCurp,
+        sort_by: sortCol,
+        sort_dir: sortDir,
+      });
+      if (requestId !== searchRequestRef.current) return;
+      setMembers(results.members);
+      setTotalPages(results.pages);
+      setTotalResults(results.total);
+      setCurrentPage(page);
+    } catch (err: any) {
+      if (requestId !== searchRequestRef.current) return;
+      setError(err.response?.data?.error || 'Error al cargar los miembros');
+    } finally {
+      if (requestId === searchRequestRef.current) setSearching(false);
+    }
+  }, [groupId, searchQuery, searchField, pageSize, filterHasEmail, filterHasCurp, filterEligibility, sortCol, sortDir]);
+
+  // Debounce search (400ms)
+  useEffect(() => {
+    if (!group) return;
+    const timer = setTimeout(() => handleMemberSearch(1, pageSize), 400);
+    return () => clearTimeout(timer);
+  }, [handleMemberSearch, pageSize, group]);
+
+  // Sync page input
+  useEffect(() => { setPageInputValue(String(currentPage)); }, [currentPage]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) handleMemberSearch(newPage, pageSize);
+  };
+  const handlePageInputSubmit = () => {
+    const val = parseInt(pageInputValue, 10);
+    if (!isNaN(val) && val >= 1 && val <= totalPages) handlePageChange(val);
+    else setPageInputValue(String(currentPage));
+  };
+  const handlePageSizeInputSubmit = () => {
+    const val = parseInt(pageSizeInput, 10);
+    if (!isNaN(val) && val >= 1 && val <= 1000) { setPageSize(val); setPageSizeInput(String(val)); }
+    else setPageSizeInput(String(pageSize));
+  };
+  const handleSort = (col: string) => {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('asc'); }
+  };
+  const renderSortIcon = (col: string) => {
+    if (sortCol === col) return sortDir === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 inline" /> : <ArrowDown className="h-3 w-3 ml-1 inline" />;
+    return <ArrowUpDown className="h-3 w-3 ml-1 inline opacity-30" />;
+  };
+  const renderEligibilityBadges = (email?: string | null, curp?: string | null) => {
+    const badges = [
+      { label: 'RE', title: 'Reporte de Evaluación', eligible: true },
+      { label: 'CE', title: 'Certificado EDUIT', eligible: true },
+      { label: 'CC', title: 'Certificado CONOCER', eligible: !!curp, requirement: 'Requiere CURP' },
+      { label: 'ID', title: 'Insignia Digital', eligible: !!email, requirement: 'Requiere email' },
+    ];
+    return (
+      <div className="flex items-center gap-1 flex-wrap">
+        {badges.map(b => (
+          <span key={b.label} title={b.eligible ? `${b.title}: Elegible` : `${b.title}: No elegible — ${b.requirement}`}
+            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold leading-none ${b.eligible ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-50 text-red-400 border border-red-200 line-through'}`}>{b.label}</span>
+        ))}
+      </div>
+    );
+  };
+
   const handleToggleMember = (userId: string) => {
     setSelectedMemberIds(prev => prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]);
   };
 
-  const handleSelectAllMembers = () => {
-    if (selectedMemberIds.length === members.length) setSelectedMemberIds([]);
-    else setSelectedMemberIds(members.map(m => m.user_id));
+  // Select/deselect all members on the CURRENT page
+  const currentPageUserIds = members.map(m => m.user_id);
+  const allPageSelected = currentPageUserIds.length > 0 && currentPageUserIds.every(id => selectedMemberIds.includes(id));
+
+  const handleTogglePageSelection = () => {
+    if (allPageSelected) {
+      setSelectedMemberIds(prev => prev.filter(id => !currentPageUserIds.includes(id)));
+    } else {
+      setSelectedMemberIds(prev => {
+        const newSet = new Set(prev);
+        currentPageUserIds.forEach(id => newSet.add(id));
+        return Array.from(newSet);
+      });
+    }
   };
 
   const handleGoToReview = async () => {
@@ -253,12 +364,6 @@ export default function ExamAssignMembersPage() {
     return sortItems(filtered, 'errors');
   }, [bulkResult, bulkPreview, resultSearch, sortConfig]);
 
-  const filteredMembers = members.filter(m => {
-    if (!memberSearchQuery.trim()) return true;
-    const q = memberSearchQuery.toLowerCase();
-    return (m.user?.full_name?.toLowerCase() || '').includes(q) || (m.user?.email?.toLowerCase() || '').includes(q) || (m.user?.curp?.toLowerCase() || '').includes(q);
-  });
-
   if (!prevState?.selectedExam) return null;
   if (loading) return <LoadingSpinner message="Cargando miembros..." fullScreen />;
   if (!group) return <div className="p-6"><div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-4"><p className="text-red-600">Grupo no encontrado</p></div></div>;
@@ -340,7 +445,7 @@ export default function ExamAssignMembersPage() {
             className={`fluid-p-4 border-2 rounded-fluid-xl cursor-pointer transition-all ${assignmentType === 'all' ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'}`}>
             <div className="flex items-center fluid-gap-3">
               <Users className={`fluid-icon-lg ${assignmentType === 'all' ? 'text-blue-600' : 'text-gray-400'}`} />
-              <div><h4 className="font-medium text-gray-900 fluid-text-base">Todo el Grupo</h4><p className="fluid-text-sm text-gray-500">Asignar a los {members.length} miembros</p></div>
+              <div><h4 className="font-medium text-gray-900 fluid-text-base">Todo el Grupo</h4><p className="fluid-text-sm text-gray-500">Asignar a todos los miembros ({totalResults.toLocaleString()})</p></div>
             </div>
           </div>
           <div onClick={() => setAssignmentType('selected')}
@@ -359,39 +464,219 @@ export default function ExamAssignMembersPage() {
           </div>
         </div>
 
-        {/* Selected members list */}
+        {/* Selected members — server-side paginated table */}
         {assignmentType === 'selected' && (
           <div className="border-t pt-4">
-            <div className="flex items-center justify-between fluid-mb-4">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 fluid-icon-sm" />
-                <input type="text" placeholder="Buscar por nombre, email o CURP..." value={memberSearchQuery} onChange={(e) => setMemberSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm" />
+            {/* Selection counter */}
+            {selectedMemberIds.length > 0 && (
+              <div className="fluid-mb-4 flex items-center justify-between bg-purple-50 border border-purple-200 rounded-fluid-xl fluid-px-4 fluid-py-3">
+                <span className="fluid-text-sm font-medium text-purple-700">
+                  <UserCheck className="inline fluid-icon-sm mr-1" />
+                  {selectedMemberIds.length} miembro(s) seleccionado(s)
+                </span>
+                <button onClick={() => setSelectedMemberIds([])} className="fluid-text-sm text-purple-600 hover:text-purple-800 font-medium">
+                  Limpiar selección
+                </button>
               </div>
-              <button onClick={handleSelectAllMembers} className="ml-4 fluid-text-sm text-blue-600 hover:text-blue-800 font-medium">
-                {selectedMemberIds.length === members.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
-              </button>
-            </div>
+            )}
 
-            <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-fluid-xl">
-              {filteredMembers.length > 0 ? filteredMembers.map((member) => (
-                <div key={member.id} onClick={() => handleToggleMember(member.user_id)}
-                  className={`fluid-p-3 flex items-center fluid-gap-3 cursor-pointer hover:bg-gray-50 border-b last:border-b-0 ${selectedMemberIds.includes(member.user_id) ? 'bg-purple-50' : ''}`}>
-                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${selectedMemberIds.includes(member.user_id) ? 'bg-purple-500 border-purple-500 text-white' : 'border-gray-300'}`}>
-                    {selectedMemberIds.includes(member.user_id) && <CheckCircle2 className="fluid-icon-sm" />}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium fluid-text-sm">{member.user?.full_name}</p>
-                    <p className="fluid-text-xs text-gray-500">{member.user?.email}</p>
-                    {member.user?.curp && <p className="fluid-text-xs text-gray-400 font-mono">{member.user.curp}</p>}
-                  </div>
+            {/* Toolbar */}
+            <div className="bg-gray-50 rounded-fluid-xl fluid-p-4 fluid-mb-4 border border-gray-200">
+              <div className="flex flex-wrap items-center fluid-gap-3">
+                <div className="flex-1 min-w-[280px] relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400" />
+                  <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Buscar por nombre, email o CURP..."
+                    className="w-full pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 fluid-text-sm" />
                 </div>
-              )) : (
-                <div className="fluid-p-4 text-center text-gray-500 fluid-text-sm">No se encontraron miembros</div>
+                <select value={searchField} onChange={(e) => setSearchField(e.target.value)}
+                  className="fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500">
+                  <option value="all">Todos los campos</option>
+                  <option value="name">Nombre</option>
+                  <option value="first_surname">Primer Apellido</option>
+                  <option value="second_surname">Segundo Apellido</option>
+                  <option value="username">Usuario</option>
+                  <option value="email">Email</option>
+                  <option value="curp">CURP</option>
+                </select>
+                <button onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                  className={`inline-flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 border rounded-fluid-lg fluid-text-sm transition-colors ${showAdvancedFilters ? 'bg-purple-100 border-purple-300 text-purple-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+                  <Filter className="fluid-icon-sm" />Filtros
+                </button>
+                <div className="flex items-center fluid-gap-1.5">
+                  <span className="fluid-text-xs text-gray-500">Mostrar</span>
+                  <input type="text" inputMode="numeric" value={pageSizeInput}
+                    onChange={(e) => setPageSizeInput(e.target.value.replace(/[^0-9]/g, ''))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handlePageSizeInputSubmit(); }}
+                    onBlur={handlePageSizeInputSubmit}
+                    className="w-16 text-center py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500" title="Registros por página (máx 1000)" />
+                </div>
+                <button onClick={() => handleMemberSearch(currentPage, pageSize)} disabled={searching}
+                  className="fluid-p-2 border border-gray-300 rounded-fluid-lg hover:bg-gray-50 transition-colors" title="Refrescar">
+                  <RefreshCw className={`fluid-icon-sm text-gray-600 ${searching ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+
+              {/* Advanced filters */}
+              {showAdvancedFilters && (
+                <div className="fluid-mt-3 fluid-pt-3 border-t border-gray-200 flex flex-wrap items-center fluid-gap-4">
+                  <div className="flex items-center fluid-gap-2">
+                    <label className="fluid-text-sm text-gray-600">Email:</label>
+                    <select value={filterHasEmail} onChange={(e) => setFilterHasEmail(e.target.value as '' | 'yes' | 'no')}
+                      className="fluid-px-3 py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm">
+                      <option value="">Todos</option><option value="yes">Con email</option><option value="no">Sin email</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center fluid-gap-2">
+                    <label className="fluid-text-sm text-gray-600">CURP:</label>
+                    <select value={filterHasCurp} onChange={(e) => setFilterHasCurp(e.target.value as '' | 'yes' | 'no')}
+                      className="fluid-px-3 py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm">
+                      <option value="">Todos</option><option value="yes">Con CURP</option><option value="no">Sin CURP</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center fluid-gap-2">
+                    <label className="fluid-text-sm text-gray-600">Elegibilidad:</label>
+                    <select value={filterEligibility} onChange={(e) => setFilterEligibility(e.target.value)}
+                      className="fluid-px-3 py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm">
+                      <option value="">Todos</option>
+                      <option value="CC">Elegible CC (con CURP)</option>
+                      <option value="no_CC">No elegible CC (sin CURP)</option>
+                      <option value="ID">Elegible ID (con email)</option>
+                      <option value="no_ID">No elegible ID (sin email)</option>
+                    </select>
+                  </div>
+                  {(filterHasEmail || filterHasCurp || filterEligibility) && (
+                    <button onClick={() => { setFilterHasEmail(''); setFilterHasCurp(''); setFilterEligibility(''); }}
+                      className="fluid-text-sm text-purple-600 hover:text-purple-700">Limpiar filtros</button>
+                  )}
+                </div>
               )}
             </div>
 
-            {selectedMemberIds.length > 0 && <p className="mt-2 fluid-text-sm text-purple-600">{selectedMemberIds.length} candidato(s) seleccionado(s)</p>}
+            {/* Table */}
+            <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
+              {/* Pagination top */}
+              <div className="bg-white border-b border-gray-200 px-6 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center fluid-gap-3">
+                    <button onClick={handleTogglePageSelection}
+                      className={`fluid-px-3 fluid-py-1.5 rounded-fluid-lg fluid-text-xs font-medium transition-colors ${allPageSelected ? 'bg-purple-100 text-purple-700 border border-purple-300' : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'}`}>
+                      {allPageSelected ? 'Deseleccionar página' : 'Seleccionar página'}
+                    </button>
+                    <div className="fluid-text-sm text-gray-600">
+                      {searching ? (
+                        <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Buscando...</span>
+                      ) : (
+                        <>Mostrando <span className="font-medium">{totalResults > 0 ? (currentPage - 1) * pageSize + 1 : 0}</span>
+                        {' - '}<span className="font-medium">{Math.min(currentPage * pageSize, totalResults)}</span>
+                        {' de '}<span className="font-medium">{totalResults.toLocaleString()}</span> miembros</>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => handlePageChange(1)} disabled={currentPage === 1}
+                      className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 fluid-text-xs font-medium text-gray-600" title="Primera página">1</button>
+                    <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}
+                      className="p-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"><ChevronLeft className="fluid-icon-sm" /></button>
+                    <input type="text" inputMode="numeric" value={pageInputValue}
+                      onChange={(e) => setPageInputValue(e.target.value.replace(/[^0-9]/g, ''))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handlePageInputSubmit(); }}
+                      onBlur={handlePageInputSubmit}
+                      className="w-14 text-center py-1 border border-gray-300 rounded fluid-text-sm focus:ring-2 focus:ring-purple-500" />
+                    <span className="fluid-text-sm text-gray-400">/ {totalPages}</span>
+                    <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}
+                      className="p-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"><ChevronRight className="fluid-icon-sm" /></button>
+                    <button onClick={() => handlePageChange(totalPages)} disabled={currentPage === totalPages}
+                      className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 fluid-text-xs font-medium text-gray-600" title="Última página">{totalPages}</button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
+                    <tr>
+                      <th className="fluid-px-4 fluid-py-3 text-center w-12">
+                        <input type="checkbox" checked={allPageSelected} onChange={handleTogglePageSelection}
+                          className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                      </th>
+                      <th onClick={() => handleSort('name')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100 select-none">
+                        Miembro{renderSortIcon('name')}
+                      </th>
+                      <th onClick={() => handleSort('username')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden md:table-cell cursor-pointer hover:bg-gray-100 select-none">
+                        Usuario{renderSortIcon('username')}
+                      </th>
+                      <th onClick={() => handleSort('email')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden md:table-cell cursor-pointer hover:bg-gray-100 select-none">
+                        Email{renderSortIcon('email')}
+                      </th>
+                      <th onClick={() => handleSort('curp')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell cursor-pointer hover:bg-gray-100 select-none">
+                        CURP{renderSortIcon('curp')}
+                      </th>
+                      <th onClick={() => handleSort('eligibility')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell cursor-pointer hover:bg-gray-100 select-none">
+                        Elegibilidad{renderSortIcon('eligibility')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {members.length > 0 ? members.map((member) => {
+                      const isSelected = selectedMemberIds.includes(member.user_id);
+                      return (
+                        <tr key={member.id} onClick={() => handleToggleMember(member.user_id)}
+                          className={`cursor-pointer transition-colors ${isSelected ? 'bg-purple-50 hover:bg-purple-100' : 'hover:bg-gray-50'}`}>
+                          <td className="fluid-px-4 fluid-py-3 text-center">
+                            <input type="checkbox" checked={isSelected} readOnly
+                              className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 pointer-events-none" />
+                          </td>
+                          <td className="fluid-px-4 fluid-py-3">
+                            <div className="flex items-center fluid-gap-3">
+                              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold fluid-text-sm flex-shrink-0 ${isSelected ? 'bg-gradient-to-br from-purple-500 to-indigo-500' : 'bg-gradient-to-br from-gray-400 to-gray-500'}`}>
+                                {member.user?.name?.charAt(0).toUpperCase() || '?'}
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-900">{member.user?.full_name || 'Desconocido'}</p>
+                                <p className="fluid-text-xs text-gray-500 md:hidden">{member.user?.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600 hidden md:table-cell font-mono">
+                            {member.user?.username || <span className="text-gray-400">-</span>}
+                          </td>
+                          <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600 hidden md:table-cell">
+                            <div className="flex items-center gap-1">
+                              <Mail className="h-3.5 w-3.5 text-gray-400" />
+                              {member.user?.email || '-'}
+                            </div>
+                          </td>
+                          <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600 hidden lg:table-cell font-mono">
+                            {member.user?.curp || <span className="text-gray-400">-</span>}
+                          </td>
+                          <td className="fluid-px-4 fluid-py-3 hidden lg:table-cell">
+                            {renderEligibilityBadges(member.user?.email, member.user?.curp)}
+                          </td>
+                        </tr>
+                      );
+                    }) : (
+                      <tr>
+                        <td colSpan={6} className="fluid-px-4 fluid-py-8 text-center text-gray-500">
+                          {searching ? (
+                            <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Buscando...</span>
+                          ) : (
+                            <span>No se encontraron miembros</span>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {selectedMemberIds.length > 0 && (
+              <p className="mt-3 fluid-text-sm text-purple-600 font-medium">
+                <UserCheck className="inline fluid-icon-sm mr-1" />
+                {selectedMemberIds.length} miembro(s) seleccionado(s) en total (puede incluir selecciones de otras páginas)
+              </p>
+            )}
           </div>
         )}
 

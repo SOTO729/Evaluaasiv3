@@ -3,7 +3,7 @@
  * Recibe SelectExamState de la página anterior
  * Navega a → /assign-exam/members con SelectMaterialsState
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, BookOpen, ClipboardList, CheckCircle2,
@@ -23,6 +23,9 @@ export default function ExamSelectMaterialsPage() {
   const location = useLocation();
 
   const prevState = location.state as SelectExamState | undefined;
+
+  // Scroll to top on mount
+  useLayoutEffect(() => { window.scrollTo(0, 0); }, []);
 
   const [group, setGroup] = useState<CandidateGroup | null>(null);
   const [loading, setLoading] = useState(true);

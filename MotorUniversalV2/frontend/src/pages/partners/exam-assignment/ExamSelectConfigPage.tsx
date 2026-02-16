@@ -131,6 +131,7 @@ export default function ExamSelectConfigPage() {
     setExamSearchQuery('');
     setAvailableExams([]);
     setStep('select-exam');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleBackToEcm = () => {
@@ -138,6 +139,7 @@ export default function ExamSelectConfigPage() {
     setSelectedExam(null);
     setExamSearchQuery('');
     setAvailableExams([]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleContinueToConfig = () => {
@@ -145,6 +147,7 @@ export default function ExamSelectConfigPage() {
     if (selectedExam.duration_minutes) setTimeLimitMinutes(selectedExam.duration_minutes);
     if (selectedExam.passing_score) setPassingScore(selectedExam.passing_score);
     setStep('accept-or-customize');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   /** Aceptar configuración del editor: usar defaults del examen + materiales ligados → saltar a candidatos (paso 3) */
@@ -197,6 +200,7 @@ export default function ExamSelectConfigPage() {
       setSimulatorExercisesCount(selectedExam.default_simulator_exercises_count);
     }
     setStep('configure');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleGoToMaterials = () => {

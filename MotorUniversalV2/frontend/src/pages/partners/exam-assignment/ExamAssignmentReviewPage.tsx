@@ -3,7 +3,7 @@
  * Recibe AssignMembersState de la página anterior
  * Llama a getAssignmentCostPreview + assignExamToGroup
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, Users, ClipboardList, CheckCircle2,
@@ -28,6 +28,9 @@ export default function ExamAssignmentReviewPage() {
   const location = useLocation();
 
   const prevState = location.state as AssignMembersState | undefined;
+
+  // Scroll to top on mount
+  useLayoutEffect(() => { window.scrollTo(0, 0); }, []);
 
   const [group, setGroup] = useState<CandidateGroup | null>(null);
   const [loading, setLoading] = useState(true);
