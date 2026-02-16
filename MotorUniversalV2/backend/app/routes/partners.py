@@ -3238,7 +3238,7 @@ def update_group_member(group_id, member_id):
 @jwt_required()
 @coordinator_required
 def remove_group_member(group_id, member_id):
-    """Eliminar un miembro del grupo"""
+    """Eliminar un miembro del grupo (las asignaciones existentes se conservan)"""
     try:
         member = GroupMember.query.filter_by(id=member_id, group_id=group_id).first_or_404()
         
@@ -3249,6 +3249,71 @@ def remove_group_member(group_id, member_id):
         
     except Exception as e:
         db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/members/<int:member_id>/check-assignments', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def check_member_assignments(group_id, member_id):
+    """Verificar si un miembro tiene asignaciones activas en este grupo (exámenes o materiales)"""
+    try:
+        member = GroupMember.query.filter_by(id=member_id, group_id=group_id).first_or_404()
+        user_id = member.user_id
+        
+        from app.models.partner import GroupStudyMaterial, GroupStudyMaterialMember
+        
+        # Buscar asignaciones de exámenes en este grupo
+        group_exams = GroupExam.query.filter_by(group_id=group_id).all()
+        exam_assignments = []
+        for ge in group_exams:
+            # Si es 'all' todos están asignados, si es 'selected' verificar en GroupExamMember
+            if ge.assignment_type == 'all':
+                exam_assignments.append({
+                    'group_exam_id': ge.id,
+                    'exam_name': ge.exam.name if ge.exam else f'Examen #{ge.exam_id}',
+                    'assignment_type': 'all'
+                })
+            else:
+                gem = GroupExamMember.query.filter_by(group_exam_id=ge.id, user_id=user_id).first()
+                if gem:
+                    exam_assignments.append({
+                        'group_exam_id': ge.id,
+                        'exam_name': ge.exam.name if ge.exam else f'Examen #{ge.exam_id}',
+                        'assignment_type': 'selected'
+                    })
+        
+        # Buscar asignaciones de materiales de estudio en este grupo
+        group_materials = GroupStudyMaterial.query.filter_by(group_id=group_id).all()
+        material_assignments = []
+        for gm in group_materials:
+            if gm.assignment_type == 'all':
+                material_assignments.append({
+                    'group_material_id': gm.id,
+                    'material_name': gm.study_material.title if gm.study_material else f'Material #{gm.study_material_id}',
+                    'assignment_type': 'all'
+                })
+            else:
+                gmm = GroupStudyMaterialMember.query.filter_by(group_study_material_id=gm.id, user_id=user_id).first()
+                if gmm:
+                    material_assignments.append({
+                        'group_material_id': gm.id,
+                        'material_name': gm.study_material.title if gm.study_material else f'Material #{gm.study_material_id}',
+                        'assignment_type': 'selected'
+                    })
+        
+        has_assignments = len(exam_assignments) > 0 or len(material_assignments) > 0
+        
+        return jsonify({
+            'member_id': member_id,
+            'user_id': user_id,
+            'has_assignments': has_assignments,
+            'exam_assignments': exam_assignments,
+            'material_assignments': material_assignments,
+            'total_assignments': len(exam_assignments) + len(material_assignments)
+        })
+        
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 

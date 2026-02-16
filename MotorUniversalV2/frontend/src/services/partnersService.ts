@@ -899,6 +899,20 @@ export async function removeGroupMember(groupId: number, memberId: number): Prom
   await api.delete(`/partners/groups/${groupId}/members/${memberId}`);
 }
 
+export interface MemberAssignmentCheck {
+  member_id: number;
+  user_id: string;
+  has_assignments: boolean;
+  exam_assignments: { group_exam_id: number; exam_name: string; assignment_type: string }[];
+  material_assignments: { group_material_id: number; material_name: string; assignment_type: string }[];
+  total_assignments: number;
+}
+
+export async function checkMemberAssignments(groupId: number, memberId: number): Promise<MemberAssignmentCheck> {
+  const response = await api.get(`/partners/groups/${groupId}/members/${memberId}/check-assignments`);
+  return response.data;
+}
+
 // ============== BÚSQUEDA DE CANDIDATOS ==============
 
 export async function searchCandidates(params: {
