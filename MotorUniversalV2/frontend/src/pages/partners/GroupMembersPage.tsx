@@ -415,6 +415,8 @@ export default function GroupMembersPage() {
           >
             <option value="all">Todos los campos</option>
             <option value="name">Nombre</option>
+            <option value="first_surname">Primer Apellido</option>
+            <option value="second_surname">Segundo Apellido</option>
             <option value="username">Usuario</option>
             <option value="email">Email</option>
             <option value="curp">CURP</option>
