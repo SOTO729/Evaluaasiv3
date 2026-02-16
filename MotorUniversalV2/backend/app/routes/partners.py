@@ -8474,6 +8474,7 @@ def bulk_assign_exams_by_ecm(group_id):
                     user_info = group_members.get(user_id)
                     results['skipped'].append({
                         'row': row_num,
+                        'user_id': str(user_id),
                         'username': username,
                         'user_name': user_info.full_name if user_info else username,
                         'email': user_info.email if user_info else '',
@@ -8487,6 +8488,7 @@ def bulk_assign_exams_by_ecm(group_id):
                     user_info = group_members.get(user_id)
                     results['skipped'].append({
                         'row': row_num,
+                        'user_id': str(user_id),
                         'username': username,
                         'user_name': user_info.full_name if user_info else username,
                         'email': user_info.email if user_info else '',
@@ -8506,6 +8508,7 @@ def bulk_assign_exams_by_ecm(group_id):
             user = group_members[user_id]
             results['assigned'].append({
                 'row': row_num,
+                'user_id': str(user_id),
                 'username': username,
                 'user_name': user.full_name if user else username,
                 'email': user.email if user else '',
