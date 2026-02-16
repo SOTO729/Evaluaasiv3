@@ -1,5 +1,5 @@
 /**
- * Página de Candidatos del Grupo
+ * Página de Miembros del Grupo
  * Muestra miembros actuales con la misma tabla del assign-candidates
  * Incluye acción de retirar del grupo con advertencia sobre asignaciones
  * Paginación y búsqueda server-side — optimizado para 100K+ registros
@@ -135,7 +135,7 @@ export default function GroupMembersPage() {
       setCurrentPage(page);
     } catch (err: any) {
       if (requestId !== searchRequestRef.current) return;
-      setError(err.response?.data?.error || 'Error al cargar los candidatos');
+      setError(err.response?.data?.error || 'Error al cargar los miembros');
     } finally {
       if (requestId === searchRequestRef.current) {
         setSearching(false);
@@ -245,7 +245,7 @@ export default function GroupMembersPage() {
     try {
       setRemoving(true);
       await removeGroupMember(Number(groupId), memberToRemove.id);
-      setSuccessMessage(`${memberToRemove.user?.full_name || 'Candidato'} ha sido retirado del grupo`);
+      setSuccessMessage(`${memberToRemove.user?.full_name || 'Miembro'} ha sido retirado del grupo`);
       setShowRemoveModal(false);
       setMemberToRemove(null);
       setAssignmentCheck(null);
@@ -265,7 +265,7 @@ export default function GroupMembersPage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Candidatos_${group?.name?.replace(/\s+/g, '_') || 'Grupo'}.xlsx`;
+      link.download = `Miembros_${group?.name?.replace(/\s+/g, '_') || 'Grupo'}.xlsx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -278,7 +278,7 @@ export default function GroupMembersPage() {
   };
 
   if (loading) {
-    return <LoadingSpinner message="Cargando candidatos..." fullScreen />;
+    return <LoadingSpinner message="Cargando miembros..." fullScreen />;
   }
 
   if (error && !group) {
@@ -301,7 +301,7 @@ export default function GroupMembersPage() {
           { label: group?.campus?.partner?.name || 'Partner', path: `/partners/${group?.campus?.partner_id}` },
           { label: group?.campus?.name || 'Plantel', path: `/partners/campuses/${group?.campus_id}` },
           { label: group?.name || 'Grupo', path: `/partners/groups/${groupId}` },
-          { label: 'Candidatos' },
+          { label: 'Miembros' },
         ]}
       />
 
@@ -323,7 +323,7 @@ export default function GroupMembersPage() {
                 <p className="fluid-text-sm text-white/80 fluid-mb-1">{group?.name}</p>
                 <h1 className="fluid-text-2xl font-bold flex items-center fluid-gap-3">
                   <Users className="fluid-icon-lg" />
-                  Candidatos del Grupo
+                  Miembros del Grupo
                 </h1>
               </div>
             </div>
@@ -348,7 +348,7 @@ export default function GroupMembersPage() {
                   className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white hover:bg-gray-100 text-purple-600 rounded-fluid-xl font-medium fluid-text-sm transition-all shadow-lg"
                 >
                   <UserPlus className="fluid-icon-sm" />
-                  Agregar Candidatos
+                  Agregar Miembros
                 </Link>
               )}
             </div>
@@ -527,9 +527,9 @@ export default function GroupMembersPage() {
           <div className="w-20 h-20 mx-auto mb-4 bg-purple-100 rounded-full flex items-center justify-center">
             <Users className="w-10 h-10 text-purple-400" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">Aún no hay candidatos</h3>
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Aún no hay miembros</h3>
           <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto">
-            Agrega candidatos a este grupo para comenzar
+            Agrega miembros a este grupo para comenzar
           </p>
           {group?.is_active && (
             <Link
@@ -537,14 +537,14 @@ export default function GroupMembersPage() {
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white transition-colors"
             >
               <UserPlus className="w-5 h-5" />
-              Agregar Candidatos
+              Agregar Miembros
             </Link>
           )}
         </div>
       ) : members.length === 0 && !searching ? (
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 text-center fluid-py-8">
           <Filter className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-600 font-medium">No se encontraron candidatos con estas características</p>
+          <p className="text-gray-600 font-medium">No se encontraron miembros con estas características</p>
           <p className="text-gray-400 text-sm mt-1">Intenta ajustar los filtros o el término de búsqueda</p>
         </div>
       ) : (
@@ -564,7 +564,7 @@ export default function GroupMembersPage() {
                     {' - '}
                     <span className="font-medium">{Math.min(currentPage * pageSize, totalResults)}</span>
                     {' de '}
-                    <span className="font-medium">{totalResults.toLocaleString()}</span> candidatos
+                    <span className="font-medium">{totalResults.toLocaleString()}</span> miembros
                   </>
                 )}
               </div>
@@ -619,7 +619,7 @@ export default function GroupMembersPage() {
               <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
                 <tr>
                   <th onClick={() => handleSort('name')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100 select-none">
-                    Candidato{renderSortIcon('name')}
+                    Miembro{renderSortIcon('name')}
                   </th>
                   <th onClick={() => handleSort('username')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden md:table-cell cursor-pointer hover:bg-gray-100 select-none">
                     Usuario{renderSortIcon('username')}
@@ -700,7 +700,7 @@ export default function GroupMembersPage() {
                   <UserMinus className="w-5 h-5 text-red-600" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Retirar Candidato</h2>
+                  <h2 className="text-lg font-bold text-gray-900">Retirar Miembro</h2>
                   <p className="text-sm text-gray-500">{memberToRemove.user?.full_name}</p>
                 </div>
               </div>
@@ -726,11 +726,11 @@ export default function GroupMembersPage() {
                     <div className="flex items-start gap-3">
                       <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-semibold text-amber-800 mb-1">Este candidato tiene asignaciones activas</p>
+                        <p className="font-semibold text-amber-800 mb-1">Este miembro tiene asignaciones activas</p>
                         <p className="text-sm text-amber-700">
                           Al retirar a <strong>{memberToRemove.user?.full_name}</strong> del grupo, las asignaciones existentes
                           <strong> NO se eliminarán</strong>. Las asignaciones son <strong>inmutables e irreversibles</strong>,
-                          garantizando que el candidato conserve aquello por lo que se pagó.
+                          garantizando que el miembro conserve aquello por lo que se pagó.
                         </p>
                       </div>
                     </div>
@@ -759,14 +759,14 @@ export default function GroupMembersPage() {
                     <Shield className="w-4 h-4 text-gray-500 flex-shrink-0 mt-0.5" />
                     <p className="text-xs text-gray-600">
                       <strong>Política de protección:</strong> La asignación es inmutable e irreversible.
-                      El candidato conservará el acceso a los exámenes y materiales asignados aunque sea retirado del grupo.
+                      El miembro conservará el acceso a los exámenes y materiales asignados aunque sea retirado del grupo.
                     </p>
                   </div>
                 </>
               ) : (
                 <p className="text-gray-600 text-sm">
                   ¿Estás seguro de retirar a <strong>{memberToRemove.user?.full_name}</strong> del grupo <strong>"{group?.name}"</strong>?
-                  Este candidato no tiene asignaciones activas en este grupo.
+                  Este miembro no tiene asignaciones activas en este grupo.
                 </p>
               )}
             </div>
