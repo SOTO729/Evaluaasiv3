@@ -629,6 +629,7 @@ class GroupMember(db.Model):
             data['user'] = {
                 'id': self.user.id,
                 'email': self.user.email,
+                'username': self.user.username,
                 'name': self.user.name,
                 'first_surname': self.user.first_surname,
                 'second_surname': self.user.second_surname,

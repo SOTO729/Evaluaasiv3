@@ -57,6 +57,7 @@ const SEARCH_FIELDS = [
   { key: 'name', label: 'Nombre' },
   { key: 'first_surname', label: 'Primer Apellido' },
   { key: 'second_surname', label: 'Segundo Apellido' },
+  { key: 'username', label: 'Usuario' },
   { key: 'email', label: 'Email' },
   { key: 'curp', label: 'CURP' },
 ];
@@ -998,6 +999,7 @@ export default function GroupAssignCandidatesPage() {
                         </button>
                       </th>
                       <th onClick={() => handleSearchSort('name')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100 select-none">Candidato{renderSearchSortIcon('name')}</th>
+                      <th onClick={() => handleSearchSort('username')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden md:table-cell cursor-pointer hover:bg-gray-100 select-none">Usuario{renderSearchSortIcon('username')}</th>
                       <th onClick={() => handleSearchSort('email')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden md:table-cell cursor-pointer hover:bg-gray-100 select-none">Email{renderSearchSortIcon('email')}</th>
                       {!isLightweight && <th onClick={() => handleSearchSort('curp')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell cursor-pointer hover:bg-gray-100 select-none">CURP{renderSearchSortIcon('curp')}</th>}
                       {!isLightweight && <th onClick={() => handleSearchSort('gender')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell cursor-pointer hover:bg-gray-100 select-none">Género{renderSearchSortIcon('gender')}</th>}
@@ -1033,6 +1035,9 @@ export default function GroupAssignCandidatesPage() {
                                 <p className="fluid-text-xs text-gray-500 md:hidden">{candidate.email}</p>
                               </div>
                             </div>
+                          </td>
+                          <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600 hidden md:table-cell font-mono">
+                            {candidate.username || <span className="text-gray-400">-</span>}
                           </td>
                           <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600 hidden md:table-cell">
                             <div className="flex items-center gap-1">

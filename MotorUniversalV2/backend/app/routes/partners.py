@@ -2704,7 +2704,7 @@ def get_group_members(group_id):
         # ── Búsqueda textual ──
         if search:
             search_term = f'%{search}%'
-            valid_fields = {'name', 'first_surname', 'second_surname', 'email', 'curp'}
+            valid_fields = {'name', 'first_surname', 'second_surname', 'email', 'curp', 'username'}
             if search_field and search_field in valid_fields:
                 field_map = {
                     'name': User.name,
@@ -2712,6 +2712,7 @@ def get_group_members(group_id):
                     'second_surname': User.second_surname,
                     'email': User.email,
                     'curp': User.curp,
+                    'username': User.username,
                 }
                 query = query.filter(field_map[search_field].ilike(search_term))
             else:
@@ -2722,6 +2723,7 @@ def get_group_members(group_id):
                         User.second_surname.ilike(search_term),
                         User.email.ilike(search_term),
                         User.curp.ilike(search_term),
+                        User.username.ilike(search_term),
                     )
                 )
 
@@ -2741,6 +2743,7 @@ def get_group_members(group_id):
             'name': [User.first_surname, User.name],
             'email': [User.email],
             'curp': [User.curp],
+            'username': [User.username],
             'joined': [GroupMember.joined_at],
         }
         sort_cols = sort_options.get(sort_by, sort_options['name'])

@@ -206,6 +206,7 @@ export interface GroupMember {
   user?: {
     id: string;
     email: string;
+    username?: string;
     name: string;
     first_surname: string;
     second_surname?: string;

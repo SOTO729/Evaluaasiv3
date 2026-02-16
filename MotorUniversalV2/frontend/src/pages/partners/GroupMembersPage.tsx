@@ -415,6 +415,7 @@ export default function GroupMembersPage() {
           >
             <option value="all">Todos los campos</option>
             <option value="name">Nombre</option>
+            <option value="username">Usuario</option>
             <option value="email">Email</option>
             <option value="curp">CURP</option>
           </select>
@@ -618,6 +619,9 @@ export default function GroupMembersPage() {
                   <th onClick={() => handleSort('name')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100 select-none">
                     Candidato{renderSortIcon('name')}
                   </th>
+                  <th onClick={() => handleSort('username')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden md:table-cell cursor-pointer hover:bg-gray-100 select-none">
+                    Usuario{renderSortIcon('username')}
+                  </th>
                   <th onClick={() => handleSort('email')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden md:table-cell cursor-pointer hover:bg-gray-100 select-none">
                     Email{renderSortIcon('email')}
                   </th>
@@ -645,6 +649,9 @@ export default function GroupMembersPage() {
                           <p className="fluid-text-xs text-gray-500 md:hidden">{member.user?.email}</p>
                         </div>
                       </div>
+                    </td>
+                    <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600 hidden md:table-cell font-mono">
+                      {member.user?.username || <span className="text-gray-400">-</span>}
                     </td>
                     <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600 hidden md:table-cell">
                       <div className="flex items-center gap-1">
