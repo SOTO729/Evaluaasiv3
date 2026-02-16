@@ -13,7 +13,7 @@ import {
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../../components/PartnersBreadcrumb';
 import {
-  getGroup, assignExamToGroup,
+  getGroup, assignExamToGroup, bulkAssignExamsByECM,
   CandidateGroup, ExamAssignmentConfig,
   AlreadyAssignedCandidate,
 } from '../../../services/partnersService';
@@ -57,9 +57,19 @@ export default function ExamAssignmentReviewPage() {
         setGroup(groupData);
 
         // Load cost preview
+        // For bulk, we extract user_ids from dry_run assigned list and use 'selected' type
+        let costAssignmentType: 'all' | 'selected' = prevState.assignmentType === 'all' ? 'all' : 'selected';
+        let costMemberIds: string[] | undefined;
+        if (prevState.assignmentType === 'selected') {
+          costMemberIds = prevState.selectedMemberIds;
+        } else if (prevState.assignmentType === 'bulk' && prevState.bulkPreview) {
+          costMemberIds = prevState.bulkPreview.results.assigned
+            .map(a => a.user_id)
+            .filter((id): id is string => !!id);
+        }
         const preview = await getAssignmentCostPreview(Number(groupId), {
-          assignment_type: prevState.assignmentType,
-          member_ids: prevState.assignmentType === 'selected' ? prevState.selectedMemberIds : undefined,
+          assignment_type: costAssignmentType,
+          member_ids: costMemberIds,
         });
         setCostPreview(preview);
       } catch (err: any) {
@@ -78,9 +88,30 @@ export default function ExamAssignmentReviewPage() {
       setSaving(true);
       setError(null);
 
+      // Bulk assignment uses bulkAssignExamsByECM with dry_run=false
+      if (assignmentType === 'bulk' && prevState.bulkFile && prevState.bulkEcmCode) {
+        const bulkResult = await bulkAssignExamsByECM(Number(groupId), prevState.bulkFile, prevState.bulkEcmCode, {
+          time_limit_minutes: config.useExamDefaultTime ? undefined : (config.timeLimitMinutes || undefined),
+          passing_score: config.useExamDefaultScore ? undefined : config.passingScore,
+          max_attempts: config.maxAttempts,
+          max_disconnections: config.maxDisconnections,
+          exam_content_type: config.examContentType,
+        }, false); // dry_run = false → asignación real
+
+        // Navigate to group detail on success
+        if (bulkResult.summary.assigned > 0) {
+          navigate(`/partners/groups/${groupId}`);
+        } else {
+          setError('No se pudo asignar ningún candidato. ' + (bulkResult.message || ''));
+          setSaving(false);
+        }
+        return;
+      }
+
+      const configAssignType: 'all' | 'selected' = assignmentType === 'selected' ? 'selected' : 'all';
       const assignConfig: ExamAssignmentConfig = {
         exam_id: selectedExam.id,
-        assignment_type: assignmentType,
+        assignment_type: configAssignType,
         member_ids: assignmentType === 'selected' ? selectedMemberIds : undefined,
         material_ids: selectedMaterialIds.length > 0 ? selectedMaterialIds : undefined,
         time_limit_minutes: config.useExamDefaultTime ? null : config.timeLimitMinutes,
@@ -275,7 +306,9 @@ export default function ExamAssignmentReviewPage() {
             <div>
               <p className="fluid-text-xs text-gray-400">Tipo de asignación</p>
               <p className="font-medium text-gray-900 fluid-text-base">
-                {assignmentType === 'all' ? 'Todo el grupo' : `${(selectedMemberIds || []).length} candidato(s) seleccionado(s)`}
+                {assignmentType === 'all' ? 'Todo el grupo'
+                  : assignmentType === 'bulk' ? `Carga masiva: ${prevState.bulkPreview?.summary.assigned || 0} candidato(s)`
+                  : `${(selectedMemberIds || []).length} candidato(s) seleccionado(s)`}
               </p>
             </div>
           </div>

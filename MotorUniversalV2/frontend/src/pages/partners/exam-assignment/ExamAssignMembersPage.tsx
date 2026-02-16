@@ -5,7 +5,7 @@
  * Para 'bulk': Proceso completo se maneja aquí (carga masiva por ECM)
  */
 import { useState, useEffect, useCallback, useRef, useLayoutEffect, useMemo } from 'react';
-import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, Users, UserCheck, ClipboardList,
   CheckCircle2, AlertCircle, X, Loader2, Search,
@@ -64,8 +64,6 @@ export default function ExamAssignMembersPage() {
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [bulkUploading, setBulkUploading] = useState(false);
   const [bulkPreview, setBulkPreview] = useState<BulkExamAssignResult | null>(null);
-  const [bulkResult, setBulkResult] = useState<BulkExamAssignResult | null>(null);
-  const [bulkConfirming, setBulkConfirming] = useState(false);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
 
   // Result table controls
@@ -205,9 +203,25 @@ export default function ExamAssignMembersPage() {
   };
 
   const handleGoToReview = async () => {
-    if (!prevState || assignmentType === 'bulk') return;
+    if (!prevState) return;
     if (assignmentType === 'selected' && selectedMemberIds.length === 0) {
       setError('Debes seleccionar al menos un candidato');
+      return;
+    }
+    if (assignmentType === 'bulk') {
+      if (!bulkPreview || bulkPreview.summary.assigned === 0) {
+        setError('Debes subir un archivo con al menos un candidato válido');
+        return;
+      }
+      const ecmCode = prevState.selectedExam.ecm_code || prevState.selectedExam.standard;
+      const state: AssignMembersState = {
+        ...prevState,
+        assignmentType: 'bulk',
+        bulkFile: bulkFile!,
+        bulkEcmCode: ecmCode || '',
+        bulkPreview,
+      };
+      navigate(`/partners/groups/${groupId}/assign-exam/review`, { state });
       return;
     }
     const state: AssignMembersState = {
@@ -243,7 +257,6 @@ export default function ExamAssignMembersPage() {
     if (file) {
       setBulkFile(file);
       setBulkPreview(null);
-      setBulkResult(null);
       // Previsualizar al seleccionar archivo (dry_run)
       previewFile(file);
     }
@@ -272,33 +285,9 @@ export default function ExamAssignMembersPage() {
     }
   };
 
-  const handleConfirmBulkAssign = async () => {
-    if (!prevState?.selectedExam || !bulkFile) return;
-    const ecmCode = prevState.selectedExam.ecm_code || prevState.selectedExam.standard;
-    if (!ecmCode) { setError('El examen seleccionado no tiene código ECM'); return; }
-    setBulkConfirming(true);
-    try {
-      const { config } = prevState;
-      const result = await bulkAssignExamsByECM(Number(groupId), bulkFile, ecmCode, {
-        time_limit_minutes: config.useExamDefaultTime ? undefined : (config.timeLimitMinutes || undefined),
-        passing_score: config.useExamDefaultScore ? undefined : config.passingScore,
-        max_attempts: config.maxAttempts,
-        max_disconnections: config.maxDisconnections,
-        exam_content_type: config.examContentType,
-      }, false); // dry_run = false → asignación real
-      setBulkResult(result);
-      setBulkPreview(null);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al confirmar la asignación');
-    } finally {
-      setBulkConfirming(false);
-    }
-  };
-
   const handleClearFile = () => {
     setBulkFile(null);
     setBulkPreview(null);
-    setBulkResult(null);
     setResultSearch('');
   };
 
@@ -329,40 +318,37 @@ export default function ExamAssignMembersPage() {
   };
 
   const filteredAssigned = useMemo(() => {
-    const source = bulkResult || bulkPreview;
-    if (!source) return [];
+    if (!bulkPreview) return [];
     const q = resultSearch.toLowerCase();
-    const filtered = q ? source.results.assigned.filter(item =>
+    const filtered = q ? bulkPreview.results.assigned.filter(item =>
       (item.user_name || '').toLowerCase().includes(q) ||
       (item.email || '').toLowerCase().includes(q) ||
       (item.curp || '').toLowerCase().includes(q) ||
       (item.exam_name || '').toLowerCase().includes(q)
-    ) : source.results.assigned;
+    ) : bulkPreview.results.assigned;
     return sortItems(filtered, 'assigned');
-  }, [bulkResult, bulkPreview, resultSearch, sortConfig]);
+  }, [bulkPreview, resultSearch, sortConfig]);
 
   const filteredSkipped = useMemo(() => {
-    const source = bulkResult || bulkPreview;
-    if (!source) return [];
+    if (!bulkPreview) return [];
     const q = resultSearch.toLowerCase();
-    const filtered = q ? source.results.skipped.filter(item =>
+    const filtered = q ? bulkPreview.results.skipped.filter(item =>
       (item.user_name || '').toLowerCase().includes(q) ||
       (item.email || '').toLowerCase().includes(q) ||
       (item.reason || '').toLowerCase().includes(q)
-    ) : source.results.skipped;
+    ) : bulkPreview.results.skipped;
     return sortItems(filtered, 'skipped');
-  }, [bulkResult, bulkPreview, resultSearch, sortConfig]);
+  }, [bulkPreview, resultSearch, sortConfig]);
 
   const filteredErrors = useMemo(() => {
-    const source = bulkResult || bulkPreview;
-    if (!source) return [];
+    if (!bulkPreview) return [];
     const q = resultSearch.toLowerCase();
-    const filtered = q ? source.results.errors.filter(item =>
+    const filtered = q ? bulkPreview.results.errors.filter(item =>
       (item.user_name || item.identifier || '').toLowerCase().includes(q) ||
       (item.error || '').toLowerCase().includes(q)
-    ) : source.results.errors;
+    ) : bulkPreview.results.errors;
     return sortItems(filtered, 'errors');
-  }, [bulkResult, bulkPreview, resultSearch, sortConfig]);
+  }, [bulkPreview, resultSearch, sortConfig]);
 
   if (!prevState?.selectedExam) return null;
   if (loading) return <LoadingSpinner message="Cargando miembros..." fullScreen />;
@@ -718,30 +704,27 @@ export default function ExamAssignMembersPage() {
               </div>
             </div>
 
-            {/* Preview / Results */}
-            {(bulkPreview || bulkResult) && (() => {
-              const source = bulkResult || bulkPreview!;
-              const isPreview = !bulkResult && !!bulkPreview;
+            {/* Preview */}
+            {bulkPreview && (() => {
+              const source = bulkPreview;
               return (
               <div className="mt-4 space-y-4">
                 {/* Preview banner */}
-                {isPreview && (
-                  <div className="bg-blue-50 border-2 border-blue-300 rounded-fluid-xl fluid-p-4 flex items-start fluid-gap-3">
-                    <AlertCircle className="fluid-icon-base text-blue-500 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <h5 className="font-semibold text-blue-800 fluid-text-base">Vista Previa — Aún no se han creado asignaciones</h5>
-                      <p className="fluid-text-sm text-blue-700 mt-1">Revisa el resumen a continuación. Cuando estés conforme, presiona <strong>"Confirmar Asignación"</strong> para aplicar los cambios.</p>
-                    </div>
+                <div className="bg-blue-50 border-2 border-blue-300 rounded-fluid-xl fluid-p-4 flex items-start fluid-gap-3">
+                  <AlertCircle className="fluid-icon-base text-blue-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h5 className="font-semibold text-blue-800 fluid-text-base">Vista Previa — Aún no se han creado asignaciones</h5>
+                    <p className="fluid-text-sm text-blue-700 mt-1">Revisa el resumen a continuación. Cuando estés conforme, presiona <strong>"Revisar Costo y Confirmar"</strong> para continuar.</p>
                   </div>
-                )}
+                </div>
 
-                <div className={`fluid-p-4 rounded-fluid-xl ${source.summary.errors > 0 ? 'bg-yellow-50 border border-yellow-200' : isPreview ? 'bg-blue-50 border border-blue-200' : 'bg-green-50 border border-green-200'}`}>
-                  <h5 className={`font-medium fluid-mb-2 fluid-text-base ${source.summary.errors > 0 ? 'text-yellow-800' : isPreview ? 'text-blue-800' : 'text-green-800'}`}>
-                    {isPreview ? `Vista previa: ${source.summary.assigned} asignaciones pendientes` : source.message}
+                <div className={`fluid-p-4 rounded-fluid-xl ${source.summary.errors > 0 ? 'bg-yellow-50 border border-yellow-200' : 'bg-blue-50 border border-blue-200'}`}>
+                  <h5 className={`font-medium fluid-mb-2 fluid-text-base ${source.summary.errors > 0 ? 'text-yellow-800' : 'text-blue-800'}`}>
+                    {`Vista previa: ${source.summary.assigned} asignaciones pendientes`}
                   </h5>
                   <div className="grid grid-cols-4 fluid-gap-4 fluid-text-sm">
                     <div><p className="text-gray-500">Procesados</p><p className="font-semibold fluid-text-lg">{source.summary.total_processed}</p></div>
-                    <div><p className={isPreview ? 'text-blue-600' : 'text-green-600'}>{isPreview ? 'Se asignarán' : 'Asignados'}</p><p className={`font-semibold fluid-text-lg ${isPreview ? 'text-blue-700' : 'text-green-700'}`}>{source.summary.assigned}</p></div>
+                    <div><p className="text-blue-600">Se asignarán</p><p className="font-semibold fluid-text-lg text-blue-700">{source.summary.assigned}</p></div>
                     <div><p className="text-yellow-600">Omitidos</p><p className="font-semibold fluid-text-lg text-yellow-700">{source.summary.skipped}</p></div>
                     <div><p className="text-red-600">Errores</p><p className="font-semibold fluid-text-lg text-red-700">{source.summary.errors}</p></div>
                   </div>
@@ -767,7 +750,7 @@ export default function ExamAssignMembersPage() {
                     <div className="bg-green-50 fluid-px-4 fluid-py-3 border-b border-green-200 flex items-center justify-between">
                       <div className="flex items-center fluid-gap-2">
                         <CheckCircle2 className="fluid-icon-base text-green-600" />
-                        <h5 className="font-medium text-green-800 fluid-text-sm">{isPreview ? 'Candidatos que se Asignarán' : 'Candidatos Asignados Exitosamente'} ({filteredAssigned.length}{resultSearch ? ` de ${source.results.assigned.length}` : ''})</h5>
+                        <h5 className="font-medium text-green-800 fluid-text-sm">Candidatos que se Asignarán ({filteredAssigned.length}{resultSearch ? ` de ${source.results.assigned.length}` : ''})</h5>
                       </div>
                     </div>
                     <div className="overflow-x-auto">
@@ -878,24 +861,12 @@ export default function ExamAssignMembersPage() {
                   </div>
                 )}
 
-                {/* Botones de acción */}
-                {isPreview && source.summary.assigned > 0 && (
-                  <div className="flex items-center justify-center fluid-gap-4 mt-6 pt-4 border-t border-gray-200">
+                {/* Botón para cambiar archivo */}
+                {source.summary.assigned > 0 && (
+                  <div className="flex items-center justify-center mt-4">
                     <button onClick={handleClearFile} className="fluid-px-5 fluid-py-3 border border-gray-300 text-gray-700 rounded-fluid-xl hover:bg-gray-50 fluid-text-sm font-medium transition-all">
                       Cancelar y Cambiar Archivo
                     </button>
-                    <button onClick={handleConfirmBulkAssign} disabled={bulkConfirming}
-                      className="fluid-px-8 fluid-py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-fluid-xl hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 fluid-text-sm font-semibold shadow-lg transition-all">
-                      {bulkConfirming ? <><Loader2 className="fluid-icon-sm animate-spin" />Asignando candidatos...</> : <><CheckCircle2 className="fluid-icon-sm" />Confirmar Asignación ({source.summary.assigned} candidatos)</>}
-                    </button>
-                  </div>
-                )}
-
-                {!isPreview && source.summary.assigned > 0 && (
-                  <div className="flex justify-center mt-4">
-                    <Link to={`/partners/groups/${groupId}`} className="fluid-px-6 fluid-py-3 bg-blue-600 text-white rounded-fluid-xl hover:bg-blue-700 fluid-text-sm font-medium shadow-lg transition-all">
-                      Volver al Detalle del Grupo
-                    </Link>
                   </div>
                 )}
               </div>
@@ -907,12 +878,10 @@ export default function ExamAssignMembersPage() {
         {/* Navigation */}
         <div className="flex justify-between pt-6 mt-6 border-t">
           <button onClick={() => navigate(-1)} className="fluid-px-4 fluid-py-2 text-gray-600 hover:text-gray-900 fluid-text-sm font-medium transition-colors">← Volver</button>
-          {assignmentType !== 'bulk' && (
-            <button onClick={handleGoToReview} disabled={loadingCostPreview || (assignmentType === 'selected' && selectedMemberIds.length === 0)}
-              className="fluid-px-6 fluid-py-3 bg-blue-600 text-white rounded-fluid-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 fluid-text-sm font-medium shadow-lg transition-all">
-              {loadingCostPreview ? <><Loader2 className="fluid-icon-sm animate-spin" />Calculando costo...</> : <><DollarSign className="fluid-icon-sm" />Revisar Costo y Confirmar</>}
-            </button>
-          )}
+          <button onClick={handleGoToReview} disabled={loadingCostPreview || (assignmentType === 'selected' && selectedMemberIds.length === 0) || (assignmentType === 'bulk' && (!bulkPreview || bulkPreview.summary.assigned === 0))}
+            className="fluid-px-6 fluid-py-3 bg-blue-600 text-white rounded-fluid-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 fluid-text-sm font-medium shadow-lg transition-all">
+            {loadingCostPreview ? <><Loader2 className="fluid-icon-sm animate-spin" />Calculando costo...</> : <><DollarSign className="fluid-icon-sm" />Revisar Costo y Confirmar</>}
+          </button>
         </div>
       </div>
     </div>

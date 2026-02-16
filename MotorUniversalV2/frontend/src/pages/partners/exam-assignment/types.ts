@@ -2,7 +2,7 @@
  * Tipos compartidos para el flujo de asignación de examen (4 páginas)
  * Los datos fluyen entre páginas via React Router state
  */
-import type { AvailableExam, ExamContentType } from '../../../services/partnersService';
+import type { AvailableExam, ExamContentType, BulkExamAssignResult } from '../../../services/partnersService';
 
 export interface ExamConfig {
   timeLimitMinutes: number | null;
@@ -37,8 +37,12 @@ export interface SelectMaterialsState extends SelectExamState {
 
 /** State passed from Page 3 → Page 4 */
 export interface AssignMembersState extends SelectMaterialsState {
-  assignmentType: 'all' | 'selected';
+  assignmentType: 'all' | 'selected' | 'bulk';
   selectedMemberIds?: string[];
+  // Bulk-specific fields (only present when assignmentType === 'bulk')
+  bulkFile?: File;
+  bulkEcmCode?: string;
+  bulkPreview?: BulkExamAssignResult;
 }
 
 export const EXAM_CONTENT_TYPES: { value: ExamContentType; label: string; description: string }[] = [
