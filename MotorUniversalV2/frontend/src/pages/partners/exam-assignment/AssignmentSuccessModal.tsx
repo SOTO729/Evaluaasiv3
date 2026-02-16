@@ -6,7 +6,7 @@
 import { useState, useMemo } from 'react';
 import {
   CheckCircle2, X, Search, ArrowUpDown, ArrowUp, ArrowDown,
-  Users, AlertCircle, ExternalLink,
+  Users, AlertCircle, ArrowLeft,
 } from 'lucide-react';
 import type { NewAssignmentDetail, AlreadyAssignedCandidate } from '../../../services/partnersService';
 import type { BulkExamAssignResult } from '../../../services/partnersService';
@@ -209,7 +209,7 @@ export default function AssignmentSuccessModal({
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-fluid-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col animate-fade-in-up">
+      <div className="relative bg-white rounded-fluid-2xl shadow-2xl w-full max-w-[95vw] xl:max-w-7xl max-h-[90vh] flex flex-col animate-fade-in-up">
         {/* Header */}
         <div className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 rounded-t-fluid-2xl fluid-p-5 text-white flex items-start justify-between flex-shrink-0">
           <div className="flex items-center fluid-gap-4">
@@ -372,17 +372,17 @@ export default function AssignmentSuccessModal({
         </div>
 
         {/* Footer */}
-        <div className="fluid-px-5 fluid-py-4 border-t border-gray-200 flex items-center justify-between flex-shrink-0 rounded-b-fluid-2xl">
-          <p className="fluid-text-sm text-gray-500 flex items-center fluid-gap-2">
-            <Users className="fluid-icon-sm" />
+        <div className="fluid-px-6 fluid-py-5 border-t-2 border-gray-200 bg-gray-50 flex items-center justify-between flex-shrink-0 rounded-b-fluid-2xl">
+          <p className="fluid-text-base text-gray-600 flex items-center fluid-gap-2 font-medium">
+            <Users className="fluid-icon-base text-green-600" />
             {newCount} asignación(es) creada(s) exitosamente
           </p>
           <button
             onClick={onNavigateToGroup}
-            className="fluid-px-6 fluid-py-2.5 bg-blue-600 text-white rounded-fluid-xl hover:bg-blue-700 flex items-center fluid-gap-2 font-medium shadow-lg transition-all fluid-text-sm"
+            className="fluid-px-8 fluid-py-3 bg-blue-600 text-white rounded-fluid-xl hover:bg-blue-700 hover:shadow-xl flex items-center fluid-gap-3 font-semibold shadow-lg transition-all fluid-text-base"
           >
-            <ExternalLink className="fluid-icon-sm" />
-            Ir al Grupo
+            <ArrowLeft className="fluid-icon-base" />
+            Volver al Grupo
           </button>
         </div>
       </div>
