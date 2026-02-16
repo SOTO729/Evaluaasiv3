@@ -18,6 +18,8 @@ import {
   Loader2,
   Download,
   ArrowUpDown,
+  Filter,
+  RefreshCw,
   ArrowUp,
   ArrowDown,
   UserMinus,
@@ -52,6 +54,8 @@ export default function GroupMembersPage() {
 
   // Búsqueda y filtros
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchField, setSearchField] = useState('all');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [filterHasEmail, setFilterHasEmail] = useState<'' | 'yes' | 'no'>('');
   const [filterHasCurp, setFilterHasCurp] = useState<'' | 'yes' | 'no'>('');
   const [filterEligibility, setFilterEligibility] = useState<string>('');
@@ -90,23 +94,36 @@ export default function GroupMembersPage() {
   // Filtrar y ordenar
   const filteredMembers = useMemo(() => {
     let filtered = members.filter(member => {
-      // Búsqueda de texto
+      // Búsqueda de texto por campo
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const name = member.user?.full_name?.toLowerCase() || '';
         const email = member.user?.email?.toLowerCase() || '';
         const curp = member.user?.curp?.toLowerCase() || '';
-        if (!name.includes(q) && !email.includes(q) && !curp.includes(q)) return false;
+        if (searchField === 'name') {
+          if (!name.includes(q)) return false;
+        } else if (searchField === 'email') {
+          if (!email.includes(q)) return false;
+        } else if (searchField === 'curp') {
+          if (!curp.includes(q)) return false;
+        } else {
+          // 'all'
+          if (!name.includes(q) && !email.includes(q) && !curp.includes(q)) return false;
+        }
       }
+      // Elegibilidad mapea a has_email / has_curp
+      let effectiveHasEmail: string = filterHasEmail;
+      let effectiveHasCurp: string = filterHasCurp;
+      if (filterEligibility === 'CC') effectiveHasCurp = 'yes';
+      if (filterEligibility === 'ID') effectiveHasEmail = 'yes';
+      if (filterEligibility === 'no_CC') effectiveHasCurp = 'no';
+      if (filterEligibility === 'no_ID') effectiveHasEmail = 'no';
       // Email
-      if (filterHasEmail === 'yes' && !member.user?.email) return false;
-      if (filterHasEmail === 'no' && member.user?.email) return false;
+      if (effectiveHasEmail === 'yes' && !member.user?.email) return false;
+      if (effectiveHasEmail === 'no' && member.user?.email) return false;
       // CURP
-      if (filterHasCurp === 'yes' && !member.user?.curp) return false;
-      if (filterHasCurp === 'no' && member.user?.curp) return false;
-      // Elegibilidad
-      if (filterEligibility === 'CC' && !member.user?.curp) return false;
-      if (filterEligibility === 'ID' && !member.user?.email) return false;
+      if (effectiveHasCurp === 'yes' && !member.user?.curp) return false;
+      if (effectiveHasCurp === 'no' && member.user?.curp) return false;
       return true;
     });
 
@@ -127,7 +144,7 @@ export default function GroupMembersPage() {
     });
 
     return filtered;
-  }, [members, searchQuery, filterHasEmail, filterHasCurp, filterEligibility, sortCol, sortDir]);
+  }, [members, searchQuery, searchField, filterHasEmail, filterHasCurp, filterEligibility, sortCol, sortDir]);
 
   const handleSort = (col: string) => {
     if (sortCol === col) {
@@ -355,57 +372,105 @@ export default function GroupMembersPage() {
             />
           </div>
 
-          {/* Filtro Email */}
+          {/* Selector de campo */}
           <select
-            value={filterHasEmail}
-            onChange={(e) => setFilterHasEmail(e.target.value as '' | 'yes' | 'no')}
-            className="fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500 bg-white"
+            value={searchField}
+            onChange={(e) => setSearchField(e.target.value)}
+            className="fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500"
           >
-            <option value="">Email</option>
-            <option value="yes">Con email</option>
-            <option value="no">Sin email</option>
+            <option value="all">Todos los campos</option>
+            <option value="name">Nombre</option>
+            <option value="email">Email</option>
+            <option value="curp">CURP</option>
           </select>
 
-          {/* Filtro CURP */}
-          <select
-            value={filterHasCurp}
-            onChange={(e) => setFilterHasCurp(e.target.value as '' | 'yes' | 'no')}
-            className="fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500 bg-white"
+          {/* Botón filtros avanzados */}
+          <button
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            className={`inline-flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 border rounded-fluid-lg fluid-text-sm transition-colors ${
+              showAdvancedFilters
+                ? 'bg-purple-100 border-purple-300 text-purple-700'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
           >
-            <option value="">CURP</option>
-            <option value="yes">Con CURP</option>
-            <option value="no">Sin CURP</option>
-          </select>
+            <Filter className="fluid-icon-sm" />
+            Filtros
+          </button>
 
-          {/* Filtro Elegibilidad */}
-          <select
-            value={filterEligibility}
-            onChange={(e) => setFilterEligibility(e.target.value)}
-            className="fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500 bg-white"
+          {/* Botón refrescar */}
+          <button
+            onClick={loadData}
+            disabled={loading}
+            className="fluid-p-2 border border-gray-300 rounded-fluid-lg hover:bg-gray-50 transition-colors"
+            title="Refrescar"
           >
-            <option value="">Elegibilidad</option>
-            <option value="CC">CONOCER (con CURP)</option>
-            <option value="ID">Insignia Digital (con email)</option>
-          </select>
+            <RefreshCw className={`fluid-icon-sm text-gray-600 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+
+          {/* Info de resultados */}
+          {(searchQuery || filterHasEmail || filterHasCurp || filterEligibility) && (
+            <div className="fluid-text-sm text-gray-500">
+              {filteredMembers.length} de {members.length}
+            </div>
+          )}
         </div>
 
-        {/* Indicador de filtros */}
-        {(searchQuery || filterHasEmail || filterHasCurp || filterEligibility) && (
-          <div className="flex items-center fluid-gap-2 fluid-mt-3 text-sm border-t border-gray-100 fluid-pt-3">
-            <span className="text-gray-500">
-              Mostrando {filteredMembers.length} de {members.length} candidatos
-            </span>
-            <button
-              onClick={() => {
-                setSearchQuery('');
-                setFilterHasEmail('');
-                setFilterHasCurp('');
-                setFilterEligibility('');
-              }}
-              className="text-purple-600 hover:text-purple-800 font-medium"
-            >
-              Limpiar filtros
-            </button>
+        {/* Filtros avanzados */}
+        {showAdvancedFilters && (
+          <div className="fluid-mt-3 fluid-pt-3 border-t border-gray-100 flex flex-wrap items-center fluid-gap-4">
+            <div className="flex items-center fluid-gap-2">
+              <label className="fluid-text-sm text-gray-600">Email:</label>
+              <select
+                value={filterHasEmail}
+                onChange={(e) => setFilterHasEmail(e.target.value as '' | 'yes' | 'no')}
+                className="fluid-px-3 py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm"
+              >
+                <option value="">Todos</option>
+                <option value="yes">Con email</option>
+                <option value="no">Sin email</option>
+              </select>
+            </div>
+
+            <div className="flex items-center fluid-gap-2">
+              <label className="fluid-text-sm text-gray-600">CURP:</label>
+              <select
+                value={filterHasCurp}
+                onChange={(e) => setFilterHasCurp(e.target.value as '' | 'yes' | 'no')}
+                className="fluid-px-3 py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm"
+              >
+                <option value="">Todos</option>
+                <option value="yes">Con CURP</option>
+                <option value="no">Sin CURP</option>
+              </select>
+            </div>
+
+            <div className="flex items-center fluid-gap-2">
+              <label className="fluid-text-sm text-gray-600">Elegibilidad:</label>
+              <select
+                value={filterEligibility}
+                onChange={(e) => setFilterEligibility(e.target.value)}
+                className="fluid-px-3 py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm"
+              >
+                <option value="">Todos</option>
+                <option value="CC">Elegible CC (con CURP)</option>
+                <option value="no_CC">No elegible CC (sin CURP)</option>
+                <option value="ID">Elegible ID (con email)</option>
+                <option value="no_ID">No elegible ID (sin email)</option>
+              </select>
+            </div>
+
+            {(filterHasEmail || filterHasCurp || filterEligibility) && (
+              <button
+                onClick={() => {
+                  setFilterHasEmail('');
+                  setFilterHasCurp('');
+                  setFilterEligibility('');
+                }}
+                className="fluid-text-sm text-purple-600 hover:text-purple-700"
+              >
+                Limpiar filtros
+              </button>
+            )}
           </div>
         )}
       </div>
