@@ -22,6 +22,8 @@ import {
   RefreshCw,
   ArrowUp,
   ArrowDown,
+  ChevronLeft,
+  ChevronRight,
   UserMinus,
   AlertTriangle,
   FileSpreadsheet,
@@ -59,6 +61,12 @@ export default function GroupMembersPage() {
   const [filterHasEmail, setFilterHasEmail] = useState<'' | 'yes' | 'no'>('');
   const [filterHasCurp, setFilterHasCurp] = useState<'' | 'yes' | 'no'>('');
   const [filterEligibility, setFilterEligibility] = useState<string>('');
+
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(150);
+  const [pageSizeInput, setPageSizeInput] = useState('150');
+  const [pageInputValue, setPageInputValue] = useState('1');
 
   // Ordenamiento
   const [sortCol, setSortCol] = useState<string>('name');
@@ -145,6 +153,50 @@ export default function GroupMembersPage() {
 
     return filtered;
   }, [members, searchQuery, searchField, filterHasEmail, filterHasCurp, filterEligibility, sortCol, sortDir]);
+
+  // Paginación client-side
+  const totalPages = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
+  const paginatedMembers = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredMembers.slice(start, start + pageSize);
+  }, [filteredMembers, currentPage, pageSize]);
+
+  // Reset a página 1 cuando cambian filtros
+  useEffect(() => {
+    setCurrentPage(1);
+    setPageInputValue('1');
+  }, [searchQuery, searchField, filterHasEmail, filterHasCurp, filterEligibility]);
+
+  // Sincronizar pageInputValue con currentPage
+  useEffect(() => {
+    setPageInputValue(String(currentPage));
+  }, [currentPage]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handlePageInputSubmit = () => {
+    const val = parseInt(pageInputValue, 10);
+    if (!isNaN(val) && val >= 1 && val <= totalPages) {
+      handlePageChange(val);
+    } else {
+      setPageInputValue(String(currentPage));
+    }
+  };
+
+  const handlePageSizeInputSubmit = () => {
+    const val = parseInt(pageSizeInput, 10);
+    if (!isNaN(val) && val >= 1 && val <= 1000) {
+      setPageSize(val);
+      setPageSizeInput(String(val));
+      setCurrentPage(1);
+    } else {
+      setPageSizeInput(String(pageSize));
+    }
+  };
 
   const handleSort = (col: string) => {
     if (sortCol === col) {
@@ -397,6 +449,21 @@ export default function GroupMembersPage() {
             Filtros
           </button>
 
+          {/* Registros por página */}
+          <div className="flex items-center fluid-gap-1.5">
+            <span className="fluid-text-xs text-gray-500">Mostrar</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={pageSizeInput}
+              onChange={(e) => setPageSizeInput(e.target.value.replace(/[^0-9]/g, ''))}
+              onKeyDown={(e) => { if (e.key === 'Enter') handlePageSizeInputSubmit(); }}
+              onBlur={handlePageSizeInputSubmit}
+              className="w-16 text-center py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              title="Registros por página (máx 1000)"
+            />
+          </div>
+
           {/* Botón refrescar */}
           <button
             onClick={loadData}
@@ -406,13 +473,6 @@ export default function GroupMembersPage() {
           >
             <RefreshCw className={`fluid-icon-sm text-gray-600 ${loading ? 'animate-spin' : ''}`} />
           </button>
-
-          {/* Info de resultados */}
-          {(searchQuery || filterHasEmail || filterHasCurp || filterEligibility) && (
-            <div className="fluid-text-sm text-gray-500">
-              {filteredMembers.length} de {members.length}
-            </div>
-          )}
         </div>
 
         {/* Filtros avanzados */}
@@ -502,10 +562,61 @@ export default function GroupMembersPage() {
         </div>
       ) : (
         <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
-          {/* Indicador de cantidad */}
+          {/* Paginación arriba de la tabla */}
           <div className="bg-white border-b border-gray-200 px-6 py-3">
-            <div className="fluid-text-sm text-gray-600">
-              Mostrando <span className="font-medium">{filteredMembers.length}</span> candidato{filteredMembers.length !== 1 ? 's' : ''}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="fluid-text-sm text-gray-600">
+                Mostrando <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span>
+                {' - '}
+                <span className="font-medium">{Math.min(currentPage * pageSize, filteredMembers.length)}</span>
+                {' de '}
+                <span className="font-medium">{filteredMembers.length.toLocaleString()}</span> candidatos
+              </div>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handlePageChange(1)}
+                    disabled={currentPage === 1}
+                    className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 fluid-text-xs font-medium text-gray-600"
+                    title="Primera página"
+                  >
+                    1
+                  </button>
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="p-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <ChevronLeft className="fluid-icon-sm" />
+                  </button>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={pageInputValue}
+                    onChange={(e) => setPageInputValue(e.target.value.replace(/[^0-9]/g, ''))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handlePageInputSubmit(); }}
+                    onBlur={handlePageInputSubmit}
+                    className="w-14 text-center py-1 border border-gray-300 rounded fluid-text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    title="Escribe el número de página y presiona Enter"
+                  />
+                  <span className="fluid-text-sm text-gray-400">/ {totalPages}</span>
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="p-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <ChevronRight className="fluid-icon-sm" />
+                  </button>
+                  <button
+                    onClick={() => handlePageChange(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 fluid-text-xs font-medium text-gray-600"
+                    title="Última página"
+                  >
+                    {totalPages}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -531,7 +642,7 @@ export default function GroupMembersPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredMembers.map((member) => (
+                {paginatedMembers.map((member) => (
                   <tr key={member.id} className="hover:bg-gray-50 transition-colors">
                     <td className="fluid-px-4 fluid-py-3">
                       <div className="flex items-center fluid-gap-3">
