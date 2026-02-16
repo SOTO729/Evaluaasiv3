@@ -301,7 +301,7 @@ export default function ExamSelectConfigPage() {
               <Loader2 className="fluid-icon-lg animate-spin text-blue-600" /><span className="ml-2 text-gray-500 fluid-text-sm">Cargando estándares...</span>
             </div>
           ) : availableEcms.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
               {availableEcms.map((ecm) => {
                 const logoUrl = ecm.logo_url || ecm.brand_logo_url;
                 return (
