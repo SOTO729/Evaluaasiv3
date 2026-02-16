@@ -853,11 +853,22 @@ export async function getGroupMembersCount(groupId: number): Promise<{
 
 export async function getGroupMembers(groupId: number, params?: {
   status?: string;
+  page?: number;
+  per_page?: number;
+  search?: string;
+  search_field?: string;
+  has_email?: string;
+  has_curp?: string;
+  sort_by?: string;
+  sort_dir?: string;
 }): Promise<{
   group_id: number;
   group_name: string;
   members: GroupMember[];
   total: number;
+  pages: number;
+  current_page: number;
+  per_page: number;
   eligibility_summary?: EligibilitySummary;
 }> {
   const response = await api.get(`/partners/groups/${groupId}/members`, { params });

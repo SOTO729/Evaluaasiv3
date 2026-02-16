@@ -2,8 +2,9 @@
  * Página de Candidatos del Grupo
  * Muestra miembros actuales con la misma tabla del assign-candidates
  * Incluye acción de retirar del grupo con advertencia sobre asignaciones
+ * Paginación y búsqueda server-side — optimizado para 100K+ registros
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -50,6 +51,7 @@ export default function GroupMembersPage() {
   const [group, setGroup] = useState<CandidateGroup | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [exportingExcel, setExportingExcel] = useState(false);
@@ -62,13 +64,15 @@ export default function GroupMembersPage() {
   const [filterHasCurp, setFilterHasCurp] = useState<'' | 'yes' | 'no'>('');
   const [filterEligibility, setFilterEligibility] = useState<string>('');
 
-  // Paginación
+  // Paginación server-side
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(150);
   const [pageSizeInput, setPageSizeInput] = useState('150');
   const [pageInputValue, setPageInputValue] = useState('1');
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalResults, setTotalResults] = useState(0);
 
-  // Ordenamiento
+  // Ordenamiento server-side
   const [sortCol, setSortCol] = useState<string>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
@@ -79,93 +83,71 @@ export default function GroupMembersPage() {
   const [memberToRemove, setMemberToRemove] = useState<GroupMember | null>(null);
   const [removing, setRemoving] = useState(false);
 
+  // Ref para cancelar respuestas stale
+  const searchRequestRef = useRef(0);
+
+  // Carga inicial del grupo
   useEffect(() => {
-    loadData();
+    (async () => {
+      try {
+        setLoading(true);
+        const groupData = await getGroup(Number(groupId));
+        setGroup(groupData);
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Error al cargar el grupo');
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [groupId, location.key]);
 
-  const loadData = async () => {
+  // Búsqueda server-side con paginación
+  const handleSearch = useCallback(async (page: number = 1, perPage: number = pageSize) => {
+    const requestId = ++searchRequestRef.current;
     try {
-      setLoading(true);
-      const [groupData, membersData] = await Promise.all([
-        getGroup(Number(groupId)),
-        getGroupMembers(Number(groupId)),
-      ]);
-      setGroup(groupData);
-      setMembers(membersData.members);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al cargar los candidatos');
-    } finally {
-      setLoading(false);
-    }
-  };
+      setSearching(true);
 
-  // Filtrar y ordenar
-  const filteredMembers = useMemo(() => {
-    let filtered = members.filter(member => {
-      // Búsqueda de texto por campo
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        const name = member.user?.full_name?.toLowerCase() || '';
-        const email = member.user?.email?.toLowerCase() || '';
-        const curp = member.user?.curp?.toLowerCase() || '';
-        if (searchField === 'name') {
-          if (!name.includes(q)) return false;
-        } else if (searchField === 'email') {
-          if (!email.includes(q)) return false;
-        } else if (searchField === 'curp') {
-          if (!curp.includes(q)) return false;
-        } else {
-          // 'all'
-          if (!name.includes(q) && !email.includes(q) && !curp.includes(q)) return false;
-        }
-      }
-      // Elegibilidad mapea a has_email / has_curp
-      let effectiveHasEmail: string = filterHasEmail;
-      let effectiveHasCurp: string = filterHasCurp;
+      // Mapear elegibilidad a has_email / has_curp
+      let effectiveHasEmail: string | undefined = filterHasEmail || undefined;
+      let effectiveHasCurp: string | undefined = filterHasCurp || undefined;
       if (filterEligibility === 'CC') effectiveHasCurp = 'yes';
       if (filterEligibility === 'ID') effectiveHasEmail = 'yes';
       if (filterEligibility === 'no_CC') effectiveHasCurp = 'no';
       if (filterEligibility === 'no_ID') effectiveHasEmail = 'no';
-      // Email
-      if (effectiveHasEmail === 'yes' && !member.user?.email) return false;
-      if (effectiveHasEmail === 'no' && member.user?.email) return false;
-      // CURP
-      if (effectiveHasCurp === 'yes' && !member.user?.curp) return false;
-      if (effectiveHasCurp === 'no' && member.user?.curp) return false;
-      return true;
-    });
 
-    // Ordenar
-    filtered.sort((a, b) => {
-      let va = '', vb = '';
-      switch (sortCol) {
-        case 'name': va = a.user?.full_name || ''; vb = b.user?.full_name || ''; break;
-        case 'email': va = a.user?.email || ''; vb = b.user?.email || ''; break;
-        case 'curp': va = a.user?.curp || ''; vb = b.user?.curp || ''; break;
-        case 'eligibility': {
-          const score = (m: GroupMember) => (m.user?.curp ? 1 : 0) + (m.user?.email ? 1 : 0);
-          return sortDir === 'asc' ? score(a) - score(b) : score(b) - score(a);
-        }
-        default: return 0;
+      const results = await getGroupMembers(Number(groupId), {
+        page,
+        per_page: perPage,
+        search: searchQuery || undefined,
+        search_field: searchField !== 'all' ? searchField : undefined,
+        has_email: effectiveHasEmail,
+        has_curp: effectiveHasCurp,
+        sort_by: sortCol,
+        sort_dir: sortDir,
+      });
+
+      // Ignorar respuestas de búsquedas anteriores (race condition)
+      if (requestId !== searchRequestRef.current) return;
+
+      setMembers(results.members);
+      setTotalPages(results.pages);
+      setTotalResults(results.total);
+      setCurrentPage(page);
+    } catch (err: any) {
+      if (requestId !== searchRequestRef.current) return;
+      setError(err.response?.data?.error || 'Error al cargar los candidatos');
+    } finally {
+      if (requestId === searchRequestRef.current) {
+        setSearching(false);
       }
-      return sortDir === 'asc' ? va.localeCompare(vb, 'es') : vb.localeCompare(va, 'es');
-    });
+    }
+  }, [groupId, searchQuery, searchField, pageSize, filterHasEmail, filterHasCurp, filterEligibility, sortCol, sortDir]);
 
-    return filtered;
-  }, [members, searchQuery, searchField, filterHasEmail, filterHasCurp, filterEligibility, sortCol, sortDir]);
-
-  // Paginación client-side
-  const totalPages = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
-  const paginatedMembers = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredMembers.slice(start, start + pageSize);
-  }, [filteredMembers, currentPage, pageSize]);
-
-  // Reset a página 1 cuando cambian filtros
+  // Debounce de búsqueda (400ms)
   useEffect(() => {
-    setCurrentPage(1);
-    setPageInputValue('1');
-  }, [searchQuery, searchField, filterHasEmail, filterHasCurp, filterEligibility]);
+    const timer = setTimeout(() => handleSearch(1, pageSize), 400);
+    return () => clearTimeout(timer);
+  }, [handleSearch, pageSize]);
 
   // Sincronizar pageInputValue con currentPage
   useEffect(() => {
@@ -174,7 +156,7 @@ export default function GroupMembersPage() {
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
+      handleSearch(newPage, pageSize);
     }
   };
 
@@ -192,7 +174,7 @@ export default function GroupMembersPage() {
     if (!isNaN(val) && val >= 1 && val <= 1000) {
       setPageSize(val);
       setPageSizeInput(String(val));
-      setCurrentPage(1);
+      // handleSearch will fire via useEffect dependency change
     } else {
       setPageSizeInput(String(pageSize));
     }
@@ -263,11 +245,12 @@ export default function GroupMembersPage() {
     try {
       setRemoving(true);
       await removeGroupMember(Number(groupId), memberToRemove.id);
-      setMembers(prev => prev.filter(m => m.id !== memberToRemove.id));
       setSuccessMessage(`${memberToRemove.user?.full_name || 'Candidato'} ha sido retirado del grupo`);
       setShowRemoveModal(false);
       setMemberToRemove(null);
       setAssignmentCheck(null);
+      // Recargar datos server-side
+      handleSearch(currentPage, pageSize);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al retirar el miembro');
     } finally {
@@ -374,12 +357,12 @@ export default function GroupMembersPage() {
           {/* Stats en header */}
           <div className="grid grid-cols-2 fluid-gap-4 fluid-mt-5">
             <div className="bg-white/10 rounded-fluid-xl fluid-p-3 text-center backdrop-blur-sm">
-              <p className="fluid-text-xl font-bold">{members.length}</p>
+              <p className="fluid-text-xl font-bold">{totalResults.toLocaleString()}</p>
               <p className="fluid-text-xs text-white/70">Miembros Totales</p>
             </div>
             <div className="bg-white/10 rounded-fluid-xl fluid-p-3 text-center backdrop-blur-sm">
-              <p className="fluid-text-xl font-bold">{filteredMembers.length}</p>
-              <p className="fluid-text-xs text-white/70">Mostrando</p>
+              <p className="fluid-text-xl font-bold">{members.length}</p>
+              <p className="fluid-text-xs text-white/70">En esta página</p>
             </div>
           </div>
         </div>
@@ -466,12 +449,12 @@ export default function GroupMembersPage() {
 
           {/* Botón refrescar */}
           <button
-            onClick={loadData}
-            disabled={loading}
+            onClick={() => handleSearch(currentPage, pageSize)}
+            disabled={searching}
             className="fluid-p-2 border border-gray-300 rounded-fluid-lg hover:bg-gray-50 transition-colors"
             title="Refrescar"
           >
-            <RefreshCw className={`fluid-icon-sm text-gray-600 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`fluid-icon-sm text-gray-600 ${searching ? 'animate-spin' : ''}`} />
           </button>
         </div>
 
@@ -536,7 +519,7 @@ export default function GroupMembersPage() {
       </div>
 
       {/* ===== TABLA DE MIEMBROS ===== */}
-      {members.length === 0 ? (
+      {totalResults === 0 && !searching ? (
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 text-center fluid-py-12">
           <div className="w-20 h-20 mx-auto mb-4 bg-purple-100 rounded-full flex items-center justify-center">
             <Users className="w-10 h-10 text-purple-400" />
@@ -555,7 +538,7 @@ export default function GroupMembersPage() {
             </Link>
           )}
         </div>
-      ) : filteredMembers.length === 0 ? (
+      ) : members.length === 0 && !searching ? (
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 text-center fluid-py-8">
           <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500">No se encontraron candidatos con los filtros aplicados</p>
@@ -566,11 +549,20 @@ export default function GroupMembersPage() {
           <div className="bg-white border-b border-gray-200 px-6 py-3">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="fluid-text-sm text-gray-600">
-                Mostrando <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span>
-                {' - '}
-                <span className="font-medium">{Math.min(currentPage * pageSize, filteredMembers.length)}</span>
-                {' de '}
-                <span className="font-medium">{filteredMembers.length.toLocaleString()}</span> candidatos
+                {searching ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Buscando...
+                  </span>
+                ) : (
+                  <>
+                    Mostrando <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span>
+                    {' - '}
+                    <span className="font-medium">{Math.min(currentPage * pageSize, totalResults)}</span>
+                    {' de '}
+                    <span className="font-medium">{totalResults.toLocaleString()}</span> candidatos
+                  </>
+                )}
               </div>
               <div className="flex items-center gap-1">
                 <button
@@ -640,7 +632,7 @@ export default function GroupMembersPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedMembers.map((member) => (
+                {members.map((member) => (
                   <tr key={member.id} className="hover:bg-gray-50 transition-colors">
                     <td className="fluid-px-4 fluid-py-3">
                       <div className="flex items-center fluid-gap-3">

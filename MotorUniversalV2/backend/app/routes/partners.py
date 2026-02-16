@@ -2674,137 +2674,182 @@ def reset_group_config(group_id):
 @jwt_required()
 @coordinator_required
 def get_group_members(group_id):
-    """Listar miembros de un grupo con info de asignaciones"""
+    """Listar miembros de un grupo con paginación server-side, búsqueda y filtros — optimizado para 100K+ registros"""
     try:
-        from sqlalchemy import text
-        
+        from sqlalchemy import text, func
+
         group = CandidateGroup.query.get_or_404(group_id)
-        
+
+        # ── Parámetros de paginación ──
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 150, type=int), 1000)
         status_filter = request.args.get('status')
-        
-        query = GroupMember.query.filter_by(group_id=group_id)
-        
+        search = request.args.get('search', '').strip()
+        search_field = request.args.get('search_field', '')
+        sort_by = request.args.get('sort_by', 'name')
+        sort_dir = request.args.get('sort_dir', 'asc')
+
+        # Filtros de elegibilidad
+        has_email = request.args.get('has_email')
+        has_curp = request.args.get('has_curp')
+
+        # ── Construir query base (JOIN con User para filtrar/ordenar en SQL) ──
+        query = GroupMember.query.join(User, GroupMember.user_id == User.id).filter(
+            GroupMember.group_id == group_id
+        )
+
         if status_filter:
             query = query.filter(GroupMember.status == status_filter)
-        
-        members = query.all()
-        
-        # Obtener exámenes asignados al grupo
+
+        # ── Búsqueda textual ──
+        if search:
+            search_term = f'%{search}%'
+            valid_fields = {'name', 'first_surname', 'second_surname', 'email', 'curp'}
+            if search_field and search_field in valid_fields:
+                field_map = {
+                    'name': User.name,
+                    'first_surname': User.first_surname,
+                    'second_surname': User.second_surname,
+                    'email': User.email,
+                    'curp': User.curp,
+                }
+                query = query.filter(field_map[search_field].ilike(search_term))
+            else:
+                query = query.filter(
+                    db.or_(
+                        User.name.ilike(search_term),
+                        User.first_surname.ilike(search_term),
+                        User.second_surname.ilike(search_term),
+                        User.email.ilike(search_term),
+                        User.curp.ilike(search_term),
+                    )
+                )
+
+        # ── Filtros has_email / has_curp ──
+        if has_email == 'yes':
+            query = query.filter(User.email.isnot(None), User.email != '')
+        elif has_email == 'no':
+            query = query.filter(db.or_(User.email.is_(None), User.email == ''))
+
+        if has_curp == 'yes':
+            query = query.filter(User.curp.isnot(None), User.curp != '')
+        elif has_curp == 'no':
+            query = query.filter(db.or_(User.curp.is_(None), User.curp == ''))
+
+        # ── Ordenamiento ──
+        sort_options = {
+            'name': [User.first_surname, User.name],
+            'email': [User.email],
+            'curp': [User.curp],
+            'joined': [GroupMember.joined_at],
+        }
+        sort_cols = sort_options.get(sort_by, sort_options['name'])
+        if sort_dir == 'desc':
+            query = query.order_by(*[c.desc() for c in sort_cols])
+        else:
+            query = query.order_by(*sort_cols)
+
+        # ── Paginación SQL ──
+        pagination = query.paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
+        page_members = pagination.items
+        total_all = pagination.total
+
+        # ── IDs de usuarios de la página actual ──
+        page_user_ids = [m.user_id for m in page_members]
+
+        # ── Datos de asignaciones (solo para la página) ──
         group_exams = GroupExam.query.filter_by(group_id=group_id, is_active=True).all()
         group_exam_ids = [ge.id for ge in group_exams]
-        
-        # Obtener asignaciones de exámenes a usuarios específicos (user_id)
+
         exam_user_assignments = {}
-        if group_exam_ids:
+        if group_exam_ids and page_user_ids:
             result = db.session.execute(text("""
                 SELECT gem.user_id, gem.group_exam_id
                 FROM group_exam_members gem
-                WHERE gem.group_exam_id IN :exam_ids
-            """), {'exam_ids': tuple(group_exam_ids) if group_exam_ids else (0,)})
+                WHERE gem.group_exam_id IN :exam_ids AND gem.user_id IN :user_ids
+            """), {
+                'exam_ids': tuple(group_exam_ids),
+                'user_ids': tuple(page_user_ids),
+            })
             for row in result:
-                if row[0] not in exam_user_assignments:
-                    exam_user_assignments[row[0]] = set()
-                exam_user_assignments[row[0]].add(row[1])
-        
-        # Para saber si examen está asignado a todos o a miembros específicos
+                exam_user_assignments.setdefault(row[0], set()).add(row[1])
+
         exams_for_all = [ge.id for ge in group_exams if ge.assignment_type == 'all']
-        
-        # Obtener materiales asignados directamente al grupo
+
         materials_result = db.session.execute(text("""
             SELECT gsm.id, gsm.assignment_type
             FROM group_study_materials gsm
             WHERE gsm.group_id = :group_id AND gsm.is_active = 1
         """), {'group_id': group_id})
-        
-        group_materials = []
+
         materials_for_all_ids = []
+        group_material_ids = []
         for row in materials_result:
-            group_materials.append({'id': row[0], 'assignment_type': row[1]})
+            group_material_ids.append(row[0])
             if row[1] == 'all':
                 materials_for_all_ids.append(row[0])
-        
-        group_material_ids = [m['id'] for m in group_materials]
-        
-        # Obtener asignaciones de materiales a usuarios específicos
+
         material_user_assignments = {}
-        if group_material_ids:
+        if group_material_ids and page_user_ids:
             mat_result = db.session.execute(text("""
                 SELECT gsmm.user_id, gsmm.group_study_material_id
                 FROM group_study_material_members gsmm
-                WHERE gsmm.group_study_material_id IN :mat_ids
-            """), {'mat_ids': tuple(group_material_ids) if group_material_ids else (0,)})
+                WHERE gsmm.group_study_material_id IN :mat_ids AND gsmm.user_id IN :user_ids
+            """), {
+                'mat_ids': tuple(group_material_ids),
+                'user_ids': tuple(page_user_ids),
+            })
             for row in mat_result:
-                if row[0] not in material_user_assignments:
-                    material_user_assignments[row[0]] = set()
-                material_user_assignments[row[0]].add(row[1])
-        
-        # Obtener exámenes que tienen materiales incluidos (GroupExamMaterial)
+                material_user_assignments.setdefault(row[0], set()).add(row[1])
+
         exams_with_materials = set()
         if group_exam_ids:
             exam_mat_result = db.session.execute(text("""
                 SELECT DISTINCT gem.group_exam_id
                 FROM group_exam_materials gem
                 WHERE gem.group_exam_id IN :exam_ids
-            """), {'exam_ids': tuple(group_exam_ids) if group_exam_ids else (0,)})
+            """), {'exam_ids': tuple(group_exam_ids)})
             exams_with_materials = {row[0] for row in exam_mat_result}
-        
-        # Obtener los exam_id reales de los group_exams para buscar resultados
-        group_exam_to_exam_id = {ge.id: ge.exam_id for ge in group_exams}
+
+        # ── Resultados de certificación (solo página) ──
         real_exam_ids = [ge.exam_id for ge in group_exams]
-        
-        # Obtener resultados de exámenes para todos los miembros
-        user_ids = [m.user_id for m in members]
         certification_status_map = {}
-        if user_ids and real_exam_ids:
+        if page_user_ids and real_exam_ids:
             from app.models.result import Result
             results = Result.query.filter(
-                Result.user_id.in_(user_ids),
-                Result.exam_id.in_(real_exam_ids)
+                Result.user_id.in_(page_user_ids),
+                Result.exam_id.in_(real_exam_ids),
             ).all()
-            
             for r in results:
                 if r.user_id not in certification_status_map:
                     certification_status_map[r.user_id] = {'status': 0, 'result': 0}
-                
-                # Priorizar: aprobado > en proceso > reprobado
                 current = certification_status_map[r.user_id]
-                if r.result == 1 and r.status == 1:  # Aprobado y completado
+                if r.result == 1 and r.status == 1:
                     current['status'] = 1
                     current['result'] = 1
-                elif r.status == 0 and current['result'] != 1:  # En proceso (solo si no ha aprobado)
+                elif r.status == 0 and current['result'] != 1:
                     current['status'] = 0
                     current['result'] = 0
-                elif r.status == 1 and r.result == 0 and current['status'] != 0 and current['result'] != 1:  # Reprobado
+                elif r.status == 1 and r.result == 0 and current['status'] != 0 and current['result'] != 1:
                     current['status'] = 1
                     current['result'] = 0
-        
-        # Construir respuesta con asignaciones
+
+        # ── Construir respuesta para la página ──
         members_data = []
-        for m in members:
+        for m in page_members:
             member_dict = m.to_dict(include_user=True)
-            
-            # Determinar si tiene examen asignado (por user_id)
+
             user_exam_ids = set()
-            if len(exams_for_all) > 0:
+            if exams_for_all:
                 user_exam_ids.update(exams_for_all)
             if m.user_id in exam_user_assignments:
                 user_exam_ids.update(exam_user_assignments[m.user_id])
-            
+
             has_exam = len(user_exam_ids) > 0
-            
-            # Verificar si algún examen del usuario tiene materiales incluidos
             has_material_from_exam = bool(user_exam_ids & exams_with_materials)
-            
-            # Determinar si tiene material asignado directamente (por user_id)
-            has_direct_material = (
-                len(materials_for_all_ids) > 0 or  # Hay materiales para todos
-                m.user_id in material_user_assignments  # Tiene asignación específica por user_id
-            )
-            
-            # El usuario tiene material si tiene material directo O material incluido en examen
+            has_direct_material = len(materials_for_all_ids) > 0 or m.user_id in material_user_assignments
             has_material = has_direct_material or has_material_from_exam
-            
-            # Calcular estado de asignación
+
             if has_exam and has_material:
                 assignment_status = 'exam_and_material'
             elif has_exam:
@@ -2813,100 +2858,103 @@ def get_group_members(group_id):
                 assignment_status = 'material_only'
             else:
                 assignment_status = 'none'
-            
+
             member_dict['assignment_status'] = assignment_status
             member_dict['has_exam'] = has_exam
             member_dict['has_material'] = has_material
-            
-            # Agregar estatus de certificación
-            cert_info = certification_status_map.get(m.user_id, None)
+
+            cert_info = certification_status_map.get(m.user_id)
             if cert_info:
                 if cert_info['result'] == 1 and cert_info['status'] == 1:
-                    member_dict['certification_status'] = 'certified'  # Aprobado/Certificado
+                    member_dict['certification_status'] = 'certified'
                 elif cert_info['status'] == 0:
-                    member_dict['certification_status'] = 'in_progress'  # En proceso
+                    member_dict['certification_status'] = 'in_progress'
                 else:
-                    member_dict['certification_status'] = 'failed'  # Reprobado
+                    member_dict['certification_status'] = 'failed'
             else:
-                member_dict['certification_status'] = 'pending'  # Sin intentos
-            
-            # ========== ELEGIBILIDAD POR MIEMBRO ==========
+                member_dict['certification_status'] = 'pending'
+
             user = m.user
-            has_curp = bool(user.curp) if user else False
-            has_email = bool(user.email) if user else False
-            
+            has_curp_flag = bool(user.curp) if user else False
+            has_email_flag = bool(user.email) if user else False
             member_dict['eligibility'] = {
-                'has_curp': has_curp,
-                'has_email': has_email,
-                'can_receive_eduit': True,  # Siempre disponible
-                'can_receive_certificate': True,  # Siempre disponible
-                'can_receive_conocer': has_curp,  # Requiere CURP
-                'can_receive_badge': has_email,  # Requiere email
+                'has_curp': has_curp_flag,
+                'has_email': has_email_flag,
+                'can_receive_eduit': True,
+                'can_receive_certificate': True,
+                'can_receive_conocer': has_curp_flag,
+                'can_receive_badge': has_email_flag,
             }
-            
+
             members_data.append(member_dict)
-        
-        # ========== OBTENER CONFIGURACIÓN DEL GRUPO/CAMPUS ==========
+
+        # ── Resumen de elegibilidad (COUNT queries ligeras sobre TODOS los miembros) ──
+        base_count_q = (
+            db.session.query(func.count(GroupMember.id))
+            .join(User, GroupMember.user_id == User.id)
+            .filter(GroupMember.group_id == group_id)
+        )
+        if status_filter:
+            base_count_q = base_count_q.filter(GroupMember.status == status_filter)
+
+        total_members = base_count_q.scalar()
+        members_with_curp = base_count_q.filter(User.curp.isnot(None), User.curp != '').scalar()
+        members_with_email_count = base_count_q.filter(User.email.isnot(None), User.email != '').scalar()
+        members_fully_eligible = base_count_q.filter(
+            User.curp.isnot(None), User.curp != '',
+            User.email.isnot(None), User.email != '',
+        ).scalar()
+        members_without_curp = total_members - members_with_curp
+        members_without_email = total_members - members_with_email_count
+
         campus = group.campus
-        
-        # Determinar si CONOCER e insignia digital están habilitados
         conocer_enabled = False
         badge_enabled = False
-        
         if campus:
             if group.use_custom_config and group.enable_tier_advanced_override is not None:
                 conocer_enabled = group.enable_tier_advanced_override
             else:
                 conocer_enabled = campus.enable_tier_advanced or False
-            
             if group.use_custom_config and group.enable_digital_badge_override is not None:
                 badge_enabled = group.enable_digital_badge_override
             else:
                 badge_enabled = campus.enable_digital_badge or False
-        
-        # ========== RESUMEN DE ELEGIBILIDAD ==========
-        total_members = len(members)
-        members_with_curp = sum(1 for m in members if m.user and m.user.curp)
-        members_with_email = sum(1 for m in members if m.user and m.user.email)
-        members_without_curp = total_members - members_with_curp
-        members_without_email = total_members - members_with_email
-        members_fully_eligible = sum(1 for m in members if m.user and m.user.curp and m.user.email)
-        
+
         eligibility_summary = {
             'total_members': total_members,
             'fully_eligible': members_fully_eligible,
             'members_with_curp': members_with_curp,
-            'members_with_email': members_with_email,
+            'members_with_email': members_with_email_count,
             'members_without_curp': members_without_curp,
             'members_without_email': members_without_email,
             'conocer_enabled': conocer_enabled,
             'badge_enabled': badge_enabled,
-            # Advertencias activas
-            'warnings': []
+            'warnings': [],
         }
-        
         if conocer_enabled and members_without_curp > 0:
             eligibility_summary['warnings'].append({
                 'type': 'missing_curp',
                 'message': f'{members_without_curp} candidato(s) sin CURP no podrán recibir certificado CONOCER',
-                'count': members_without_curp
+                'count': members_without_curp,
             })
-        
         if badge_enabled and members_without_email > 0:
             eligibility_summary['warnings'].append({
                 'type': 'missing_email',
                 'message': f'{members_without_email} candidato(s) sin email no podrán recibir insignia digital',
-                'count': members_without_email
+                'count': members_without_email,
             })
-        
+
         return jsonify({
             'group_id': group_id,
             'group_name': group.name,
             'members': members_data,
-            'total': len(members),
-            'eligibility_summary': eligibility_summary
+            'total': total_all,
+            'pages': pagination.pages,
+            'current_page': page,
+            'per_page': per_page,
+            'eligibility_summary': eligibility_summary,
         })
-        
+
     except Exception as e:
         import traceback
         return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
