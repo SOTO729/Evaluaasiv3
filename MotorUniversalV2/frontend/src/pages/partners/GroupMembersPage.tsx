@@ -519,7 +519,7 @@ export default function GroupMembersPage() {
       </div>
 
       {/* ===== TABLA DE MIEMBROS ===== */}
-      {totalResults === 0 && !searching ? (
+      {totalResults === 0 && !searching && !(searchQuery || filterHasEmail || filterHasCurp || filterEligibility) ? (
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 text-center fluid-py-12">
           <div className="w-20 h-20 mx-auto mb-4 bg-purple-100 rounded-full flex items-center justify-center">
             <Users className="w-10 h-10 text-purple-400" />
@@ -540,8 +540,9 @@ export default function GroupMembersPage() {
         </div>
       ) : members.length === 0 && !searching ? (
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 text-center fluid-py-8">
-          <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">No se encontraron candidatos con los filtros aplicados</p>
+          <Filter className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-600 font-medium">No se encontraron candidatos con estas características</p>
+          <p className="text-gray-400 text-sm mt-1">Intenta ajustar los filtros o el término de búsqueda</p>
         </div>
       ) : (
         <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
