@@ -481,7 +481,7 @@ export default function ExamAssignMembersPage() {
             )}
 
             {/* Toolbar */}
-            <div className="bg-gray-50 rounded-fluid-xl fluid-p-4 fluid-mb-4 border border-gray-200">
+            <div className="bg-blue-50/50 rounded-fluid-xl fluid-p-4 fluid-mb-4 border border-blue-200">
               <div className="flex flex-wrap items-center fluid-gap-3">
                 <div className="flex-1 min-w-[280px] relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400" />
@@ -554,9 +554,9 @@ export default function ExamAssignMembersPage() {
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-fluid-xl shadow-sm border border-blue-200 overflow-hidden">
               {/* Pagination top */}
-              <div className="bg-white border-b border-gray-200 px-6 py-3">
+              <div className="bg-blue-50/40 border-b border-blue-200 px-6 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center fluid-gap-3">
                     <button onClick={handleTogglePageSelection}
@@ -594,42 +594,42 @@ export default function ExamAssignMembersPage() {
 
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
+                  <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200">
                     <tr>
                       <th className="fluid-px-4 fluid-py-3 text-center w-12">
                         <input type="checkbox" checked={allPageSelected} onChange={handleTogglePageSelection}
                           className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
                       </th>
-                      <th onClick={() => handleSort('name')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100 select-none">
+                      <th onClick={() => handleSort('name')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-blue-700 uppercase cursor-pointer hover:bg-blue-100 select-none">
                         Miembro{renderSortIcon('name')}
                       </th>
-                      <th onClick={() => handleSort('username')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden md:table-cell cursor-pointer hover:bg-gray-100 select-none">
+                      <th onClick={() => handleSort('username')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-blue-700 uppercase hidden md:table-cell cursor-pointer hover:bg-blue-100 select-none">
                         Usuario{renderSortIcon('username')}
                       </th>
-                      <th onClick={() => handleSort('email')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden md:table-cell cursor-pointer hover:bg-gray-100 select-none">
+                      <th onClick={() => handleSort('email')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-blue-700 uppercase hidden md:table-cell cursor-pointer hover:bg-blue-100 select-none">
                         Email{renderSortIcon('email')}
                       </th>
-                      <th onClick={() => handleSort('curp')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell cursor-pointer hover:bg-gray-100 select-none">
+                      <th onClick={() => handleSort('curp')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-blue-700 uppercase hidden lg:table-cell cursor-pointer hover:bg-blue-100 select-none">
                         CURP{renderSortIcon('curp')}
                       </th>
-                      <th onClick={() => handleSort('eligibility')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell cursor-pointer hover:bg-gray-100 select-none">
+                      <th onClick={() => handleSort('eligibility')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-blue-700 uppercase hidden lg:table-cell cursor-pointer hover:bg-blue-100 select-none">
                         Elegibilidad{renderSortIcon('eligibility')}
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white divide-y divide-blue-100">
                     {members.length > 0 ? members.map((member) => {
                       const isSelected = selectedMemberIds.includes(member.user_id);
                       return (
                         <tr key={member.id} onClick={() => handleToggleMember(member.user_id)}
-                          className={`cursor-pointer transition-colors ${isSelected ? 'bg-purple-50 hover:bg-purple-100' : 'hover:bg-gray-50'}`}>
+                          className={`cursor-pointer transition-colors ${isSelected ? 'bg-purple-50 hover:bg-purple-100' : 'hover:bg-blue-50/50'}`}>
                           <td className="fluid-px-4 fluid-py-3 text-center">
                             <input type="checkbox" checked={isSelected} readOnly
                               className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 pointer-events-none" />
                           </td>
                           <td className="fluid-px-4 fluid-py-3">
                             <div className="flex items-center fluid-gap-3">
-                              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold fluid-text-sm flex-shrink-0 ${isSelected ? 'bg-gradient-to-br from-purple-500 to-indigo-500' : 'bg-gradient-to-br from-gray-400 to-gray-500'}`}>
+                              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold fluid-text-sm flex-shrink-0 ${isSelected ? 'bg-gradient-to-br from-purple-500 to-indigo-500' : 'bg-gradient-to-br from-blue-400 to-blue-600'}`}>
                                 {member.user?.name?.charAt(0).toUpperCase() || '?'}
                               </div>
                               <div>
