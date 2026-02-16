@@ -572,51 +572,49 @@ export default function GroupMembersPage() {
                 {' de '}
                 <span className="font-medium">{filteredMembers.length.toLocaleString()}</span> candidatos
               </div>
-              {totalPages > 1 && (
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handlePageChange(1)}
-                    disabled={currentPage === 1}
-                    className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 fluid-text-xs font-medium text-gray-600"
-                    title="Primera página"
-                  >
-                    1
-                  </button>
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="p-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    <ChevronLeft className="fluid-icon-sm" />
-                  </button>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={pageInputValue}
-                    onChange={(e) => setPageInputValue(e.target.value.replace(/[^0-9]/g, ''))}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handlePageInputSubmit(); }}
-                    onBlur={handlePageInputSubmit}
-                    className="w-14 text-center py-1 border border-gray-300 rounded fluid-text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    title="Escribe el número de página y presiona Enter"
-                  />
-                  <span className="fluid-text-sm text-gray-400">/ {totalPages}</span>
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="p-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    <ChevronRight className="fluid-icon-sm" />
-                  </button>
-                  <button
-                    onClick={() => handlePageChange(totalPages)}
-                    disabled={currentPage === totalPages}
-                    className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 fluid-text-xs font-medium text-gray-600"
-                    title="Última página"
-                  >
-                    {totalPages}
-                  </button>
-                </div>
-              )}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handlePageChange(1)}
+                  disabled={currentPage === 1}
+                  className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 fluid-text-xs font-medium text-gray-600"
+                  title="Primera página"
+                >
+                  1
+                </button>
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="p-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <ChevronLeft className="fluid-icon-sm" />
+                </button>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={pageInputValue}
+                  onChange={(e) => setPageInputValue(e.target.value.replace(/[^0-9]/g, ''))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handlePageInputSubmit(); }}
+                  onBlur={handlePageInputSubmit}
+                  className="w-14 text-center py-1 border border-gray-300 rounded fluid-text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  title="Escribe el número de página y presiona Enter"
+                />
+                <span className="fluid-text-sm text-gray-400">/ {totalPages}</span>
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="p-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <ChevronRight className="fluid-icon-sm" />
+                </button>
+                <button
+                  onClick={() => handlePageChange(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 fluid-text-xs font-medium text-gray-600"
+                  title="Última página"
+                >
+                  {totalPages}
+                </button>
+              </div>
             </div>
           </div>
 
