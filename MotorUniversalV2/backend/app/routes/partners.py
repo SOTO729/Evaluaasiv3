@@ -8351,7 +8351,7 @@ def bulk_assign_exams_by_ecm(group_id):
     import io
     from openpyxl import load_workbook
     from app.models import GroupExam, Exam, User
-    from app.models.partner import GroupExamMember
+    from app.models.partner import GroupExamMember, EcmCandidateAssignment
     from app.models.competency_standard import CompetencyStandard
     
     try:
@@ -8520,6 +8520,28 @@ def bulk_assign_exams_by_ecm(group_id):
                     user_id=user_id
                 )
                 db.session.add(member)
+                
+                # Crear registro ECA con número de asignación
+                ecm_id = exam.competency_standard_id
+                if ecm_id:
+                    existing_ecm = EcmCandidateAssignment.query.filter_by(
+                        user_id=user_id,
+                        competency_standard_id=ecm_id
+                    ).first()
+                    if not existing_ecm:
+                        new_ecm = EcmCandidateAssignment(
+                            assignment_number=EcmCandidateAssignment.generate_assignment_number(),
+                            user_id=user_id,
+                            competency_standard_id=ecm_id,
+                            exam_id=exam.id,
+                            campus_id=group.campus_id,
+                            group_id=group_id,
+                            group_name=group.name,
+                            group_exam_id=group_exam.id,
+                            assigned_by_id=g.current_user.id,
+                            assignment_source='bulk_upload'
+                        )
+                        db.session.add(new_ecm)
             
             user = group_members[user_id]
             results['assigned'].append({

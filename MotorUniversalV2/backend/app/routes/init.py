@@ -510,9 +510,14 @@ def add_campus_website_column():
 @init_bp.route('/emergency-exam-results', methods=['POST'])
 def emergency_exam_results():
     """
-    Endpoint de EMERGENCIA para crear resultados de examen aprobados
-    para un grupo específico. USAR CON PRECAUCIÓN.
+    DESHABILITADO: Este endpoint fue usado una sola vez y creó resultados falsos.
+    Se deshabilita permanentemente para evitar que se vuelva a usar.
     """
+    return jsonify({
+        'error': 'Este endpoint ha sido deshabilitado permanentemente.',
+        'reason': 'Creó resultados falsos con score=100 que tuvieron que ser eliminados manualmente.'
+    }), 403
+    # ---- CÓDIGO ORIGINAL DESHABILITADO ----
     from datetime import timedelta
     import uuid
     from app.models.result import Result
