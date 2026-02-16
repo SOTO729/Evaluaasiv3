@@ -1,9 +1,10 @@
 /**
- * Página 1/4: Selección y Configuración de Examen
- * Seleccionar un examen publicado + configurar parámetros
+ * Página 1-2/5: Selección de ECM + Selección y Configuración de Examen
+ * Paso 1: Seleccionar ECM
+ * Paso 2: Seleccionar examen del ECM + configurar parámetros
  * Navega a → /assign-exam/materials con el state
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Clock, Target, RefreshCw, Users,
@@ -11,31 +12,17 @@ import {
   CheckCircle2, AlertCircle, X, Loader2,
   ChevronRight, EyeOff,
   Search, Hash, Lock,
-  ChevronDown, FolderOpen,
+  Award, Building2, Shield, Calendar,
 } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../../components/PartnersBreadcrumb';
 import {
-  getGroup, getAvailableExams,
-  CandidateGroup, AvailableExam, ExamContentType,
+  getGroup, getAvailableExams, getAvailableEcms,
+  CandidateGroup, AvailableExam, AvailableEcm, ExamContentType,
 } from '../../../services/partnersService';
 import { EXAM_CONTENT_TYPES, type ExamConfig, type SelectExamState, type SelectMaterialsState } from './types';
 
 const EXAMS_PER_PAGE = 500;
-
-/** Grupo de exámenes bajo un ECM */
-interface EcmGroup {
-  ecmCode: string;
-  ecmName: string;
-  ecmLogoUrl?: string;
-  ecmSector?: string;
-  ecmLevel?: number;
-  ecmBrandName?: string;
-  ecmBrandLogoUrl?: string;
-  ecmCertifyingBody?: string;
-  ecmValidityYears?: number;
-  exams: AvailableExam[];
-}
 
 export default function ExamSelectConfigPage() {
   const { groupId } = useParams();
@@ -45,17 +32,17 @@ export default function ExamSelectConfigPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Exam selection
+  // ECM selection (Step 1)
+  const [availableEcms, setAvailableEcms] = useState<AvailableEcm[]>([]);
+  const [loadingEcms, setLoadingEcms] = useState(false);
+  const [selectedEcm, setSelectedEcm] = useState<AvailableEcm | null>(null);
+  const [ecmSearchQuery, setEcmSearchQuery] = useState('');
+
+  // Exam selection (Step 2)
   const [availableExams, setAvailableExams] = useState<AvailableExam[]>([]);
   const [loadingExams, setLoadingExams] = useState(false);
   const [selectedExam, setSelectedExam] = useState<AvailableExam | null>(null);
-  const [examDropdownOpen, setExamDropdownOpen] = useState(false);
-  const [examPage, setExamPage] = useState(1);
-  const [examTotal, setExamTotal] = useState(0);
   const [examSearchQuery, setExamSearchQuery] = useState('');
-
-  // Expanded ECM groups in dropdown
-  const [expandedEcms, setExpandedEcms] = useState<Set<string>>(new Set());
 
   // Configuration
   const [timeLimitMinutes, setTimeLimitMinutes] = useState<number | null>(null);
@@ -78,13 +65,14 @@ export default function ExamSelectConfigPage() {
   const [useAllSimulatorQuestions, setUseAllSimulatorQuestions] = useState(true);
   const [useAllSimulatorExercises, setUseAllSimulatorExercises] = useState(true);
 
-  // Step within this page
-  const [step, setStep] = useState<'select' | 'accept-or-customize' | 'configure'>('select');
+  // Step within this page: select-ecm → select-exam → accept-or-customize → configure
+  const [step, setStep] = useState<'select-ecm' | 'select-exam' | 'accept-or-customize' | 'configure'>('select-ecm');
 
   // Already assigned modal
   const [showAlreadyAssignedModal, setShowAlreadyAssignedModal] = useState(false);
   const [attemptedExam, setAttemptedExam] = useState<AvailableExam | null>(null);
 
+  // Load group
   useEffect(() => {
     (async () => {
       try {
@@ -99,65 +87,57 @@ export default function ExamSelectConfigPage() {
     })();
   }, [groupId]);
 
+  // Load ECMs with debounce on search
   useEffect(() => {
+    const timer = setTimeout(() => loadEcms(), ecmSearchQuery ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [ecmSearchQuery, groupId]);
+
+  const loadEcms = async () => {
+    try {
+      setLoadingEcms(true);
+      const data = await getAvailableEcms({
+        group_id: Number(groupId),
+        search: ecmSearchQuery || undefined,
+      });
+      setAvailableEcms(data.ecms);
+    } catch { /* ignore */ } finally { setLoadingEcms(false); }
+  };
+
+  // Load exams for selected ECM with debounce on search
+  useEffect(() => {
+    if (!selectedEcm) return;
     const timer = setTimeout(() => loadExams(), examSearchQuery ? 300 : 0);
     return () => clearTimeout(timer);
-  }, [examPage, examSearchQuery]);
+  }, [examSearchQuery, selectedEcm]);
 
   const loadExams = async () => {
+    if (!selectedEcm) return;
     try {
       setLoadingExams(true);
       const data = await getAvailableExams({
-        page: examPage, per_page: EXAMS_PER_PAGE,
-        search: examSearchQuery || undefined, group_id: Number(groupId),
+        per_page: EXAMS_PER_PAGE,
+        search: examSearchQuery || undefined,
+        group_id: Number(groupId),
+        ecm_id: selectedEcm.id,
       });
       setAvailableExams(data.exams);
-      setExamTotal(data.total);
     } catch { /* ignore */ } finally { setLoadingExams(false); }
   };
 
-  const handleExamSearchChange = (q: string) => { setExamSearchQuery(q); setExamPage(1); };
+  const handleSelectEcm = (ecm: AvailableEcm) => {
+    setSelectedEcm(ecm);
+    setSelectedExam(null);
+    setExamSearchQuery('');
+    setAvailableExams([]);
+    setStep('select-exam');
+  };
 
-  /** Agrupar exámenes por ECM */
-  const groupedByEcm = useMemo<EcmGroup[]>(() => {
-    const ecmMap = new Map<string, EcmGroup>();
-    for (const exam of availableExams) {
-      const key = exam.ecm_code || exam.standard || '__sin_ecm__';
-      if (!ecmMap.has(key)) {
-        ecmMap.set(key, {
-          ecmCode: exam.ecm_code || exam.standard || '',
-          ecmName: exam.ecm_name || exam.standard || 'Sin ECM',
-          ecmLogoUrl: exam.ecm_logo_url,
-          ecmSector: exam.ecm_sector,
-          ecmLevel: exam.ecm_level,
-          ecmBrandName: exam.ecm_brand_name,
-          ecmBrandLogoUrl: exam.ecm_brand_logo_url,
-          ecmCertifyingBody: exam.ecm_certifying_body,
-          ecmValidityYears: exam.ecm_validity_years,
-          exams: [],
-        });
-      }
-      ecmMap.get(key)!.exams.push(exam);
-    }
-    const groups = Array.from(ecmMap.values());
-    groups.sort((a, b) => a.ecmCode.localeCompare(b.ecmCode));
-    return groups;
-  }, [availableExams]);
-
-  /** Auto-expandir todos los ECMs cuando se cargan o cambia búsqueda */
-  useEffect(() => {
-    if (groupedByEcm.length > 0) {
-      setExpandedEcms(new Set(groupedByEcm.map(g => g.ecmCode || '__sin_ecm__')));
-    }
-  }, [groupedByEcm]);
-
-  const toggleEcmGroup = (ecmCode: string) => {
-    setExpandedEcms(prev => {
-      const next = new Set(prev);
-      const key = ecmCode || '__sin_ecm__';
-      if (next.has(key)) next.delete(key); else next.add(key);
-      return next;
-    });
+  const handleBackToEcm = () => {
+    setStep('select-ecm');
+    setSelectedExam(null);
+    setExamSearchQuery('');
+    setAvailableExams([]);
   };
 
   const handleContinueToConfig = () => {
@@ -239,8 +219,11 @@ export default function ExamSelectConfigPage() {
   if (loading) return <LoadingSpinner message="Cargando..." fullScreen />;
   if (!group) return <div className="p-6"><div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-4"><p className="text-red-600">Grupo no encontrado</p></div></div>;
 
-  // Step indicator
-  const stepLabels = ['Examen', 'Materiales', 'Candidatos', 'Confirmar'];
+  // 5 steps: ECM, Examen, Materiales, Miembros, Confirmar
+  const stepLabels = ['ECM', 'Examen', 'Materiales', 'Miembros', 'Confirmar'];
+  // Current active step index: select-ecm = 0, select-exam|accept-or-customize|configure = 1
+  const activeStepIdx = step === 'select-ecm' ? 0 : 1;
+
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
       <PartnersBreadcrumb items={[
@@ -260,7 +243,9 @@ export default function ExamSelectConfigPage() {
             <div className="flex items-center fluid-gap-2 fluid-text-sm text-white/80 fluid-mb-1">
               <ClipboardList className="fluid-icon-sm" /><span>{group.name}</span><span>•</span><span>{group.member_count} miembros</span>
             </div>
-            <h1 className="fluid-text-2xl font-bold">Paso 1: Seleccionar y Configurar Examen</h1>
+            <h1 className="fluid-text-2xl font-bold">
+              {step === 'select-ecm' ? 'Paso 1: Seleccionar Estándar de Competencia' : 'Paso 2: Seleccionar y Configurar Examen'}
+            </h1>
           </div>
         </div>
       </div>
@@ -272,11 +257,11 @@ export default function ExamSelectConfigPage() {
             <div key={label} className="flex items-center">
               <div className="flex items-center">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center fluid-text-sm font-semibold transition-all ${
-                  i === 0 ? 'bg-blue-600 text-white ring-4 ring-blue-200 shadow-lg' : 'bg-gray-200 text-gray-600'
-                }`}>{i < 0 ? <CheckCircle2 className="fluid-icon-base" /> : i + 1}</div>
-                <span className={`ml-2 font-medium hidden sm:inline fluid-text-sm ${i === 0 ? 'text-blue-600' : 'text-gray-400'}`}>{label}</span>
+                  i < activeStepIdx ? 'bg-green-500 text-white' : i === activeStepIdx ? 'bg-blue-600 text-white ring-4 ring-blue-200 shadow-lg' : 'bg-gray-200 text-gray-600'
+                }`}>{i < activeStepIdx ? <CheckCircle2 className="fluid-icon-base" /> : i + 1}</div>
+                <span className={`ml-2 font-medium hidden sm:inline fluid-text-sm ${i === activeStepIdx ? 'text-blue-600' : i < activeStepIdx ? 'text-green-600' : 'text-gray-400'}`}>{label}</span>
               </div>
-              {i < stepLabels.length - 1 && <div className={`w-8 md:w-12 h-1 rounded-full mx-2 transition-all ${i < 0 ? 'bg-green-400' : 'bg-gray-200'}`} />}
+              {i < stepLabels.length - 1 && <div className={`w-8 md:w-12 h-1 rounded-full mx-2 transition-all ${i < activeStepIdx ? 'bg-green-400' : 'bg-gray-200'}`} />}
             </div>
           ))}
         </div>
@@ -290,180 +275,203 @@ export default function ExamSelectConfigPage() {
         </div>
       )}
 
-      {/* === SUB-STEP: SELECT EXAM === */}
-      {step === 'select' && (
+      {/* === STEP 1: SELECT ECM === */}
+      {step === 'select-ecm' && (
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
+          <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-4 flex items-center fluid-gap-2">
+            <Award className="fluid-icon-base text-indigo-600" />
+            Selecciona un Estándar de Competencia (ECM)
+          </h2>
+
+          {/* Search */}
+          <div className="relative fluid-mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 fluid-icon-sm" />
+            <input type="text" placeholder="Buscar ECM por código, nombre o sector..."
+              value={ecmSearchQuery} onChange={(e) => setEcmSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 fluid-py-3 border border-gray-300 rounded-fluid-xl fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+            {ecmSearchQuery && (
+              <button onClick={() => setEcmSearchQuery('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"><X className="fluid-icon-sm" /></button>
+            )}
+          </div>
+
+          {/* ECM List */}
+          {loadingEcms ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="fluid-icon-lg animate-spin text-blue-600" /><span className="ml-2 text-gray-500 fluid-text-sm">Cargando estándares...</span>
+            </div>
+          ) : availableEcms.length > 0 ? (
+            <div className="space-y-3">
+              {availableEcms.map((ecm) => {
+                const logoUrl = ecm.logo_url || ecm.brand_logo_url;
+                return (
+                  <div key={ecm.id}
+                    onClick={() => handleSelectEcm(ecm)}
+                    className={`fluid-p-4 border-2 rounded-fluid-xl cursor-pointer transition-all hover:shadow-md ${
+                      selectedEcm?.id === ecm.id ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30'
+                    }`}>
+                    <div className="flex items-start fluid-gap-4">
+                      {/* Logo */}
+                      {logoUrl ? (
+                        <img src={logoUrl} alt={ecm.code} className="w-14 h-14 rounded-fluid-xl object-contain bg-white border border-gray-200 p-1 flex-shrink-0" />
+                      ) : (
+                        <div className="w-14 h-14 rounded-fluid-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                          <Award className="fluid-icon-lg text-indigo-500" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center fluid-gap-2 flex-wrap">
+                          <span className="font-bold text-indigo-800 fluid-text-base">{ecm.code}</span>
+                          {ecm.brand_name && (
+                            <span className="inline-flex items-center fluid-px-2 py-0.5 rounded-full fluid-text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                              {ecm.brand_logo_url && <img src={ecm.brand_logo_url} alt="" className="w-3.5 h-3.5 mr-1 object-contain" />}
+                              {ecm.brand_name}
+                            </span>
+                          )}
+                          <span className="inline-flex items-center fluid-px-2 py-0.5 rounded-full fluid-text-xs font-medium bg-blue-100 text-blue-700">
+                            {ecm.published_exam_count} {ecm.published_exam_count === 1 ? 'examen' : 'exámenes'}
+                          </span>
+                        </div>
+                        <p className="text-gray-700 fluid-text-sm mt-1 line-clamp-2">{ecm.name}</p>
+                        <div className="flex items-center fluid-gap-3 mt-2 fluid-text-xs text-gray-500 flex-wrap">
+                          {ecm.sector && (
+                            <span className="flex items-center"><Building2 className="w-3 h-3 mr-1" />{ecm.sector}</span>
+                          )}
+                          {ecm.level && (
+                            <span className="flex items-center"><Layers className="w-3 h-3 mr-1" />Nivel {ecm.level}</span>
+                          )}
+                          {ecm.certifying_body && (
+                            <span className="flex items-center"><Shield className="w-3 h-3 mr-1" />{ecm.certifying_body}</span>
+                          )}
+                          {ecm.validity_years && (
+                            <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" />{ecm.validity_years} años</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <ChevronRight className="fluid-icon-base text-gray-400" />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              <Award className="w-12 h-12 mx-auto text-gray-300 fluid-mb-3" />
+              <p className="fluid-text-base">{ecmSearchQuery ? 'No se encontraron ECMs con esa búsqueda' : 'No hay ECMs asignados a este plantel'}</p>
+              {ecmSearchQuery && (
+                <button onClick={() => setEcmSearchQuery('')} className="mt-2 fluid-text-sm text-blue-600 hover:text-blue-800 font-medium">
+                  Limpiar búsqueda
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* === STEP 2: SELECT EXAM === */}
+      {step === 'select-exam' && selectedEcm && (
+        <div className="space-y-4">
+          {/* Selected ECM banner */}
+          <div className="bg-indigo-50 border border-indigo-200 rounded-fluid-xl fluid-p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center fluid-gap-3">
+                {(selectedEcm.logo_url || selectedEcm.brand_logo_url) ? (
+                  <img src={selectedEcm.logo_url || selectedEcm.brand_logo_url} alt={selectedEcm.code} className="w-10 h-10 rounded-lg object-contain bg-white border border-gray-200 p-0.5" />
+                ) : (
+                  <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+                    <Award className="fluid-icon-base text-indigo-500" />
+                  </div>
+                )}
+                <div>
+                  <p className="fluid-text-xs text-indigo-600 font-medium">ECM seleccionado</p>
+                  <p className="font-semibold text-indigo-900 fluid-text-sm">{selectedEcm.code} — {selectedEcm.name}</p>
+                </div>
+              </div>
+              <button onClick={handleBackToEcm} className="text-indigo-600 hover:text-indigo-800 fluid-text-sm font-medium">← Cambiar ECM</button>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
           <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-4 flex items-center fluid-gap-2">
             <ClipboardList className="fluid-icon-base text-indigo-600" />
             Selecciona un Examen Publicado
           </h2>
 
-          {/* Dropdown */}
-          <div className="relative fluid-mb-6">
-            <button type="button" onClick={() => setExamDropdownOpen(!examDropdownOpen)}
-              className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl text-left bg-white hover:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all flex items-center justify-between">
-              {selectedExam ? (
-                <div className="flex-1">
-                  <span className="font-medium text-gray-900 fluid-text-base">{selectedExam.name}</span>
-                  {(selectedExam.ecm_code || selectedExam.standard) && <span className="fluid-text-sm text-blue-600 ml-2">({selectedExam.ecm_code || selectedExam.standard})</span>}
-                </div>
-              ) : <span className="text-gray-400 fluid-text-base">Selecciona un examen...</span>}
-              <ChevronRight className={`fluid-icon-base text-gray-400 transition-transform ${examDropdownOpen ? 'rotate-90' : ''}`} />
-            </button>
-
-            {examDropdownOpen && (
-              <div className="absolute z-20 w-full mt-2 bg-white border border-gray-200 rounded-fluid-xl shadow-lg">
-                <div className="p-3 border-b border-gray-200">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 fluid-icon-sm" />
-                    <input type="text" placeholder="Buscar examen por nombre o código ECM..."
-                      value={examSearchQuery} onChange={(e) => handleExamSearchChange(e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-full pl-9 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" autoFocus />
-                    {examSearchQuery && (
-                      <button onClick={(e) => { e.stopPropagation(); handleExamSearchChange(''); }}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"><X className="fluid-icon-sm" /></button>
-                    )}
-                  </div>
-                </div>
-
-                {loadingExams ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="fluid-icon-lg animate-spin text-blue-600" /><span className="ml-2 text-gray-500 fluid-text-sm">Cargando exámenes...</span>
-                  </div>
-                ) : groupedByEcm.length > 0 ? (
-                  <>
-                    <div className="max-h-[28rem] overflow-y-auto">
-                      {groupedByEcm.map((ecmGroup) => {
-                        const ecmKey = ecmGroup.ecmCode || '__sin_ecm__';
-                        const isExpanded = expandedEcms.has(ecmKey);
-                        const assignedCount = ecmGroup.exams.filter(e => e.is_assigned_to_group).length;
-                        // Determinar logo: ECM propio o el de la marca
-                        const logoUrl = ecmGroup.ecmLogoUrl || ecmGroup.ecmBrandLogoUrl;
-                        return (
-                          <div key={ecmKey}>
-                            {/* ECM Header */}
-                            <div
-                              onClick={(e) => { e.stopPropagation(); toggleEcmGroup(ecmGroup.ecmCode); }}
-                              className="flex items-center justify-between fluid-px-4 fluid-py-3 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-indigo-200 cursor-pointer hover:from-indigo-100 hover:to-blue-100 transition-all sticky top-0 z-10"
-                            >
-                              <div className="flex items-center fluid-gap-3 min-w-0 flex-1">
-                                <ChevronDown className={`w-4 h-4 text-indigo-500 transition-transform flex-shrink-0 ${isExpanded ? '' : '-rotate-90'}`} />
-                                {logoUrl ? (
-                                  <img src={logoUrl} alt={ecmGroup.ecmCode} className="w-8 h-8 rounded-lg object-contain bg-white border border-gray-200 p-0.5 flex-shrink-0" />
-                                ) : (
-                                  <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                                    <FolderOpen className="w-4 h-4 text-indigo-500" />
-                                  </div>
-                                )}
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center fluid-gap-2 flex-wrap">
-                                    <span className="font-semibold text-indigo-800 fluid-text-sm">{ecmGroup.ecmCode || 'Sin código'}</span>
-                                    {ecmGroup.ecmBrandName && (
-                                      <span className="inline-flex items-center fluid-px-1.5 py-0.5 rounded fluid-text-xs font-medium bg-white/80 text-gray-600 border border-gray-200">
-                                        {ecmGroup.ecmBrandLogoUrl && <img src={ecmGroup.ecmBrandLogoUrl} alt="" className="w-3 h-3 mr-1 object-contain" />}
-                                        {ecmGroup.ecmBrandName}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-indigo-600 fluid-text-xs truncate">{ecmGroup.ecmName}</p>
-                                  {/* ECM details row */}
-                                  <div className="flex items-center fluid-gap-2 mt-0.5 flex-wrap">
-                                    {ecmGroup.ecmSector && (
-                                      <span className="fluid-text-xs text-gray-500">{ecmGroup.ecmSector}</span>
-                                    )}
-                                    {ecmGroup.ecmLevel && (
-                                      <span className="fluid-text-xs text-gray-400">• Nivel {ecmGroup.ecmLevel}</span>
-                                    )}
-                                    {ecmGroup.ecmCertifyingBody && (
-                                      <span className="fluid-text-xs text-gray-400">• {ecmGroup.ecmCertifyingBody}</span>
-                                    )}
-                                    {ecmGroup.ecmValidityYears && (
-                                      <span className="fluid-text-xs text-gray-400">• {ecmGroup.ecmValidityYears} años</span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center fluid-gap-2 flex-shrink-0 ml-2">
-                                <span className="inline-flex items-center fluid-px-2 py-0.5 rounded-full fluid-text-xs font-medium bg-indigo-100 text-indigo-700">
-                                  {ecmGroup.exams.length} {ecmGroup.exams.length === 1 ? 'examen' : 'exámenes'}
-                                </span>
-                                {assignedCount > 0 && (
-                                  <span className="inline-flex items-center fluid-px-2 py-0.5 rounded-full fluid-text-xs font-medium bg-orange-100 text-orange-700">
-                                    <Lock className="w-3 h-3 mr-0.5" />{assignedCount}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Exams under this ECM */}
-                            {isExpanded && ecmGroup.exams.map((exam) => (
-                              <div key={exam.id}
-                                onClick={() => {
-                                  if (exam.is_assigned_to_group) { setAttemptedExam(exam); setShowAlreadyAssignedModal(true); return; }
-                                  setSelectedExam(exam); setExamDropdownOpen(false);
-                                }}
-                                className={`fluid-p-4 border-b border-gray-100 last:border-b-0 transition-all pl-10 ${
-                                  exam.is_assigned_to_group ? 'bg-gray-50 cursor-not-allowed opacity-70'
-                                  : selectedExam?.id === exam.id ? 'bg-blue-50 border-l-4 border-l-blue-500 cursor-pointer'
-                                  : 'hover:bg-blue-50 cursor-pointer'
-                                }`}>
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <div className="flex items-center fluid-gap-2">
-                                      <h3 className={`font-medium fluid-text-base ${exam.is_assigned_to_group ? 'text-gray-500' : 'text-gray-900'}`}>{exam.name}</h3>
-                                      {exam.version && <span className="fluid-text-xs text-gray-400">v{exam.version}</span>}
-                                      {exam.is_assigned_to_group && (
-                                        <span className="inline-flex items-center fluid-px-2 py-0.5 rounded fluid-text-xs font-medium bg-orange-100 text-orange-800"><Lock className="w-3 h-3 mr-1" />Ya asignado</span>
-                                      )}
-                                    </div>
-                                    <div className={`flex items-center fluid-gap-4 mt-2 fluid-text-sm ${exam.is_assigned_to_group ? 'text-gray-400' : 'text-gray-500'}`}>
-                                      <span className="flex items-center"><Clock className="w-3.5 h-3.5 mr-1" />{exam.duration_minutes} min</span>
-                                      <span className="flex items-center"><Target className="w-3.5 h-3.5 mr-1" />{exam.passing_score}%</span>
-                                      <span className="flex items-center"><FileQuestion className="w-3.5 h-3.5 mr-1" />{exam.total_questions} preg</span>
-                                      <span className="flex items-center"><Dumbbell className="w-3.5 h-3.5 mr-1" />{exam.total_exercises} ejer</span>
-                                      <span className="flex items-center"><BookOpen className="w-3.5 h-3.5 mr-1" />{exam.study_materials_count} mat</span>
-                                    </div>
-                                  </div>
-                                  {exam.is_assigned_to_group ? <Lock className="fluid-icon-base text-orange-500 flex-shrink-0" />
-                                  : selectedExam?.id === exam.id ? <CheckCircle2 className="fluid-icon-base text-blue-600 flex-shrink-0" /> : null}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Summary footer */}
-                    <div className="fluid-px-4 fluid-py-3 bg-gray-50 border-t border-gray-200 rounded-b-fluid-xl">
-                      <p className="fluid-text-sm text-gray-500">
-                        {examTotal} {examTotal === 1 ? 'examen' : 'exámenes'} en {groupedByEcm.length} {groupedByEcm.length === 1 ? 'ECM' : 'ECMs'}
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <ClipboardList className="w-12 h-12 mx-auto text-gray-300 fluid-mb-3" />
-                    <p className="fluid-text-base">{examSearchQuery ? 'No se encontraron exámenes con esa búsqueda' : 'No hay exámenes publicados'}</p>
-                    {examSearchQuery && (
-                      <button onClick={() => handleExamSearchChange('')} className="mt-2 fluid-text-sm text-blue-600 hover:text-blue-800 font-medium">
-                        Limpiar búsqueda
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
+          {/* Search */}
+          <div className="relative fluid-mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 fluid-icon-sm" />
+            <input type="text" placeholder="Buscar examen por nombre..."
+              value={examSearchQuery} onChange={(e) => setExamSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 fluid-py-3 border border-gray-300 rounded-fluid-xl fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+            {examSearchQuery && (
+              <button onClick={() => setExamSearchQuery('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"><X className="fluid-icon-sm" /></button>
             )}
           </div>
 
-          {/* Selected exam preview */}
+          {/* Exam List */}
+          {loadingExams ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="fluid-icon-lg animate-spin text-blue-600" /><span className="ml-2 text-gray-500 fluid-text-sm">Cargando exámenes...</span>
+            </div>
+          ) : availableExams.length > 0 ? (
+            <div className="space-y-3">
+              {availableExams.map((exam) => (
+                <div key={exam.id}
+                  onClick={() => {
+                    if (exam.is_assigned_to_group) { setAttemptedExam(exam); setShowAlreadyAssignedModal(true); return; }
+                    setSelectedExam(exam);
+                  }}
+                  className={`fluid-p-4 border-2 rounded-fluid-xl transition-all ${
+                    exam.is_assigned_to_group ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-70'
+                    : selectedExam?.id === exam.id ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200 cursor-pointer'
+                    : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/30 cursor-pointer'
+                  }`}>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center fluid-gap-2 flex-wrap">
+                        <h3 className={`font-medium fluid-text-base ${exam.is_assigned_to_group ? 'text-gray-500' : 'text-gray-900'}`}>{exam.name}</h3>
+                        {exam.version && <span className="fluid-text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">v{exam.version}</span>}
+                        {exam.is_assigned_to_group && (
+                          <span className="inline-flex items-center fluid-px-2 py-0.5 rounded fluid-text-xs font-medium bg-orange-100 text-orange-800"><Lock className="w-3 h-3 mr-1" />Ya asignado</span>
+                        )}
+                      </div>
+                      {exam.description && <p className="fluid-text-sm text-gray-500 mt-1 line-clamp-2">{exam.description}</p>}
+                      <div className={`flex items-center fluid-gap-4 mt-2 fluid-text-sm flex-wrap ${exam.is_assigned_to_group ? 'text-gray-400' : 'text-gray-500'}`}>
+                        <span className="flex items-center"><Clock className="w-3.5 h-3.5 mr-1" />{exam.duration_minutes} min</span>
+                        <span className="flex items-center"><Target className="w-3.5 h-3.5 mr-1" />{exam.passing_score}%</span>
+                        <span className="flex items-center"><FileQuestion className="w-3.5 h-3.5 mr-1" />{exam.total_questions} preg</span>
+                        <span className="flex items-center"><Dumbbell className="w-3.5 h-3.5 mr-1" />{exam.total_exercises} ejer</span>
+                        <span className="flex items-center"><BookOpen className="w-3.5 h-3.5 mr-1" />{exam.study_materials_count} mat</span>
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 ml-3">
+                      {exam.is_assigned_to_group ? <Lock className="fluid-icon-base text-orange-500" />
+                      : selectedExam?.id === exam.id ? <CheckCircle2 className="fluid-icon-base text-blue-600" /> : null}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              <ClipboardList className="w-12 h-12 mx-auto text-gray-300 fluid-mb-3" />
+              <p className="fluid-text-base">{examSearchQuery ? 'No se encontraron exámenes con esa búsqueda' : 'No hay exámenes publicados para este ECM'}</p>
+              {examSearchQuery && (
+                <button onClick={() => setExamSearchQuery('')} className="mt-2 fluid-text-sm text-blue-600 hover:text-blue-800 font-medium">
+                  Limpiar búsqueda
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Selected exam detail preview */}
           {selectedExam && (
-            <div className="mt-6 fluid-p-5 bg-blue-50 border border-blue-200 rounded-fluid-xl">
+            <div className="mt-4 fluid-p-5 bg-blue-50 border border-blue-200 rounded-fluid-xl">
               <p className="fluid-text-sm text-blue-600 font-medium fluid-mb-2">Examen seleccionado:</p>
               <h3 className="font-semibold text-gray-900 fluid-text-base">{selectedExam.name}</h3>
-              {(selectedExam.ecm_code || selectedExam.standard) && <p className="fluid-text-sm text-gray-600 mt-1">ECM: {selectedExam.ecm_code || selectedExam.standard}</p>}
-              {selectedExam.description && <p className="fluid-text-sm text-gray-500 mt-2">{selectedExam.description}</p>}
               <div className="flex flex-wrap items-center fluid-gap-4 mt-3 fluid-text-sm text-gray-600">
                 <span className="flex items-center"><Clock className="fluid-icon-sm mr-1" />{selectedExam.duration_minutes} min</span>
                 <span className="flex items-center"><Target className="fluid-icon-sm mr-1" />{selectedExam.passing_score}% mín</span>
@@ -474,11 +482,12 @@ export default function ExamSelectConfigPage() {
             </div>
           )}
 
-          <div className="mt-6 flex justify-end">
+          <div className="mt-4 flex justify-end">
             <button onClick={handleContinueToConfig} disabled={!selectedExam}
               className="fluid-px-6 fluid-py-3 bg-blue-600 text-white rounded-fluid-xl font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 shadow-lg transition-all fluid-text-sm">
               Continuar <ChevronRight className="fluid-icon-base" />
             </button>
+          </div>
           </div>
         </div>
       )}
@@ -494,7 +503,7 @@ export default function ExamSelectConfigPage() {
                 <h3 className="font-semibold text-gray-900 mt-1 fluid-text-base">{selectedExam.name}</h3>
                 {(selectedExam.ecm_code || selectedExam.standard) && <p className="fluid-text-sm text-gray-600">ECM: {selectedExam.ecm_code || selectedExam.standard}</p>}
               </div>
-              <button onClick={() => setStep('select')} className="text-blue-600 hover:text-blue-800 fluid-text-sm font-medium">Cambiar</button>
+              <button onClick={() => setStep('select-exam')} className="text-blue-600 hover:text-blue-800 fluid-text-sm font-medium">Cambiar</button>
             </div>
           </div>
 

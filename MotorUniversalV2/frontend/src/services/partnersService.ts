@@ -1478,15 +1478,50 @@ export async function updateGroupExamMembers(groupId: number, examId: number, da
   return response.data;
 }
 
+// ============== ECMs DISPONIBLES PARA ASIGNACIÓN ==============
+
+export interface AvailableEcm {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  sector?: string;
+  level?: number;
+  validity_years?: number;
+  certifying_body?: string;
+  logo_url?: string;
+  brand_name?: string;
+  brand_logo_url?: string;
+  published_exam_count: number;
+  created_at?: string;
+}
+
+/**
+ * Obtener ECMs disponibles para el campus de un grupo
+ */
+export async function getAvailableEcms(params: {
+  group_id: number;
+  search?: string;
+}): Promise<{
+  ecms: AvailableEcm[];
+  total: number;
+  campus_id: number;
+}> {
+  const response = await api.get('/partners/ecms/available', { params });
+  return response.data;
+}
+
 /**
  * Obtener exámenes disponibles para asignar
  * @param group_id - Si se proporciona, incluye is_assigned_to_group para indicar si ya está asignado
+ * @param ecm_id - Si se proporciona, filtra exámenes solo del ECM especificado
  */
 export async function getAvailableExams(params?: {
   search?: string;
   page?: number;
   per_page?: number;
   group_id?: number;
+  ecm_id?: number;
 }): Promise<{
   exams: AvailableExam[];
   total: number;

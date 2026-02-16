@@ -93,7 +93,7 @@ export default function ExamSelectMaterialsPage() {
 
   const { selectedExam } = prevState;
 
-  const stepLabels = ['Examen', 'Materiales', 'Candidatos', 'Confirmar'];
+  const stepLabels = ['ECM', 'Examen', 'Materiales', 'Miembros', 'Confirmar'];
 
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
@@ -114,7 +114,7 @@ export default function ExamSelectMaterialsPage() {
             <div className="flex items-center fluid-gap-2 fluid-text-sm text-white/80 fluid-mb-1">
               <ClipboardList className="fluid-icon-sm" /><span>{group.name}</span><span>•</span><span>{selectedExam.name}</span>
             </div>
-            <h1 className="fluid-text-2xl font-bold">Paso 2: Materiales de Estudio</h1>
+            <h1 className="fluid-text-2xl font-bold">Paso 3: Materiales de Estudio</h1>
           </div>
         </div>
       </div>
@@ -126,11 +126,11 @@ export default function ExamSelectMaterialsPage() {
             <div key={label} className="flex items-center">
               <div className="flex items-center">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center fluid-text-sm font-semibold transition-all ${
-                  i < 1 ? 'bg-green-500 text-white' : i === 1 ? 'bg-blue-600 text-white ring-4 ring-blue-200 shadow-lg' : 'bg-gray-200 text-gray-600'
-                }`}>{i < 1 ? <CheckCircle2 className="fluid-icon-base" /> : i + 1}</div>
-                <span className={`ml-2 font-medium hidden sm:inline fluid-text-sm ${i === 1 ? 'text-blue-600' : i < 1 ? 'text-green-600' : 'text-gray-400'}`}>{label}</span>
-              </div>
-              {i < stepLabels.length - 1 && <div className={`w-8 md:w-12 h-1 rounded-full mx-2 transition-all ${i < 1 ? 'bg-green-400' : 'bg-gray-200'}`} />}
+                i < 2 ? 'bg-green-500 text-white' : i === 2 ? 'bg-blue-600 text-white ring-4 ring-blue-200 shadow-lg' : 'bg-gray-200 text-gray-600'
+              }`}>{i < 2 ? <CheckCircle2 className="fluid-icon-base" /> : i + 1}</div>
+              <span className={`ml-2 font-medium hidden sm:inline fluid-text-sm ${i === 2 ? 'text-blue-600' : i < 2 ? 'text-green-600' : 'text-gray-400'}`}>{label}</span>
+            </div>
+            {i < stepLabels.length - 1 && <div className={`w-8 md:w-12 h-1 rounded-full mx-2 transition-all ${i < 2 ? 'bg-green-400' : 'bg-gray-200'}`} />}
             </div>
           ))}
         </div>

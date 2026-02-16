@@ -5424,6 +5424,107 @@ def get_available_study_materials():
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/ecms/available', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_available_ecms():
+    """Obtener ECMs disponibles para el campus de un grupo, con conteo de exámenes publicados.
+    
+    Parámetros:
+    - group_id (requerido): ID del grupo para determinar el campus y sus ECMs
+    - search: Buscar por código o nombre de ECM
+    """
+    try:
+        from app.models import Exam
+        from app.models.competency_standard import CompetencyStandard
+        from app.models.brand import Brand
+        from app.models.partner import CampusCompetencyStandard
+        from sqlalchemy import func
+        from sqlalchemy.orm import joinedload
+        
+        group_id = request.args.get('group_id', type=int)
+        search = request.args.get('search', '')
+        
+        if not group_id:
+            return jsonify({'error': 'group_id es requerido'}), 400
+        
+        group = CandidateGroup.query.get(group_id)
+        if not group:
+            return jsonify({'error': 'Grupo no encontrado'}), 404
+        
+        campus_id = group.campus_id
+        
+        # Obtener IDs de ECMs asignados al campus
+        campus_ecm_relations = CampusCompetencyStandard.query.filter_by(campus_id=campus_id).all()
+        ecm_ids = [rel.competency_standard_id for rel in campus_ecm_relations]
+        
+        if not ecm_ids:
+            return jsonify({'ecms': [], 'total': 0, 'campus_id': campus_id})
+        
+        # Query ECMs con su marca
+        query = CompetencyStandard.query.options(
+            joinedload(CompetencyStandard.brand)
+        ).filter(
+            CompetencyStandard.id.in_(ecm_ids),
+            CompetencyStandard.is_active == True
+        )
+        
+        if search:
+            search_term = f'%{search}%'
+            query = query.filter(
+                db.or_(
+                    CompetencyStandard.code.ilike(search_term),
+                    CompetencyStandard.name.ilike(search_term),
+                    CompetencyStandard.sector.ilike(search_term)
+                )
+            )
+        
+        # Ordenar del más reciente al más viejo
+        query = query.order_by(CompetencyStandard.created_at.desc())
+        ecms = query.all()
+        
+        # Contar exámenes publicados por ECM
+        published_counts = dict(
+            db.session.query(
+                Exam.competency_standard_id,
+                func.count(Exam.id)
+            ).filter(
+                Exam.competency_standard_id.in_(ecm_ids),
+                Exam.is_published == True
+            ).group_by(Exam.competency_standard_id).all()
+        )
+        
+        ecms_data = []
+        for ecm in ecms:
+            published_exam_count = published_counts.get(ecm.id, 0)
+            ecms_data.append({
+                'id': ecm.id,
+                'code': ecm.code,
+                'name': ecm.name,
+                'description': ecm.description,
+                'sector': ecm.sector,
+                'level': ecm.level,
+                'validity_years': ecm.validity_years,
+                'certifying_body': ecm.certifying_body,
+                'logo_url': ecm.logo_url,
+                'brand_name': ecm.brand.name if ecm.brand else None,
+                'brand_logo_url': ecm.brand.logo_url if ecm.brand else None,
+                'published_exam_count': published_exam_count,
+                'created_at': ecm.created_at.isoformat() if ecm.created_at else None,
+            })
+        
+        return jsonify({
+            'ecms': ecms_data,
+            'total': len(ecms_data),
+            'campus_id': campus_id
+        })
+        
+    except Exception as e:
+        import traceback
+        print(f"[DEBUG] Error en get_available_ecms: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/exams/available', methods=['GET'])
 @jwt_required()
 @coordinator_required
@@ -5435,6 +5536,7 @@ def get_available_exams():
                 Además, filtra exámenes por los ECM asignados al campus del grupo
     - campus_id: Si se proporciona (sin group_id), filtra exámenes por ECM del campus
     - filter_by_campus_ecm: Si es 'false', no filtra por ECM del campus (default: true)
+    - ecm_id: Si se proporciona, filtra exámenes solo del ECM especificado
     """
     try:
         from app.models import Exam, GroupExam
@@ -5450,6 +5552,7 @@ def get_available_exams():
         per_page = request.args.get('per_page', 20, type=int)
         group_id = request.args.get('group_id', type=int)
         campus_id = request.args.get('campus_id', type=int)
+        ecm_id = request.args.get('ecm_id', type=int)
         filter_by_campus_ecm = request.args.get('filter_by_campus_ecm', 'true').lower() != 'false'
         
         # Si se proporciona group_id, obtener exámenes ya asignados a ese grupo
@@ -5479,8 +5582,11 @@ def get_available_exams():
             joinedload(Exam.competency_standard).joinedload(CompetencyStandard.brand)
         ).filter(Exam.is_published == True)
         
+        # Filtrar por ECM específico si se proporciona
+        if ecm_id:
+            query = query.filter(Exam.competency_standard_id == ecm_id)
         # Filtrar por ECM del campus si corresponde
-        if campus_ecm_ids is not None:
+        elif campus_ecm_ids is not None:
             query = query.filter(Exam.competency_standard_id.in_(campus_ecm_ids))
         
         # Siempre hacer outerjoin con CompetencyStandard para búsqueda y ordenamiento
