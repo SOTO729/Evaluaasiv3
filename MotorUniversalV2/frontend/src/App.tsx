@@ -106,6 +106,7 @@ const GroupCertReportePage = lazy(() => import('./pages/partners/certificates/Gr
 const GroupCertEduitPage = lazy(() => import('./pages/partners/certificates/GroupCertEduitPage'))
 const GroupCertConocerPage = lazy(() => import('./pages/partners/certificates/GroupCertConocerPage'))
 const GroupCertInsigniaPage = lazy(() => import('./pages/partners/certificates/GroupCertInsigniaPage'))
+const GroupAnalyticsPage = lazy(() => import('./pages/partners/GroupAnalyticsPage'))
 const GroupAssignCandidatesPage = lazy(() => import('./pages/partners/GroupAssignCandidatesPage'))
 const GroupBulkUploadPage = lazy(() => import('./pages/partners/GroupBulkUploadPage'))
 const ExamSelectConfigPage = lazy(() => import('./pages/partners/exam-assignment/ExamSelectConfigPage'))
@@ -275,6 +276,7 @@ function App() {
               <Route path="/partners/groups/:groupId/documents/eduit" element={<GroupCertEduitPage />} />
               <Route path="/partners/groups/:groupId/documents/conocer" element={<GroupCertConocerPage />} />
               <Route path="/partners/groups/:groupId/documents/insignia" element={<GroupCertInsigniaPage />} />
+              <Route path="/partners/groups/:groupId/analytics" element={<GroupAnalyticsPage />} />
               <Route path="/partners/groups/:groupId/edit" element={<GroupFormPage />} />
               <Route path="/partners/groups/:groupId/assign-candidates" element={<GroupAssignCandidatesPage />} />
               <Route path="/partners/groups/:groupId/bulk-upload" element={<GroupBulkUploadPage />} />

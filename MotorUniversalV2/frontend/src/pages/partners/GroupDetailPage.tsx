@@ -439,6 +439,28 @@ export default function GroupDetailPage() {
             </div>
           </Link>
 
+          {/* Card: Analítica */}
+          <Link to={`/partners/groups/${groupId}/analytics`}
+            className="block bg-white rounded-fluid-2xl shadow-sm border border-gray-200 hover:shadow-lg hover:border-indigo-300 transition-all duration-300 group overflow-hidden">
+            <div className="fluid-p-5">
+              <div className="flex items-center justify-between fluid-mb-3">
+                <div className="fluid-p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-fluid-xl shadow-lg group-hover:scale-110 transition-transform">
+                  <BarChart3 className="fluid-icon-base text-white" />
+                </div>
+                <ChevronRight className="fluid-icon-base text-gray-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
+              </div>
+              <h3 className="fluid-text-base font-bold text-gray-900 fluid-mb-1 group-hover:text-indigo-700 transition-colors">Analítica</h3>
+              <p className="fluid-text-xs text-gray-500 fluid-mb-3">Dashboard avanzado del grupo</p>
+              <div className="grid grid-cols-2 fluid-gap-2 fluid-pt-3 border-t border-gray-100">
+                <div className="text-center"><p className="fluid-text-lg font-bold text-indigo-600">{certRate}%</p><p className="fluid-text-xs text-gray-400">Certificación</p></div>
+                <div className="text-center"><p className="fluid-text-lg font-bold text-gray-900">{stats.totalMembers}</p><p className="fluid-text-xs text-gray-400">Candidatos</p></div>
+              </div>
+            </div>
+            <div className="bg-gray-50 fluid-px-5 fluid-py-2.5 border-t border-gray-100">
+              <span className="inline-flex items-center fluid-gap-1 fluid-text-xs text-indigo-600 font-medium"><BarChart3 className="fluid-icon-xs" />Ver analítica</span>
+            </div>
+          </Link>
+
           {/* Acciones rápidas compactas */}
           <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
             <h4 className="fluid-text-sm font-semibold text-gray-700 fluid-mb-3">Acciones Rápidas</h4>

@@ -9455,6 +9455,319 @@ def clear_group_certificates_urls(group_id):
         return jsonify({'error': str(e)}), 500
 
 
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/analytics', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_group_analytics(group_id):
+    """
+    Dashboard analítico completo del grupo.
+    Agrega datos de miembros, exámenes, resultados, certificados, materiales y ECAs.
+    
+    Query params:
+    - exam_id (int, optional): Filtrar resultados por examen específico
+    - date_from (str, optional): Filtrar desde fecha (YYYY-MM-DD)
+    - date_to (str, optional): Filtrar hasta fecha (YYYY-MM-DD)
+    - certification_status (str, optional): certified|in_progress|failed|pending
+    """
+    try:
+        from app.models.result import Result
+        from app.models.conocer_certificate import ConocerCertificate
+        from app.models.exam import Exam
+        from app.models.partner import EcmCandidateAssignment, GroupStudyMaterial, GroupStudyMaterialMember
+        from sqlalchemy import and_, func, case
+        from datetime import datetime, timedelta
+        from collections import defaultdict
+
+        group = CandidateGroup.query.get_or_404(group_id)
+
+        # Parámetros de filtro
+        exam_id_filter = request.args.get('exam_id', type=int)
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+
+        # ── 1. MIEMBROS ──
+        members = GroupMember.query.filter_by(group_id=group_id, status='active').all()
+        member_user_ids = [m.user_id for m in members]
+        total_members = len(members)
+
+        if total_members == 0:
+            return jsonify({
+                'group': {'id': group.id, 'name': group.name},
+                'members': {'total': 0, 'certified': 0, 'in_progress': 0, 'failed': 0, 'pending': 0, 'with_email': 0, 'with_curp': 0},
+                'exams': {'assigned': 0, 'details': []},
+                'results': {'total': 0, 'completed': 0, 'approved': 0, 'failed': 0, 'in_progress': 0, 'pass_rate': 0, 'avg_score': 0, 'avg_duration_minutes': 0, 'score_distribution': [], 'by_exam': [], 'by_date': []},
+                'certificates': {'tier_basic': {'ready': 0, 'pending': 0}, 'tier_standard': {'ready': 0, 'pending': 0}, 'tier_advanced': 0, 'digital_badge': 0},
+                'materials': {'assigned': 0, 'details': []},
+                'ecm': {'total_assignments': 0, 'unique_ecms': 0, 'details': []},
+            })
+
+        # Conteos de miembros por elegibilidad
+        from app.models.user import User
+        users = User.query.filter(User.id.in_(member_user_ids)).all()
+        users_map = {u.id: u for u in users}
+        with_email = sum(1 for u in users if u.email)
+        with_curp = sum(1 for u in users if u.curp)
+
+        # ── 2. EXÁMENES ASIGNADOS ──
+        group_exams = GroupExam.query.filter_by(group_id=group_id, is_active=True).all()
+        exam_ids = [ge.exam_id for ge in group_exams]
+        exams_map = {}
+        if exam_ids:
+            exams = Exam.query.filter(Exam.id.in_(exam_ids)).all()
+            exams_map = {e.id: e for e in exams}
+
+        exams_detail = []
+        for ge in group_exams:
+            exam = exams_map.get(ge.exam_id)
+            exams_detail.append({
+                'exam_id': ge.exam_id,
+                'exam_name': exam.name if exam else f'Examen #{ge.exam_id}',
+                'assigned_at': ge.assigned_at.isoformat() if ge.assigned_at else None,
+                'passing_score': ge.passing_score or 70,
+                'max_attempts': ge.max_attempts or 1,
+                'time_limit_minutes': ge.time_limit_minutes,
+                'assignment_type': ge.assignment_type,
+            })
+
+        # ── 3. RESULTADOS ──
+        results_query = Result.query.filter(
+            Result.user_id.in_(member_user_ids)
+        )
+        # Filtrar solo exámenes de este grupo si hay group_id en Result
+        if exam_id_filter:
+            results_query = results_query.filter(Result.exam_id == exam_id_filter)
+        if date_from:
+            try:
+                dt_from = datetime.strptime(date_from, '%Y-%m-%d')
+                results_query = results_query.filter(Result.end_date >= dt_from)
+            except ValueError:
+                pass
+        if date_to:
+            try:
+                dt_to = datetime.strptime(date_to, '%Y-%m-%d') + timedelta(days=1)
+                results_query = results_query.filter(Result.end_date < dt_to)
+            except ValueError:
+                pass
+
+        all_results = results_query.all()
+
+        # Filtrar por exámenes del grupo
+        group_exam_ids_set = set(exam_ids)
+        results = [r for r in all_results if r.exam_id in group_exam_ids_set]
+
+        completed_results = [r for r in results if r.status == 1]
+        approved = [r for r in completed_results if r.result == 1]
+        failed_results = [r for r in completed_results if r.result == 0]
+        in_progress = [r for r in results if r.status == 0]
+
+        scores = [r.score for r in completed_results if r.score is not None]
+        avg_score = round(sum(scores) / len(scores), 1) if scores else 0
+        pass_rate = round((len(approved) / len(completed_results)) * 100, 1) if completed_results else 0
+
+        durations = [r.duration_seconds for r in completed_results if r.duration_seconds and r.duration_seconds > 0]
+        avg_duration_min = round((sum(durations) / len(durations)) / 60, 1) if durations else 0
+
+        # Score distribution (bins: 0-10, 11-20, ..., 91-100)
+        score_bins = [0] * 10
+        for s in scores:
+            idx = min(s // 10, 9)  # 100 → bin 9
+            score_bins[idx] += 1
+        score_distribution = [
+            {'range': f'{i*10}-{i*10+9}' if i < 9 else '90-100', 'count': score_bins[i]}
+            for i in range(10)
+        ]
+
+        # Results by exam
+        by_exam = defaultdict(lambda: {'approved': 0, 'failed': 0, 'in_progress': 0, 'total_score': 0, 'count': 0})
+        for r in results:
+            key = r.exam_id
+            if r.status == 1 and r.result == 1:
+                by_exam[key]['approved'] += 1
+            elif r.status == 1 and r.result == 0:
+                by_exam[key]['failed'] += 1
+            elif r.status == 0:
+                by_exam[key]['in_progress'] += 1
+            if r.status == 1 and r.score is not None:
+                by_exam[key]['total_score'] += r.score
+                by_exam[key]['count'] += 1
+
+        results_by_exam = []
+        for eid, data in by_exam.items():
+            exam = exams_map.get(eid)
+            results_by_exam.append({
+                'exam_id': eid,
+                'exam_name': exam.name if exam else f'Examen #{eid}',
+                'approved': data['approved'],
+                'failed': data['failed'],
+                'in_progress': data['in_progress'],
+                'avg_score': round(data['total_score'] / data['count'], 1) if data['count'] > 0 else 0,
+                'pass_rate': round((data['approved'] / (data['approved'] + data['failed'])) * 100, 1) if (data['approved'] + data['failed']) > 0 else 0,
+            })
+
+        # Results by date (últimos 30 días o rango)
+        by_date = defaultdict(lambda: {'approved': 0, 'failed': 0, 'total': 0})
+        for r in completed_results:
+            if r.end_date:
+                day_key = r.end_date.strftime('%Y-%m-%d')
+                by_date[day_key]['total'] += 1
+                if r.result == 1:
+                    by_date[day_key]['approved'] += 1
+                else:
+                    by_date[day_key]['failed'] += 1
+
+        results_by_date = sorted([
+            {'date': k, 'approved': v['approved'], 'failed': v['failed'], 'total': v['total']}
+            for k, v in by_date.items()
+        ], key=lambda x: x['date'])
+
+        # Certification status per member
+        cert_status = {'certified': 0, 'in_progress': 0, 'failed': 0, 'pending': 0}
+        for uid in member_user_ids:
+            user_results = [r for r in results if r.user_id == uid and r.status == 1]
+            user_approved = [r for r in user_results if r.result == 1]
+            if user_approved:
+                cert_status['certified'] += 1
+            elif user_results:
+                # Has completed but none approved
+                cert_status['failed'] += 1
+            elif any(r.user_id == uid and r.status == 0 for r in results):
+                cert_status['in_progress'] += 1
+            else:
+                cert_status['pending'] += 1
+
+        # ── 4. CERTIFICADOS ──
+        tier_basic_ready = sum(1 for r in approved if r.report_url or r.certificate_code)
+        tier_basic_pending = sum(1 for r in approved if not r.report_url and not r.certificate_code)
+        tier_standard_ready = sum(1 for r in approved if r.certificate_url or r.eduit_certificate_code)
+        tier_standard_pending = sum(1 for r in approved if not r.certificate_url and not r.eduit_certificate_code)
+
+        conocer_certs = ConocerCertificate.query.filter(
+            and_(
+                ConocerCertificate.user_id.in_(member_user_ids),
+                ConocerCertificate.status == 'active'
+            )
+        ).all()
+
+        # ── 5. MATERIALES DE ESTUDIO ──
+        group_materials = GroupStudyMaterial.query.filter_by(group_id=group_id, is_active=True).all()
+        materials_detail = []
+        for gm in group_materials:
+            material = gm.study_material
+            assigned_members_count = GroupStudyMaterialMember.query.filter_by(
+                group_study_material_id=gm.id
+            ).count() if gm.assignment_type == 'selected' else total_members
+            materials_detail.append({
+                'id': gm.id,
+                'material_name': material.title if material else f'Material #{gm.study_material_id}',
+                'assigned_at': gm.assigned_at.isoformat() if gm.assigned_at else None,
+                'assigned_members': assigned_members_count,
+            })
+
+        # ── 6. ECAs ──
+        ecas = EcmCandidateAssignment.query.filter(
+            and_(
+                EcmCandidateAssignment.user_id.in_(member_user_ids),
+                EcmCandidateAssignment.group_id == group_id
+            )
+        ).all()
+
+        ecm_summary = defaultdict(lambda: {'count': 0, 'ecm_name': '', 'ecm_code': ''})
+        for eca in ecas:
+            key = eca.competency_standard_id
+            ecm_summary[key]['count'] += 1
+            if eca.competency_standard:
+                ecm_summary[key]['ecm_name'] = eca.competency_standard.name
+                ecm_summary[key]['ecm_code'] = eca.competency_standard.code
+
+        ecm_details = [
+            {'ecm_id': k, 'ecm_name': v['ecm_name'], 'ecm_code': v['ecm_code'], 'assignments': v['count']}
+            for k, v in ecm_summary.items()
+        ]
+
+        # ── 7. TOP PERFORMERS ──
+        user_best_scores = defaultdict(lambda: {'score': 0, 'count': 0, 'total_score': 0})
+        for r in completed_results:
+            user_best_scores[r.user_id]['count'] += 1
+            user_best_scores[r.user_id]['total_score'] += (r.score or 0)
+            if (r.score or 0) > user_best_scores[r.user_id]['score']:
+                user_best_scores[r.user_id]['score'] = r.score or 0
+
+        top_performers = sorted([
+            {
+                'user_id': uid,
+                'full_name': users_map[uid].full_name if uid in users_map else 'Desconocido',
+                'best_score': data['score'],
+                'avg_score': round(data['total_score'] / data['count'], 1) if data['count'] > 0 else 0,
+                'exams_completed': data['count'],
+            }
+            for uid, data in user_best_scores.items()
+        ], key=lambda x: x['avg_score'], reverse=True)[:10]
+
+        return jsonify({
+            'group': {
+                'id': group.id,
+                'name': group.name,
+                'campus_name': group.campus.name if group.campus else None,
+                'partner_name': group.campus.partner.name if group.campus and group.campus.partner else None,
+            },
+            'members': {
+                'total': total_members,
+                'certified': cert_status['certified'],
+                'in_progress': cert_status['in_progress'],
+                'failed': cert_status['failed'],
+                'pending': cert_status['pending'],
+                'with_email': with_email,
+                'with_curp': with_curp,
+            },
+            'exams': {
+                'assigned': len(group_exams),
+                'details': exams_detail,
+            },
+            'results': {
+                'total': len(results),
+                'completed': len(completed_results),
+                'approved': len(approved),
+                'failed': len(failed_results),
+                'in_progress': len(in_progress),
+                'pass_rate': pass_rate,
+                'avg_score': avg_score,
+                'avg_duration_minutes': avg_duration_min,
+                'score_distribution': score_distribution,
+                'by_exam': results_by_exam,
+                'by_date': results_by_date,
+            },
+            'certificates': {
+                'tier_basic': {'ready': tier_basic_ready, 'pending': tier_basic_pending},
+                'tier_standard': {'ready': tier_standard_ready, 'pending': tier_standard_pending},
+                'tier_advanced': len(conocer_certs),
+                'digital_badge': len(approved),
+            },
+            'materials': {
+                'assigned': len(group_materials),
+                'details': materials_detail,
+            },
+            'ecm': {
+                'total_assignments': len(ecas),
+                'unique_ecms': len(ecm_summary),
+                'details': ecm_details,
+            },
+            'top_performers': top_performers,
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/groups/<int:group_id>/candidates/<string:user_id>/certification-detail', methods=['GET'])
 @jwt_required()
 @coordinator_required

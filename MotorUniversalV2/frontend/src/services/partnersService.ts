@@ -2447,6 +2447,107 @@ export async function getCandidateCertificationDetail(
   return response.data;
 }
 
+// ============ ANALÍTICA DEL GRUPO ============
+
+export interface GroupAnalytics {
+  group: {
+    id: number;
+    name: string;
+    campus_name: string | null;
+    partner_name: string | null;
+  };
+  members: {
+    total: number;
+    certified: number;
+    in_progress: number;
+    failed: number;
+    pending: number;
+    with_email: number;
+    with_curp: number;
+  };
+  exams: {
+    assigned: number;
+    details: {
+      exam_id: number;
+      exam_name: string;
+      assigned_at: string | null;
+      passing_score: number;
+      max_attempts: number;
+      time_limit_minutes: number | null;
+      assignment_type: string;
+    }[];
+  };
+  results: {
+    total: number;
+    completed: number;
+    approved: number;
+    failed: number;
+    in_progress: number;
+    pass_rate: number;
+    avg_score: number;
+    avg_duration_minutes: number;
+    score_distribution: { range: string; count: number }[];
+    by_exam: {
+      exam_id: number;
+      exam_name: string;
+      approved: number;
+      failed: number;
+      in_progress: number;
+      avg_score: number;
+      pass_rate: number;
+    }[];
+    by_date: {
+      date: string;
+      approved: number;
+      failed: number;
+      total: number;
+    }[];
+  };
+  certificates: {
+    tier_basic: { ready: number; pending: number };
+    tier_standard: { ready: number; pending: number };
+    tier_advanced: number;
+    digital_badge: number;
+  };
+  materials: {
+    assigned: number;
+    details: {
+      id: number;
+      material_name: string;
+      assigned_at: string | null;
+      assigned_members: number;
+    }[];
+  };
+  ecm: {
+    total_assignments: number;
+    unique_ecms: number;
+    details: {
+      ecm_id: number;
+      ecm_name: string;
+      ecm_code: string;
+      assignments: number;
+    }[];
+  };
+  top_performers: {
+    user_id: string;
+    full_name: string;
+    best_score: number;
+    avg_score: number;
+    exams_completed: number;
+  }[];
+}
+
+/**
+ * Obtener analítica completa del grupo
+ */
+export async function getGroupAnalytics(
+  groupId: number,
+  params?: { exam_id?: number; date_from?: string; date_to?: string }
+): Promise<GroupAnalytics> {
+  const response = await api.get(`/partners/groups/${groupId}/analytics`, { params });
+  return response.data;
+}
+
 /**
  * Descargar ZIP con certificados del grupo
  */
