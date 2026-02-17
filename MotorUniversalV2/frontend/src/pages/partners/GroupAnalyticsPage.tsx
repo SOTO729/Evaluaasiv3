@@ -123,7 +123,32 @@ export default function GroupAnalyticsPage() {
     );
   }
 
-  const data = analytics!;
+  const raw = analytics!;
+
+  // Normalize — protect against undefined sub-objects when backend returns partial/empty data
+  const emptyResults: GroupAnalytics['results'] = {
+    total: 0, completed: 0, approved: 0, failed: 0, in_progress: 0,
+    pass_rate: 0, avg_score: 0, avg_duration_minutes: 0,
+    score_distribution: [], by_exam: [], by_date: [],
+  };
+  const emptyMembers: GroupAnalytics['members'] = {
+    total: 0, certified: 0, in_progress: 0, failed: 0, pending: 0, with_email: 0, with_curp: 0,
+  };
+  const emptyCerts: GroupAnalytics['certificates'] = {
+    tier_basic: { ready: 0, pending: 0 }, tier_standard: { ready: 0, pending: 0 },
+    tier_advanced: 0, digital_badge: 0,
+  };
+
+  const data = {
+    ...raw,
+    members: raw.members ?? emptyMembers,
+    results: raw.results ?? emptyResults,
+    exams: raw.exams ?? { assigned: 0, details: [] as GroupAnalytics['exams']['details'] },
+    certificates: raw.certificates ?? emptyCerts,
+    materials: raw.materials ?? { assigned: 0, details: [] as GroupAnalytics['materials']['details'] },
+    ecm: raw.ecm ?? { total_assignments: 0, unique_ecms: 0, details: [] as GroupAnalytics['ecm']['details'] },
+    top_performers: raw.top_performers ?? ([] as GroupAnalytics['top_performers']),
+  };
 
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
