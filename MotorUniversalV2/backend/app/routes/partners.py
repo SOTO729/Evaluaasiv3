@@ -9467,6 +9467,7 @@ def get_candidate_certification_detail(group_id, user_id):
         from app.models.result import Result
         from app.models.conocer_certificate import ConocerCertificate
         from app.models.exam import Exam
+        from app.models.partner import EcmCandidateAssignment
         from sqlalchemy import and_
 
         group = CandidateGroup.query.get_or_404(group_id)
