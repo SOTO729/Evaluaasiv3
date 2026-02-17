@@ -405,22 +405,22 @@ export default function CertificateTypePage({
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 fluid-gap-4 fluid-mt-6">
-          <div className="bg-white/10 rounded-fluid-xl fluid-p-4 text-center">
+        <div className="flex flex-wrap justify-center fluid-gap-4 fluid-mt-6">
+          <div className="bg-white/10 rounded-fluid-xl fluid-p-4 text-center min-w-[140px] flex-1 max-w-[220px]">
             <p className="fluid-text-2xl font-bold">{totalCertified}</p>
             <p className="fluid-text-xs text-white/70">Candidatos</p>
           </div>
-          <div className="bg-white/10 rounded-fluid-xl fluid-p-4 text-center">
+          <div className="bg-white/10 rounded-fluid-xl fluid-p-4 text-center min-w-[140px] flex-1 max-w-[220px]">
             <p className="fluid-text-2xl font-bold">{totalReady}</p>
             <p className="fluid-text-xs text-white/70">Listos</p>
           </div>
           {totalPending > 0 && (
-            <div className="bg-white/10 rounded-fluid-xl fluid-p-4 text-center">
+            <div className="bg-white/10 rounded-fluid-xl fluid-p-4 text-center min-w-[140px] flex-1 max-w-[220px]">
               <p className="fluid-text-2xl font-bold">{totalPending}</p>
               <p className="fluid-text-xs text-white/70">Pendientes</p>
             </div>
           )}
-          <div className="bg-white/10 rounded-fluid-xl fluid-p-4 text-center">
+          <div className="bg-white/10 rounded-fluid-xl fluid-p-4 text-center min-w-[140px] flex-1 max-w-[220px]">
             <p className="fluid-text-2xl font-bold">{selectedCandidates.size}</p>
             <p className="fluid-text-xs text-white/70">Seleccionados</p>
           </div>
