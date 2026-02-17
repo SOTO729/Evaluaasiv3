@@ -2405,8 +2405,11 @@ export interface CandidateCertificateStats {
   tier_standard_pending: number;
   tier_advanced_count: number;
   digital_badge_count: number;
-  results: CertificateResult[];
-  conocer_certificates: ConocerCertificateInfo[];
+  ready_count?: number;
+  pending_count?: number;
+  status?: 'ready' | 'pending';
+  results?: CertificateResult[];
+  conocer_certificates?: ConocerCertificateInfo[];
 }
 
 export interface GroupCertificatesStats {
@@ -2423,6 +2426,7 @@ export interface GroupCertificatesStats {
   };
   summary: {
     total_exams_approved: number;
+    total_certified: number;
     tier_basic: {
       enabled: boolean;
       ready: number;
@@ -2444,14 +2448,40 @@ export interface GroupCertificatesStats {
       count: number;
     };
   };
-  candidates: CandidateCertificateStats[];
+  // Paginated candidates (only when page param is sent)
+  candidates?: CandidateCertificateStats[];
+  total?: number;
+  page?: number;
+  pages?: number;
+  per_page?: number;
+}
+
+export interface CertificatesCandidatesParams {
+  cert_type?: string;
+  page?: number;
+  per_page?: number;
+  search?: string;
+  sort_by?: string;
+  sort_dir?: string;
+  filter_status?: string;
 }
 
 /**
- * Obtener estadísticas de certificados del grupo
+ * Obtener estadísticas de certificados del grupo (summary only, sin candidatos)
  */
 export async function getGroupCertificatesStats(groupId: number): Promise<GroupCertificatesStats> {
   const response = await api.get(`/partners/groups/${groupId}/certificates/stats`);
+  return response.data;
+}
+
+/**
+ * Obtener estadísticas de certificados con candidatos paginados
+ */
+export async function getGroupCertificatesCandidates(
+  groupId: number,
+  params: CertificatesCandidatesParams,
+): Promise<GroupCertificatesStats> {
+  const response = await api.get(`/partners/groups/${groupId}/certificates/stats`, { params: { ...params, page: params.page || 1 } });
   return response.data;
 }
 

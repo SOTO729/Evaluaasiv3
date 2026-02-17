@@ -53,7 +53,6 @@ export default function GroupEditAssignmentMembersPage() {
 
   const [group, setGroup] = useState<CandidateGroup | null>(null);
   const [detailData, setDetailData] = useState<ExamMembersDetailResponse | null>(null);
-  const [allGroupMembers, setAllGroupMembers] = useState<GroupMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,21 +81,21 @@ export default function GroupEditAssignmentMembersPage() {
   const [swapToUserId, setSwapToUserId] = useState<string>('');
   const [swapSearch, setSwapSearch] = useState('');
   const [swapping, setSwapping] = useState(false);
+  const [swapCandidates, setSwapCandidates] = useState<GroupMember[]>([]);
+  const [swapSearching, setSwapSearching] = useState(false);
+  const [swapTotalResults, setSwapTotalResults] = useState(0);
 
   // Race condition prevention
   const searchRequestRef = useRef(0);
+  const swapSearchRef = useRef(0);
 
-  // Carga inicial del grupo y miembros para swap
+  // Carga inicial del grupo
   useEffect(() => {
     (async () => {
       try {
         setLoading(true);
-        const [groupData, membersData] = await Promise.all([
-          getGroup(Number(groupId)),
-          getGroupMembers(Number(groupId), { per_page: 10000 }),
-        ]);
+        const groupData = await getGroup(Number(groupId));
         setGroup(groupData);
-        setAllGroupMembers(membersData.members);
       } catch (err: any) {
         setError(err.response?.data?.error || 'Error al cargar el grupo');
       } finally {
@@ -104,6 +103,32 @@ export default function GroupEditAssignmentMembersPage() {
       }
     })();
   }, [groupId]);
+
+  // Búsqueda server-side de candidatos para swap (debounce 400ms)
+  const loadSwapCandidates = useCallback(async (search: string) => {
+    const reqId = ++swapSearchRef.current;
+    try {
+      setSwapSearching(true);
+      const res = await getGroupMembers(Number(groupId), {
+        per_page: 50,
+        search: search || undefined,
+      });
+      if (reqId !== swapSearchRef.current) return;
+      setSwapCandidates(res.members);
+      setSwapTotalResults(res.total);
+    } catch {
+      if (reqId !== swapSearchRef.current) return;
+    } finally {
+      if (reqId === swapSearchRef.current) setSwapSearching(false);
+    }
+  }, [groupId]);
+
+  // Cargar candidatos cuando se abre el modal o cambia la búsqueda
+  useEffect(() => {
+    if (!showSwapModal) return;
+    const timer = setTimeout(() => loadSwapCandidates(swapSearch), 400);
+    return () => clearTimeout(timer);
+  }, [showSwapModal, swapSearch, loadSwapCandidates]);
 
   // Búsqueda server-side con paginación
   const handleSearch = useCallback(async (page: number = 1, perPage: number = pageSize) => {
@@ -188,22 +213,7 @@ export default function GroupEditAssignmentMembersPage() {
     return <ArrowUpDown className="h-3 w-3 ml-1 inline opacity-30" />;
   };
 
-  // Candidatos disponibles para swap
-  const availableForSwap = useMemo(() => {
-    if (!allGroupMembers) return [];
-    return allGroupMembers;
-  }, [allGroupMembers]);
 
-  const filteredSwapCandidates = useMemo(() => {
-    if (!swapSearch.trim()) return availableForSwap;
-    const q = swapSearch.toLowerCase();
-    return availableForSwap.filter((m) => {
-      const name = m.user?.full_name?.toLowerCase() || '';
-      const email = m.user?.email?.toLowerCase() || '';
-      const curp = m.user?.curp?.toLowerCase() || '';
-      return name.includes(q) || email.includes(q) || curp.includes(q);
-    });
-  }, [availableForSwap, swapSearch]);
 
   const handleInitSwap = (member: ExamMemberDetail) => {
     setSwapFrom(member);
@@ -228,8 +238,6 @@ export default function GroupEditAssignmentMembersPage() {
       setSwapFrom(null);
       setSwapToUserId('');
       await handleSearch(currentPage, pageSize);
-      const membersData = await getGroupMembers(Number(groupId), { per_page: 10000 });
-      setAllGroupMembers(membersData.members);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al realizar la reasignación');
     } finally {
@@ -820,21 +828,26 @@ export default function GroupEditAssignmentMembersPage() {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                 />
               </div>
-              {availableForSwap.length === 0 && (
-                <p className="text-xs text-gray-400 mt-2">No hay miembros disponibles que no estén ya asignados a este examen.</p>
+              {swapTotalResults > 0 && (
+                <p className="text-xs text-gray-400 mt-2">{swapTotalResults.toLocaleString()} miembros encontrados{swapTotalResults > 50 ? ' (mostrando primeros 50)' : ''}</p>
               )}
             </div>
 
             {/* Lista de candidatos disponibles */}
             <div className="overflow-y-auto flex-1" style={{ maxHeight: '320px' }}>
-              {filteredSwapCandidates.length === 0 ? (
+              {swapSearching ? (
+                <div className="p-8 text-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-indigo-500 mx-auto mb-2" />
+                  <p className="text-gray-500 text-sm">Buscando candidatos...</p>
+                </div>
+              ) : swapCandidates.length === 0 ? (
                 <div className="p-8 text-center">
                   <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-gray-500 text-sm">No se encontraron candidatos disponibles</p>
+                  <p className="text-gray-500 text-sm">{swapSearch ? 'No se encontraron candidatos para esa búsqueda' : 'Escribe para buscar candidatos'}</p>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100">
-                  {filteredSwapCandidates.map((member) => {
+                  {swapCandidates.map((member) => {
                     const selected = swapToUserId === member.user_id;
                     return (
                       <button

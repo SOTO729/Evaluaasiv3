@@ -127,7 +127,7 @@ export default function GroupDocumentsPage() {
     }
   };
 
-  const totalCertified = stats?.candidates.filter(c => c.exams_approved > 0).length || 0;
+  const totalCertified = stats?.summary.total_certified || 0;
 
   if (loading) {
     return (
@@ -191,7 +191,7 @@ export default function GroupDocumentsPage() {
               <p className="fluid-text-xs text-white/70">Candidatos Certificados</p>
             </div>
             <div className="bg-white/10 rounded-fluid-xl fluid-p-4 text-center min-w-[120px]">
-              <p className="fluid-text-2xl font-bold">{stats?.candidates.length || 0}</p>
+              <p className="fluid-text-2xl font-bold">{stats?.group.member_count || 0}</p>
               <p className="fluid-text-xs text-white/70">Total Candidatos</p>
             </div>
           </div>

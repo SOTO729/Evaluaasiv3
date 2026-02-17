@@ -9026,8 +9026,18 @@ def bulk_assign_exams_by_ecm(group_id):
 @coordinator_required
 def get_group_certificates_stats(group_id):
     """
-    Obtener estadísticas de certificados del grupo.
-    Incluye conteos por tipo de certificado y por candidato.
+    Obtener estadísticas de certificados del grupo con paginación server-side.
+    
+    Query params:
+    - cert_type: 'tier_basic' | 'tier_standard' | 'tier_advanced' | 'digital_badge' (opcional)
+    - page (int, default 1)
+    - per_page (int, default 150, max 1000)
+    - search (str, opcional) — busca en full_name, email, curp
+    - sort_by (str, default 'full_name') — full_name, email, curp, status, ready_count
+    - sort_dir (str, default 'asc')
+    - filter_status (str, opcional) — 'ready', 'pending', 'all'
+    
+    Si NO se envía page, devuelve solo summary sin candidates (para el hub).
     """
     try:
         from app.models.result import Result
@@ -9036,6 +9046,15 @@ def get_group_certificates_stats(group_id):
         from sqlalchemy import and_, or_
         
         group = CandidateGroup.query.get_or_404(group_id)
+        
+        cert_type = request.args.get('cert_type', None)
+        include_candidates = request.args.get('page') is not None
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 150, type=int), 1000)
+        search = request.args.get('search', '').strip()
+        sort_by = request.args.get('sort_by', 'full_name')
+        sort_dir_param = request.args.get('sort_dir', 'asc')
+        filter_status = request.args.get('filter_status', 'all')
         
         # Obtener configuración efectiva del grupo
         if group.campus:
@@ -9060,7 +9079,7 @@ def get_group_certificates_stats(group_id):
                 Result.status == 1,  # completado
                 Result.result == 1   # aprobado
             )
-        ).all()
+        ).all() if member_user_ids else []
         
         # Obtener certificados CONOCER de los miembros
         conocer_certs = ConocerCertificate.query.filter(
@@ -9068,13 +9087,13 @@ def get_group_certificates_stats(group_id):
                 ConocerCertificate.user_id.in_(member_user_ids),
                 ConocerCertificate.status == 'active'
             )
-        ).all()
+        ).all() if member_user_ids else []
         
         # Calcular estadísticas por tipo
-        tier_basic_count = 0  # Constancias (report_url disponible)
-        tier_standard_count = 0  # Certificados Eduit (certificate_url disponible)
-        tier_basic_pending = 0  # Sin report_url pero aprobado
-        tier_standard_pending = 0  # Sin certificate_url pero aprobado
+        tier_basic_count = 0
+        tier_standard_count = 0
+        tier_basic_pending = 0
+        tier_standard_pending = 0
         
         for r in results:
             if r.report_url or r.certificate_code:
@@ -9088,53 +9107,12 @@ def get_group_certificates_stats(group_id):
                 tier_standard_pending += 1
         
         tier_advanced_count = len(conocer_certs)
+        digital_badge_count = len(results)
         
-        # Badge digital - asumimos que cada resultado aprobado puede tener uno
-        digital_badge_count = len(results)  # Mismo que aprobados
+        # Contar usuarios únicos con resultados aprobados (certificados)
+        certified_user_ids = set(r.user_id for r in results)
         
-        # Estadísticas por candidato
-        candidates_stats = []
-        for member in members:
-            user = member.user
-            if not user:
-                continue
-            
-            user_results = [r for r in results if r.user_id == member.user_id]
-            user_conocer = [c for c in conocer_certs if c.user_id == member.user_id]
-            
-            candidate_stat = {
-                'user_id': member.user_id,
-                'full_name': user.full_name,
-                'email': user.email,
-                'curp': user.curp,
-                'exams_approved': len(user_results),
-                'tier_basic_ready': sum(1 for r in user_results if r.report_url or r.certificate_code),
-                'tier_basic_pending': sum(1 for r in user_results if not r.report_url and not r.certificate_code),
-                'tier_standard_ready': sum(1 for r in user_results if r.certificate_url or r.eduit_certificate_code),
-                'tier_standard_pending': sum(1 for r in user_results if not r.certificate_url and not r.eduit_certificate_code),
-                'tier_advanced_count': len(user_conocer),
-                'digital_badge_count': len(user_results),
-                'results': [{
-                    'id': r.id,
-                    'exam_id': r.exam_id,
-                    'score': r.score,
-                    'end_date': r.end_date.isoformat() if r.end_date else None,
-                    'has_report': bool(r.report_url),
-                    'has_certificate': bool(r.certificate_url),
-                    'certificate_code': r.certificate_code,
-                    'eduit_certificate_code': r.eduit_certificate_code
-                } for r in user_results],
-                'conocer_certificates': [{
-                    'id': c.id,
-                    'certificate_number': c.certificate_number,
-                    'standard_code': c.standard_code,
-                    'standard_name': c.standard_name,
-                    'issue_date': c.issue_date.isoformat() if c.issue_date else None
-                } for c in user_conocer]
-            }
-            candidates_stats.append(candidate_stat)
-        
-        return jsonify({
+        response = {
             'group': {
                 'id': group.id,
                 'name': group.name,
@@ -9148,6 +9126,7 @@ def get_group_certificates_stats(group_id):
             },
             'summary': {
                 'total_exams_approved': len(results),
+                'total_certified': len(certified_user_ids),
                 'tier_basic': {
                     'enabled': enable_tier_basic,
                     'ready': tier_basic_count,
@@ -9168,9 +9147,130 @@ def get_group_certificates_stats(group_id):
                     'enabled': enable_digital_badge,
                     'count': digital_badge_count
                 }
-            },
-            'candidates': candidates_stats
-        })
+            }
+        }
+        
+        # Si no se solicita paginación, devolver solo summary (hub de documentos)
+        if not include_candidates:
+            return jsonify(response)
+        
+        # ----- Construir candidates con paginación -----
+        user_results_map = {}
+        for r in results:
+            user_results_map.setdefault(r.user_id, []).append(r)
+        
+        user_conocer_map = {}
+        for c in conocer_certs:
+            user_conocer_map.setdefault(c.user_id, []).append(c)
+        
+        candidates_stats = []
+        for member in members:
+            user = member.user
+            if not user:
+                continue
+            
+            user_results = user_results_map.get(member.user_id, [])
+            user_conocer = user_conocer_map.get(member.user_id, [])
+            
+            exams_approved = len(user_results)
+            tb_ready = sum(1 for r in user_results if r.report_url or r.certificate_code)
+            tb_pending = sum(1 for r in user_results if not r.report_url and not r.certificate_code)
+            ts_ready = sum(1 for r in user_results if r.certificate_url or r.eduit_certificate_code)
+            ts_pending = sum(1 for r in user_results if not r.certificate_url and not r.eduit_certificate_code)
+            ta_count = len(user_conocer)
+            db_count = len(user_results)
+            
+            # Determinar ready/pending para el tipo solicitado
+            if cert_type == 'tier_basic':
+                ready_count = tb_ready
+                pending_count = tb_pending
+            elif cert_type == 'tier_standard':
+                ready_count = ts_ready
+                pending_count = ts_pending
+            elif cert_type == 'tier_advanced':
+                ready_count = ta_count
+                pending_count = 0
+            elif cert_type == 'digital_badge':
+                ready_count = db_count
+                pending_count = 0
+            else:
+                ready_count = tb_ready + ts_ready + ta_count + db_count
+                pending_count = tb_pending + ts_pending
+            
+            total_for_type = ready_count + pending_count
+            
+            # Filtrar candidatos sin resultados aprobados si no aplica
+            if exams_approved == 0:
+                continue
+            # Para tier_advanced y digital_badge, solo mostrar si tienen al menos 1
+            if cert_type in ('tier_advanced', 'digital_badge') and total_for_type == 0:
+                continue
+            
+            stat_status = 'pending' if pending_count > 0 else 'ready'
+            
+            candidates_stats.append({
+                'user_id': member.user_id,
+                'full_name': user.full_name,
+                'email': user.email,
+                'curp': getattr(user, 'curp', None),
+                'exams_approved': exams_approved,
+                'tier_basic_ready': tb_ready,
+                'tier_basic_pending': tb_pending,
+                'tier_standard_ready': ts_ready,
+                'tier_standard_pending': ts_pending,
+                'tier_advanced_count': ta_count,
+                'digital_badge_count': db_count,
+                'ready_count': ready_count,
+                'pending_count': pending_count,
+                'status': stat_status,
+            })
+        
+        # Búsqueda
+        if search:
+            q = search.lower()
+            candidates_stats = [c for c in candidates_stats if
+                q in c['full_name'].lower() or
+                q in (c['email'] or '').lower() or
+                q in (c['curp'] or '').lower()
+            ]
+        
+        # Filtro de estado
+        if filter_status == 'ready':
+            candidates_stats = [c for c in candidates_stats if c['status'] == 'ready']
+        elif filter_status == 'pending':
+            candidates_stats = [c for c in candidates_stats if c['status'] == 'pending']
+        
+        total_candidates = len(candidates_stats)
+        
+        # Ordenamiento
+        def sort_key(c):
+            if sort_by == 'full_name':
+                return c['full_name'].lower()
+            elif sort_by == 'email':
+                return (c['email'] or '').lower()
+            elif sort_by == 'curp':
+                return (c['curp'] or '').lower()
+            elif sort_by == 'status':
+                return c['status']
+            elif sort_by == 'ready_count':
+                return c['ready_count']
+            return c['full_name'].lower()
+        
+        candidates_stats.sort(key=sort_key, reverse=(sort_dir_param == 'desc'))
+        
+        # Paginación
+        total_pages = max(1, (total_candidates + per_page - 1) // per_page)
+        page = min(page, total_pages)
+        start = (page - 1) * per_page
+        page_candidates = candidates_stats[start:start + per_page]
+        
+        response['candidates'] = page_candidates
+        response['total'] = total_candidates
+        response['page'] = page
+        response['pages'] = total_pages
+        response['per_page'] = per_page
+        
+        return jsonify(response)
         
     except Exception as e:
         import traceback
