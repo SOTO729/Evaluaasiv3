@@ -547,32 +547,52 @@ export default function GroupFormPage() {
             <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-white">
               <div className="flex items-center justify-between">
                 <h2 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-3">
-                  <div className="fluid-p-2 bg-purple-100 rounded-fluid-lg">
-                    <Settings className="fluid-icon-base text-purple-600" />
+                  <div className={`fluid-p-2 rounded-fluid-lg ${groupConfig.has_assignments ? 'bg-amber-100' : 'bg-purple-100'}`}>
+                    {groupConfig.has_assignments
+                      ? <Lock className="fluid-icon-base text-amber-600" />
+                      : <Settings className="fluid-icon-base text-purple-600" />}
                   </div>
                   Configuración Heredada del Plantel
+                  {groupConfig.has_assignments && (
+                    <span className="fluid-text-xs fluid-px-2 fluid-py-1 bg-amber-100 text-amber-700 rounded-full font-medium">Bloqueada</span>
+                  )}
                 </h2>
-                <button
-                  type="button"
-                  onClick={handleResetConfig}
-                  disabled={savingConfig}
-                  className="inline-flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 fluid-text-sm text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-fluid-lg transition-colors"
-                  title="Restablecer a valores del plantel"
-                >
-                  <RefreshCw className="fluid-icon-sm" />
-                  Restablecer
-                </button>
+                {!groupConfig.has_assignments && (
+                  <button
+                    type="button"
+                    onClick={handleResetConfig}
+                    disabled={savingConfig}
+                    className="inline-flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 fluid-text-sm text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-fluid-lg transition-colors"
+                    title="Restablecer a valores del plantel"
+                  >
+                    <RefreshCw className="fluid-icon-sm" />
+                    Restablecer
+                  </button>
+                )}
               </div>
             </div>
             <div className="fluid-p-6">
 
-                {/* Info */}
-                <div className="flex items-start fluid-gap-3 fluid-p-4 fluid-mb-6 bg-blue-50 rounded-fluid-xl border border-blue-200">
-                  <Info className="fluid-icon-lg text-blue-500 flex-shrink-0 fluid-mt-1" />
-                  <div className="fluid-text-sm text-blue-700">
-                    <p>Puedes personalizar opciones para este grupo. Los valores marcados con <span className="fluid-px-2 fluid-py-1 bg-blue-100 text-blue-600 rounded-fluid fluid-text-xs font-medium">H</span> heredan la configuración de <strong>{groupConfig.campus_name}</strong>.</p>
+                {/* Aviso de configuración bloqueada */}
+                {groupConfig.has_assignments && (
+                  <div className="flex items-start fluid-gap-3 fluid-p-4 fluid-mb-6 bg-amber-50 rounded-fluid-xl border border-amber-300">
+                    <Lock className="fluid-icon-lg text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="fluid-text-sm text-amber-800">
+                      <p className="font-semibold fluid-mb-1">Configuración bloqueada</p>
+                      <p>Este grupo ya tiene <strong>{groupConfig.assignment_count} certificación(es) asignada(s)</strong>. La configuración no se puede modificar una vez que existen asignaciones. Si necesitas cambiar la configuración, contacta al administrador.</p>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Info */}
+                {!groupConfig.has_assignments && (
+                  <div className="flex items-start fluid-gap-3 fluid-p-4 fluid-mb-6 bg-blue-50 rounded-fluid-xl border border-blue-200">
+                    <Info className="fluid-icon-lg text-blue-500 flex-shrink-0 fluid-mt-1" />
+                    <div className="fluid-text-sm text-blue-700">
+                      <p>Puedes personalizar opciones para este grupo. Los valores marcados con <span className="fluid-px-2 fluid-py-1 bg-blue-100 text-blue-600 rounded-fluid fluid-text-xs font-medium">H</span> heredan la configuración de <strong>{groupConfig.campus_name}</strong>.</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Advertencias de candidatos sin CURP o Email */}
                 {groupConfig.warnings && groupConfig.warnings.length > 0 && (
@@ -597,7 +617,7 @@ export default function GroupFormPage() {
                     <p className="text-gray-500 mt-2">Cargando configuración...</p>
                   </div>
                 ) : (
-                  <div className="fluid-space-y-6">
+                  <div className={`fluid-space-y-6 ${groupConfig.has_assignments ? 'pointer-events-none opacity-60 select-none' : ''}`}>
                     {/* Primera fila: Opciones generales y Costos */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 fluid-gap-4">
                       {/* Versión de Office */}
@@ -753,7 +773,7 @@ export default function GroupFormPage() {
                     </div>
 
                     {/* Botón guardar configuración */}
-                    {configChanged && (
+                    {configChanged && !groupConfig.has_assignments && (
                       <div className="flex justify-end">
                         <button
                           type="button"

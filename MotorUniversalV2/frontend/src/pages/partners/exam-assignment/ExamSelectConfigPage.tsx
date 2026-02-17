@@ -279,6 +279,15 @@ export default function ExamSelectConfigPage() {
         </div>
       )}
 
+      {/* Aviso importante sobre bloqueo de configuración */}
+      <div className="fluid-mb-6 bg-amber-50 border border-amber-300 rounded-fluid-xl fluid-p-5 flex items-start fluid-gap-3">
+        <Lock className="fluid-icon-lg text-amber-600 flex-shrink-0 mt-0.5" />
+        <div className="fluid-text-sm text-amber-800">
+          <p className="font-semibold fluid-mb-1">Importante: La configuración del grupo se bloqueará</p>
+          <p>Una vez que asignes esta certificación, la configuración del grupo <strong>({group.name})</strong> ya no podrá modificarse. Asegúrate de que la configuración del grupo (niveles de certificación, costos, versión de Office, etc.) sea correcta antes de continuar.</p>
+        </div>
+      </div>
+
       {/* === STEP 1: SELECT ECM === */}
       {step === 'select-ecm' && (
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">

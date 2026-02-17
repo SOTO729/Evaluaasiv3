@@ -818,6 +818,8 @@ export interface GroupConfigResponse {
     assignment_validity_months: number;
   };
   warnings?: GroupConfigWarning[];
+  has_assignments?: boolean;
+  assignment_count?: number;
 }
 
 export async function getGroupConfig(groupId: number): Promise<GroupConfigResponse> {

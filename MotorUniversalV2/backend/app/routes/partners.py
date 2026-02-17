@@ -2557,6 +2557,10 @@ def get_group_config(group_id):
                 'affected_members': members_without_email
             })
         
+        # Verificar si el grupo tiene asignaciones (certificaciones asignadas)
+        from app.models import GroupExam
+        assignment_count = GroupExam.query.filter_by(group_id=group_id, is_active=True).count()
+        
         return jsonify({
             'group_id': group.id,
             'group_name': group.name,
@@ -2566,7 +2570,9 @@ def get_group_config(group_id):
             'campus_config': campus_config,
             'group_overrides': group_overrides,
             'effective_config': effective_config,
-            'warnings': warnings
+            'warnings': warnings,
+            'has_assignments': assignment_count > 0,
+            'assignment_count': assignment_count,
         })
         
     except Exception as e:
@@ -2580,6 +2586,14 @@ def update_group_config(group_id):
     """Actualizar configuración del grupo (overrides)"""
     try:
         group = CandidateGroup.query.get_or_404(group_id)
+        
+        # Bloquear si el grupo ya tiene asignaciones
+        from app.models import GroupExam
+        if GroupExam.query.filter_by(group_id=group_id, is_active=True).first():
+            return jsonify({
+                'error': 'La configuración del grupo está bloqueada porque ya tiene certificaciones asignadas. No se puede modificar.'
+            }), 403
+        
         data = request.get_json()
         
         # Campos booleanos de override
@@ -2637,6 +2651,13 @@ def reset_group_config(group_id):
     """Resetear configuración del grupo a valores del campus"""
     try:
         group = CandidateGroup.query.get_or_404(group_id)
+        
+        # Bloquear si el grupo ya tiene asignaciones
+        from app.models import GroupExam
+        if GroupExam.query.filter_by(group_id=group_id, is_active=True).first():
+            return jsonify({
+                'error': 'La configuración del grupo está bloqueada porque ya tiene certificaciones asignadas. No se puede restablecer.'
+            }), 403
         
         # Limpiar todos los overrides
         group.use_custom_config = False
