@@ -351,8 +351,8 @@ export default function GroupDetailPage() {
               </div>
               {stats.totalMembers > 0 && group.is_active && (
                 <Link to={`/partners/groups/${groupId}/assign-exam`}
-                  className="inline-flex items-center fluid-gap-1.5 fluid-px-3 fluid-py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-fluid-lg font-medium fluid-text-xs transition-all">
-                  <Layers className="fluid-icon-xs" />Asignar Nueva
+                  className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-fluid-xl font-semibold fluid-text-sm transition-all shadow-sm hover:shadow-md">
+                  <Layers className="fluid-icon-sm" />Asignar Nueva Certificación
                 </Link>
               )}
             </div>
