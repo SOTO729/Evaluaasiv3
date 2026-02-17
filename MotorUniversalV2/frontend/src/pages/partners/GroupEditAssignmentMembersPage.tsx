@@ -4,7 +4,7 @@
  * Solo permite reasignar (swap) si el candidato no tiene >=15% de avance ni ha abierto examen/simulador.
  * Paginación, búsqueda, filtros y ordenamiento server-side idénticos a GroupMembersPage.
  */
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -233,7 +233,10 @@ export default function GroupEditAssignmentMembersPage() {
         swapFrom.user_id,
         swapToUserId
       );
-      setSuccessMessage(result.message);
+      const msg = result.assignment_number
+        ? `${result.message} (N° Asignación: ${result.assignment_number})`
+        : result.message;
+      setSuccessMessage(msg);
       setShowSwapModal(false);
       setSwapFrom(null);
       setSwapToUserId('');

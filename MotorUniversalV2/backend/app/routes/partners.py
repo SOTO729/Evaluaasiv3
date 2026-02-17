@@ -5376,19 +5376,46 @@ def swap_exam_member(group_id, exam_id):
                 ))
 
         # Transferir la EcmCandidateAssignment si existe
+        # El assignment_number se mantiene y pasa del candidato origen al destino
+        transferred_assignment_number = None
         if ecm_id:
+            # Buscar primero por group_exam_id, luego sin él como fallback
             eca = EcmCandidateAssignment.query.filter_by(
                 user_id=from_user_id,
                 competency_standard_id=ecm_id,
                 group_exam_id=group_exam.id
             ).first()
+            if not eca:
+                # Fallback: buscar por user_id + competency_standard_id sin group_exam_id
+                eca = EcmCandidateAssignment.query.filter_by(
+                    user_id=from_user_id,
+                    competency_standard_id=ecm_id
+                ).first()
+            
             if eca:
-                eca.user_id = to_user_id
-                # Actualizar info contextual
-                from app.models.user import User
-                to_user = User.query.get(to_user_id)
-                if to_user:
-                    print(f"✅ ECA {eca.assignment_number} transferida de {from_user_id} a {to_user.full_name}")
+                transferred_assignment_number = eca.assignment_number
+                
+                # Verificar si el destino ya tiene una ECA para este ECM
+                existing_dest_eca = EcmCandidateAssignment.query.filter_by(
+                    user_id=to_user_id,
+                    competency_standard_id=ecm_id
+                ).first()
+                
+                if existing_dest_eca:
+                    # El destino ya tiene una ECA — eliminar la del origen ya que 
+                    # el destino conserva la suya. No transferimos assignment_number 
+                    # en este caso raro.
+                    db.session.delete(eca)
+                    transferred_assignment_number = existing_dest_eca.assignment_number
+                    print(f"⚠️ Destino ya tenía ECA {existing_dest_eca.assignment_number}, se eliminó ECA {eca.assignment_number} del origen")
+                else:
+                    # Transferir: cambiar user_id al destino
+                    eca.user_id = to_user_id
+                    eca.group_exam_id = group_exam.id  # Asegurar referencia correcta
+                    from app.models.user import User
+                    to_user = User.query.get(to_user_id)
+                    if to_user:
+                        print(f"✅ ECA {eca.assignment_number} transferida de {from_user_id} a {to_user.full_name}")
 
         db.session.commit()
 
@@ -5400,6 +5427,7 @@ def swap_exam_member(group_id, exam_id):
             'message': f'Asignación reasignada de {from_user.full_name if from_user else from_user_id} a {to_user.full_name if to_user else to_user_id}',
             'from_user_id': from_user_id,
             'to_user_id': to_user_id,
+            'assignment_number': transferred_assignment_number,
         })
 
     except Exception as e:

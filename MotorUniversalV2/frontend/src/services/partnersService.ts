@@ -1911,7 +1911,7 @@ export async function swapExamMember(
   examId: number,
   fromUserId: string,
   toUserId: string
-): Promise<{ message: string; from_user_id: string; to_user_id: string }> {
+): Promise<{ message: string; from_user_id: string; to_user_id: string; assignment_number?: string }> {
   const response = await api.post(`/partners/groups/${groupId}/exams/${examId}/members/swap`, {
     from_user_id: fromUserId,
     to_user_id: toUserId
