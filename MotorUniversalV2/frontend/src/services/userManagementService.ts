@@ -313,11 +313,20 @@ export interface BulkUploadResult {
     }>;
     total_processed: number;
   };
+  group_assignment?: {
+    group_id: number;
+    group_name: string;
+    assigned: number;
+    errors: Array<{ username: string; error: string }>;
+  };
 }
 
-export async function bulkUploadCandidates(file: File): Promise<BulkUploadResult> {
+export async function bulkUploadCandidates(file: File, groupId?: number): Promise<BulkUploadResult> {
   const formData = new FormData();
   formData.append('file', file);
+  if (groupId) {
+    formData.append('group_id', String(groupId));
+  }
   
   const response = await api.post('/user-management/candidates/bulk-upload', formData, {
     headers: {

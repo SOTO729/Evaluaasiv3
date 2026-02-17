@@ -1097,6 +1097,9 @@ def bulk_upload_candidates():
     - email (opcional - sin email no puede recibir insignia digital)
     - curp (opcional - sin CURP no puede recibir certificado CONOCER)
     
+    Parámetros opcionales (form fields):
+    - group_id: ID del grupo al que se asignarán los candidatos creados
+    
     Nota: Las contraseñas se generan automáticamente
     """
     try:
@@ -1106,6 +1109,24 @@ def bulk_upload_candidates():
         from openpyxl import load_workbook
         
         current_user = g.current_user
+        group_id = request.form.get('group_id', type=int)
+        
+        # Si se envió group_id, validar que el grupo existe y es accesible
+        target_group = None
+        if group_id:
+            from app.models.partner import CandidateGroup, Campus, Partner, GroupMember
+            target_group = CandidateGroup.query.get(group_id)
+            if not target_group:
+                return jsonify({'error': f'Grupo con ID {group_id} no encontrado'}), 404
+            if not target_group.is_active:
+                return jsonify({'error': 'El grupo seleccionado no está activo'}), 400
+            # Verificar acceso multi-tenant para coordinadores
+            if current_user.role == 'coordinator':
+                campus = Campus.query.get(target_group.campus_id)
+                if campus:
+                    partner = Partner.query.get(campus.partner_id)
+                    if partner and partner.coordinator_id != current_user.id:
+                        return jsonify({'error': 'No tienes acceso a este grupo'}), 403
         
         # Verificar que se envió un archivo
         if 'file' not in request.files:
@@ -1325,7 +1346,48 @@ def bulk_upload_candidates():
         if results['created']:
             db.session.commit()
         
-        return jsonify({
+        # Si se especificó un grupo, agregar los candidatos creados como miembros
+        group_assignment = None
+        if target_group and results['created']:
+            from app.models.partner import GroupMember
+            assigned_count = 0
+            assignment_errors = []
+            
+            # Obtener IDs de usuarios recién creados
+            created_emails = [c['email'] for c in results['created'] if c.get('email')]
+            created_usernames = [c['username'] for c in results['created']]
+            
+            # Buscar los usuarios por username (más confiable que email ya que algunos no tienen)
+            created_users = User.query.filter(User.username.in_(created_usernames)).all()
+            
+            for user in created_users:
+                try:
+                    # Verificar que no sea ya miembro
+                    existing = GroupMember.query.filter_by(
+                        group_id=target_group.id, user_id=user.id
+                    ).first()
+                    if not existing:
+                        member = GroupMember(
+                            group_id=target_group.id,
+                            user_id=user.id,
+                            status='active'
+                        )
+                        db.session.add(member)
+                        assigned_count += 1
+                except Exception as e:
+                    assignment_errors.append({'username': user.username, 'error': str(e)})
+            
+            if assigned_count > 0:
+                db.session.commit()
+            
+            group_assignment = {
+                'group_id': target_group.id,
+                'group_name': target_group.name,
+                'assigned': assigned_count,
+                'errors': assignment_errors,
+            }
+        
+        response_data = {
             'message': f'Proceso completado: {len(results["created"])} usuarios creados',
             'summary': {
                 'total_processed': results['total_processed'],
@@ -1334,7 +1396,11 @@ def bulk_upload_candidates():
                 'skipped': len(results['skipped'])
             },
             'details': results
-        }), 200
+        }
+        if group_assignment:
+            response_data['group_assignment'] = group_assignment
+        
+        return jsonify(response_data), 200
         
     except Exception as e:
         db.session.rollback()

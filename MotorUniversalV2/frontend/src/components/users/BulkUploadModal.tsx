@@ -1,7 +1,7 @@
 /**
  * Modal para carga masiva de candidatos desde Excel
  */
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   X,
   Upload,
@@ -15,7 +15,10 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
-  Check
+  Check,
+  Building2,
+  Layers,
+  MapPin,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -23,6 +26,11 @@ import {
   downloadBulkUploadTemplate,
   BulkUploadResult
 } from '../../services/userManagementService';
+import {
+  getPartners,
+  getCampuses,
+  getGroups,
+} from '../../services/partnersService';
 import { useNotificationStore } from '../../store/notificationStore';
 
 interface BulkUploadModalProps {
@@ -49,6 +57,57 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
   
   // Estado para copiar contraseñas
   const [copiedRow, setCopiedRow] = useState<number | null>(null);
+
+  // Estado para selector de grupo (opcional)
+  const [selectedPartnerId, setSelectedPartnerId] = useState<number | ''>('');
+  const [selectedCampusId, setSelectedCampusId] = useState<number | ''>('');
+  const [selectedGroupId, setSelectedGroupId] = useState<number | ''>('');
+  const [partners, setPartners] = useState<Array<{ id: number; name: string }>>([]);
+  const [campuses, setCampuses] = useState<Array<{ id: number; name: string }>>([]);
+  const [groups, setGroups] = useState<Array<{ id: number; name: string }>>([]);
+  const [loadingPartners, setLoadingPartners] = useState(false);
+  const [loadingCampuses, setLoadingCampuses] = useState(false);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [showGroupSelector, setShowGroupSelector] = useState(false);
+
+  // Cargar partners al abrir el selector
+  useEffect(() => {
+    if (showGroupSelector && partners.length === 0) {
+      setLoadingPartners(true);
+      getPartners({ page: 1, per_page: 500 })
+        .then(res => setPartners((res.partners || []).map((p: any) => ({ id: p.id, name: p.name }))))
+        .catch(() => {})
+        .finally(() => setLoadingPartners(false));
+    }
+  }, [showGroupSelector]);
+
+  // Cargar campuses cuando cambia el partner
+  useEffect(() => {
+    setCampuses([]);
+    setGroups([]);
+    setSelectedCampusId('');
+    setSelectedGroupId('');
+    if (selectedPartnerId) {
+      setLoadingCampuses(true);
+      getCampuses(Number(selectedPartnerId))
+        .then(res => setCampuses((res.campuses || []).map((c: any) => ({ id: c.id, name: c.name }))))
+        .catch(() => {})
+        .finally(() => setLoadingCampuses(false));
+    }
+  }, [selectedPartnerId]);
+
+  // Cargar grupos cuando cambia el campus
+  useEffect(() => {
+    setGroups([]);
+    setSelectedGroupId('');
+    if (selectedCampusId) {
+      setLoadingGroups(true);
+      getGroups(Number(selectedCampusId))
+        .then(res => setGroups((res.groups || []).map((g: any) => ({ id: g.id, name: g.name }))))
+        .catch(() => {})
+        .finally(() => setLoadingGroups(false));
+    }
+  }, [selectedCampusId]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -103,14 +162,17 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
       handleClose();
       
       try {
-        const uploadResult = await bulkUploadCandidates(file);
+        const uploadResult = await bulkUploadCandidates(file, selectedGroupId ? Number(selectedGroupId) : undefined);
         
         // Actualizar notificación con resultado
         if (uploadResult.summary.created > 0) {
+          const groupMsg = uploadResult.group_assignment
+            ? ` | ${uploadResult.group_assignment.assigned} asignados a ${uploadResult.group_assignment.group_name}`
+            : '';
           updateNotification(notificationId, {
             type: 'success',
             title: 'Carga masiva completada',
-            message: `${uploadResult.summary.created} candidatos creados, ${uploadResult.summary.errors} errores`,
+            message: `${uploadResult.summary.created} candidatos creados, ${uploadResult.summary.errors} errores${groupMsg}`,
             dismissible: true,
             duration: 10000,
           });
@@ -148,7 +210,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
       setResult(null);
       
       try {
-        const uploadResult = await bulkUploadCandidates(file);
+        const uploadResult = await bulkUploadCandidates(file, selectedGroupId ? Number(selectedGroupId) : undefined);
         setResult(uploadResult);
         
         if (uploadResult.summary.created > 0) {
@@ -211,6 +273,14 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
     }
   };
 
+  const handleResetGroup = () => {
+    setSelectedPartnerId('');
+    setSelectedCampusId('');
+    setSelectedGroupId('');
+    setCampuses([]);
+    setGroups([]);
+  };
+
   const handleCopyPassword = (row: number, password: string) => {
     navigator.clipboard.writeText(password);
     setCopiedRow(row);
@@ -219,6 +289,8 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
 
   const handleClose = () => {
     handleReset();
+    handleResetGroup();
+    setShowGroupSelector(false);
     onClose();
   };
 
@@ -248,6 +320,143 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
+          {/* Selector de grupo (opcional) */}
+          {!result && (
+            <div className="mb-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGroupSelector(!showGroupSelector);
+                  if (showGroupSelector) handleResetGroup();
+                }}
+                className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
+                  showGroupSelector
+                    ? 'border-purple-300 bg-purple-50'
+                    : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${showGroupSelector ? 'bg-purple-100' : 'bg-gray-200'}`}>
+                    <Layers className={`h-5 w-5 ${showGroupSelector ? 'text-purple-600' : 'text-gray-500'}`} />
+                  </div>
+                  <div className="text-left">
+                    <p className={`font-medium ${showGroupSelector ? 'text-purple-800' : 'text-gray-700'}`}>
+                      Asignar a un grupo
+                      <span className="ml-2 text-xs font-normal text-gray-400">(Opcional)</span>
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {selectedGroupId
+                        ? `Grupo: ${groups.find(g => g.id === selectedGroupId)?.name || '...'}`
+                        : 'Los candidatos se crearán sin grupo asignado'}
+                    </p>
+                  </div>
+                </div>
+                {showGroupSelector ? (
+                  <ChevronUp className="h-5 w-5 text-purple-500" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-gray-400" />
+                )}
+              </button>
+
+              {showGroupSelector && (
+                <div className="mt-3 p-4 bg-purple-50 border border-purple-200 rounded-xl space-y-3">
+                  {/* Partner */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
+                      <Building2 className="h-4 w-4 text-gray-400" />
+                      Partner
+                    </label>
+                    <select
+                      value={selectedPartnerId}
+                      onChange={e => setSelectedPartnerId(e.target.value ? Number(e.target.value) : '')}
+                      disabled={loadingPartners}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-100"
+                    >
+                      <option value="">
+                        {loadingPartners ? 'Cargando partners...' : '-- Selecciona un partner --'}
+                      </option>
+                      {partners.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Campus */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
+                      <MapPin className="h-4 w-4 text-gray-400" />
+                      Campus
+                    </label>
+                    <select
+                      value={selectedCampusId}
+                      onChange={e => setSelectedCampusId(e.target.value ? Number(e.target.value) : '')}
+                      disabled={!selectedPartnerId || loadingCampuses}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-100"
+                    >
+                      <option value="">
+                        {loadingCampuses
+                          ? 'Cargando campus...'
+                          : !selectedPartnerId
+                          ? '-- Selecciona un partner primero --'
+                          : '-- Selecciona un campus --'}
+                      </option>
+                      {campuses.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Grupo */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
+                      <Layers className="h-4 w-4 text-gray-400" />
+                      Grupo
+                    </label>
+                    <select
+                      value={selectedGroupId}
+                      onChange={e => setSelectedGroupId(e.target.value ? Number(e.target.value) : '')}
+                      disabled={!selectedCampusId || loadingGroups}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-100"
+                    >
+                      <option value="">
+                        {loadingGroups
+                          ? 'Cargando grupos...'
+                          : !selectedCampusId
+                          ? '-- Selecciona un campus primero --'
+                          : '-- Selecciona un grupo --'}
+                      </option>
+                      {groups.map(g => (
+                        <option key={g.id} value={g.id}>{g.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Selected group summary */}
+                  {selectedGroupId && (
+                    <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-purple-200">
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle2 className="h-4 w-4 text-purple-600" />
+                        <span className="text-purple-800 font-medium">
+                          {groups.find(g => g.id === selectedGroupId)?.name}
+                        </span>
+                        <span className="text-gray-400">•</span>
+                        <span className="text-gray-500 text-xs">
+                          {partners.find(p => p.id === selectedPartnerId)?.name} / {campuses.find(c => c.id === selectedCampusId)?.name}
+                        </span>
+                      </div>
+                      <button
+                        onClick={handleResetGroup}
+                        className="text-xs text-red-500 hover:text-red-700 font-medium"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Paso 1: Descargar plantilla */}
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
             <h3 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
@@ -434,6 +643,33 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                   <p className="text-xs text-red-700">Errores</p>
                 </div>
               </div>
+
+              {/* Group assignment result */}
+              {result.group_assignment && (
+                <div className="p-4 bg-purple-50 border border-purple-200 rounded-xl">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Layers className="h-5 w-5 text-purple-600" />
+                    <span className="font-medium text-purple-800">
+                      Asignación a grupo: {result.group_assignment.group_name}
+                    </span>
+                  </div>
+                  <p className="text-sm text-purple-700">
+                    {result.group_assignment.assigned} candidato(s) asignados exitosamente
+                    {result.group_assignment.errors && result.group_assignment.errors.length > 0 && (
+                      <span className="text-red-600 ml-2">
+                        • {result.group_assignment.errors.length} error(es)
+                      </span>
+                    )}
+                  </p>
+                  {result.group_assignment.errors && result.group_assignment.errors.length > 0 && (
+                    <div className="mt-2 text-xs text-red-600 space-y-1">
+                      {result.group_assignment.errors.map((e, i) => (
+                        <p key={i}>{e.username}: {e.error}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Botón descargar Excel */}
               {result.details.created.length > 0 && (
