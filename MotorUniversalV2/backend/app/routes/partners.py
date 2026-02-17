@@ -9455,14 +9455,6 @@ def clear_group_certificates_urls(group_id):
         return jsonify({'error': str(e)}), 500
 
 
-        })
-        
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
-
-
 @bp.route('/groups/<int:group_id>/analytics', methods=['GET'])
 @jwt_required()
 @coordinator_required
