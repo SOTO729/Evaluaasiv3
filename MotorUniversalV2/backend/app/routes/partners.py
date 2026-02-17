@@ -9667,7 +9667,7 @@ def get_group_analytics(group_id):
         
         # Materiales vinculados a exámenes del grupo (via GroupExamMaterial)
         from app.models.partner import GroupExamMaterial
-        from app.models.study_material import StudyMaterial
+        from app.models.study_content import StudyMaterial
         seen_material_ids = set(gm.study_material_id for gm in group_materials)
         for ge in group_exams:
             # Custom materials del group_exam
