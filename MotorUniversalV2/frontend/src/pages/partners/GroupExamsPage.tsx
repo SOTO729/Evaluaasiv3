@@ -15,12 +15,12 @@ import {
   Clock,
   Target,
   Layers,
-  AlertTriangle,
   Award,
   Edit,
   Trash2,
   X,
   CheckCircle2,
+  ChevronRight,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
@@ -216,15 +216,17 @@ export default function GroupExamsPage() {
             </h1>
           </div>
         </div>
-        {memberCount > 0 && (
-          <Link to={`/partners/groups/${groupId}/assign-exam`}
-            className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl font-medium fluid-text-sm transition-colors shadow-sm">
-            <Plus className="fluid-icon-sm" />Asignar Certificación
-          </Link>
-        )}
+        <div className="flex items-center fluid-gap-2">
+          {memberCount > 0 && (
+            <Link to={`/partners/groups/${groupId}/assign-exam`}
+              className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl font-medium fluid-text-sm transition-colors shadow-sm">
+              <Plus className="fluid-icon-sm" />Asignar Certificación
+            </Link>
+          )}
+        </div>
       </div>
 
-      {/* KPI compactos */}
+      {/* KPIs */}
       <div className="grid grid-cols-3 fluid-gap-4 fluid-mb-6">
         <div className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-4">
           <div className="flex items-center fluid-gap-3">
@@ -246,7 +248,7 @@ export default function GroupExamsPage() {
         </div>
       </div>
 
-      {/* Lista de exámenes */}
+      {/* Lista scrolleable de certificaciones */}
       {assignedExams.length === 0 ? (
         <div className="bg-white rounded-fluid-xl border border-gray-200 text-center fluid-py-12">
           <Award className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-3" />
@@ -271,122 +273,104 @@ export default function GroupExamsPage() {
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-fluid-xl border border-gray-200 overflow-hidden divide-y divide-gray-100">
-          {assignedExams.map((assignment) => {
-            const ecm = assignment.exam?.ecm;
-            const hasMaterials = assignment.study_materials && assignment.study_materials.length > 0;
-            
-            return (
-              <div key={assignment.id} className="fluid-p-5 hover:bg-gray-50/50 transition-colors">
-                {/* Fila principal */}
-                <div className="flex items-start fluid-gap-4">
-                  {ecm?.logo_url ? (
-                    <div className="w-12 h-12 bg-white border border-gray-200 rounded-fluid-lg p-1.5 flex-shrink-0">
-                      <img src={ecm.logo_url} alt={ecm.code} className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                    </div>
-                  ) : (
-                    <div className="w-12 h-12 bg-blue-100 rounded-fluid-lg flex items-center justify-center flex-shrink-0">
-                      <Award className="fluid-icon-base text-blue-600" />
-                    </div>
-                  )}
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center fluid-gap-2 fluid-mb-0.5">
-                      <h4 className="font-semibold text-gray-900 truncate">{assignment.exam?.name || 'Examen'}</h4>
-                      {ecm?.code && (
-                        <span className="fluid-px-2 fluid-py-0.5 bg-purple-100 text-purple-700 fluid-text-xs font-bold rounded-full flex-shrink-0">{ecm.code}</span>
-                      )}
-                    </div>
-                    {ecm?.name && ecm.name !== assignment.exam?.name && (
-                      <p className="fluid-text-xs text-gray-500 truncate fluid-mb-2">{ecm.name}</p>
+        <div className="bg-white rounded-fluid-xl border border-gray-200 overflow-hidden fluid-mb-6">
+          {/* Header de sección */}
+          <div className="fluid-px-5 fluid-py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+            <span className="fluid-text-sm font-semibold text-gray-700">Certificaciones asignadas</span>
+            <span className="fluid-px-2 fluid-py-0.5 bg-blue-100 text-blue-700 fluid-text-xs font-bold rounded-full">{assignedExams.length}</span>
+          </div>
+
+          {/* Lista con scroll */}
+          <div className="divide-y divide-gray-100 max-h-[520px] overflow-y-auto">
+            {assignedExams.map((assignment) => {
+              const ecm = assignment.exam?.ecm;
+              const hasMaterials = assignment.study_materials && assignment.study_materials.length > 0;
+              
+              return (
+                <div key={assignment.id} className="flex items-center fluid-gap-4 fluid-px-5 fluid-py-4 hover:bg-blue-50/50 transition-colors group">
+                  {/* Clickable area — logo + info */}
+                  <Link
+                    to={`/partners/groups/${groupId}/assignments/${assignment.exam_id}/edit-members?type=exam&name=${encodeURIComponent(assignment.exam?.name || 'Examen')}`}
+                    className="flex items-center fluid-gap-4 flex-1 min-w-0"
+                  >
+                    {/* Logo ECM */}
+                    {ecm?.logo_url ? (
+                      <div className="w-12 h-12 bg-white border border-gray-200 rounded-fluid-lg p-1.5 flex-shrink-0">
+                        <img src={ecm.logo_url} alt={ecm.code} className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 bg-blue-100 rounded-fluid-lg flex items-center justify-center flex-shrink-0">
+                        <Award className="fluid-icon-base text-blue-600" />
+                      </div>
                     )}
-                    
-                    {/* Config como badges inline */}
-                    <div className="flex flex-wrap items-center fluid-gap-2 fluid-mt-1">
-                      <span className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 bg-gray-100 text-gray-700 fluid-text-xs rounded-fluid-lg">
-                        <Clock className="fluid-icon-xs text-gray-500" />{assignment.time_limit_minutes || assignment.exam?.duration_minutes || 0} min
-                      </span>
-                      <span className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 bg-gray-100 text-gray-700 fluid-text-xs rounded-fluid-lg">
-                        <Target className="fluid-icon-xs text-gray-500" />{assignment.passing_score || assignment.exam?.passing_score || 70}%
-                      </span>
-                      <span className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 bg-gray-100 text-gray-700 fluid-text-xs rounded-fluid-lg">
-                        <Layers className="fluid-icon-xs text-gray-500" />{assignment.max_attempts || 1} intento{(assignment.max_attempts || 1) > 1 ? 's' : ''}
-                      </span>
-                      <span className={`inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 fluid-text-xs rounded-fluid-lg ${
-                        assignment.assignment_type === 'selected' ? 'bg-purple-50 text-purple-700' : 'bg-indigo-50 text-indigo-700'
-                      }`}>
-                        {assignment.assignment_type === 'selected' 
-                          ? <><UserPlus className="fluid-icon-xs" />{assignment.assigned_members_count || 0} miembros</>
-                          : <><Users className="fluid-icon-xs" />Todo el grupo</>
-                        }
-                      </span>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center fluid-gap-2 fluid-mb-0.5">
+                        <h4 className="font-semibold text-gray-900 truncate group-hover:text-blue-700 transition-colors">{assignment.exam?.name || 'Examen'}</h4>
+                        {ecm?.code && (
+                          <span className="fluid-px-2 fluid-py-0.5 bg-purple-100 text-purple-700 fluid-text-xs font-bold rounded-full flex-shrink-0">{ecm.code}</span>
+                        )}
+                      </div>
+                      {/* Badges preview */}
+                      <div className="flex flex-wrap items-center fluid-gap-x-3 fluid-gap-y-1 fluid-text-xs text-gray-500">
+                        <span className="inline-flex items-center fluid-gap-1"><Clock className="fluid-icon-xs" />{assignment.time_limit_minutes || assignment.exam?.duration_minutes || 0} min</span>
+                        <span className="inline-flex items-center fluid-gap-1"><Target className="fluid-icon-xs" />{assignment.passing_score || assignment.exam?.passing_score || 70}%</span>
+                        <span className="inline-flex items-center fluid-gap-1"><Layers className="fluid-icon-xs" />{assignment.max_attempts || 1} intento{(assignment.max_attempts || 1) > 1 ? 's' : ''}</span>
+                        <span className="inline-flex items-center fluid-gap-1">
+                          <Users className="fluid-icon-xs" />
+                          {assignment.assignment_type === 'selected' ? `${assignment.assigned_members_count || 0} miembros` : 'Todos'}
+                        </span>
+                        {hasMaterials && (
+                          <span className="inline-flex items-center fluid-gap-1 text-green-600"><BookOpen className="fluid-icon-xs" />{assignment.study_materials!.length} material{assignment.study_materials!.length > 1 ? 'es' : ''}</span>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Materiales inline */}
-                    <div className="flex flex-wrap items-center fluid-gap-2 fluid-mt-2">
-                      {hasMaterials ? (
-                        <>
-                          {assignment.study_materials!.map((material) => (
-                            <span key={material.id} className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 bg-green-50 border border-green-200 text-green-800 fluid-text-xs rounded-fluid-lg">
-                              <BookOpen className="fluid-icon-xs" />{material.title}
-                            </span>
-                          ))}
-                          <button onClick={() => handleOpenMaterialsModal(assignment.id, assignment.exam?.name || 'Examen')}
-                            className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 text-blue-600 hover:bg-blue-50 fluid-text-xs rounded-fluid-lg transition-colors font-medium">
-                            <Edit className="fluid-icon-xs" />Editar
-                          </button>
-                        </>
-                      ) : (
-                        <button onClick={() => handleOpenMaterialsModal(assignment.id, assignment.exam?.name || 'Examen')}
-                          className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 text-amber-700 bg-amber-50 border border-amber-200 fluid-text-xs rounded-fluid-lg hover:bg-amber-100 transition-colors">
-                          <AlertTriangle className="fluid-icon-xs" />Sin materiales — Agregar
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                    <ChevronRight className="fluid-icon-base text-gray-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                  </Link>
 
-                  {/* Acciones */}
-                  <div className="flex items-center fluid-gap-1 flex-shrink-0">
-                    <Link to={`/partners/groups/${groupId}/assignments/${assignment.exam_id}/edit-members?type=exam&name=${encodeURIComponent(assignment.exam?.name || 'Examen')}`}
-                      className="fluid-p-2 hover:bg-blue-100 rounded-fluid-lg text-gray-400 hover:text-blue-600 transition-colors" title="Editar miembros">
-                      <Edit className="fluid-icon-sm" />
-                    </Link>
-                    <button onClick={() => handleUnassignExam(assignment.exam_id)}
-                      className="fluid-p-2 hover:bg-red-100 rounded-fluid-lg text-gray-400 hover:text-red-600 transition-colors" title="Desasignar">
+                  {/* Action buttons — fuera del Link para no navegar al hacer clic */}
+                  <div className="flex items-center fluid-gap-1 flex-shrink-0 border-l border-gray-100 fluid-pl-3">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleOpenMaterialsModal(assignment.id, assignment.exam?.name || 'Examen'); }}
+                      className="fluid-p-2 hover:bg-green-100 rounded-fluid-lg text-gray-400 hover:text-green-600 transition-colors"
+                      title="Materiales de estudio"
+                    >
+                      <BookOpen className="fluid-icon-sm" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleUnassignExam(assignment.exam_id); }}
+                      className="fluid-p-2 hover:bg-red-100 rounded-fluid-lg text-gray-400 hover:text-red-600 transition-colors"
+                      title="Desasignar"
+                    >
                       <Trash2 className="fluid-icon-sm" />
                     </button>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
 
       {/* Materiales Adicionales — compacto */}
-      <div className="fluid-mt-6 bg-white rounded-fluid-xl border border-gray-200 overflow-hidden">
-        <div className="flex items-center justify-between fluid-px-5 fluid-py-4 border-b border-gray-100">
-          <div className="flex items-center fluid-gap-2">
-            <BookOpen className="fluid-icon-base text-green-600" />
-            <h3 className="font-semibold text-gray-900">Materiales Adicionales</h3>
-            {directMaterials.length > 0 && (
+      {directMaterials.length > 0 && (
+        <div className="bg-white rounded-fluid-xl border border-gray-200 overflow-hidden fluid-mb-6">
+          <div className="flex items-center justify-between fluid-px-5 fluid-py-3 border-b border-gray-100 bg-gray-50">
+            <div className="flex items-center fluid-gap-2">
+              <BookOpen className="fluid-icon-sm text-green-600" />
+              <span className="fluid-text-sm font-semibold text-gray-700">Materiales Adicionales</span>
               <span className="fluid-px-2 fluid-py-0.5 bg-green-100 text-green-700 fluid-text-xs font-bold rounded-full">{directMaterials.length}</span>
+            </div>
+            {memberCount > 0 && (
+              <Link to={`/partners/groups/${groupId}/assign-materials`}
+                className="inline-flex items-center fluid-gap-1.5 fluid-px-3 fluid-py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-fluid-lg font-medium fluid-text-xs transition-colors">
+                <Plus className="fluid-icon-xs" />Asignar
+              </Link>
             )}
           </div>
-          {memberCount > 0 && (
-            <Link to={`/partners/groups/${groupId}/assign-materials`}
-              className="inline-flex items-center fluid-gap-1.5 fluid-px-3 fluid-py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-fluid-lg font-medium fluid-text-xs transition-colors">
-              <Plus className="fluid-icon-xs" />Asignar
-            </Link>
-          )}
-        </div>
-
-        {directMaterials.length === 0 ? (
-          <div className="fluid-px-5 fluid-py-8 text-center">
-            <p className="fluid-text-sm text-gray-400">Sin materiales adicionales independientes</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-100 max-h-[260px] overflow-y-auto">
             {directMaterials.map((assignment) => (
               <div key={assignment.id} className="fluid-px-5 fluid-py-3 flex items-center fluid-gap-3 hover:bg-gray-50 transition-colors group">
                 <BookOpen className="fluid-icon-sm text-green-600 flex-shrink-0" />
@@ -409,8 +393,8 @@ export default function GroupExamsPage() {
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Modal de materiales */}
       {showMaterialsModal && (
