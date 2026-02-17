@@ -759,6 +759,44 @@ export async function getGroups(campusId: number, params?: {
   return response.data;
 }
 
+export interface SearchGroupsParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  campus_id?: number;
+  active_only?: boolean;
+  status?: string;
+  cycle_name?: string;
+  sort_by?: string;
+  sort_dir?: 'asc' | 'desc';
+}
+
+export interface SearchGroupsResult {
+  groups: Array<{
+    id: number;
+    name: string;
+    description?: string;
+    is_active: boolean;
+    created_at: string | null;
+    campus_id: number;
+    campus_name: string;
+    partner_name: string;
+    partner_id: number;
+    school_cycle: { id: number; name: string } | null;
+    member_count: number;
+  }>;
+  total: number;
+  page: number;
+  pages: number;
+  per_page: number;
+  available_cycles: string[];
+}
+
+export async function searchGroupsPaginated(params?: SearchGroupsParams): Promise<SearchGroupsResult> {
+  const response = await api.get('/partners/groups/search', { params });
+  return response.data;
+}
+
 export async function getGroup(groupId: number): Promise<CandidateGroup> {
   const response = await api.get(`/partners/groups/${groupId}`);
   return response.data.group;

@@ -1,14 +1,16 @@
 /**
  * GruposListPage - Gestión de Grupos
  * Tabla de planteles con ordenación y filtros, al seleccionar uno muestra sus grupos
+ * Paginación y búsqueda server-side para grupos — optimizado para 100K+ registros
  */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Users,
   Building2,
   Search,
   ChevronRight,
+  ChevronLeft,
   Plus,
   AlertCircle,
   MapPin,
@@ -24,14 +26,15 @@ import {
   Layers,
   Clock,
   CheckCircle2,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
   getPartners,
   getCampuses,
-  getGroups,
+  searchGroupsPaginated,
   Campus,
-  CandidateGroup,
 } from '../../services/partnersService';
 
 interface CampusWithPartner extends Campus {
@@ -64,17 +67,30 @@ export default function GruposListPage() {
   const [showPartnerFilter, setShowPartnerFilter] = useState(false);
   const [showStateFilter, setShowStateFilter] = useState(false);
   
-  // Estado para grupos
-  const [groups, setGroups] = useState<CandidateGroup[]>([]);
+  // Estado para grupos — server-side pagination
+  const [groups, setGroups] = useState<any[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
+  const [searchingGroups, setSearchingGroups] = useState(false);
   const [selectedCampus, setSelectedCampus] = useState<CampusWithPartner | null>(null);
   
-  // Estado para búsqueda, filtros y ordenamiento de grupos
+  // Búsqueda, filtros y ordenamiento de grupos (server-side)
   const [groupSearchTerm, setGroupSearchTerm] = useState('');
   const [groupSortField, setGroupSortField] = useState<GroupSortField>('name');
   const [groupSortDirection, setGroupSortDirection] = useState<SortDirection>('asc');
   const [filterGroupStatus, setFilterGroupStatus] = useState<'' | 'active' | 'inactive'>('');
   const [filterSchoolCycle, setFilterSchoolCycle] = useState<string>('');
+
+  // Paginación server-side para grupos
+  const [groupCurrentPage, setGroupCurrentPage] = useState(1);
+  const [groupPageSize, setGroupPageSize] = useState(150);
+  const [groupPageSizeInput, setGroupPageSizeInput] = useState('150');
+  const [groupPageInputValue, setGroupPageInputValue] = useState('1');
+  const [groupTotalPages, setGroupTotalPages] = useState(1);
+  const [groupTotalResults, setGroupTotalResults] = useState(0);
+  const [availableCycles, setAvailableCycles] = useState<string[]>([]);
+
+  // Ref para cancelar respuestas stale
+  const groupSearchRequestRef = useRef(0);
   
   // Estado general
   const [error, setError] = useState<string | null>(null);
@@ -91,13 +107,7 @@ export default function GruposListPage() {
     return states.sort((a, b) => a.localeCompare(b));
   }, [campuses]);
 
-  // Obtener lista única de ciclos escolares para el filtro de grupos
-  const uniqueSchoolCycles = useMemo(() => {
-    const cycles = groups
-      .map(g => g.school_cycle?.name)
-      .filter((name): name is string => Boolean(name));
-    return [...new Set(cycles)].sort((a, b) => a.localeCompare(b));
-  }, [groups]);
+  // Ciclos escolares vienen del servidor (availableCycles)
 
   // Cargar todos los planteles
   const loadAllCampuses = useCallback(async () => {
@@ -134,18 +144,76 @@ export default function GruposListPage() {
     }
   }, []);
 
-  // Cargar grupos de un campus
-  const loadGroups = async (campus: CampusWithPartner) => {
+  // Búsqueda server-side con paginación para grupos
+  const handleGroupSearch = useCallback(async (page: number = 1, perPage: number = groupPageSize) => {
+    if (!selectedCampus) return;
+    const requestId = ++groupSearchRequestRef.current;
     try {
-      setLoadingGroups(true);
-      setError(null);
-      
-      const response = await getGroups(campus.id, { active_only: true });
-      setGroups(response.groups);
+      setSearchingGroups(true);
+      const results = await searchGroupsPaginated({
+        page,
+        per_page: perPage,
+        search: groupSearchTerm || undefined,
+        campus_id: selectedCampus.id,
+        status: filterGroupStatus || undefined,
+        cycle_name: filterSchoolCycle || undefined,
+        sort_by: groupSortField,
+        sort_dir: groupSortDirection,
+        active_only: !filterGroupStatus ? true : undefined,
+      });
+
+      if (requestId !== groupSearchRequestRef.current) return;
+
+      setGroups(results.groups);
+      setGroupTotalPages(results.pages);
+      setGroupTotalResults(results.total);
+      setGroupCurrentPage(page);
+      setAvailableCycles(results.available_cycles || []);
     } catch (err: any) {
+      if (requestId !== groupSearchRequestRef.current) return;
       setError(err.response?.data?.error || 'Error al cargar los grupos');
     } finally {
-      setLoadingGroups(false);
+      if (requestId === groupSearchRequestRef.current) {
+        setSearchingGroups(false);
+        setLoadingGroups(false);
+      }
+    }
+  }, [selectedCampus, groupSearchTerm, groupPageSize, filterGroupStatus, filterSchoolCycle, groupSortField, groupSortDirection]);
+
+  // Debounce de búsqueda de grupos (400ms)
+  useEffect(() => {
+    if (view !== 'groups' || !selectedCampus) return;
+    const timer = setTimeout(() => handleGroupSearch(1, groupPageSize), 400);
+    return () => clearTimeout(timer);
+  }, [handleGroupSearch, groupPageSize, view, selectedCampus]);
+
+  // Sincronizar pageInputValue con currentPage
+  useEffect(() => {
+    setGroupPageInputValue(String(groupCurrentPage));
+  }, [groupCurrentPage]);
+
+  const handleGroupPageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= groupTotalPages) {
+      handleGroupSearch(newPage, groupPageSize);
+    }
+  };
+
+  const handleGroupPageInputSubmit = () => {
+    const val = parseInt(groupPageInputValue, 10);
+    if (!isNaN(val) && val >= 1 && val <= groupTotalPages) {
+      handleGroupPageChange(val);
+    } else {
+      setGroupPageInputValue(String(groupCurrentPage));
+    }
+  };
+
+  const handleGroupPageSizeInputSubmit = () => {
+    const val = parseInt(groupPageSizeInput, 10);
+    if (!isNaN(val) && val >= 1 && val <= 1000) {
+      setGroupPageSize(val);
+      setGroupPageSizeInput(String(val));
+    } else {
+      setGroupPageSizeInput(String(groupPageSize));
     }
   };
 
@@ -154,7 +222,8 @@ export default function GruposListPage() {
     setSelectedCampus(campus);
     setView('groups');
     setSearchParams({ campus: campus.id.toString() });
-    loadGroups(campus);
+    setLoadingGroups(true);
+    // handleGroupSearch fires via useEffect when selectedCampus changes
   };
 
   // Volver al listado de planteles
@@ -163,10 +232,14 @@ export default function GruposListPage() {
     setGroups([]);
     setView('campuses');
     setSearchParams({});
-    // Limpiar filtros de grupos
+    // Limpiar filtros y paginación de grupos
     setGroupSearchTerm('');
     setFilterGroupStatus('');
     setFilterSchoolCycle('');
+    setGroupCurrentPage(1);
+    setGroupPageInputValue('1');
+    setGroupTotalPages(1);
+    setGroupTotalResults(0);
   };
 
   // Manejar ordenación
@@ -296,60 +369,6 @@ export default function GruposListPage() {
 
   const hasActiveGroupFilters = groupSearchTerm || filterGroupStatus || filterSchoolCycle;
 
-  // Filtrar y ordenar grupos
-  const processedGroups = useMemo(() => {
-    let result = [...groups];
-    
-    // Aplicar búsqueda
-    if (groupSearchTerm) {
-      const searchLower = groupSearchTerm.toLowerCase();
-      result = result.filter(group => 
-        group.name.toLowerCase().includes(searchLower) ||
-        group.description?.toLowerCase().includes(searchLower) ||
-        group.school_cycle?.name?.toLowerCase().includes(searchLower)
-      );
-    }
-    
-    // Aplicar filtro de estado
-    if (filterGroupStatus === 'active') {
-      result = result.filter(group => group.is_active);
-    } else if (filterGroupStatus === 'inactive') {
-      result = result.filter(group => !group.is_active);
-    }
-    
-    // Aplicar filtro de ciclo escolar
-    if (filterSchoolCycle) {
-      result = result.filter(group => group.school_cycle?.name === filterSchoolCycle);
-    }
-    
-    // Ordenar
-    result.sort((a, b) => {
-      let comparison = 0;
-      
-      switch (groupSortField) {
-        case 'name':
-          comparison = a.name.localeCompare(b.name);
-          break;
-        case 'member_count':
-          comparison = (a.member_count || 0) - (b.member_count || 0);
-          break;
-        case 'school_cycle':
-          comparison = (a.school_cycle?.name || '').localeCompare(b.school_cycle?.name || '');
-          break;
-        case 'created_at':
-          comparison = new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
-          break;
-        case 'is_active':
-          comparison = (a.is_active ? 1 : 0) - (b.is_active ? 1 : 0);
-          break;
-      }
-      
-      return groupSortDirection === 'asc' ? comparison : -comparison;
-    });
-    
-    return result;
-  }, [groups, groupSearchTerm, filterGroupStatus, filterSchoolCycle, groupSortField, groupSortDirection]);
-
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Header */}
@@ -382,7 +401,7 @@ export default function GruposListPage() {
                       <ExternalLink className="fluid-icon-xs" />
                     </Link>
                     <span className="text-gray-400">•</span>
-                    <span>{groups.length} grupo{groups.length !== 1 ? 's' : ''}</span>
+                    <span>{groupTotalResults.toLocaleString()} grupo{groupTotalResults !== 1 ? 's' : ''}</span>
                   </span>
                 )
               }
@@ -423,7 +442,7 @@ export default function GruposListPage() {
           <AlertCircle className="fluid-icon-lg text-red-600 flex-shrink-0" />
           <p className="fluid-text-base text-red-700">{error}</p>
           <button 
-            onClick={() => view === 'campuses' ? loadAllCampuses() : selectedCampus && loadGroups(selectedCampus)} 
+            onClick={() => view === 'campuses' ? loadAllCampuses() : handleGroupSearch(groupCurrentPage, groupPageSize)} 
             className="ml-auto fluid-text-base text-red-700 underline"
           >
             Reintentar
@@ -733,30 +752,13 @@ export default function GruposListPage() {
       {/* Vista de Grupos */}
       {view === 'groups' && selectedCampus && (
         <>
-          {loadingGroups ? (
+          {loadingGroups && groups.length === 0 ? (
             <div className="bg-white rounded-fluid-xl shadow fluid-p-10">
               <LoadingSpinner message="Cargando grupos..." />
             </div>
-          ) : groups.length === 0 ? (
-            <div className="bg-white rounded-fluid-xl shadow fluid-p-10 text-center">
-              <Users className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-5" />
-              <h3 className="fluid-text-xl font-medium text-gray-700 fluid-mb-2">
-                No hay grupos en este plantel
-              </h3>
-              <p className="text-gray-500 fluid-text-base fluid-mb-5">
-                Crea un nuevo grupo para comenzar a gestionar candidatos
-              </p>
-              <Link
-                to={`/partners/campuses/${selectedCampus.id}/groups/new`}
-                className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl font-medium fluid-text-base transition-colors"
-              >
-                <Plus className="fluid-icon-lg" />
-                Crear Grupo
-              </Link>
-            </div>
           ) : (
             <>
-              {/* Barra de búsqueda y filtros para grupos */}
+              {/* Barra de búsqueda, filtros y paginación para grupos */}
               <div className="bg-white rounded-fluid-xl shadow fluid-p-5 fluid-mb-6">
                 <div className="flex flex-col lg:flex-row gap-4">
                   {/* Búsqueda */}
@@ -772,7 +774,7 @@ export default function GruposListPage() {
                   </div>
                   
                   {/* Filtros */}
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-3 items-center">
                     {/* Filtro Estado */}
                     <select
                       value={filterGroupStatus}
@@ -789,7 +791,7 @@ export default function GruposListPage() {
                     </select>
                     
                     {/* Filtro Ciclo Escolar */}
-                    {uniqueSchoolCycles.length > 0 && (
+                    {availableCycles.length > 0 && (
                       <select
                         value={filterSchoolCycle}
                         onChange={(e) => setFilterSchoolCycle(e.target.value)}
@@ -800,11 +802,36 @@ export default function GruposListPage() {
                         }`}
                       >
                         <option value="">Todos los ciclos</option>
-                        {uniqueSchoolCycles.map(cycle => (
+                        {availableCycles.map(cycle => (
                           <option key={cycle} value={cycle}>{cycle}</option>
                         ))}
                       </select>
                     )}
+
+                    {/* Registros por página */}
+                    <div className="flex items-center fluid-gap-1.5">
+                      <span className="fluid-text-xs text-gray-500">Mostrar</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={groupPageSizeInput}
+                        onChange={(e) => setGroupPageSizeInput(e.target.value.replace(/[^0-9]/g, ''))}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleGroupPageSizeInputSubmit(); }}
+                        onBlur={handleGroupPageSizeInputSubmit}
+                        className="w-16 text-center py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        title="Registros por página (máx 1000)"
+                      />
+                    </div>
+
+                    {/* Botón refrescar */}
+                    <button
+                      onClick={() => handleGroupSearch(groupCurrentPage, groupPageSize)}
+                      disabled={searchingGroups}
+                      className="fluid-p-2 border border-gray-300 rounded-fluid-lg hover:bg-gray-50 transition-colors"
+                      title="Refrescar"
+                    >
+                      <RefreshCw className={`fluid-icon-sm text-gray-600 ${searchingGroups ? 'animate-spin' : ''}`} />
+                    </button>
                     
                     {/* Limpiar filtros */}
                     {hasActiveGroupFilters && (
@@ -851,7 +878,24 @@ export default function GruposListPage() {
                 )}
               </div>
 
-              {processedGroups.length === 0 ? (
+              {groupTotalResults === 0 && !searchingGroups && !hasActiveGroupFilters ? (
+                <div className="bg-white rounded-fluid-xl shadow fluid-p-10 text-center">
+                  <Users className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-5" />
+                  <h3 className="fluid-text-xl font-medium text-gray-700 fluid-mb-2">
+                    No hay grupos en este plantel
+                  </h3>
+                  <p className="text-gray-500 fluid-text-base fluid-mb-5">
+                    Crea un nuevo grupo para comenzar a gestionar candidatos
+                  </p>
+                  <Link
+                    to={`/partners/campuses/${selectedCampus.id}/groups/new`}
+                    className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl font-medium fluid-text-base transition-colors"
+                  >
+                    <Plus className="fluid-icon-lg" />
+                    Crear Grupo
+                  </Link>
+                </div>
+              ) : groupTotalResults === 0 && !searchingGroups ? (
                 <div className="bg-white rounded-fluid-xl shadow fluid-p-10 text-center">
                   <Users className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-5" />
                   <h3 className="fluid-text-xl font-medium text-gray-700 fluid-mb-2">
@@ -872,8 +916,73 @@ export default function GruposListPage() {
                 </div>
               ) : (
             <div className="bg-white rounded-fluid-xl shadow overflow-hidden">
+              {/* Paginación arriba de la tabla */}
+              <div className="bg-white border-b border-gray-200 px-6 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="fluid-text-sm text-gray-600">
+                    {searchingGroups ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Buscando...
+                      </span>
+                    ) : (
+                      <>
+                        Mostrando <span className="font-medium">{((groupCurrentPage - 1) * groupPageSize + 1).toLocaleString()}</span>
+                        {' - '}
+                        <span className="font-medium">{Math.min(groupCurrentPage * groupPageSize, groupTotalResults).toLocaleString()}</span>
+                        {' de '}
+                        <span className="font-medium">{groupTotalResults.toLocaleString()}</span> grupos
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleGroupPageChange(1)}
+                      disabled={groupCurrentPage === 1}
+                      className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 fluid-text-xs font-medium text-gray-600"
+                      title="Primera página"
+                    >
+                      1
+                    </button>
+                    <button
+                      onClick={() => handleGroupPageChange(groupCurrentPage - 1)}
+                      disabled={groupCurrentPage === 1}
+                      className="p-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      <ChevronLeft className="fluid-icon-sm" />
+                    </button>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={groupPageInputValue}
+                      onChange={(e) => setGroupPageInputValue(e.target.value.replace(/[^0-9]/g, ''))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleGroupPageInputSubmit(); }}
+                      onBlur={handleGroupPageInputSubmit}
+                      className="w-14 text-center py-1 border border-gray-300 rounded fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      title="Escribe el número de página y presiona Enter"
+                    />
+                    <span className="fluid-text-sm text-gray-400">/ {groupTotalPages}</span>
+                    <button
+                      onClick={() => handleGroupPageChange(groupCurrentPage + 1)}
+                      disabled={groupCurrentPage === groupTotalPages}
+                      className="p-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      <ChevronRight className="fluid-icon-sm" />
+                    </button>
+                    <button
+                      onClick={() => handleGroupPageChange(groupTotalPages)}
+                      disabled={groupCurrentPage === groupTotalPages}
+                      className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 fluid-text-xs font-medium text-gray-600"
+                      title="Última página"
+                    >
+                      {groupTotalPages}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div className="overflow-x-auto">
-                <div className="max-h-[450px] overflow-y-auto">
+                <div className="max-h-[600px] overflow-y-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
                       <tr>
@@ -926,7 +1035,7 @@ export default function GruposListPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {processedGroups.map((group) => (
+                      {groups.map((group) => (
                         <tr
                           key={group.id}
                           className="hover:bg-blue-50 transition-colors cursor-pointer group"
@@ -1001,12 +1110,48 @@ export default function GruposListPage() {
                 </div>
               </div>
               
-              {/* Footer con estadísticas */}
+              {/* Footer con paginación */}
               <div className="fluid-px-5 fluid-py-4 bg-gray-50 border-t border-gray-200">
-                <p className="fluid-text-sm text-gray-600 text-center">
-                  Mostrando <span className="font-semibold">{processedGroups.length}</span> de{' '}
-                  <span className="font-semibold">{groups.length}</span> grupo{groups.length !== 1 ? 's' : ''}
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <p className="fluid-text-sm text-gray-600">
+                    Mostrando <span className="font-semibold">{((groupCurrentPage - 1) * groupPageSize + 1).toLocaleString()}</span>
+                    {' - '}
+                    <span className="font-semibold">{Math.min(groupCurrentPage * groupPageSize, groupTotalResults).toLocaleString()}</span>
+                    {' de '}
+                    <span className="font-semibold">{groupTotalResults.toLocaleString()}</span> grupo{groupTotalResults !== 1 ? 's' : ''}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleGroupPageChange(1)}
+                      disabled={groupCurrentPage === 1}
+                      className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 fluid-text-xs font-medium text-gray-600"
+                    >
+                      1
+                    </button>
+                    <button
+                      onClick={() => handleGroupPageChange(groupCurrentPage - 1)}
+                      disabled={groupCurrentPage === 1}
+                      className="p-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      <ChevronLeft className="fluid-icon-sm" />
+                    </button>
+                    <span className="fluid-text-sm text-gray-500 px-2">{groupCurrentPage} / {groupTotalPages}</span>
+                    <button
+                      onClick={() => handleGroupPageChange(groupCurrentPage + 1)}
+                      disabled={groupCurrentPage === groupTotalPages}
+                      className="p-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      <ChevronRight className="fluid-icon-sm" />
+                    </button>
+                    <button
+                      onClick={() => handleGroupPageChange(groupTotalPages)}
+                      disabled={groupCurrentPage === groupTotalPages}
+                      className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 fluid-text-xs font-medium text-gray-600"
+                    >
+                      {groupTotalPages}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
               )}

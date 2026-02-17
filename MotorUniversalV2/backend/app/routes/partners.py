@@ -2352,6 +2352,164 @@ def list_all_groups():
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/groups/search', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def search_groups_paginated():
+    """Buscar grupos con paginación server-side, búsqueda, filtros y ordenamiento.
+    Optimizado para cientos de miles de registros.
+    
+    Query params:
+    - page (int, default 1)
+    - per_page (int, default 150, max 1000)
+    - search (str) — busca en nombre de grupo, campus, partner, ciclo escolar
+    - campus_id (int) — filtrar por campus
+    - active_only (bool, default true)
+    - cycle_name (str) — filtrar por nombre de ciclo escolar
+    - sort_by (str) — name, member_count, campus_name, partner_name, school_cycle, created_at, is_active
+    - sort_dir (str) — asc, desc
+    """
+    try:
+        from sqlalchemy import func, text as sa_text
+
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 150, type=int), 1000)
+        search = request.args.get('search', '').strip()
+        campus_id = request.args.get('campus_id', type=int)
+        active_only = request.args.get('active_only', 'true').lower() == 'true'
+        cycle_name = request.args.get('cycle_name', '').strip()
+        status_filter = request.args.get('status', '')  # active, inactive, ''
+        sort_by = request.args.get('sort_by', 'name')
+        sort_dir = request.args.get('sort_dir', 'asc')
+
+        # Subquery para contar miembros
+        member_count_sub = db.session.query(
+            GroupMember.group_id,
+            func.count(GroupMember.id).label('member_count')
+        ).filter(
+            GroupMember.status == 'active'
+        ).group_by(GroupMember.group_id).subquery()
+
+        query = db.session.query(
+            CandidateGroup.id,
+            CandidateGroup.name,
+            CandidateGroup.description,
+            CandidateGroup.is_active,
+            CandidateGroup.created_at,
+            CandidateGroup.campus_id,
+            Campus.name.label('campus_name'),
+            Partner.name.label('partner_name'),
+            Partner.id.label('partner_id'),
+            SchoolCycle.name.label('school_cycle_name'),
+            SchoolCycle.id.label('school_cycle_id'),
+            func.coalesce(member_count_sub.c.member_count, 0).label('member_count'),
+        ).join(
+            Campus, CandidateGroup.campus_id == Campus.id, isouter=True
+        ).join(
+            Partner, Campus.partner_id == Partner.id, isouter=True
+        ).outerjoin(
+            SchoolCycle, CandidateGroup.school_cycle_id == SchoolCycle.id
+        ).outerjoin(
+            member_count_sub, CandidateGroup.id == member_count_sub.c.group_id
+        )
+
+        # Multi-tenant: coordinadores solo ven sus propios grupos
+        coord_id = _get_coordinator_filter(g.current_user)
+        if coord_id:
+            query = query.filter(Partner.coordinator_id == coord_id)
+
+        # Filtro por campus
+        if campus_id:
+            query = query.filter(CandidateGroup.campus_id == campus_id)
+
+        # Filtro de estado activo/inactivo
+        if status_filter == 'active':
+            query = query.filter(CandidateGroup.is_active == True)
+        elif status_filter == 'inactive':
+            query = query.filter(CandidateGroup.is_active == False)
+        elif active_only:
+            query = query.filter(CandidateGroup.is_active == True)
+
+        # Filtro por ciclo escolar
+        if cycle_name:
+            query = query.filter(SchoolCycle.name == cycle_name)
+
+        # Búsqueda textual
+        if search:
+            search_term = f'%{search}%'
+            query = query.filter(
+                db.or_(
+                    CandidateGroup.name.ilike(search_term),
+                    CandidateGroup.description.ilike(search_term),
+                    Campus.name.ilike(search_term),
+                    Partner.name.ilike(search_term),
+                    SchoolCycle.name.ilike(search_term),
+                )
+            )
+
+        # Ordenamiento
+        sort_map = {
+            'name': CandidateGroup.name,
+            'campus_name': Campus.name,
+            'partner_name': Partner.name,
+            'school_cycle': SchoolCycle.name,
+            'created_at': CandidateGroup.created_at,
+            'is_active': CandidateGroup.is_active,
+            'member_count': func.coalesce(member_count_sub.c.member_count, 0),
+        }
+        sort_col = sort_map.get(sort_by, CandidateGroup.name)
+        if sort_dir == 'desc':
+            query = query.order_by(sort_col.desc())
+        else:
+            query = query.order_by(sort_col.asc())
+
+        # Paginación
+        total = query.count()
+        total_pages = max(1, (total + per_page - 1) // per_page)
+        page = min(page, total_pages)
+        results = query.offset((page - 1) * per_page).limit(per_page).all()
+
+        # También obtener la lista de ciclos escolares únicos y campuses para filtros
+        cycle_names_q = db.session.query(SchoolCycle.name).join(
+            CandidateGroup, CandidateGroup.school_cycle_id == SchoolCycle.id
+        ).join(
+            Campus, CandidateGroup.campus_id == Campus.id
+        ).join(
+            Partner, Campus.partner_id == Partner.id
+        )
+        if coord_id:
+            cycle_names_q = cycle_names_q.filter(Partner.coordinator_id == coord_id)
+        cycle_names = sorted(set(r[0] for r in cycle_names_q.distinct().all() if r[0]))
+
+        groups = [{
+            'id': r.id,
+            'name': r.name,
+            'description': r.description,
+            'is_active': r.is_active,
+            'created_at': r.created_at.isoformat() if r.created_at else None,
+            'campus_id': r.campus_id,
+            'campus_name': r.campus_name,
+            'partner_name': r.partner_name,
+            'partner_id': r.partner_id,
+            'school_cycle': {'id': r.school_cycle_id, 'name': r.school_cycle_name} if r.school_cycle_name else None,
+            'member_count': r.member_count,
+        } for r in results]
+
+        return jsonify({
+            'groups': groups,
+            'total': total,
+            'page': page,
+            'pages': total_pages,
+            'per_page': per_page,
+            'available_cycles': cycle_names,
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/groups/<int:group_id>/members/count', methods=['GET'])
 @jwt_required()
 @coordinator_required
@@ -5047,6 +5205,7 @@ def add_members_to_exam(group_id, exam_id):
 @coordinator_required
 def get_group_exam_members_detail(group_id, exam_id):
     """Obtener detalle completo paginado de los miembros asignados a un examen.
+    Optimizado con SQL-level pagination para cientos de miles de registros.
     
     Query params:
     - page (int, default 1)
@@ -5063,7 +5222,7 @@ def get_group_exam_members_detail(group_id, exam_id):
         from app.models.student_progress import StudentTopicProgress
         from app.models.study_content import StudyMaterial
         from app.models.user import User
-        from sqlalchemy import text
+        from sqlalchemy import text, func, case, literal_column
 
         page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get('per_page', 150, type=int), 1000)
@@ -5081,57 +5240,9 @@ def get_group_exam_members_detail(group_id, exam_id):
         exam = group_exam.exam
         ecm_id = exam.competency_standard_id if exam else None
 
-        # Obtener TODOS los user_ids asignados
-        if group_exam.assignment_type == 'all':
-            all_user_ids = [m.user_id for m in GroupMember.query.filter_by(group_id=group_id).all()]
-        else:
-            all_user_ids = [m.user_id for m in group_exam.assigned_members.all()]
-
-        if not all_user_ids:
-            return jsonify({
-                'assignment_id': group_exam.id, 'exam_id': exam_id,
-                'exam_name': exam.name if exam else None,
-                'ecm_id': ecm_id, 'ecm_code': None,
-                'assignment_type': group_exam.assignment_type,
-                'members': [], 'total': 0, 'page': 1, 'pages': 1,
-                'per_page': per_page,
-                'locked_count': 0, 'swappable_count': 0,
-            })
-
-        # ---- Pre-cargar datos en batch ----
-
-        # 1. EcmCandidateAssignment — buscar por user_id + ecm_id (fallback amplio)
-        ecm_assignments = {}
-        if ecm_id:
-            eca_records = EcmCandidateAssignment.query.filter(
-                EcmCandidateAssignment.competency_standard_id == ecm_id,
-                EcmCandidateAssignment.user_id.in_(all_user_ids)
-            ).all()
-            for eca in eca_records:
-                # Preferir la que coincide con este group_exam_id
-                existing = ecm_assignments.get(eca.user_id)
-                if not existing or eca.group_exam_id == group_exam.id:
-                    ecm_assignments[eca.user_id] = {
-                        'id': eca.id,
-                        'assignment_number': eca.assignment_number,
-                        'assigned_at': eca.assigned_at.isoformat() if eca.assigned_at else None,
-                    }
-
-        # 2. Resultados
-        user_results = {}
-        results = Result.query.filter(
-            Result.user_id.in_(all_user_ids),
-            Result.group_exam_id == group_exam.id
-        ).all()
-        for r in results:
-            user_results.setdefault(r.user_id, []).append({
-                'id': r.id, 'score': r.score, 'status': r.status,
-                'result': r.result,
-                'start_date': r.start_date.isoformat() if r.start_date else None,
-            })
-
-        # 3. Progreso de material
-        user_progress = {}
+        # ── Pre-compute topic_ids for material progress ──
+        total_topics = 0
+        topic_ids = []
         try:
             material_ids_rows = db.session.execute(text(
                 'SELECT study_material_id FROM study_material_exams WHERE exam_id = :eid'
@@ -5149,109 +5260,220 @@ def get_group_exam_members_detail(group_id, exam_id):
                     WHERE ss.study_material_id IN :mids
                 ''').bindparams(mids=tuple(material_ids) if len(material_ids) > 1 else tuple(material_ids + [0]))).fetchall()
                 topic_ids = [r[0] for r in topic_rows]
-
-                if topic_ids:
-                    progress_records = StudentTopicProgress.query.filter(
-                        StudentTopicProgress.user_id.in_(all_user_ids),
-                        StudentTopicProgress.topic_id.in_(topic_ids)
-                    ).all()
-                    user_progress_data = {}
-                    for pr in progress_records:
-                        d = user_progress_data.setdefault(pr.user_id, {'total': 0, 'sum_pct': 0.0})
-                        d['total'] += 1
-                        d['sum_pct'] += (pr.progress_percentage or 0.0)
-                    total_topics = len(topic_ids)
-                    for uid, d in user_progress_data.items():
-                        user_progress[uid] = round(d['sum_pct'] / total_topics, 1) if total_topics > 0 else 0.0
+                total_topics = len(topic_ids)
         except Exception as prog_err:
-            print(f"⚠️ Error calculando progreso: {prog_err}")
+            print(f"⚠️ Error calculando topics: {prog_err}")
 
-        # 4. Usuarios
-        users_map = {}
-        for u in User.query.filter(User.id.in_(all_user_ids)).all():
-            users_map[u.id] = {
-                'id': u.id,
-                'name': u.name,
-                'first_surname': getattr(u, 'first_surname', ''),
-                'second_surname': getattr(u, 'second_surname', ''),
-                'full_name': u.full_name,
-                'email': u.email,
-                'curp': getattr(u, 'curp', None),
-                'username': getattr(u, 'username', None),
-            }
+        # ── Build base member subquery using SQLAlchemy ──
+        # This gives us user_ids from either all group members or specific assigned members
+        if group_exam.assignment_type == 'all':
+            member_base = db.session.query(
+                GroupMember.user_id
+            ).filter(GroupMember.group_id == group_id).subquery('member_base')
+        else:
+            member_base = db.session.query(
+                GroupExamMember.user_id
+            ).filter(GroupExamMember.group_exam_id == group_exam.id).subquery('member_base')
 
-        # ---- Construir lista completa ----
-        all_members = []
-        for uid in all_user_ids:
-            progress_pct = user_progress.get(uid, 0.0)
-            has_opened_exam = uid in user_results
-            eca = ecm_assignments.get(uid)
-            is_locked = progress_pct >= 15.0 or has_opened_exam
+        # ── Subquery: EcmCandidateAssignment ──
+        eca_sub = None
+        if ecm_id:
+            # Pick the assignment matching this group_exam_id first, otherwise any for this ecm
+            eca_sub = db.session.query(
+                EcmCandidateAssignment.user_id,
+                EcmCandidateAssignment.id.label('eca_id'),
+                EcmCandidateAssignment.assignment_number,
+                EcmCandidateAssignment.assigned_at,
+                func.row_number().over(
+                    partition_by=EcmCandidateAssignment.user_id,
+                    order_by=case(
+                        (EcmCandidateAssignment.group_exam_id == group_exam.id, 0),
+                        else_=1
+                    )
+                ).label('rn')
+            ).filter(
+                EcmCandidateAssignment.competency_standard_id == ecm_id,
+                EcmCandidateAssignment.user_id.in_(db.session.query(member_base.c.user_id))
+            ).subquery('eca_ranked')
+
+            eca_final = db.session.query(
+                eca_sub.c.user_id,
+                eca_sub.c.eca_id,
+                eca_sub.c.assignment_number,
+                eca_sub.c.assigned_at,
+            ).filter(eca_sub.c.rn == 1).subquery('eca_final')
+
+        # ── Subquery: has opened exam (any result exists) ──
+        has_result_sub = db.session.query(
+            Result.user_id,
+            func.count(Result.id).label('results_count')
+        ).filter(
+            Result.group_exam_id == group_exam.id,
+            Result.user_id.in_(db.session.query(member_base.c.user_id))
+        ).group_by(Result.user_id).subquery('has_result')
+
+        # ── Subquery: material progress ──
+        progress_sub = None
+        if topic_ids and total_topics > 0:
+            progress_sub = db.session.query(
+                StudentTopicProgress.user_id,
+                (func.sum(func.coalesce(StudentTopicProgress.progress_percentage, 0.0)) / total_topics).label('progress_pct')
+            ).filter(
+                StudentTopicProgress.topic_id.in_(topic_ids),
+                StudentTopicProgress.user_id.in_(db.session.query(member_base.c.user_id))
+            ).group_by(StudentTopicProgress.user_id).subquery('progress')
+
+        # ── Main query ──
+        main_q = db.session.query(
+            User.id.label('user_id'),
+            User.name.label('first_name'),
+            User.first_surname,
+            User.second_surname,
+            func.concat(
+                User.name, ' ', User.first_surname,
+                func.coalesce(func.concat(' ', User.second_surname), '')
+            ).label('full_name'),
+            User.email,
+            User.curp,
+            User.username,
+        )
+
+        # Join member base
+        main_q = main_q.join(member_base, User.id == member_base.c.user_id)
+
+        # Add ECA columns
+        if ecm_id and eca_sub is not None:
+            main_q = main_q.outerjoin(eca_final, User.id == eca_final.c.user_id)
+            main_q = main_q.add_columns(
+                eca_final.c.eca_id,
+                eca_final.c.assignment_number,
+                eca_final.c.assigned_at.label('eca_assigned_at'),
+            )
+        else:
+            main_q = main_q.add_columns(
+                literal_column('NULL').label('eca_id'),
+                literal_column('NULL').label('assignment_number'),
+                literal_column('NULL').label('eca_assigned_at'),
+            )
+
+        # Add result columns
+        main_q = main_q.outerjoin(has_result_sub, User.id == has_result_sub.c.user_id)
+        main_q = main_q.add_columns(
+            func.coalesce(has_result_sub.c.results_count, 0).label('results_count'),
+        )
+
+        # Add progress columns
+        if progress_sub is not None:
+            main_q = main_q.outerjoin(progress_sub, User.id == progress_sub.c.user_id)
+            main_q = main_q.add_columns(
+                func.coalesce(progress_sub.c.progress_pct, 0.0).label('material_progress'),
+            )
+        else:
+            main_q = main_q.add_columns(
+                literal_column('0.0').label('material_progress'),
+            )
+
+        # ── Computed: is_locked (progress >= 15 OR has_opened_exam) ──
+        # We need to filter on this, so we wrap in a subquery
+        main_sub = main_q.subquery('main_data')
+
+        is_locked_expr = case(
+            (db.or_(main_sub.c.material_progress >= 15.0, main_sub.c.results_count > 0), True),
+            else_=False
+        ).label('is_locked')
+
+        final_q = db.session.query(main_sub, is_locked_expr)
+
+        # ── Search filter ──
+        if search:
+            search_term = f'%{search.lower()}%'
+            final_q = final_q.filter(
+                db.or_(
+                    func.lower(main_sub.c.full_name).like(search_term),
+                    func.lower(main_sub.c.email).like(search_term),
+                    func.lower(func.coalesce(main_sub.c.curp, '')).like(search_term),
+                    func.lower(func.coalesce(main_sub.c.assignment_number, '')).like(search_term),
+                )
+            )
+
+        # ── Status filter ──
+        if filter_status == 'locked':
+            final_q = final_q.filter(
+                db.or_(main_sub.c.material_progress >= 15.0, main_sub.c.results_count > 0)
+            )
+        elif filter_status == 'swappable':
+            final_q = final_q.filter(
+                main_sub.c.material_progress < 15.0,
+                main_sub.c.results_count == 0
+            )
+
+        # ── Counts (before pagination, after filters) ──
+        count_q = final_q.with_entities(
+            func.count().label('total_count'),
+            func.sum(case(
+                (db.or_(main_sub.c.material_progress >= 15.0, main_sub.c.results_count > 0), 1),
+                else_=0
+            )).label('locked_count'),
+        )
+        counts = count_q.one()
+        total = counts.total_count or 0
+        locked_count = counts.locked_count or 0
+        swappable_count = total - locked_count
+
+        total_pages = max(1, (total + per_page - 1) // per_page)
+        page = min(page, total_pages)
+
+        # ── Sorting ──
+        sort_map = {
+            'name': main_sub.c.full_name,
+            'email': main_sub.c.email,
+            'curp': main_sub.c.curp,
+            'assignment_number': main_sub.c.assignment_number,
+            'progress': main_sub.c.material_progress,
+            'status': is_locked_expr,
+        }
+        sort_col = sort_map.get(sort_by, main_sub.c.full_name)
+        if sort_dir_param == 'desc':
+            final_q = final_q.order_by(sort_col.desc())
+        else:
+            final_q = final_q.order_by(sort_col.asc())
+
+        # ── Pagination ──
+        results = final_q.offset((page - 1) * per_page).limit(per_page).all()
+
+        # ── Format results ──
+        page_members = []
+        for r in results:
+            progress_pct = round(float(r.material_progress or 0), 1)
+            has_opened = (r.results_count or 0) > 0
+            locked = bool(r.is_locked)
             lock_reasons = []
             if progress_pct >= 15.0:
                 lock_reasons.append(f'Avance de material: {progress_pct}%')
-            if has_opened_exam:
+            if has_opened:
                 lock_reasons.append('Ha abierto examen/simulador')
 
-            all_members.append({
-                'user_id': uid,
-                'user': users_map.get(uid),
-                'assignment_number': eca['assignment_number'] if eca else None,
-                'ecm_assignment_id': eca['id'] if eca else None,
-                'ecm_assignment_date': eca['assigned_at'] if eca else None,
+            page_members.append({
+                'user_id': r.user_id,
+                'user': {
+                    'id': r.user_id,
+                    'name': r.first_name,
+                    'first_surname': r.first_surname or '',
+                    'second_surname': r.second_surname or '',
+                    'full_name': r.full_name or '',
+                    'email': r.email,
+                    'curp': r.curp,
+                    'username': r.username,
+                },
+                'assignment_number': r.assignment_number,
+                'ecm_assignment_id': r.eca_id,
+                'ecm_assignment_date': r.eca_assigned_at.isoformat() if r.eca_assigned_at else None,
                 'material_progress': progress_pct,
-                'has_opened_exam': has_opened_exam,
-                'results_count': len(user_results.get(uid, [])),
-                'is_locked': is_locked,
+                'has_opened_exam': has_opened,
+                'results_count': r.results_count or 0,
+                'is_locked': locked,
                 'lock_reasons': lock_reasons,
             })
-
-        # ---- Filtros ----
-        # Buscar
-        if search:
-            q = search.lower()
-            all_members = [m for m in all_members if
-                q in (m['user'] or {}).get('full_name', '').lower() or
-                q in (m['user'] or {}).get('email', '').lower() or
-                q in ((m['user'] or {}).get('curp', '') or '').lower() or
-                q in (m['assignment_number'] or '').lower()
-            ]
-
-        # Filtro de estado
-        if filter_status == 'locked':
-            all_members = [m for m in all_members if m['is_locked']]
-        elif filter_status == 'swappable':
-            all_members = [m for m in all_members if not m['is_locked']]
-
-        # ---- Conteos globales (post-filtro de búsqueda, pre-filtro de estado) ----
-        total_filtered = len(all_members)
-        locked_count = sum(1 for m in all_members if m['is_locked'])
-        swappable_count = total_filtered - locked_count
-
-        # ---- Ordenamiento ----
-        def sort_key(m):
-            if sort_by == 'name':
-                return (m['user'] or {}).get('full_name', '').lower()
-            elif sort_by == 'email':
-                return (m['user'] or {}).get('email', '').lower()
-            elif sort_by == 'curp':
-                return ((m['user'] or {}).get('curp', '') or '').lower()
-            elif sort_by == 'assignment_number':
-                return (m['assignment_number'] or '').lower()
-            elif sort_by == 'progress':
-                return m['material_progress']
-            elif sort_by == 'status':
-                return 1 if m['is_locked'] else 0
-            return ''
-
-        all_members.sort(key=sort_key, reverse=(sort_dir_param == 'desc'))
-
-        # ---- Paginación ----
-        total = len(all_members)
-        total_pages = max(1, (total + per_page - 1) // per_page)
-        page = min(page, total_pages)
-        start = (page - 1) * per_page
-        page_members = all_members[start:start + per_page]
 
         ecm_code = None
         if exam and ecm_id:
