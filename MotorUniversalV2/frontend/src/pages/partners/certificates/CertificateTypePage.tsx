@@ -12,11 +12,12 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Search, Download, RefreshCw, X, Loader2,
-  CheckSquare, Square,
+  CheckSquare, Square, Eye,
   ArrowUpDown, ArrowUp, ArrowDown, Users, AlertCircle,
   CheckCircle2, Clock, XCircle, Package,
   type LucideIcon,
 } from 'lucide-react';
+import CandidateCertDetailModal from './CandidateCertDetailModal';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../../components/PartnersBreadcrumb';
 import {
@@ -74,6 +75,10 @@ export default function CertificateTypePage({
   const [searchQuery, setSearchQuery] = useState('');
   const [sortCol, setSortCol] = useState<string>('full_name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  // Detail modal
+  const [detailUserId, setDetailUserId] = useState<string | null>(null);
+  const [detailUserName, setDetailUserName] = useState('');
 
   // Actions
   const [downloading, setDownloading] = useState(false);
@@ -547,16 +552,14 @@ export default function CertificateTypePage({
                 >
                   Listos{renderSortIcon('readyCount')}
                 </th>
-                {(certType === 'tier_basic' || certType === 'tier_standard') && (
-                  <th className="text-center fluid-px-4 fluid-py-3 text-gray-600 font-medium whitespace-nowrap">
-                    Pendientes
-                  </th>
-                )}
                 <th
                   onClick={() => handleSort('status')}
                   className="text-center fluid-px-4 fluid-py-3 text-gray-600 font-medium cursor-pointer hover:text-gray-900 select-none whitespace-nowrap"
                 >
                   Estado{renderSortIcon('status')}
+                </th>
+                <th className="text-center fluid-px-4 fluid-py-3 text-gray-600 font-medium whitespace-nowrap">
+                  Detalles
                 </th>
               </tr>
             </thead>
@@ -607,17 +610,6 @@ export default function CertificateTypePage({
                         <CheckCircle2 className="w-3 h-3 mr-1" />{row.readyCount}
                       </span>
                     </td>
-                    {(certType === 'tier_basic' || certType === 'tier_standard') && (
-                      <td className="fluid-px-4 fluid-py-3 text-center">
-                        {row.pendingCount > 0 ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                            <Clock className="w-3 h-3 mr-1" />{row.pendingCount}
-                          </span>
-                        ) : (
-                          <span className="text-gray-300">—</span>
-                        )}
-                      </td>
-                    )}
                     <td className="fluid-px-4 fluid-py-3 text-center">
                       {row.status === 'ready' ? (
                         <span className="inline-flex items-center fluid-gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -629,12 +621,25 @@ export default function CertificateTypePage({
                         </span>
                       )}
                     </td>
+                    <td className="fluid-px-4 fluid-py-3 text-center" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => {
+                          setDetailUserId(row.user_id);
+                          setDetailUserName(row.full_name);
+                        }}
+                        className="inline-flex items-center fluid-gap-1 px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-fluid-lg transition-colors"
+                        title="Ver detalle de certificación"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        Ver
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
               {sortedRows.length === 0 && (
                 <tr>
-                  <td colSpan={certType === 'tier_basic' || certType === 'tier_standard' ? 8 : 7} className="fluid-px-4 fluid-py-12 text-center text-gray-400">
+                  <td colSpan={8} className="fluid-px-4 fluid-py-12 text-center text-gray-400">
                     <Users className="fluid-icon-lg mx-auto mb-2 text-gray-300" />
                     <p className="fluid-text-sm">
                       {searchQuery ? 'No se encontraron candidatos para la búsqueda' : 'No hay candidatos certificados aún'}
@@ -646,6 +651,15 @@ export default function CertificateTypePage({
           </table>
         </div>
       </div>
+
+      {/* Detail Modal */}
+      <CandidateCertDetailModal
+        isOpen={!!detailUserId}
+        onClose={() => setDetailUserId(null)}
+        groupId={Number(groupId)}
+        userId={detailUserId || ''}
+        userName={detailUserName}
+      />
     </div>
   );
 }

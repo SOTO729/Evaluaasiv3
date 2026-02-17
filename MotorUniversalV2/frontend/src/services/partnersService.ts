@@ -2380,6 +2380,73 @@ export async function getGroupCertificatesStats(groupId: number): Promise<GroupC
   return response.data;
 }
 
+// ============ DETALLE DE CERTIFICACIÓN POR CANDIDATO ============
+
+export interface EcmAssignmentInfo {
+  id: number;
+  assignment_number: string;
+  ecm_code: string | null;
+  ecm_name: string | null;
+  group_name: string | null;
+  assigned_at: string | null;
+}
+
+export interface CertResultDetail {
+  result_id: string;
+  exam_id: number;
+  exam_name: string;
+  exam_code: string | null;
+  score: number;
+  end_date: string | null;
+  has_report: boolean;
+  has_certificate: boolean;
+  certificate_code: string | null;
+  eduit_certificate_code: string | null;
+  ecm_assignments: EcmAssignmentInfo[];
+}
+
+export interface ConocerCertDetail {
+  id: number;
+  certificate_number: string;
+  standard_code: string;
+  standard_name: string;
+  issue_date: string | null;
+}
+
+export interface CandidateCertificationDetail {
+  candidate: {
+    user_id: string;
+    full_name: string;
+    email: string | null;
+    curp: string | null;
+    username: string | null;
+  };
+  group: {
+    id: number;
+    name: string;
+  };
+  summary: {
+    exams_approved: number;
+    ecm_count: number;
+    conocer_count: number;
+    reports_ready: number;
+    certificates_ready: number;
+  };
+  results: CertResultDetail[];
+  conocer_certificates: ConocerCertDetail[];
+}
+
+/**
+ * Obtener detalle de certificación de un candidato en un grupo
+ */
+export async function getCandidateCertificationDetail(
+  groupId: number,
+  userId: string
+): Promise<CandidateCertificationDetail> {
+  const response = await api.get(`/partners/groups/${groupId}/candidates/${userId}/certification-detail`);
+  return response.data;
+}
+
 /**
  * Descargar ZIP con certificados del grupo
  */

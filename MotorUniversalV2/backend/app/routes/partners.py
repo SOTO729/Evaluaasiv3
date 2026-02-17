@@ -9455,6 +9455,129 @@ def clear_group_certificates_urls(group_id):
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/groups/<int:group_id>/candidates/<string:user_id>/certification-detail', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_candidate_certification_detail(group_id, user_id):
+    """
+    Detalle de certificación de un candidato dentro de un grupo.
+    Devuelve todos los exámenes aprobados con nombre, ECAs asociadas, y certificados CONOCER.
+    """
+    try:
+        from app.models.result import Result
+        from app.models.conocer_certificate import ConocerCertificate
+        from app.models.exam import Exam
+        from sqlalchemy import and_
+
+        group = CandidateGroup.query.get_or_404(group_id)
+
+        # Verificar que el usuario es miembro activo del grupo
+        member = GroupMember.query.filter_by(group_id=group_id, user_id=user_id, status='active').first()
+        if not member:
+            return jsonify({'error': 'El candidato no es miembro activo del grupo'}), 404
+
+        user = member.user
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+
+        # Resultados aprobados del candidato
+        results = Result.query.filter(
+            and_(
+                Result.user_id == user_id,
+                Result.status == 1,
+                Result.result == 1
+            )
+        ).order_by(Result.end_date.desc()).all()
+
+        # Obtener IDs de exámenes para buscar nombres
+        exam_ids = list(set(r.exam_id for r in results))
+        exams_map = {}
+        if exam_ids:
+            exams = Exam.query.filter(Exam.id.in_(exam_ids)).all()
+            exams_map = {e.id: e for e in exams}
+
+        # ECAs del candidato en este grupo
+        ecas = EcmCandidateAssignment.query.filter_by(user_id=user_id, group_id=group_id).all()
+        # También obtener ECAs globales (sin filtro de grupo) para cross-reference
+        all_ecas = EcmCandidateAssignment.query.filter_by(user_id=user_id).all()
+        ecas_by_exam = {}
+        for eca in all_ecas:
+            ecas_by_exam.setdefault(eca.exam_id, []).append(eca)
+
+        # Certificados CONOCER del candidato
+        conocer_certs = ConocerCertificate.query.filter(
+            and_(
+                ConocerCertificate.user_id == user_id,
+                ConocerCertificate.status == 'active'
+            )
+        ).all()
+
+        # Construir detalle de resultados con examen y ECA info
+        results_detail = []
+        for r in results:
+            exam = exams_map.get(r.exam_id)
+            related_ecas = ecas_by_exam.get(r.exam_id, [])
+
+            result_item = {
+                'result_id': r.id,
+                'exam_id': r.exam_id,
+                'exam_name': exam.name if exam else f'Examen #{r.exam_id}',
+                'exam_code': getattr(exam, 'code', None) if exam else None,
+                'score': r.score,
+                'end_date': r.end_date.isoformat() if r.end_date else None,
+                'has_report': bool(r.report_url),
+                'has_certificate': bool(r.certificate_url),
+                'certificate_code': r.certificate_code,
+                'eduit_certificate_code': r.eduit_certificate_code,
+                'ecm_assignments': [{
+                    'id': eca.id,
+                    'assignment_number': eca.assignment_number,
+                    'ecm_code': eca.competency_standard.code if eca.competency_standard else None,
+                    'ecm_name': eca.competency_standard.name if eca.competency_standard else None,
+                    'group_name': eca.group_name,
+                    'assigned_at': eca.assigned_at.isoformat() if eca.assigned_at else None,
+                } for eca in related_ecas]
+            }
+            results_detail.append(result_item)
+
+        # Certificados CONOCER
+        conocer_detail = [{
+            'id': c.id,
+            'certificate_number': c.certificate_number,
+            'standard_code': c.standard_code,
+            'standard_name': c.standard_name,
+            'issue_date': c.issue_date.isoformat() if c.issue_date else None,
+        } for c in conocer_certs]
+
+        return jsonify({
+            'candidate': {
+                'user_id': user.id,
+                'full_name': user.full_name,
+                'email': user.email,
+                'curp': user.curp,
+                'username': user.username,
+            },
+            'group': {
+                'id': group.id,
+                'name': group.name,
+            },
+            'summary': {
+                'exams_approved': len(results),
+                'ecm_count': len(set(eca.competency_standard_id for eca in all_ecas)),
+                'conocer_count': len(conocer_certs),
+                'reports_ready': sum(1 for r in results if r.report_url or r.certificate_code),
+                'certificates_ready': sum(1 for r in results if r.certificate_url or r.eduit_certificate_code),
+            },
+            'results': results_detail,
+            'conocer_certificates': conocer_detail,
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 # ============== MÓDULO DE ASIGNACIONES POR ECM ==============
 
 @bp.route('/ecm-assignments', methods=['GET'])
