@@ -102,6 +102,10 @@ const GroupDetailPage = lazy(() => import('./pages/partners/GroupDetailPage'))
 const GroupMembersPage = lazy(() => import('./pages/partners/GroupMembersPage'))
 const GroupExamsPage = lazy(() => import('./pages/partners/GroupExamsPage'))
 const GroupDocumentsPage = lazy(() => import('./pages/partners/GroupDocumentsPage'))
+const GroupCertReportePage = lazy(() => import('./pages/partners/certificates/GroupCertReportePage'))
+const GroupCertEduitPage = lazy(() => import('./pages/partners/certificates/GroupCertEduitPage'))
+const GroupCertConocerPage = lazy(() => import('./pages/partners/certificates/GroupCertConocerPage'))
+const GroupCertInsigniaPage = lazy(() => import('./pages/partners/certificates/GroupCertInsigniaPage'))
 const GroupAssignCandidatesPage = lazy(() => import('./pages/partners/GroupAssignCandidatesPage'))
 const GroupBulkUploadPage = lazy(() => import('./pages/partners/GroupBulkUploadPage'))
 const ExamSelectConfigPage = lazy(() => import('./pages/partners/exam-assignment/ExamSelectConfigPage'))
@@ -267,6 +271,10 @@ function App() {
               <Route path="/partners/groups/:groupId/members" element={<GroupMembersPage />} />
               <Route path="/partners/groups/:groupId/exams" element={<GroupExamsPage />} />
               <Route path="/partners/groups/:groupId/documents" element={<GroupDocumentsPage />} />
+              <Route path="/partners/groups/:groupId/documents/reporte" element={<GroupCertReportePage />} />
+              <Route path="/partners/groups/:groupId/documents/eduit" element={<GroupCertEduitPage />} />
+              <Route path="/partners/groups/:groupId/documents/conocer" element={<GroupCertConocerPage />} />
+              <Route path="/partners/groups/:groupId/documents/insignia" element={<GroupCertInsigniaPage />} />
               <Route path="/partners/groups/:groupId/edit" element={<GroupFormPage />} />
               <Route path="/partners/groups/:groupId/assign-candidates" element={<GroupAssignCandidatesPage />} />
               <Route path="/partners/groups/:groupId/bulk-upload" element={<GroupBulkUploadPage />} />
