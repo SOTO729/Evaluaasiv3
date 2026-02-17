@@ -9665,19 +9665,50 @@ def get_group_analytics(group_id):
                 'source': 'direct',
             })
         
-        # Materiales vinculados a exámenes del grupo
+        # Materiales vinculados a exámenes del grupo (via GroupExamMaterial)
+        from app.models.partner import GroupExamMaterial
+        from app.models.study_material import StudyMaterial
+        seen_material_ids = set(gm.study_material_id for gm in group_materials)
         for ge in group_exams:
-            if hasattr(ge, 'study_materials') and ge.study_materials:
-                for sm in ge.study_materials:
-                    material = sm if hasattr(sm, 'title') else (sm.study_material if hasattr(sm, 'study_material') else None)
-                    if material:
+            # Custom materials del group_exam
+            custom_mats = GroupExamMaterial.query.filter_by(group_exam_id=ge.id, is_included=True).all()
+            if custom_mats:
+                mat_ids = [cm.study_material_id for cm in custom_mats if cm.study_material_id not in seen_material_ids]
+                if mat_ids:
+                    study_mats = StudyMaterial.query.filter(StudyMaterial.id.in_(mat_ids)).all()
+                    for sm in study_mats:
+                        seen_material_ids.add(sm.id)
                         materials_detail.append({
-                            'id': f'exam-{ge.exam_id}-{getattr(material, "id", 0)}',
-                            'material_name': getattr(material, 'title', f'Material de exam #{ge.exam_id}'),
+                            'id': f'exam-{ge.exam_id}-{sm.id}',
+                            'material_name': sm.title,
                             'assigned_at': ge.assigned_at.isoformat() if ge.assigned_at else None,
                             'assigned_members': total_members,
                             'source': 'exam',
+                            'exam_name': exams_map.get(ge.exam_id, None) and exams_map[ge.exam_id].name or f'Examen #{ge.exam_id}',
                         })
+            else:
+                # Sin personalizaciones: buscar materiales vinculados al examen
+                try:
+                    from sqlalchemy import text as sa_text
+                    linked = db.session.execute(sa_text('''
+                        SELECT sc.id, sc.title
+                        FROM study_contents sc
+                        INNER JOIN study_material_exams sme ON sc.id = sme.study_material_id
+                        WHERE sme.exam_id = :exam_id AND sc.is_published = 1
+                    '''), {'exam_id': ge.exam_id}).fetchall()
+                    for row in linked:
+                        if row[0] not in seen_material_ids:
+                            seen_material_ids.add(row[0])
+                            materials_detail.append({
+                                'id': f'exam-{ge.exam_id}-{row[0]}',
+                                'material_name': row[1],
+                                'assigned_at': ge.assigned_at.isoformat() if ge.assigned_at else None,
+                                'assigned_members': total_members,
+                                'source': 'exam',
+                                'exam_name': exams_map.get(ge.exam_id, None) and exams_map[ge.exam_id].name or f'Examen #{ge.exam_id}',
+                            })
+                except Exception:
+                    pass
 
         # ── 6. ECAs ──
         # Buscar ECAs por group_id O por combinación user_id + exam_ids del grupo
@@ -9701,16 +9732,17 @@ def get_group_analytics(group_id):
                 )
             ).all()
 
-        ecm_summary = defaultdict(lambda: {'count': 0, 'ecm_name': '', 'ecm_code': ''})
+        ecm_summary = defaultdict(lambda: {'count': 0, 'ecm_name': '', 'ecm_code': '', 'logo_url': None})
         for eca in ecas:
             key = eca.competency_standard_id
             ecm_summary[key]['count'] += 1
             if eca.competency_standard:
                 ecm_summary[key]['ecm_name'] = eca.competency_standard.name
                 ecm_summary[key]['ecm_code'] = eca.competency_standard.code
+                ecm_summary[key]['logo_url'] = eca.competency_standard.logo_url
 
         ecm_details = [
-            {'ecm_id': k, 'ecm_name': v['ecm_name'], 'ecm_code': v['ecm_code'], 'assignments': v['count']}
+            {'ecm_id': k, 'ecm_name': v['ecm_name'], 'ecm_code': v['ecm_code'], 'assignments': v['count'], 'logo_url': v['logo_url']}
             for k, v in ecm_summary.items()
         ]
 

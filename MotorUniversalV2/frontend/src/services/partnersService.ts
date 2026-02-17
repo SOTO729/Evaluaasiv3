@@ -2517,6 +2517,7 @@ export interface GroupAnalytics {
       assigned_at: string | null;
       assigned_members: number;
       source?: string;
+      exam_name?: string;
     }[];
   };
   ecm: {
@@ -2527,6 +2528,7 @@ export interface GroupAnalytics {
       ecm_name: string;
       ecm_code: string;
       assignments: number;
+      logo_url: string | null;
     }[];
   };
   top_performers: {

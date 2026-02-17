@@ -544,14 +544,27 @@ export default function GroupAnalyticsPage() {
               {data.ecm.details.map(ecm => (
                 <div
                   key={ecm.ecm_id}
-                  className="bg-emerald-50 border border-emerald-100 rounded-fluid-lg fluid-p-3"
+                  className="flex items-center fluid-gap-3 bg-emerald-50 border border-emerald-100 rounded-fluid-lg fluid-p-3"
                 >
-                  <p className="font-medium text-emerald-900 fluid-text-sm truncate">{ecm.ecm_name || ecm.ecm_code}</p>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="fluid-text-xs text-emerald-600 font-mono">{ecm.ecm_code}</span>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                      {ecm.assignments} asignaciones
-                    </span>
+                  {ecm.logo_url ? (
+                    <img
+                      src={ecm.logo_url}
+                      alt={ecm.ecm_code}
+                      className="w-10 h-10 rounded-lg object-contain bg-white border border-emerald-200 flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-emerald-200 flex items-center justify-center flex-shrink-0">
+                      <Award className="w-5 h-5 text-emerald-700" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-emerald-900 fluid-text-sm truncate">{ecm.ecm_name || ecm.ecm_code}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="fluid-text-xs text-emerald-600 font-mono">{ecm.ecm_code}</span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                        {ecm.assignments} asignaciones
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -574,10 +587,17 @@ export default function GroupAnalyticsPage() {
                   key={mat.id}
                   className="bg-blue-50 border border-blue-100 rounded-fluid-lg fluid-p-3"
                 >
-                  <p className="font-medium text-blue-900 fluid-text-sm truncate">{mat.material_name}</p>
+                  <div className="flex items-center fluid-gap-2">
+                    <p className="font-medium text-blue-900 fluid-text-sm truncate flex-1">{mat.material_name}</p>
+                    {mat.source === 'exam' && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-100 text-indigo-700 flex-shrink-0">
+                        Examen
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center justify-between mt-1">
                     <span className="fluid-text-xs text-blue-600">
-                      {mat.assigned_at ? new Date(mat.assigned_at).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' }) : '—'}
+                      {mat.exam_name || (mat.assigned_at ? new Date(mat.assigned_at).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' }) : '—')}
                     </span>
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       {mat.assigned_members} miembros
