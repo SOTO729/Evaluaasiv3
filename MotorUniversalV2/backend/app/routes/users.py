@@ -101,6 +101,22 @@ def update_user(user_id):
     # Campos que puede actualizar cualquier usuario
     self_updatable_fields = ['name', 'first_surname', 'second_surname', 'phone', 'gender']
     
+    # Si el usuario es candidato/responsable con CURP y se está auto-editando,
+    # bloquear la edición de datos personales (solo puede cambiar email vía flujo separado)
+    is_self_edit = (user_id == current_user_id)
+    has_curp = bool(user.curp and user.curp.strip())
+    is_locked_role = user.role in ('candidato', 'responsable')
+    
+    if is_self_edit and has_curp and is_locked_role:
+        # Con CURP, candidatos y responsables no pueden auto-editar datos personales
+        locked_fields = [f for f in self_updatable_fields if f in data]
+        if locked_fields:
+            return jsonify({
+                'error': 'No puedes modificar tus datos personales porque tu CURP ya está registrada. Solo puedes cambiar tu correo electrónico.',
+                'locked_fields': locked_fields,
+                'reason': 'curp_registered'
+            }), 403
+    
     # Campos que solo admin puede actualizar
     admin_only_fields = ['role', 'is_active', 'campus_id', 'subsystem_id']
     

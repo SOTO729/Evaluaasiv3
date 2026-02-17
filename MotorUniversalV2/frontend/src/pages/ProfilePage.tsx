@@ -93,6 +93,11 @@ const ProfilePage = () => {
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [passwordLoading, setPasswordLoading] = useState(false)
 
+  // Determinar si el usuario tiene CURP y es candidato/responsable (bloqueo de edición)
+  const hasCurpLock = profile 
+    && (profile.role === 'candidato' || profile.role === 'responsable')
+    && !!profile.curp?.trim()
+
   useEffect(() => {
     loadProfile()
   }, [])
@@ -313,7 +318,7 @@ const ProfilePage = () => {
               </div>
 
               {/* Botones de acción */}
-              {profile?.role !== 'editor' && profile?.role !== 'editor_invitado' && (
+              {profile?.role !== 'editor' && profile?.role !== 'editor_invitado' && !hasCurpLock && (
                 <div className="flex fluid-gap-2 fluid-mt-2 sm:mt-0 flex-shrink-0">
                   {!isEditing ? (
                     <button
@@ -370,6 +375,20 @@ const ProfilePage = () => {
           <div className="fluid-mb-6 fluid-p-4 bg-red-50 border border-red-200 rounded-fluid-lg flex items-center fluid-gap-3 shadow-sm">
             <AlertCircle className="fluid-icon-sm text-red-600 flex-shrink-0" />
             <p className="fluid-text-sm text-red-700">{error}</p>
+          </div>
+        )}
+
+        {/* Aviso de bloqueo por CURP */}
+        {hasCurpLock && (
+          <div className="fluid-mb-6 fluid-p-4 bg-amber-50 border border-amber-200 rounded-fluid-lg flex items-start fluid-gap-3 shadow-sm">
+            <Lock className="fluid-icon-sm text-amber-600 flex-shrink-0 fluid-mt-0.5" />
+            <div>
+              <p className="fluid-text-sm font-semibold text-amber-800">Datos personales protegidos</p>
+              <p className="fluid-text-xs text-amber-700 fluid-mt-1">
+                Tu CURP está registrada, por lo que tus datos personales (nombre, apellidos, género) no pueden ser modificados.
+                Si necesitas hacer un cambio, contacta a un administrador. Puedes seguir cambiando tu correo electrónico y contraseña.
+              </p>
+            </div>
           </div>
         )}
 
