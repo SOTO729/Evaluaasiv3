@@ -2984,11 +2984,57 @@ def get_group_members(group_id):
         return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
 
 
+@bp.route('/groups/<int:group_id>/campus-responsables', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_group_campus_responsables(group_id):
+    """Obtener los responsables del plantel al que pertenece el grupo,
+    indicando cuáles ya son miembros del grupo."""
+    try:
+        group = CandidateGroup.query.get_or_404(group_id)
+        if not group.campus_id:
+            return jsonify({'responsables': [], 'total': 0})
+
+        # Responsables del plantel
+        responsables = User.query.filter(
+            User.role == 'responsable',
+            User.campus_id == group.campus_id,
+            User.is_active == True
+        ).order_by(User.created_at.asc()).all()
+
+        # IDs ya miembros del grupo
+        existing_ids = {m.user_id for m in GroupMember.query.filter_by(group_id=group_id).all()}
+
+        result = []
+        for r in responsables:
+            result.append({
+                'id': r.id,
+                'username': r.username,
+                'full_name': r.full_name,
+                'email': r.email,
+                'curp': r.curp,
+                'gender': r.gender,
+                'date_of_birth': r.date_of_birth.isoformat() if r.date_of_birth else None,
+                'is_primary': r.id == Campus.query.get(group.campus_id).responsable_id if group.campus_id else False,
+                'is_member': r.id in existing_ids,
+                'role': 'responsable',
+            })
+
+        return jsonify({
+            'responsables': result,
+            'total': len(result),
+            'campus_id': group.campus_id,
+            'campus_name': group.campus.name if group.campus else None,
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/groups/<int:group_id>/members', methods=['POST'])
 @jwt_required()
 @coordinator_required
 def add_group_member(group_id):
-    """Agregar un candidato al grupo"""
+    """Agregar un candidato o responsable del plantel al grupo"""
     try:
         group = CandidateGroup.query.get_or_404(group_id)
         data = request.get_json()
@@ -2997,13 +3043,18 @@ def add_group_member(group_id):
         if not user_id:
             return jsonify({'error': 'El ID del usuario es requerido'}), 400
         
-        # Verificar que el usuario existe y es candidato
+        # Verificar que el usuario existe
         user = User.query.get(user_id)
         if not user:
             return jsonify({'error': 'Usuario no encontrado'}), 404
             
-        if user.role != 'candidato':
-            return jsonify({'error': 'Solo se pueden agregar usuarios con rol candidato'}), 400
+        # Permitir candidatos y responsables del plantel del grupo
+        if user.role == 'responsable':
+            # Validar que el responsable pertenece al plantel del grupo
+            if not group.campus_id or user.campus_id != group.campus_id:
+                return jsonify({'error': 'Solo se pueden agregar responsables del plantel al que pertenece el grupo'}), 400
+        elif user.role != 'candidato':
+            return jsonify({'error': 'Solo se pueden agregar usuarios con rol candidato o responsable del plantel'}), 400
         
         # Verificar que no esté ya en el grupo
         existing = GroupMember.query.filter_by(group_id=group_id, user_id=user_id).first()
@@ -3060,10 +3111,13 @@ def add_group_members_bulk(group_id):
         for i in range(0, len(user_ids), CHUNK_SIZE):
             chunk_ids = user_ids[i:i + CHUNK_SIZE]
             
-            # Batch: obtener todos los usuarios válidos en una sola query
+            # Batch: obtener todos los usuarios válidos (candidatos + responsables del plantel)
             valid_users = User.query.filter(
                 User.id.in_(chunk_ids),
-                User.role == 'candidato'
+                db.or_(
+                    User.role == 'candidato',
+                    db.and_(User.role == 'responsable', User.campus_id == group.campus_id)
+                )
             ).all()
             valid_user_map = {u.id: u for u in valid_users}
             
@@ -3076,7 +3130,7 @@ def add_group_members_bulk(group_id):
             
             for user_id in chunk_ids:
                 if user_id not in valid_user_map:
-                    errors.append({'user_id': user_id, 'error': 'Usuario no encontrado o no es candidato'})
+                    errors.append({'user_id': user_id, 'error': 'Usuario no encontrado o no es candidato/responsable del plantel'})
                     continue
                     
                 if user_id in existing_member_ids:

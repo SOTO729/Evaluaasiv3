@@ -236,7 +236,7 @@ export default function GroupCertificatesTab({ groupId, groupName }: GroupCertif
   const filteredCandidates = useMemo(() => {
     if (!stats) return [];
     
-    return stats.candidates.filter(c => {
+    return (stats.candidates ?? []).filter(c => {
       if (!searchQuery.trim()) return true;
       const query = searchQuery.toLowerCase();
       return (
@@ -753,11 +753,11 @@ function CandidateCard({ candidate, config, expanded, onToggleExpand, selected, 
           </div>
           
           {/* Detalle de resultados */}
-          {candidate.results.length > 0 && (
+          {(candidate.results ?? []).length > 0 && (
             <div className="mt-4">
               <h5 className="text-sm font-medium text-gray-700 mb-2">Detalle de exámenes:</h5>
               <div className="space-y-2">
-                {candidate.results.map((result) => (
+                {(candidate.results ?? []).map((result) => (
                   <div
                     key={result.id}
                     className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded-lg"
@@ -784,11 +784,11 @@ function CandidateCard({ candidate, config, expanded, onToggleExpand, selected, 
           )}
           
           {/* Certificados CONOCER */}
-          {candidate.conocer_certificates.length > 0 && (
+          {(candidate.conocer_certificates ?? []).length > 0 && (
             <div className="mt-4">
               <h5 className="text-sm font-medium text-gray-700 mb-2">Certificados CONOCER:</h5>
               <div className="space-y-2">
-                {candidate.conocer_certificates.map((cert) => (
+                {(candidate.conocer_certificates ?? []).map((cert) => (
                   <div
                     key={cert.id}
                     className="flex items-center justify-between text-sm p-2 bg-emerald-50 rounded-lg"

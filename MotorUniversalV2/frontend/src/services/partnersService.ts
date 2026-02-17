@@ -549,6 +549,30 @@ export async function addCampusResponsable(
   return response.data;
 }
 
+// Obtener responsables del plantel del grupo (para agregarlos como miembros)
+export interface GroupCampusResponsable {
+  id: string;
+  username: string;
+  full_name: string;
+  email: string;
+  curp?: string;
+  gender?: string;
+  date_of_birth?: string;
+  is_primary: boolean;
+  is_member: boolean;
+  role: string;
+}
+
+export async function getGroupCampusResponsables(groupId: number): Promise<{
+  responsables: GroupCampusResponsable[];
+  total: number;
+  campus_id: number | null;
+  campus_name: string | null;
+}> {
+  const response = await api.get(`/partners/groups/${groupId}/campus-responsables`);
+  return response.data;
+}
+
 export async function updateResponsablePermissions(
   campusId: number,
   userId: string,

@@ -35,6 +35,8 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Shield,
+  ChevronDown,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
@@ -48,9 +50,11 @@ import {
   addGroupMembersBulk,
 
   bulkAssignByCriteria,
+  getGroupCampusResponsables,
   CandidateGroup,
   CandidateSearchResult,
   GroupExamAssignment,
+  GroupCampusResponsable,
 } from '../../services/partnersService';
 
 // Campos de búsqueda disponibles
@@ -144,10 +148,18 @@ export default function GroupAssignCandidatesPage() {
     criteriaResult?: { added: number; skipped: number; total_matched: number };
   }>({});
 
+  // Estado para responsables del plantel
+  const [campusResponsables, setCampusResponsables] = useState<GroupCampusResponsable[]>([]);
+  const [campusName, setCampusName] = useState<string | null>(null);
+  const [loadingResponsables, setLoadingResponsables] = useState(false);
+  const [addingResponsable, setAddingResponsable] = useState<string | null>(null);
+  const [showResponsablesSection, setShowResponsablesSection] = useState(true);
+
   // Cargar datos iniciales
   useEffect(() => {
     loadGroupData();
     loadGroupExams();
+    loadCampusResponsables();
   }, [groupId]);
 
   const loadGroupData = async () => {
@@ -175,6 +187,40 @@ export default function GroupAssignCandidatesPage() {
       setSelectedExamIds(new Set(activeExams.map(e => e.id)));
     } catch (err) {
       console.error('Error loading group exams:', err);
+    }
+  };
+
+  const loadCampusResponsables = async () => {
+    try {
+      setLoadingResponsables(true);
+      const data = await getGroupCampusResponsables(Number(groupId));
+      setCampusResponsables(data.responsables);
+      setCampusName(data.campus_name);
+    } catch (err) {
+      console.error('Error loading campus responsables:', err);
+    } finally {
+      setLoadingResponsables(false);
+    }
+  };
+
+  const handleAddResponsable = async (responsableId: string) => {
+    try {
+      setAddingResponsable(responsableId);
+      setError(null);
+      const autoAssignExamIds = groupExams.length > 0 ? Array.from(selectedExamIds) : undefined;
+      const result = await addGroupMembersBulk(Number(groupId), [responsableId], autoAssignExamIds);
+      if (result.added.length > 0) {
+        setSuccessMessage('Responsable agregado exitosamente al grupo');
+        setCurrentMemberCount(prev => prev + 1);
+        // Refresh responsables to update is_member
+        loadCampusResponsables();
+      } else if (result.errors.length > 0) {
+        setError(result.errors[0].error);
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al agregar responsable');
+    } finally {
+      setAddingResponsable(null);
     }
   };
 
@@ -611,6 +657,97 @@ export default function GroupAssignCandidatesPage() {
       )}
 
       {/* ===== CONTENIDO PRINCIPAL ===== */}
+
+        {/* ==================== RESPONSABLES DEL PLANTEL ==================== */}
+        {campusResponsables.length > 0 && (
+          <div className="bg-white rounded-fluid-xl shadow-sm border border-amber-200 fluid-mb-5 overflow-hidden">
+            <button
+              onClick={() => setShowResponsablesSection(!showResponsablesSection)}
+              className="w-full flex items-center justify-between fluid-p-4 hover:bg-amber-50/50 transition-colors"
+            >
+              <div className="flex items-center fluid-gap-3">
+                <div className="fluid-p-2 bg-amber-100 rounded-fluid-lg">
+                  <Shield className="fluid-icon-sm text-amber-600" />
+                </div>
+                <div className="text-left">
+                  <h3 className="fluid-text-sm font-semibold text-gray-900">
+                    Responsables del Plantel
+                    {campusName && <span className="text-amber-600 font-normal"> — {campusName}</span>}
+                  </h3>
+                  <p className="fluid-text-xs text-gray-500">
+                    {campusResponsables.filter(r => r.is_member).length} de {campusResponsables.length} ya son miembros del grupo
+                  </p>
+                </div>
+              </div>
+              <ChevronDown className={`fluid-icon-sm text-gray-400 transition-transform ${showResponsablesSection ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showResponsablesSection && (
+              <div className="border-t border-amber-100 fluid-p-4">
+                {loadingResponsables ? (
+                  <div className="flex items-center justify-center fluid-py-4">
+                    <Loader2 className="fluid-icon animate-spin text-amber-500" />
+                    <span className="fluid-text-sm text-gray-500 fluid-ml-2">Cargando responsables...</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 fluid-gap-3">
+                    {campusResponsables.map(resp => (
+                      <div
+                        key={resp.id}
+                        className={`flex items-center justify-between fluid-p-3 rounded-fluid-lg border ${
+                          resp.is_member 
+                            ? 'bg-green-50 border-green-200' 
+                            : 'bg-white border-gray-200 hover:border-amber-300'
+                        } transition-colors`}
+                      >
+                        <div className="flex items-center fluid-gap-3 min-w-0">
+                          <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center fluid-text-xs font-bold ${
+                            resp.is_member ? 'bg-green-200 text-green-700' : 'bg-amber-100 text-amber-700'
+                          }`}>
+                            {resp.full_name?.charAt(0)?.toUpperCase() || 'R'}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="fluid-text-sm font-medium text-gray-900 truncate">
+                              {resp.full_name}
+                              {resp.is_primary && (
+                                <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                                  Principal
+                                </span>
+                              )}
+                            </p>
+                            <p className="fluid-text-xs text-gray-500 truncate">{resp.email || 'Sin email'}</p>
+                            {resp.curp && <p className="fluid-text-xs text-gray-400 truncate">{resp.curp}</p>}
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0 fluid-ml-2">
+                          {resp.is_member ? (
+                            <span className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 bg-green-100 text-green-700 rounded-fluid-lg fluid-text-xs font-medium">
+                              <UserCheck className="h-3 w-3" />
+                              Miembro
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleAddResponsable(resp.id)}
+                              disabled={addingResponsable === resp.id}
+                              className="inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1.5 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-300 text-white rounded-fluid-lg fluid-text-xs font-medium transition-colors"
+                            >
+                              {addingResponsable === resp.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <UserPlus className="h-3 w-3" />
+                              )}
+                              Agregar
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         
         {/* ==================== BÚSQUEDA Y ASIGNACIÓN ==================== */}
           <>
