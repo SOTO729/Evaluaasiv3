@@ -17,6 +17,7 @@ import {
   Users,
   Layers,
   AlertCircle,
+  Search,
   CheckCircle2,
   XCircle,
   Clock,
@@ -44,6 +45,7 @@ export default function PartnerDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedState, setSelectedState] = useState<string>('');
+  const [campusSearch, setCampusSearch] = useState('');
 
   useEffect(() => {
     if (location.state?.successMessage) {
@@ -83,9 +85,20 @@ export default function PartnerDetailPage() {
     }
   };
   
-  const filteredCampuses = selectedState
-    ? campuses.filter(c => c.state_name === selectedState)
-    : campuses;
+  const filteredCampuses = campuses.filter(c => {
+    if (selectedState && c.state_name !== selectedState) return false;
+    if (campusSearch) {
+      const q = campusSearch.toLowerCase();
+      return (
+        c.name.toLowerCase().includes(q) ||
+        c.code?.toLowerCase().includes(q) ||
+        c.state_name?.toLowerCase().includes(q) ||
+        c.city?.toLowerCase().includes(q) ||
+        c.director_name?.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
 
   if (loading) {
     return (
@@ -360,6 +373,30 @@ export default function PartnerDetailPage() {
                 Nuevo Plantel
               </Link>
             </div>
+
+            {/* Barra de búsqueda */}
+            {campuses.length > 0 && (
+              <div className="fluid-px-5 fluid-py-3 border-b border-gray-100 bg-gray-50/50">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400" />
+                  <input
+                    type="text"
+                    value={campusSearch}
+                    onChange={e => setCampusSearch(e.target.value)}
+                    placeholder="Buscar plantel por nombre, código, estado, ciudad..."
+                    className="w-full fluid-pl-10 fluid-pr-4 fluid-py-2 bg-white border border-gray-200 rounded-fluid-lg fluid-text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  />
+                  {campusSearch && (
+                    <button
+                      onClick={() => setCampusSearch('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <XCircle className="fluid-icon-sm" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {filteredCampuses.length === 0 ? (
               <div className="text-center fluid-py-16 fluid-px-6">
