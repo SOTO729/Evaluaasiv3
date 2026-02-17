@@ -29,6 +29,7 @@ import {
   GroupCertificatesStats,
   CandidateCertificateStats,
 } from '../../services/partnersService';
+import { useAuthStore } from '../../store/authStore';
 
 interface GroupCertificatesTabProps {
   groupId: number;
@@ -79,6 +80,9 @@ const CERTIFICATE_TYPES = {
 };
 
 export default function GroupCertificatesTab({ groupId, groupName }: GroupCertificatesTabProps) {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin' || user?.role === 'developer';
+
   const [stats, setStats] = useState<GroupCertificatesStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -301,6 +305,7 @@ export default function GroupCertificatesTab({ groupId, groupName }: GroupCertif
             <RefreshCw className="w-5 h-5" />
           </button>
           
+          {isAdmin && (
           <button
             onClick={handleRegenerateCertificates}
             disabled={regenerating}
@@ -319,6 +324,7 @@ export default function GroupCertificatesTab({ groupId, groupName }: GroupCertif
               </>
             )}
           </button>
+          )}
           
           <button
             onClick={handleDownloadZip}
@@ -388,7 +394,7 @@ export default function GroupCertificatesTab({ groupId, groupName }: GroupCertif
                   total={summary.tier_basic.total}
                   selected={selectedTypes.has('tier_basic')}
                   onToggleSelect={() => toggleSelectedType('tier_basic')}
-                  onGenerate={() => handleGenerateCertificates('tier_basic')}
+                  onGenerate={isAdmin ? () => handleGenerateCertificates('tier_basic') : undefined}
                   generating={generating === 'tier_basic'}
                 />
               )}
@@ -403,7 +409,7 @@ export default function GroupCertificatesTab({ groupId, groupName }: GroupCertif
                   total={summary.tier_standard.total}
                   selected={selectedTypes.has('tier_standard')}
                   onToggleSelect={() => toggleSelectedType('tier_standard')}
-                  onGenerate={() => handleGenerateCertificates('tier_standard')}
+                  onGenerate={isAdmin ? () => handleGenerateCertificates('tier_standard') : undefined}
                   generating={generating === 'tier_standard'}
                 />
               )}

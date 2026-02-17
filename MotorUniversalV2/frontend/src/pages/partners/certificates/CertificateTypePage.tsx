@@ -102,21 +102,6 @@ export default function CertificateTypePage({
         ]);
         setGroup(groupData);
         setSummaryStats(statsData);
-
-        // Auto-regenerate pending PDFs on load
-        if (canGenerate && statsData) {
-          const summaryKey = certType === 'tier_basic' ? 'tier_basic' : 'tier_standard';
-          const pending = (statsData.summary as any)[summaryKey]?.pending || 0;
-          if (pending > 0) {
-            try {
-              await generateGroupCertificates(Number(groupId), certType as 'tier_basic' | 'tier_standard');
-              const refreshed = await getGroupCertificatesStats(Number(groupId));
-              setSummaryStats(refreshed);
-            } catch {
-              // Silently fail auto-generation
-            }
-          }
-        }
       } catch (err: any) {
         setError(err.response?.data?.error || 'Error al cargar datos');
       } finally {

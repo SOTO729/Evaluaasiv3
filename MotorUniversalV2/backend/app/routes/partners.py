@@ -10201,12 +10201,19 @@ def generate_group_certificates(group_id):
     """
     Generar certificados pendientes para el grupo.
     Este endpoint inicia la generación de PDFs para los certificados que no los tienen.
+    Solo admin/developer pueden ejecutar esta acción.
     
     Body:
     - certificate_type: 'tier_basic' o 'tier_standard'
     - user_ids: (opcional) Lista de user_ids específicos
     """
     try:
+        # Solo admin/developer pueden generar certificados
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user or user.role not in ['admin', 'developer']:
+            return jsonify({'error': 'Acceso denegado. Solo administradores pueden generar certificados.'}), 403
+
         from app.models.result import Result
         from app.models.exam import Exam
         from app.utils.queue_utils import enqueue_pdf_generation
@@ -10292,8 +10299,15 @@ def clear_group_certificates_urls(group_id):
     """
     Limpiar URLs de certificados del grupo para forzar regeneración.
     Esto permite regenerar los PDFs con las posiciones correctas.
+    Solo admin/developer pueden ejecutar esta acción.
     """
     try:
+        # Solo admin/developer pueden limpiar/regenerar certificados
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user or user.role not in ['admin', 'developer']:
+            return jsonify({'error': 'Acceso denegado. Solo administradores pueden regenerar certificados.'}), 403
+
         from app.models.result import Result
         from sqlalchemy import and_
         
