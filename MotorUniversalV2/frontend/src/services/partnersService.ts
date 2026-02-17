@@ -764,6 +764,7 @@ export interface SearchGroupsParams {
   per_page?: number;
   search?: string;
   campus_id?: number;
+  partner_id?: number;
   active_only?: boolean;
   status?: string;
   cycle_name?: string;
@@ -790,6 +791,7 @@ export interface SearchGroupsResult {
   pages: number;
   per_page: number;
   available_cycles: string[];
+  available_partners: Array<{ id: number; name: string }>;
 }
 
 export async function searchGroupsPaginated(params?: SearchGroupsParams): Promise<SearchGroupsResult> {

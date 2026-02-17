@@ -2376,6 +2376,7 @@ def search_groups_paginated():
         per_page = min(request.args.get('per_page', 150, type=int), 1000)
         search = request.args.get('search', '').strip()
         campus_id = request.args.get('campus_id', type=int)
+        partner_id = request.args.get('partner_id', type=int)
         active_only = request.args.get('active_only', 'true').lower() == 'true'
         cycle_name = request.args.get('cycle_name', '').strip()
         status_filter = request.args.get('status', '')  # active, inactive, ''
@@ -2417,6 +2418,10 @@ def search_groups_paginated():
         coord_id = _get_coordinator_filter(g.current_user)
         if coord_id:
             query = query.filter(Partner.coordinator_id == coord_id)
+
+        # Filtro por partner
+        if partner_id:
+            query = query.filter(Partner.id == partner_id)
 
         # Filtro por campus
         if campus_id:
@@ -2495,6 +2500,19 @@ def search_groups_paginated():
             'member_count': r.member_count,
         } for r in results]
 
+        # Obtener partners disponibles para filtro
+        partners_q = db.session.query(Partner.id, Partner.name).join(
+            Campus, Campus.partner_id == Partner.id
+        ).join(
+            CandidateGroup, CandidateGroup.campus_id == Campus.id
+        )
+        if coord_id:
+            partners_q = partners_q.filter(Partner.coordinator_id == coord_id)
+        available_partners = sorted(
+            [{'id': r[0], 'name': r[1]} for r in partners_q.distinct().all()],
+            key=lambda x: x['name']
+        )
+
         return jsonify({
             'groups': groups,
             'total': total,
@@ -2502,6 +2520,7 @@ def search_groups_paginated():
             'pages': total_pages,
             'per_page': per_page,
             'available_cycles': cycle_names,
+            'available_partners': available_partners,
         })
 
     except Exception as e:
