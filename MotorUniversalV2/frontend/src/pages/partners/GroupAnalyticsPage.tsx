@@ -178,7 +178,7 @@ export default function GroupAnalyticsPage() {
         </div>
 
         {/* KPI row */}
-        <div className="flex flex-wrap justify-center fluid-gap-4 fluid-mt-6">
+        <div className="grid grid-cols-2 sm:grid-cols-5 fluid-gap-4 fluid-mt-6">
           {[
             { label: 'Candidatos', value: data.members.total, icon: Users },
             { label: 'Certificados', value: data.members.certified, icon: GraduationCap },
@@ -186,7 +186,7 @@ export default function GroupAnalyticsPage() {
             { label: 'Prom. Calif.', value: data.results.avg_score, icon: TrendingUp },
             { label: 'Prom. Duración', value: `${data.results.avg_duration_minutes}m`, icon: Clock },
           ].map(kpi => (
-            <div key={kpi.label} className="bg-white/10 rounded-fluid-xl fluid-p-4 text-center min-w-[130px] flex-1 max-w-[200px]">
+            <div key={kpi.label} className="bg-white/10 rounded-fluid-xl fluid-p-4 text-center">
               <kpi.icon className="w-5 h-5 mx-auto mb-1 text-white/70" />
               <p className="fluid-text-2xl font-bold">{kpi.value}</p>
               <p className="fluid-text-xs text-white/70">{kpi.label}</p>
