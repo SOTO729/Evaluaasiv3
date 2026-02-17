@@ -1844,6 +1844,69 @@ export async function addMembersToExam(
   return response.data;
 }
 
+/**
+ * Obtener detalle completo de miembros asignados: número asignación, progreso, estado de bloqueo
+ */
+export interface ExamMemberDetail {
+  user_id: string;
+  user: {
+    id: string;
+    name: string;
+    first_surname: string;
+    second_surname: string;
+    full_name: string;
+    email: string;
+    curp: string | null;
+    username: string | null;
+  } | null;
+  assignment_number: string | null;
+  ecm_assignment_id: number | null;
+  ecm_assignment_date: string | null;
+  material_progress: number;
+  has_opened_exam: boolean;
+  results_count: number;
+  results: any[];
+  is_locked: boolean;
+  lock_reasons: string[];
+}
+
+export interface ExamMembersDetailResponse {
+  assignment_id: number;
+  exam_id: number;
+  exam_name: string | null;
+  ecm_id: number | null;
+  ecm_code: string | null;
+  assignment_type: 'all' | 'selected';
+  members: ExamMemberDetail[];
+  total_members: number;
+  locked_count: number;
+  swappable_count: number;
+}
+
+export async function getExamMembersDetail(
+  groupId: number,
+  examId: number
+): Promise<ExamMembersDetailResponse> {
+  const response = await api.get(`/partners/groups/${groupId}/exams/${examId}/members-detail`);
+  return response.data;
+}
+
+/**
+ * Reasignar (swap) una asignación ECM de un candidato a otro
+ */
+export async function swapExamMember(
+  groupId: number,
+  examId: number,
+  fromUserId: string,
+  toUserId: string
+): Promise<{ message: string; from_user_id: string; to_user_id: string }> {
+  const response = await api.post(`/partners/groups/${groupId}/exams/${examId}/members/swap`, {
+    from_user_id: fromUserId,
+    to_user_id: toUserId
+  });
+  return response.data;
+}
+
 
 // ============== RESPONSABLE DE PLANTEL ==============
 

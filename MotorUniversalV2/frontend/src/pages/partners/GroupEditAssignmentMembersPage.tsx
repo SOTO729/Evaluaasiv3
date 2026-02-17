@@ -1,563 +1,660 @@
 /**
- * Página de Edición de Miembros de Asignación
- * Permite modificar los candidatos asignados a un examen o material de estudio existente
+ * Página de Edición de Miembros de Asignación (Rediseñada)
+ * Muestra los candidatos asignados a un examen con su número de asignación.
+ * Solo permite reasignar (swap) si el candidato no tiene ≥15% de avance ni ha abierto examen/simulador.
+ * Estilo visual idéntico a GroupMembersPage.
  */
-import { useState, useEffect, useMemo } from 'react';
-import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
-  BookOpen,
-  ClipboardList,
   Users,
-  CheckCircle2,
   AlertCircle,
-  Loader2,
-  Search,
-  Save,
-  ChevronUp,
-  ChevronDown,
-  CheckSquare,
-  Square,
-  Filter,
+  CheckCircle2,
+  XCircle,
   X,
+  Search,
+  Loader2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Lock,
+  Repeat2,
+  ClipboardList,
+  Shield,
+  AlertTriangle,
+  Hash,
+  FileSpreadsheet,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import {
   getGroup,
   getGroupMembers,
-  getStudyMaterialMembers,
-  updateStudyMaterialMembers,
-  getExamMembers,
-  updateExamMembers,
+  getExamMembersDetail,
+  swapExamMember,
   CandidateGroup,
   GroupMember,
+  ExamMemberDetail,
+  ExamMembersDetailResponse,
 } from '../../services/partnersService';
 
-type AssignmentType = 'material' | 'exam';
-type SortField = 'name' | 'email' | 'curp' | 'status';
-type SortDirection = 'asc' | 'desc';
+type SortField = 'name' | 'email' | 'curp' | 'assignment_number' | 'progress' | 'status';
+type SortDir = 'asc' | 'desc';
 
 export default function GroupEditAssignmentMembersPage() {
   const { groupId, assignmentId } = useParams();
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  
-  const type = (searchParams.get('type') || 'material') as AssignmentType;
+
   const assignmentName = searchParams.get('name') || '';
 
   const [group, setGroup] = useState<CandidateGroup | null>(null);
-  const [members, setMembers] = useState<GroupMember[]>([]);
+  const [detailData, setDetailData] = useState<ExamMembersDetailResponse | null>(null);
+  const [allGroupMembers, setAllGroupMembers] = useState<GroupMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const [assignedUserIds, setAssignedUserIds] = useState<string[]>([]);
-  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
-  
+  // Búsqueda y orden
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortField, setSortField] = useState<SortField>('name');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'selected' | 'unselected'>('all');
+  const [sortCol, setSortCol] = useState<SortField>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
 
-  const [saving, setSaving] = useState(false);
+  // Swap modal
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const [swapFrom, setSwapFrom] = useState<ExamMemberDetail | null>(null);
+  const [swapToUserId, setSwapToUserId] = useState<string>('');
+  const [swapSearch, setSwapSearch] = useState('');
+  const [swapping, setSwapping] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [groupId, assignmentId, type]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [groupData, membersData] = await Promise.all([
+      const [groupData, detail, membersData] = await Promise.all([
         getGroup(Number(groupId)),
-        getGroupMembers(Number(groupId)),
+        getExamMembersDetail(Number(groupId), Number(assignmentId)),
+        getGroupMembers(Number(groupId), { per_page: 10000 }),
       ]);
       setGroup(groupData);
-      setMembers(membersData.members);
-
-      if (type === 'material') {
-        const assignmentData = await getStudyMaterialMembers(
-          Number(groupId),
-          Number(assignmentId)
-        );
-        const userIds = assignmentData.assigned_user_ids || [];
-        setAssignedUserIds(userIds);
-        setSelectedMemberIds(userIds);
-      } else {
-        const assignmentData = await getExamMembers(
-          Number(groupId),
-          Number(assignmentId)
-        );
-        const userIds = assignmentData.assigned_user_ids || [];
-        setAssignedUserIds(userIds);
-        setSelectedMemberIds(userIds);
-      }
+      setDetailData(detail);
+      setAllGroupMembers(membersData.members);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar los datos');
     } finally {
       setLoading(false);
     }
-  };
+  }, [groupId, assignmentId]);
 
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Miembros filtrados y ordenados
   const processedMembers = useMemo(() => {
-    let filtered = members.filter((m) => {
-      // Permitir asignar múltiples exámenes al mismo candidato
-      // Ya no filtramos por has_exam o has_material
-      
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        const fullName = m.user?.full_name?.toLowerCase() || '';
+    if (!detailData) return [];
+    let list = [...detailData.members];
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((m) => {
+        const name = m.user?.full_name?.toLowerCase() || '';
         const email = m.user?.email?.toLowerCase() || '';
         const curp = m.user?.curp?.toLowerCase() || '';
-        if (!fullName.includes(query) && !email.includes(query) && !curp.includes(query)) {
-          return false;
-        }
-      }
-      
-      if (filterStatus === 'selected' && !selectedMemberIds.includes(m.user_id)) {
-        return false;
-      }
-      if (filterStatus === 'unselected' && selectedMemberIds.includes(m.user_id)) {
-        return false;
-      }
-      
-      return true;
-    });
+        const an = m.assignment_number?.toLowerCase() || '';
+        return name.includes(q) || email.includes(q) || curp.includes(q) || an.includes(q);
+      });
+    }
 
-    filtered.sort((a, b) => {
+    list.sort((a, b) => {
       let aVal = '';
       let bVal = '';
-      
-      if (sortField === 'name') {
+      if (sortCol === 'name') {
         aVal = a.user?.full_name?.toLowerCase() || '';
         bVal = b.user?.full_name?.toLowerCase() || '';
-      } else if (sortField === 'email') {
+      } else if (sortCol === 'email') {
         aVal = a.user?.email?.toLowerCase() || '';
         bVal = b.user?.email?.toLowerCase() || '';
-      } else if (sortField === 'curp') {
+      } else if (sortCol === 'curp') {
         aVal = a.user?.curp?.toLowerCase() || '';
         bVal = b.user?.curp?.toLowerCase() || '';
-      } else if (sortField === 'status') {
-        aVal = selectedMemberIds.includes(a.user_id) ? '0' : '1';
-        bVal = selectedMemberIds.includes(b.user_id) ? '0' : '1';
+      } else if (sortCol === 'assignment_number') {
+        aVal = a.assignment_number?.toLowerCase() || '';
+        bVal = b.assignment_number?.toLowerCase() || '';
+      } else if (sortCol === 'progress') {
+        return sortDir === 'asc'
+          ? a.material_progress - b.material_progress
+          : b.material_progress - a.material_progress;
+      } else if (sortCol === 'status') {
+        aVal = a.is_locked ? '1' : '0';
+        bVal = b.is_locked ? '1' : '0';
       }
-      
-      if (sortDirection === 'asc') {
-        return aVal.localeCompare(bVal);
-      }
-      return bVal.localeCompare(aVal);
+      return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
     });
 
-    return filtered;
-  }, [members, searchQuery, filterStatus, sortField, sortDirection, selectedMemberIds, assignedUserIds, type]);
+    return list;
+  }, [detailData, searchQuery, sortCol, sortDir]);
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+  // Candidatos disponibles para swap (no asignados a este examen)
+  const availableForSwap = useMemo(() => {
+    if (!detailData || !allGroupMembers) return [];
+    const assignedIds = new Set(detailData.members.map((m) => m.user_id));
+    return allGroupMembers.filter((m) => !assignedIds.has(m.user_id));
+  }, [detailData, allGroupMembers]);
+
+  // Candidatos filtrados en el modal de swap
+  const filteredSwapCandidates = useMemo(() => {
+    if (!swapSearch.trim()) return availableForSwap;
+    const q = swapSearch.toLowerCase();
+    return availableForSwap.filter((m) => {
+      const name = m.user?.full_name?.toLowerCase() || '';
+      const email = m.user?.email?.toLowerCase() || '';
+      const curp = m.user?.curp?.toLowerCase() || '';
+      return name.includes(q) || email.includes(q) || curp.includes(q);
+    });
+  }, [availableForSwap, swapSearch]);
+
+  const handleSort = (col: SortField) => {
+    if (sortCol === col) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
-      setSortField(field);
-      setSortDirection('asc');
+      setSortCol(col);
+      setSortDir('asc');
     }
   };
 
-  const handleToggleMember = (userId: string) => {
-    setSelectedMemberIds((prev) =>
-      prev.includes(userId)
-        ? prev.filter((id) => id !== userId)
-        : [...prev, userId]
-    );
+  const renderSortIcon = (col: SortField) => {
+    if (sortCol === col) {
+      return sortDir === 'asc' ? <ArrowUp className="h-3 w-3 ml-1 inline" /> : <ArrowDown className="h-3 w-3 ml-1 inline" />;
+    }
+    return <ArrowUpDown className="h-3 w-3 ml-1 inline opacity-30" />;
   };
 
-  const handleSelectAll = () => {
-    const eligibleIds = processedMembers.map(m => m.user_id);
-    const allSelected = eligibleIds.every(id => selectedMemberIds.includes(id));
-    
-    if (allSelected) {
-      setSelectedMemberIds(prev => prev.filter(id => !eligibleIds.includes(id)));
-    } else {
-      setSelectedMemberIds(prev => [...new Set([...prev, ...eligibleIds])]);
-    }
+  const handleInitSwap = (member: ExamMemberDetail) => {
+    setSwapFrom(member);
+    setSwapToUserId('');
+    setSwapSearch('');
+    setShowSwapModal(true);
   };
 
-  const handleSave = async () => {
-    if (selectedMemberIds.length === 0) {
-      setError('Debes seleccionar al menos un candidato');
-      return;
-    }
-
+  const handleConfirmSwap = async () => {
+    if (!swapFrom || !swapToUserId) return;
     try {
-      setSaving(true);
+      setSwapping(true);
       setError(null);
-
-      if (type === 'material') {
-        await updateStudyMaterialMembers(
-          Number(groupId),
-          Number(assignmentId),
-          selectedMemberIds
-        );
-      } else {
-        await updateExamMembers(
-          Number(groupId),
-          Number(assignmentId),
-          'selected',
-          selectedMemberIds
-        );
-      }
-
-      navigate(`/partners/groups/${groupId}`);
+      const result = await swapExamMember(
+        Number(groupId),
+        Number(assignmentId),
+        swapFrom.user_id,
+        swapToUserId
+      );
+      setSuccessMessage(result.message);
+      setShowSwapModal(false);
+      setSwapFrom(null);
+      setSwapToUserId('');
+      // Recargar datos
+      await loadData();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al guardar los cambios');
-      setSaving(false);
+      setError(err.response?.data?.error || 'Error al realizar la reasignación');
+    } finally {
+      setSwapping(false);
     }
-  };
-
-  const addedCount = selectedMemberIds.filter(id => !assignedUserIds.includes(id)).length;
-  const removedCount = assignedUserIds.filter(id => !selectedMemberIds.includes(id)).length;
-  const hasChanges = addedCount > 0 || removedCount > 0;
-
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <ChevronUp className="w-4 h-4 text-gray-300" />;
-    return sortDirection === 'asc' 
-      ? <ChevronUp className="w-4 h-4 text-blue-600" />
-      : <ChevronDown className="w-4 h-4 text-blue-600" />;
   };
 
   if (loading) {
-    return <LoadingSpinner message="Cargando candidatos..." fullScreen />;
+    return <LoadingSpinner message="Cargando candidatos asignados..." fullScreen />;
   }
 
-  if (!group) {
+  if (!group || !detailData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6 max-w-md">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <p className="text-red-600 text-center font-medium">Grupo no encontrado</p>
-          <Link 
-            to="/partners/groups" 
-            className="mt-4 block text-center text-blue-600 hover:underline"
-          >
-            Volver a grupos
-          </Link>
+      <div className="fluid-p-6 max-w-[2800px] mx-auto">
+        <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-5 flex items-center fluid-gap-3">
+          <AlertCircle className="fluid-icon-lg text-red-600" />
+          <p className="text-red-700 fluid-text-base">{error || 'Datos no encontrados'}</p>
+          <Link to={`/partners/groups/${groupId}`} className="ml-auto text-red-700 underline">Volver</Link>
         </div>
       </div>
     );
   }
 
-  const typeLabel = type === 'material' ? 'Material de Estudio' : 'Examen';
-  const TypeIcon = type === 'material' ? BookOpen : ClipboardList;
-  const allVisibleSelected = processedMembers.length > 0 && 
-    processedMembers.every(m => selectedMemberIds.includes(m.user_id));
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="fluid-px-6 fluid-py-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Breadcrumb */}
-      <div className="bg-white border-b fluid-px-6 fluid-pt-4">
-        <PartnersBreadcrumb 
-          items={[
-            { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
-            { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
-            { label: group.name, path: `/partners/groups/${groupId}` },
-            { label: 'Editar Miembros' }
-          ]} 
-        />
-      </div>
-      
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+      <PartnersBreadcrumb
+        items={[
+          { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
+          { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
+          { label: group.name, path: `/partners/groups/${groupId}` },
+          { label: 'Candidatos Asignados' },
+        ]}
+      />
+
+      {/* ===== HEADER CON GRADIENTE ===== */}
+      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white relative overflow-hidden">
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full" />
+        <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full" />
+
+        <div className="relative">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4">
+            <div className="flex items-center fluid-gap-4">
               <Link
                 to={`/partners/groups/${groupId}`}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="fluid-p-2 hover:bg-white/20 rounded-fluid-xl transition-colors"
               >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
+                <ArrowLeft className="fluid-icon-lg" />
               </Link>
-              <div className="flex items-center gap-3">
-                <div className={`p-2.5 rounded-xl ${type === 'material' ? 'bg-green-100' : 'bg-blue-100'}`}>
-                  <TypeIcon className={`w-6 h-6 ${type === 'material' ? 'text-green-600' : 'text-blue-600'}`} />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900">Editar Candidatos</h1>
-                  <p className="text-sm text-gray-500">
-                    {typeLabel}: <span className="font-medium text-gray-700">{assignmentName || `#${assignmentId}`}</span>
-                  </p>
-                </div>
+              <div>
+                <p className="fluid-text-sm text-white/80 fluid-mb-1">{group.name}</p>
+                <h1 className="fluid-text-2xl font-bold flex items-center fluid-gap-3">
+                  <ClipboardList className="fluid-icon-lg" />
+                  Candidatos Asignados
+                </h1>
+                <p className="fluid-text-sm text-white/70 fluid-mt-1">
+                  {assignmentName}
+                  {detailData.ecm_code && (
+                    <span className="ml-2 inline-flex items-center fluid-px-2 fluid-py-0.5 bg-white/20 rounded-fluid-lg text-white/90 font-medium">
+                      {detailData.ecm_code}
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
+          </div>
 
-            <div className="flex items-center gap-3">
-              {hasChanges && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg">
-                  <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
-                  <span className="text-sm text-amber-700 font-medium">Cambios sin guardar</span>
-                </div>
-              )}
-              <Link
-                to={`/partners/groups/${groupId}`}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors font-medium"
-              >
-                Cancelar
-              </Link>
-              <button
-                onClick={handleSave}
-                disabled={!hasChanges || saving || selectedMemberIds.length === 0}
-                className={`inline-flex items-center gap-2 px-5 py-2 rounded-lg font-medium transition-all ${
-                  hasChanges && selectedMemberIds.length > 0
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow'
-                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                {saving ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4" />
-                )}
-                Guardar
-              </button>
+          {/* Stats en header */}
+          <div className="grid grid-cols-3 fluid-gap-4 fluid-mt-5">
+            <div className="bg-white/10 rounded-fluid-xl fluid-p-3 text-center backdrop-blur-sm">
+              <p className="fluid-text-xl font-bold">{detailData.total_members}</p>
+              <p className="fluid-text-xs text-white/70">Asignados</p>
+            </div>
+            <div className="bg-white/10 rounded-fluid-xl fluid-p-3 text-center backdrop-blur-sm">
+              <p className="fluid-text-xl font-bold">{detailData.swappable_count}</p>
+              <p className="fluid-text-xs text-white/70">Reasignables</p>
+            </div>
+            <div className="bg-white/10 rounded-fluid-xl fluid-p-3 text-center backdrop-blur-sm">
+              <p className="fluid-text-xl font-bold">{detailData.locked_count}</p>
+              <p className="fluid-text-xs text-white/70">Bloqueados</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="px-6 py-6">
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-red-500" />
-              <span className="text-red-700">{error}</span>
+      {/* ===== MENSAJES DE ESTADO ===== */}
+      {(error || successMessage) && (
+        <div className="fluid-mb-4">
+          {error && (
+            <div className="fluid-p-3 bg-red-50 border border-red-200 rounded-fluid-lg flex items-center fluid-gap-2 text-red-700">
+              <XCircle className="fluid-icon flex-shrink-0" />
+              <p className="fluid-text-sm flex-1">{error}</p>
+              <button onClick={() => setError(null)}>
+                <X className="fluid-icon-sm" />
+              </button>
             </div>
-            <button onClick={() => setError(null)} className="p-1 hover:bg-red-100 rounded">
-              <X className="w-4 h-4 text-red-500" />
-            </button>
-          </div>
-        )}
-
-        <div className="bg-white rounded-xl border shadow-sm mb-6">
-          <div className="p-4 flex flex-wrap items-center gap-4">
-            <div className="relative flex-1 min-w-[280px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar por nombre, email o CURP..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded"
-                >
-                  <X className="w-4 h-4 text-gray-400" />
-                </button>
-              )}
+          )}
+          {successMessage && (
+            <div className="fluid-p-3 bg-green-50 border border-green-200 rounded-fluid-lg flex items-center fluid-gap-2 text-green-700">
+              <CheckCircle2 className="fluid-icon flex-shrink-0" />
+              <p className="fluid-text-sm flex-1">{successMessage}</p>
+              <button onClick={() => setSuccessMessage(null)}>
+                <X className="fluid-icon-sm" />
+              </button>
             </div>
-
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-gray-500" />
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as any)}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="all">Todos</option>
-                <option value="selected">Seleccionados</option>
-                <option value="unselected">No seleccionados</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-4 ml-auto text-sm">
-              <span className="text-gray-500">
-                <span className="font-semibold text-gray-900">{selectedMemberIds.length}</span> seleccionados
-              </span>
-              <span className="text-gray-300">|</span>
-              <span className="text-gray-500">
-                <span className="font-semibold text-gray-900">{processedMembers.length}</span> visibles
-              </span>
-            </div>
-          </div>
+          )}
         </div>
+      )}
 
-        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50 border-b">
-                <th className="w-12 px-4 py-3">
-                  <button
-                    onClick={handleSelectAll}
-                    className="p-1 hover:bg-gray-200 rounded transition-colors"
-                    title={allVisibleSelected ? 'Deseleccionar visibles' : 'Seleccionar visibles'}
-                  >
-                    {allVisibleSelected ? (
-                      <CheckSquare className="w-5 h-5 text-blue-600" />
-                    ) : (
-                      <Square className="w-5 h-5 text-gray-400" />
-                    )}
-                  </button>
-                </th>
-                <th className="text-left px-4 py-3">
-                  <button
-                    onClick={() => handleSort('name')}
-                    className="flex items-center gap-2 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:text-gray-900"
-                  >
-                    Nombre
-                    <SortIcon field="name" />
-                  </button>
-                </th>
-                <th className="text-left px-4 py-3">
-                  <button
-                    onClick={() => handleSort('email')}
-                    className="flex items-center gap-2 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:text-gray-900"
-                  >
-                    Email
-                    <SortIcon field="email" />
-                  </button>
-                </th>
-                <th className="text-left px-4 py-3 hidden lg:table-cell">
-                  <button
-                    onClick={() => handleSort('curp')}
-                    className="flex items-center gap-2 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:text-gray-900"
-                  >
-                    CURP
-                    <SortIcon field="curp" />
-                  </button>
-                </th>
-                <th className="text-left px-4 py-3">
-                  <button
-                    onClick={() => handleSort('status')}
-                    className="flex items-center gap-2 text-xs font-semibold text-gray-600 uppercase tracking-wider hover:text-gray-900"
-                  >
-                    Estado
-                    <SortIcon field="status" />
-                  </button>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {processedMembers.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center">
-                    <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">No se encontraron candidatos</p>
-                    {searchQuery && (
-                      <button
-                        onClick={() => setSearchQuery('')}
-                        className="mt-2 text-blue-600 hover:underline text-sm"
-                      >
-                        Limpiar busqueda
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ) : (
-                processedMembers.map((member) => {
-                  const isSelected = selectedMemberIds.includes(member.user_id);
-                  const wasOriginallyAssigned = assignedUserIds.includes(member.user_id);
-                  const isNewlyAdded = isSelected && !wasOriginallyAssigned;
-                  const isBeingRemoved = !isSelected && wasOriginallyAssigned;
-                  const hasOtherExams = type === 'exam' && member.has_exam && !wasOriginallyAssigned;
-
-                  return (
-                    <tr
-                      key={member.id}
-                      onClick={() => handleToggleMember(member.user_id)}
-                      className={`cursor-pointer transition-colors ${
-                        isSelected
-                          ? isNewlyAdded
-                            ? 'bg-green-50 hover:bg-green-100'
-                            : 'bg-blue-50 hover:bg-blue-100'
-                          : isBeingRemoved
-                          ? 'bg-red-50 hover:bg-red-100'
-                          : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <td className="px-4 py-3">
-                        <div
-                          className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                            isSelected
-                              ? isNewlyAdded
-                                ? 'bg-green-500 border-green-500'
-                                : 'bg-blue-500 border-blue-500'
-                              : 'border-gray-300 hover:border-gray-400'
-                          }`}
-                        >
-                          {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900">
-                            {member.user?.full_name || 'Sin nombre'}
-                          </span>
-                          {hasOtherExams && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700" title="Tiene otros exámenes asignados">
-                              <ClipboardList className="w-3 h-3 mr-0.5" />
-                              +exámenes
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-gray-600">{member.user?.email || '-'}</span>
-                      </td>
-                      <td className="px-4 py-3 hidden lg:table-cell">
-                        <span className="text-gray-600 font-mono text-sm">{member.user?.curp || '-'}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {isNewlyAdded ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                            Nuevo
-                          </span>
-                        ) : isBeingRemoved ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                            Remover
-                          </span>
-                        ) : wasOriginallyAssigned ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                            Asignado
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                            Disponible
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="mt-6 flex items-center justify-between text-sm text-gray-500">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded bg-blue-500" />
-              <span>Asignado actualmente</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded bg-green-500" />
-              <span>Nuevo</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded bg-red-500" />
-              <span>Se removera</span>
-            </div>
-          </div>
-          <p>
-            Grupo: <span className="font-medium text-gray-700">{group.name}</span>
+      {/* ===== POLÍTICA DE PROTECCIÓN ===== */}
+      <div className="bg-amber-50 border border-amber-200 rounded-fluid-xl fluid-p-4 fluid-mb-5 flex items-start fluid-gap-3">
+        <Shield className="fluid-icon-base text-amber-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="font-semibold text-amber-800 fluid-text-sm">Política de Protección de Asignaciones</p>
+          <p className="text-amber-700 fluid-text-xs fluid-mt-1">
+            Las asignaciones son <strong>inmutables</strong>: no se pueden retirar candidatos.
+            Solo se permite <strong>reasignar</strong> el lugar de un candidato a otro del mismo grupo,
+            siempre que no tenga al menos 15% de avance en material de estudio ni haya abierto el examen o simulador.
           </p>
         </div>
       </div>
 
-      {saving && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 flex flex-col items-center">
-            <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
-            <p className="text-lg font-medium text-gray-900">Guardando cambios...</p>
+      {/* ===== BARRA DE HERRAMIENTAS ===== */}
+      <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-4 fluid-mb-5">
+        <div className="flex flex-wrap items-center fluid-gap-3">
+          <div className="flex-1 min-w-[300px] relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar por nombre, email, CURP o n° de asignación..."
+              className="w-full pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded"
+              >
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center fluid-gap-4 ml-auto fluid-text-sm text-gray-500">
+            <span>
+              <span className="font-semibold text-gray-900">{processedMembers.length}</span> candidatos
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== TABLA DE CANDIDATOS ASIGNADOS ===== */}
+      {detailData.total_members === 0 ? (
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 text-center fluid-py-12">
+          <div className="w-20 h-20 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+            <Users className="w-10 h-10 text-blue-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Sin candidatos asignados</h3>
+          <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto">
+            No hay candidatos asignados a esta certificación.
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
+                <tr>
+                  <th onClick={() => handleSort('name')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100 select-none">
+                    Candidato{renderSortIcon('name')}
+                  </th>
+                  <th onClick={() => handleSort('assignment_number')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100 select-none">
+                    N° Asignación{renderSortIcon('assignment_number')}
+                  </th>
+                  <th onClick={() => handleSort('email')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden md:table-cell cursor-pointer hover:bg-gray-100 select-none">
+                    Email{renderSortIcon('email')}
+                  </th>
+                  <th onClick={() => handleSort('curp')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell cursor-pointer hover:bg-gray-100 select-none">
+                    CURP{renderSortIcon('curp')}
+                  </th>
+                  <th onClick={() => handleSort('progress')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100 select-none">
+                    Avance{renderSortIcon('progress')}
+                  </th>
+                  <th onClick={() => handleSort('status')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100 select-none">
+                    Estado{renderSortIcon('status')}
+                  </th>
+                  <th className="fluid-px-4 fluid-py-3 text-center fluid-text-xs font-semibold text-gray-600 uppercase w-28">
+                    Acción
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {processedMembers.map((member) => (
+                  <tr key={member.user_id} className={`transition-colors ${member.is_locked ? 'bg-gray-50/50' : 'hover:bg-blue-50/30'}`}>
+                    {/* Candidato */}
+                    <td className="fluid-px-4 fluid-py-3">
+                      <div className="flex items-center fluid-gap-3">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold fluid-text-sm flex-shrink-0 ${
+                          member.is_locked
+                            ? 'bg-gradient-to-br from-gray-400 to-gray-500'
+                            : 'bg-gradient-to-br from-blue-500 to-indigo-500'
+                        }`}>
+                          {member.user?.name?.charAt(0).toUpperCase() || '?'}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{member.user?.full_name || 'Desconocido'}</p>
+                          <p className="fluid-text-xs text-gray-500 md:hidden">{member.user?.email}</p>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Número de asignación */}
+                    <td className="fluid-px-4 fluid-py-3">
+                      {member.assignment_number ? (
+                        <span className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 bg-indigo-50 border border-indigo-200 rounded-fluid-lg font-mono fluid-text-xs font-bold text-indigo-700">
+                          <Hash className="h-3 w-3" />
+                          {member.assignment_number}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 fluid-text-xs">Sin asignación</span>
+                      )}
+                    </td>
+
+                    {/* Email */}
+                    <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600 hidden md:table-cell">
+                      {member.user?.email || '-'}
+                    </td>
+
+                    {/* CURP */}
+                    <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600 hidden lg:table-cell font-mono">
+                      {member.user?.curp || <span className="text-gray-400">-</span>}
+                    </td>
+
+                    {/* Avance */}
+                    <td className="fluid-px-4 fluid-py-3">
+                      <div className="flex items-center fluid-gap-2">
+                        <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              member.material_progress >= 15 ? 'bg-emerald-500' : member.material_progress > 0 ? 'bg-amber-400' : 'bg-gray-300'
+                            }`}
+                            style={{ width: `${Math.min(member.material_progress, 100)}%` }}
+                          />
+                        </div>
+                        <span className="fluid-text-xs font-medium text-gray-700 w-10 text-right">
+                          {member.material_progress}%
+                        </span>
+                      </div>
+                      {member.has_opened_exam && (
+                        <span className="inline-flex items-center fluid-gap-1 fluid-text-xs text-blue-600 fluid-mt-0.5">
+                          <FileSpreadsheet className="h-3 w-3" />
+                          Examen abierto
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Estado */}
+                    <td className="fluid-px-4 fluid-py-3">
+                      {member.is_locked ? (
+                        <div>
+                          <span className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium bg-red-100 text-red-700">
+                            <Lock className="h-3 w-3" />
+                            Bloqueado
+                          </span>
+                          <div className="fluid-mt-1">
+                            {member.lock_reasons.map((r, i) => (
+                              <p key={i} className="fluid-text-xs text-red-500">{r}</p>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium bg-green-100 text-green-700">
+                          <Repeat2 className="h-3 w-3" />
+                          Reasignable
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Acción */}
+                    <td className="fluid-px-4 fluid-py-3 text-center">
+                      {member.is_locked ? (
+                        <span className="fluid-text-xs text-gray-400">—</span>
+                      ) : (
+                        <button
+                          onClick={() => handleInitSwap(member)}
+                          className="inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1.5 text-indigo-600 hover:bg-indigo-50 rounded-fluid-lg transition-colors fluid-text-xs font-medium border border-indigo-200 hover:border-indigo-300"
+                          title="Reasignar a otro candidato"
+                        >
+                          <Repeat2 className="h-3.5 w-3.5" />
+                          <span className="hidden xl:inline">Reasignar</span>
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ===== LEYENDA ===== */}
+      <div className="fluid-mt-4 flex flex-wrap items-center fluid-gap-6 fluid-text-xs text-gray-500">
+        <div className="flex items-center fluid-gap-2">
+          <Lock className="h-3.5 w-3.5 text-red-500" />
+          <span>Bloqueado: tiene avance ≥15% o abrió examen</span>
+        </div>
+        <div className="flex items-center fluid-gap-2">
+          <Repeat2 className="h-3.5 w-3.5 text-green-600" />
+          <span>Reasignable: sin avance significativo</span>
+        </div>
+        <div className="flex items-center fluid-gap-2">
+          <Hash className="h-3.5 w-3.5 text-indigo-500" />
+          <span>N° Asignación: identificador ECM permanente</span>
+        </div>
+      </div>
+
+      {/* ===== MODAL DE REASIGNACIÓN (SWAP) ===== */}
+      {showSwapModal && swapFrom && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => !swapping && setShowSwapModal(false)}
+        >
+          <div
+            className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                  <Repeat2 className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Reasignar Candidato</h2>
+                  <p className="text-sm text-gray-500">
+                    Transferir asignación de <strong>{swapFrom.user?.full_name}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => !swapping && setShowSwapModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Info del candidato origen */}
+            <div className="p-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
+              <p className="text-xs text-gray-500 font-semibold uppercase mb-2">Candidato Actual</p>
+              <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                  {swapFrom.user?.name?.charAt(0).toUpperCase() || '?'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-gray-900 text-sm">{swapFrom.user?.full_name}</p>
+                  <p className="text-xs text-gray-500">{swapFrom.user?.email}</p>
+                </div>
+                {swapFrom.assignment_number && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 border border-indigo-200 rounded-lg font-mono text-xs font-bold text-indigo-700">
+                    <Hash className="h-3 w-3" />
+                    {swapFrom.assignment_number}
+                  </span>
+                )}
+              </div>
+
+              {/* Advertencia */}
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700">
+                  El número de asignación <strong>{swapFrom.assignment_number || '—'}</strong> será transferido
+                  al nuevo candidato. <strong>{swapFrom.user?.full_name}</strong> perderá el acceso a esta certificación.
+                </p>
+              </div>
+            </div>
+
+            {/* Búsqueda de candidato destino */}
+            <div className="p-4 border-b border-gray-100 flex-shrink-0">
+              <p className="text-xs text-gray-500 font-semibold uppercase mb-2">Seleccionar Nuevo Candidato</p>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={swapSearch}
+                  onChange={(e) => setSwapSearch(e.target.value)}
+                  placeholder="Buscar miembro del grupo..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                />
+              </div>
+              {availableForSwap.length === 0 && (
+                <p className="text-xs text-gray-400 mt-2">No hay miembros disponibles que no estén ya asignados a este examen.</p>
+              )}
+            </div>
+
+            {/* Lista de candidatos disponibles */}
+            <div className="overflow-y-auto flex-1" style={{ maxHeight: '320px' }}>
+              {filteredSwapCandidates.length === 0 ? (
+                <div className="p-8 text-center">
+                  <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                  <p className="text-gray-500 text-sm">No se encontraron candidatos disponibles</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {filteredSwapCandidates.map((member) => {
+                    const selected = swapToUserId === member.user_id;
+                    return (
+                      <button
+                        key={member.user_id}
+                        onClick={() => setSwapToUserId(selected ? '' : member.user_id)}
+                        className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${
+                          selected ? 'bg-indigo-50 border-l-4 border-l-indigo-500' : 'hover:bg-gray-50 border-l-4 border-l-transparent'
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${
+                          selected ? 'bg-gradient-to-br from-indigo-500 to-purple-500' : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                        }`}>
+                          {member.user?.name?.charAt(0).toUpperCase() || '?'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`font-medium text-sm ${selected ? 'text-indigo-900' : 'text-gray-900'}`}>
+                            {member.user?.full_name || 'Desconocido'}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">{member.user?.email || '-'}</p>
+                        </div>
+                        {member.user?.curp && (
+                          <span className="text-xs text-gray-400 font-mono hidden lg:block">{member.user.curp}</span>
+                        )}
+                        {selected && (
+                          <CheckCircle2 className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+              <button
+                onClick={() => !swapping && setShowSwapModal(false)}
+                disabled={swapping}
+                className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-fluid-xl hover:bg-gray-100 disabled:opacity-50 font-medium text-sm transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmSwap}
+                disabled={swapping || !swapToUserId}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium text-sm transition-colors"
+              >
+                {swapping ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Repeat2 className="w-4 h-4" />
+                )}
+                {swapping ? 'Reasignando...' : 'Confirmar Reasignación'}
+              </button>
+            </div>
           </div>
         </div>
       )}

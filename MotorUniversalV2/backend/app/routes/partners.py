@@ -4967,6 +4967,392 @@ def add_members_to_exam(group_id, exam_id):
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/groups/<int:group_id>/exams/<int:exam_id>/members-detail', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_group_exam_members_detail(group_id, exam_id):
+    """Obtener detalle completo de los miembros asignados a un examen: número asignación, progreso, estado de bloqueo"""
+    try:
+        from app.models import GroupExam
+        from app.models.partner import GroupExamMember, EcmCandidateAssignment
+        from app.models.result import Result
+        from app.models.student_progress import StudentTopicProgress
+        from app.models.study_content import StudyMaterial
+        from sqlalchemy import text, func
+
+        group_exam = GroupExam.query.filter_by(
+            group_id=group_id,
+            exam_id=exam_id,
+            is_active=True
+        ).first_or_404()
+
+        # Obtener exam para saber el ECM
+        exam = group_exam.exam
+        ecm_id = exam.competency_standard_id if exam else None
+
+        # Obtener miembros asignados
+        if group_exam.assignment_type == 'all':
+            group_members = GroupMember.query.filter_by(group_id=group_id).all()
+            user_ids = [m.user_id for m in group_members]
+        else:
+            assigned = group_exam.assigned_members.all()
+            user_ids = [m.user_id for m in assigned]
+
+        # Buscar asignaciones ECM (números de asignación) para estos usuarios
+        ecm_assignments = {}
+        if ecm_id and user_ids:
+            eca_records = EcmCandidateAssignment.query.filter(
+                EcmCandidateAssignment.competency_standard_id == ecm_id,
+                EcmCandidateAssignment.group_exam_id == group_exam.id,
+                EcmCandidateAssignment.user_id.in_(user_ids)
+            ).all()
+            for eca in eca_records:
+                ecm_assignments[eca.user_id] = {
+                    'id': eca.id,
+                    'assignment_number': eca.assignment_number,
+                    'assigned_at': eca.assigned_at.isoformat() if eca.assigned_at else None,
+                }
+
+        # Buscar resultados (examen/simulador abierto) para estos usuarios en este group_exam
+        user_results = {}
+        if user_ids:
+            results = Result.query.filter(
+                Result.user_id.in_(user_ids),
+                Result.group_exam_id == group_exam.id
+            ).all()
+            for r in results:
+                uid = r.user_id
+                if uid not in user_results:
+                    user_results[uid] = []
+                user_results[uid].append({
+                    'id': r.id,
+                    'score': r.score,
+                    'status': r.status,
+                    'result': r.result,
+                    'start_date': r.start_date.isoformat() if r.start_date else None,
+                })
+
+        # Calcular progreso de material de estudio por usuario
+        # Buscar materiales relacionados con el examen
+        user_progress = {}
+        try:
+            # Materiales vinculados por muchos-a-muchos
+            material_ids_rows = db.session.execute(text(
+                'SELECT study_material_id FROM study_material_exams WHERE exam_id = :eid'
+            ), {'eid': exam_id}).fetchall()
+            material_ids = [r[0] for r in material_ids_rows]
+
+            # También legacy
+            legacy = StudyMaterial.query.filter_by(exam_id=exam_id).all()
+            for m in legacy:
+                if m.id not in material_ids:
+                    material_ids.append(m.id)
+
+            if material_ids and user_ids:
+                # Obtener topic_ids de estos materiales
+                topic_rows = db.session.execute(text('''
+                    SELECT DISTINCT st.id
+                    FROM study_topics st
+                    INNER JOIN study_sessions ss ON st.session_id = ss.id
+                    WHERE ss.study_material_id IN :mids
+                ''').bindparams(mids=tuple(material_ids) if len(material_ids) > 1 else tuple(material_ids + [0]))).fetchall()
+                topic_ids = [r[0] for r in topic_rows]
+
+                if topic_ids:
+                    # Obtener StudentTopicProgress para cada usuario
+                    progress_records = StudentTopicProgress.query.filter(
+                        StudentTopicProgress.user_id.in_(user_ids),
+                        StudentTopicProgress.topic_id.in_(topic_ids)
+                    ).all()
+
+                    # Calcular porcentaje promedio por usuario
+                    user_progress_data = {}
+                    for pr in progress_records:
+                        if pr.user_id not in user_progress_data:
+                            user_progress_data[pr.user_id] = {'total': 0, 'sum_pct': 0.0}
+                        user_progress_data[pr.user_id]['total'] += 1
+                        user_progress_data[pr.user_id]['sum_pct'] += (pr.progress_percentage or 0.0)
+
+                    total_topics = len(topic_ids)
+                    for uid, data in user_progress_data.items():
+                        # Porcentaje real = suma de progreso de temas entre total de temas
+                        user_progress[uid] = round(data['sum_pct'] / total_topics, 1) if total_topics > 0 else 0.0
+        except Exception as prog_err:
+            print(f"⚠️ Error calculando progreso de material: {prog_err}")
+
+        # Obtener datos de usuarios
+        from app.models.user import User
+        users_map = {}
+        if user_ids:
+            users = User.query.filter(User.id.in_(user_ids)).all()
+            for u in users:
+                users_map[u.id] = {
+                    'id': u.id,
+                    'name': u.name,
+                    'first_surname': getattr(u, 'first_surname', ''),
+                    'second_surname': getattr(u, 'second_surname', ''),
+                    'full_name': u.full_name,
+                    'email': u.email,
+                    'curp': getattr(u, 'curp', None),
+                    'username': getattr(u, 'username', None),
+                }
+
+        # Construir respuesta detallada
+        members_detail = []
+        for uid in user_ids:
+            progress_pct = user_progress.get(uid, 0.0)
+            has_results = uid in user_results
+            has_opened_exam = has_results  # Cualquier resultado = ha interactuado con examen/simulador
+            eca = ecm_assignments.get(uid)
+
+            # Condición de bloqueo: NO se puede reasignar si:
+            # - progreso >= 15% en material de estudio
+            # - o ha abierto un examen/simulador (tiene resultados)
+            is_locked = progress_pct >= 15.0 or has_opened_exam
+            lock_reasons = []
+            if progress_pct >= 15.0:
+                lock_reasons.append(f'Avance de material: {progress_pct}%')
+            if has_opened_exam:
+                lock_reasons.append('Ha abierto examen/simulador')
+
+            members_detail.append({
+                'user_id': uid,
+                'user': users_map.get(uid),
+                'assignment_number': eca['assignment_number'] if eca else None,
+                'ecm_assignment_id': eca['id'] if eca else None,
+                'ecm_assignment_date': eca['assigned_at'] if eca else None,
+                'material_progress': progress_pct,
+                'has_opened_exam': has_opened_exam,
+                'results_count': len(user_results.get(uid, [])),
+                'results': user_results.get(uid, []),
+                'is_locked': is_locked,
+                'lock_reasons': lock_reasons,
+            })
+
+        # Ordenar: bloqueados al final
+        members_detail.sort(key=lambda x: (x['is_locked'], (x['user'] or {}).get('full_name', '')))
+
+        return jsonify({
+            'assignment_id': group_exam.id,
+            'exam_id': exam_id,
+            'exam_name': exam.name if exam else None,
+            'ecm_id': ecm_id,
+            'ecm_code': exam.competency_standard.code if exam and exam.competency_standard_id and hasattr(exam, 'competency_standard') and exam.competency_standard else None,
+            'assignment_type': group_exam.assignment_type,
+            'members': members_detail,
+            'total_members': len(members_detail),
+            'locked_count': sum(1 for m in members_detail if m['is_locked']),
+            'swappable_count': sum(1 for m in members_detail if not m['is_locked']),
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/exams/<int:exam_id>/members/swap', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def swap_exam_member(group_id, exam_id):
+    """Reasignar (swap) una asignación ECM de un candidato a otro.
+    
+    Body JSON:
+    {
+        "from_user_id": "uuid-del-candidato-actual",
+        "to_user_id": "uuid-del-nuevo-candidato"
+    }
+    
+    Validaciones:
+    - El candidato origen debe estar asignado al examen
+    - El candidato origen NO debe tener ≥15% de progreso en material
+    - El candidato origen NO debe haber abierto examen/simulador
+    - El candidato destino debe ser miembro del grupo
+    - El candidato destino NO debe estar ya asignado a este examen
+    """
+    try:
+        from app.models import GroupExam
+        from app.models.partner import GroupExamMember, EcmCandidateAssignment
+        from app.models.result import Result
+        from app.models.student_progress import StudentTopicProgress
+        from app.models.study_content import StudyMaterial
+        from sqlalchemy import text
+
+        data = request.get_json()
+        from_user_id = data.get('from_user_id')
+        to_user_id = data.get('to_user_id')
+
+        if not from_user_id or not to_user_id:
+            return jsonify({'error': 'Se requieren from_user_id y to_user_id'}), 400
+
+        if from_user_id == to_user_id:
+            return jsonify({'error': 'El candidato origen y destino no pueden ser el mismo'}), 400
+
+        group_exam = GroupExam.query.filter_by(
+            group_id=group_id,
+            exam_id=exam_id,
+            is_active=True
+        ).first_or_404()
+
+        exam = group_exam.exam
+        ecm_id = exam.competency_standard_id if exam else None
+
+        # Verificar que from_user está asignado
+        if group_exam.assignment_type == 'selected':
+            from_member = GroupExamMember.query.filter_by(
+                group_exam_id=group_exam.id,
+                user_id=from_user_id
+            ).first()
+            if not from_member:
+                return jsonify({'error': 'El candidato origen no está asignado a este examen'}), 400
+        else:
+            # Si es 'all', verificar que es miembro del grupo
+            is_member = GroupMember.query.filter_by(group_id=group_id, user_id=from_user_id).first()
+            if not is_member:
+                return jsonify({'error': 'El candidato origen no es miembro del grupo'}), 400
+
+        # Verificar que to_user es miembro del grupo
+        to_group_member = GroupMember.query.filter_by(group_id=group_id, user_id=to_user_id).first()
+        if not to_group_member:
+            return jsonify({'error': 'El candidato destino no es miembro del grupo'}), 400
+
+        # Verificar que to_user NO está ya asignado a este examen
+        if group_exam.assignment_type == 'selected':
+            existing = GroupExamMember.query.filter_by(
+                group_exam_id=group_exam.id,
+                user_id=to_user_id
+            ).first()
+            if existing:
+                return jsonify({'error': 'El candidato destino ya está asignado a este examen'}), 400
+
+        # === VALIDAR QUE EL CANDIDATO ORIGEN PUEDE SER REASIGNADO ===
+
+        # 1. Verificar si tiene resultados (ha abierto examen/simulador)
+        has_results = Result.query.filter(
+            Result.user_id == from_user_id,
+            Result.group_exam_id == group_exam.id
+        ).first()
+        if has_results:
+            return jsonify({
+                'error': 'No se puede reasignar: el candidato ya ha abierto el examen o simulador',
+                'reason': 'has_opened_exam'
+            }), 400
+
+        # 2. Verificar progreso de material de estudio >= 15%
+        try:
+            material_ids_rows = db.session.execute(text(
+                'SELECT study_material_id FROM study_material_exams WHERE exam_id = :eid'
+            ), {'eid': exam_id}).fetchall()
+            material_ids = [r[0] for r in material_ids_rows]
+
+            legacy = StudyMaterial.query.filter_by(exam_id=exam_id).all()
+            for m in legacy:
+                if m.id not in material_ids:
+                    material_ids.append(m.id)
+
+            if material_ids:
+                topic_rows = db.session.execute(text('''
+                    SELECT DISTINCT st.id
+                    FROM study_topics st
+                    INNER JOIN study_sessions ss ON st.session_id = ss.id
+                    WHERE ss.study_material_id IN :mids
+                ''').bindparams(mids=tuple(material_ids) if len(material_ids) > 1 else tuple(material_ids + [0]))).fetchall()
+                topic_ids = [r[0] for r in topic_rows]
+
+                if topic_ids:
+                    progress_records = StudentTopicProgress.query.filter(
+                        StudentTopicProgress.user_id == from_user_id,
+                        StudentTopicProgress.topic_id.in_(topic_ids)
+                    ).all()
+
+                    total_topics = len(topic_ids)
+                    sum_pct = sum(pr.progress_percentage or 0.0 for pr in progress_records)
+                    avg_progress = sum_pct / total_topics if total_topics > 0 else 0.0
+
+                    if avg_progress >= 15.0:
+                        return jsonify({
+                            'error': f'No se puede reasignar: el candidato tiene {round(avg_progress, 1)}% de avance en material de estudio (mínimo permitido: <15%)',
+                            'reason': 'material_progress',
+                            'progress': round(avg_progress, 1)
+                        }), 400
+        except Exception as prog_err:
+            print(f"⚠️ Error verificando progreso: {prog_err}")
+
+        # === REALIZAR EL SWAP ===
+
+        # Si es 'selected', mover la asignación
+        if group_exam.assignment_type == 'selected':
+            # Quitar al usuario origen
+            GroupExamMember.query.filter_by(
+                group_exam_id=group_exam.id,
+                user_id=from_user_id
+            ).delete()
+            # Agregar al usuario destino
+            new_member = GroupExamMember(
+                group_exam_id=group_exam.id,
+                user_id=to_user_id
+            )
+            db.session.add(new_member)
+        else:
+            # Si era 'all', convertir a 'selected' con todos menos el origen, más el destino
+            all_members = GroupMember.query.filter_by(group_id=group_id).all()
+            group_exam.assignment_type = 'selected'
+            for gm in all_members:
+                if gm.user_id != from_user_id:
+                    existing = GroupExamMember.query.filter_by(
+                        group_exam_id=group_exam.id,
+                        user_id=gm.user_id
+                    ).first()
+                    if not existing:
+                        db.session.add(GroupExamMember(
+                            group_exam_id=group_exam.id,
+                            user_id=gm.user_id
+                        ))
+            # Asegurar que to_user está incluido
+            existing_to = GroupExamMember.query.filter_by(
+                group_exam_id=group_exam.id,
+                user_id=to_user_id
+            ).first()
+            if not existing_to:
+                db.session.add(GroupExamMember(
+                    group_exam_id=group_exam.id,
+                    user_id=to_user_id
+                ))
+
+        # Transferir la EcmCandidateAssignment si existe
+        if ecm_id:
+            eca = EcmCandidateAssignment.query.filter_by(
+                user_id=from_user_id,
+                competency_standard_id=ecm_id,
+                group_exam_id=group_exam.id
+            ).first()
+            if eca:
+                eca.user_id = to_user_id
+                # Actualizar info contextual
+                from app.models.user import User
+                to_user = User.query.get(to_user_id)
+                if to_user:
+                    print(f"✅ ECA {eca.assignment_number} transferida de {from_user_id} a {to_user.full_name}")
+
+        db.session.commit()
+
+        from app.models.user import User
+        from_user = User.query.get(from_user_id)
+        to_user = User.query.get(to_user_id)
+
+        return jsonify({
+            'message': f'Asignación reasignada de {from_user.full_name if from_user else from_user_id} a {to_user.full_name if to_user else to_user_id}',
+            'from_user_id': from_user_id,
+            'to_user_id': to_user_id,
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 # ============== MATERIALES DE ESTUDIO SIN EXAMEN ==============
 
 @bp.route('/groups/<int:group_id>/study-materials', methods=['GET'])
