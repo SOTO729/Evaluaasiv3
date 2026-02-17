@@ -256,7 +256,7 @@ export default function GroupAnalyticsPage() {
           </h3>
           <div className="flex items-center fluid-gap-6">
             <div className="w-[180px] h-[180px] flex-shrink-0">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <PieChart>
                   <Pie
                     data={membersPieData}
@@ -312,7 +312,7 @@ export default function GroupAnalyticsPage() {
           </h3>
           <div className="flex items-center fluid-gap-6">
             <div className="w-[180px] h-[180px] flex-shrink-0">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <PieChart>
                   <Pie
                     data={certPieData}
@@ -366,7 +366,7 @@ export default function GroupAnalyticsPage() {
           </h3>
           {data.results.score_distribution.some(d => d.count > 0) ? (
             <div className="h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <BarChart data={data.results.score_distribution} barSize={30}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="range" tick={{ fontSize: 11 }} />
@@ -392,7 +392,7 @@ export default function GroupAnalyticsPage() {
           </h3>
           {data.results.by_exam.length > 0 ? (
             <div className="h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <BarChart
                   data={data.results.by_exam}
                   layout="vertical"
@@ -430,7 +430,7 @@ export default function GroupAnalyticsPage() {
           </h3>
           {data.results.by_exam.length > 0 ? (
             <div className="h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <BarChart data={data.results.by_exam} barSize={30}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis
@@ -463,7 +463,7 @@ export default function GroupAnalyticsPage() {
           </h3>
           {data.results.by_date.length > 0 ? (
             <div className="h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <AreaChart data={data.results.by_date}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis

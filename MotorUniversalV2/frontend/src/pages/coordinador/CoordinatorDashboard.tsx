@@ -343,7 +343,7 @@ export default function CoordinatorDashboard() {
                 Distribución General
               </h3>
               <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                   <PieChart>
                     <Pie
                       data={distributionData}
@@ -380,7 +380,7 @@ export default function CoordinatorDashboard() {
                   Partners por Estado
                 </h3>
                 <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <BarChart
                       data={partnersByState.slice(0, 6)}
                       layout="vertical"

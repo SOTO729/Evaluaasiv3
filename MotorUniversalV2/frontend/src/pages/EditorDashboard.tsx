@@ -441,7 +441,7 @@ const EditorDashboard = () => {
           
           {totalContent > 0 ? (
             <div className="h-[180px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <BarChart data={publishStatus} barGap={2}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
                   <XAxis 
@@ -489,7 +489,7 @@ const EditorDashboard = () => {
           
           {totalContent > 0 ? (
             <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <RadialBarChart
                   cx="50%"
                   cy="50%"
@@ -538,7 +538,7 @@ const EditorDashboard = () => {
           
           {questionsByType.length > 0 ? (
             <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <BarChart data={questionsByType} layout="vertical" barSize={20}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
                   <XAxis type="number" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} allowDecimals={false} />
