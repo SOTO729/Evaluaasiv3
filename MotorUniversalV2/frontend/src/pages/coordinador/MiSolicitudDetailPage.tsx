@@ -91,7 +91,7 @@ export default function MiSolicitudDetailPage() {
           <h2 className="text-xl font-semibold text-red-800 mb-2">Error</h2>
           <p className="text-red-600">{error || 'Solicitud no encontrada'}</p>
           <Link
-            to="/coordinador/mi-saldo"
+            to="/mi-saldo"
             className="mt-4 inline-block px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
           >
             Volver a Mi Saldo
@@ -121,7 +121,7 @@ export default function MiSolicitudDetailPage() {
       {/* Header */}
       <div className="flex items-center gap-4 mb-6 animate-fadeInDown">
         <Link
-          to="/coordinador/mi-saldo"
+          to="/mi-saldo"
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         >
           <ArrowLeft className="w-5 h-5 text-gray-600" />
@@ -500,14 +500,14 @@ export default function MiSolicitudDetailPage() {
             </h3>
             <div className="space-y-3">
               <Link
-                to="/coordinador/mi-saldo"
+                to="/mi-saldo"
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Volver a Mi Saldo
               </Link>
               <Link
-                to="/coordinador/historial-solicitudes"
+                to="/historial-solicitudes"
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
               >
                 <FileText className="w-4 h-4" />

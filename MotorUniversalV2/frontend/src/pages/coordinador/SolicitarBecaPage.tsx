@@ -393,7 +393,7 @@ export default function SolicitarBecaPage() {
 
       const uniqueCampusCount = new Set(requestLines.map(l => l.campusId)).size;
 
-      navigate('/coordinador/mi-saldo', {
+      navigate('/mi-saldo', {
         state: { 
           message: `${requestLines.length} solicitud${requestLines.length > 1 ? 'es' : ''} enviada${requestLines.length > 1 ? 's' : ''} para ${uniqueCampusCount} plantel${uniqueCampusCount > 1 ? 'es' : ''}`, 
           type: 'success' 
@@ -768,7 +768,7 @@ export default function SolicitarBecaPage() {
       {/* Header */}
       <div className="flex items-center gap-4 mb-6 lg:mb-8 animate-fadeInDown delay-100">
         <Link
-          to="/coordinador/mi-saldo"
+          to="/mi-saldo"
           className="p-2.5 hover:bg-gray-100 rounded-xl transition-colors"
         >
           <ArrowLeft className="w-5 h-5 text-gray-600" />

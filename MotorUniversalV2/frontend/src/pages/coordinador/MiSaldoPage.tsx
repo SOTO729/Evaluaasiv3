@@ -503,14 +503,14 @@ export default function MiSaldoPage() {
           </div>
           <div className="mt-6 md:mt-0 flex gap-3">
             <Link
-              to="/coordinador/solicitar-saldo"
+              to="/solicitar-saldo"
               className="flex items-center gap-2 px-5 py-3 bg-white text-green-600 rounded-xl font-medium hover:bg-green-50 transition-colors"
             >
               <Plus className="w-5 h-5" />
               Solicitar Saldo
             </Link>
             <Link
-              to="/coordinador/solicitar-beca"
+              to="/solicitar-beca"
               className="flex items-center gap-2 px-5 py-3 bg-green-400 bg-opacity-30 text-white rounded-xl font-medium hover:bg-opacity-50 transition-colors border border-white/30"
             >
               <Gift className="w-5 h-5" />
@@ -805,7 +805,7 @@ export default function MiSaldoPage() {
               Mis Solicitudes
             </h2>
             <Link
-              to="/coordinador/historial-solicitudes"
+              to="/historial-solicitudes"
               className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
             >
               Ver todo <ArrowRight className="w-4 h-4" />
@@ -817,7 +817,7 @@ export default function MiSaldoPage() {
                 <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                 <p>No has realizado solicitudes</p>
                 <Link
-                  to="/coordinador/solicitar-saldo"
+                  to="/solicitar-saldo"
                   className="mt-3 inline-block text-blue-600 hover:underline"
                 >
                   Crear tu primera solicitud
@@ -828,7 +828,7 @@ export default function MiSaldoPage() {
                 {recentRequests.map((request) => (
                   <Link
                     key={request.id}
-                    to={`/coordinador/mi-saldo/solicitud/${request.id}`}
+                    to={`/mi-saldo/solicitud/${request.id}`}
                     className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer group"
                   >
                     <div>
@@ -880,7 +880,7 @@ export default function MiSaldoPage() {
               Últimos Movimientos
             </h2>
             <Link
-              to="/coordinador/historial-movimientos"
+              to="/historial-movimientos"
               className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
             >
               Ver todo <ArrowRight className="w-4 h-4" />
@@ -970,7 +970,7 @@ export default function MiSaldoPage() {
               Tu saldo está por debajo del 20%. Considera solicitar más saldo para continuar asignando certificaciones.
             </p>
             <Link
-              to="/coordinador/solicitar-saldo"
+              to="/solicitar-saldo"
               className="mt-2 inline-block text-amber-600 hover:underline text-sm font-medium"
             >
               Solicitar más saldo →

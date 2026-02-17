@@ -97,7 +97,7 @@ export default function HistorialSolicitudesPage() {
       <div className="flex items-center justify-between mb-6 animate-fadeInDown">
         <div className="flex items-center gap-4">
           <Link
-            to="/coordinador/mi-saldo"
+            to="/mi-saldo"
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-5 h-5 text-gray-600" />
@@ -182,7 +182,7 @@ export default function HistorialSolicitudesPage() {
             }
           </p>
           <Link
-            to="/coordinador/solicitar-saldo"
+            to="/solicitar-saldo"
             className="inline-block px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
           >
             Crear primera solicitud
@@ -320,7 +320,7 @@ export default function HistorialSolicitudesPage() {
                 {/* Botón Ver Detalle */}
                 <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end">
                   <Link
-                    to={`/coordinador/mi-saldo/solicitud/${request.id}`}
+                    to={`/mi-saldo/solicitud/${request.id}`}
                     className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                   >
                     <Eye className="w-4 h-4" />
