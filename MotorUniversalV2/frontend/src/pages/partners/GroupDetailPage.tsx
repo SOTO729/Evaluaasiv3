@@ -273,7 +273,7 @@ export default function GroupDetailPage() {
       )}
 
       {/* ===== SECCIONES DEL GRUPO — Grid horizontal ===== */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 fluid-gap-4 fluid-mb-6">
+      <div className="grid grid-cols-3 fluid-gap-4 fluid-mb-6">
         {/* Miembros */}
         <Link to={`/partners/groups/${groupId}/members`}
           className="block bg-white rounded-fluid-xl border border-gray-200 hover:shadow-lg hover:border-purple-300 transition-all duration-200 group">
@@ -292,27 +292,6 @@ export default function GroupDetailPage() {
               <div className="text-center"><p className="fluid-text-base font-bold text-gray-900">{stats.totalMembers}</p><p className="fluid-text-xs text-gray-400">Total</p></div>
               <div className="text-center"><p className="fluid-text-base font-bold text-emerald-600">{stats.certified}</p><p className="fluid-text-xs text-gray-400">Cert.</p></div>
               <div className="text-center"><p className="fluid-text-base font-bold text-sky-600">{stats.inProgress}</p><p className="fluid-text-xs text-gray-400">En curso</p></div>
-            </div>
-          </div>
-        </Link>
-
-        {/* Certificaciones */}
-        <Link to={`/partners/groups/${groupId}/exams`}
-          className="block bg-white rounded-fluid-xl border border-gray-200 hover:shadow-lg hover:border-blue-300 transition-all duration-200 group">
-          <div className="fluid-p-4">
-            <div className="flex items-center fluid-gap-3 fluid-mb-3">
-              <div className="fluid-p-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-fluid-lg shadow group-hover:scale-110 transition-transform">
-                <ClipboardList className="fluid-icon-sm text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="fluid-text-sm font-bold text-gray-900 group-hover:text-blue-700 transition-colors">Certificaciones</h3>
-                <p className="fluid-text-xs text-gray-400">Exámenes y materiales</p>
-              </div>
-              <ChevronRight className="fluid-icon-sm text-gray-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
-            </div>
-            <div className="grid grid-cols-2 fluid-gap-1 fluid-pt-2 border-t border-gray-100">
-              <div className="text-center"><p className="fluid-text-base font-bold text-gray-900">{stats.totalExams}</p><p className="fluid-text-xs text-gray-400">Exámenes</p></div>
-              <div className="text-center"><p className="fluid-text-base font-bold text-green-600">{stats.totalMaterials}</p><p className="fluid-text-xs text-gray-400">Materiales</p></div>
             </div>
           </div>
         </Link>
@@ -370,31 +349,25 @@ export default function GroupDetailPage() {
                 <h3 className="font-semibold text-gray-900">Certificaciones Activas</h3>
                 <span className="fluid-px-2 fluid-py-0.5 bg-blue-100 text-blue-700 fluid-text-xs font-bold rounded-full">{assignedExams.length}</span>
               </div>
-              <div className="flex items-center fluid-gap-3">
-                {stats.totalMembers > 0 && group.is_active && (
-                  <Link to={`/partners/groups/${groupId}/assign-exam`}
-                    className="inline-flex items-center fluid-gap-1.5 fluid-px-3 fluid-py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-fluid-lg font-medium fluid-text-xs transition-all">
-                    <Layers className="fluid-icon-xs" />Asignar Nueva
-                  </Link>
-                )}
-                <Link to={`/partners/groups/${groupId}/exams`}
-                  className="fluid-text-sm text-blue-600 hover:text-blue-700 font-medium inline-flex items-center fluid-gap-1">
-                  Ver todas <ChevronRight className="fluid-icon-xs" />
+              {stats.totalMembers > 0 && group.is_active && (
+                <Link to={`/partners/groups/${groupId}/assign-exam`}
+                  className="inline-flex items-center fluid-gap-1.5 fluid-px-3 fluid-py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-fluid-lg font-medium fluid-text-xs transition-all">
+                  <Layers className="fluid-icon-xs" />Asignar Nueva
                 </Link>
-              </div>
+              )}
             </div>
           </div>
 
-          <div className="divide-y divide-gray-100">
-            {assignedExams.slice(0, 4).map((assignment) => (
-              <Link key={assignment.id} to={`/partners/groups/${groupId}/exams`}
-                className="fluid-px-6 fluid-py-4 flex items-center justify-between hover:bg-gray-50 transition-colors block">
+          <div className="divide-y divide-gray-100 max-h-[420px] overflow-y-auto">
+            {assignedExams.map((assignment) => (
+              <Link key={assignment.id} to={`/partners/groups/${groupId}/assignments/${assignment.exam_id}/edit-members?type=exam&name=${encodeURIComponent(assignment.exam?.name || 'Examen')}`}
+                className="fluid-px-6 fluid-py-4 flex items-center justify-between hover:bg-blue-50/50 transition-colors block group">
                 <div className="flex items-center fluid-gap-4 flex-1 min-w-0">
                   <div className="fluid-p-2 bg-blue-100 rounded-fluid-lg flex-shrink-0">
                     <Award className="fluid-icon-base text-blue-600" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{assignment.exam?.name}</p>
+                    <p className="font-medium text-gray-900 truncate group-hover:text-blue-700 transition-colors">{assignment.exam?.name}</p>
                     <div className="flex items-center fluid-gap-3 fluid-text-xs text-gray-500 fluid-mt-0.5">
                       <span className="inline-flex items-center fluid-gap-1"><Clock className="fluid-icon-xs" />{assignment.time_limit_minutes || assignment.exam?.duration_minutes || 0} min</span>
                       <span className="inline-flex items-center fluid-gap-1"><Target className="fluid-icon-xs" />{assignment.passing_score || assignment.exam?.passing_score || 70}%</span>
@@ -402,22 +375,17 @@ export default function GroupDetailPage() {
                     </div>
                   </div>
                 </div>
-                {assignment.exam?.ecm?.code && (
-                  <span className="fluid-px-2 fluid-py-1 bg-purple-100 text-purple-700 fluid-text-xs font-bold rounded-fluid-lg flex-shrink-0 ml-3">
-                    {assignment.exam.ecm.code}
-                  </span>
-                )}
+                <div className="flex items-center fluid-gap-2 flex-shrink-0">
+                  {assignment.exam?.ecm?.code && (
+                    <span className="fluid-px-2 fluid-py-1 bg-purple-100 text-purple-700 fluid-text-xs font-bold rounded-fluid-lg">
+                      {assignment.exam.ecm.code}
+                    </span>
+                  )}
+                  <ChevronRight className="fluid-icon-sm text-gray-300 group-hover:text-blue-500 transition-colors" />
+                </div>
               </Link>
             ))}
           </div>
-
-          {assignedExams.length > 4 && (
-            <div className="fluid-px-6 fluid-py-3 bg-gray-50 border-t border-gray-100 text-center">
-              <Link to={`/partners/groups/${groupId}/exams`} className="fluid-text-sm text-blue-600 hover:text-blue-700 font-medium">
-                Ver {assignedExams.length - 4} certificaciones más
-              </Link>
-            </div>
-          )}
         </div>
       )}
 

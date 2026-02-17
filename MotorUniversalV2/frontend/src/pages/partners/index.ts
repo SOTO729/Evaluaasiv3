@@ -10,5 +10,5 @@ export { default as CampusDetailPage } from './CampusDetailPage';
 export { default as GroupFormPage } from './GroupFormPage';
 export { default as GroupDetailPage } from './GroupDetailPage';
 export { default as GroupMembersPage } from './GroupMembersPage';
-export { default as GroupExamsPage } from './GroupExamsPage';
+// GroupExamsPage removed — merged into GroupDetailPage
 export { default as GroupDocumentsPage } from './GroupDocumentsPage';
