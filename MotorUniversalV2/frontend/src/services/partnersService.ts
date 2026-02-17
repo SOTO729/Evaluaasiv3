@@ -781,6 +781,8 @@ export interface SearchGroupsResult {
     created_at: string | null;
     campus_id: number;
     campus_name: string;
+    campus_country: string | null;
+    campus_state: string | null;
     partner_name: string;
     partner_id: number;
     school_cycle: { id: number; name: string } | null;

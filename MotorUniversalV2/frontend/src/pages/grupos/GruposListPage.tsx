@@ -12,6 +12,8 @@ import {
   Search,
   ChevronRight,
   ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
   AlertCircle,
   Calendar,
   X,
@@ -20,10 +22,10 @@ import {
   ArrowDown,
   Layers,
   Clock,
-  CheckCircle2,
+  MapPin,
+  Globe,
   RefreshCw,
   Loader2,
-  Filter,
   XCircle,
   SlidersHorizontal,
 } from 'lucide-react';
@@ -33,7 +35,7 @@ import {
   SearchGroupsResult,
 } from '../../services/partnersService';
 
-type SortField = 'name' | 'member_count' | 'campus_name' | 'partner_name' | 'school_cycle' | 'created_at' | 'is_active';
+type SortField = 'name' | 'member_count' | 'campus_name' | 'campus_state' | 'partner_name' | 'school_cycle' | 'created_at';
 type SortDirection = 'asc' | 'desc';
 
 export default function GruposListPage() {
@@ -50,9 +52,8 @@ export default function GruposListPage() {
 
   // Filtros avanzados
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<'' | 'active' | 'inactive'>('');
   const [filterCycle, setFilterCycle] = useState('');
-  const [filterPartnerId, setFilterPartnerId] = useState<number | ''>('');
+  const [filterPartnerId, setFilterPartnerId] = useState<number | ''>('')
 
   // Opciones de filtrado (vienen del backend)
   const [availableCycles, setAvailableCycles] = useState<string[]>([]);
@@ -83,12 +84,10 @@ export default function GruposListPage() {
         page,
         per_page: perPage,
         search: searchTerm || undefined,
-        status: filterStatus || undefined,
         cycle_name: filterCycle || undefined,
         partner_id: filterPartnerId || undefined,
         sort_by: sortField,
         sort_dir: sortDirection,
-        active_only: !filterStatus ? undefined : undefined,
       });
 
       if (requestId !== searchRequestRef.current) return;
@@ -108,7 +107,7 @@ export default function GruposListPage() {
         setLoading(false);
       }
     }
-  }, [searchTerm, pageSize, filterStatus, filterCycle, filterPartnerId, sortField, sortDirection]);
+  }, [searchTerm, pageSize, filterCycle, filterPartnerId, sortField, sortDirection]);
 
   // Debounce de búsqueda (400ms)
   useEffect(() => {
@@ -168,13 +167,12 @@ export default function GruposListPage() {
   // Limpiar filtros
   const clearAllFilters = () => {
     setSearchTerm('');
-    setFilterStatus('');
     setFilterCycle('');
     setFilterPartnerId('');
   };
 
-  const hasActiveFilters = searchTerm || filterStatus || filterCycle || filterPartnerId;
-  const activeFilterCount = [searchTerm, filterStatus, filterCycle, filterPartnerId].filter(Boolean).length;
+  const hasActiveFilters = searchTerm || filterCycle || filterPartnerId;
+  const activeFilterCount = [searchTerm, filterCycle, filterPartnerId].filter(Boolean).length;
 
   // Render paginación
   const renderPagination = () => (
@@ -199,47 +197,57 @@ export default function GruposListPage() {
         )}
       </div>
       {totalPages > 1 && (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
+          {/* Primera página */}
           <button
             onClick={() => handlePageChange(1)}
             disabled={currentPage === 1}
-            className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 fluid-text-xs font-medium text-gray-600"
+            className="p-1.5 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             title="Primera página"
           >
-            1
+            <ChevronsLeft className="w-4 h-4 text-gray-600" />
           </button>
+          {/* Página anterior */}
           <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className="p-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+            className="p-1.5 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            title="Página anterior"
           >
-            <ChevronLeft className="fluid-icon-sm" />
+            <ChevronLeft className="w-4 h-4 text-gray-600" />
           </button>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={pageInputValue}
-            onChange={(e) => setPageInputValue(e.target.value.replace(/[^0-9]/g, ''))}
-            onKeyDown={(e) => { if (e.key === 'Enter') handlePageInputSubmit(); }}
-            onBlur={handlePageInputSubmit}
-            className="w-14 text-center py-1 border border-gray-300 rounded fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            title="Escribe el número de página y presiona Enter"
-          />
-          <span className="fluid-text-sm text-gray-400">/ {totalPages}</span>
+          {/* Input de página */}
+          <div className="flex items-center gap-1.5 mx-1">
+            <span className="fluid-text-sm text-gray-500">Pág.</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={pageInputValue}
+              onChange={(e) => setPageInputValue(e.target.value.replace(/[^0-9]/g, ''))}
+              onKeyDown={(e) => { if (e.key === 'Enter') handlePageInputSubmit(); }}
+              onBlur={handlePageInputSubmit}
+              className="w-14 text-center py-1 border border-gray-300 rounded fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              title="Escribe el número de página y presiona Enter"
+            />
+            <span className="fluid-text-sm text-gray-400">de {totalPages.toLocaleString()}</span>
+          </div>
+          {/* Página siguiente */}
           <button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className="p-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+            className="p-1.5 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            title="Página siguiente"
           >
-            <ChevronRight className="fluid-icon-sm" />
+            <ChevronRight className="w-4 h-4 text-gray-600" />
           </button>
+          {/* Última página */}
           <button
             onClick={() => handlePageChange(totalPages)}
             disabled={currentPage === totalPages}
-            className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 fluid-text-xs font-medium text-gray-600"
+            className="p-1.5 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             title="Última página"
           >
-            {totalPages}
+            <ChevronsRight className="w-4 h-4 text-gray-600" />
           </button>
         </div>
       )}
@@ -393,27 +401,6 @@ export default function GruposListPage() {
                 </select>
               </div>
 
-              {/* Filtro por Estado */}
-              <div>
-                <label className="block fluid-text-xs font-medium text-gray-500 fluid-mb-1.5 uppercase tracking-wide">
-                  <CheckCircle2 className="w-3.5 h-3.5 inline mr-1" />
-                  Estado
-                </label>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value as '' | 'active' | 'inactive')}
-                  className={`w-full fluid-px-3 fluid-py-2.5 border rounded-fluid-lg fluid-text-sm transition-colors cursor-pointer ${
-                    filterStatus
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-300 hover:bg-gray-50 text-gray-700'
-                  }`}
-                >
-                  <option value="">Todos</option>
-                  <option value="active">Activos</option>
-                  <option value="inactive">Inactivos</option>
-                </select>
-              </div>
-
               {/* Filtro por Ciclo Escolar */}
               <div>
                 <label className="block fluid-text-xs font-medium text-gray-500 fluid-mb-1.5 uppercase tracking-wide">
@@ -457,15 +444,6 @@ export default function GruposListPage() {
                 <Building2 className="w-3 h-3" />
                 {availablePartners.find(p => p.id === filterPartnerId)?.name || 'Partner'}
                 <button onClick={() => setFilterPartnerId('')} className="ml-1 hover:text-purple-900">
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            )}
-            {filterStatus && (
-              <span className="inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1 bg-blue-100 text-blue-700 rounded-full fluid-text-sm">
-                <Filter className="w-3 h-3" />
-                {filterStatus === 'active' ? 'Activos' : 'Inactivos'}
-                <button onClick={() => setFilterStatus('')} className="ml-1 hover:text-blue-900">
                   <X className="w-3 h-3" />
                 </button>
               </span>
@@ -564,12 +542,12 @@ export default function GruposListPage() {
                       </div>
                     </th>
                     <th
-                      className="fluid-px-4 fluid-py-3 text-center fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => handleSort('is_active')}
+                      className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                      onClick={() => handleSort('campus_state')}
                     >
-                      <div className="flex items-center justify-center fluid-gap-1">
-                        Estado
-                        {renderSortIcon('is_active')}
+                      <div className="flex items-center fluid-gap-1">
+                        Ubicación
+                        {renderSortIcon('campus_state')}
                       </div>
                     </th>
                     <th
@@ -663,18 +641,28 @@ export default function GruposListPage() {
                         </div>
                       </td>
 
-                      {/* Estado */}
-                      <td className="fluid-px-4 fluid-py-3 text-center">
-                        {group.is_active ? (
-                          <span className="inline-flex items-center fluid-gap-1 fluid-px-2.5 fluid-py-1 bg-emerald-100 text-emerald-700 rounded-full fluid-text-xs font-semibold">
-                            <CheckCircle2 className="w-3 h-3" />
-                            Activo
-                          </span>
+                      {/* Ubicación (estado / país) */}
+                      <td className="fluid-px-4 fluid-py-3">
+                        {group.campus_state || group.campus_country ? (
+                          <div className="flex items-center fluid-gap-1.5 min-w-0">
+                            <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                            <div className="min-w-0">
+                              {group.campus_state && (
+                                <span className="fluid-text-sm text-gray-700 block truncate max-w-[140px]">{group.campus_state}</span>
+                              )}
+                              {group.campus_country && group.campus_country !== 'México' && (
+                                <span className="inline-flex items-center fluid-gap-1 fluid-text-xs text-gray-400">
+                                  <Globe className="w-3 h-3" />
+                                  {group.campus_country}
+                                </span>
+                              )}
+                              {!group.campus_state && group.campus_country && (
+                                <span className="fluid-text-sm text-gray-700">{group.campus_country}</span>
+                              )}
+                            </div>
+                          </div>
                         ) : (
-                          <span className="inline-flex items-center fluid-gap-1 fluid-px-2.5 fluid-py-1 bg-red-100 text-red-600 rounded-full fluid-text-xs font-semibold">
-                            <XCircle className="w-3 h-3" />
-                            Inactivo
-                          </span>
+                          <span className="fluid-text-xs text-gray-400 italic">Sin ubicación</span>
                         )}
                       </td>
 
