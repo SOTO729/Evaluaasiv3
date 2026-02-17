@@ -1865,7 +1865,6 @@ export interface ExamMemberDetail {
   material_progress: number;
   has_opened_exam: boolean;
   results_count: number;
-  results: any[];
   is_locked: boolean;
   lock_reasons: string[];
 }
@@ -1878,16 +1877,29 @@ export interface ExamMembersDetailResponse {
   ecm_code: string | null;
   assignment_type: 'all' | 'selected';
   members: ExamMemberDetail[];
-  total_members: number;
+  total: number;
+  page: number;
+  pages: number;
+  per_page: number;
   locked_count: number;
   swappable_count: number;
 }
 
+export interface ExamMembersDetailParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  sort_by?: string;
+  sort_dir?: string;
+  filter_status?: string;
+}
+
 export async function getExamMembersDetail(
   groupId: number,
-  examId: number
+  examId: number,
+  params?: ExamMembersDetailParams,
 ): Promise<ExamMembersDetailResponse> {
-  const response = await api.get(`/partners/groups/${groupId}/exams/${examId}/members-detail`);
+  const response = await api.get(`/partners/groups/${groupId}/exams/${examId}/members-detail`, { params });
   return response.data;
 }
 

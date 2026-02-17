@@ -4971,14 +4971,31 @@ def add_members_to_exam(group_id, exam_id):
 @jwt_required()
 @coordinator_required
 def get_group_exam_members_detail(group_id, exam_id):
-    """Obtener detalle completo de los miembros asignados a un examen: número asignación, progreso, estado de bloqueo"""
+    """Obtener detalle completo paginado de los miembros asignados a un examen.
+    
+    Query params:
+    - page (int, default 1)
+    - per_page (int, default 150, max 1000)
+    - search (str, optional) — busca en nombre, email, curp, assignment_number
+    - sort_by (str, default 'name') — name, email, curp, assignment_number, progress, status
+    - sort_dir (str, default 'asc')
+    - filter_status (str, optional) — 'locked', 'swappable', 'all'
+    """
     try:
         from app.models import GroupExam
         from app.models.partner import GroupExamMember, EcmCandidateAssignment
         from app.models.result import Result
         from app.models.student_progress import StudentTopicProgress
         from app.models.study_content import StudyMaterial
-        from sqlalchemy import text, func
+        from app.models.user import User
+        from sqlalchemy import text
+
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 150, type=int), 1000)
+        search = request.args.get('search', '').strip()
+        sort_by = request.args.get('sort_by', 'name')
+        sort_dir_param = request.args.get('sort_dir', 'asc')
+        filter_status = request.args.get('filter_status', 'all')
 
         group_exam = GroupExam.query.filter_by(
             group_id=group_id,
@@ -4986,70 +5003,70 @@ def get_group_exam_members_detail(group_id, exam_id):
             is_active=True
         ).first_or_404()
 
-        # Obtener exam para saber el ECM
         exam = group_exam.exam
         ecm_id = exam.competency_standard_id if exam else None
 
-        # Obtener miembros asignados
+        # Obtener TODOS los user_ids asignados
         if group_exam.assignment_type == 'all':
-            group_members = GroupMember.query.filter_by(group_id=group_id).all()
-            user_ids = [m.user_id for m in group_members]
+            all_user_ids = [m.user_id for m in GroupMember.query.filter_by(group_id=group_id).all()]
         else:
-            assigned = group_exam.assigned_members.all()
-            user_ids = [m.user_id for m in assigned]
+            all_user_ids = [m.user_id for m in group_exam.assigned_members.all()]
 
-        # Buscar asignaciones ECM (números de asignación) para estos usuarios
+        if not all_user_ids:
+            return jsonify({
+                'assignment_id': group_exam.id, 'exam_id': exam_id,
+                'exam_name': exam.name if exam else None,
+                'ecm_id': ecm_id, 'ecm_code': None,
+                'assignment_type': group_exam.assignment_type,
+                'members': [], 'total': 0, 'page': 1, 'pages': 1,
+                'per_page': per_page,
+                'locked_count': 0, 'swappable_count': 0,
+            })
+
+        # ---- Pre-cargar datos en batch ----
+
+        # 1. EcmCandidateAssignment — buscar por user_id + ecm_id (fallback amplio)
         ecm_assignments = {}
-        if ecm_id and user_ids:
+        if ecm_id:
             eca_records = EcmCandidateAssignment.query.filter(
                 EcmCandidateAssignment.competency_standard_id == ecm_id,
-                EcmCandidateAssignment.group_exam_id == group_exam.id,
-                EcmCandidateAssignment.user_id.in_(user_ids)
+                EcmCandidateAssignment.user_id.in_(all_user_ids)
             ).all()
             for eca in eca_records:
-                ecm_assignments[eca.user_id] = {
-                    'id': eca.id,
-                    'assignment_number': eca.assignment_number,
-                    'assigned_at': eca.assigned_at.isoformat() if eca.assigned_at else None,
-                }
+                # Preferir la que coincide con este group_exam_id
+                existing = ecm_assignments.get(eca.user_id)
+                if not existing or eca.group_exam_id == group_exam.id:
+                    ecm_assignments[eca.user_id] = {
+                        'id': eca.id,
+                        'assignment_number': eca.assignment_number,
+                        'assigned_at': eca.assigned_at.isoformat() if eca.assigned_at else None,
+                    }
 
-        # Buscar resultados (examen/simulador abierto) para estos usuarios en este group_exam
+        # 2. Resultados
         user_results = {}
-        if user_ids:
-            results = Result.query.filter(
-                Result.user_id.in_(user_ids),
-                Result.group_exam_id == group_exam.id
-            ).all()
-            for r in results:
-                uid = r.user_id
-                if uid not in user_results:
-                    user_results[uid] = []
-                user_results[uid].append({
-                    'id': r.id,
-                    'score': r.score,
-                    'status': r.status,
-                    'result': r.result,
-                    'start_date': r.start_date.isoformat() if r.start_date else None,
-                })
+        results = Result.query.filter(
+            Result.user_id.in_(all_user_ids),
+            Result.group_exam_id == group_exam.id
+        ).all()
+        for r in results:
+            user_results.setdefault(r.user_id, []).append({
+                'id': r.id, 'score': r.score, 'status': r.status,
+                'result': r.result,
+                'start_date': r.start_date.isoformat() if r.start_date else None,
+            })
 
-        # Calcular progreso de material de estudio por usuario
-        # Buscar materiales relacionados con el examen
+        # 3. Progreso de material
         user_progress = {}
         try:
-            # Materiales vinculados por muchos-a-muchos
             material_ids_rows = db.session.execute(text(
                 'SELECT study_material_id FROM study_material_exams WHERE exam_id = :eid'
             ), {'eid': exam_id}).fetchall()
             material_ids = [r[0] for r in material_ids_rows]
-
-            # También legacy
-            legacy = StudyMaterial.query.filter_by(exam_id=exam_id).all()
-            for m in legacy:
+            for m in StudyMaterial.query.filter_by(exam_id=exam_id).all():
                 if m.id not in material_ids:
                     material_ids.append(m.id)
 
-            if material_ids and user_ids:
-                # Obtener topic_ids de estos materiales
+            if material_ids:
                 topic_rows = db.session.execute(text('''
                     SELECT DISTINCT st.id
                     FROM study_topics st
@@ -5059,55 +5076,41 @@ def get_group_exam_members_detail(group_id, exam_id):
                 topic_ids = [r[0] for r in topic_rows]
 
                 if topic_ids:
-                    # Obtener StudentTopicProgress para cada usuario
                     progress_records = StudentTopicProgress.query.filter(
-                        StudentTopicProgress.user_id.in_(user_ids),
+                        StudentTopicProgress.user_id.in_(all_user_ids),
                         StudentTopicProgress.topic_id.in_(topic_ids)
                     ).all()
-
-                    # Calcular porcentaje promedio por usuario
                     user_progress_data = {}
                     for pr in progress_records:
-                        if pr.user_id not in user_progress_data:
-                            user_progress_data[pr.user_id] = {'total': 0, 'sum_pct': 0.0}
-                        user_progress_data[pr.user_id]['total'] += 1
-                        user_progress_data[pr.user_id]['sum_pct'] += (pr.progress_percentage or 0.0)
-
+                        d = user_progress_data.setdefault(pr.user_id, {'total': 0, 'sum_pct': 0.0})
+                        d['total'] += 1
+                        d['sum_pct'] += (pr.progress_percentage or 0.0)
                     total_topics = len(topic_ids)
-                    for uid, data in user_progress_data.items():
-                        # Porcentaje real = suma de progreso de temas entre total de temas
-                        user_progress[uid] = round(data['sum_pct'] / total_topics, 1) if total_topics > 0 else 0.0
+                    for uid, d in user_progress_data.items():
+                        user_progress[uid] = round(d['sum_pct'] / total_topics, 1) if total_topics > 0 else 0.0
         except Exception as prog_err:
-            print(f"⚠️ Error calculando progreso de material: {prog_err}")
+            print(f"⚠️ Error calculando progreso: {prog_err}")
 
-        # Obtener datos de usuarios
-        from app.models.user import User
+        # 4. Usuarios
         users_map = {}
-        if user_ids:
-            users = User.query.filter(User.id.in_(user_ids)).all()
-            for u in users:
-                users_map[u.id] = {
-                    'id': u.id,
-                    'name': u.name,
-                    'first_surname': getattr(u, 'first_surname', ''),
-                    'second_surname': getattr(u, 'second_surname', ''),
-                    'full_name': u.full_name,
-                    'email': u.email,
-                    'curp': getattr(u, 'curp', None),
-                    'username': getattr(u, 'username', None),
-                }
+        for u in User.query.filter(User.id.in_(all_user_ids)).all():
+            users_map[u.id] = {
+                'id': u.id,
+                'name': u.name,
+                'first_surname': getattr(u, 'first_surname', ''),
+                'second_surname': getattr(u, 'second_surname', ''),
+                'full_name': u.full_name,
+                'email': u.email,
+                'curp': getattr(u, 'curp', None),
+                'username': getattr(u, 'username', None),
+            }
 
-        # Construir respuesta detallada
-        members_detail = []
-        for uid in user_ids:
+        # ---- Construir lista completa ----
+        all_members = []
+        for uid in all_user_ids:
             progress_pct = user_progress.get(uid, 0.0)
-            has_results = uid in user_results
-            has_opened_exam = has_results  # Cualquier resultado = ha interactuado con examen/simulador
+            has_opened_exam = uid in user_results
             eca = ecm_assignments.get(uid)
-
-            # Condición de bloqueo: NO se puede reasignar si:
-            # - progreso >= 15% en material de estudio
-            # - o ha abierto un examen/simulador (tiene resultados)
             is_locked = progress_pct >= 15.0 or has_opened_exam
             lock_reasons = []
             if progress_pct >= 15.0:
@@ -5115,7 +5118,7 @@ def get_group_exam_members_detail(group_id, exam_id):
             if has_opened_exam:
                 lock_reasons.append('Ha abierto examen/simulador')
 
-            members_detail.append({
+            all_members.append({
                 'user_id': uid,
                 'user': users_map.get(uid),
                 'assignment_number': eca['assignment_number'] if eca else None,
@@ -5124,25 +5127,78 @@ def get_group_exam_members_detail(group_id, exam_id):
                 'material_progress': progress_pct,
                 'has_opened_exam': has_opened_exam,
                 'results_count': len(user_results.get(uid, [])),
-                'results': user_results.get(uid, []),
                 'is_locked': is_locked,
                 'lock_reasons': lock_reasons,
             })
 
-        # Ordenar: bloqueados al final
-        members_detail.sort(key=lambda x: (x['is_locked'], (x['user'] or {}).get('full_name', '')))
+        # ---- Filtros ----
+        # Buscar
+        if search:
+            q = search.lower()
+            all_members = [m for m in all_members if
+                q in (m['user'] or {}).get('full_name', '').lower() or
+                q in (m['user'] or {}).get('email', '').lower() or
+                q in ((m['user'] or {}).get('curp', '') or '').lower() or
+                q in (m['assignment_number'] or '').lower()
+            ]
+
+        # Filtro de estado
+        if filter_status == 'locked':
+            all_members = [m for m in all_members if m['is_locked']]
+        elif filter_status == 'swappable':
+            all_members = [m for m in all_members if not m['is_locked']]
+
+        # ---- Conteos globales (post-filtro de búsqueda, pre-filtro de estado) ----
+        total_filtered = len(all_members)
+        locked_count = sum(1 for m in all_members if m['is_locked'])
+        swappable_count = total_filtered - locked_count
+
+        # ---- Ordenamiento ----
+        def sort_key(m):
+            if sort_by == 'name':
+                return (m['user'] or {}).get('full_name', '').lower()
+            elif sort_by == 'email':
+                return (m['user'] or {}).get('email', '').lower()
+            elif sort_by == 'curp':
+                return ((m['user'] or {}).get('curp', '') or '').lower()
+            elif sort_by == 'assignment_number':
+                return (m['assignment_number'] or '').lower()
+            elif sort_by == 'progress':
+                return m['material_progress']
+            elif sort_by == 'status':
+                return 1 if m['is_locked'] else 0
+            return ''
+
+        all_members.sort(key=sort_key, reverse=(sort_dir_param == 'desc'))
+
+        # ---- Paginación ----
+        total = len(all_members)
+        total_pages = max(1, (total + per_page - 1) // per_page)
+        page = min(page, total_pages)
+        start = (page - 1) * per_page
+        page_members = all_members[start:start + per_page]
+
+        ecm_code = None
+        if exam and ecm_id:
+            try:
+                ecm_code = exam.competency_standard.code if exam.competency_standard else None
+            except Exception:
+                pass
 
         return jsonify({
             'assignment_id': group_exam.id,
             'exam_id': exam_id,
             'exam_name': exam.name if exam else None,
             'ecm_id': ecm_id,
-            'ecm_code': exam.competency_standard.code if exam and exam.competency_standard_id and hasattr(exam, 'competency_standard') and exam.competency_standard else None,
+            'ecm_code': ecm_code,
             'assignment_type': group_exam.assignment_type,
-            'members': members_detail,
-            'total_members': len(members_detail),
-            'locked_count': sum(1 for m in members_detail if m['is_locked']),
-            'swappable_count': sum(1 for m in members_detail if not m['is_locked']),
+            'members': page_members,
+            'total': total,
+            'page': page,
+            'pages': total_pages,
+            'per_page': per_page,
+            'locked_count': locked_count,
+            'swappable_count': swappable_count,
         })
 
     except Exception as e:
