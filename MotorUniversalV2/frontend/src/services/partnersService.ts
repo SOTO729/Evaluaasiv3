@@ -2512,10 +2512,11 @@ export interface GroupAnalytics {
   materials: {
     assigned: number;
     details: {
-      id: number;
+      id: number | string;
       material_name: string;
       assigned_at: string | null;
       assigned_members: number;
+      source?: string;
     }[];
   };
   ecm: {

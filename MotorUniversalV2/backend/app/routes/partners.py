@@ -9649,7 +9649,8 @@ def get_group_analytics(group_id):
         ).all()
 
         # ── 5. MATERIALES DE ESTUDIO ──
-        group_materials = GroupStudyMaterial.query.filter_by(group_id=group_id, is_active=True).all()
+        # Materiales directos del grupo
+        group_materials = GroupStudyMaterial.query.filter_by(group_id=group_id).all()
         materials_detail = []
         for gm in group_materials:
             material = gm.study_material
@@ -9661,15 +9662,44 @@ def get_group_analytics(group_id):
                 'material_name': material.title if material else f'Material #{gm.study_material_id}',
                 'assigned_at': gm.assigned_at.isoformat() if gm.assigned_at else None,
                 'assigned_members': assigned_members_count,
+                'source': 'direct',
             })
+        
+        # Materiales vinculados a exámenes del grupo
+        for ge in group_exams:
+            if hasattr(ge, 'study_materials') and ge.study_materials:
+                for sm in ge.study_materials:
+                    material = sm if hasattr(sm, 'title') else (sm.study_material if hasattr(sm, 'study_material') else None)
+                    if material:
+                        materials_detail.append({
+                            'id': f'exam-{ge.exam_id}-{getattr(material, "id", 0)}',
+                            'material_name': getattr(material, 'title', f'Material de exam #{ge.exam_id}'),
+                            'assigned_at': ge.assigned_at.isoformat() if ge.assigned_at else None,
+                            'assigned_members': total_members,
+                            'source': 'exam',
+                        })
 
         # ── 6. ECAs ──
-        ecas = EcmCandidateAssignment.query.filter(
-            and_(
-                EcmCandidateAssignment.user_id.in_(member_user_ids),
-                EcmCandidateAssignment.group_id == group_id
-            )
-        ).all()
+        # Buscar ECAs por group_id O por combinación user_id + exam_ids del grupo
+        from sqlalchemy import or_
+        eca_filters = [EcmCandidateAssignment.user_id.in_(member_user_ids)]
+        if exam_ids:
+            ecas = EcmCandidateAssignment.query.filter(
+                and_(
+                    EcmCandidateAssignment.user_id.in_(member_user_ids),
+                    or_(
+                        EcmCandidateAssignment.group_id == group_id,
+                        EcmCandidateAssignment.exam_id.in_(exam_ids)
+                    )
+                )
+            ).all()
+        else:
+            ecas = EcmCandidateAssignment.query.filter(
+                and_(
+                    EcmCandidateAssignment.user_id.in_(member_user_ids),
+                    EcmCandidateAssignment.group_id == group_id
+                )
+            ).all()
 
         ecm_summary = defaultdict(lambda: {'count': 0, 'ecm_name': '', 'ecm_code': ''})
         for eca in ecas:
@@ -9743,7 +9773,7 @@ def get_group_analytics(group_id):
                 'digital_badge': len(approved),
             },
             'materials': {
-                'assigned': len(group_materials),
+                'assigned': len(materials_detail),
                 'details': materials_detail,
             },
             'ecm': {
