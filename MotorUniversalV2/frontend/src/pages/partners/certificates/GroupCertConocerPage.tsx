@@ -1,6 +1,6 @@
 /**
  * GroupCertConocerPage – Certificado CONOCER (tier_advanced)
- * Solo UI — No se toca la lógica de descarga por el momento.
+ * Permite visualizar y descargar los certificados CONOCER originales.
  */
 import { Shield } from 'lucide-react';
 import CertificateTypePage from './CertificateTypePage';
@@ -10,11 +10,11 @@ export default function GroupCertConocerPage() {
     <CertificateTypePage
       certType="tier_advanced"
       title="Certificado CONOCER"
-      subtitle="Certificación de competencias laborales SEP-CONOCER — Solo visualización"
+      subtitle="Certificación de competencias laborales SEP-CONOCER"
       icon={Shield}
       headerGradient="bg-gradient-to-r from-emerald-600 to-emerald-800"
       accentColor="emerald"
-      downloadEnabled={false}
+      downloadEnabled={true}
       canGenerate={false}
     />
   );

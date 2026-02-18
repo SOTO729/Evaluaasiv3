@@ -524,3 +524,349 @@ def verify_certificate_public(certificate_number):
         'evaluation_center_name': certificate.evaluation_center_name,
         'verification_url': certificate.verification_url
     })
+
+
+# ===== ENDPOINTS DE CARGA MASIVA DE CERTIFICADOS CONOCER =====
+
+@conocer_bp.route('/admin/upload-batch', methods=['POST'])
+@jwt_required()
+def upload_batch():
+    """
+    Subir un archivo ZIP con certificados CONOCER para procesamiento masivo.
+    Responde HTTP 202 e inicia procesamiento en segundo plano.
+    """
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    if not current_user or current_user.role not in ['admin', 'coordinator']:
+        return jsonify({'error': 'No tiene permisos para esta acción'}), 403
+    
+    if 'file' not in request.files:
+        return jsonify({'error': 'No se envió ningún archivo'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'Nombre de archivo vacío'}), 400
+    
+    if not file.filename.lower().endswith('.zip'):
+        return jsonify({'error': 'Solo se permiten archivos ZIP'}), 400
+    
+    try:
+        import os
+        import uuid
+        import zipfile
+        from azure.storage.blob import BlobServiceClient as _BSC, ContentSettings as _CS
+        from app.models.conocer_upload import ConocerUploadBatch
+        from app.services.conocer_batch_processor import process_batch_background
+        
+        file_content = file.read()
+        
+        if len(file_content) == 0:
+            return jsonify({'error': 'El archivo está vacío'}), 400
+        
+        # Validar que es un ZIP válido
+        try:
+            zf_test = zipfile.ZipFile(io.BytesIO(file_content), 'r')
+            all_files = [
+                n for n in zf_test.namelist()
+                if not n.endswith('/') and not n.startswith('__MACOSX')
+            ]
+            zf_test.close()
+            if len(all_files) == 0:
+                return jsonify({'error': 'El archivo ZIP está vacío'}), 400
+        except zipfile.BadZipFile:
+            return jsonify({'error': 'El archivo no es un ZIP válido'}), 400
+        
+        # Subir ZIP a blob temporal
+        conn_str = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+        container_name = os.getenv('AZURE_STORAGE_CONTAINER', 'evaluaasi-files')
+        blob_name = f"conocer-uploads/{uuid.uuid4().hex}_{file.filename}"
+        
+        bsc = _BSC.from_connection_string(conn_str)
+        blob_client = bsc.get_blob_client(container=container_name, blob=blob_name)
+        blob_client.upload_blob(
+            file_content,
+            overwrite=True,
+            content_settings=_CS(content_type='application/zip')
+        )
+        
+        # Crear registro del batch
+        batch = ConocerUploadBatch(
+            uploaded_by=current_user_id,
+            filename=file.filename,
+            blob_name=blob_name,
+            total_files=len(all_files),
+            status='queued'
+        )
+        db.session.add(batch)
+        db.session.commit()
+        
+        # Iniciar procesamiento en segundo plano
+        process_batch_background(current_app._get_current_object(), batch.id)
+        
+        return jsonify({
+            'message': 'Archivo recibido. El procesamiento se iniciará en segundo plano.',
+            'batch_id': batch.id,
+            'total_files': len(all_files),
+            'status': 'queued'
+        }), 202
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error en upload-batch: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Error al procesar el archivo: {str(e)[:200]}'}), 500
+
+
+@conocer_bp.route('/admin/upload-batches', methods=['GET'])
+@jwt_required()
+def list_upload_batches():
+    """Listar batches de carga con paginación."""
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    if not current_user or current_user.role not in ['admin', 'coordinator']:
+        return jsonify({'error': 'No tiene permisos para esta acción'}), 403
+    
+    from app.models.conocer_upload import ConocerUploadBatch
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 20, type=int), 100)
+    status_filter = request.args.get('status')
+    
+    query = ConocerUploadBatch.query
+    if status_filter:
+        query = query.filter_by(status=status_filter)
+    
+    query = query.order_by(ConocerUploadBatch.created_at.desc())
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    
+    return jsonify({
+        'batches': [b.to_dict(include_uploader=True) for b in pagination.items],
+        'total': pagination.total,
+        'pages': pagination.pages,
+        'current_page': page,
+        'per_page': per_page
+    })
+
+
+@conocer_bp.route('/admin/upload-batches/<int:batch_id>', methods=['GET'])
+@jwt_required()
+def get_upload_batch_detail(batch_id):
+    """Obtener detalle de un batch."""
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    if not current_user or current_user.role not in ['admin', 'coordinator']:
+        return jsonify({'error': 'No tiene permisos para esta acción'}), 403
+    
+    from app.models.conocer_upload import ConocerUploadBatch
+    
+    batch = ConocerUploadBatch.query.get(batch_id)
+    if not batch:
+        return jsonify({'error': 'Batch no encontrado'}), 404
+    
+    data = batch.to_dict(include_uploader=True)
+    data['progress_percentage'] = batch.progress_percentage
+    data['success_count'] = batch.success_count
+    
+    return jsonify(data)
+
+
+@conocer_bp.route('/admin/upload-batches/<int:batch_id>/logs', methods=['GET'])
+@jwt_required()
+def get_upload_batch_logs(batch_id):
+    """Obtener logs de un batch con paginación y filtros."""
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    if not current_user or current_user.role not in ['admin', 'coordinator']:
+        return jsonify({'error': 'No tiene permisos para esta acción'}), 403
+    
+    from app.models.conocer_upload import ConocerUploadBatch, ConocerUploadLog
+    
+    batch = ConocerUploadBatch.query.get(batch_id)
+    if not batch:
+        return jsonify({'error': 'Batch no encontrado'}), 404
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 50, type=int), 200)
+    status_filter = request.args.get('status')
+    search = request.args.get('search', '').strip()
+    
+    query = ConocerUploadLog.query.filter_by(batch_id=batch_id)
+    
+    if status_filter:
+        query = query.filter_by(status=status_filter)
+    
+    if search:
+        search_lower = f'%{search.lower()}%'
+        query = query.filter(
+            db.or_(
+                db.func.lower(ConocerUploadLog.filename).like(search_lower),
+                db.func.lower(ConocerUploadLog.extracted_curp).like(search_lower),
+                db.func.lower(ConocerUploadLog.extracted_ecm_code).like(search_lower),
+                db.func.lower(ConocerUploadLog.extracted_name).like(search_lower),
+                db.func.lower(ConocerUploadLog.extracted_folio).like(search_lower),
+            )
+        )
+    
+    query = query.order_by(ConocerUploadLog.created_at.asc())
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    
+    return jsonify({
+        'logs': [log.to_dict() for log in pagination.items],
+        'total': pagination.total,
+        'pages': pagination.pages,
+        'current_page': page,
+        'per_page': per_page,
+        'batch_status': batch.status,
+        'batch_progress': batch.progress_percentage
+    })
+
+
+@conocer_bp.route('/admin/upload-batches/<int:batch_id>/export', methods=['GET'])
+@jwt_required()
+def export_upload_batch_logs(batch_id):
+    """Exportar logs de un batch a Excel."""
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    if not current_user or current_user.role not in ['admin', 'coordinator']:
+        return jsonify({'error': 'No tiene permisos para esta acción'}), 403
+    
+    from app.models.conocer_upload import ConocerUploadBatch, ConocerUploadLog
+    
+    batch = ConocerUploadBatch.query.get(batch_id)
+    if not batch:
+        return jsonify({'error': 'Batch no encontrado'}), 404
+    
+    logs = ConocerUploadLog.query.filter_by(batch_id=batch_id)\
+        .order_by(ConocerUploadLog.created_at.asc()).all()
+    
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment
+        
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Logs de Carga"
+        
+        headers = [
+            'Archivo', 'CURP', 'ECM', 'Nombre', 'Folio',
+            'Nombre ECM', 'Fecha Emisión', 'Entidad Certificadora',
+            'Estado', 'Razón', 'Detalle', 'Tiempo (ms)'
+        ]
+        
+        header_fill = PatternFill(start_color='1F4E79', end_color='1F4E79', fill_type='solid')
+        header_font = Font(color='FFFFFF', bold=True, size=11)
+        
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center')
+        
+        status_labels = {
+            'matched': 'Nuevo', 'replaced': 'Reemplazado',
+            'skipped': 'Omitido (duplicado)', 'discarded': 'Descartado', 'error': 'Error'
+        }
+        status_fills = {
+            'matched': PatternFill(start_color='C6EFCE', end_color='C6EFCE', fill_type='solid'),
+            'replaced': PatternFill(start_color='BDD7EE', end_color='BDD7EE', fill_type='solid'),
+            'skipped': PatternFill(start_color='FFF2CC', end_color='FFF2CC', fill_type='solid'),
+            'discarded': PatternFill(start_color='F2DCDB', end_color='F2DCDB', fill_type='solid'),
+            'error': PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid'),
+        }
+        
+        for row_idx, log in enumerate(logs, 2):
+            ws.cell(row=row_idx, column=1, value=log.filename)
+            ws.cell(row=row_idx, column=2, value=log.extracted_curp)
+            ws.cell(row=row_idx, column=3, value=log.extracted_ecm_code)
+            ws.cell(row=row_idx, column=4, value=log.extracted_name)
+            ws.cell(row=row_idx, column=5, value=log.extracted_folio)
+            ws.cell(row=row_idx, column=6, value=log.extracted_ecm_name)
+            ws.cell(row=row_idx, column=7, value=log.extracted_issue_date)
+            ws.cell(row=row_idx, column=8, value=log.extracted_certifying_entity)
+            status_cell = ws.cell(row=row_idx, column=9, value=status_labels.get(log.status, log.status))
+            if log.status in status_fills:
+                status_cell.fill = status_fills[log.status]
+            ws.cell(row=row_idx, column=10, value=log.discard_reason)
+            ws.cell(row=row_idx, column=11, value=log.discard_detail)
+            ws.cell(row=row_idx, column=12, value=log.processing_time_ms)
+        
+        for col in ws.columns:
+            max_length = 0
+            for cell in col:
+                if cell.value:
+                    max_length = max(max_length, len(str(cell.value)))
+            ws.column_dimensions[col[0].column_letter].width = min(max_length + 2, 50)
+        
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        filename = f"Logs_CONOCER_Batch_{batch_id}_{datetime.utcnow().strftime('%Y%m%d')}.xlsx"
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        current_app.logger.error(f"Error exportando logs del batch {batch_id}: {e}")
+        return jsonify({'error': 'Error al exportar logs'}), 500
+
+
+@conocer_bp.route('/admin/upload-batches/<int:batch_id>/retry', methods=['POST'])
+@jwt_required()
+def retry_upload_batch(batch_id):
+    """Reintentar un batch fallido o atascado (>30 min en processing)."""
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    if not current_user or current_user.role not in ['admin', 'coordinator']:
+        return jsonify({'error': 'No tiene permisos para esta acción'}), 403
+    
+    from app.models.conocer_upload import ConocerUploadBatch, ConocerUploadLog
+    from app.services.conocer_batch_processor import process_batch_background
+    
+    batch = ConocerUploadBatch.query.get(batch_id)
+    if not batch:
+        return jsonify({'error': 'Batch no encontrado'}), 404
+    
+    if batch.status == 'completed':
+        return jsonify({'error': 'Este batch ya fue completado exitosamente'}), 400
+    
+    if batch.status == 'processing':
+        if batch.started_at:
+            elapsed = (datetime.utcnow() - batch.started_at).total_seconds()
+            if elapsed < 1800:
+                return jsonify({
+                    'error': 'Este batch aún está en procesamiento',
+                    'elapsed_seconds': int(elapsed)
+                }), 400
+    
+    # Limpiar logs existentes y resetear
+    ConocerUploadLog.query.filter_by(batch_id=batch_id).delete()
+    batch.status = 'queued'
+    batch.processed_files = 0
+    batch.matched_files = 0
+    batch.replaced_files = 0
+    batch.skipped_files = 0
+    batch.discarded_files = 0
+    batch.error_files = 0
+    batch.started_at = None
+    batch.completed_at = None
+    batch.error_message = None
+    db.session.commit()
+    
+    process_batch_background(current_app._get_current_object(), batch.id)
+    
+    return jsonify({
+        'message': 'Reprocesamiento iniciado',
+        'batch_id': batch.id,
+        'status': 'queued'
+    }), 202

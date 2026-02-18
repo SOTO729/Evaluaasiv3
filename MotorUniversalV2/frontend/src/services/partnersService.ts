@@ -3167,3 +3167,146 @@ export async function exportConocerTramitesExcel(params?: ConocerTramitesParams 
   link.remove();
   window.URL.revokeObjectURL(url);
 }
+
+// ============== CARGA MASIVA CERTIFICADOS CONOCER ==============
+
+export interface ConocerUploadBatch {
+  id: number;
+  uploaded_by: string;
+  uploader_name?: string;
+  uploader_email?: string;
+  filename: string;
+  total_files: number;
+  processed_files: number;
+  matched_files: number;
+  replaced_files: number;
+  skipped_files: number;
+  discarded_files: number;
+  error_files: number;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  started_at: string | null;
+  completed_at: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface ConocerUploadLog {
+  id: number;
+  batch_id: number;
+  filename: string;
+  extracted_curp: string | null;
+  extracted_ecm_code: string | null;
+  extracted_name: string | null;
+  extracted_folio: string | null;
+  extracted_ecm_name: string | null;
+  extracted_issue_date: string | null;
+  extracted_certifying_entity: string | null;
+  status: 'matched' | 'replaced' | 'skipped' | 'discarded' | 'error';
+  discard_reason: string | null;
+  discard_detail: string | null;
+  matched_user_id: string | null;
+  certificate_id: number | null;
+  replaced_previous_hash: string | null;
+  processing_time_ms: number | null;
+  created_at: string;
+}
+
+export interface ConocerUploadBatchesResponse {
+  batches: ConocerUploadBatch[];
+  total: number;
+  page: number;
+  per_page: number;
+  pages: number;
+}
+
+export interface ConocerUploadLogsResponse {
+  logs: ConocerUploadLog[];
+  total: number;
+  page: number;
+  per_page: number;
+  pages: number;
+  summary: {
+    matched: number;
+    replaced: number;
+    skipped: number;
+    discarded: number;
+    error: number;
+  };
+}
+
+/**
+ * Subir ZIP con certificados CONOCER para procesamiento masivo
+ */
+export async function uploadConocerBatch(file: File, onProgress?: (pct: number) => void): Promise<{ batch_id: number; message: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post('/conocer/admin/upload-batch', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: (evt) => {
+      if (onProgress && evt.total) {
+        onProgress(Math.round((evt.loaded * 100) / evt.total));
+      }
+    },
+    timeout: 300000, // 5 min timeout para ZIPs grandes
+  });
+  return response.data;
+}
+
+/**
+ * Listar batches de carga masiva
+ */
+export async function getConocerUploadBatches(params?: {
+  page?: number; per_page?: number; status?: string;
+}): Promise<ConocerUploadBatchesResponse> {
+  const response = await api.get('/conocer/admin/upload-batches', { params });
+  return response.data;
+}
+
+/**
+ * Obtener detalle de un batch
+ */
+export async function getConocerUploadBatchDetail(batchId: number): Promise<{ batch: ConocerUploadBatch }> {
+  const response = await api.get(`/conocer/admin/upload-batches/${batchId}`);
+  return response.data;
+}
+
+/**
+ * Obtener logs de un batch con paginación
+ */
+export async function getConocerUploadBatchLogs(batchId: number, params?: {
+  page?: number; per_page?: number; status?: string;
+}): Promise<ConocerUploadLogsResponse> {
+  const response = await api.get(`/conocer/admin/upload-batches/${batchId}/logs`, { params });
+  return response.data;
+}
+
+/**
+ * Exportar logs de un batch a Excel
+ */
+export async function exportConocerUploadBatchLogs(batchId: number): Promise<void> {
+  const response = await api.get(`/conocer/admin/upload-batches/${batchId}/export`, {
+    responseType: 'blob',
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  const contentDisposition = response.headers['content-disposition'];
+  let filename = `conocer_batch_${batchId}_logs.xlsx`;
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename=(.+)/);
+    if (match) filename = match[1].replace(/"/g, '');
+  }
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+/**
+ * Reintentar un batch fallido
+ */
+export async function retryConocerUploadBatch(batchId: number): Promise<{ message: string }> {
+  const response = await api.post(`/conocer/admin/upload-batches/${batchId}/retry`);
+  return response.data;
+}

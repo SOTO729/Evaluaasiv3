@@ -120,6 +120,9 @@ const SchoolCycleDetailPage = lazy(() => import('./pages/partners/SchoolCycleDet
 const EcmAssignmentsPage = lazy(() => import('./pages/partners/EcmAssignmentsPage'))
 const EcmAssignmentDetailPage = lazy(() => import('./pages/partners/EcmAssignmentDetailPage'))
 const ConocerTramitesPage = lazy(() => import('./pages/partners/ConocerTramitesPage'))
+const ConocerUploadPage = lazy(() => import('./pages/partners/ConocerUploadPage'))
+const ConocerUploadHistoryPage = lazy(() => import('./pages/partners/ConocerUploadHistoryPage'))
+const ConocerUploadDetailPage = lazy(() => import('./pages/partners/ConocerUploadDetailPage'))
 
 // Responsable de Plantel
 const MiPlantelPage = lazy(() => import('./pages/responsable/MiPlantelPage'))
@@ -294,6 +297,9 @@ function App() {
               
               {/* Trámites CONOCER */}
               <Route path="/tramites-conocer" element={<ConocerTramitesPage />} />
+              <Route path="/tramites-conocer/subir" element={<ConocerUploadPage />} />
+              <Route path="/tramites-conocer/historial" element={<ConocerUploadHistoryPage />} />
+              <Route path="/tramites-conocer/historial/:batchId" element={<ConocerUploadDetailPage />} />
               
               {/* Responsable de Plantel */}
               <Route path="/mi-plantel" element={<MiPlantelPage />} />

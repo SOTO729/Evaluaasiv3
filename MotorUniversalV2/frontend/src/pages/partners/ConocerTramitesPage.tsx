@@ -27,6 +27,7 @@ import {
   FileSpreadsheet,
   X,
   Loader2,
+  Upload,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -57,7 +58,7 @@ export default function ConocerTramitesPage() {
   // Search & filters
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [conocerStatus, setConocerStatus] = useState<'all' | 'pending' | 'has_certificate'>('pending');
+  const conocerStatus = 'pending' as const;
   const [selectedPartnerId, setSelectedPartnerId] = useState<number | undefined>();
   const [selectedEcmId, setSelectedEcmId] = useState<number | undefined>();
   const [showFilters, setShowFilters] = useState(false);
@@ -212,7 +213,6 @@ export default function ConocerTramitesPage() {
   const clearFilters = () => {
     setSelectedPartnerId(undefined);
     setSelectedEcmId(undefined);
-    setConocerStatus('pending');
     setSearchQuery('');
     setCurrentPage(1);
   };
@@ -245,6 +245,20 @@ export default function ConocerTramitesPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              to="/tramites-conocer/subir"
+              className="fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 rounded-fluid-xl flex items-center fluid-gap-2 fluid-text-sm transition-all font-semibold"
+            >
+              <Upload className="fluid-icon-sm" />
+              Subir Certificados
+            </Link>
+            <Link
+              to="/tramites-conocer/historial"
+              className="fluid-px-4 fluid-py-2 bg-white/10 hover:bg-white/20 rounded-fluid-xl flex items-center fluid-gap-2 fluid-text-sm transition-all"
+            >
+              <Clock className="fluid-icon-sm" />
+              Historial
+            </Link>
             <button
               onClick={handleRefresh}
               disabled={refreshing}
@@ -328,16 +342,7 @@ export default function ConocerTramitesPage() {
             )}
           </div>
 
-          {/* Status filter */}
-          <select
-            value={conocerStatus}
-            onChange={(e) => { setConocerStatus(e.target.value as any); setCurrentPage(1); }}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
-          >
-            <option value="pending">Pendientes</option>
-            <option value="has_certificate">Con certificado</option>
-            <option value="all">Todos</option>
-          </select>
+          {/* Status: siempre pendientes */}
 
           {/* Filter toggle */}
           <button
