@@ -3,6 +3,7 @@ Modelo de Resultado
 """
 from datetime import datetime
 from app import db
+from sqlalchemy import event
 
 
 class Result(db.Model):
@@ -110,3 +111,42 @@ class Result(db.Model):
     
     def __repr__(self):
         return f'<Result {self.id} - Score: {self.score}>'
+
+
+# ── Event listener: archivar automáticamente códigos de certificado antes de cambiarlos ──
+
+def _archive_code_on_change(target, value, oldvalue, initiator):
+    """Listener de SQLAlchemy que archiva un código de certificado cuando cambia.
+    Se dispara ANTES de que el nuevo valor se escriba en la columna."""
+    # Solo archivar si había un valor previo y está cambiando
+    if oldvalue is None or oldvalue == value or oldvalue is event.symbol('NEVER_SET') or oldvalue is event.symbol('NO_VALUE'):
+        return
+
+    attr_name = initiator.key  # 'certificate_code' o 'eduit_certificate_code'
+
+    try:
+        from app.models.certificate_code_history import CertificateCodeHistory
+
+        # Verificar que no exista ya en historial (idempotencia)
+        existing = CertificateCodeHistory.query.filter_by(code=oldvalue).first()
+        if not existing:
+            db.session.add(CertificateCodeHistory(
+                result_id=str(target.id),
+                user_id=str(target.user_id),
+                exam_id=target.exam_id,
+                code=oldvalue,
+                code_type=attr_name,
+                replaced_by_code=value,
+                score=target.score,
+                result_value=target.result,
+                competency_standard_id=target.competency_standard_id,
+                start_date=target.start_date,
+                end_date=target.end_date,
+            ))
+            print(f"📋 Código archivado: {oldvalue} → {value} (result_id={target.id})")
+    except Exception as e:
+        print(f"⚠️ Error archivando código {oldvalue}: {e}")
+
+
+event.listen(Result.certificate_code, 'set', _archive_code_on_change)
+event.listen(Result.eduit_certificate_code, 'set', _archive_code_on_change)

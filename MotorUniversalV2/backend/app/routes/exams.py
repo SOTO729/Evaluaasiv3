@@ -683,6 +683,27 @@ def delete_exam(exam_id):
         db.session.execute(text('DELETE FROM dbo.study_materials WHERE exam_id = :exam_id'), {'exam_id': exam_id})
         db.session.execute(text('DELETE FROM dbo.study_material_exams WHERE exam_id = :exam_id'), {'exam_id': exam_id})
         
+        # Archivar códigos de certificado antes de eliminar resultados
+        try:
+            from app.models.certificate_code_history import CertificateCodeHistory
+            results_to_delete = Result.query.filter_by(exam_id=exam_id).all()
+            for r in results_to_delete:
+                for code_type in ['certificate_code', 'eduit_certificate_code']:
+                    code_val = getattr(r, code_type, None)
+                    if code_val:
+                        existing = CertificateCodeHistory.query.filter_by(code=code_val).first()
+                        if not existing:
+                            db.session.add(CertificateCodeHistory(
+                                result_id=str(r.id), user_id=str(r.user_id), exam_id=r.exam_id,
+                                code=code_val, code_type=code_type,
+                                score=r.score, result_value=r.result,
+                                competency_standard_id=r.competency_standard_id,
+                                start_date=r.start_date, end_date=r.end_date,
+                            ))
+            db.session.flush()
+        except Exception as archive_err:
+            print(f'⚠️ Error archivando códigos antes de eliminar: {archive_err}')
+
         # Eliminar results
         db.session.execute(text('DELETE FROM dbo.results WHERE exam_id = :exam_id'), {'exam_id': exam_id})
         

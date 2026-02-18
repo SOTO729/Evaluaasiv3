@@ -1145,3 +1145,78 @@ def check_and_add_exam_default_config_columns():
     except Exception as e:
         print(f"❌ Error en auto-migración de exams config: {e}")
         db.session.rollback()
+
+
+def check_and_create_certificate_code_history_table():
+    """Crear tabla certificate_code_history si no existe.
+    Esta tabla almacena códigos de verificación anteriores para que
+    los QR impresos sigan funcionando aunque se regeneren los certificados."""
+    print("🔍 Verificando tabla certificate_code_history...")
+    
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        if 'certificate_code_history' in tables:
+            print("  ✓ Tabla certificate_code_history ya existe")
+            return
+        
+        db_type = get_db_type()
+        
+        if db_type == 'mssql':
+            sql = """
+                CREATE TABLE certificate_code_history (
+                    id INT IDENTITY(1,1) PRIMARY KEY,
+                    result_id VARCHAR(36) NOT NULL,
+                    user_id VARCHAR(36) NOT NULL,
+                    exam_id INT NOT NULL,
+                    code VARCHAR(100) NOT NULL,
+                    code_type VARCHAR(30) NOT NULL,
+                    replaced_by_code VARCHAR(100) NULL,
+                    score INT NULL,
+                    result_value INT NULL,
+                    competency_standard_id INT NULL,
+                    start_date DATETIME NULL,
+                    end_date DATETIME NULL,
+                    created_at DATETIME DEFAULT GETDATE() NOT NULL,
+                    archived_at DATETIME DEFAULT GETDATE() NOT NULL
+                )
+            """
+        else:
+            sql = """
+                CREATE TABLE certificate_code_history (
+                    id SERIAL PRIMARY KEY,
+                    result_id VARCHAR(36) NOT NULL,
+                    user_id VARCHAR(36) NOT NULL,
+                    exam_id INT NOT NULL,
+                    code VARCHAR(100) NOT NULL,
+                    code_type VARCHAR(30) NOT NULL,
+                    replaced_by_code VARCHAR(100) NULL,
+                    score INT NULL,
+                    result_value INT NULL,
+                    competency_standard_id INT NULL,
+                    start_date TIMESTAMP NULL,
+                    end_date TIMESTAMP NULL,
+                    created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+                    archived_at TIMESTAMP DEFAULT NOW() NOT NULL
+                )
+            """
+        
+        db.session.execute(text(sql))
+        db.session.commit()
+        print("  ✅ Tabla certificate_code_history creada")
+        
+        # Crear índices
+        try:
+            db.session.execute(text("CREATE UNIQUE INDEX ix_cert_code_hist_code ON certificate_code_history (code)"))
+            db.session.execute(text("CREATE INDEX ix_cert_code_hist_result_id ON certificate_code_history (result_id)"))
+            db.session.execute(text("CREATE INDEX ix_cert_code_hist_user_id ON certificate_code_history (user_id)"))
+            db.session.commit()
+            print("  ✅ Índices creados para certificate_code_history")
+        except Exception as idx_err:
+            print(f"  ⚠️ Error creando índices (pueden ya existir): {idx_err}")
+            db.session.rollback()
+        
+    except Exception as e:
+        print(f"❌ Error creando tabla certificate_code_history: {e}")
+        db.session.rollback()

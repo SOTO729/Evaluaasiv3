@@ -347,6 +347,9 @@ def ensure_label_style_column(app):
     # Agregar columnas de config de asignación por defecto a exams
     _ensure_exam_default_config_columns()
 
+    # Crear tabla certificate_code_history para QR persistentes
+    _ensure_certificate_code_history_table()
+
 
 def _ensure_balance_attachments_column():
     """Agregar columna attachments a balance_requests"""
@@ -624,5 +627,16 @@ def _ensure_ecm_candidate_assignments_table():
     except Exception as e:
         db.session.rollback()
         print(f"[AUTO-MIGRATE] ❌ Error creando ecm_candidate_assignments: {e}")
+
+
+def _ensure_certificate_code_history_table():
+    """Crear tabla certificate_code_history para mantener códigos QR anteriores válidos"""
+    from app.auto_migrate import check_and_create_certificate_code_history_table
+
+    try:
+        print("[AUTO-MIGRATE] Ejecutando migración de certificate_code_history...")
+        check_and_create_certificate_code_history_table()
+    except Exception as e:
+        print(f"[AUTO-MIGRATE] Error en migración de certificate_code_history: {e}")
         import traceback
         traceback.print_exc()
