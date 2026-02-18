@@ -15,6 +15,7 @@ from app.models.user import User
 from app.models.partner import GroupMember, GroupExam, GroupExamMember, CandidateGroup, Campus
 from app.models.result import Result
 from app.models.exam import Exam
+from sqlalchemy import and_
 from app.utils.rate_limit import (
     rate_limit_login, 
     rate_limit_register,
@@ -891,3 +892,271 @@ def get_my_assignments():
         import traceback
         traceback.print_exc()
         return jsonify({'error': 'Error al obtener el historial de asignaciones'}), 500
+
+
+@bp.route('/campus-assignments', methods=['GET'])
+@jwt_required()
+def get_campus_assignments():
+    """
+    Obtener historial de asignaciones del plantel del responsable.
+    Solo accesible para usuarios con rol 'responsable'.
+    Devuelve TODAS las asignaciones de TODOS los candidatos en los grupos
+    del plantel que administra el responsable.
+    ---
+    tags:
+      - Authentication
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Lista de asignaciones del plantel con candidatos y resultados
+      403:
+        description: No autorizado (no es responsable)
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    
+    if user.role != 'responsable':
+        return jsonify({'error': 'Solo los responsables pueden acceder a este endpoint'}), 403
+    
+    try:
+        # Obtener el campus que administra este responsable
+        campus = Campus.query.filter_by(responsable_id=user_id).first()
+        
+        if not campus:
+            return jsonify({
+                'assignments': [],
+                'total': 0,
+                'campus': None
+            }), 200
+        
+        # Obtener todos los grupos del campus
+        campus_groups = CandidateGroup.query.filter_by(campus_id=campus.id).all()
+        group_ids = [g.id for g in campus_groups]
+        group_map = {g.id: g for g in campus_groups}
+        
+        if not group_ids:
+            return jsonify({
+                'assignments': [],
+                'total': 0,
+                'campus': {
+                    'id': campus.id,
+                    'name': campus.name,
+                    'state_name': campus.state_name,
+                    'city': campus.city,
+                }
+            }), 200
+        
+        # Obtener todas las asignaciones (GroupExam) de los grupos del campus
+        group_exams = GroupExam.query.filter(
+            GroupExam.group_id.in_(group_ids)
+        ).all()
+        
+        if not group_exams:
+            return jsonify({
+                'assignments': [],
+                'total': 0,
+                'campus': {
+                    'id': campus.id,
+                    'name': campus.name,
+                    'state_name': campus.state_name,
+                    'city': campus.city,
+                }
+            }), 200
+        
+        ge_ids = [ge.id for ge in group_exams]
+        
+        # Obtener todos los miembros de los grupos del campus
+        all_members = GroupMember.query.filter(
+            GroupMember.group_id.in_(group_ids)
+        ).all()
+        
+        # Mapear miembro por (group_id, user_id)
+        member_map = {}
+        user_ids_set = set()
+        for m in all_members:
+            member_map[(m.group_id, m.user_id)] = m
+            user_ids_set.add(m.user_id)
+        
+        # Obtener asignaciones directas (tipo 'selected')
+        direct_members = GroupExamMember.query.filter(
+            GroupExamMember.group_exam_id.in_(ge_ids)
+        ).all()
+        direct_map = {}  # group_exam_id -> [user_ids]
+        for dm in direct_members:
+            if dm.group_exam_id not in direct_map:
+                direct_map[dm.group_exam_id] = []
+            direct_map[dm.group_exam_id].append(dm.user_id)
+            user_ids_set.add(dm.user_id)
+        
+        # Cargar datos de todos los usuarios involucrados
+        user_ids_list = list(user_ids_set)
+        users = {}
+        if user_ids_list:
+            # Cargar en lotes de 500 para evitar límites de SQL IN
+            for i in range(0, len(user_ids_list), 500):
+                batch = user_ids_list[i:i+500]
+                batch_users = User.query.filter(User.id.in_(batch)).all()
+                for u in batch_users:
+                    users[u.id] = u
+        
+        # Obtener todos los resultados de los usuarios del campus
+        all_results = []
+        if user_ids_list:
+            for i in range(0, len(user_ids_list), 500):
+                batch = user_ids_list[i:i+500]
+                batch_results = Result.query.filter(User.id.in_(batch)).filter(
+                    Result.user_id.in_(batch)
+                ).all()
+                all_results.extend(batch_results)
+        
+        # Indexar resultados por (user_id, group_exam_id)
+        results_index = {}
+        for r in all_results:
+            key = (r.user_id, r.group_exam_id)
+            if key not in results_index:
+                results_index[key] = []
+            results_index[key].append(r)
+        
+        # Construir respuesta: una fila por cada (candidato, asignación)
+        assignments = []
+        
+        for ge in group_exams:
+            exam = ge.exam
+            group = group_map.get(ge.group_id)
+            
+            # Determinar qué usuarios están asignados a este examen
+            if ge.assignment_type == 'selected':
+                assigned_user_ids = direct_map.get(ge.id, [])
+            else:
+                # Tipo 'all': todos los miembros del grupo
+                assigned_user_ids = [
+                    m.user_id for m in all_members if m.group_id == ge.group_id
+                ]
+            
+            for uid in assigned_user_ids:
+                u = users.get(uid)
+                if not u:
+                    continue
+                
+                # Resultados de este usuario para esta asignación
+                user_results = results_index.get((uid, ge.id), [])
+                
+                # Si no hay resultados por group_exam_id, buscar por exam_id+group_id
+                if not user_results:
+                    for r in all_results:
+                        if r.user_id == uid and r.exam_id == ge.exam_id and r.group_id == ge.group_id:
+                            user_results.append(r)
+                
+                best_result = None
+                last_attempt = None
+                attempts_count = len([r for r in user_results if r.status == 1])
+                
+                if user_results:
+                    completed = [r for r in user_results if r.status == 1]
+                    if completed:
+                        best_result = max(completed, key=lambda r: r.score)
+                    last_attempt = max(user_results, key=lambda r: r.start_date if r.start_date else datetime.min)
+                
+                membership = member_map.get((ge.group_id, uid))
+                
+                assignment_data = {
+                    'id': f"{ge.id}-{uid}",
+                    'group_exam_id': ge.id,
+                    'assigned_at': ge.assigned_at.isoformat() if ge.assigned_at else None,
+                    'is_active': ge.is_active,
+                    
+                    # Candidato
+                    'candidate': {
+                        'id': u.id,
+                        'full_name': u.full_name,
+                        'email': u.email,
+                        'curp': u.curp,
+                    },
+                    
+                    # Configuración
+                    'config': {
+                        'time_limit_minutes': ge.time_limit_minutes,
+                        'passing_score': ge.passing_score,
+                        'max_attempts': ge.max_attempts or 1,
+                        'max_disconnections': ge.max_disconnections or 3,
+                        'exam_content_type': ge.exam_content_type or 'questions_only',
+                        'available_from': ge.available_from.isoformat() if ge.available_from else None,
+                        'available_until': ge.available_until.isoformat() if ge.available_until else None,
+                        'require_security_pin': ge.require_security_pin or False,
+                    },
+                    
+                    # Examen
+                    'exam': {
+                        'id': exam.id,
+                        'name': exam.name,
+                        'version': exam.version,
+                        'standard': exam.standard,
+                        'duration_minutes': exam.duration_minutes,
+                    } if exam else None,
+                    
+                    # Grupo
+                    'group': {
+                        'id': group.id,
+                        'name': group.name,
+                        'code': group.code,
+                    } if group else None,
+                    
+                    # Campus (siempre el mismo para el responsable)
+                    'campus': {
+                        'id': campus.id,
+                        'name': campus.name,
+                        'state_name': campus.state_name,
+                        'city': campus.city,
+                    },
+                    
+                    # Membresía
+                    'membership': {
+                        'status': membership.status,
+                        'joined_at': membership.joined_at.isoformat() if membership.joined_at else None,
+                    } if membership else None,
+                    
+                    # Resultados
+                    'attempts_count': attempts_count,
+                    'best_result': {
+                        'score': best_result.score,
+                        'result': best_result.result,
+                        'end_date': best_result.end_date.isoformat() if best_result.end_date else None,
+                        'duration_seconds': best_result.duration_seconds,
+                        'certificate_code': best_result.certificate_code,
+                        'report_url': best_result.report_url,
+                    } if best_result else None,
+                    
+                    'last_attempt': {
+                        'score': last_attempt.score,
+                        'status': last_attempt.status,
+                        'result': last_attempt.result,
+                        'start_date': last_attempt.start_date.isoformat() if last_attempt.start_date else None,
+                        'end_date': last_attempt.end_date.isoformat() if last_attempt.end_date else None,
+                    } if last_attempt else None,
+                }
+                
+                assignments.append(assignment_data)
+        
+        # Ordenar por fecha de asignación (más reciente primero)
+        assignments.sort(key=lambda a: a['assigned_at'] or '', reverse=True)
+        
+        return jsonify({
+            'assignments': assignments,
+            'total': len(assignments),
+            'campus': {
+                'id': campus.id,
+                'name': campus.name,
+                'state_name': campus.state_name,
+                'city': campus.city,
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo asignaciones del campus: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Error al obtener las asignaciones del plantel'}), 500

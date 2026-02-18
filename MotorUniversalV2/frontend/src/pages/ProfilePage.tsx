@@ -94,7 +94,7 @@ interface AssignmentLastAttempt {
 }
 
 interface Assignment {
-  id: number
+  id: number | string
   assigned_at: string | null
   is_active: boolean
   config: AssignmentConfig
@@ -102,6 +102,7 @@ interface Assignment {
   group: { id: number; name: string; code: string } | null
   campus: { id: number; name: string; state_name: string | null; city: string | null } | null
   membership: { status: string; joined_at: string | null } | null
+  candidate?: { id: string; full_name: string; email: string; curp: string | null } | null
   attempts_count: number
   best_result: AssignmentResult | null
   last_attempt: AssignmentLastAttempt | null
@@ -143,7 +144,8 @@ const ProfilePage = () => {
   // Historial de asignaciones
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [assignmentsLoading, setAssignmentsLoading] = useState(false)
-  const [expandedAssignment, setExpandedAssignment] = useState<number | null>(null)
+  const [expandedAssignment, setExpandedAssignment] = useState<number | string | null>(null)
+  const [campusInfo, setCampusInfo] = useState<{ id: number; name: string; state_name: string | null; city: string | null } | null>(null)
 
   // Determinar si el usuario tiene CURP y es candidato/responsable (bloqueo de edición)
   const hasCurpLock = profile 
@@ -152,8 +154,14 @@ const ProfilePage = () => {
 
   useEffect(() => {
     loadProfile()
-    loadAssignments()
   }, [])
+
+  // Cargar asignaciones una vez que tengamos el perfil (para saber el rol)
+  useEffect(() => {
+    if (profile && (profile.role === 'candidato' || profile.role === 'responsable')) {
+      loadAssignments()
+    }
+  }, [profile?.role])
 
   const loadProfile = async () => {
     try {
@@ -179,8 +187,14 @@ const ProfilePage = () => {
   const loadAssignments = async () => {
     try {
       setAssignmentsLoading(true)
-      const response = await api.get('/auth/my-assignments')
+      // Los responsables ven las asignaciones de todo su plantel
+      // Los candidatos ven solo sus propias asignaciones
+      const endpoint = profile?.role === 'responsable' ? '/auth/campus-assignments' : '/auth/my-assignments'
+      const response = await api.get(endpoint)
       setAssignments(response.data.assignments || [])
+      if (response.data.campus) {
+        setCampusInfo(response.data.campus)
+      }
     } catch (err) {
       console.error('Error loading assignments:', err)
     } finally {
@@ -666,20 +680,41 @@ const ProfilePage = () => {
                       <GraduationCap className="fluid-icon-sm text-purple-600" />
                     </div>
                     <div>
-                      <h2 className="fluid-text-base font-semibold text-gray-900">Historial Académico</h2>
-                      <p className="fluid-text-xs text-gray-500">Todas tus asignaciones y resultados</p>
+                      <h2 className="fluid-text-base font-semibold text-gray-900">
+                        {profile?.role === 'responsable' ? 'Asignaciones del Plantel' : 'Historial Académico'}
+                      </h2>
+                      <p className="fluid-text-xs text-gray-500">
+                        {profile?.role === 'responsable' 
+                          ? 'Todas las asignaciones de los candidatos de tu plantel'
+                          : 'Todas tus asignaciones y resultados'}
+                      </p>
                     </div>
                   </div>
                   {assignments.length > 0 && (
                     <span className="fluid-px-3 fluid-py-1 fluid-text-xs font-medium rounded-full bg-purple-100 text-purple-700">
-                      {assignments.length} asignación{assignments.length !== 1 ? 'es' : ''}
+                      {assignments.length} {profile?.role === 'responsable' ? 'registro' : 'asignación'}{assignments.length !== 1 ? 's' : ''}
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Resumen rápido del grupo actual */}
-              {profile.group_info && (
+              {/* Resumen rápido: grupo actual (candidato) o plantel (responsable) */}
+              {profile?.role === 'responsable' && campusInfo ? (
+                <div className="fluid-px-5 fluid-py-3 bg-blue-50/50 border-b border-gray-100">
+                  <div className="flex flex-wrap items-center fluid-gap-4 fluid-text-xs">
+                    <div className="flex items-center fluid-gap-1.5 text-gray-600">
+                      <Building2 className="w-3.5 h-3.5 text-blue-500" />
+                      <span className="font-medium">{campusInfo.name}</span>
+                    </div>
+                    {campusInfo.state_name && (
+                      <div className="flex items-center fluid-gap-1.5 text-gray-600">
+                        <MapPin className="w-3.5 h-3.5 text-green-500" />
+                        <span>{campusInfo.state_name}{campusInfo.city ? `, ${campusInfo.city}` : ''}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : profile.group_info ? (
                 <div className="fluid-px-5 fluid-py-3 bg-blue-50/50 border-b border-gray-100">
                   <div className="flex flex-wrap items-center fluid-gap-4 fluid-text-xs">
                     <div className="flex items-center fluid-gap-1.5 text-gray-600">
@@ -706,7 +741,7 @@ const ProfilePage = () => {
                     )}
                   </div>
                 </div>
-              )}
+              ) : null}
 
               {/* Tabla de asignaciones */}
               <div className="fluid-p-5">
@@ -718,7 +753,11 @@ const ProfilePage = () => {
                 ) : assignments.length === 0 ? (
                   <div className="text-center fluid-py-8">
                     <BookOpen className="fluid-icon-xl text-gray-300 mx-auto mb-2" />
-                    <p className="text-gray-500 fluid-text-sm">No tienes asignaciones registradas</p>
+                    <p className="text-gray-500 fluid-text-sm">
+                      {profile?.role === 'responsable' 
+                        ? 'No hay asignaciones registradas en tu plantel'
+                        : 'No tienes asignaciones registradas'}
+                    </p>
                   </div>
                 ) : (
                   <>
@@ -727,9 +766,14 @@ const ProfilePage = () => {
                       <table className="w-full text-left">
                         <thead>
                           <tr className="bg-gray-50 border-b border-gray-200">
+                            {profile?.role === 'responsable' && (
+                              <th className="fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Candidato</th>
+                            )}
                             <th className="fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Examen</th>
                             <th className="fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Grupo</th>
-                            <th className="fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Plantel</th>
+                            {profile?.role !== 'responsable' && (
+                              <th className="fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Plantel</th>
+                            )}
                             <th className="fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-center">Configuración</th>
                             <th className="fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-center">Intentos</th>
                             <th className="fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-center">Mejor Puntaje</th>
@@ -742,6 +786,16 @@ const ProfilePage = () => {
                             const badge = getResultBadge(a)
                             return (
                               <tr key={a.id} className="hover:bg-gray-50/50 transition-colors">
+                                {profile?.role === 'responsable' && (
+                                  <td className="fluid-px-4 fluid-py-3">
+                                    <div className="min-w-0">
+                                      <p className="fluid-text-sm font-medium text-gray-900 truncate max-w-[180px]" title={a.candidate?.full_name}>
+                                        {a.candidate?.full_name || '-'}
+                                      </p>
+                                      <p className="fluid-text-xs text-gray-500 truncate max-w-[180px]">{a.candidate?.email}</p>
+                                    </div>
+                                  </td>
+                                )}
                                 <td className="fluid-px-4 fluid-py-3">
                                   <div className="min-w-0">
                                     <p className="fluid-text-sm font-medium text-gray-900 truncate max-w-[200px]" title={a.exam?.name}>
@@ -753,14 +807,16 @@ const ProfilePage = () => {
                                 <td className="fluid-px-4 fluid-py-3">
                                   <p className="fluid-text-sm text-gray-700 whitespace-nowrap">{a.group?.name || '-'}</p>
                                 </td>
-                                <td className="fluid-px-4 fluid-py-3">
-                                  <div>
-                                    <p className="fluid-text-sm text-gray-700 whitespace-nowrap">{a.campus?.name || '-'}</p>
-                                    {a.campus?.state_name && (
-                                      <p className="fluid-text-xs text-gray-500">{a.campus.state_name}{a.campus.city ? `, ${a.campus.city}` : ''}</p>
-                                    )}
-                                  </div>
-                                </td>
+                                {profile?.role !== 'responsable' && (
+                                  <td className="fluid-px-4 fluid-py-3">
+                                    <div>
+                                      <p className="fluid-text-sm text-gray-700 whitespace-nowrap">{a.campus?.name || '-'}</p>
+                                      {a.campus?.state_name && (
+                                        <p className="fluid-text-xs text-gray-500">{a.campus.state_name}{a.campus.city ? `, ${a.campus.city}` : ''}</p>
+                                      )}
+                                    </div>
+                                  </td>
+                                )}
                                 <td className="fluid-px-4 fluid-py-3 text-center">
                                   <div className="flex flex-col items-center fluid-gap-1">
                                     <div className="flex items-center fluid-gap-1 fluid-text-xs text-gray-600" title="Tiempo límite">
@@ -816,6 +872,9 @@ const ProfilePage = () => {
                               className="w-full fluid-p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
                             >
                               <div className="flex-1 min-w-0 text-left">
+                                {profile?.role === 'responsable' && a.candidate && (
+                                  <p className="fluid-text-xs text-purple-600 font-medium truncate">{a.candidate.full_name}</p>
+                                )}
                                 <p className="fluid-text-sm font-medium text-gray-900 truncate">
                                   {a.exam?.name || '-'}
                                 </p>
@@ -840,17 +899,26 @@ const ProfilePage = () => {
                             {isExpanded && (
                               <div className="fluid-px-4 fluid-pb-4 border-t border-gray-100 bg-gray-50/50">
                                 <div className="grid grid-cols-2 fluid-gap-3 fluid-mt-3">
+                                  {profile?.role === 'responsable' && a.candidate && (
+                                    <div className="col-span-2">
+                                      <p className="fluid-text-xs font-medium text-gray-500 uppercase">Candidato</p>
+                                      <p className="fluid-text-sm text-gray-700">{a.candidate.full_name}</p>
+                                      <p className="fluid-text-xs text-gray-500">{a.candidate.email}</p>
+                                    </div>
+                                  )}
                                   <div>
                                     <p className="fluid-text-xs font-medium text-gray-500 uppercase">Grupo</p>
                                     <p className="fluid-text-sm text-gray-700">{a.group?.name || '-'}</p>
                                   </div>
-                                  <div>
-                                    <p className="fluid-text-xs font-medium text-gray-500 uppercase">Plantel</p>
-                                    <p className="fluid-text-sm text-gray-700">{a.campus?.name || '-'}</p>
-                                    {a.campus?.state_name && (
-                                      <p className="fluid-text-xs text-gray-500">{a.campus.state_name}</p>
-                                    )}
-                                  </div>
+                                  {profile?.role !== 'responsable' && (
+                                    <div>
+                                      <p className="fluid-text-xs font-medium text-gray-500 uppercase">Plantel</p>
+                                      <p className="fluid-text-sm text-gray-700">{a.campus?.name || '-'}</p>
+                                      {a.campus?.state_name && (
+                                        <p className="fluid-text-xs text-gray-500">{a.campus.state_name}</p>
+                                      )}
+                                    </div>
+                                  )}
                                   <div>
                                     <p className="fluid-text-xs font-medium text-gray-500 uppercase">Tiempo Límite</p>
                                     <p className="fluid-text-sm text-gray-700">
