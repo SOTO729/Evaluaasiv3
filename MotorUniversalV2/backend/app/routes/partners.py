@@ -13035,6 +13035,7 @@ def get_conocer_tramites():
                     c.name AS campus_name,
                     p.id AS partner_id,
                     p.name AS partner_name,
+                    eca.assignment_number,
                     ROW_NUMBER() OVER (
                         PARTITION BY u.id, cs.id
                         ORDER BY r.score DESC, r.created_at DESC
@@ -13047,6 +13048,7 @@ def get_conocer_tramites():
                 JOIN candidate_groups cg ON cg.id = gm.group_id AND cg.is_active = 1
                 LEFT JOIN campuses c ON c.id = cg.campus_id
                 LEFT JOIN partners p ON p.id = c.partner_id
+                LEFT JOIN ecm_candidate_assignments eca ON eca.user_id = u.id AND eca.competency_standard_id = cs.id
                 WHERE r.status = 1
                   AND r.result = 1
                   AND u.curp IS NOT NULL
@@ -13108,6 +13110,7 @@ def get_conocer_tramites():
                 wcs.group_id, wcs.group_name, wcs.group_code,
                 wcs.campus_id, wcs.campus_name,
                 wcs.partner_id, wcs.partner_name,
+                wcs.assignment_number,
                 wcs.conocer_cert_id, wcs.conocer_cert_number,
                 wcs.conocer_cert_status, wcs.conocer_issue_date
             FROM with_conocer_status wcs
@@ -13156,6 +13159,7 @@ def get_conocer_tramites():
                 'campus_name': row.campus_name,
                 'partner_id': row.partner_id,
                 'partner_name': row.partner_name,
+                'assignment_number': row.assignment_number,
                 'conocer_cert_id': row.conocer_cert_id,
                 'conocer_cert_number': row.conocer_cert_number,
                 'conocer_cert_status': row.conocer_cert_status,
@@ -13251,6 +13255,7 @@ def export_conocer_tramites_excel():
                     cg.id AS group_id, cg.name AS group_name, cg.code AS group_code,
                     c.id AS campus_id, c.name AS campus_name,
                     p.id AS partner_id, p.name AS partner_name,
+                    eca.assignment_number,
                     ROW_NUMBER() OVER (
                         PARTITION BY u.id, cs.id ORDER BY r.score DESC, r.created_at DESC
                     ) AS rn
@@ -13262,6 +13267,7 @@ def export_conocer_tramites_excel():
                 JOIN candidate_groups cg ON cg.id = gm.group_id AND cg.is_active = 1
                 LEFT JOIN campuses c ON c.id = cg.campus_id
                 LEFT JOIN partners p ON p.id = c.partner_id
+                LEFT JOIN ecm_candidate_assignments eca ON eca.user_id = u.id AND eca.competency_standard_id = cs.id
                 WHERE r.status = 1 AND r.result = 1
                   AND u.curp IS NOT NULL AND LEN(u.curp) >= 10
                   AND (
@@ -13304,6 +13310,7 @@ def export_conocer_tramites_excel():
 
         data_sql = text(cte_sql + f"""
             SELECT wcs.full_name, wcs.email, wcs.curp, wcs.username,
+                wcs.assignment_number,
                 wcs.ecm_code, wcs.ecm_name, wcs.exam_name, wcs.score, wcs.exam_date,
                 wcs.group_name, wcs.group_code, wcs.campus_name, wcs.partner_name,
                 wcs.conocer_cert_number, wcs.conocer_issue_date
@@ -13326,20 +13333,20 @@ def export_conocer_tramites_excel():
         )
         center_align = Alignment(horizontal='center', vertical='center')
 
-        ws.merge_cells('A1:N1')
+        ws.merge_cells('A1:O1')
         title_cell = ws['A1']
         title_cell.value = "Reporte de Tramites CONOCER - Candidatos Elegibles"
         title_cell.font = Font(bold=True, size=14, color="065F46")
         title_cell.alignment = Alignment(horizontal='center')
 
-        ws.merge_cells('A2:N2')
+        ws.merge_cells('A2:O2')
         subtitle = ws['A2']
         subtitle.value = f"Total registros: {len(rows)} | Exportado: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         subtitle.font = Font(size=10, color="6B7280")
         subtitle.alignment = Alignment(horizontal='center')
 
         headers_list = [
-            'Nombre Completo', 'CURP', 'Email', 'Usuario',
+            'Nombre Completo', 'CURP', 'Email', 'Usuario', 'No. Asignacion',
             'Codigo ECM', 'Estandar de Competencia', 'Examen',
             'Calificacion', 'Fecha de Evaluacion',
             'Grupo', 'Codigo Grupo', 'Plantel', 'Partner',
@@ -13357,6 +13364,7 @@ def export_conocer_tramites_excel():
             exam_date_str = row.exam_date.strftime('%Y-%m-%d') if row.exam_date else ''
             data_row = [
                 (row.full_name or '').strip(), row.curp or '', row.email or '', row.username or '',
+                row.assignment_number or '',
                 row.ecm_code or '', row.ecm_name or '', row.exam_name or '',
                 row.score, exam_date_str,
                 row.group_name or '', row.group_code or '', row.campus_name or '', row.partner_name or '',
@@ -13365,11 +13373,11 @@ def export_conocer_tramites_excel():
             for col, val in enumerate(data_row, 1):
                 cell = ws.cell(row=idx, column=col, value=val)
                 cell.border = thin_border
-                if col == 8:
+                if col in (5, 9):
                     cell.alignment = center_align
 
         from openpyxl.utils import get_column_letter
-        widths = [35, 22, 30, 20, 12, 40, 35, 12, 16, 25, 15, 25, 25, 30]
+        widths = [35, 22, 30, 20, 15, 12, 40, 35, 12, 16, 25, 15, 25, 25, 30]
         for i, w in enumerate(widths, 1):
             ws.column_dimensions[get_column_letter(i)].width = w
 

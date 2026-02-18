@@ -3096,6 +3096,7 @@ export interface ConocerTramiteCandidate {
   campus_name: string;
   partner_id: number;
   partner_name: string;
+  assignment_number: string | null;
   conocer_cert_id: number | null;
   conocer_cert_number: string | null;
   conocer_cert_status: string | null;

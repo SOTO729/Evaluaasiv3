@@ -503,6 +503,11 @@ export default function ConocerTramitesPage() {
                   ECM {renderSortIcon('ecm')}
                 </th>
                 <th
+                  className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell"
+                >
+                  No. Asignación
+                </th>
+                <th
                   onClick={() => handleSort('score')}
                   className="px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none hidden md:table-cell"
                 >
@@ -540,7 +545,7 @@ export default function ConocerTramitesPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {candidates.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={11} className="px-6 py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center gap-2">
                       <Users className="w-10 h-10 text-gray-300" />
                       <p className="font-medium">No se encontraron candidatos</p>
@@ -591,6 +596,17 @@ export default function ConocerTramitesPage() {
                           </span>
                           <p className="text-xs text-gray-500 mt-0.5 truncate max-w-[180px]">{c.ecm_name}</p>
                         </div>
+                      </td>
+
+                      {/* No. Asignación */}
+                      <td className="px-3 py-3 hidden lg:table-cell">
+                        {c.assignment_number ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-blue-50 text-blue-700">
+                            {c.assignment_number}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
                       </td>
 
                       {/* Calificación */}
