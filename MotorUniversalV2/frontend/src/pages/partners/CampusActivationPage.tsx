@@ -134,6 +134,7 @@ export default function CampusActivationPage() {
     assignment_validity_months: 12,
     certification_cost: 0,
     retake_cost: 0,
+    max_retakes: 1,
     competency_standard_ids: [],
   });
   
@@ -184,6 +185,7 @@ export default function CampusActivationPage() {
         assignment_validity_months: campus.assignment_validity_months ?? prev.assignment_validity_months,
         certification_cost: campus.certification_cost ?? prev.certification_cost,
         retake_cost: campus.retake_cost ?? prev.retake_cost,
+        max_retakes: (campus as any).max_retakes ?? prev.max_retakes,
       }));
       setCertificationCostInput(String(campus.certification_cost ?? 0));
       setRetakeCostInput(String(campus.retake_cost ?? 0));
@@ -1893,6 +1895,26 @@ export default function CampusActivationPage() {
                             placeholder="0.00"
                           />
                         </div>
+                      </div>
+                      <div>
+                        <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                          Máx. Retomas por Asignación
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="99"
+                          name="max_retakes"
+                          value={configData.max_retakes ?? 1}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            if (!isNaN(val) && val >= 1) {
+                              setConfigData(prev => ({ ...prev, max_retakes: val }));
+                            }
+                          }}
+                          className="w-full fluid-px-3 fluid-py-2 border border-gray-300 fluid-rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                        <p className="fluid-text-xs text-gray-500 fluid-mt-1">Máximo de retomas que un candidato puede solicitar por asignación ECM</p>
                       </div>
                     </div>
                   </div>

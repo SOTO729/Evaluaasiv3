@@ -1663,6 +1663,9 @@ def configure_campus(campus_id):
             campus.certification_cost = float(data['certification_cost']) if data['certification_cost'] else 0
         if 'retake_cost' in data:
             campus.retake_cost = float(data['retake_cost']) if data['retake_cost'] else 0
+        if 'max_retakes' in data:
+            val = data['max_retakes']
+            campus.max_retakes = int(val) if val else 1
         
         # ECM (Estándares de Competencia) asignados al plantel
         if 'competency_standard_ids' in data:
@@ -1757,6 +1760,7 @@ def get_campus_config(campus_id):
                 'assignment_validity_months': campus.assignment_validity_months or 12,
                 'certification_cost': float(campus.certification_cost) if campus.certification_cost else 0,
                 'retake_cost': float(campus.retake_cost) if campus.retake_cost else 0,
+                'max_retakes': campus.max_retakes if campus.max_retakes is not None else 1,
                 'configuration_completed': campus.configuration_completed or False,
                 'configuration_completed_at': campus.configuration_completed_at.isoformat() if campus.configuration_completed_at else None,
             }
@@ -2663,6 +2667,7 @@ def get_group_config(group_id):
             'require_exam_pin': campus.require_exam_pin or False,
             'certification_cost': float(campus.certification_cost) if campus.certification_cost else 0,
             'retake_cost': float(campus.retake_cost) if campus.retake_cost else 0,
+            'max_retakes': campus.max_retakes if campus.max_retakes is not None else 1,
             'assignment_validity_months': campus.assignment_validity_months or 12,
         }
         
@@ -2680,6 +2685,7 @@ def get_group_config(group_id):
             'require_exam_pin_override': group.require_exam_pin_override,
             'certification_cost_override': float(group.certification_cost_override) if group.certification_cost_override is not None else None,
             'retake_cost_override': float(group.retake_cost_override) if group.retake_cost_override is not None else None,
+            'max_retakes_override': group.max_retakes_override,
             'assignment_validity_months_override': group.assignment_validity_months_override,
         }
         
@@ -2697,6 +2703,7 @@ def get_group_config(group_id):
             'require_exam_pin': group.require_exam_pin_override if group.require_exam_pin_override is not None else (campus.require_exam_pin or False),
             'certification_cost': float(group.certification_cost_override) if group.certification_cost_override is not None else (float(campus.certification_cost) if campus.certification_cost else 0),
             'retake_cost': float(group.retake_cost_override) if group.retake_cost_override is not None else (float(campus.retake_cost) if campus.retake_cost else 0),
+            'max_retakes': group.max_retakes_override if group.max_retakes_override is not None else (campus.max_retakes if campus.max_retakes is not None else 1),
             'assignment_validity_months': group.assignment_validity_months_override if group.assignment_validity_months_override is not None else (campus.assignment_validity_months or 12),
         }
         
@@ -2804,6 +2811,9 @@ def update_group_config(group_id):
             group.certification_cost_override = data['certification_cost_override']
         if 'retake_cost_override' in data:
             group.retake_cost_override = data['retake_cost_override']
+        if 'max_retakes_override' in data:
+            val = data['max_retakes_override']
+            group.max_retakes_override = int(val) if val is not None else None
         
         # Vigencia de asignaciones
         if 'assignment_validity_months_override' in data:
@@ -2855,6 +2865,7 @@ def reset_group_config(group_id):
         group.require_exam_pin_override = None
         group.certification_cost_override = None
         group.retake_cost_override = None
+        group.max_retakes_override = None
         group.group_start_date = None
         group.group_end_date = None
         group.assignment_validity_months_override = None
@@ -4581,6 +4592,7 @@ def assignment_cost_preview(group_id):
     """Calcular el desglose de costo de una asignación antes de confirmar
     
     Body:
+    - exam_id: ID del examen (para verificar ECMs ya asignados)
     - assignment_type: 'all' | 'selected'
     - member_ids: lista de user_ids (solo si selected)
     
@@ -4592,13 +4604,15 @@ def assignment_cost_preview(group_id):
         
         assignment_type = data.get('assignment_type', 'all')
         member_ids = data.get('member_ids', [])
+        exam_id = data.get('exam_id')
         
-        # Calcular cantidad de unidades (alumnos)
+        # Calcular lista de usuarios objetivo
         if assignment_type == 'selected':
-            units = len(member_ids)
+            target_user_ids = member_ids
         else:
-            units = group.members.count()
+            target_user_ids = [m.user_id for m in group.members.all()]
         
+        units = len(target_user_ids)
         if units == 0:
             return jsonify({'error': 'No hay candidatos para asignar'}), 400
         
@@ -4614,7 +4628,21 @@ def assignment_cost_preview(group_id):
         else:
             unit_cost = 0.0
         
-        total_cost = unit_cost * units
+        # Verificar cuántos ya tienen el ECM asignado (no se cobran)
+        already_assigned_count = 0
+        if exam_id:
+            from app.models import Exam
+            exam = Exam.query.get(exam_id)
+            ecm_id = exam.competency_standard_id if exam else None
+            if ecm_id:
+                from app.models.partner import EcmCandidateAssignment
+                already_assigned_count = EcmCandidateAssignment.query.filter(
+                    EcmCandidateAssignment.user_id.in_(target_user_ids),
+                    EcmCandidateAssignment.competency_standard_id == ecm_id
+                ).count()
+        
+        billable_count = units - already_assigned_count
+        total_cost = unit_cost * billable_count
         
         # Obtener saldo actual del coordinador
         coordinator_id = g.current_user.id
@@ -4630,6 +4658,8 @@ def assignment_cost_preview(group_id):
         return jsonify({
             'unit_cost': unit_cost,
             'units': units,
+            'billable_count': billable_count,
+            'already_assigned_count': already_assigned_count,
             'total_cost': total_cost,
             'current_balance': current_balance,
             'remaining_balance': remaining_balance,
@@ -4890,8 +4920,46 @@ def assign_exam_to_group(group_id):
                 )
                 db.session.add(material)
         
+        # ========== ASIGNACIONES ECM PERMANENTES (verificar primero para cobrar correctamente) ==========
+        already_assigned = []
+        new_assignments = []
+        ecm_id = exam.competency_standard_id
+        new_ecm_user_ids = []
+        
+        # Determinar lista de user_ids afectados
+        if assignment_type == 'selected':
+            target_user_ids = member_ids
+        else:
+            target_user_ids = [m.user_id for m in group.members.all()]
+        
+        if ecm_id:
+            from app.models.partner import EcmCandidateAssignment
+            
+            for uid in target_user_ids:
+                existing_assignment = EcmCandidateAssignment.query.filter_by(
+                    user_id=uid,
+                    competency_standard_id=ecm_id
+                ).first()
+                
+                if existing_assignment:
+                    user_obj = User.query.get(uid)
+                    already_assigned.append({
+                        'user_id': uid,
+                        'user_name': user_obj.full_name if user_obj else uid,
+                        'user_email': user_obj.email if user_obj else '',
+                        'user_curp': user_obj.curp if user_obj else '',
+                        'assignment_number': existing_assignment.assignment_number,
+                        'assigned_at': existing_assignment.assigned_at.isoformat() if existing_assignment.assigned_at else None,
+                        'original_group': existing_assignment.group_name,
+                    })
+                else:
+                    new_ecm_user_ids.append(uid)
+        else:
+            # Sin ECM, todos son "nuevos" para el cobro
+            new_ecm_user_ids = target_user_ids
+        
         # ========== VERIFICACIÓN Y DEDUCCIÓN DE SALDO ==========
-        # Calcular costo de la asignación
+        # Solo cobrar por candidatos que NO tienen ya el ECM asignado
         campus = Campus.query.get(group.campus_id)
         if group.certification_cost_override is not None:
             unit_cost = float(group.certification_cost_override)
@@ -4900,8 +4968,8 @@ def assign_exam_to_group(group_id):
         else:
             unit_cost = 0.0
         
-        assigned_count = len(member_ids) if assignment_type == 'selected' else group.members.count()
-        total_cost = unit_cost * assigned_count
+        billable_count = len(new_ecm_user_ids)
+        total_cost = unit_cost * billable_count
         
         # Solo verificar y deducir si hay costo > 0
         if total_cost > 0:
@@ -4916,12 +4984,15 @@ def assign_exam_to_group(group_id):
                     'error_type': 'insufficient_balance',
                     'required': total_cost,
                     'available': current_balance,
-                    'deficit': total_cost - current_balance
+                    'deficit': total_cost - current_balance,
+                    'already_assigned_count': len(already_assigned),
+                    'billable_count': billable_count
                 }), 400
             
             # Deducir saldo y crear transacción
             exam_name = exam.name if exam else f'Examen #{exam_id}'
-            notes = f'Asignación de "{exam_name}" a grupo "{group.name}" - {assigned_count} unidad(es) x ${unit_cost:,.2f}'
+            skipped_note = f' ({len(already_assigned)} omitido(s) por ya tener ECM)' if already_assigned else ''
+            notes = f'Asignación de "{exam_name}" a grupo "{group.name}" - {billable_count} unidad(es) x ${unit_cost:,.2f}{skipped_note}'
             
             create_balance_transaction(
                 coordinator_id=coordinator_id,
@@ -4934,55 +5005,23 @@ def assign_exam_to_group(group_id):
                 created_by_id=coordinator_id
             )
         
-        # ========== ASIGNACIONES ECM PERMANENTES ==========
-        already_assigned = []
-        new_assignments = []
-        ecm_id = exam.competency_standard_id
-        
+        # Crear EcmCandidateAssignment para los nuevos
         if ecm_id:
-            from app.models.partner import EcmCandidateAssignment
-            
-            # Determinar lista de user_ids afectados
-            if assignment_type == 'selected':
-                target_user_ids = member_ids
-            else:
-                target_user_ids = [m.user_id for m in group.members.all()]
-            
-            for uid in target_user_ids:
-                # Verificar si ya tiene este ECM asignado
-                existing_assignment = EcmCandidateAssignment.query.filter_by(
+            for uid in new_ecm_user_ids:
+                new_ecm = EcmCandidateAssignment(
+                    assignment_number=EcmCandidateAssignment.generate_assignment_number(),
                     user_id=uid,
-                    competency_standard_id=ecm_id
-                ).first()
-                
-                if existing_assignment:
-                    # Ya tienen asignación - recopilar info para resumen
-                    user_obj = User.query.get(uid)
-                    already_assigned.append({
-                        'user_id': uid,
-                        'user_name': user_obj.full_name if user_obj else uid,
-                        'user_email': user_obj.email if user_obj else '',
-                        'user_curp': user_obj.curp if user_obj else '',
-                        'assignment_number': existing_assignment.assignment_number,
-                        'assigned_at': existing_assignment.assigned_at.isoformat() if existing_assignment.assigned_at else None,
-                        'original_group': existing_assignment.group_name,
-                    })
-                else:
-                    # Nueva asignación
-                    new_ecm = EcmCandidateAssignment(
-                        assignment_number=EcmCandidateAssignment.generate_assignment_number(),
-                        user_id=uid,
-                        competency_standard_id=ecm_id,
-                        exam_id=exam_id,
-                        campus_id=group.campus_id,
-                        group_id=group_id,
-                        group_name=group.name,
-                        group_exam_id=group_exam.id,
-                        assigned_by_id=g.current_user.id,
-                        assignment_source='selected' if assignment_type == 'selected' else 'bulk'
-                    )
-                    db.session.add(new_ecm)
-                    new_assignments.append(new_ecm)
+                    competency_standard_id=ecm_id,
+                    exam_id=exam_id,
+                    campus_id=group.campus_id,
+                    group_id=group_id,
+                    group_name=group.name,
+                    group_exam_id=group_exam.id,
+                    assigned_by_id=g.current_user.id,
+                    assignment_source='selected' if assignment_type == 'selected' else 'bulk'
+                )
+                db.session.add(new_ecm)
+                new_assignments.append(new_ecm)
         
         db.session.commit()
         
@@ -5015,7 +5054,7 @@ def assign_exam_to_group(group_id):
             message += f' Con {materials_count} material(es) de estudio.'
         
         if already_assigned:
-            message += f' {len(already_assigned)} candidato(s) ya tenían este ECM asignado previamente.'
+            message += f' {len(already_assigned)} candidato(s) ya tenían este ECM asignado previamente (sin cobro).'
         
         response_data = {
             'message': message,
@@ -5024,6 +5063,12 @@ def assign_exam_to_group(group_id):
             'assigned_members_count': len(member_ids) if assignment_type == 'selected' else group.members.count(),
             'new_ecm_assignments_count': len(new_assignments),
             'new_assignments': new_assignments_detail,
+            'billing': {
+                'unit_cost': unit_cost,
+                'billable_count': billable_count,
+                'total_cost': total_cost,
+                'skipped_count': len(already_assigned),
+            },
         }
         
         if already_assigned:
@@ -5466,7 +5511,31 @@ def get_group_exam_members_detail(group_id, exam_id):
         results = final_q.offset((page - 1) * per_page).limit(per_page).all()
 
         # ── Format results ──
+        # Pre-fetch retake counts for all users in this page
+        page_user_ids = [r.user_id for r in results]
+        retake_map = {}  # user_id -> {count, active_count}
+        if ecm_id and page_user_ids:
+            from app.models.partner import EcmRetake
+            retake_rows = db.session.query(
+                EcmRetake.user_id,
+                func.count(EcmRetake.id).label('total_retakes'),
+                func.sum(case((EcmRetake.status == 'active', 1), else_=0)).label('active_retakes')
+            ).filter(
+                EcmRetake.group_exam_id == group_exam.id,
+                EcmRetake.user_id.in_(page_user_ids)
+            ).group_by(EcmRetake.user_id).all()
+            for row in retake_rows:
+                retake_map[row.user_id] = {
+                    'total': row.total_retakes or 0,
+                    'active': int(row.active_retakes or 0)
+                }
+        
+        # Config de retomas
+        campus_for_config = Campus.query.get(group.campus_id) if group else None
+        max_retakes_config = group.max_retakes_override if group.max_retakes_override is not None else (campus_for_config.max_retakes if campus_for_config and campus_for_config.max_retakes is not None else 1)
+        
         page_members = []
+        max_attempts = group_exam.max_attempts or 1
         for r in results:
             progress_pct = round(float(r.material_progress or 0), 1)
             has_opened = (r.results_count or 0) > 0
@@ -5476,6 +5545,18 @@ def get_group_exam_members_detail(group_id, exam_id):
                 lock_reasons.append(f'Avance de material: {progress_pct}%')
             if has_opened:
                 lock_reasons.append('Ha abierto examen/simulador')
+            
+            retake_info = retake_map.get(r.user_id, {'total': 0, 'active': 0})
+            total_allowed = max_attempts + retake_info['total']
+            results_c = r.results_count or 0
+            attempts_remaining = max(0, total_allowed - results_c)
+            attempts_exhausted = results_c >= total_allowed
+            can_retake = (
+                ecm_id is not None
+                and r.eca_id is not None
+                and attempts_exhausted
+                and retake_info['total'] < max_retakes_config
+            )
 
             page_members.append({
                 'user_id': r.user_id,
@@ -5494,9 +5575,16 @@ def get_group_exam_members_detail(group_id, exam_id):
                 'ecm_assignment_date': r.eca_assigned_at.isoformat() if r.eca_assigned_at else None,
                 'material_progress': progress_pct,
                 'has_opened_exam': has_opened,
-                'results_count': r.results_count or 0,
+                'results_count': results_c,
                 'is_locked': locked,
                 'lock_reasons': lock_reasons,
+                'retakes_count': retake_info['total'],
+                'retakes_active': retake_info['active'],
+                'max_retakes': max_retakes_config,
+                'total_allowed_attempts': total_allowed,
+                'attempts_remaining': attempts_remaining,
+                'attempts_exhausted': attempts_exhausted,
+                'can_retake': can_retake,
             })
 
         ecm_code = None
@@ -5513,6 +5601,8 @@ def get_group_exam_members_detail(group_id, exam_id):
             'ecm_id': ecm_id,
             'ecm_code': ecm_code,
             'assignment_type': group_exam.assignment_type,
+            'max_attempts': max_attempts,
+            'max_retakes': max_retakes_config,
             'members': page_members,
             'total': total,
             'page': page,
@@ -5756,6 +5846,288 @@ def swap_exam_member(group_id, exam_id):
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+# ============== RETOMAS ECM ==============
+
+@bp.route('/groups/<int:group_id>/exams/<int:exam_id>/members/<string:user_id>/retake', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def apply_ecm_retake(group_id, exam_id, user_id):
+    """Aplicar una retoma a un candidato que agotó sus intentos.
+    
+    La retoma:
+    1. Verifica que el candidato agotó todos sus intentos (max_attempts)
+    2. Verifica que no se excede el máximo de retomas configurado
+    3. Cobra retake_cost del saldo del coordinador
+    4. Da 1 intento adicional al candidato
+    """
+    try:
+        from app.models import GroupExam
+        from app.models.partner import EcmCandidateAssignment, EcmRetake
+        from app.models.result import Result
+        from app.models.balance import CoordinatorBalance, create_balance_transaction
+
+        group = CandidateGroup.query.get_or_404(group_id)
+        campus = Campus.query.get(group.campus_id)
+
+        group_exam = GroupExam.query.filter_by(
+            group_id=group_id,
+            exam_id=exam_id,
+            is_active=True
+        ).first()
+        if not group_exam:
+            return jsonify({'error': 'Asignación de examen no encontrada'}), 404
+
+        exam = group_exam.exam
+        ecm_id = exam.competency_standard_id if exam else None
+        if not ecm_id:
+            return jsonify({'error': 'Este examen no tiene un ECM asignado. Las retomas solo aplican a certificaciones ECM.'}), 400
+
+        # Buscar la asignación ECM del candidato
+        ecm_assignment = EcmCandidateAssignment.query.filter_by(
+            user_id=user_id,
+            competency_standard_id=ecm_id
+        ).first()
+        if not ecm_assignment:
+            return jsonify({'error': 'El candidato no tiene una asignación ECM para este estándar'}), 404
+
+        # Contar resultados del candidato en este group_exam
+        results_count = Result.query.filter_by(
+            user_id=user_id,
+            group_exam_id=group_exam.id
+        ).count()
+
+        # Contar retomas activas existentes para este candidato en este group_exam
+        active_retakes = EcmRetake.query.filter_by(
+            assignment_id=ecm_assignment.id,
+            group_exam_id=group_exam.id
+        ).filter(EcmRetake.status.in_(['active', 'used'])).count()
+
+        # Los intentos totales = max_attempts original + retomas activas/usadas
+        total_allowed = (group_exam.max_attempts or 1) + active_retakes
+        
+        if results_count < total_allowed:
+            remaining = total_allowed - results_count
+            return jsonify({
+                'error': f'El candidato aún tiene {remaining} intento(s) disponible(s). La retoma solo se puede aplicar cuando se agotan todos los intentos.',
+                'results_count': results_count,
+                'total_allowed': total_allowed,
+                'remaining': remaining
+            }), 400
+
+        # Verificar máximo de retomas
+        max_retakes = 1  # Default
+        if group.max_retakes_override is not None:
+            max_retakes = group.max_retakes_override
+        elif campus and campus.max_retakes is not None:
+            max_retakes = campus.max_retakes
+        
+        if active_retakes >= max_retakes:
+            return jsonify({
+                'error': f'Se alcanzó el máximo de retomas permitidas ({max_retakes}) para esta asignación.',
+                'max_retakes': max_retakes,
+                'current_retakes': active_retakes
+            }), 400
+
+        # Verificar que no haya aprobado ya
+        approved_result = Result.query.filter_by(
+            user_id=user_id,
+            group_exam_id=group_exam.id,
+            result=1  # aprobado
+        ).first()
+        if approved_result:
+            return jsonify({'error': 'El candidato ya aprobó este examen. No necesita retoma.'}), 400
+
+        # Calcular costo de retoma
+        if group.retake_cost_override is not None:
+            retake_cost = float(group.retake_cost_override)
+        elif campus and campus.retake_cost is not None:
+            retake_cost = float(campus.retake_cost)
+        else:
+            retake_cost = 0.0
+
+        # Verificar saldo del coordinador
+        transaction_id = None
+        if retake_cost > 0:
+            coordinator_id = g.current_user.id
+            balance = CoordinatorBalance.query.filter_by(coordinator_id=coordinator_id).first()
+            current_balance = float(balance.current_balance) if balance else 0.0
+            
+            if current_balance < retake_cost:
+                return jsonify({
+                    'error': f'Saldo insuficiente. La retoma cuesta ${retake_cost:,.2f} pero tu saldo es ${current_balance:,.2f}',
+                    'error_type': 'insufficient_balance',
+                    'required': retake_cost,
+                    'available': current_balance,
+                    'deficit': retake_cost - current_balance
+                }), 400
+
+            # Deducir saldo
+            user_obj = User.query.get(user_id)
+            user_name = user_obj.full_name if user_obj else user_id
+            exam_name = exam.name if exam else f'Examen #{exam_id}'
+            notes = f'Retoma #{active_retakes + 1} de "{exam_name}" para {user_name} (Asignación {ecm_assignment.assignment_number}) en grupo "{group.name}"'
+            
+            transaction = create_balance_transaction(
+                coordinator_id=coordinator_id,
+                transaction_type='debit',
+                concept='asignacion_retoma',
+                amount=retake_cost,
+                reference_type='group_exam',
+                reference_id=group_exam.id,
+                notes=notes,
+                created_by_id=coordinator_id
+            )
+            if transaction:
+                transaction_id = transaction.id
+
+        # Crear la retoma
+        retake = EcmRetake(
+            assignment_id=ecm_assignment.id,
+            group_exam_id=group_exam.id,
+            user_id=user_id,
+            cost=retake_cost,
+            transaction_id=transaction_id,
+            status='active',
+            applied_by_id=g.current_user.id
+        )
+        db.session.add(retake)
+        db.session.commit()
+
+        user_obj = User.query.get(user_id)
+        return jsonify({
+            'message': f'Retoma aplicada exitosamente para {user_obj.full_name if user_obj else user_id}',
+            'retake': retake.to_dict(),
+            'retake_number': active_retakes + 1,
+            'max_retakes': max_retakes,
+            'cost': retake_cost,
+            'new_total_attempts': total_allowed + 1,
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/exams/<int:exam_id>/retake-preview', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def preview_ecm_retake(group_id, exam_id):
+    """Preview del costo de una retoma antes de aplicarla.
+    
+    Body JSON: { "user_id": "uuid" }
+    """
+    try:
+        from app.models import GroupExam
+        from app.models.partner import EcmCandidateAssignment, EcmRetake
+        from app.models.result import Result
+
+        data = request.get_json()
+        user_id = data.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Se requiere user_id'}), 400
+
+        group = CandidateGroup.query.get_or_404(group_id)
+        campus = Campus.query.get(group.campus_id)
+        
+        group_exam = GroupExam.query.filter_by(
+            group_id=group_id, exam_id=exam_id, is_active=True
+        ).first()
+        if not group_exam:
+            return jsonify({'error': 'Asignación no encontrada'}), 404
+
+        exam = group_exam.exam
+        ecm_id = exam.competency_standard_id if exam else None
+        
+        ecm_assignment = EcmCandidateAssignment.query.filter_by(
+            user_id=user_id, competency_standard_id=ecm_id
+        ).first() if ecm_id else None
+
+        # Contar retomas existentes
+        active_retakes = 0
+        if ecm_assignment:
+            active_retakes = EcmRetake.query.filter_by(
+                assignment_id=ecm_assignment.id,
+                group_exam_id=group_exam.id
+            ).filter(EcmRetake.status.in_(['active', 'used'])).count()
+
+        # Resultados
+        results_count = Result.query.filter_by(
+            user_id=user_id, group_exam_id=group_exam.id
+        ).count()
+        total_allowed = (group_exam.max_attempts or 1) + active_retakes
+
+        # Configuración
+        max_retakes = group.max_retakes_override if group.max_retakes_override is not None else (campus.max_retakes if campus and campus.max_retakes is not None else 1)
+        retake_cost = float(group.retake_cost_override) if group.retake_cost_override is not None else (float(campus.retake_cost) if campus and campus.retake_cost else 0)
+
+        # Saldo
+        from app.models.balance import CoordinatorBalance
+        balance = CoordinatorBalance.query.filter_by(coordinator_id=g.current_user.id).first()
+        current_balance = float(balance.current_balance) if balance else 0.0
+
+        # Verificar si aprobó
+        approved = Result.query.filter_by(
+            user_id=user_id, group_exam_id=group_exam.id, result=1
+        ).first() is not None
+
+        can_apply = (
+            ecm_id is not None
+            and ecm_assignment is not None
+            and results_count >= total_allowed
+            and active_retakes < max_retakes
+            and not approved
+            and current_balance >= retake_cost
+        )
+
+        user_obj = User.query.get(user_id)
+        return jsonify({
+            'can_apply': can_apply,
+            'user_name': user_obj.full_name if user_obj else user_id,
+            'assignment_number': ecm_assignment.assignment_number if ecm_assignment else None,
+            'retake_cost': retake_cost,
+            'current_balance': current_balance,
+            'sufficient_balance': current_balance >= retake_cost,
+            'results_count': results_count,
+            'total_allowed': total_allowed,
+            'attempts_remaining': max(0, total_allowed - results_count),
+            'current_retakes': active_retakes,
+            'max_retakes': max_retakes,
+            'retakes_remaining': max(0, max_retakes - active_retakes),
+            'has_approved': approved,
+            'has_ecm': ecm_id is not None,
+            'has_assignment': ecm_assignment is not None,
+            'reasons': _get_retake_block_reasons(
+                ecm_id, ecm_assignment, results_count, total_allowed,
+                active_retakes, max_retakes, approved, current_balance, retake_cost
+            )
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+def _get_retake_block_reasons(ecm_id, ecm_assignment, results_count, total_allowed,
+                               active_retakes, max_retakes, approved, current_balance, retake_cost):
+    """Devuelve lista de razones por las que NO se puede aplicar retoma."""
+    reasons = []
+    if not ecm_id:
+        reasons.append('El examen no tiene un ECM asignado')
+    if not ecm_assignment:
+        reasons.append('El candidato no tiene asignación ECM')
+    if results_count < total_allowed:
+        remaining = total_allowed - results_count
+        reasons.append(f'Aún tiene {remaining} intento(s) disponible(s)')
+    if active_retakes >= max_retakes:
+        reasons.append(f'Alcanzó el máximo de retomas ({max_retakes})')
+    if approved:
+        reasons.append('Ya aprobó el examen')
+    if retake_cost > 0 and current_balance < retake_cost:
+        reasons.append(f'Saldo insuficiente (necesita ${retake_cost:,.2f}, tiene ${current_balance:,.2f})')
+    return reasons
 
 
 # ============== MATERIALES DE ESTUDIO SIN EXAMEN ==============

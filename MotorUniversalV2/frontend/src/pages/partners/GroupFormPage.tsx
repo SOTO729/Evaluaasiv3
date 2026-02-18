@@ -87,6 +87,7 @@ export default function GroupFormPage() {
     require_exam_pin_override: null as boolean | null,
     certification_cost_override: null as number | null,
     retake_cost_override: null as number | null,
+    max_retakes_override: null as number | null,
     assignment_validity_months_override: null as number | null,
   });
 
@@ -180,6 +181,7 @@ export default function GroupFormPage() {
         require_exam_pin_override: config.group_overrides.require_exam_pin_override ?? null,
         certification_cost_override: config.group_overrides.certification_cost_override ?? null,
         retake_cost_override: config.group_overrides.retake_cost_override ?? null,
+        max_retakes_override: (config.group_overrides as any).max_retakes_override ?? null,
         assignment_validity_months_override: config.group_overrides.assignment_validity_months_override ?? null,
       });
     } catch (err: any) {
@@ -688,6 +690,33 @@ export default function GroupFormPage() {
                             className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm"
                           />
                         </div>
+                      </div>
+
+                      {/* Máx. Retomas */}
+                      <div className="fluid-p-4 rounded-fluid-xl bg-gray-50">
+                        <div className="flex items-center fluid-gap-3 fluid-mb-3">
+                          <div className="fluid-p-2 rounded-fluid-lg bg-purple-100 text-purple-600">
+                            <RefreshCw className="fluid-icon-base" />
+                          </div>
+                          <span className="font-medium text-gray-800 fluid-text-sm">Máx. Retomas por Asignación</span>
+                          {configOverrides.max_retakes_override === null && (
+                            <span className="fluid-text-xs fluid-px-2 fluid-py-1 bg-blue-100 text-blue-600 rounded-fluid">H</span>
+                          )}
+                        </div>
+                        <p className="fluid-text-xs text-gray-500 fluid-mb-2">
+                          Número máximo de retomas permitidas por candidato.
+                          {(groupConfig?.campus_config as any)?.max_retakes != null && (
+                            <span className="text-purple-600 font-medium"> (Campus: {(groupConfig.campus_config as any).max_retakes})</span>
+                          )}
+                        </p>
+                        <input
+                          type="number"
+                          min="1"
+                          max="99"
+                          value={configOverrides.max_retakes_override ?? (groupConfig?.campus_config as any)?.max_retakes ?? 1}
+                          onChange={(e) => handleConfigChange('max_retakes_override', e.target.value ? parseInt(e.target.value, 10) : null)}
+                          className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm"
+                        />
                       </div>
 
                       {/* Vigencia de Asignaciones */}

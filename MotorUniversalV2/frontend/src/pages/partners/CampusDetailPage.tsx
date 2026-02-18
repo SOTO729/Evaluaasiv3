@@ -674,7 +674,7 @@ export default function CampusDetailPage() {
             Costos y Vigencia
           </h3>
           <div className="fluid-space-y-6">
-            <div className="grid grid-cols-2 fluid-gap-5">
+            <div className="grid grid-cols-3 fluid-gap-5">
               <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-fluid-xl fluid-p-5 text-center border border-green-100 hover:shadow-md transition-all duration-200">
                 <p className="fluid-text-2xl font-bold text-green-700">${campus.certification_cost || 0}</p>
                 <p className="fluid-text-sm text-green-600 font-semibold fluid-mt-2">Certificación</p>
@@ -682,6 +682,10 @@ export default function CampusDetailPage() {
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-fluid-xl fluid-p-5 text-center border border-blue-100 hover:shadow-md transition-all duration-200">
                 <p className="fluid-text-2xl font-bold text-blue-700">${campus.retake_cost || 0}</p>
                 <p className="fluid-text-sm text-blue-600 font-semibold fluid-mt-2">Retoma</p>
+              </div>
+              <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-fluid-xl fluid-p-5 text-center border border-purple-100 hover:shadow-md transition-all duration-200">
+                <p className="fluid-text-2xl font-bold text-purple-700">{(campus as any).max_retakes ?? 1}</p>
+                <p className="fluid-text-sm text-purple-600 font-semibold fluid-mt-2">Máx. Retomas</p>
               </div>
             </div>
             {campus.assignment_validity_months ? (

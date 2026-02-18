@@ -29,6 +29,7 @@ import {
   ChevronRight,
   RefreshCw,
   Filter,
+  RotateCcw,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
@@ -37,10 +38,13 @@ import {
   getGroupMembers,
   getExamMembersDetail,
   swapExamMember,
+  previewEcmRetake,
+  applyEcmRetake,
   CandidateGroup,
   GroupMember,
   ExamMemberDetail,
   ExamMembersDetailResponse,
+  RetakePreviewResponse,
 } from '../../services/partnersService';
 
 type SortField = 'name' | 'email' | 'curp' | 'assignment_number' | 'progress' | 'status';
@@ -84,6 +88,13 @@ export default function GroupEditAssignmentMembersPage() {
   const [swapCandidates, setSwapCandidates] = useState<GroupMember[]>([]);
   const [swapSearching, setSwapSearching] = useState(false);
   const [swapTotalResults, setSwapTotalResults] = useState(0);
+
+  // Retake modal
+  const [showRetakeModal, setShowRetakeModal] = useState(false);
+  const [retakeTarget, setRetakeTarget] = useState<ExamMemberDetail | null>(null);
+  const [retakePreview, setRetakePreview] = useState<RetakePreviewResponse | null>(null);
+  const [retakeLoading, setRetakeLoading] = useState(false);
+  const [applyingRetake, setApplyingRetake] = useState(false);
 
   // Race condition prevention
   const searchRequestRef = useRef(0);
@@ -214,6 +225,41 @@ export default function GroupEditAssignmentMembersPage() {
   };
 
 
+
+  // ---- Retake handlers ----
+  const handleInitRetake = async (member: ExamMemberDetail) => {
+    setRetakeTarget(member);
+    setRetakePreview(null);
+    setShowRetakeModal(true);
+    try {
+      setRetakeLoading(true);
+      const preview = await previewEcmRetake(Number(groupId), Number(assignmentId), member.user_id);
+      setRetakePreview(preview);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al obtener vista previa de retoma');
+      setShowRetakeModal(false);
+    } finally {
+      setRetakeLoading(false);
+    }
+  };
+
+  const handleConfirmRetake = async () => {
+    if (!retakeTarget) return;
+    try {
+      setApplyingRetake(true);
+      setError(null);
+      const result = await applyEcmRetake(Number(groupId), Number(assignmentId), retakeTarget.user_id);
+      setSuccessMessage(`${result.message} — Nuevo saldo: $${result.new_balance.toFixed(2)}. Intentos totales: ${result.total_allowed_attempts}`);
+      setShowRetakeModal(false);
+      setRetakeTarget(null);
+      setRetakePreview(null);
+      await handleSearch(currentPage, pageSize);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al aplicar retoma');
+    } finally {
+      setApplyingRetake(false);
+    }
+  };
 
   const handleInitSwap = (member: ExamMemberDetail) => {
     setSwapFrom(member);
@@ -563,7 +609,10 @@ export default function GroupEditAssignmentMembersPage() {
                   <th onClick={() => handleSort('status')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100 select-none">
                     Estado{renderSortIcon('status')}
                   </th>
-                  <th className="fluid-px-4 fluid-py-3 text-center fluid-text-xs font-semibold text-gray-600 uppercase w-28">
+                  <th className="fluid-px-4 fluid-py-3 text-center fluid-text-xs font-semibold text-gray-600 uppercase">
+                    Intentos
+                  </th>
+                  <th className="fluid-px-4 fluid-py-3 text-center fluid-text-xs font-semibold text-gray-600 uppercase w-36">
                     Acción
                   </th>
                 </tr>
@@ -571,7 +620,7 @@ export default function GroupEditAssignmentMembersPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {searching && members.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center">
+                    <td colSpan={8} className="py-12 text-center">
                       <Loader2 className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-2" />
                       <p className="text-gray-500 text-sm">Cargando candidatos...</p>
                     </td>
@@ -663,20 +712,53 @@ export default function GroupEditAssignmentMembersPage() {
                         )}
                       </td>
 
+                      {/* Intentos */}
+                      <td className="fluid-px-4 fluid-py-3 text-center">
+                        <div className="flex flex-col items-center">
+                          <span className={`inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-0.5 rounded-full fluid-text-xs font-semibold ${
+                            member.attempts_exhausted
+                              ? 'bg-red-100 text-red-700'
+                              : member.results_count > 0
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {member.results_count} / {member.total_allowed_attempts}
+                          </span>
+                          {member.retakes_count > 0 && (
+                            <span className="fluid-text-xs text-purple-600 fluid-mt-0.5">
+                              +{member.retakes_count} retoma{member.retakes_count > 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
                       {/* Acción */}
                       <td className="fluid-px-4 fluid-py-3 text-center">
-                        {member.is_locked ? (
-                          <span className="fluid-text-xs text-gray-400">—</span>
-                        ) : (
-                          <button
-                            onClick={() => handleInitSwap(member)}
-                            className="inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1.5 text-indigo-600 hover:bg-indigo-50 rounded-fluid-lg transition-colors fluid-text-xs font-medium border border-indigo-200 hover:border-indigo-300"
-                            title="Reasignar a otro candidato"
-                          >
-                            <Repeat2 className="h-3.5 w-3.5" />
-                            <span className="hidden xl:inline">Reasignar</span>
-                          </button>
-                        )}
+                        <div className="flex items-center justify-center fluid-gap-1">
+                          {!member.is_locked && (
+                            <button
+                              onClick={() => handleInitSwap(member)}
+                              className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1.5 text-indigo-600 hover:bg-indigo-50 rounded-fluid-lg transition-colors fluid-text-xs font-medium border border-indigo-200 hover:border-indigo-300"
+                              title="Reasignar a otro candidato"
+                            >
+                              <Repeat2 className="h-3.5 w-3.5" />
+                              <span className="hidden xl:inline">Reasignar</span>
+                            </button>
+                          )}
+                          {member.can_retake && (
+                            <button
+                              onClick={() => handleInitRetake(member)}
+                              className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1.5 text-purple-600 hover:bg-purple-50 rounded-fluid-lg transition-colors fluid-text-xs font-medium border border-purple-200 hover:border-purple-300"
+                              title="Aplicar retoma (1 intento adicional)"
+                            >
+                              <RotateCcw className="h-3.5 w-3.5" />
+                              <span className="hidden xl:inline">Retoma</span>
+                            </button>
+                          )}
+                          {member.is_locked && !member.can_retake && (
+                            <span className="fluid-text-xs text-gray-400">—</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -904,6 +986,135 @@ export default function GroupEditAssignmentMembersPage() {
                   <Repeat2 className="w-4 h-4" />
                 )}
                 {swapping ? 'Reasignando...' : 'Confirmar Reasignación'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL DE RETOMA ===== */}
+      {showRetakeModal && retakeTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => !applyingRetake && setShowRetakeModal(false)}
+        >
+          <div
+            className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                  <RotateCcw className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Aplicar Retoma</h2>
+                  <p className="text-sm text-gray-500">
+                    1 intento adicional para <strong>{retakeTarget.user?.full_name}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => !applyingRetake && setShowRetakeModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6">
+              {retakeLoading ? (
+                <div className="text-center py-8">
+                  <Loader2 className="w-8 h-8 animate-spin text-purple-500 mx-auto mb-3" />
+                  <p className="text-gray-500 text-sm">Calculando retoma...</p>
+                </div>
+              ) : retakePreview ? (
+                <div className="space-y-4">
+                  {/* Info candidato */}
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                      {retakeTarget.user?.name?.charAt(0).toUpperCase() || '?'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 text-sm">{retakePreview.user_name}</p>
+                      <p className="text-xs text-gray-500">
+                        N° Asignación: <span className="font-mono font-bold">{retakePreview.assignment_number || '—'}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Detalles */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-blue-50 rounded-xl">
+                      <p className="text-xs text-blue-600 font-medium">Intentos usados</p>
+                      <p className="text-lg font-bold text-blue-800">
+                        {retakePreview.results_count} / {retakePreview.max_attempts + retakePreview.retakes_count}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-purple-50 rounded-xl">
+                      <p className="text-xs text-purple-600 font-medium">Retomas aplicadas</p>
+                      <p className="text-lg font-bold text-purple-800">
+                        {retakePreview.retakes_count} / {retakePreview.max_retakes}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Costo y saldo */}
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-amber-700">Costo de retoma</span>
+                      <span className="text-lg font-bold text-amber-800">${retakePreview.retake_cost.toFixed(2)}</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-amber-700">Saldo actual</span>
+                      <span className="text-sm font-medium text-amber-800">${retakePreview.coordinator_balance.toFixed(2)}</span>
+                    </div>
+                    <hr className="border-amber-300 my-2" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-amber-700">Saldo después</span>
+                      <span className={`text-sm font-bold ${retakePreview.balance_after >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                        ${retakePreview.balance_after.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Razones de bloqueo */}
+                  {!retakePreview.can_apply && retakePreview.reasons.length > 0 && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                      <p className="text-sm font-medium text-red-700 mb-1">No se puede aplicar la retoma:</p>
+                      {retakePreview.reasons.map((r, i) => (
+                        <p key={i} className="text-xs text-red-600 flex items-center gap-1">
+                          <XCircle className="h-3 w-3 flex-shrink-0" /> {r}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => !applyingRetake && setShowRetakeModal(false)}
+                disabled={applyingRetake}
+                className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-fluid-xl hover:bg-gray-100 disabled:opacity-50 font-medium text-sm transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmRetake}
+                disabled={applyingRetake || retakeLoading || !retakePreview?.can_apply}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium text-sm transition-colors"
+              >
+                {applyingRetake ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RotateCcw className="w-4 h-4" />
+                )}
+                {applyingRetake ? 'Aplicando...' : 'Confirmar Retoma'}
               </button>
             </div>
           </div>

@@ -661,6 +661,7 @@ export interface ConfigureCampusRequest {
   assignment_validity_months?: number;
   certification_cost?: number;
   retake_cost?: number;
+  max_retakes?: number;
   competency_standard_ids?: number[];  // IDs de ECM asignados al plantel
   complete_configuration?: boolean;  // Marcar configuración como completada
 }
@@ -1935,6 +1936,14 @@ export interface ExamMemberDetail {
   results_count: number;
   is_locked: boolean;
   lock_reasons: string[];
+  // Retoma fields
+  retakes_count: number;
+  retakes_active: number;
+  max_retakes: number;
+  total_allowed_attempts: number;
+  attempts_remaining: number;
+  attempts_exhausted: boolean;
+  can_retake: boolean;
 }
 
 export interface ExamMembersDetailResponse {
@@ -1944,6 +1953,8 @@ export interface ExamMembersDetailResponse {
   ecm_id: number | null;
   ecm_code: string | null;
   assignment_type: 'all' | 'selected';
+  max_attempts: number;
+  max_retakes: number;
   members: ExamMemberDetail[];
   total: number;
   page: number;
@@ -1984,6 +1995,57 @@ export async function swapExamMember(
     from_user_id: fromUserId,
     to_user_id: toUserId
   });
+  return response.data;
+}
+
+// ============== RETOMAS ECM ==============
+
+export interface RetakePreviewResponse {
+  can_apply: boolean;
+  reasons: string[];
+  user_id: string;
+  user_name: string;
+  assignment_number: string | null;
+  results_count: number;
+  max_attempts: number;
+  retakes_count: number;
+  max_retakes: number;
+  retake_cost: number;
+  coordinator_balance: number;
+  balance_after: number;
+}
+
+export async function previewEcmRetake(
+  groupId: number,
+  examId: number,
+  userId: string
+): Promise<RetakePreviewResponse> {
+  const response = await api.post(`/partners/groups/${groupId}/exams/${examId}/retake-preview`, {
+    user_id: userId
+  });
+  return response.data;
+}
+
+export interface ApplyRetakeResponse {
+  message: string;
+  retake: {
+    id: number;
+    assignment_id: number;
+    user_id: string;
+    cost: number;
+    status: string;
+    applied_at: string;
+  };
+  new_balance: number;
+  total_allowed_attempts: number;
+}
+
+export async function applyEcmRetake(
+  groupId: number,
+  examId: number,
+  userId: string
+): Promise<ApplyRetakeResponse> {
+  const response = await api.post(`/partners/groups/${groupId}/exams/${examId}/members/${userId}/retake`);
   return response.data;
 }
 

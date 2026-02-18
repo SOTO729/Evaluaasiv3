@@ -42,6 +42,7 @@ from app.models.partner import (
     GroupStudyMaterial,
     GroupStudyMaterialMember,
     EcmCandidateAssignment,
+    EcmRetake,
     MEXICAN_STATES,
     user_partners
 )
@@ -105,6 +106,7 @@ __all__ = [
     'GroupStudyMaterial',
     'GroupStudyMaterialMember',
     'EcmCandidateAssignment',
+    'EcmRetake',
     'MEXICAN_STATES',
     'user_partners',
     # Balance models

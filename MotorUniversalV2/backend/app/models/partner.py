@@ -225,6 +225,7 @@ class Campus(db.Model):
     # Costos
     certification_cost = db.Column(db.Numeric(10, 2), default=0)  # Costo por certificación
     retake_cost = db.Column(db.Numeric(10, 2), default=0)  # Costo por retoma
+    max_retakes = db.Column(db.Integer, default=1)  # Máximo de retomas por asignación ECM
     
     # Configuración completada
     configuration_completed = db.Column(db.Boolean, default=False)
@@ -511,6 +512,7 @@ class CandidateGroup(db.Model):
     # Costos
     certification_cost_override = db.Column(db.Numeric(10, 2))
     retake_cost_override = db.Column(db.Numeric(10, 2))
+    max_retakes_override = db.Column(db.Integer)  # Override de máximo de retomas
     
     # Vigencia específica del grupo
     group_start_date = db.Column(db.Date)  # legacy
@@ -557,6 +559,7 @@ class CandidateGroup(db.Model):
                 'require_exam_pin_override': self.require_exam_pin_override,
                 'certification_cost_override': float(self.certification_cost_override) if self.certification_cost_override is not None else None,
                 'retake_cost_override': float(self.retake_cost_override) if self.retake_cost_override is not None else None,
+                'max_retakes_override': self.max_retakes_override,
                 'assignment_validity_months_override': self.assignment_validity_months_override,
             }
             
@@ -575,6 +578,7 @@ class CandidateGroup(db.Model):
                     'require_exam_pin': self.require_exam_pin_override if self.require_exam_pin_override is not None else (self.campus.require_exam_pin if self.campus.require_exam_pin is not None else False),
                     'certification_cost': float(self.certification_cost_override) if self.certification_cost_override is not None else (float(self.campus.certification_cost) if self.campus.certification_cost else 0),
                     'retake_cost': float(self.retake_cost_override) if self.retake_cost_override is not None else (float(self.campus.retake_cost) if self.campus.retake_cost else 0),
+                    'max_retakes': self.max_retakes_override if self.max_retakes_override is not None else (self.campus.max_retakes if self.campus.max_retakes is not None else 1),
                     'assignment_validity_months': self.assignment_validity_months_override if self.assignment_validity_months_override is not None else (self.campus.assignment_validity_months or 12),
                 }
         
@@ -1077,4 +1081,62 @@ class EcmCandidateAssignment(db.Model):
             'assigned_at': self.assigned_at.isoformat() if self.assigned_at else None,
             'assigned_by_id': self.assigned_by_id,
             'assignment_source': self.assignment_source,
+        }
+
+
+class EcmRetake(db.Model):
+    """Retoma de una asignación ECM.
+    
+    Cuando un candidato agota sus intentos (max_attempts) sin aprobar,
+    el coordinador puede aplicar una retoma que:
+    1. Da 1 intento adicional
+    2. Cobra retake_cost del saldo del coordinador
+    3. Queda vinculada al assignment_number original
+    """
+    
+    __tablename__ = 'ecm_retakes'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    assignment_id = db.Column(db.Integer, db.ForeignKey('ecm_candidate_assignments.id', ondelete='CASCADE'), nullable=False)
+    group_exam_id = db.Column(db.Integer, nullable=False)  # GroupExam donde se aplica la retoma
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    
+    # Costo cobrado
+    cost = db.Column(db.Numeric(10, 2), default=0)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('balance_transactions.id', ondelete='SET NULL'))
+    
+    # Estado
+    status = db.Column(db.String(20), default='active', nullable=False)  # active, used, expired
+    
+    # Intentos: la retoma da exactamente 1 intento adicional
+    result_id = db.Column(db.String(36))  # ID del Result generado al usar la retoma (nullable)
+    
+    applied_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    applied_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    used_at = db.Column(db.DateTime)  # Cuando el candidato usó la retoma
+    
+    # Relaciones
+    assignment = db.relationship('EcmCandidateAssignment', backref=db.backref('retakes', lazy='dynamic'))
+    user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('ecm_retakes', lazy='dynamic'))
+    applied_by = db.relationship('User', foreign_keys=[applied_by_id])
+    transaction = db.relationship('BalanceTransaction')
+    
+    __table_args__ = (
+        db.Index('ix_ecm_retakes_assignment', 'assignment_id'),
+        db.Index('ix_ecm_retakes_user_group_exam', 'user_id', 'group_exam_id'),
+    )
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'assignment_id': self.assignment_id,
+            'assignment_number': self.assignment.assignment_number if self.assignment else None,
+            'group_exam_id': self.group_exam_id,
+            'user_id': self.user_id,
+            'cost': float(self.cost) if self.cost else 0,
+            'status': self.status,
+            'result_id': self.result_id,
+            'applied_by_id': self.applied_by_id,
+            'applied_at': self.applied_at.isoformat() if self.applied_at else None,
+            'used_at': self.used_at.isoformat() if self.used_at else None,
         }
