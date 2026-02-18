@@ -36,7 +36,10 @@ import {
   Award,
   Timer,
   Gamepad2,
-  CheckCircle
+  CheckCircle,
+  Trophy,
+  ArrowRight,
+  X
 } from 'lucide-react'
 import LoadingSpinner from '../../components/LoadingSpinner'
 
@@ -53,9 +56,15 @@ const ExamCard = ({
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const isCandidate = user?.role === 'candidato' || user?.role === 'responsable';
+  const [showApprovedModal, setShowApprovedModal] = useState(false);
 
   const handleCardClick = () => {
     if (isCandidate) {
+      // Si ya está aprobado, mostrar anuncio primero
+      if (exam.is_approved) {
+        setShowApprovedModal(true);
+        return;
+      }
       const params = new URLSearchParams();
       if (exam.group_id) params.set('gid', String(exam.group_id));
       if (exam.group_exam_id) params.set('geid', String(exam.group_exam_id));
@@ -66,7 +75,17 @@ const ExamCard = ({
     }
   };
 
+  const handleContinueToExam = () => {
+    setShowApprovedModal(false);
+    const params = new URLSearchParams();
+    if (exam.group_id) params.set('gid', String(exam.group_id));
+    if (exam.group_exam_id) params.set('geid', String(exam.group_exam_id));
+    const qs = params.toString();
+    navigate(`/exams/${exam.id}/select-mode${qs ? '?' + qs : ''}`);
+  };
+
   return (
+    <>
     <div 
       className={`bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden group animate-stagger-in ${
         isCandidate && exam.is_approved
@@ -223,6 +242,53 @@ const ExamCard = ({
         )}
       </div>
     </div>
+
+    {/* Modal de examen aprobado */}
+    {showApprovedModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowApprovedModal(false)}>
+        <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in" onClick={e => e.stopPropagation()}>
+          {/* Header verde */}
+          <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 px-6 py-8 text-center relative">
+            <button
+              onClick={() => setShowApprovedModal(false)}
+              className="absolute top-3 right-3 text-white/70 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3">
+              <Trophy className="w-8 h-8 text-white" />
+            </div>
+            <h3 className="text-xl font-bold text-white">¡Examen Aprobado!</h3>
+            {exam.best_score != null && (
+              <p className="text-emerald-100 text-sm mt-1">Tu mejor calificación: <strong className="text-white">{exam.best_score}%</strong></p>
+            )}
+          </div>
+          {/* Body */}
+          <div className="px-6 py-5">
+            <p className="text-gray-600 text-sm text-center mb-5">
+              Ya aprobaste <strong className="text-gray-800">{exam.name}</strong>. Puedes ver tu certificado o volver a presentar el examen.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => { setShowApprovedModal(false); navigate('/certificates'); }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold transition-colors shadow-sm"
+              >
+                <Award className="w-5 h-5" />
+                Ver Certificados
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleContinueToExam}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors text-sm"
+              >
+                Ir al examen de todas formas
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
