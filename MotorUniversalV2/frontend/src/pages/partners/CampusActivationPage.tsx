@@ -1787,10 +1787,10 @@ export default function CampusActivationPage() {
 
                       {/* Visibilidad de certificados para candidatos */}
                       <div className={`flex items-center justify-between p-4 border-2 rounded-xl transition-all ${
-                        configData.enable_candidate_certificates ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'
+                        configData.enable_candidate_certificates ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'
                       }`}>
                         <div className="flex items-center gap-3">
-                          <Award className="w-5 h-5 text-teal-600" />
+                          <Award className="w-5 h-5 text-emerald-600" />
                           <div>
                             <span className="font-medium text-gray-800">Certificados Visibles</span>
                             <p className="text-xs text-gray-500 mt-0.5">Los candidatos pueden ver y descargar sus propios certificados</p>
@@ -1799,11 +1799,11 @@ export default function CampusActivationPage() {
                         <ToggleSwitch
                           checked={configData.enable_candidate_certificates}
                           onChange={(v) => setConfigData(prev => ({ ...prev, enable_candidate_certificates: v }))}
-                          colorScheme="teal"
+                          colorScheme="emerald"
                         />
                       </div>
 
-                      {/* PIN de Seguridad para Exámenes */}}
+                      {/* PIN de Seguridad para Exámenes */}
                       <div className={`flex items-center justify-between p-4 border-2 rounded-xl transition-all ${
                         configData.require_exam_pin ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-gray-300'
                       }`}>
