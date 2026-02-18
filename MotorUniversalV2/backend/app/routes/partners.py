@@ -9115,7 +9115,27 @@ def get_mis_examenes():
             Exam.is_published == True
         ).order_by(Exam.updated_at.desc()).all()
         
-        # Enriquecer con contexto de grupo
+        # Para candidatos: obtener mejor resultado aprobado por exam_id
+        approved_map = {}  # exam_id -> best_score
+        if user.role == 'candidato':
+            from app.models.result import Result
+            from sqlalchemy import func
+            best_results = db.session.query(
+                Result.exam_id,
+                func.max(Result.score).label('best_score'),
+                func.max(Result.result).label('best_result')
+            ).filter(
+                Result.user_id == str(user_id),
+                Result.exam_id.in_(exam_ids),
+                Result.status == 1  # solo completados
+            ).group_by(Result.exam_id).all()
+            for r in best_results:
+                approved_map[r.exam_id] = {
+                    'best_score': r.best_score or 0,
+                    'is_approved': (r.best_result or 0) == 1
+                }
+        
+        # Enriquecer con contexto de grupo y estado de aprobación
         exams_data = []
         for exam in exams:
             d = exam.to_dict()
@@ -9123,6 +9143,14 @@ def get_mis_examenes():
             if ctx:
                 d['group_id'] = ctx['group_id']
                 d['group_exam_id'] = ctx['group_exam_id']
+            # Agregar estado de aprobación
+            approval = approved_map.get(exam.id)
+            if approval:
+                d['is_approved'] = approval['is_approved']
+                d['best_score'] = approval['best_score']
+            else:
+                d['is_approved'] = False
+                d['best_score'] = None
             exams_data.append(d)
         
         return jsonify({

@@ -35,7 +35,8 @@ import {
   ChevronRight,
   Award,
   Timer,
-  Gamepad2
+  Gamepad2,
+  CheckCircle
 } from 'lucide-react'
 import LoadingSpinner from '../../components/LoadingSpinner'
 
@@ -67,7 +68,11 @@ const ExamCard = ({
 
   return (
     <div 
-      className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 group animate-stagger-in"
+      className={`bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden group animate-stagger-in ${
+        isCandidate && exam.is_approved
+          ? 'border-2 border-emerald-300 ring-1 ring-emerald-100'
+          : 'border border-gray-100'
+      }`}
       style={{ animationDelay: `${index * 50}ms` }}
     >
       {/* Card Image - altura fija para consistencia */}
@@ -109,6 +114,16 @@ const ExamCard = ({
                   Borrador
                 </>
               )}
+            </span>
+          </div>
+        )}
+
+        {/* Badge Aprobado - Para candidatos que ya aprobaron */}
+        {isCandidate && exam.is_approved && (
+          <div className="absolute top-3 left-3">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500 text-white shadow-lg">
+              <CheckCircle className="w-3.5 h-3.5" />
+              Aprobado {exam.best_score != null ? `· ${exam.best_score}%` : ''}
             </span>
           </div>
         )}
