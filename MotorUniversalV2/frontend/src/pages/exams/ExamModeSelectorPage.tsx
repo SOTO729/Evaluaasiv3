@@ -68,8 +68,8 @@ const ExamModeSelectorPage = () => {
   });
 
   const handleSelectMode = (mode: 'exam' | 'simulator') => {
-    // Bloquear solo examen oficial si no hay intentos
-    if (mode === 'exam' && access?.attempts_exhausted) return;
+    // Bloquear examen y simulador si no hay intentos
+    if (access?.attempts_exhausted) return;
     // Navegar directamente al onboarding (flujo de inicio)
     navigate(`/exams/${id}/onboarding/${mode}${groupQueryString ? '?' + groupQueryString : ''}`);
   };
@@ -172,7 +172,7 @@ const ExamModeSelectorPage = () => {
                   Intentos agotados
                 </h3>
                 <p className="fluid-text-base text-red-700 fluid-mb-1">
-                  Has utilizado todos tus intentos disponibles para el <strong>Examen Oficial</strong>.
+                  Has utilizado todos tus intentos disponibles para el <strong>Examen Oficial</strong> y el <strong>Simulador</strong>.
                 </p>
                 <p className="fluid-text-sm text-red-600">
                   Intentos utilizados: <strong>{access.attempts_used}</strong> de <strong>{access.total_allowed}</strong>
@@ -212,7 +212,7 @@ const ExamModeSelectorPage = () => {
             <div className="flex items-center fluid-gap-2 justify-center">
               <ShieldAlert className="fluid-icon-sm text-amber-600" />
               <span className="fluid-text-sm text-amber-800">
-                Te {access.attempts_remaining === 1 ? 'queda' : 'quedan'} <strong>{access.attempts_remaining}</strong> {access.attempts_remaining === 1 ? 'intento' : 'intentos'} para el examen oficial
+                Te {access.attempts_remaining === 1 ? 'queda' : 'quedan'} <strong>{access.attempts_remaining}</strong> {access.attempts_remaining === 1 ? 'intento' : 'intentos'} disponible{access.attempts_remaining === 1 ? '' : 's'}
               </span>
             </div>
           </div>
@@ -263,7 +263,12 @@ const ExamModeSelectorPage = () => {
           {hasSimulatorContent && (
           <button
             onClick={() => handleSelectMode('simulator')}
-            className="group bg-white rounded-fluid-xl shadow-lg border-2 border-transparent hover:border-purple-500 fluid-p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
+            disabled={access?.attempts_exhausted}
+            className={`group bg-white rounded-fluid-xl shadow-lg border-2 border-transparent fluid-p-6 transition-all duration-300 active:scale-[0.98] ${
+              access?.attempts_exhausted
+                ? 'opacity-50 cursor-not-allowed grayscale'
+                : 'hover:border-purple-500 hover:shadow-xl hover:-translate-y-1'
+            }`}
           >
             <div className="flex flex-col items-center text-center">
               <div className="fluid-w-20 fluid-h-20 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center fluid-mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
