@@ -1649,6 +1649,10 @@ def configure_campus(campus_id):
         if 'enable_online_payments' in data:
             campus.enable_online_payments = bool(data['enable_online_payments'])
         
+        # Visibilidad de certificados para candidatos
+        if 'enable_candidate_certificates' in data:
+            campus.enable_candidate_certificates = bool(data['enable_candidate_certificates'])
+        
         # PIN de seguridad para exámenes
         if 'require_exam_pin' in data:
             campus.require_exam_pin = bool(data['require_exam_pin'])
@@ -1755,6 +1759,7 @@ def get_campus_config(campus_id):
                 'enable_unscheduled_partials': campus.enable_unscheduled_partials or False,
                 'enable_virtual_machines': campus.enable_virtual_machines or False,
                 'enable_online_payments': campus.enable_online_payments or False,
+                'enable_candidate_certificates': campus.enable_candidate_certificates or False,
             'require_exam_pin': campus.require_exam_pin or False,
             'daily_exam_pin': campus.get_daily_pin() if campus.require_exam_pin else None,
                 'assignment_validity_months': campus.assignment_validity_months or 12,
@@ -2664,6 +2669,7 @@ def get_group_config(group_id):
             'enable_unscheduled_partials': campus.enable_unscheduled_partials,
             'enable_virtual_machines': campus.enable_virtual_machines,
             'enable_online_payments': campus.enable_online_payments,
+            'enable_candidate_certificates': campus.enable_candidate_certificates if campus.enable_candidate_certificates is not None else False,
             'require_exam_pin': campus.require_exam_pin or False,
             'certification_cost': float(campus.certification_cost) if campus.certification_cost else 0,
             'retake_cost': float(campus.retake_cost) if campus.retake_cost else 0,
@@ -2682,6 +2688,7 @@ def get_group_config(group_id):
             'enable_unscheduled_partials_override': group.enable_unscheduled_partials_override,
             'enable_virtual_machines_override': group.enable_virtual_machines_override,
             'enable_online_payments_override': group.enable_online_payments_override,
+            'enable_candidate_certificates_override': group.enable_candidate_certificates_override,
             'require_exam_pin_override': group.require_exam_pin_override,
             'certification_cost_override': float(group.certification_cost_override) if group.certification_cost_override is not None else None,
             'retake_cost_override': float(group.retake_cost_override) if group.retake_cost_override is not None else None,
@@ -2700,6 +2707,7 @@ def get_group_config(group_id):
             'enable_unscheduled_partials': group.enable_unscheduled_partials_override if group.enable_unscheduled_partials_override is not None else campus.enable_unscheduled_partials,
             'enable_virtual_machines': group.enable_virtual_machines_override if group.enable_virtual_machines_override is not None else campus.enable_virtual_machines,
             'enable_online_payments': group.enable_online_payments_override if group.enable_online_payments_override is not None else campus.enable_online_payments,
+            'enable_candidate_certificates': group.enable_candidate_certificates_override if group.enable_candidate_certificates_override is not None else (campus.enable_candidate_certificates or False),
             'require_exam_pin': group.require_exam_pin_override if group.require_exam_pin_override is not None else (campus.require_exam_pin or False),
             'certification_cost': float(group.certification_cost_override) if group.certification_cost_override is not None else (float(campus.certification_cost) if campus.certification_cost else 0),
             'retake_cost': float(group.retake_cost_override) if group.retake_cost_override is not None else (float(campus.retake_cost) if campus.retake_cost else 0),
@@ -2795,6 +2803,7 @@ def update_group_config(group_id):
             'enable_unscheduled_partials_override',
             'enable_virtual_machines_override',
             'enable_online_payments_override',
+            'enable_candidate_certificates_override',
             'require_exam_pin_override',
         ]
         
@@ -2862,6 +2871,7 @@ def reset_group_config(group_id):
         group.enable_unscheduled_partials_override = None
         group.enable_virtual_machines_override = None
         group.enable_online_payments_override = None
+        group.enable_candidate_certificates_override = None
         group.require_exam_pin_override = None
         group.certification_cost_override = None
         group.retake_cost_override = None

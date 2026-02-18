@@ -109,6 +109,7 @@ export interface Campus {
   enable_unscheduled_partials?: boolean;
   enable_virtual_machines?: boolean;
   enable_online_payments?: boolean;
+  enable_candidate_certificates?: boolean;
   require_exam_pin?: boolean;
   daily_exam_pin?: string | null;
   license_start_date?: string;
@@ -155,6 +156,7 @@ export interface CandidateGroup {
     enable_unscheduled_partials: boolean;
     enable_virtual_machines: boolean;
     enable_online_payments: boolean;
+    enable_candidate_certificates: boolean;
     certification_cost: number;
     retake_cost: number;
     license_start_date: string | null;
@@ -630,6 +632,7 @@ export interface CampusConfiguration {
   // Características adicionales
   enable_virtual_machines: boolean;  // Máquinas virtuales para exámenes
   enable_online_payments: boolean;   // Pagos en línea
+  enable_candidate_certificates: boolean;  // Candidatos pueden ver sus certificados
   
   // PIN de seguridad para exámenes
   require_exam_pin: boolean;   // Requerir PIN diario para iniciar examenes
@@ -657,6 +660,7 @@ export interface ConfigureCampusRequest {
   enable_unscheduled_partials?: boolean;
   enable_virtual_machines?: boolean;
   enable_online_payments?: boolean;
+  enable_candidate_certificates?: boolean;
   require_exam_pin?: boolean;
   assignment_validity_months?: number;
   certification_cost?: number;
@@ -833,6 +837,7 @@ export interface GroupConfigOverrides {
   enable_unscheduled_partials_override?: boolean | null;
   enable_virtual_machines_override?: boolean | null;
   enable_online_payments_override?: boolean | null;
+  enable_candidate_certificates_override?: boolean | null;
   require_exam_pin_override?: boolean | null;
   certification_cost_override?: number | null;
   retake_cost_override?: number | null;
@@ -865,6 +870,7 @@ export interface GroupConfigResponse {
     enable_unscheduled_partials: boolean;
     enable_virtual_machines: boolean;
     enable_online_payments: boolean;
+    enable_candidate_certificates: boolean;
     certification_cost: number;
     retake_cost: number;
     assignment_validity_months: number;
@@ -880,6 +886,7 @@ export interface GroupConfigResponse {
     enable_unscheduled_partials: boolean;
     enable_virtual_machines: boolean;
     enable_online_payments: boolean;
+    enable_candidate_certificates: boolean;
     certification_cost: number;
     retake_cost: number;
     assignment_validity_months: number;

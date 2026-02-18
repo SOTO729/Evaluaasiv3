@@ -130,6 +130,7 @@ export default function CampusActivationPage() {
     enable_unscheduled_partials: false,
     enable_virtual_machines: false,
     enable_online_payments: false,
+    enable_candidate_certificates: false,
     require_exam_pin: false,
     assignment_validity_months: 12,
     certification_cost: 0,
@@ -181,6 +182,7 @@ export default function CampusActivationPage() {
         enable_unscheduled_partials: campus.enable_unscheduled_partials ?? prev.enable_unscheduled_partials,
         enable_virtual_machines: campus.enable_virtual_machines ?? prev.enable_virtual_machines,
         enable_online_payments: campus.enable_online_payments ?? prev.enable_online_payments,
+        enable_candidate_certificates: campus.enable_candidate_certificates ?? prev.enable_candidate_certificates,
         require_exam_pin: campus.require_exam_pin ?? prev.require_exam_pin,
         assignment_validity_months: campus.assignment_validity_months ?? prev.assignment_validity_months,
         certification_cost: campus.certification_cost ?? prev.certification_cost,
@@ -1783,7 +1785,25 @@ export default function CampusActivationPage() {
                         />
                       </div>
 
-                      {/* PIN de Seguridad para Exámenes */}
+                      {/* Visibilidad de certificados para candidatos */}
+                      <div className={`flex items-center justify-between p-4 border-2 rounded-xl transition-all ${
+                        configData.enable_candidate_certificates ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-gray-300'
+                      }`}>
+                        <div className="flex items-center gap-3">
+                          <Award className="w-5 h-5 text-teal-600" />
+                          <div>
+                            <span className="font-medium text-gray-800">Certificados Visibles</span>
+                            <p className="text-xs text-gray-500 mt-0.5">Los candidatos pueden ver y descargar sus propios certificados</p>
+                          </div>
+                        </div>
+                        <ToggleSwitch
+                          checked={configData.enable_candidate_certificates}
+                          onChange={(v) => setConfigData(prev => ({ ...prev, enable_candidate_certificates: v }))}
+                          colorScheme="teal"
+                        />
+                      </div>
+
+                      {/* PIN de Seguridad para Exámenes */}}
                       <div className={`flex items-center justify-between p-4 border-2 rounded-xl transition-all ${
                         configData.require_exam_pin ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-gray-300'
                       }`}>
@@ -2041,6 +2061,13 @@ export default function CampusActivationPage() {
                     <div className="bg-gray-50 rounded-lg p-3">
                       <p className="text-gray-500 text-xs mb-1">Pagos en Línea</p>
                       <p className="font-medium text-rose-600">Habilitados</p>
+                    </div>
+                  )}
+
+                  {campus.enable_candidate_certificates && (
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <p className="text-gray-500 text-xs mb-1">Certificados Visibles</p>
+                      <p className="font-medium text-teal-600">Habilitados</p>
                     </div>
                   )}
                 </div>

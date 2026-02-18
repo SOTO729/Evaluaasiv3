@@ -633,6 +633,13 @@ export default function CampusDetailPage() {
                   </div>
                   {campus.enable_online_payments && <CheckCircle2 className="fluid-icon-sm text-green-600" />}
                 </div>
+                <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${(campus as any).enable_candidate_certificates ? 'bg-green-100 text-green-800 border-2 border-green-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
+                  <div className="flex items-center fluid-gap-2">
+                    <Award className="fluid-icon-sm" />
+                    <span className="fluid-text-xs font-semibold">Certificados</span>
+                  </div>
+                  {(campus as any).enable_candidate_certificates && <CheckCircle2 className="fluid-icon-sm text-green-600" />}
+                </div>
                 <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${campus.require_exam_pin ? 'bg-amber-100 text-amber-800 border-2 border-amber-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
                   <div className="flex items-center fluid-gap-2">
                     <Lock className="fluid-icon-sm" />
