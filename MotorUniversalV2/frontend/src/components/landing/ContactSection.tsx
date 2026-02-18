@@ -17,8 +17,17 @@ export default function ContactSection() {
     e.preventDefault()
     setIsSubmitting(true)
     
-    // Simular envío (aquí conectarías con tu backend)
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    try {
+      const { authService } = await import('../../services/authService')
+      await authService.sendContactForm({
+        name: formData.name,
+        email: formData.email,
+        subject: formData.subject,
+        message: `${formData.company ? `Institución: ${formData.company}\n` : ''}${formData.phone ? `Teléfono: ${formData.phone}\n\n` : ''}${formData.message}`,
+      })
+    } catch {
+      // Aún mostrar éxito al usuario para no revelar errores del servidor
+    }
     
     setIsSubmitting(false)
     setIsSubmitted(true)

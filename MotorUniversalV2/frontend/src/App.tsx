@@ -19,6 +19,8 @@ const TermsOfServicePage = lazy(() => import('./pages/landing/TermsOfServicePage
 const VerifyPage = lazy(() => import('./pages/verify/VerifyPage'))
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
+const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'))
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'))
 const HomePage = lazy(() => import('./pages/HomePage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const ExamsListPage = lazy(() => import('./pages/exams/ExamsListPage'))
@@ -197,6 +199,12 @@ function App() {
           } />
           <Route path="/register" element={
             isAuthenticated ? <Navigate to="/dashboard" /> : <RegisterPage />
+          } />
+          <Route path="/forgot-password" element={
+            isAuthenticated ? <Navigate to="/dashboard" /> : <ForgotPasswordPage />
+          } />
+          <Route path="/reset-password" element={
+            isAuthenticated ? <Navigate to="/dashboard" /> : <ResetPasswordPage />
           } />
 
           {/* Protected routes */}

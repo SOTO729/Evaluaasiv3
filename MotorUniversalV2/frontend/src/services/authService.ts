@@ -28,4 +28,22 @@ export const authService = {
     })
     return response.data
   },
+
+  forgotPassword: async (email: string): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>('/auth/forgot-password', { email })
+    return response.data
+  },
+
+  resetPassword: async (token: string, newPassword: string): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>('/auth/reset-password', {
+      token,
+      new_password: newPassword,
+    })
+    return response.data
+  },
+
+  sendContactForm: async (data: { name: string; email: string; subject: string; message: string }): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>('/auth/contact', data)
+    return response.data
+  },
 }

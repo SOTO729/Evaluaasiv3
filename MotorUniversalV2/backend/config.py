@@ -55,6 +55,12 @@ class Config:
     # Azure Key Vault
     AZURE_KEY_VAULT_URL = os.getenv('AZURE_KEY_VAULT_URL', '')
     
+    # Azure Communication Services (Email)
+    ACS_CONNECTION_STRING = os.getenv('ACS_CONNECTION_STRING', '')
+    ACS_SENDER_EMAIL = os.getenv('ACS_SENDER_EMAIL', 'DoNotReply@15832cde-409e-4487-a3e6-d8da9a86f6b8.azurecomm.net')
+    APP_URL = os.getenv('APP_URL', 'https://app.evaluaasi.com')
+    CONTACT_RECIPIENT = os.getenv('CONTACT_RECIPIENT', 'contacto@evaluaasi.com')
+    
     # Upload
     MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 2 * 1024 * 1024 * 1024))  # 2GB para videos
     ALLOWED_EXTENSIONS = set(os.getenv('ALLOWED_EXTENSIONS', 'png,jpg,jpeg,gif,pdf').split(','))

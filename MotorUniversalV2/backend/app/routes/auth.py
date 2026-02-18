@@ -16,6 +16,7 @@ from app.models.partner import GroupMember
 from app.utils.rate_limit import (
     rate_limit_login, 
     rate_limit_register,
+    rate_limit_password_reset,
     is_account_locked,
     increment_failed_login,
     reset_failed_login,
@@ -23,8 +24,12 @@ from app.utils.rate_limit import (
     MAX_FAILED_ATTEMPTS,
     LOCKOUT_DURATION
 )
-from datetime import datetime
+from datetime import datetime, timedelta
 import redis
+import secrets
+import logging
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('auth', __name__)
 
@@ -491,3 +496,203 @@ def request_email_change():
         'old_email': old_email,
         'new_email': new_email
     }), 200
+
+
+@bp.route('/forgot-password', methods=['POST'])
+@rate_limit_password_reset(limit=3, window=3600)
+def forgot_password():
+    """
+    Solicitar recuperación de contraseña
+    ---
+    tags:
+      - Authentication
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+          properties:
+            email:
+              type: string
+    responses:
+      200:
+        description: Si el email existe, se envía el enlace de recuperación
+    """
+    data = request.get_json()
+    email = (data.get('email') or '').strip().lower()
+    
+    if not email:
+        return jsonify({'error': 'Email es requerido'}), 400
+    
+    # Siempre responder 200 para no revelar si el email existe
+    success_msg = {
+        'message': 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.'
+    }
+    
+    user = User.query.filter(func.lower(User.email) == email).first()
+    if not user or not user.is_active:
+        return jsonify(success_msg), 200
+    
+    # Generar token seguro y guardar en Redis (expira en 1 hora)
+    token = secrets.token_urlsafe(48)
+    try:
+        if redis_client:
+            # Guardar: token -> user_id, con TTL de 1 hora
+            redis_client.setex(f'pwreset:{token}', 3600, user.id)
+            # Guardar referencia inversa para invalidar tokens previos
+            old_token = redis_client.get(f'pwreset_user:{user.id}')
+            if old_token:
+                redis_client.delete(f'pwreset:{old_token.decode()}')
+            redis_client.setex(f'pwreset_user:{user.id}', 3600, token)
+        else:
+            logger.error("Redis no disponible para forgot-password")
+            return jsonify(success_msg), 200
+    except Exception as e:
+        logger.error(f"Error guardando token de reset: {e}")
+        return jsonify(success_msg), 200
+    
+    # Enviar email
+    try:
+        from app.services.email_service import send_password_reset_email
+        send_password_reset_email(user, token)
+    except Exception as e:
+        logger.error(f"Error enviando email de reset: {e}")
+    
+    return jsonify(success_msg), 200
+
+
+@bp.route('/reset-password', methods=['POST'])
+def reset_password():
+    """
+    Restablecer contraseña con token
+    ---
+    tags:
+      - Authentication
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - token
+            - new_password
+          properties:
+            token:
+              type: string
+            new_password:
+              type: string
+    responses:
+      200:
+        description: Contraseña restablecida exitosamente
+      400:
+        description: Token inválido o expirado
+    """
+    data = request.get_json()
+    token = data.get('token')
+    new_password = data.get('new_password')
+    
+    if not token or not new_password:
+        return jsonify({'error': 'Token y nueva contraseña son requeridos'}), 400
+    
+    if len(new_password) < 8:
+        return jsonify({'error': 'La contraseña debe tener al menos 8 caracteres'}), 400
+    
+    # Buscar token en Redis
+    try:
+        if not redis_client:
+            return jsonify({'error': 'Servicio no disponible'}), 503
+        
+        user_id = redis_client.get(f'pwreset:{token}')
+        if not user_id:
+            return jsonify({'error': 'El enlace ha expirado o es inválido. Solicita uno nuevo.'}), 400
+        
+        user_id = user_id.decode()
+    except Exception as e:
+        logger.error(f"Error verificando token de reset: {e}")
+        return jsonify({'error': 'Error al verificar el enlace'}), 500
+    
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    
+    # Actualizar contraseña
+    user.set_password(new_password)
+    db.session.commit()
+    
+    # Invalidar token usado
+    try:
+        redis_client.delete(f'pwreset:{token}')
+        redis_client.delete(f'pwreset_user:{user_id}')
+    except Exception:
+        pass
+    
+    logger.info(f"Contraseña restablecida para usuario {user.username} ({user.email})")
+    
+    return jsonify({
+        'message': 'Contraseña restablecida exitosamente. Ya puedes iniciar sesión con tu nueva contraseña.'
+    }), 200
+
+
+@bp.route('/contact', methods=['POST'])
+@rate_limit_password_reset(limit=5, window=3600)  # Reusar rate limit: 5/hora
+def contact_form():
+    """
+    Formulario de contacto (landing page)
+    ---
+    tags:
+      - Authentication
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - name
+            - email
+            - message
+          properties:
+            name:
+              type: string
+            email:
+              type: string
+            subject:
+              type: string
+            message:
+              type: string
+    responses:
+      200:
+        description: Mensaje enviado
+      400:
+        description: Datos inválidos
+    """
+    data = request.get_json()
+    
+    name = (data.get('name') or '').strip()
+    email = (data.get('email') or '').strip()
+    subject_text = (data.get('subject') or 'Sin asunto').strip()
+    message = (data.get('message') or '').strip()
+    
+    if not name or not email or not message:
+        return jsonify({'error': 'Nombre, email y mensaje son requeridos'}), 400
+    
+    # Validar formato de email
+    import re
+    if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
+        return jsonify({'error': 'Formato de email inválido'}), 400
+    
+    # Enviar email
+    try:
+        from app.services.email_service import send_contact_form_email
+        sent = send_contact_form_email(name, email, subject_text, message)
+        if sent:
+            return jsonify({'message': 'Mensaje enviado exitosamente. Nos pondremos en contacto pronto.'}), 200
+        else:
+            return jsonify({'message': 'Tu mensaje fue recibido. Nos pondremos en contacto pronto.'}), 200
+    except Exception as e:
+        logger.error(f"Error en formulario de contacto: {e}")
+        return jsonify({'message': 'Tu mensaje fue recibido. Nos pondremos en contacto pronto.'}), 200

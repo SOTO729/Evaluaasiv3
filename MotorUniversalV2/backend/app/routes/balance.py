@@ -450,6 +450,33 @@ def review_request(request_id):
         
         db.session.commit()
         
+        # Enviar email al gerente cuando financiero recomienda aprobar/rechazar
+        if action in ('recommend_approve', 'recommend_reject'):
+            try:
+                from app.services.email_service import send_balance_approval_email
+                # Buscar gerentes activos para notificar
+                gerentes = User.query.filter_by(role='gerente', is_active=True).all()
+                coordinator = User.query.get(balance_request.coordinator_id)
+                campus = Campus.query.get(coordinator.campus_id) if coordinator and coordinator.campus_id else None
+                
+                for gerente in gerentes:
+                    if gerente.email:
+                        send_balance_approval_email(
+                            gerente_email=gerente.email,
+                            gerente_name=gerente.full_name or gerente.name or 'Gerente',
+                            request_id=request_id,
+                            coordinator_name=coordinator.full_name if coordinator else 'N/A',
+                            campus_name=campus.name if campus else 'N/A',
+                            amount=float(balance_request.amount_requested),
+                            request_type=balance_request.request_type or 'recarga',
+                            justification=balance_request.justification or '',
+                            financiero_notes=balance_request.financiero_notes,
+                            recommended_amount=balance_request.financiero_recommended_amount,
+                        )
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Error enviando email de aprobación a gerente: {e}")
+        
         return jsonify({
             'message': 'Solicitud actualizada',
             'request': balance_request.to_dict(include_coordinator=True, include_campus=True, 
@@ -576,6 +603,23 @@ def approve_request(request_id):
         
         db.session.commit()
         
+        # Notificar al coordinador que su solicitud fue aprobada
+        try:
+            from app.services.email_service import send_balance_resolution_email
+            coordinator = User.query.get(balance_request.coordinator_id)
+            if coordinator and coordinator.email:
+                send_balance_resolution_email(
+                    coordinator_email=coordinator.email,
+                    coordinator_name=coordinator.full_name or coordinator.name or 'Coordinador',
+                    approved=True,
+                    amount=amount_approved,
+                    request_type=balance_request.request_type or 'recarga',
+                    approver_notes=data.get('notes', ''),
+                )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Error enviando email de aprobación a coordinador: {e}")
+        
         return jsonify({
             'message': f'Saldo aprobado: ${amount_approved:,.2f}',
             'request': balance_request.to_dict(include_coordinator=True, include_campus=True, 
@@ -634,6 +678,23 @@ def reject_request(request_id):
         )
         
         db.session.commit()
+        
+        # Notificar al coordinador que su solicitud fue rechazada
+        try:
+            from app.services.email_service import send_balance_resolution_email
+            coordinator = User.query.get(balance_request.coordinator_id)
+            if coordinator and coordinator.email:
+                send_balance_resolution_email(
+                    coordinator_email=coordinator.email,
+                    coordinator_name=coordinator.full_name or coordinator.name or 'Coordinador',
+                    approved=False,
+                    amount=float(balance_request.amount_requested),
+                    request_type=balance_request.request_type or 'recarga',
+                    approver_notes=data['notes'],
+                )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Error enviando email de rechazo a coordinador: {e}")
         
         return jsonify({
             'message': 'Solicitud rechazada',
