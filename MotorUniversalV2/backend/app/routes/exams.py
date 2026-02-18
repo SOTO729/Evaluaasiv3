@@ -3006,6 +3006,92 @@ def options_evaluate_exam(exam_id):
     response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
     return response
 
+@bp.route('/<int:exam_id>/check-access', methods=['GET'])
+@jwt_required()
+def check_exam_access(exam_id):
+    """
+    Verifica si el candidato puede presentar un examen basándose en sus intentos.
+    Retorna info de intentos y precio de retoma si los intentos están agotados.
+    
+    Query params:
+        geid: group_exam_id (requerido)
+    """
+    try:
+        from app.models.result import Result
+        from app.models.partner import GroupExam, GroupMember, CandidateGroup, EcmRetake
+        
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        group_exam_id = request.args.get('geid', type=int)
+        if not group_exam_id:
+            return jsonify({'error': 'Se requiere group_exam_id (geid)'}), 400
+        
+        group_exam = GroupExam.query.get(group_exam_id)
+        if not group_exam:
+            return jsonify({'error': 'Asignación de examen no encontrada'}), 404
+        
+        if group_exam.exam_id != exam_id:
+            return jsonify({'error': 'El examen no corresponde a la asignación'}), 400
+        
+        # Contar resultados del usuario para este group_exam
+        results_count = Result.query.filter_by(
+            user_id=str(user_id),
+            group_exam_id=group_exam_id
+        ).count()
+        
+        max_attempts = group_exam.max_attempts or 1
+        
+        # Contar retomas activas
+        retakes_total = EcmRetake.query.filter_by(
+            user_id=str(user_id),
+            group_exam_id=group_exam_id
+        ).count()
+        
+        total_allowed = max_attempts + retakes_total
+        attempts_remaining = max(0, total_allowed - results_count)
+        attempts_exhausted = results_count >= total_allowed
+        
+        # Calcular precio de retoma (group override → campus → 0)
+        group = CandidateGroup.query.get(group_exam.group_id)
+        retake_cost = 0.0
+        if group:
+            if group.retake_cost_override is not None:
+                retake_cost = float(group.retake_cost_override)
+            elif group.campus_id:
+                from app.models.partner import Campus
+                campus = Campus.query.get(group.campus_id)
+                if campus and campus.retake_cost is not None:
+                    retake_cost = float(campus.retake_cost)
+        
+        return jsonify({
+            'can_take': not attempts_exhausted,
+            'max_attempts': max_attempts,
+            'retakes_total': retakes_total,
+            'total_allowed': total_allowed,
+            'attempts_used': results_count,
+            'attempts_remaining': attempts_remaining,
+            'attempts_exhausted': attempts_exhausted,
+            'retake_cost': retake_cost
+        }), 200
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/<int:exam_id>/check-access', methods=['OPTIONS'])
+def options_check_exam_access(exam_id):
+    response = jsonify({'status': 'ok'})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
+    return response
+
+
 @bp.route('/<int:exam_id>/save-result', methods=['POST'])
 @jwt_required()
 def save_exam_result(exam_id):
@@ -3076,6 +3162,28 @@ def save_exam_result(exam_id):
                                 break
             except Exception as resolve_err:
                 print(f"⚠️ No se pudo resolver contexto de grupo: {resolve_err}")
+        
+        # VALIDAR INTENTOS: No permitir guardar resultado si los intentos están agotados
+        if group_exam_id:
+            try:
+                from app.models.partner import GroupExam as GE2, EcmRetake
+                ge_check = GE2.query.get(group_exam_id)
+                if ge_check:
+                    max_att = ge_check.max_attempts or 1
+                    retakes_t = EcmRetake.query.filter_by(
+                        user_id=str(user_id), group_exam_id=group_exam_id
+                    ).count()
+                    total_allowed = max_att + retakes_t
+                    existing_results = Result.query.filter_by(
+                        user_id=str(user_id), group_exam_id=group_exam_id
+                    ).count()
+                    if existing_results >= total_allowed:
+                        print(f"⛔ INTENTOS AGOTADOS: user={user_id}, geid={group_exam_id}, usado={existing_results}, permitido={total_allowed}")
+                        return jsonify({
+                            'error': 'Has agotado tus intentos para este examen. Solicita una retoma a tu coordinador.'
+                        }), 403
+            except Exception as att_err:
+                print(f"⚠️ Error validando intentos: {att_err}")
         
         # DEBUG: Ver qué se está guardando
         print(f"📋 SAVE - answers_data keys: {list(answers_data.keys()) if isinstance(answers_data, dict) else 'No es dict'}")

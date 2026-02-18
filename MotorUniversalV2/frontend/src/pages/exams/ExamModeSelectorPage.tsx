@@ -10,7 +10,10 @@ import {
   FlaskConical,
   Clock,
   Award,
-  HelpCircle
+  HelpCircle,
+  ShieldAlert,
+  DollarSign,
+  RotateCcw
 } from 'lucide-react';
 
 interface ExamData {
@@ -31,10 +34,22 @@ interface ExamData {
   has_simulator_content?: boolean;
 }
 
+interface AccessData {
+  can_take: boolean;
+  max_attempts: number;
+  retakes_total: number;
+  total_allowed: number;
+  attempts_used: number;
+  attempts_remaining: number;
+  attempts_exhausted: boolean;
+  retake_cost: number;
+}
+
 const ExamModeSelectorPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const groupExamId = searchParams.get('geid');
   const groupQueryString = ['gid', 'geid'].filter(k => searchParams.get(k)).map(k => `${k}=${searchParams.get(k)}`).join('&');
 
   // Obtener datos del examen
@@ -44,7 +59,17 @@ const ExamModeSelectorPage = () => {
     enabled: !!id,
   });
 
+  // Verificar acceso (intentos restantes)
+  const { data: access, isLoading: accessLoading } = useQuery<AccessData>({
+    queryKey: ['exam-access', id, groupExamId],
+    queryFn: () => examService.checkExamAccess(Number(id), Number(groupExamId)),
+    enabled: !!id && !!groupExamId,
+    retry: false,
+  });
+
   const handleSelectMode = (mode: 'exam' | 'simulator') => {
+    // Bloquear solo examen oficial si no hay intentos
+    if (mode === 'exam' && access?.attempts_exhausted) return;
     // Navegar directamente al onboarding (flujo de inicio)
     navigate(`/exams/${id}/onboarding/${mode}${groupQueryString ? '?' + groupQueryString : ''}`);
   };
@@ -54,7 +79,7 @@ const ExamModeSelectorPage = () => {
   const hasSimulatorContent = exam?.has_simulator_content ?? ((exam?.simulator_questions_count || 0) + (exam?.simulator_exercises_count || 0)) > 0;
   const hasBothModes = hasExamContent && hasSimulatorContent;
 
-  if (isLoading) {
+  if (isLoading || accessLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <LoadingSpinner message="Cargando examen..." />
@@ -135,6 +160,64 @@ const ExamModeSelectorPage = () => {
           </div>
         </div>
 
+        {/* Alerta de intentos agotados */}
+        {access?.attempts_exhausted && (
+          <div className="bg-red-50 rounded-fluid-xl shadow-lg border-2 border-red-200 fluid-p-6 fluid-mb-6">
+            <div className="flex flex-col items-center text-center fluid-gap-4">
+              <div className="fluid-w-16 fluid-h-16 rounded-full bg-red-100 flex items-center justify-center">
+                <ShieldAlert className="fluid-icon-xl text-red-500" />
+              </div>
+              <div>
+                <h3 className="fluid-text-xl font-bold text-red-800 fluid-mb-2">
+                  Intentos agotados
+                </h3>
+                <p className="fluid-text-base text-red-700 fluid-mb-1">
+                  Has utilizado todos tus intentos disponibles para el <strong>Examen Oficial</strong>.
+                </p>
+                <p className="fluid-text-sm text-red-600">
+                  Intentos utilizados: <strong>{access.attempts_used}</strong> de <strong>{access.total_allowed}</strong>
+                </p>
+              </div>
+              <div className="w-full max-w-sm bg-white rounded-fluid-lg fluid-p-4 border border-red-100">
+                <div className="flex items-center justify-center fluid-gap-2 fluid-mb-2">
+                  <RotateCcw className="fluid-icon-sm text-orange-500" />
+                  <span className="font-semibold text-gray-800 fluid-text-base">Solicitar Retoma</span>
+                </div>
+                <p className="fluid-text-sm text-gray-600 fluid-mb-3">
+                  Contacta a tu coordinador para solicitar una retoma del examen.
+                </p>
+                {access.retake_cost > 0 && (
+                  <div className="flex items-center justify-center fluid-gap-1 bg-orange-50 rounded-fluid fluid-py-2 fluid-px-3 border border-orange-200">
+                    <DollarSign className="fluid-icon-sm text-orange-600" />
+                    <span className="font-bold text-orange-700 fluid-text-lg">
+                      ${access.retake_cost.toFixed(2)} MXN
+                    </span>
+                  </div>
+                )}
+                {access.retake_cost === 0 && (
+                  <div className="flex items-center justify-center fluid-gap-1 bg-green-50 rounded-fluid fluid-py-2 fluid-px-3 border border-green-200">
+                    <span className="font-medium text-green-700 fluid-text-sm">
+                      Retoma sin costo adicional
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Info de intentos restantes (cuando quedan pocos) */}
+        {access && !access.attempts_exhausted && access.attempts_remaining <= 2 && access.attempts_remaining > 0 && (
+          <div className="bg-amber-50 rounded-fluid-lg fluid-p-3 border border-amber-200 fluid-mb-4">
+            <div className="flex items-center fluid-gap-2 justify-center">
+              <ShieldAlert className="fluid-icon-sm text-amber-600" />
+              <span className="fluid-text-sm text-amber-800">
+                Te {access.attempts_remaining === 1 ? 'queda' : 'quedan'} <strong>{access.attempts_remaining}</strong> {access.attempts_remaining === 1 ? 'intento' : 'intentos'} para el examen oficial
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Título de selección */}
         <div className="text-center fluid-mb-6">
           <h2 className="fluid-text-2xl font-bold text-gray-800 fluid-mb-2">
@@ -151,7 +234,12 @@ const ExamModeSelectorPage = () => {
           {hasExamContent && (
           <button
             onClick={() => handleSelectMode('exam')}
-            className="group bg-white rounded-fluid-xl shadow-lg border-2 border-transparent hover:border-blue-500 fluid-p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
+            disabled={access?.attempts_exhausted}
+            className={`group bg-white rounded-fluid-xl shadow-lg border-2 border-transparent fluid-p-6 transition-all duration-300 active:scale-[0.98] ${
+              access?.attempts_exhausted
+                ? 'opacity-50 cursor-not-allowed grayscale'
+                : 'hover:border-blue-500 hover:shadow-xl hover:-translate-y-1'
+            }`}
           >
             <div className="flex flex-col items-center text-center">
               <div className="fluid-w-20 fluid-h-20 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center fluid-mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">

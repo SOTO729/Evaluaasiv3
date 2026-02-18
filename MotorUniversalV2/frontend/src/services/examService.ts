@@ -410,4 +410,23 @@ export const examService = {
     })
     return response.data
   },
+
+  /**
+   * Verificar acceso al examen: intentos restantes y precio de retoma
+   */
+  checkExamAccess: async (examId: number, groupExamId: number): Promise<{
+    can_take: boolean;
+    max_attempts: number;
+    retakes_total: number;
+    total_allowed: number;
+    attempts_used: number;
+    attempts_remaining: number;
+    attempts_exhausted: boolean;
+    retake_cost: number;
+  }> => {
+    const response = await api.get(`/exams/${examId}/check-access`, {
+      params: { geid: groupExamId }
+    })
+    return response.data
+  },
 }
