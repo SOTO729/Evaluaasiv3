@@ -3129,6 +3129,28 @@ def save_exam_result(exam_id):
         # Invalidar cache del dashboard del usuario para que vea los resultados actualizados
         invalidate_on_exam_complete(str(user_id), exam_id, exam.competency_standard_id)
         
+        # Enviar email de resultado al candidato
+        try:
+            from app.services.email_service import send_exam_result_email
+            exam_user = User.query.get(str(user_id))
+            if exam_user and exam_user.email:
+                import re as re_strip
+                exam_name_clean = re_strip.sub(r'<[^>]+>', '', exam.name or 'Evaluación')
+                ecm_code = None
+                if exam.competency_standard_id:
+                    from app.models.competency_standard import CompetencyStandard
+                    std = CompetencyStandard.query.get(exam.competency_standard_id)
+                    ecm_code = std.code if std else None
+                send_exam_result_email(
+                    exam_user,
+                    exam_name_clean,
+                    int(round(percentage)),
+                    result_value == 1,
+                    ecm_code=ecm_code
+                )
+        except Exception as email_err:
+            print(f"Error enviando email de resultado: {email_err}")
+        
         print(f"✅ Resultado guardado: id={result.id}, score={score}, percentage={percentage}, aprobado={result_value == 1}")
         print(f"=== FIN GUARDAR RESULTADO ===\n")
         
@@ -3255,6 +3277,24 @@ def upload_result_report(result_id):
         # Actualizar el resultado con la URL del reporte
         result.report_url = report_url
         db.session.commit()
+        
+        # Enviar email de certificado/reporte listo
+        try:
+            from app.services.email_service import send_certificate_ready_email
+            report_user = User.query.get(result.user_id)
+            if report_user and report_user.email:
+                from app.models.exam import Exam as ExamModel
+                report_exam = ExamModel.query.get(result.exam_id)
+                import re as re_strip
+                exam_name_clean = re_strip.sub(r'<[^>]+>', '', report_exam.name or 'Evaluación') if report_exam else 'Evaluación'
+                send_certificate_ready_email(
+                    report_user,
+                    cert_type='reporte_evaluacion',
+                    cert_name=exam_name_clean,
+                    download_url=report_url
+                )
+        except Exception as email_err:
+            print(f"Error enviando email de reporte listo: {email_err}")
         
         print(f"✅ Reporte PDF guardado: {report_url}")
         print(f"=== FIN SUBIR REPORTE ===\n")

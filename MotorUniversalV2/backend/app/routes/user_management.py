@@ -531,6 +531,15 @@ def create_user():
         
         db.session.commit()
         
+        # Enviar email de bienvenida si tiene email
+        if new_user.email:
+            try:
+                from app.services.email_service import send_welcome_email
+                send_welcome_email(new_user, password)
+            except Exception as email_err:
+                import logging
+                logging.getLogger(__name__).error(f'Error enviando welcome email: {email_err}')
+        
         # Incluir la contraseña temporal en la respuesta para TODOS los roles
         response_data = {
             'message': 'Usuario creado exitosamente',
@@ -1354,6 +1363,18 @@ def bulk_upload_candidates():
         # Commit de todos los usuarios creados
         if results['created']:
             db.session.commit()
+            
+            # Enviar emails de bienvenida a candidatos con email
+            try:
+                from app.services.email_service import send_welcome_email
+                for created_info in results['created']:
+                    if created_info.get('email'):
+                        candidate = User.query.filter_by(username=created_info['username']).first()
+                        if candidate:
+                            send_welcome_email(candidate, created_info['password'])
+            except Exception as email_err:
+                import logging
+                logging.getLogger(__name__).error(f'Error enviando welcome emails bulk: {email_err}')
         
         # Si se especificó un grupo, agregar los candidatos creados como miembros
         group_assignment = None
