@@ -23,6 +23,11 @@ import {
   Building2,
   MapPin,
   GraduationCap,
+  BookOpen,
+  Timer,
+  Target,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 
 interface GroupInfo {
@@ -60,6 +65,48 @@ interface UserProfile {
   group_info?: GroupInfo | null
 }
 
+interface AssignmentConfig {
+  time_limit_minutes: number | null
+  passing_score: number | null
+  max_attempts: number
+  max_disconnections: number
+  exam_content_type: string
+  available_from: string | null
+  available_until: string | null
+  require_security_pin: boolean
+}
+
+interface AssignmentResult {
+  score: number
+  result: number // 0=reprobado, 1=aprobado
+  end_date: string | null
+  duration_seconds: number | null
+  certificate_code: string | null
+  report_url: string | null
+}
+
+interface AssignmentLastAttempt {
+  score: number
+  status: number // 0=en proceso, 1=completado, 2=abandonado
+  result: number
+  start_date: string | null
+  end_date: string | null
+}
+
+interface Assignment {
+  id: number
+  assigned_at: string | null
+  is_active: boolean
+  config: AssignmentConfig
+  exam: { id: number; name: string; version: string; standard: string; duration_minutes: number | null } | null
+  group: { id: number; name: string; code: string } | null
+  campus: { id: number; name: string; state_name: string | null; city: string | null } | null
+  membership: { status: string; joined_at: string | null } | null
+  attempts_count: number
+  best_result: AssignmentResult | null
+  last_attempt: AssignmentLastAttempt | null
+}
+
 const ProfilePage = () => {
   const { updateUser } = useAuthStore()
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -93,6 +140,11 @@ const ProfilePage = () => {
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [passwordLoading, setPasswordLoading] = useState(false)
 
+  // Historial de asignaciones
+  const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [assignmentsLoading, setAssignmentsLoading] = useState(false)
+  const [expandedAssignment, setExpandedAssignment] = useState<number | null>(null)
+
   // Determinar si el usuario tiene CURP y es candidato/responsable (bloqueo de edición)
   const hasCurpLock = profile 
     && (profile.role === 'candidato' || profile.role === 'responsable')
@@ -100,6 +152,7 @@ const ProfilePage = () => {
 
   useEffect(() => {
     loadProfile()
+    loadAssignments()
   }, [])
 
   const loadProfile = async () => {
@@ -120,6 +173,18 @@ const ProfilePage = () => {
       setError(err.response?.data?.error || 'Error al cargar el perfil')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadAssignments = async () => {
+    try {
+      setAssignmentsLoading(true)
+      const response = await api.get('/auth/my-assignments')
+      setAssignments(response.data.assignments || [])
+    } catch (err) {
+      console.error('Error loading assignments:', err)
+    } finally {
+      setAssignmentsLoading(false)
     }
   }
 
@@ -218,6 +283,43 @@ const ProfilePage = () => {
     } finally {
       setPasswordLoading(false)
     }
+  }
+
+  const formatShortDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('es-MX', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
+  }
+
+  const formatDuration = (seconds: number) => {
+    const h = Math.floor(seconds / 3600)
+    const m = Math.floor((seconds % 3600) / 60)
+    if (h > 0) return `${h}h ${m}min`
+    return `${m} min`
+  }
+
+  const getContentTypeLabel = (type: string) => {
+    const map: Record<string, string> = {
+      'questions_only': 'Solo preguntas',
+      'exercises_only': 'Solo ejercicios',
+      'mixed': 'Mixto'
+    }
+    return map[type] || type
+  }
+
+  const getResultBadge = (assignment: Assignment) => {
+    if (!assignment.best_result) {
+      if (assignment.last_attempt && assignment.last_attempt.status === 0) {
+        return { label: 'En curso', color: 'bg-blue-100 text-blue-700 border-blue-200' }
+      }
+      return { label: 'Sin intentos', color: 'bg-gray-100 text-gray-600 border-gray-200' }
+    }
+    if (assignment.best_result.result === 1) {
+      return { label: 'Aprobado', color: 'bg-green-100 text-green-700 border-green-200' }
+    }
+    return { label: 'No aprobado', color: 'bg-red-100 text-red-700 border-red-200' }
   }
 
   const formatDate = (dateString: string) => {
@@ -558,97 +660,259 @@ const ProfilePage = () => {
           {(profile?.role === 'candidato' || profile?.role === 'responsable') && (
             <div className="bg-white rounded-fluid-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden lg:col-span-2">
               <div className="fluid-px-5 fluid-py-4 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-transparent">
-                <div className="flex items-center fluid-gap-3">
-                  <div className="w-9 h-9 rounded-fluid-md bg-purple-100 flex items-center justify-center">
-                    <GraduationCap className="fluid-icon-sm text-purple-600" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center fluid-gap-3">
+                    <div className="w-9 h-9 rounded-fluid-md bg-purple-100 flex items-center justify-center">
+                      <GraduationCap className="fluid-icon-sm text-purple-600" />
+                    </div>
+                    <div>
+                      <h2 className="fluid-text-base font-semibold text-gray-900">Historial Académico</h2>
+                      <p className="fluid-text-xs text-gray-500">Todas tus asignaciones y resultados</p>
+                    </div>
                   </div>
-                  <h2 className="fluid-text-base font-semibold text-gray-900">Información Académica</h2>
+                  {assignments.length > 0 && (
+                    <span className="fluid-px-3 fluid-py-1 fluid-text-xs font-medium rounded-full bg-purple-100 text-purple-700">
+                      {assignments.length} asignación{assignments.length !== 1 ? 'es' : ''}
+                    </span>
+                  )}
                 </div>
               </div>
-              
-              {profile.group_info ? (
-                <div className="fluid-p-5">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 fluid-gap-5">
-                    {/* Grupo */}
-                    <div className="flex items-start fluid-gap-3">
-                      <div className="w-9 h-9 rounded-fluid-md bg-purple-50 flex items-center justify-center flex-shrink-0">
-                        <Users className="fluid-icon-sm text-purple-500" />
-                      </div>
-                      <div className="min-w-0">
-                        <label className="block fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Grupo</label>
-                        <p className="text-gray-900 fluid-text-sm font-semibold truncate">
-                          {profile.group_info.group_name}
-                        </p>
-                        {profile.group_info.group_code && (
-                          <p className="text-gray-500 fluid-text-xs">{profile.group_info.group_code}</p>
-                        )}
-                      </div>
+
+              {/* Resumen rápido del grupo actual */}
+              {profile.group_info && (
+                <div className="fluid-px-5 fluid-py-3 bg-blue-50/50 border-b border-gray-100">
+                  <div className="flex flex-wrap items-center fluid-gap-4 fluid-text-xs">
+                    <div className="flex items-center fluid-gap-1.5 text-gray-600">
+                      <Users className="w-3.5 h-3.5 text-purple-500" />
+                      <span className="font-medium">{profile.group_info.group_name}</span>
                     </div>
-                    
-                    {/* Plantel */}
-                    <div className="flex items-start fluid-gap-3">
-                      <div className="w-9 h-9 rounded-fluid-md bg-blue-50 flex items-center justify-center flex-shrink-0">
-                        <Building2 className="fluid-icon-sm text-blue-500" />
+                    {profile.group_info.campus_name && (
+                      <div className="flex items-center fluid-gap-1.5 text-gray-600">
+                        <Building2 className="w-3.5 h-3.5 text-blue-500" />
+                        <span>{profile.group_info.campus_name}</span>
                       </div>
-                      <div className="min-w-0">
-                        <label className="block fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Plantel</label>
-                        <p className="text-gray-900 fluid-text-sm font-semibold truncate">
-                          {profile.group_info.campus_name || '-'}
-                        </p>
+                    )}
+                    {profile.group_info.state_name && (
+                      <div className="flex items-center fluid-gap-1.5 text-gray-600">
+                        <MapPin className="w-3.5 h-3.5 text-green-500" />
+                        <span>{profile.group_info.state_name}{profile.group_info.city ? `, ${profile.group_info.city}` : ''}</span>
                       </div>
-                    </div>
-                    
-                    {/* Estado */}
-                    <div className="flex items-start fluid-gap-3">
-                      <div className="w-9 h-9 rounded-fluid-md bg-green-50 flex items-center justify-center flex-shrink-0">
-                        <MapPin className="fluid-icon-sm text-green-500" />
-                      </div>
-                      <div className="min-w-0">
-                        <label className="block fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Ubicación</label>
-                        <p className="text-gray-900 fluid-text-sm font-semibold truncate">
-                          {profile.group_info.state_name || '-'}
-                        </p>
-                        {profile.group_info.city && (
-                          <p className="text-gray-500 fluid-text-xs">{profile.group_info.city}</p>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Ciclo Escolar */}
-                    <div className="flex items-start fluid-gap-3">
-                      <div className="w-9 h-9 rounded-fluid-md bg-amber-50 flex items-center justify-center flex-shrink-0">
-                        <Calendar className="fluid-icon-sm text-amber-500" />
-                      </div>
-                      <div className="min-w-0">
-                        <label className="block fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Ciclo Escolar</label>
-                        <p className="text-gray-900 fluid-text-sm font-semibold truncate">
-                          {profile.group_info.school_cycle_name || '-'}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    {/* Fecha de Ingreso */}
-                    {profile.group_info.joined_at && (
-                      <div className="flex items-start fluid-gap-3">
-                        <div className="w-9 h-9 rounded-fluid-md bg-gray-50 flex items-center justify-center flex-shrink-0">
-                          <Clock className="fluid-icon-sm text-gray-500" />
-                        </div>
-                        <div className="min-w-0">
-                          <label className="block fluid-text-xs font-medium text-gray-500 uppercase tracking-wide">Ingreso al Grupo</label>
-                          <p className="text-gray-900 fluid-text-sm font-semibold">
-                            {formatDate(profile.group_info.joined_at)}
-                          </p>
-                        </div>
+                    )}
+                    {profile.group_info.school_cycle_name && (
+                      <div className="flex items-center fluid-gap-1.5 text-gray-600">
+                        <Calendar className="w-3.5 h-3.5 text-amber-500" />
+                        <span>{profile.group_info.school_cycle_name}</span>
                       </div>
                     )}
                   </div>
                 </div>
-              ) : (
-                <div className="fluid-p-5 text-center">
-                  <Users className="fluid-icon-xl text-gray-300 mx-auto mb-2" />
-                  <p className="text-gray-500 fluid-text-sm">No estás asignado a ningún grupo</p>
-                </div>
               )}
+
+              {/* Tabla de asignaciones */}
+              <div className="fluid-p-5">
+                {assignmentsLoading ? (
+                  <div className="flex items-center justify-center fluid-py-8">
+                    <Loader2 className="fluid-icon-base animate-spin text-purple-500" />
+                    <span className="fluid-ml-2 fluid-text-sm text-gray-500">Cargando historial...</span>
+                  </div>
+                ) : assignments.length === 0 ? (
+                  <div className="text-center fluid-py-8">
+                    <BookOpen className="fluid-icon-xl text-gray-300 mx-auto mb-2" />
+                    <p className="text-gray-500 fluid-text-sm">No tienes asignaciones registradas</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Vista desktop: tabla scrolleable */}
+                    <div className="hidden md:block overflow-x-auto rounded-fluid-lg border border-gray-200">
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-200">
+                            <th className="fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Examen</th>
+                            <th className="fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Grupo</th>
+                            <th className="fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Plantel</th>
+                            <th className="fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-center">Configuración</th>
+                            <th className="fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-center">Intentos</th>
+                            <th className="fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-center">Mejor Puntaje</th>
+                            <th className="fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-center">Estado</th>
+                            <th className="fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Fecha</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {assignments.map((a) => {
+                            const badge = getResultBadge(a)
+                            return (
+                              <tr key={a.id} className="hover:bg-gray-50/50 transition-colors">
+                                <td className="fluid-px-4 fluid-py-3">
+                                  <div className="min-w-0">
+                                    <p className="fluid-text-sm font-medium text-gray-900 truncate max-w-[200px]" title={a.exam?.name}>
+                                      {a.exam?.name || '-'}
+                                    </p>
+                                    <p className="fluid-text-xs text-gray-500">v{a.exam?.version} · {a.exam?.standard}</p>
+                                  </div>
+                                </td>
+                                <td className="fluid-px-4 fluid-py-3">
+                                  <p className="fluid-text-sm text-gray-700 whitespace-nowrap">{a.group?.name || '-'}</p>
+                                </td>
+                                <td className="fluid-px-4 fluid-py-3">
+                                  <div>
+                                    <p className="fluid-text-sm text-gray-700 whitespace-nowrap">{a.campus?.name || '-'}</p>
+                                    {a.campus?.state_name && (
+                                      <p className="fluid-text-xs text-gray-500">{a.campus.state_name}{a.campus.city ? `, ${a.campus.city}` : ''}</p>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="fluid-px-4 fluid-py-3 text-center">
+                                  <div className="flex flex-col items-center fluid-gap-1">
+                                    <div className="flex items-center fluid-gap-1 fluid-text-xs text-gray-600" title="Tiempo límite">
+                                      <Timer className="w-3 h-3" />
+                                      <span>{a.config.time_limit_minutes ? `${a.config.time_limit_minutes} min` : 'Sin límite'}</span>
+                                    </div>
+                                    <div className="flex items-center fluid-gap-1 fluid-text-xs text-gray-600" title="Calificación mínima">
+                                      <Target className="w-3 h-3" />
+                                      <span>{a.config.passing_score ?? 70}%</span>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="fluid-px-4 fluid-py-3 text-center">
+                                  <span className="fluid-text-sm font-medium text-gray-700">
+                                    {a.attempts_count} / {a.config.max_attempts}
+                                  </span>
+                                </td>
+                                <td className="fluid-px-4 fluid-py-3 text-center">
+                                  {a.best_result ? (
+                                    <span className={`fluid-text-lg font-bold ${a.best_result.result === 1 ? 'text-green-600' : 'text-red-500'}`}>
+                                      {a.best_result.score}
+                                    </span>
+                                  ) : (
+                                    <span className="fluid-text-sm text-gray-400">—</span>
+                                  )}
+                                </td>
+                                <td className="fluid-px-4 fluid-py-3 text-center">
+                                  <span className={`inline-flex fluid-px-2.5 fluid-py-1 fluid-text-xs font-medium rounded-full border ${badge.color}`}>
+                                    {badge.label}
+                                  </span>
+                                </td>
+                                <td className="fluid-px-4 fluid-py-3">
+                                  <p className="fluid-text-xs text-gray-600 whitespace-nowrap">
+                                    {a.assigned_at ? formatShortDate(a.assigned_at) : '-'}
+                                  </p>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Vista mobile: cards expandibles */}
+                    <div className="md:hidden flex flex-col fluid-gap-3">
+                      {assignments.map((a) => {
+                        const badge = getResultBadge(a)
+                        const isExpanded = expandedAssignment === a.id
+                        return (
+                          <div key={a.id} className="border border-gray-200 rounded-fluid-lg overflow-hidden">
+                            <button
+                              onClick={() => setExpandedAssignment(isExpanded ? null : a.id)}
+                              className="w-full fluid-p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex-1 min-w-0 text-left">
+                                <p className="fluid-text-sm font-medium text-gray-900 truncate">
+                                  {a.exam?.name || '-'}
+                                </p>
+                                <div className="flex items-center fluid-gap-2 fluid-mt-1">
+                                  <span className={`inline-flex fluid-px-2 fluid-py-0.5 fluid-text-xs font-medium rounded-full border ${badge.color}`}>
+                                    {badge.label}
+                                  </span>
+                                  {a.best_result && (
+                                    <span className={`fluid-text-sm font-bold ${a.best_result.result === 1 ? 'text-green-600' : 'text-red-500'}`}>
+                                      {a.best_result.score}%
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {isExpanded ? (
+                                <ChevronUp className="fluid-icon-sm text-gray-400 flex-shrink-0 ml-2" />
+                              ) : (
+                                <ChevronDown className="fluid-icon-sm text-gray-400 flex-shrink-0 ml-2" />
+                              )}
+                            </button>
+                            
+                            {isExpanded && (
+                              <div className="fluid-px-4 fluid-pb-4 border-t border-gray-100 bg-gray-50/50">
+                                <div className="grid grid-cols-2 fluid-gap-3 fluid-mt-3">
+                                  <div>
+                                    <p className="fluid-text-xs font-medium text-gray-500 uppercase">Grupo</p>
+                                    <p className="fluid-text-sm text-gray-700">{a.group?.name || '-'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="fluid-text-xs font-medium text-gray-500 uppercase">Plantel</p>
+                                    <p className="fluid-text-sm text-gray-700">{a.campus?.name || '-'}</p>
+                                    {a.campus?.state_name && (
+                                      <p className="fluid-text-xs text-gray-500">{a.campus.state_name}</p>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <p className="fluid-text-xs font-medium text-gray-500 uppercase">Tiempo Límite</p>
+                                    <p className="fluid-text-sm text-gray-700">
+                                      {a.config.time_limit_minutes ? `${a.config.time_limit_minutes} min` : 'Sin límite'}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="fluid-text-xs font-medium text-gray-500 uppercase">Cal. Mínima</p>
+                                    <p className="fluid-text-sm text-gray-700">{a.config.passing_score ?? 70}%</p>
+                                  </div>
+                                  <div>
+                                    <p className="fluid-text-xs font-medium text-gray-500 uppercase">Intentos</p>
+                                    <p className="fluid-text-sm text-gray-700">{a.attempts_count} / {a.config.max_attempts}</p>
+                                  </div>
+                                  <div>
+                                    <p className="fluid-text-xs font-medium text-gray-500 uppercase">Tipo Contenido</p>
+                                    <p className="fluid-text-sm text-gray-700">{getContentTypeLabel(a.config.exam_content_type)}</p>
+                                  </div>
+                                  <div>
+                                    <p className="fluid-text-xs font-medium text-gray-500 uppercase">Desconexiones máx.</p>
+                                    <p className="fluid-text-sm text-gray-700">{a.config.max_disconnections}</p>
+                                  </div>
+                                  <div>
+                                    <p className="fluid-text-xs font-medium text-gray-500 uppercase">Asignado</p>
+                                    <p className="fluid-text-sm text-gray-700">
+                                      {a.assigned_at ? formatShortDate(a.assigned_at) : '-'}
+                                    </p>
+                                  </div>
+                                  {a.best_result?.duration_seconds && (
+                                    <div>
+                                      <p className="fluid-text-xs font-medium text-gray-500 uppercase">Duración</p>
+                                      <p className="fluid-text-sm text-gray-700">{formatDuration(a.best_result.duration_seconds)}</p>
+                                    </div>
+                                  )}
+                                  {a.best_result?.certificate_code && (
+                                    <div className="col-span-2">
+                                      <p className="fluid-text-xs font-medium text-gray-500 uppercase">Certificado</p>
+                                      <p className="fluid-text-sm text-gray-700 font-mono">{a.best_result.certificate_code}</p>
+                                    </div>
+                                  )}
+                                  {a.config.available_from && (
+                                    <div>
+                                      <p className="fluid-text-xs font-medium text-gray-500 uppercase">Disponible desde</p>
+                                      <p className="fluid-text-sm text-gray-700">{formatShortDate(a.config.available_from)}</p>
+                                    </div>
+                                  )}
+                                  {a.config.available_until && (
+                                    <div>
+                                      <p className="fluid-text-xs font-medium text-gray-500 uppercase">Disponible hasta</p>
+                                      <p className="fluid-text-sm text-gray-700">{formatShortDate(a.config.available_until)}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>

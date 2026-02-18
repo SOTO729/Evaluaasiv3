@@ -12,7 +12,9 @@ from flask_jwt_extended import (
 from sqlalchemy import func
 from app import db, cache
 from app.models.user import User
-from app.models.partner import GroupMember
+from app.models.partner import GroupMember, GroupExam, GroupExamMember, CandidateGroup, Campus
+from app.models.result import Result
+from app.models.exam import Exam
 from app.utils.rate_limit import (
     rate_limit_login, 
     rate_limit_register,
@@ -696,3 +698,196 @@ def contact_form():
     except Exception as e:
         logger.error(f"Error en formulario de contacto: {e}")
         return jsonify({'message': 'Tu mensaje fue recibido. Nos pondremos en contacto pronto.'}), 200
+
+
+@bp.route('/my-assignments', methods=['GET'])
+@jwt_required()
+def get_my_assignments():
+    """
+    Obtener historial completo de asignaciones del usuario actual.
+    Devuelve todas las asignaciones de exámenes con su configuración,
+    grupo, campus y resultados asociados.
+    ---
+    tags:
+      - Authentication
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Lista de asignaciones con resultados
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    
+    try:
+        # Obtener todas las membresías del usuario en grupos (historial completo)
+        memberships = GroupMember.query.filter_by(user_id=user_id).all()
+        membership_map = {}
+        for m in memberships:
+            membership_map[m.group_id] = {
+                'status': m.status,
+                'joined_at': m.joined_at.isoformat() if m.joined_at else None
+            }
+        
+        # Obtener todos los group_ids donde el usuario es/fue miembro
+        user_group_ids = [m.group_id for m in memberships]
+        
+        # Obtener asignaciones directas (group_exam_members - tipo 'selected')
+        direct_assignments = GroupExamMember.query.filter_by(user_id=user_id).all()
+        direct_ge_ids = {da.group_exam_id for da in direct_assignments}
+        direct_assigned_at = {da.group_exam_id: da.assigned_at for da in direct_assignments}
+        
+        # Obtener todos los GroupExam relevantes:
+        # 1) Tipo 'all' en grupos donde el usuario es miembro
+        # 2) Tipo 'selected' donde el usuario fue asignado directamente
+        group_exams = []
+        
+        if user_group_ids:
+            # Asignaciones tipo 'all' en grupos del usuario
+            all_type = GroupExam.query.filter(
+                GroupExam.group_id.in_(user_group_ids),
+                GroupExam.assignment_type == 'all'
+            ).all()
+            group_exams.extend(all_type)
+        
+        if direct_ge_ids:
+            # Asignaciones tipo 'selected' donde está el usuario
+            selected_type = GroupExam.query.filter(
+                GroupExam.id.in_(direct_ge_ids)
+            ).all()
+            # Agregar solo los que no estén ya incluidos
+            existing_ids = {ge.id for ge in group_exams}
+            for ge in selected_type:
+                if ge.id not in existing_ids:
+                    group_exams.append(ge)
+        
+        # Obtener todos los resultados del usuario indexados por group_exam_id
+        results = Result.query.filter_by(user_id=user_id).all()
+        results_by_ge = {}
+        results_by_exam = {}
+        for r in results:
+            if r.group_exam_id:
+                if r.group_exam_id not in results_by_ge:
+                    results_by_ge[r.group_exam_id] = []
+                results_by_ge[r.group_exam_id].append(r)
+            if r.exam_id:
+                if r.exam_id not in results_by_exam:
+                    results_by_exam[r.exam_id] = []
+                results_by_exam[r.exam_id].append(r)
+        
+        # Construir respuesta
+        assignments = []
+        for ge in group_exams:
+            # Cargar relaciones
+            exam = ge.exam
+            group = ge.group
+            campus = group.campus if group else None
+            
+            # Determinar cuándo fue asignado este usuario
+            effective_assigned_at = None
+            if ge.id in direct_assigned_at:
+                effective_assigned_at = direct_assigned_at[ge.id].isoformat() if direct_assigned_at[ge.id] else None
+            elif ge.assigned_at:
+                effective_assigned_at = ge.assigned_at.isoformat()
+            
+            # Obtener resultados para esta asignación
+            ge_results = results_by_ge.get(ge.id, [])
+            # Si no hay resultados por group_exam_id, buscar por exam_id + group_id
+            if not ge_results and ge.group_id:
+                for r in results_by_exam.get(ge.exam_id, []):
+                    if r.group_id == ge.group_id:
+                        ge_results.append(r)
+            
+            # Obtener el mejor resultado y el último intento
+            best_result = None
+            last_attempt = None
+            attempts_count = len([r for r in ge_results if r.status == 1])  # Solo completados
+            
+            if ge_results:
+                completed = [r for r in ge_results if r.status == 1]
+                if completed:
+                    best_result = max(completed, key=lambda r: r.score)
+                last_attempt = max(ge_results, key=lambda r: r.start_date if r.start_date else datetime.min)
+            
+            assignment_data = {
+                'id': ge.id,
+                'assigned_at': effective_assigned_at,
+                'is_active': ge.is_active,
+                
+                # Configuración de la asignación
+                'config': {
+                    'time_limit_minutes': ge.time_limit_minutes,
+                    'passing_score': ge.passing_score,
+                    'max_attempts': ge.max_attempts or 1,
+                    'max_disconnections': ge.max_disconnections or 3,
+                    'exam_content_type': ge.exam_content_type or 'questions_only',
+                    'available_from': ge.available_from.isoformat() if ge.available_from else None,
+                    'available_until': ge.available_until.isoformat() if ge.available_until else None,
+                    'require_security_pin': ge.require_security_pin or False,
+                },
+                
+                # Examen
+                'exam': {
+                    'id': exam.id,
+                    'name': exam.name,
+                    'version': exam.version,
+                    'standard': exam.standard,
+                    'duration_minutes': exam.duration_minutes,
+                } if exam else None,
+                
+                # Grupo 
+                'group': {
+                    'id': group.id,
+                    'name': group.name,
+                    'code': group.code,
+                } if group else None,
+                
+                # Campus
+                'campus': {
+                    'id': campus.id,
+                    'name': campus.name,
+                    'state_name': campus.state_name,
+                    'city': campus.city,
+                } if campus else None,
+                
+                # Membresía del usuario en el grupo
+                'membership': membership_map.get(ge.group_id),
+                
+                # Resultados
+                'attempts_count': attempts_count,
+                'best_result': {
+                    'score': best_result.score,
+                    'result': best_result.result,  # 0=reprobado, 1=aprobado
+                    'end_date': best_result.end_date.isoformat() if best_result.end_date else None,
+                    'duration_seconds': best_result.duration_seconds,
+                    'certificate_code': best_result.certificate_code,
+                    'report_url': best_result.report_url,
+                } if best_result else None,
+                
+                'last_attempt': {
+                    'score': last_attempt.score,
+                    'status': last_attempt.status,  # 0=en proceso, 1=completado, 2=abandonado
+                    'result': last_attempt.result,
+                    'start_date': last_attempt.start_date.isoformat() if last_attempt.start_date else None,
+                    'end_date': last_attempt.end_date.isoformat() if last_attempt.end_date else None,
+                } if last_attempt else None,
+            }
+            
+            assignments.append(assignment_data)
+        
+        # Ordenar por fecha de asignación (más reciente primero)
+        assignments.sort(key=lambda a: a['assigned_at'] or '', reverse=True)
+        
+        return jsonify({
+            'assignments': assignments,
+            'total': len(assignments)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo historial de asignaciones: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Error al obtener el historial de asignaciones'}), 500
