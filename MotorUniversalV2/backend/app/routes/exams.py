@@ -3074,7 +3074,8 @@ def check_exam_access(exam_id):
             'attempts_used': results_count,
             'attempts_remaining': attempts_remaining,
             'attempts_exhausted': attempts_exhausted,
-            'retake_cost': retake_cost
+            'retake_cost': retake_cost,
+            'max_disconnections': group_exam.max_disconnections or 3
         }), 200
         
     except Exception as e:

@@ -423,6 +423,7 @@ export const examService = {
     attempts_remaining: number;
     attempts_exhausted: boolean;
     retake_cost: number;
+    max_disconnections: number;
   }> => {
     const response = await api.get(`/exams/${examId}/check-access`, {
       params: { geid: groupExamId }

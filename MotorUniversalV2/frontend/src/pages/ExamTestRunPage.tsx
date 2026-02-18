@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../services/examService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag, List, ArrowDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag, List, ArrowDown, WifiOff } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { clearExamSessionCache, useAuthStore } from '../store/authStore';
 
@@ -93,6 +93,13 @@ const ExamTestRunPage: React.FC = () => {
   const [timeWarningsShown, setTimeWarningsShown] = useState<Set<number>>(new Set());
   const [showTimeWarning, setShowTimeWarning] = useState<{ minutes: number } | null>(null);
 
+  // Estado para control de desconexiones / pérdida de visibilidad
+  const [disconnectionCount, setDisconnectionCount] = useState(0);
+  const [maxDisconnections, setMaxDisconnections] = useState<number>(3);
+  const [showDisconnectionWarning, setShowDisconnectionWarning] = useState<{ remaining: number } | null>(null);
+  const [disconnectionsExhausted, setDisconnectionsExhausted] = useState(false);
+  const disconnectionCountRef = useRef(0); // Ref para acceso sincrónico en event handlers
+
   const { data: exam, isLoading } = useQuery({
     queryKey: ['exam', examId],
     queryFn: () => examService.getExam(Number(examId!), true),
@@ -102,7 +109,17 @@ const ExamTestRunPage: React.FC = () => {
   // Configuración del examen: pausar tiempo al desconectarse
   const pauseOnDisconnect = exam?.pause_on_disconnect ?? true;
 
-  // Detectar cambios de conexión (online/offline)
+  // Obtener max_disconnections desde la asignación del grupo
+  useEffect(() => {
+    if (!examId || !groupExamId) return;
+    examService.checkExamAccess(Number(examId), Number(groupExamId))
+      .then(data => {
+        setMaxDisconnections(data.max_disconnections ?? 3);
+      })
+      .catch(err => console.warn('No se pudo obtener max_disconnections:', err));
+  }, [examId, groupExamId]);
+
+  // Detectar cambios de conexión (online/offline) y contar desconexiones
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
@@ -115,19 +132,42 @@ const ExamTestRunPage: React.FC = () => {
       setIsOnline(false);
       if (pauseOnDisconnect) {
         setIsPaused(true);
-        // Guardar el tiempo exacto cuando se desconectó
         lastOnlineTimeRef.current = Date.now();
+      }
+      // Contar desconexión por pérdida de red
+      if (currentMode === 'exam') {
+        const newCount = disconnectionCountRef.current + 1;
+        disconnectionCountRef.current = newCount;
+        setDisconnectionCount(newCount);
+        const remaining = Math.max(0, maxDisconnections - newCount);
+        if (newCount >= maxDisconnections) {
+          setDisconnectionsExhausted(true);
+        } else {
+          setShowDisconnectionWarning({ remaining });
+        }
       }
     };
     
     // Detectar cuando la página pierde/recupera visibilidad
     const handleVisibilityChange = () => {
-      if (document.hidden && pauseOnDisconnect) {
-        // La página está oculta, pausar
-        setIsPaused(true);
-        lastOnlineTimeRef.current = Date.now();
+      if (document.hidden) {
+        if (pauseOnDisconnect) {
+          setIsPaused(true);
+          lastOnlineTimeRef.current = Date.now();
+        }
+        // Contar desconexión por pérdida de visibilidad (cambio de pestaña, minimizar, etc.)
+        if (currentMode === 'exam') {
+          const newCount = disconnectionCountRef.current + 1;
+          disconnectionCountRef.current = newCount;
+          setDisconnectionCount(newCount);
+          const remaining = Math.max(0, maxDisconnections - newCount);
+          if (newCount >= maxDisconnections) {
+            setDisconnectionsExhausted(true);
+          } else {
+            setShowDisconnectionWarning({ remaining });
+          }
+        }
       } else if (!document.hidden) {
-        // La página es visible de nuevo
         if (pauseOnDisconnect) {
           setIsPaused(false);
         }
@@ -143,7 +183,7 @@ const ExamTestRunPage: React.FC = () => {
       window.removeEventListener('offline', handleOffline);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [pauseOnDisconnect]);
+  }, [pauseOnDisconnect, currentMode, maxDisconnections]);
 
   // Efecto para ocultar/mostrar barra de navegación al hacer scroll
   useEffect(() => {
@@ -203,7 +243,8 @@ const ExamTestRunPage: React.FC = () => {
           actionErrors: savedActionErrors,
           stepCompleted: savedStepCompleted,
           currentStepIndex: savedCurrentStepIndex,
-          flaggedQuestions: savedFlaggedQuestions
+          flaggedQuestions: savedFlaggedQuestions,
+          disconnectionCount: savedDisconnectionCount
         } = sessionData;
         
         if (savedTime > 0) {
@@ -247,6 +288,11 @@ const ExamTestRunPage: React.FC = () => {
           // Restaurar preguntas marcadas para revisar
           if (savedFlaggedQuestions && Array.isArray(savedFlaggedQuestions)) {
             setFlaggedQuestions(new Set(savedFlaggedQuestions));
+          }
+          // Restaurar contador de desconexiones
+          if (typeof savedDisconnectionCount === 'number' && savedDisconnectionCount > 0) {
+            setDisconnectionCount(savedDisconnectionCount);
+            disconnectionCountRef.current = savedDisconnectionCount;
           }
           
           return;
@@ -296,6 +342,23 @@ const ExamTestRunPage: React.FC = () => {
       setShowTimeWarning(null);
     }
   }, [timeRemaining, isSubmitting, timeExpired, examSessionKey]);
+
+  // Auto-submit cuando se agotan las oportunidades de desconexión
+  useEffect(() => {
+    if (disconnectionsExhausted && !isSubmitting && !timeExpired) {
+      setTimeExpired(true);
+      // Limpiar sesión guardada
+      localStorage.removeItem(examSessionKey);
+      // Cerrar cualquier modal abierto
+      setShowConfirmSubmit(false);
+      setShowExitConfirm(false);
+      setShowNavPanel(false);
+      setShowExerciseCompleted(false);
+      setShowErrorModal(null);
+      setShowTimeWarning(null);
+      setShowDisconnectionWarning(null);
+    }
+  }, [disconnectionsExhausted, isSubmitting, timeExpired, examSessionKey]);
 
   // Advertencias de tiempo (30, 15, 5 y 1 minuto)
   useEffect(() => {
@@ -479,7 +542,9 @@ const ExamTestRunPage: React.FC = () => {
         stepCompleted,
         currentStepIndex,
         // Guardar preguntas marcadas para revisar
-        flaggedQuestions: Array.from(flaggedQuestions)
+        flaggedQuestions: Array.from(flaggedQuestions),
+        // Guardar contador de desconexiones
+        disconnectionCount
       };
       localStorage.setItem(examSessionKey, JSON.stringify(sessionData));
     };
@@ -494,7 +559,7 @@ const ExamTestRunPage: React.FC = () => {
       clearInterval(saveInterval);
       window.removeEventListener('beforeunload', saveSession);
     };
-  }, [timeRemaining, examId, examSessionKey, exam?.duration_minutes, exam?.name, pauseOnDisconnect, answers, exerciseResponses, currentItemIndex, selectedItems, orderingInteracted, actionErrors, stepCompleted, currentStepIndex, flaggedQuestions]);
+  }, [timeRemaining, examId, examSessionKey, exam?.duration_minutes, exam?.name, pauseOnDisconnect, answers, exerciseResponses, currentItemIndex, selectedItems, orderingInteracted, actionErrors, stepCompleted, currentStepIndex, flaggedQuestions, disconnectionCount]);
 
   const currentItem = selectedItems[currentItemIndex];
 
@@ -870,7 +935,8 @@ const ExamTestRunPage: React.FC = () => {
           exerciseCount,
           examName: exam?.name,
           passingScore: exam?.passing_score,
-          timeExpired: true,
+          timeExpired: !disconnectionsExhausted,
+          disconnectionsExhausted,
           resultId: savedResultId
         }
       });
@@ -886,7 +952,8 @@ const ExamTestRunPage: React.FC = () => {
           elapsedTime,
           questionCount,
           exerciseCount,
-          timeExpired: true
+          timeExpired: !disconnectionsExhausted,
+          disconnectionsExhausted
         }
       });
     }
@@ -1888,6 +1955,7 @@ const ExamTestRunPage: React.FC = () => {
                       stepCompleted,
                       currentStepIndex,
                       flaggedQuestions: Array.from(flaggedQuestions),
+                      disconnectionCount,
                       exitedManually: true // Marcar que salió manualmente
                     };
                     localStorage.setItem(examSessionKey, JSON.stringify(sessionData));
@@ -1962,6 +2030,41 @@ const ExamTestRunPage: React.FC = () => {
             >
               <X className="fluid-icon-xs sm:fluid-icon-sm" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de advertencia por desconexión / pérdida de visibilidad */}
+      {showDisconnectionWarning && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[110] fluid-p-3 sm:fluid-p-4">
+          <div className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-2xl max-w-xs sm:max-w-sm w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="fluid-p-4 sm:fluid-p-6 text-center">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto fluid-mb-3 sm:fluid-mb-4">
+                <WifiOff className="fluid-icon sm:fluid-icon-lg text-red-600" />
+              </div>
+              <h3 className="fluid-text-base sm:fluid-text-lg font-semibold text-gray-900 fluid-mb-2">
+                ¡Desconexión detectada!
+              </h3>
+              <p className="fluid-text-xs sm:fluid-text-sm text-gray-500 fluid-mb-1">
+                Se detectó que dejaste de ver la pantalla del examen.
+              </p>
+              <div className="bg-red-50 border border-red-200 rounded-fluid-md fluid-p-3 fluid-mt-3 fluid-mb-4">
+                <p className="fluid-text-sm sm:fluid-text-base font-bold text-red-700">
+                  Oportunidades restantes: {showDisconnectionWarning.remaining}
+                </p>
+                <p className="fluid-text-2xs sm:fluid-text-xs text-red-500 fluid-mt-1">
+                  {showDisconnectionWarning.remaining === 1 
+                    ? '¡Esta es tu última oportunidad! La próxima desconexión terminará tu examen automáticamente.'
+                    : 'Si agotas todas las oportunidades, tu examen se enviará automáticamente.'}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowDisconnectionWarning(null)}
+                className="w-full fluid-px-4 fluid-py-2 sm:fluid-py-3 fluid-text-xs sm:fluid-text-sm font-medium text-white bg-red-600 rounded-fluid-md hover:bg-red-700 transition-colors"
+              >
+                Entendido, continuar examen
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2144,8 +2247,22 @@ const ExamTestRunPage: React.FC = () => {
               </div>
             </div>
             
-            {/* Derecha: Timer, Usuario y Salir */}
+            {/* Derecha: Timer, Desconexiones, Usuario y Salir */}
             <div className="flex items-center fluid-gap-2 sm:fluid-gap-3 flex-shrink-0">
+              {/* Indicador de oportunidades de desconexión */}
+              {currentMode === 'exam' && (
+                <div className={`flex items-center fluid-gap-1 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-md fluid-text-xs sm:fluid-text-sm ${
+                  disconnectionCount >= maxDisconnections 
+                    ? 'bg-red-500 text-white animate-pulse'
+                    : (maxDisconnections - disconnectionCount) === 1
+                      ? 'bg-amber-400 text-amber-900'
+                      : 'bg-white/20 text-white'
+                }`} title={`Oportunidades de desconexión: ${Math.max(0, maxDisconnections - disconnectionCount)} de ${maxDisconnections}`}>
+                  <WifiOff className="fluid-icon-xs sm:fluid-icon-sm" />
+                  <span className="font-medium">{Math.max(0, maxDisconnections - disconnectionCount)}/{maxDisconnections}</span>
+                </div>
+              )}
+
               {/* Username del usuario */}
               <div className="hidden lg:flex items-center fluid-gap-2 fluid-text-xs lg:fluid-text-sm">
                 <div className="w-6 h-6 lg:w-7 lg:h-7 rounded-full bg-white/20 flex items-center justify-center">
