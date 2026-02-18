@@ -797,11 +797,20 @@ def toggle_user_active(user_id):
 
 @bp.route('/users/<string:user_id>/document-options', methods=['PUT'])
 @jwt_required()
-@admin_required
+@management_required
 def update_user_document_options(user_id):
-    """Actualizar opciones de documentos de un usuario (solo admin)"""
+    """Actualizar opciones de documentos de un usuario (admin y coordinador)"""
     try:
+        current_user = g.current_user
         user = User.query.get_or_404(user_id)
+        
+        # Coordinadores solo pueden modificar opciones de sus propios usuarios
+        if current_user.role == 'coordinator':
+            if user.role not in ['candidato', 'responsable', 'responsable_partner']:
+                return jsonify({'error': 'No tienes permiso para modificar este usuario'}), 403
+            if user.coordinator_id != current_user.id:
+                return jsonify({'error': 'No tienes permiso para modificar este usuario'}), 403
+        
         data = request.get_json()
         
         if 'evaluation_report' in data:
@@ -955,9 +964,9 @@ def get_user_stats():
 
 @bp.route('/stats/invalidate', methods=['POST'])
 @jwt_required()
-@admin_required
+@management_required
 def invalidate_stats_cache():
-    """Invalidar caché de estadísticas (solo admin)"""
+    """Invalidar caché de estadísticas (admin y coordinador)"""
     try:
         cache.delete('user_stats_admin')
         cache.delete('user_stats_coordinator')
@@ -1535,14 +1544,14 @@ def download_bulk_upload_template():
         return jsonify({'error': str(e)}), 500
 
 
-# ============== EXPORTAR USUARIOS CON CONTRASEÑAS (SOLO ADMIN) ==============
+# ============== EXPORTAR USUARIOS CON CONTRASEÑAS (ADMIN Y COORDINADOR) ==============
 
 @bp.route('/export-credentials', methods=['POST'])
 @jwt_required()
-@admin_required
+@management_required
 def export_user_credentials():
     """
-    Exportar usuarios seleccionados con sus contraseñas en Excel (SOLO ADMIN)
+    Exportar usuarios seleccionados con sus contraseñas en Excel (admin y coordinador)
     Recibe una lista de IDs de usuarios a exportar
     """
     try:
@@ -1551,14 +1560,21 @@ def export_user_credentials():
         from flask import send_file
         import io
         
+        current_user = g.current_user
         data = request.get_json()
         user_ids = data.get('user_ids', [])
         
         if not user_ids:
             return jsonify({'error': 'Debes seleccionar al menos un usuario'}), 400
         
-        # Obtener usuarios
-        users = User.query.filter(User.id.in_(user_ids)).all()
+        # Obtener usuarios (coordinador solo puede exportar sus propios usuarios)
+        query = User.query.filter(User.id.in_(user_ids))
+        if current_user.role == 'coordinator':
+            query = query.filter(
+                User.coordinator_id == current_user.id,
+                User.role.in_(['candidato', 'responsable', 'responsable_partner'])
+            )
+        users = query.all()
         
         if not users:
             return jsonify({'error': 'No se encontraron usuarios'}), 404
