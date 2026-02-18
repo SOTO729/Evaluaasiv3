@@ -82,7 +82,7 @@ const CertificatesPage = () => {
       id: 'evaluation-report' as TabType,
       name: 'Reporte de Evaluación',
       icon: null,
-      iconImage: '/images/evaluaasi-icon.png',
+      iconImage: '/images/evaluaasi-icon.webp',
       description: 'Certificado con el detalle de tus evaluaciones realizadas',
       enableKey: 'evaluation_report'
     },
@@ -90,7 +90,7 @@ const CertificatesPage = () => {
       id: 'approval-certificate' as TabType,
       name: 'Certificado de Evaluación',
       icon: null,
-      iconImage: '/images/eduit-logo.png',
+      iconImage: '/images/eduit-logo.webp',
       description: 'Certificado de evaluación de exámenes',
       enableKey: 'certificate'
     },
@@ -98,7 +98,7 @@ const CertificatesPage = () => {
       id: 'digital-badge' as TabType,
       name: 'Insignia Digital',
       icon: null,
-      iconImage: '/images/evaluaasi-old.png',
+      iconImage: '/images/evaluaasi-old.webp',
       description: 'Insignias digitales verificables',
       enableKey: 'digital_badge'
     },
@@ -106,7 +106,7 @@ const CertificatesPage = () => {
       id: 'conocer-certificate' as TabType,
       name: 'Certificado CONOCER',
       icon: null,
-      iconImage: '/images/conocer-icon.png',
+      iconImage: '/images/conocer-icon.webp',
       description: 'Certificados emitidos por CONOCER México',
       enableKey: 'conocer_certificate'
     }
@@ -849,7 +849,7 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
         <div className="flex flex-col sm:flex-row items-start fluid-gap-4">
           <div className="fluid-icon-xl rounded-fluid-xl flex items-center justify-center flex-shrink-0 overflow-hidden bg-white shadow-sm">
             <img 
-              src="/images/conocer-logo.png" 
+              src="/images/conocer-logo.webp" 
               alt="CONOCER Logo" 
               className="w-full h-full object-contain"
             />
@@ -890,7 +890,7 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
                 <div className="flex flex-col sm:flex-row items-start fluid-gap-3 flex-1 min-w-0">
                   <div className="fluid-icon-xl rounded-fluid-xl flex items-center justify-center overflow-hidden bg-white shadow-md border border-gray-100 flex-shrink-0">
                     <img 
-                      src="/images/conocer-logo.png" 
+                      src="/images/conocer-logo.webp" 
                       alt="CONOCER Logo" 
                       className="w-full h-full object-contain"
                     />

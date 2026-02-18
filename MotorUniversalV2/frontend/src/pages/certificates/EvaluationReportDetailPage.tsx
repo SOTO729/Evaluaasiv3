@@ -188,7 +188,7 @@ const EvaluationReportDetailPage = () => {
         <div className="flex items-center fluid-gap-4">
           <div className="fluid-w-16 fluid-h-16 bg-white/20 rounded-fluid-xl flex items-center justify-center animate-pulse-subtle flex-shrink-0">
             <img 
-              src="/images/evaluaasi-icon.png" 
+              src="/images/evaluaasi-icon.webp" 
               alt="Reporte de Evaluación" 
               className="fluid-icon-lg object-contain brightness-0 invert"
             />

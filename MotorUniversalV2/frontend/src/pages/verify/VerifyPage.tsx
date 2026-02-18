@@ -119,7 +119,7 @@ const VerifyPage = () => {
             />
           ) : (
             <img 
-              src="/images/evaluaasi-icon.png" 
+              src="/images/evaluaasi-icon.webp" 
               alt="Evaluaasi" 
               className="h-20 mx-auto mb-4"
               onError={(e) => {

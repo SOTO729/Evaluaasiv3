@@ -105,7 +105,7 @@ const RegisterPage = () => {
         <div className="mx-auto w-full max-w-sm">
           {/* Logo */}
           <Link to="/" className="flex items-center fluid-gap-3 fluid-mb-10">
-            <img src="/logo.png" alt="Evaluaasi" className="fluid-h-12 w-auto" />
+            <img src="/logo.webp" alt="Evaluaasi" className="fluid-h-12 w-auto" />
             <span className="fluid-text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">Evaluaasi</span>
           </Link>
 

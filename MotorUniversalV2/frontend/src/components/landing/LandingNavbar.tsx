@@ -29,7 +29,7 @@ export default function LandingNavbar() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center fluid-gap-3">
-            <img src="/logo.png" alt="Evaluaasi" className="h-12 w-auto" />
+            <img src="/logo.webp" alt="Evaluaasi" className="h-12 w-auto" />
             <span className="fluid-text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">Evaluaasi</span>
           </Link>
 

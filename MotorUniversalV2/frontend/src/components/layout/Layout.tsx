@@ -186,7 +186,7 @@ const Layout = ({ children }: LayoutProps) => {
               </button>
               
               <Link to="/dashboard" className="flex items-center fluid-gap-2">
-                <img src="/logo.png" alt="Evaluaasi" className="h-[clamp(2.25rem,2rem+1.5vw,4.5rem)] w-auto" />
+                <img src="/logo.webp" alt="Evaluaasi" className="h-[clamp(2.25rem,2rem+1.5vw,4.5rem)] w-auto" />
                 <span className="hidden sm:block fluid-text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">Evaluaasi</span>
               </Link>
               

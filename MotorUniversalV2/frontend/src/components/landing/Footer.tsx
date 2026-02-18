@@ -63,7 +63,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="lg:col-span-2">
             <Link to="/" className="flex items-center fluid-gap-2 fluid-mb-4">
-              <img src="/logo.png" alt="Evaluaasi" className="h-10 w-auto" />
+              <img src="/logo.webp" alt="Evaluaasi" className="h-10 w-auto" />
               <span className="fluid-text-xl font-bold text-white">Evaluaasi</span>
             </Link>
             <p className="text-gray-400 fluid-mb-4 max-w-sm">
