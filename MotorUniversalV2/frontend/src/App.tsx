@@ -119,6 +119,7 @@ const CampusActivationPage = lazy(() => import('./pages/partners/CampusActivatio
 const SchoolCycleDetailPage = lazy(() => import('./pages/partners/SchoolCycleDetailPage'))
 const EcmAssignmentsPage = lazy(() => import('./pages/partners/EcmAssignmentsPage'))
 const EcmAssignmentDetailPage = lazy(() => import('./pages/partners/EcmAssignmentDetailPage'))
+const ConocerTramitesPage = lazy(() => import('./pages/partners/ConocerTramitesPage'))
 
 // Responsable de Plantel
 const MiPlantelPage = lazy(() => import('./pages/responsable/MiPlantelPage'))
@@ -290,6 +291,9 @@ function App() {
               {/* Asignaciones por ECM */}
               <Route path="/asignaciones-ecm" element={<EcmAssignmentsPage />} />
               <Route path="/asignaciones-ecm/:ecmId" element={<EcmAssignmentDetailPage />} />
+              
+              {/* Trámites CONOCER */}
+              <Route path="/tramites-conocer" element={<ConocerTramitesPage />} />
               
               {/* Responsable de Plantel */}
               <Route path="/mi-plantel" element={<MiPlantelPage />} />

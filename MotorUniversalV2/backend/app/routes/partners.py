@@ -12944,3 +12944,450 @@ def download_mi_partner_certificates_zip():
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+# ═══════════════════════════════════════════════════════════════
+# MÓDULO: Trámites CONOCER
+# Candidatos aprobados con CONOCER habilitado que aún no tienen
+# certificado CONOCER emitido. Permite exportar Excel para trámite.
+# ═══════════════════════════════════════════════════════════════
+
+@bp.route('/conocer-tramites', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_conocer_tramites():
+    """
+    Candidatos elegibles para trámite de certificado CONOCER.
+    
+    Muestra candidatos que:
+    1. Están en un grupo con enable_tier_advanced activo
+    2. Tienen al menos un examen aprobado (result=1, status=1)
+    3. Tienen CURP registrado
+    4. NO tienen un ConocerCertificate activo para ese ECM
+    
+    Query params:
+    - page, per_page, search, partner_id, campus_id, group_id, ecm_id
+    - sort_by, sort_dir, conocer_status (all|pending|has_certificate)
+    """
+    try:
+        from sqlalchemy import text
+
+        user_id_jwt = get_jwt_identity()
+        user = User.query.get(user_id_jwt)
+        if not user or user.role not in ['admin', 'developer', 'coordinator']:
+            return jsonify({'error': 'Acceso denegado'}), 403
+
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 150, type=int), 1000)
+        search = request.args.get('search', '').strip()
+        partner_id = request.args.get('partner_id', type=int)
+        campus_id = request.args.get('campus_id', type=int)
+        group_id = request.args.get('group_id', type=int)
+        ecm_id = request.args.get('ecm_id', type=int)
+        sort_by = request.args.get('sort_by', 'name')
+        sort_dir = request.args.get('sort_dir', 'asc')
+        conocer_status = request.args.get('conocer_status', 'pending')
+
+        params = {}
+        where_parts = []
+
+        if search:
+            where_parts.append(
+                "AND (LOWER(u.name + ' ' + COALESCE(u.first_surname, '') + ' ' + COALESCE(u.second_surname, '')) LIKE :search "
+                "OR LOWER(u.email) LIKE :search OR LOWER(u.curp) LIKE :search)"
+            )
+            params['search'] = f'%{search.lower()}%'
+        if partner_id:
+            where_parts.append("AND p.id = :partner_id")
+            params['partner_id'] = partner_id
+        if campus_id:
+            where_parts.append("AND c.id = :campus_id")
+            params['campus_id'] = campus_id
+        if group_id:
+            where_parts.append("AND cg.id = :group_id")
+            params['group_id'] = group_id
+        if ecm_id:
+            where_parts.append("AND cs.id = :ecm_id")
+            params['ecm_id'] = ecm_id
+
+        where_sql = '\n                '.join(where_parts)
+
+        cte_sql = f"""
+            WITH conocer_candidates AS (
+                SELECT
+                    u.id AS user_id,
+                    CONCAT(u.name, ' ', COALESCE(u.first_surname, ''), ' ', COALESCE(u.second_surname, '')) AS full_name,
+                    u.email,
+                    u.curp,
+                    u.username,
+                    cs.id AS ecm_id,
+                    cs.code AS ecm_code,
+                    cs.name AS ecm_name,
+                    e.id AS exam_id,
+                    e.name AS exam_name,
+                    r.score,
+                    r.end_date AS exam_date,
+                    r.id AS result_id,
+                    cg.id AS group_id,
+                    cg.name AS group_name,
+                    cg.code AS group_code,
+                    c.id AS campus_id,
+                    c.name AS campus_name,
+                    p.id AS partner_id,
+                    p.name AS partner_name,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY u.id, cs.id
+                        ORDER BY r.score DESC, r.created_at DESC
+                    ) AS rn
+                FROM results r
+                JOIN users u ON u.id = r.user_id
+                JOIN exams e ON e.id = r.exam_id
+                JOIN competency_standards cs ON cs.id = e.competency_standard_id
+                JOIN group_members gm ON gm.user_id = u.id AND gm.status = 'active'
+                JOIN candidate_groups cg ON cg.id = gm.group_id AND cg.is_active = 1
+                LEFT JOIN campuses c ON c.id = cg.campus_id
+                LEFT JOIN partners p ON p.id = c.partner_id
+                WHERE r.status = 1
+                  AND r.result = 1
+                  AND u.curp IS NOT NULL
+                  AND LEN(u.curp) >= 10
+                  AND (
+                      (cg.enable_tier_advanced_override = 1)
+                      OR (cg.enable_tier_advanced_override IS NULL AND c.enable_tier_advanced = 1)
+                  )
+                  AND EXISTS (
+                      SELECT 1 FROM group_exams ge
+                      WHERE ge.group_id = cg.id AND ge.exam_id = e.id
+                  )
+                  {where_sql}
+            ),
+            with_conocer_status AS (
+                SELECT
+                    cc.*,
+                    kc.id AS conocer_cert_id,
+                    kc.certificate_number AS conocer_cert_number,
+                    kc.status AS conocer_cert_status,
+                    kc.issue_date AS conocer_issue_date
+                FROM conocer_candidates cc
+                LEFT JOIN conocer_certificates kc
+                    ON kc.user_id = cc.user_id
+                   AND kc.standard_code = cc.ecm_code
+                   AND kc.status = 'active'
+                WHERE cc.rn = 1
+            )
+        """
+
+        if conocer_status == 'pending':
+            status_where = "WHERE wcs.conocer_cert_id IS NULL"
+        elif conocer_status == 'has_certificate':
+            status_where = "WHERE wcs.conocer_cert_id IS NOT NULL"
+        else:
+            status_where = "WHERE 1=1"
+
+        sort_map = {
+            'name': 'wcs.full_name', 'curp': 'wcs.curp', 'email': 'wcs.email',
+            'group': 'wcs.group_name', 'campus': 'wcs.campus_name',
+            'partner': 'wcs.partner_name', 'ecm': 'wcs.ecm_code',
+            'score': 'wcs.score', 'exam_date': 'wcs.exam_date',
+        }
+        sort_col = sort_map.get(sort_by, 'wcs.full_name')
+        sort_direction = 'DESC' if sort_dir == 'desc' else 'ASC'
+
+        count_sql = text(cte_sql + f"""
+            SELECT COUNT(*) AS total FROM with_conocer_status wcs {status_where}
+        """)
+        total = db.session.execute(count_sql, params).scalar() or 0
+        total_pages = max(1, (total + per_page - 1) // per_page)
+
+        offset = (page - 1) * per_page
+        data_sql = text(cte_sql + f"""
+            SELECT
+                wcs.user_id, wcs.full_name, wcs.email, wcs.curp, wcs.username,
+                wcs.ecm_id, wcs.ecm_code, wcs.ecm_name,
+                wcs.exam_id, wcs.exam_name, wcs.score, wcs.exam_date, wcs.result_id,
+                wcs.group_id, wcs.group_name, wcs.group_code,
+                wcs.campus_id, wcs.campus_name,
+                wcs.partner_id, wcs.partner_name,
+                wcs.conocer_cert_id, wcs.conocer_cert_number,
+                wcs.conocer_cert_status, wcs.conocer_issue_date
+            FROM with_conocer_status wcs
+            {status_where}
+            ORDER BY {sort_col} {sort_direction}
+            OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
+        """)
+        params['offset'] = offset
+        params['limit'] = per_page
+
+        rows = db.session.execute(data_sql, params).fetchall()
+
+        summary_sql = text(cte_sql + """
+            SELECT
+                COUNT(*) AS total_candidates,
+                SUM(CASE WHEN wcs.conocer_cert_id IS NULL THEN 1 ELSE 0 END) AS pending,
+                SUM(CASE WHEN wcs.conocer_cert_id IS NOT NULL THEN 1 ELSE 0 END) AS with_certificate,
+                COUNT(DISTINCT wcs.ecm_code) AS total_ecms,
+                COUNT(DISTINCT wcs.group_id) AS total_groups,
+                COUNT(DISTINCT wcs.campus_id) AS total_campuses,
+                COUNT(DISTINCT wcs.partner_id) AS total_partners
+            FROM with_conocer_status wcs WHERE 1=1
+        """)
+        summary_row = db.session.execute(summary_sql, params).fetchone()
+
+        candidates = []
+        for row in rows:
+            candidates.append({
+                'user_id': row.user_id,
+                'full_name': row.full_name.strip() if row.full_name else '',
+                'email': row.email,
+                'curp': row.curp,
+                'username': row.username,
+                'ecm_id': row.ecm_id,
+                'ecm_code': row.ecm_code,
+                'ecm_name': row.ecm_name,
+                'exam_id': row.exam_id,
+                'exam_name': row.exam_name,
+                'score': row.score,
+                'exam_date': row.exam_date.isoformat() + 'Z' if row.exam_date else None,
+                'result_id': row.result_id,
+                'group_id': row.group_id,
+                'group_name': row.group_name,
+                'group_code': row.group_code,
+                'campus_id': row.campus_id,
+                'campus_name': row.campus_name,
+                'partner_id': row.partner_id,
+                'partner_name': row.partner_name,
+                'conocer_cert_id': row.conocer_cert_id,
+                'conocer_cert_number': row.conocer_cert_number,
+                'conocer_cert_status': row.conocer_cert_status,
+                'conocer_issue_date': row.conocer_issue_date.isoformat() if row.conocer_issue_date else None,
+                'tramite_status': 'certificado' if row.conocer_cert_id else 'pendiente',
+            })
+
+        return jsonify({
+            'candidates': candidates,
+            'total': total,
+            'pages': total_pages,
+            'current_page': page,
+            'per_page': per_page,
+            'summary': {
+                'total_candidates': summary_row.total_candidates if summary_row else 0,
+                'pending': summary_row.pending if summary_row else 0,
+                'with_certificate': summary_row.with_certificate if summary_row else 0,
+                'total_ecms': summary_row.total_ecms if summary_row else 0,
+                'total_groups': summary_row.total_groups if summary_row else 0,
+                'total_campuses': summary_row.total_campuses if summary_row else 0,
+                'total_partners': summary_row.total_partners if summary_row else 0,
+            }
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/conocer-tramites/export', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def export_conocer_tramites_excel():
+    """
+    Exportar candidatos elegibles para trámite CONOCER a Excel.
+    Acepta user_ids para exportar solo los seleccionados.
+    """
+    try:
+        from sqlalchemy import text
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from io import BytesIO
+
+        user_id_jwt = get_jwt_identity()
+        user = User.query.get(user_id_jwt)
+        if not user or user.role not in ['admin', 'developer', 'coordinator']:
+            return jsonify({'error': 'Acceso denegado'}), 403
+
+        search = request.args.get('search', '').strip()
+        partner_id = request.args.get('partner_id', type=int)
+        campus_id = request.args.get('campus_id', type=int)
+        group_id = request.args.get('group_id', type=int)
+        ecm_id = request.args.get('ecm_id', type=int)
+        sort_by = request.args.get('sort_by', 'name')
+        sort_dir = request.args.get('sort_dir', 'asc')
+        conocer_status = request.args.get('conocer_status', 'pending')
+        user_ids_param = request.args.get('user_ids', '').strip()
+
+        params = {}
+        where_parts = []
+
+        if search:
+            where_parts.append(
+                "AND (LOWER(u.name + ' ' + COALESCE(u.first_surname, '') + ' ' + COALESCE(u.second_surname, '')) LIKE :search "
+                "OR LOWER(u.email) LIKE :search OR LOWER(u.curp) LIKE :search)"
+            )
+            params['search'] = f'%{search.lower()}%'
+        if partner_id:
+            where_parts.append("AND p.id = :partner_id")
+            params['partner_id'] = partner_id
+        if campus_id:
+            where_parts.append("AND c.id = :campus_id")
+            params['campus_id'] = campus_id
+        if group_id:
+            where_parts.append("AND cg.id = :group_id")
+            params['group_id'] = group_id
+        if ecm_id:
+            where_parts.append("AND cs.id = :ecm_id")
+            params['ecm_id'] = ecm_id
+
+        where_sql = '\n                '.join(where_parts)
+
+        cte_sql = f"""
+            WITH conocer_candidates AS (
+                SELECT
+                    u.id AS user_id,
+                    CONCAT(u.name, ' ', COALESCE(u.first_surname, ''), ' ', COALESCE(u.second_surname, '')) AS full_name,
+                    u.email, u.curp, u.username,
+                    cs.id AS ecm_id, cs.code AS ecm_code, cs.name AS ecm_name,
+                    e.id AS exam_id, e.name AS exam_name,
+                    r.score, r.end_date AS exam_date,
+                    cg.id AS group_id, cg.name AS group_name, cg.code AS group_code,
+                    c.id AS campus_id, c.name AS campus_name,
+                    p.id AS partner_id, p.name AS partner_name,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY u.id, cs.id ORDER BY r.score DESC, r.created_at DESC
+                    ) AS rn
+                FROM results r
+                JOIN users u ON u.id = r.user_id
+                JOIN exams e ON e.id = r.exam_id
+                JOIN competency_standards cs ON cs.id = e.competency_standard_id
+                JOIN group_members gm ON gm.user_id = u.id AND gm.status = 'active'
+                JOIN candidate_groups cg ON cg.id = gm.group_id AND cg.is_active = 1
+                LEFT JOIN campuses c ON c.id = cg.campus_id
+                LEFT JOIN partners p ON p.id = c.partner_id
+                WHERE r.status = 1 AND r.result = 1
+                  AND u.curp IS NOT NULL AND LEN(u.curp) >= 10
+                  AND (
+                      (cg.enable_tier_advanced_override = 1)
+                      OR (cg.enable_tier_advanced_override IS NULL AND c.enable_tier_advanced = 1)
+                  )
+                  AND EXISTS (SELECT 1 FROM group_exams ge WHERE ge.group_id = cg.id AND ge.exam_id = e.id)
+                  {where_sql}
+            ),
+            with_conocer_status AS (
+                SELECT cc.*,
+                    kc.certificate_number AS conocer_cert_number,
+                    kc.issue_date AS conocer_issue_date
+                FROM conocer_candidates cc
+                LEFT JOIN conocer_certificates kc
+                    ON kc.user_id = cc.user_id AND kc.standard_code = cc.ecm_code AND kc.status = 'active'
+                WHERE cc.rn = 1
+            )
+        """
+
+        if conocer_status == 'pending':
+            status_where = "WHERE wcs.conocer_cert_number IS NULL"
+        elif conocer_status == 'has_certificate':
+            status_where = "WHERE wcs.conocer_cert_number IS NOT NULL"
+        else:
+            status_where = "WHERE 1=1"
+
+        if user_ids_param:
+            uid_list = [uid.strip() for uid in user_ids_param.split(',') if uid.strip()]
+            if uid_list:
+                placeholders = ','.join(f"'{uid}'" for uid in uid_list[:5000])
+                status_where += f" AND wcs.user_id IN ({placeholders})"
+
+        sort_map = {
+            'name': 'wcs.full_name', 'curp': 'wcs.curp', 'ecm': 'wcs.ecm_code',
+            'group': 'wcs.group_name', 'campus': 'wcs.campus_name', 'score': 'wcs.score',
+        }
+        sort_col = sort_map.get(sort_by, 'wcs.full_name')
+        sort_direction = 'DESC' if sort_dir == 'desc' else 'ASC'
+
+        data_sql = text(cte_sql + f"""
+            SELECT wcs.full_name, wcs.email, wcs.curp, wcs.username,
+                wcs.ecm_code, wcs.ecm_name, wcs.exam_name, wcs.score, wcs.exam_date,
+                wcs.group_name, wcs.group_code, wcs.campus_name, wcs.partner_name,
+                wcs.conocer_cert_number, wcs.conocer_issue_date
+            FROM with_conocer_status wcs {status_where}
+            ORDER BY {sort_col} {sort_direction}
+        """)
+
+        rows = db.session.execute(data_sql, params).fetchall()
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Tramites CONOCER"
+
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        header_fill = PatternFill(start_color="065F46", end_color="065F46", fill_type="solid")
+        header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        thin_border = Border(
+            left=Side(style='thin', color='D1D5DB'), right=Side(style='thin', color='D1D5DB'),
+            top=Side(style='thin', color='D1D5DB'), bottom=Side(style='thin', color='D1D5DB'),
+        )
+        center_align = Alignment(horizontal='center', vertical='center')
+
+        ws.merge_cells('A1:N1')
+        title_cell = ws['A1']
+        title_cell.value = "Reporte de Tramites CONOCER - Candidatos Elegibles"
+        title_cell.font = Font(bold=True, size=14, color="065F46")
+        title_cell.alignment = Alignment(horizontal='center')
+
+        ws.merge_cells('A2:N2')
+        subtitle = ws['A2']
+        subtitle.value = f"Total registros: {len(rows)} | Exportado: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        subtitle.font = Font(size=10, color="6B7280")
+        subtitle.alignment = Alignment(horizontal='center')
+
+        headers_list = [
+            'Nombre Completo', 'CURP', 'Email', 'Usuario',
+            'Codigo ECM', 'Estandar de Competencia', 'Examen',
+            'Calificacion', 'Fecha de Evaluacion',
+            'Grupo', 'Codigo Grupo', 'Plantel', 'Partner',
+            'Estatus CONOCER',
+        ]
+        for col, header in enumerate(headers_list, 1):
+            cell = ws.cell(row=4, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = thin_border
+
+        for idx, row in enumerate(rows, 5):
+            status_text = f"Certificado: {row.conocer_cert_number}" if row.conocer_cert_number else "Pendiente de tramite"
+            exam_date_str = row.exam_date.strftime('%Y-%m-%d') if row.exam_date else ''
+            data_row = [
+                (row.full_name or '').strip(), row.curp or '', row.email or '', row.username or '',
+                row.ecm_code or '', row.ecm_name or '', row.exam_name or '',
+                row.score, exam_date_str,
+                row.group_name or '', row.group_code or '', row.campus_name or '', row.partner_name or '',
+                status_text,
+            ]
+            for col, val in enumerate(data_row, 1):
+                cell = ws.cell(row=idx, column=col, value=val)
+                cell.border = thin_border
+                if col == 8:
+                    cell.alignment = center_align
+
+        from openpyxl.utils import get_column_letter
+        widths = [35, 22, 30, 20, 12, 40, 35, 12, 16, 25, 15, 25, 25, 30]
+        for i, w in enumerate(widths, 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+        ws.freeze_panes = 'A5'
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        filename = f"Tramites_CONOCER_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename,
+        )
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500

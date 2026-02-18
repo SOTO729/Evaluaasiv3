@@ -3069,3 +3069,100 @@ export async function exportMiPartnerCertificatesExcel(params: {
   link.remove();
   window.URL.revokeObjectURL(url);
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+// Trámites CONOCER
+// ═══════════════════════════════════════════════════════════════
+
+export interface ConocerTramiteCandidate {
+  user_id: string;
+  full_name: string;
+  email: string;
+  curp: string;
+  username: string;
+  ecm_id: number;
+  ecm_code: string;
+  ecm_name: string;
+  exam_id: number;
+  exam_name: string;
+  score: number;
+  exam_date: string | null;
+  result_id: number;
+  group_id: number;
+  group_name: string;
+  group_code: string;
+  campus_id: number;
+  campus_name: string;
+  partner_id: number;
+  partner_name: string;
+  conocer_cert_id: number | null;
+  conocer_cert_number: string | null;
+  conocer_cert_status: string | null;
+  conocer_issue_date: string | null;
+  tramite_status: 'pendiente' | 'certificado';
+}
+
+export interface ConocerTramiteSummary {
+  total_candidates: number;
+  pending: number;
+  with_certificate: number;
+  total_ecms: number;
+  total_groups: number;
+  total_campuses: number;
+  total_partners: number;
+}
+
+export interface ConocerTramitesResponse {
+  candidates: ConocerTramiteCandidate[];
+  total: number;
+  pages: number;
+  current_page: number;
+  per_page: number;
+  summary: ConocerTramiteSummary;
+}
+
+export interface ConocerTramitesParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  partner_id?: number;
+  campus_id?: number;
+  group_id?: number;
+  ecm_id?: number;
+  sort_by?: string;
+  sort_dir?: string;
+  conocer_status?: 'all' | 'pending' | 'has_certificate';
+}
+
+/**
+ * Obtener candidatos elegibles para trámite CONOCER
+ */
+export async function getConocerTramites(params?: ConocerTramitesParams): Promise<ConocerTramitesResponse> {
+  const response = await api.get('/partners/conocer-tramites', { params });
+  return response.data;
+}
+
+/**
+ * Exportar candidatos del trámite CONOCER a Excel
+ */
+export async function exportConocerTramitesExcel(params?: ConocerTramitesParams & { user_ids?: string }): Promise<void> {
+  const response = await api.get('/partners/conocer-tramites/export', {
+    params,
+    responseType: 'blob',
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  const contentDisposition = response.headers['content-disposition'];
+  let filename = 'tramites_conocer.xlsx';
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename=(.+)/);
+    if (match) filename = match[1].replace(/"/g, '');
+  }
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
