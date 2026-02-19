@@ -495,6 +495,33 @@ def create_user():
         user_coordinator_id = None
         if current_user.role == 'coordinator' and role in ['candidato', 'responsable', 'responsable_partner']:
             user_coordinator_id = current_user.id
+        elif current_user.role in ['admin', 'developer'] and role in ['responsable', 'candidato'] and user_campus_id:
+            # Admin/developer creando responsable/candidato: buscar el coordinador del campus
+            from app.models.partner import Campus as CampusLookup, Partner as PartnerLookup, user_partners as up_table
+            campus_lookup = CampusLookup.query.get(user_campus_id)
+            if campus_lookup and campus_lookup.partner_id:
+                # Buscar coordinador asociado al partner del campus
+                coord_row = db.session.query(up_table.c.user_id).join(
+                    User, User.id == up_table.c.user_id
+                ).filter(
+                    up_table.c.partner_id == campus_lookup.partner_id,
+                    User.role == 'coordinator',
+                    User.is_active == True
+                ).first()
+                if coord_row:
+                    user_coordinator_id = coord_row[0]
+        elif current_user.role in ['admin', 'developer'] and role == 'responsable_partner' and data.get('partner_id'):
+            # Admin creando responsable_partner: buscar el coordinador del partner
+            from app.models.partner import user_partners as up_table2
+            coord_row2 = db.session.query(up_table2.c.user_id).join(
+                User, User.id == up_table2.c.user_id
+            ).filter(
+                up_table2.c.partner_id == data['partner_id'],
+                User.role == 'coordinator',
+                User.is_active == True
+            ).first()
+            if coord_row2:
+                user_coordinator_id = coord_row2[0]
         
         new_user = User(
             id=str(uuid.uuid4()),
