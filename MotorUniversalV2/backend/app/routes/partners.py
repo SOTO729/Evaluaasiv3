@@ -11344,14 +11344,28 @@ def extend_assignment_validity(assignment_id):
             group = CandidateGroup.query.get(group_exam.group_id)
             if not group:
                 return jsonify({'error': 'Grupo no encontrado'}), 404
-            campus = Campus.query.get(group.campus_id) if group.campus_id else None
-            if not campus or campus.partner_id is None:
-                return jsonify({'error': 'No tienes permiso para extender esta asignación'}), 403
-            # Verificar que el coordinador tiene acceso a este partner
-            from app.models.partner import user_partners
-            has_access = db.session.query(user_partners).filter_by(
-                user_id=user_id, partner_id=campus.partner_id
-            ).first()
+            # Verificar acceso: coordinador debe tener relación con el partner del campus
+            has_access = False
+            if group.campus_id:
+                campus = Campus.query.get(group.campus_id)
+                if campus and campus.partner_id:
+                    from app.models.partner import user_partners
+                    up = db.session.query(user_partners).filter_by(
+                        user_id=user_id, partner_id=campus.partner_id
+                    ).first()
+                    if up:
+                        has_access = True
+            # Fallback: verificar si el coordinador gestiona candidatos de este grupo
+            if not has_access:
+                from app.models.partner import GroupMember
+                coordinator_members = db.session.query(GroupMember).join(
+                    User, User.id == GroupMember.user_id
+                ).filter(
+                    GroupMember.group_id == group_exam.group_id,
+                    User.coordinator_id == user_id
+                ).first()
+                if coordinator_members:
+                    has_access = True
             if not has_access:
                 return jsonify({'error': 'No tienes permiso para extender esta asignación'}), 403
         
@@ -11421,8 +11435,26 @@ def extend_ecm_assignment_validity(ecm_assignment_id):
         
         # Verificar permisos de coordinador
         if user.role == 'coordinator':
+            has_access = False
+            # Verificar si el candidato está bajo este coordinador
             target_user = User.query.get(ecm_assignment.user_id)
-            if not target_user or target_user.coordinator_id != user_id:
+            if target_user and target_user.coordinator_id == user_id:
+                has_access = True
+            # Verificar acceso via user_partners y grupo/campus
+            if not has_access and ecm_assignment.group_exam_id:
+                ge = GroupExam.query.get(ecm_assignment.group_exam_id)
+                if ge:
+                    grp = CandidateGroup.query.get(ge.group_id)
+                    if grp and grp.campus_id:
+                        campus = Campus.query.get(grp.campus_id)
+                        if campus and campus.partner_id:
+                            from app.models.partner import user_partners
+                            up = db.session.query(user_partners).filter_by(
+                                user_id=user_id, partner_id=campus.partner_id
+                            ).first()
+                            if up:
+                                has_access = True
+            if not has_access:
                 return jsonify({'error': 'No tienes permiso para extender esta asignación'}), 403
         
         old_extended = ecm_assignment.extended_months or 0
