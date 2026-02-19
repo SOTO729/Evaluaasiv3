@@ -828,6 +828,10 @@ def get_my_assignments():
                     'available_from': ge.available_from.isoformat() if ge.available_from else None,
                     'available_until': ge.available_until.isoformat() if ge.available_until else None,
                     'require_security_pin': ge.require_security_pin or False,
+                    'validity_months': ge.validity_months,
+                    'expires_at': ge.effective_expires_at.isoformat() if ge.effective_expires_at else None,
+                    'extended_months': ge.extended_months or 0,
+                    'is_expired': ge.is_expired,
                 },
                 
                 # Examen

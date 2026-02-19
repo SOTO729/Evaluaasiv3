@@ -29,11 +29,15 @@ import {
   ArrowUpDown,
   BadgeCheck,
   Download,
+  CalendarClock,
+  Plus,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
   getEcmAssignmentDetail,
   exportEcmAssignmentsExcel,
+  extendAssignmentValidity,
+  extendEcmAssignmentValidity,
   EcmAssignmentDetail,
   EcmAssignmentDetailResponse,
 } from '../../services/partnersService';
@@ -59,6 +63,15 @@ export default function EcmAssignmentDetailPage() {
   const [sortDir, setSortDir] = useState('desc');
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Estado para modal de extensión de vigencia
+  const [extendModal, setExtendModal] = useState<{
+    open: boolean;
+    assignment: EcmAssignmentDetail | null;
+    months: number;
+    loading: boolean;
+    error: string | null;
+  }>({ open: false, assignment: null, months: 1, loading: false, error: null });
 
   const loadData = useCallback(async () => {
     if (!ecmId) return;
@@ -94,6 +107,29 @@ export default function EcmAssignmentDetailPage() {
   const handleSearch = () => {
     setPage(1);
     loadData();
+  };
+
+  const handleExtendValidity = async () => {
+    const a = extendModal.assignment;
+    if (!a || extendModal.months < 1) return;
+    setExtendModal(prev => ({ ...prev, loading: true, error: null }));
+    try {
+      // Si tiene group_exam_id, extender a nivel grupal (afecta todas las asignaciones del grupo)
+      if ((a as any).group_exam_id) {
+        await extendAssignmentValidity((a as any).group_exam_id, extendModal.months);
+      } else {
+        // Fallback: extender individualmente
+        await extendEcmAssignmentValidity((a as any).ecm_assignment_id || 0, extendModal.months);
+      }
+      setExtendModal({ open: false, assignment: null, months: 1, loading: false, error: null });
+      loadData(); // Refrescar datos
+    } catch (err: any) {
+      setExtendModal(prev => ({
+        ...prev,
+        loading: false,
+        error: err.response?.data?.error || 'Error al extender vigencia'
+      }));
+    }
   };
 
   const handleExport = async () => {
@@ -569,6 +605,9 @@ export default function EcmAssignmentDetailPage() {
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
+                  <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                    Vigencia
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -697,6 +736,37 @@ export default function EcmAssignmentDetailPage() {
                     <td className="py-3 px-3 text-center">
                       <p className="fluid-text-sm text-gray-700">{formatDuration(a.duration_seconds)}</p>
                     </td>
+                    {/* Vigencia */}
+                    <td className="py-3 px-3 text-center">
+                      {a.vigencia ? (
+                        <div className="min-w-[110px]">
+                          {a.vigencia.is_expired ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full fluid-text-xs font-bold bg-orange-100 text-orange-700">
+                              <Clock className="w-3 h-3" />
+                              Expirada
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full fluid-text-xs font-medium bg-green-100 text-green-700">
+                              <CalendarClock className="w-3 h-3" />
+                              {new Date(a.vigencia.expires_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            </span>
+                          )}
+                          {a.vigencia.extended_months > 0 && (
+                            <p className="fluid-text-xs text-blue-500 mt-0.5">+{a.vigencia.extended_months} mes{a.vigencia.extended_months > 1 ? 'es' : ''}</p>
+                          )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setExtendModal({ open: true, assignment: a, months: 1, loading: false, error: null }); }}
+                            className="mt-1 inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full fluid-text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors"
+                            title="Extender vigencia"
+                          >
+                            <Plus className="w-3 h-3" />
+                            Extender
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="fluid-text-xs text-gray-400">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -730,6 +800,73 @@ export default function EcmAssignmentDetailPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal de extensión de vigencia */}
+      {extendModal.open && extendModal.assignment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setExtendModal(prev => ({ ...prev, open: false }))}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-gradient-to-br from-blue-600 to-blue-700 px-6 py-5 text-white">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <CalendarClock className="w-5 h-5" />
+                Extender Vigencia
+              </h3>
+              <p className="text-blue-100 text-sm mt-1">{extendModal.assignment.user_name}</p>
+            </div>
+            <div className="px-6 py-5">
+              {extendModal.assignment.vigencia && (
+                <div className="mb-4 p-3 bg-gray-50 rounded-xl text-sm space-y-1">
+                  <p className="text-gray-600">
+                    <span className="font-medium text-gray-800">Vigencia original:</span>{' '}
+                    {extendModal.assignment.vigencia.validity_months} mes{extendModal.assignment.vigencia.validity_months > 1 ? 'es' : ''}
+                  </p>
+                  <p className="text-gray-600">
+                    <span className="font-medium text-gray-800">Vence:</span>{' '}
+                    {new Date(extendModal.assignment.vigencia.expires_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
+                  </p>
+                  {extendModal.assignment.vigencia.extended_months > 0 && (
+                    <p className="text-blue-600">
+                      Ya extendida: +{extendModal.assignment.vigencia.extended_months} mes{extendModal.assignment.vigencia.extended_months > 1 ? 'es' : ''}
+                    </p>
+                  )}
+                </div>
+              )}
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Meses a extender
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={extendModal.months}
+                onChange={(e) => setExtendModal(prev => ({ ...prev, months: Math.max(1, parseInt(e.target.value) || 1) }))}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg font-semibold text-center"
+              />
+              {extendModal.error && (
+                <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  {extendModal.error}
+                </p>
+              )}
+              <div className="flex gap-3 mt-5">
+                <button
+                  onClick={() => setExtendModal(prev => ({ ...prev, open: false }))}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors"
+                  disabled={extendModal.loading}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleExtendValidity}
+                  disabled={extendModal.loading || extendModal.months < 1}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors shadow-sm disabled:opacity-50"
+                >
+                  {extendModal.loading ? 'Extendiendo...' : `Extender ${extendModal.months} mes${extendModal.months > 1 ? 'es' : ''}`}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

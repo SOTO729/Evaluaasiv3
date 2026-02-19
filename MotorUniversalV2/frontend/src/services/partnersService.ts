@@ -1368,6 +1368,11 @@ export interface GroupExamAssignment {
   max_attempts?: number;
   max_disconnections?: number;
   exam_content_type?: ExamContentType;
+  // Vigencia
+  validity_months?: number;
+  expires_at?: string;
+  extended_months?: number;
+  is_expired?: boolean;
   exam?: {
     id: number;
     name: string;
@@ -2899,6 +2904,13 @@ export interface EcmAssignmentDetail {
   time_limit: number | null;
   passing_score: number | null;
   certificate_types: string[];
+  group_exam_id?: number;
+  vigencia?: {
+    validity_months: number;
+    expires_at: string;
+    extended_months: number;
+    is_expired: boolean;
+  };
 }
 
 export interface EcmAssignmentDetailResponse {
@@ -3377,5 +3389,31 @@ export async function exportConocerUploadBatchLogs(batchId: number): Promise<voi
  */
 export async function retryConocerUploadBatch(batchId: number): Promise<{ message: string }> {
   const response = await api.post(`/conocer/admin/upload-batches/${batchId}/retry`);
+  return response.data;
+}
+
+/**
+ * Extender vigencia de una asignación grupal (GroupExam)
+ * Solo admin y coordinador con acceso al partner
+ */
+export async function extendAssignmentValidity(assignmentId: number, months: number): Promise<{
+  message: string;
+  new_expires_at: string;
+  total_extended_months: number;
+}> {
+  const response = await api.post(`/partners/assignments/${assignmentId}/extend-validity`, { months });
+  return response.data;
+}
+
+/**
+ * Extender vigencia de una asignación ECM individual
+ * Solo admin y coordinador con acceso al candidato
+ */
+export async function extendEcmAssignmentValidity(ecmAssignmentId: number, months: number): Promise<{
+  message: string;
+  new_expires_at: string;
+  total_extended_months: number;
+}> {
+  const response = await api.post(`/partners/ecm-assignments/${ecmAssignmentId}/extend-validity`, { months });
   return response.data;
 }

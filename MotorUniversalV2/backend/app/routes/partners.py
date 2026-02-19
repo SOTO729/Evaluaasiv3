@@ -4744,6 +4744,22 @@ def assign_exam_to_group(group_id):
                 existing.security_pin = data.get('security_pin')
                 existing.require_security_pin = data.get('require_security_pin', False)
                 
+                # Calcular vigencia para la reactivación
+                r_campus = Campus.query.get(group.campus_id)
+                if group.assignment_validity_months_override is not None:
+                    r_validity_months = group.assignment_validity_months_override
+                elif r_campus and r_campus.assignment_validity_months:
+                    r_validity_months = r_campus.assignment_validity_months
+                else:
+                    r_validity_months = 12
+                
+                from dateutil.relativedelta import relativedelta
+                r_assigned_at_now = datetime.utcnow()
+                existing.assigned_at = r_assigned_at_now
+                existing.validity_months = r_validity_months
+                existing.expires_at = r_assigned_at_now + relativedelta(months=r_validity_months)
+                existing.extended_months = 0  # Reset extensions on reactivation
+                
                 # Si es tipo 'selected', agregar miembros
                 if assignment_type == 'selected':
                     # Limpiar miembros anteriores
@@ -4851,7 +4867,10 @@ def assign_exam_to_group(group_id):
                                 group_name=group.name,
                                 group_exam_id=existing.id,
                                 assigned_by_id=g.current_user.id,
-                                assignment_source='selected' if assignment_type == 'selected' else 'bulk'
+                                assignment_source='selected' if assignment_type == 'selected' else 'bulk',
+                                validity_months=r_validity_months,
+                                assigned_at=r_assigned_at_now,
+                                expires_at=r_assigned_at_now + relativedelta(months=r_validity_months),
                             )
                             db.session.add(new_ecm)
                 
@@ -4887,6 +4906,19 @@ def assign_exam_to_group(group_id):
         require_security_pin = data.get('require_security_pin', False)
         material_ids = data.get('material_ids')
         
+        # Calcular vigencia de la asignación
+        campus = Campus.query.get(group.campus_id)
+        if group.assignment_validity_months_override is not None:
+            validity_months = group.assignment_validity_months_override
+        elif campus and campus.assignment_validity_months:
+            validity_months = campus.assignment_validity_months
+        else:
+            validity_months = 12
+        
+        from dateutil.relativedelta import relativedelta
+        assigned_at_now = datetime.utcnow()
+        expires_at = assigned_at_now + relativedelta(months=validity_months)
+        
         # Crear nueva asignación
         group_exam = GroupExam(
             group_id=group_id,
@@ -4905,7 +4937,10 @@ def assign_exam_to_group(group_id):
             simulator_questions_count=simulator_questions_count,
             simulator_exercises_count=simulator_exercises_count,
             security_pin=security_pin,
-            require_security_pin=require_security_pin
+            require_security_pin=require_security_pin,
+            validity_months=validity_months,
+            assigned_at=assigned_at_now,
+            expires_at=expires_at,
         )
         
         db.session.add(group_exam)
@@ -5028,7 +5063,10 @@ def assign_exam_to_group(group_id):
                     group_name=group.name,
                     group_exam_id=group_exam.id,
                     assigned_by_id=g.current_user.id,
-                    assignment_source='selected' if assignment_type == 'selected' else 'bulk'
+                    assignment_source='selected' if assignment_type == 'selected' else 'bulk',
+                    validity_months=validity_months,
+                    assigned_at=assigned_at_now,
+                    expires_at=expires_at,
                 )
                 db.session.add(new_ecm)
                 new_assignments.append(new_ecm)
@@ -9143,6 +9181,13 @@ def get_mis_examenes():
             if ctx:
                 d['group_id'] = ctx['group_id']
                 d['group_exam_id'] = ctx['group_exam_id']
+                # Agregar info de vigencia
+                ge_obj = GroupExam.query.get(ctx['group_exam_id'])
+                if ge_obj:
+                    d['validity_months'] = ge_obj.validity_months
+                    d['expires_at'] = ge_obj.effective_expires_at.isoformat() if ge_obj.effective_expires_at else None
+                    d['extended_months'] = ge_obj.extended_months or 0
+                    d['is_expired'] = ge_obj.is_expired
             # Agregar estado de aprobación
             approval = approved_map.get(exam.id)
             if approval:
@@ -11261,6 +11306,149 @@ def get_candidate_certification_detail(group_id, user_id):
         return jsonify({'error': str(e)}), 500
 
 
+# ============== VIGENCIA DE ASIGNACIONES ==============
+
+@bp.route('/assignments/<int:assignment_id>/extend-validity', methods=['POST'])
+@jwt_required()
+def extend_assignment_validity(assignment_id):
+    """Extender la vigencia de una asignación (GroupExam) y sus ECM asociados.
+    
+    Solo admin y coordinator pueden extender.
+    Coordinator solo puede extender asignaciones de sus grupos.
+    
+    Request body:
+    {
+        "months": 3  // Meses adicionales a agregar
+    }
+    """
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user or user.role not in ['admin', 'developer', 'coordinator']:
+            return jsonify({'error': 'Acceso denegado'}), 403
+        
+        data = request.get_json()
+        months = data.get('months')
+        
+        if not months or not isinstance(months, (int, float)) or months <= 0:
+            return jsonify({'error': 'Debe especificar una cantidad de meses válida (mayor a 0)'}), 400
+        
+        months = int(months)
+        
+        group_exam = GroupExam.query.get(assignment_id)
+        if not group_exam:
+            return jsonify({'error': 'Asignación no encontrada'}), 404
+        
+        # Verificar permisos de coordinador
+        if user.role == 'coordinator':
+            group = CandidateGroup.query.get(group_exam.group_id)
+            if not group:
+                return jsonify({'error': 'Grupo no encontrado'}), 404
+            campus = Campus.query.get(group.campus_id) if group.campus_id else None
+            if not campus or campus.partner_id is None:
+                return jsonify({'error': 'No tienes permiso para extender esta asignación'}), 403
+            # Verificar que el coordinador tiene acceso a este partner
+            from app.models.partner import user_partners
+            has_access = db.session.query(user_partners).filter_by(
+                user_id=user_id, partner_id=campus.partner_id
+            ).first()
+            if not has_access:
+                return jsonify({'error': 'No tienes permiso para extender esta asignación'}), 403
+        
+        # Extender GroupExam
+        old_extended = group_exam.extended_months or 0
+        group_exam.extended_months = old_extended + months
+        
+        # Extender las EcmCandidateAssignments asociadas
+        from app.models.partner import EcmCandidateAssignment
+        ecm_assignments = EcmCandidateAssignment.query.filter_by(
+            group_exam_id=assignment_id
+        ).all()
+        
+        for ecm_a in ecm_assignments:
+            ecm_old = ecm_a.extended_months or 0
+            ecm_a.extended_months = ecm_old + months
+        
+        db.session.commit()
+        
+        new_expires = group_exam.effective_expires_at
+        
+        return jsonify({
+            'message': f'Vigencia extendida {months} mes(es) exitosamente',
+            'assignment_id': assignment_id,
+            'extended_months_total': group_exam.extended_months,
+            'validity_months': group_exam.validity_months,
+            'expires_at': new_expires.isoformat() if new_expires else None,
+            'is_expired': group_exam.is_expired,
+            'ecm_assignments_updated': len(ecm_assignments),
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/ecm-assignments/<int:ecm_assignment_id>/extend-validity', methods=['POST'])
+@jwt_required()
+def extend_ecm_assignment_validity(ecm_assignment_id):
+    """Extender la vigencia de una asignación ECM individual.
+    
+    Request body:
+    {
+        "months": 3  // Meses adicionales a agregar
+    }
+    """
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user or user.role not in ['admin', 'developer', 'coordinator']:
+            return jsonify({'error': 'Acceso denegado'}), 403
+        
+        data = request.get_json()
+        months = data.get('months')
+        
+        if not months or not isinstance(months, (int, float)) or months <= 0:
+            return jsonify({'error': 'Debe especificar una cantidad de meses válida (mayor a 0)'}), 400
+        
+        months = int(months)
+        
+        from app.models.partner import EcmCandidateAssignment
+        ecm_assignment = EcmCandidateAssignment.query.get(ecm_assignment_id)
+        if not ecm_assignment:
+            return jsonify({'error': 'Asignación ECM no encontrada'}), 404
+        
+        # Verificar permisos de coordinador
+        if user.role == 'coordinator':
+            target_user = User.query.get(ecm_assignment.user_id)
+            if not target_user or target_user.coordinator_id != user_id:
+                return jsonify({'error': 'No tienes permiso para extender esta asignación'}), 403
+        
+        old_extended = ecm_assignment.extended_months or 0
+        ecm_assignment.extended_months = old_extended + months
+        
+        db.session.commit()
+        
+        new_expires = ecm_assignment.effective_expires_at
+        
+        return jsonify({
+            'message': f'Vigencia extendida {months} mes(es) exitosamente',
+            'ecm_assignment_id': ecm_assignment_id,
+            'assignment_number': ecm_assignment.assignment_number,
+            'extended_months_total': ecm_assignment.extended_months,
+            'validity_months': ecm_assignment.validity_months,
+            'expires_at': new_expires.isoformat() if new_expires else None,
+            'is_expired': ecm_assignment.is_expired,
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 # ============== MÓDULO DE ASIGNACIONES POR ECM ==============
 
 @bp.route('/ecm-assignments', methods=['GET'])
@@ -11808,16 +11996,58 @@ def get_ecm_assignment_detail(ecm_id):
         # ── Build JSON response ──
         # Batch-fetch assignment numbers for this page
         assignment_number_map = {}
+        vigencia_map = {}  # group_exam_id -> {validity_months, expires_at, extended_months, is_expired}
+        ecm_vigencia_map = {}  # (user_id, ecm_id) -> {validity_months, expires_at, extended_months, is_expired}
         if data_rows:
             page_uids = list(set(row.user_id for row in data_rows))
+            page_ge_ids_for_vigencia = list(set(row.group_exam_id for row in data_rows))
             if page_uids:
                 uid_placeholders = ','.join(f"'{str(u)}'" for u in page_uids)
                 ecm_assigns = db.session.execute(text(
-                    f"SELECT user_id, assignment_number FROM ecm_candidate_assignments "
+                    f"SELECT user_id, assignment_number, validity_months, expires_at, extended_months "
+                    f"FROM ecm_candidate_assignments "
                     f"WHERE user_id IN ({uid_placeholders}) AND competency_standard_id = :ecm_id"
                 ), {'ecm_id': ecm_id}).fetchall()
                 for ea in ecm_assigns:
                     assignment_number_map[ea.user_id] = ea.assignment_number
+                    # Calculate effective expires for ECM assignments
+                    ecm_expires = ea.expires_at
+                    ecm_extended = ea.extended_months or 0
+                    effective_ecm_expires = None
+                    ecm_is_expired = False
+                    if ecm_expires:
+                        from dateutil.relativedelta import relativedelta
+                        effective_ecm_expires = ecm_expires + relativedelta(months=ecm_extended)
+                        ecm_is_expired = datetime.utcnow() > effective_ecm_expires
+                    ecm_vigencia_map[ea.user_id] = {
+                        'validity_months': ea.validity_months,
+                        'expires_at': effective_ecm_expires.isoformat() if effective_ecm_expires else None,
+                        'extended_months': ecm_extended,
+                        'is_expired': ecm_is_expired,
+                    }
+            
+            # Batch-fetch vigencia for GroupExams
+            if page_ge_ids_for_vigencia:
+                ge_ids_vig_str = ','.join(str(int(x)) for x in page_ge_ids_for_vigencia)
+                ge_vig_rows = db.session.execute(text(
+                    f"SELECT id, validity_months, expires_at, extended_months "
+                    f"FROM group_exams WHERE id IN ({ge_ids_vig_str})"
+                )).fetchall()
+                for gv in ge_vig_rows:
+                    gv_expires = gv.expires_at
+                    gv_extended = gv.extended_months or 0
+                    effective_gv_expires = None
+                    gv_is_expired = False
+                    if gv_expires:
+                        from dateutil.relativedelta import relativedelta
+                        effective_gv_expires = gv_expires + relativedelta(months=gv_extended)
+                        gv_is_expired = datetime.utcnow() > effective_gv_expires
+                    vigencia_map[gv.id] = {
+                        'validity_months': gv.validity_months,
+                        'expires_at': effective_gv_expires.isoformat() if effective_gv_expires else None,
+                        'extended_months': gv_extended,
+                        'is_expired': gv_is_expired,
+                    }
         
         assignments = []
         for row in data_rows:
@@ -11885,6 +12115,8 @@ def get_ecm_assignment_detail(ecm_id):
                 'time_limit': row.time_limit_minutes,
                 'passing_score': row.passing_score,
                 'certificate_types': cert_types,
+                'vigencia': ecm_vigencia_map.get(row.user_id) or vigencia_map.get(row.group_exam_id),
+                'group_exam_id': row.group_exam_id,
             })
 
         # ── Filter options (lightweight) ──

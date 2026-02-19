@@ -376,6 +376,20 @@ export default function GroupDetailPage() {
                   </div>
                 </div>
                 <div className="flex items-center fluid-gap-2 flex-shrink-0">
+                  {/* Vigencia badge */}
+                  {assignment.expires_at && (
+                    assignment.is_expired ? (
+                      <span className="fluid-px-2 fluid-py-1 bg-orange-100 text-orange-700 fluid-text-xs font-bold rounded-fluid-lg inline-flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        Expirada
+                      </span>
+                    ) : (
+                      <span className="fluid-px-2 fluid-py-1 bg-green-100 text-green-700 fluid-text-xs font-medium rounded-fluid-lg inline-flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        Hasta {new Date(assignment.expires_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                      </span>
+                    )
+                  )}
                   {assignment.exam?.ecm?.code && (
                     <span className="fluid-px-2 fluid-py-1 bg-purple-100 text-purple-700 fluid-text-xs font-bold rounded-fluid-lg">
                       {assignment.exam.ecm.code}

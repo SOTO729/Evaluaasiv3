@@ -39,7 +39,8 @@ import {
   CheckCircle,
   Trophy,
   ArrowRight,
-  X
+  X,
+  Clock
 } from 'lucide-react'
 import LoadingSpinner from '../../components/LoadingSpinner'
 
@@ -88,7 +89,9 @@ const ExamCard = ({
     <>
     <div 
       className={`bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden group animate-stagger-in ${
-        isCandidate && exam.is_approved
+        isCandidate && exam.is_expired
+          ? 'border-2 border-orange-300 ring-1 ring-orange-100 opacity-75'
+          : isCandidate && exam.is_approved
           ? 'border-2 border-emerald-300 ring-1 ring-emerald-100'
           : 'border border-gray-100'
       }`}
@@ -147,6 +150,16 @@ const ExamCard = ({
           </div>
         )}
 
+        {/* Badge Expirada - Para candidatos con asignación expirada */}
+        {isCandidate && exam.is_expired && !exam.is_approved && (
+          <div className="absolute top-3 left-3">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-orange-500 text-white shadow-lg">
+              <Clock className="w-3.5 h-3.5" />
+              Vigencia Expirada
+            </span>
+          </div>
+        )}
+
         {/* Version Badge */}
         <div className="absolute top-3 right-3">
           <span className="px-2 py-1 rounded-full text-xs font-mono bg-black/30 text-white">
@@ -191,10 +204,14 @@ const ExamCard = ({
                 <Layers className="fluid-icon-xs" />
                 <span>{exam.total_categories || 0} {exam.total_categories === 1 ? 'categoría' : 'categorías'}</span>
               </div>
-              <div className="flex items-center gap-1" title="Temas">
-                <BookOpen className="fluid-icon-xs" />
-                <span>{exam.total_topics || 0} temas</span>
-              </div>
+              {exam.expires_at && (
+                <div className={`flex items-center gap-1 ml-auto ${exam.is_expired ? 'text-orange-500 font-medium' : ''}`} title="Vigencia">
+                  <Clock className="fluid-icon-xs" />
+                  <span>
+                    {exam.is_expired ? 'Expirada' : `Hasta ${new Date(exam.expires_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}`}
+                  </span>
+                </div>
+              )}
             </div>
           </>
         ) : (

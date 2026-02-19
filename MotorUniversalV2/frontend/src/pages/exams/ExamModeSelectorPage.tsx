@@ -43,6 +43,10 @@ interface AccessData {
   attempts_remaining: number;
   attempts_exhausted: boolean;
   retake_cost: number;
+  expired?: boolean;
+  validity_months?: number;
+  expires_at?: string;
+  extended_months?: number;
 }
 
 const ExamModeSelectorPage = () => {
@@ -68,6 +72,8 @@ const ExamModeSelectorPage = () => {
   });
 
   const handleSelectMode = (mode: 'exam' | 'simulator') => {
+    // Bloquear si vigencia expirada
+    if (access?.expired) return;
     // Bloquear examen y simulador si no hay intentos
     if (access?.attempts_exhausted) return;
     // Navegar directamente al onboarding (flujo de inicio)
@@ -159,6 +165,35 @@ const ExamModeSelectorPage = () => {
             </div>
           </div>
         </div>
+
+        {/* Alerta de vigencia expirada */}
+        {access?.expired && (
+          <div className="bg-orange-50 rounded-fluid-xl shadow-lg border-2 border-orange-200 fluid-p-6 fluid-mb-6">
+            <div className="flex flex-col items-center text-center fluid-gap-4">
+              <div className="fluid-w-16 fluid-h-16 rounded-full bg-orange-100 flex items-center justify-center">
+                <Clock className="fluid-icon-xl text-orange-500" />
+              </div>
+              <div>
+                <h3 className="fluid-text-xl font-bold text-orange-800 fluid-mb-2">
+                  Vigencia Expirada
+                </h3>
+                <p className="fluid-text-base text-orange-700 fluid-mb-1">
+                  La vigencia de tu asignación ha finalizado. Ya no puedes acceder al <strong>Examen</strong>, <strong>Simulador</strong> ni <strong>Material de Estudio</strong>.
+                </p>
+                {access.expires_at && (
+                  <p className="fluid-text-sm text-orange-600">
+                    Expiró el: <strong>{new Date(access.expires_at).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</strong>
+                  </p>
+                )}
+              </div>
+              <div className="w-full max-w-sm bg-white rounded-fluid-lg fluid-p-4 border border-orange-100">
+                <p className="fluid-text-sm text-gray-600">
+                  Contacta a tu coordinador para solicitar una extensión de vigencia o adquirir una nueva asignación.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Alerta de intentos agotados */}
         {access?.attempts_exhausted && (

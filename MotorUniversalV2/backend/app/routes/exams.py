@@ -3036,6 +3036,17 @@ def check_exam_access(exam_id):
         if group_exam.exam_id != exam_id:
             return jsonify({'error': 'El examen no corresponde a la asignación'}), 400
         
+        # Verificar vigencia de la asignación
+        if group_exam.is_expired:
+            return jsonify({
+                'can_take': False,
+                'expired': True,
+                'expires_at': group_exam.effective_expires_at.isoformat() if group_exam.effective_expires_at else None,
+                'validity_months': group_exam.validity_months,
+                'extended_months': group_exam.extended_months or 0,
+                'error': 'La vigencia de esta asignación ha expirado. Contacta a tu coordinador para solicitar una extensión o una nueva asignación.'
+            }), 200
+        
         # Contar resultados del usuario para este group_exam
         results_count = Result.query.filter_by(
             user_id=str(user_id),
@@ -3075,7 +3086,11 @@ def check_exam_access(exam_id):
             'attempts_remaining': attempts_remaining,
             'attempts_exhausted': attempts_exhausted,
             'retake_cost': retake_cost,
-            'max_disconnections': group_exam.max_disconnections or 3
+            'max_disconnections': group_exam.max_disconnections or 3,
+            'expired': False,
+            'validity_months': group_exam.validity_months,
+            'expires_at': group_exam.effective_expires_at.isoformat() if group_exam.effective_expires_at else None,
+            'extended_months': group_exam.extended_months or 0,
         }), 200
         
     except Exception as e:
@@ -3170,6 +3185,13 @@ def save_exam_result(exam_id):
                 from app.models.partner import GroupExam as GE2, EcmRetake
                 ge_check = GE2.query.get(group_exam_id)
                 if ge_check:
+                    # Verificar vigencia
+                    if ge_check.is_expired:
+                        print(f"⛔ ASIGNACIÓN EXPIRADA: user={user_id}, geid={group_exam_id}")
+                        return jsonify({
+                            'error': 'La vigencia de esta asignación ha expirado. No se puede guardar el resultado.'
+                        }), 403
+                    
                     max_att = ge_check.max_attempts or 1
                     retakes_t = EcmRetake.query.filter_by(
                         user_id=str(user_id), group_exam_id=group_exam_id

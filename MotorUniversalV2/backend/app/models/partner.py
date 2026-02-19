@@ -700,6 +700,11 @@ class GroupExam(db.Model):
     
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
+    # Vigencia de la asignación
+    validity_months = db.Column(db.Integer, nullable=True)  # Meses de vigencia (snapshot de config al asignar)
+    expires_at = db.Column(db.DateTime, nullable=True)  # Fecha de expiración calculada
+    extended_months = db.Column(db.Integer, default=0, nullable=False)  # Meses adicionales otorgados
+    
     # Índice único para evitar duplicados
     __table_args__ = (
         db.UniqueConstraint('group_id', 'exam_id', name='uq_group_exam'),
@@ -709,6 +714,23 @@ class GroupExam(db.Model):
     group = db.relationship('CandidateGroup', backref=db.backref('assigned_exams', lazy='dynamic'))
     exam = db.relationship('Exam', backref=db.backref('group_assignments', lazy='dynamic'))
     assigned_by = db.relationship('User', foreign_keys=[assigned_by_id])
+    
+    @property
+    def is_expired(self):
+        """Check if this assignment has expired based on validity period"""
+        if not self.expires_at:
+            return False
+        from dateutil.relativedelta import relativedelta
+        effective_expires = self.expires_at + relativedelta(months=self.extended_months or 0)
+        return datetime.utcnow() > effective_expires
+    
+    @property
+    def effective_expires_at(self):
+        """Get the effective expiration date including extensions"""
+        if not self.expires_at:
+            return None
+        from dateutil.relativedelta import relativedelta
+        return self.expires_at + relativedelta(months=self.extended_months or 0)
     
     def to_dict(self, include_exam=False, include_group=False, include_materials=False, include_members=False):
         data = {
@@ -732,6 +754,10 @@ class GroupExam(db.Model):
             'security_pin': self.security_pin,
             'require_security_pin': self.require_security_pin or False,
             'is_active': self.is_active,
+            'validity_months': self.validity_months,
+            'expires_at': self.effective_expires_at.isoformat() if self.effective_expires_at else None,
+            'extended_months': self.extended_months or 0,
+            'is_expired': self.is_expired,
         }
         
         # Contar miembros asignados si es tipo 'selected'
@@ -935,6 +961,11 @@ class GroupStudyMaterial(db.Model):
     
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
+    # Vigencia de la asignación
+    validity_months = db.Column(db.Integer, nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=True)
+    extended_months = db.Column(db.Integer, default=0, nullable=False)
+    
     # Índice único para evitar duplicados
     __table_args__ = (
         db.UniqueConstraint('group_id', 'study_material_id', name='uq_group_study_material'),
@@ -956,6 +987,9 @@ class GroupStudyMaterial(db.Model):
             'available_until': self.available_until.isoformat() if self.available_until else None,
             'assignment_type': self.assignment_type or 'all',
             'is_active': self.is_active,
+            'validity_months': self.validity_months,
+            'expires_at': self.expires_at.isoformat() if self.expires_at else None,
+            'extended_months': self.extended_months or 0,
         }
         
         # Contar miembros asignados si es tipo 'selected'
@@ -1049,6 +1083,11 @@ class EcmCandidateAssignment(db.Model):
     assigned_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
     assignment_source = db.Column(db.String(20), default='bulk', nullable=False)  # 'bulk' o 'selected'
     
+    # Vigencia de la asignación
+    validity_months = db.Column(db.Integer, nullable=True)  # Meses de vigencia (snapshot al asignar)
+    expires_at = db.Column(db.DateTime, nullable=True)  # Fecha de expiración calculada
+    extended_months = db.Column(db.Integer, default=0, nullable=False)  # Meses adicionales otorgados
+    
     # Relaciones (sin cascade delete - estas asignaciones son permanentes)
     user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('ecm_assignments', lazy='dynamic'))
     competency_standard = db.relationship('CompetencyStandard', backref=db.backref('candidate_assignments', lazy='dynamic'))
@@ -1059,6 +1098,23 @@ class EcmCandidateAssignment(db.Model):
     __table_args__ = (
         db.Index('ix_ecm_candidate_user_ecm', 'user_id', 'competency_standard_id'),
     )
+    
+    @property
+    def is_expired(self):
+        """Check if this ECM assignment has expired"""
+        if not self.expires_at:
+            return False
+        from dateutil.relativedelta import relativedelta
+        effective_expires = self.expires_at + relativedelta(months=self.extended_months or 0)
+        return datetime.utcnow() > effective_expires
+    
+    @property
+    def effective_expires_at(self):
+        """Get the effective expiration date including extensions"""
+        if not self.expires_at:
+            return None
+        from dateutil.relativedelta import relativedelta
+        return self.expires_at + relativedelta(months=self.extended_months or 0)
     
     @staticmethod
     def generate_assignment_number():
@@ -1091,6 +1147,10 @@ class EcmCandidateAssignment(db.Model):
             'assigned_at': self.assigned_at.isoformat() if self.assigned_at else None,
             'assigned_by_id': self.assigned_by_id,
             'assignment_source': self.assignment_source,
+            'validity_months': self.validity_months,
+            'expires_at': self.effective_expires_at.isoformat() if self.effective_expires_at else None,
+            'extended_months': self.extended_months or 0,
+            'is_expired': self.is_expired,
         }
 
 
