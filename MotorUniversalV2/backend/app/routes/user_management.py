@@ -529,6 +529,16 @@ def create_user():
                 partner_id=data['partner_id']
             ))
         
+        # Para responsable, asociarlo como responsable del plantel
+        if role == 'responsable' and user_campus_id:
+            from app.models.partner import Campus as CampusModel
+            campus_obj = CampusModel.query.get(user_campus_id)
+            if campus_obj:
+                campus_obj.responsable_id = new_user.id
+                # Avanzar estado de activación si está pendiente
+                if campus_obj.activation_status == 'pending':
+                    campus_obj.activation_status = 'configuring'
+        
         db.session.commit()
         
         # Enviar email de bienvenida si tiene email
