@@ -75,7 +75,6 @@ export default function CampusFormPage() {
   const [saving, setSaving] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [mexicanStates, setMexicanStates] = useState<string[]>([]);
   const [countries, setCountries] = useState<string[]>([]);
   const [partnerName, setPartnerName] = useState('');
@@ -387,8 +386,8 @@ export default function CampusFormPage() {
 
       if (isEditing) {
         await updateCampus(Number(campusId), formData);
-        setSuccessMessage('Información del plantel guardada exitosamente');
-        setTimeout(() => setSuccessMessage(null), 3000);
+        navigate(`/partners/campuses/${campusId}?saved=true`);
+        return;
       } else {
         const result = await createCampus(actualPartnerId!, formData);
         // Si se auto-creó el estado, mostrar mensaje especial
@@ -432,10 +431,8 @@ export default function CampusFormPage() {
         competency_standard_ids: selectedEcmIds,
       });
       
-      setSuccessMessage('Configuración guardada exitosamente');
-      setConfigChanged(false);
-      
-      setTimeout(() => setSuccessMessage(null), 3000);
+      navigate(`/partners/campuses/${campusId}?saved=true`);
+      return;
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al guardar configuración');
     } finally {
@@ -577,13 +574,6 @@ export default function CampusFormPage() {
         </div>
       )}
       
-      {successMessage && (
-        <div className="fluid-mb-6 fluid-p-4 bg-green-50 border border-green-200 rounded-fluid-xl flex items-center fluid-gap-3 animate-fade-in-up">
-          <CheckCircle2 className="fluid-icon-lg text-green-600 flex-shrink-0" />
-          <p className="fluid-text-base text-green-700">{successMessage}</p>
-        </div>
-      )}
-
       {/* Formulario principal */}
       <form onSubmit={handleSubmit} className="fluid-space-y-6">
         

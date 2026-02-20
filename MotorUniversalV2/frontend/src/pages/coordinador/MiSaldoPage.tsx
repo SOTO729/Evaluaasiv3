@@ -1,12 +1,12 @@
 /**
  * Página de Mi Saldo - Coordinador / Admin
  * 
- * Para Coordinador: ver su saldo actual, solicitar más saldo/becas,
+ * Para Coordinador: ver saldos por grupo, solicitar más saldo/becas,
  * y ver el historial de transacciones
  * 
- * Para Admin: ver todos los saldos de coordinadores
+ * Para Admin: ver todos los saldos de coordinadores (agrupados por grupo)
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Wallet,
@@ -23,10 +23,6 @@ import {
   Users,
   Search,
   Eye,
-  Calculator,
-  ChevronDown,
-  ChevronUp,
-  Building2,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useAuthStore } from '../../store/authStore';
@@ -36,14 +32,20 @@ import {
   getMyTransactions,
   getAllBalances,
   CoordinatorBalance,
+  MyBalanceResponse,
   BalanceRequest,
   BalanceTransaction,
   formatCurrency,
   getStatusColor,
   getStatusLabel,
 } from '../../services/balanceService';
-import { getAvailableCampuses } from '../../services/userManagementService';
-import { getGroups } from '../../services/partnersService';
+
+// Helper para formatear unidades usando el costo real de certificación del grupo
+const formatUnits = (amount: number, certCost?: number): string => {
+  if (!certCost || certCost <= 0) return '';
+  const units = Math.floor(amount / certCost);
+  return `≈ ${units} cert${units !== 1 ? 's' : ''}.`;
+};
 
 interface CoordinatorBalanceInfo {
   coordinator: {
@@ -51,32 +53,14 @@ interface CoordinatorBalanceInfo {
     full_name: string;
     email: string;
   };
-  balance: CoordinatorBalance;
+  balances: CoordinatorBalance[];
+  totals: {
+    current_balance: number;
+    total_received: number;
+    total_spent: number;
+    total_scholarships: number;
+  };
 }
-
-interface GroupEquivalence {
-  id: number;
-  name: string;
-  campusName: string;
-  campusId: number;
-  price: number;
-  equivalentUnits: number;
-  hasDifferentPrice: boolean;
-}
-
-// Precio promedio para calcular equivalencia en unidades (certificaciones)
-const AVERAGE_CERT_PRICE = 500;
-
-// Helper para calcular equivalencia en unidades
-const calculateUnits = (amount: number): number => {
-  return Math.floor(amount / AVERAGE_CERT_PRICE);
-};
-
-// Helper para formatear unidades
-const formatUnits = (amount: number): string => {
-  const units = calculateUnits(amount);
-  return `≈ ${units} cert${units !== 1 ? 's' : ''}.`;
-};
 
 export default function MiSaldoPage() {
   const { user } = useAuthStore();
@@ -84,20 +68,15 @@ export default function MiSaldoPage() {
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [balance, setBalance] = useState<CoordinatorBalance | null>(null);
+  const [balanceData, setBalanceData] = useState<MyBalanceResponse | null>(null);
   const [recentRequests, setRecentRequests] = useState<BalanceRequest[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<BalanceTransaction[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   
-  // Estado para admin - lista de todos los coordinadores
+  // Estado para admin
   const [allCoordinators, setAllCoordinators] = useState<CoordinatorBalanceInfo[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [totalBalances, setTotalBalances] = useState({ total: 0, pages: 1 });
-  
-  // Estado para equivalencias por grupo
-  const [groupEquivalences, setGroupEquivalences] = useState<GroupEquivalence[]>([]);
-  const [showEquivalences, setShowEquivalences] = useState(false);
-  const [loadingEquivalences, setLoadingEquivalences] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -109,19 +88,17 @@ export default function MiSaldoPage() {
       setError(null);
 
       if (isAdmin) {
-        // Admin: cargar todos los saldos de coordinadores
         const data = await getAllBalances({ per_page: 50 });
         setAllCoordinators(data.coordinators);
         setTotalBalances({ total: data.total, pages: data.pages });
       } else {
-        // Coordinador: cargar su propio saldo
-        const [balanceData, requestsData, transactionsData] = await Promise.all([
+        const [balData, requestsData, transactionsData] = await Promise.all([
           getMyBalance(),
           getMyRequests({ per_page: 5 }),
           getMyTransactions({ per_page: 5 }),
         ]);
 
-        setBalance(balanceData);
+        setBalanceData(balData);
         setRecentRequests(requestsData.requests);
         setRecentTransactions(transactionsData.transactions);
       }
@@ -137,91 +114,6 @@ export default function MiSaldoPage() {
     await loadData();
     setRefreshing(false);
   };
-
-  // Cargar equivalencias por grupo (lazy loading)
-  const loadGroupEquivalences = async () => {
-    if (groupEquivalences.length > 0 || !balance) return;
-    
-    try {
-      setLoadingEquivalences(true);
-      
-      // Obtener todos los campuses del coordinador
-      const campusesData = await getAvailableCampuses();
-      const campuses = campusesData.campuses || [];
-      
-      const equivalences: GroupEquivalence[] = [];
-      const currentBalance = balance.current_balance || 0;
-      
-      // Para cada campus, obtener los grupos con sus precios
-      for (const campus of campuses) {
-        const baseCampusPrice = campus.certification_cost || 500;
-        
-        // Agregar equivalencia a nivel plantel
-        const plantelUnits = baseCampusPrice > 0 ? Math.floor(currentBalance / baseCampusPrice) : 0;
-        equivalences.push({
-          id: 0,
-          name: `Precio base plantel`,
-          campusName: campus.name,
-          campusId: campus.id,
-          price: baseCampusPrice,
-          equivalentUnits: plantelUnits,
-          hasDifferentPrice: false,
-        });
-        
-        // Obtener grupos del campus
-        try {
-          const groupsData = await getGroups(campus.id, { active_only: true, include_config: true });
-          
-          for (const group of groupsData.groups) {
-            const groupPrice = group.effective_config?.certification_cost ?? baseCampusPrice;
-            
-            // Solo agregar si tiene precio diferente al campus
-            if (groupPrice !== baseCampusPrice) {
-              const groupUnits = groupPrice > 0 ? Math.floor(currentBalance / groupPrice) : 0;
-              equivalences.push({
-                id: group.id,
-                name: group.name,
-                campusName: campus.name,
-                campusId: campus.id,
-                price: groupPrice,
-                equivalentUnits: groupUnits,
-                hasDifferentPrice: true,
-              });
-            }
-          }
-        } catch (err) {
-          console.error(`Error loading groups for campus ${campus.id}:`, err);
-        }
-      }
-      
-      setGroupEquivalences(equivalences);
-    } catch (err) {
-      console.error('Error loading group equivalences:', err);
-    } finally {
-      setLoadingEquivalences(false);
-    }
-  };
-
-  const handleToggleEquivalences = async () => {
-    if (!showEquivalences) {
-      await loadGroupEquivalences();
-    }
-    setShowEquivalences(!showEquivalences);
-  };
-
-  // Agrupar equivalencias por campus
-  const equivalencesByCampus = useMemo(() => {
-    const grouped: { [campusId: number]: { campusName: string; items: GroupEquivalence[] } } = {};
-    
-    groupEquivalences.forEach(eq => {
-      if (!grouped[eq.campusId]) {
-        grouped[eq.campusId] = { campusName: eq.campusName, items: [] };
-      }
-      grouped[eq.campusId].items.push(eq);
-    });
-    
-    return grouped;
-  }, [groupEquivalences]);
 
   if (loading) {
     return (
@@ -257,12 +149,12 @@ export default function MiSaldoPage() {
 
   // Calcular totales para admin
   const adminTotals = {
-    totalBalance: allCoordinators.reduce((sum, c) => sum + (c.balance?.current_balance || 0), 0),
-    totalReceived: allCoordinators.reduce((sum, c) => sum + (c.balance?.total_received || 0), 0),
-    totalSpent: allCoordinators.reduce((sum, c) => sum + (c.balance?.total_spent || 0), 0),
+    totalBalance: allCoordinators.reduce((sum, c) => sum + (c.totals?.current_balance || 0), 0),
+    totalReceived: allCoordinators.reduce((sum, c) => sum + (c.totals?.total_received || 0), 0),
+    totalSpent: allCoordinators.reduce((sum, c) => sum + (c.totals?.total_spent || 0), 0),
   };
 
-  // Vista para Admin
+  // ===== Vista Admin =====
   if (isAdmin) {
     return (
       <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
@@ -274,7 +166,7 @@ export default function MiSaldoPage() {
               Saldos de Coordinadores
             </h1>
             <p className="text-gray-600 mt-1">
-              Vista administrativa de todos los saldos
+              Vista administrativa — saldo por grupo
             </p>
           </div>
           <button
@@ -343,73 +235,61 @@ export default function MiSaldoPage() {
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Coordinador</th>
-                  <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Saldo Actual</th>
+                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Grupos con Saldo</th>
+                  <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Saldo Total</th>
                   <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Total Recibido</th>
                   <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Total Consumido</th>
-                  <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Becas</th>
-                  <th className="text-center px-6 py-4 text-sm font-semibold text-gray-600">Uso</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredCoordinators.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
                       <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                       <p>No se encontraron coordinadores</p>
                     </td>
                   </tr>
                 ) : (
-                  filteredCoordinators.map((coord) => {
-                    const totalReceived = coord.balance?.total_received || 0;
-                    const totalSpent = coord.balance?.total_spent || 0;
-                    const currentBalance = coord.balance?.current_balance || 0;
-                    const totalScholarships = coord.balance?.total_scholarships || 0;
-                    const usage = totalReceived > 0 
-                      ? Math.round((totalSpent / totalReceived) * 100) 
-                      : 0;
-                    return (
-                      <tr key={coord.coordinator.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4">
-                          <div>
-                            <p className="font-medium text-gray-800">{coord.coordinator.full_name}</p>
-                            <p className="text-sm text-gray-500">{coord.coordinator.email}</p>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <span className={`font-semibold ${currentBalance > 0 ? 'text-green-600' : 'text-gray-400'}`}>
-                            {formatCurrency(currentBalance)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right text-gray-700">
-                          {formatCurrency(totalReceived)}
-                        </td>
-                        <td className="px-6 py-4 text-right text-gray-700">
-                          {formatCurrency(totalSpent)}
-                        </td>
-                        <td className="px-6 py-4 text-right text-purple-600">
-                          {formatCurrency(totalScholarships)}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-center gap-2">
-                            <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
-                              <div 
-                                className={`h-full rounded-full ${usage > 80 ? 'bg-red-500' : usage > 50 ? 'bg-amber-500' : 'bg-green-500'}`}
-                                style={{ width: `${usage}%` }}
-                              />
-                            </div>
-                            <span className="text-xs text-gray-500 w-10">{usage}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
+                  filteredCoordinators.map((coord) => (
+                    <tr key={coord.coordinator.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="font-medium text-gray-800">{coord.coordinator.full_name}</p>
+                          <p className="text-sm text-gray-500">{coord.coordinator.email}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-1">
+                          {coord.balances.map(bal => (
+                            <span key={bal.id} className="px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-full">
+                              {bal.group?.name || `Grupo #${bal.group_id}`}: {formatCurrency(bal.current_balance)}
+                            </span>
+                          ))}
+                          {coord.balances.length === 0 && (
+                            <span className="text-sm text-gray-400">Sin saldo</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className={`font-semibold ${coord.totals.current_balance > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                          {formatCurrency(coord.totals.current_balance)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right text-gray-700">
+                        {formatCurrency(coord.totals.total_received)}
+                      </td>
+                      <td className="px-6 py-4 text-right text-gray-700">
+                        {formatCurrency(coord.totals.total_spent)}
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Links a otras vistas de gerencia */}
+        {/* Links */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link
             to="/gerente"
@@ -454,17 +334,13 @@ export default function MiSaldoPage() {
     );
   }
 
-  // Vista para Coordinador (original)
-  // Calcular porcentaje de uso
-  const usagePercent = balance && balance.total_received > 0
-    ? Math.round((balance.total_spent / balance.total_received) * 100)
+  // ===== Vista Coordinador =====
+  const totals = balanceData?.totals || { current_balance: 0, total_received: 0, total_spent: 0, total_scholarships: 0 };
+  const groupBalances = balanceData?.balances || [];
+  
+  const usagePercent = totals.total_received > 0
+    ? Math.round((totals.total_spent / totals.total_received) * 100)
     : 0;
-
-  // Calcular certificaciones disponibles (si hay costo promedio)
-  // Esto es una estimación, el real se calcula por grupo
-  const estimatedCertifications = balance && balance.current_balance > 0
-    ? formatUnits(calculateUnits(balance.current_balance))
-    : '0';
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
@@ -476,7 +352,7 @@ export default function MiSaldoPage() {
             Mi Saldo
           </h1>
           <p className="text-gray-600 mt-1">
-            Gestiona tu inventario de certificaciones
+            Saldo por grupo para certificaciones
           </p>
         </div>
         <button
@@ -489,16 +365,16 @@ export default function MiSaldoPage() {
         </button>
       </div>
 
-      {/* Saldo Principal */}
+      {/* Saldo Total Hero */}
       <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-8 text-white mb-8 shadow-xl animate-fadeInUp hover-lift">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-green-100 text-sm font-medium mb-2">Saldo Disponible</p>
+            <p className="text-green-100 text-sm font-medium mb-2">Saldo Total Disponible</p>
             <p className="text-5xl font-bold">
-              {formatCurrency(balance?.current_balance || 0)}
+              {formatCurrency(totals.current_balance)}
             </p>
             <p className="text-green-100 mt-2">
-              ≈ {estimatedCertifications} certificaciones estimadas
+              Distribuido en {groupBalances.length} grupo{groupBalances.length !== 1 ? 's' : ''}
             </p>
           </div>
           <div className="mt-6 md:mt-0 flex gap-3">
@@ -522,215 +398,101 @@ export default function MiSaldoPage() {
         {/* Progress Bar */}
         <div className="mt-8">
           <div className="flex items-center justify-between text-sm text-green-100 mb-2">
-            <span>Uso del saldo</span>
+            <span>Uso global del saldo</span>
             <span>{usagePercent}% consumido</span>
           </div>
           <div className="h-3 bg-white/20 rounded-full overflow-hidden">
             <div 
               className="h-full bg-white rounded-full transition-all duration-500"
-              style={{ width: `${usagePercent}%` }}
+              style={{ width: `${Math.min(usagePercent, 100)}%` }}
             />
           </div>
         </div>
       </div>
 
-      {/* Equivalencias por Grupo - Desplegable */}
-      {balance && balance.current_balance > 0 && (
-        <div className="bg-white rounded-xl border shadow-sm mb-8 overflow-hidden">
-          <button
-            onClick={handleToggleEquivalences}
-            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Calculator className="w-5 h-5 text-blue-600" />
-              </div>
-              <div className="text-left">
-                <p className="font-medium text-gray-800">Equivalencias por Grupo</p>
-                <p className="text-sm text-gray-500">Ver cuántas certificaciones equivale tu saldo en cada grupo</p>
-              </div>
+      {/* Saldos por Grupo */}
+      <div className="bg-white rounded-xl border shadow-sm mb-8 overflow-hidden">
+        <div className="p-6 border-b">
+          <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-emerald-500" />
+            Saldo por Grupo
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Cada grupo tiene su propio saldo independiente
+          </p>
+        </div>
+        <div className="p-6">
+          {groupBalances.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <Wallet className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+              <p className="mb-2">No tienes saldo asignado a ningún grupo</p>
+              <Link
+                to="/solicitar-saldo"
+                className="text-blue-600 hover:underline"
+              >
+                Solicitar tu primer saldo
+              </Link>
             </div>
-            {loadingEquivalences ? (
-              <RefreshCw className="w-5 h-5 text-gray-400 animate-spin" />
-            ) : showEquivalences ? (
-              <ChevronUp className="w-5 h-5 text-gray-400" />
-            ) : (
-              <ChevronDown className="w-5 h-5 text-gray-400" />
-            )}
-          </button>
-          
-          {showEquivalences && (
-            <div className="border-t p-4">
-              {loadingEquivalences ? (
-                <div className="py-8 text-center">
-                  <RefreshCw className="w-8 h-8 animate-spin mx-auto text-gray-400" />
-                  <p className="text-gray-500 mt-2">Calculando equivalencias...</p>
-                </div>
-              ) : groupEquivalences.length === 0 ? (
-                <div className="py-8 text-center text-gray-500">
-                  <Calculator className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                  <p>No se encontraron grupos con configuración de precios</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {Object.entries(equivalencesByCampus).map(([campusId, { campusName, items }]) => (
-                    <div key={campusId}>
-                      <div className="flex items-center gap-2 mb-3">
-                        <Building2 className="w-4 h-4 text-gray-400" />
-                        <h4 className="font-medium text-gray-700">{campusName}</h4>
+          ) : (
+            <div className="space-y-3">
+              {groupBalances.map((bal) => {
+                const groupUsage = bal.total_received > 0
+                  ? Math.round((bal.total_spent / bal.total_received) * 100)
+                  : 0;
+                return (
+                  <div
+                    key={bal.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-xl border hover:border-green-200 transition-colors"
+                  >
+                    <div className="mb-3 sm:mb-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-gray-800">
+                          {bal.group?.name || `Grupo #${bal.group_id}`}
+                        </p>
+                        {bal.group?.campus_name && (
+                          <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">
+                            {bal.group.campus_name}
+                          </span>
+                        )}
                       </div>
-                      <div className="space-y-2">
-                        {items.map((eq, idx) => (
+                      <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
+                        <span>Recibido: {formatCurrency(bal.total_received)}</span>
+                        <span>Consumido: {formatCurrency(bal.total_spent)}</span>
+                        {bal.total_scholarships > 0 && (
+                          <span className="text-purple-600">Becas: {formatCurrency(bal.total_scholarships)}</span>
+                        )}
+                      </div>
+                      {/* Mini progress bar */}
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="w-32 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                           <div 
-                            key={`${eq.id}-${idx}`}
-                            className={`flex items-center justify-between p-3 rounded-lg ${
-                              eq.hasDifferentPrice ? 'bg-amber-50 border border-amber-100' : 'bg-gray-50'
-                            }`}
-                          >
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className={`font-medium ${eq.hasDifferentPrice ? 'text-amber-800' : 'text-gray-700'}`}>
-                                  {eq.name}
-                                </span>
-                                {eq.hasDifferentPrice && (
-                                  <span className="text-xs px-2 py-0.5 bg-amber-200 text-amber-700 rounded-full">
-                                    Precio diferente
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-sm text-gray-500">
-                                Precio: {formatCurrency(eq.price)}/certificación
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className={`text-2xl font-bold ${eq.hasDifferentPrice ? 'text-amber-700' : 'text-green-600'}`}>
-                                {eq.equivalentUnits}
-                              </p>
-                              <p className="text-xs text-gray-500">certificaciones</p>
-                            </div>
-                          </div>
-                        ))}
+                            className={`h-full rounded-full ${groupUsage > 80 ? 'bg-red-500' : groupUsage > 50 ? 'bg-amber-500' : 'bg-green-500'}`}
+                            style={{ width: `${Math.min(groupUsage, 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-gray-400">{groupUsage}%</span>
                       </div>
                     </div>
-                  ))}
-                  
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-blue-700">
-                      <strong>Nota:</strong> El saldo a nivel plantel se puede usar en cualquier grupo.
-                      La cantidad de certificaciones varía según el precio configurado en cada grupo.
-                    </p>
+                    <div className="text-right">
+                      <p className={`text-2xl font-bold ${bal.current_balance > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                        {formatCurrency(bal.current_balance)}
+                      </p>
+                      {bal.group?.certification_cost && bal.group.certification_cost > 0 && (
+                        <p className="text-xs text-gray-500">
+                          {formatUnits(bal.current_balance, bal.group.certification_cost)}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })}
             </div>
           )}
         </div>
-      )}
+      </div>
 
-      {/* Desglose del Saldo */}
-      {balance && (
-        <div className="bg-white rounded-xl border shadow-sm mb-8 overflow-hidden">
-          <div className="p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-purple-500" />
-              Desglose del Saldo
-            </h2>
-            
-            <div className="space-y-3">
-              {/* Total Recibido */}
-              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <TrendingUp className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-green-800">Saldo Recibido</p>
-                    <p className="text-xs text-green-600">Aprobaciones de solicitudes de saldo</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-xl font-bold text-green-700">
-                    +{formatCurrency(balance.total_received - (balance.total_scholarships || 0))}
-                  </p>
-                  <p className="text-xs text-green-600">
-                    {formatUnits(balance.total_received - (balance.total_scholarships || 0))}
-                  </p>
-                </div>
-              </div>
-
-              {/* Becas Recibidas - siempre visible */}
-              <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-100">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <Gift className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-purple-800">Becas Recibidas</p>
-                    <p className="text-xs text-purple-600">Aprobaciones de solicitudes de beca</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-xl font-bold text-purple-700">
-                    +{formatCurrency(balance.total_scholarships || 0)}
-                  </p>
-                  <p className="text-xs text-purple-600">
-                    {formatUnits(balance.total_scholarships || 0)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Total Consumido */}
-              <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-red-100 rounded-lg">
-                    <TrendingDown className="w-5 h-5 text-red-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-red-800">Saldo Consumido</p>
-                    <p className="text-xs text-red-600">Certificaciones asignadas a alumnos</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-xl font-bold text-red-700">
-                    -{formatCurrency(balance.total_spent)}
-                  </p>
-                  <p className="text-xs text-red-600">
-                    {formatUnits(balance.total_spent)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Línea divisora */}
-              <div className="border-t border-gray-200 my-2" />
-
-              {/* Saldo Actual */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border-2 border-green-200">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white rounded-lg shadow-sm">
-                    <Wallet className="w-6 h-6 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-800">Saldo Disponible</p>
-                    <p className="text-xs text-gray-600">= Recibido + Becas - Consumido</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-green-700">
-                    {formatCurrency(balance.current_balance)}
-                  </p>
-                  <p className="text-xs text-green-600 mt-1">
-                    {formatUnits(balance.current_balance)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Stats Cards - 4 columnas */}
+      {/* Stats Cards - 4 columnas (totales globales) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {/* Saldo Recibido (sin becas) */}
         <div className="bg-white rounded-xl p-5 border shadow-sm animate-fadeInUp delay-100 hover-lift card-transition">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -739,14 +501,10 @@ export default function MiSaldoPage() {
             <span className="text-sm font-medium text-gray-600">Saldo Recibido</span>
           </div>
           <p className="text-xl font-bold text-gray-800">
-            {formatCurrency((balance?.total_received || 0) - (balance?.total_scholarships || 0))}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">
-            {formatUnits((balance?.total_received || 0) - (balance?.total_scholarships || 0))}
+            {formatCurrency(totals.total_received - totals.total_scholarships)}
           </p>
         </div>
 
-        {/* Becas Recibidas */}
         <div className="bg-white rounded-xl p-5 border shadow-sm animate-fadeInUp delay-200 hover-lift card-transition">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2 bg-purple-100 rounded-lg">
@@ -755,14 +513,10 @@ export default function MiSaldoPage() {
             <span className="text-sm font-medium text-gray-600">Becas Recibidas</span>
           </div>
           <p className="text-xl font-bold text-purple-700">
-            {formatCurrency(balance?.total_scholarships || 0)}
-          </p>
-          <p className="text-xs text-purple-500 mt-1">
-            {formatUnits(balance?.total_scholarships || 0)}
+            {formatCurrency(totals.total_scholarships)}
           </p>
         </div>
 
-        {/* Total Consumido */}
         <div className="bg-white rounded-xl p-5 border shadow-sm animate-fadeInUp delay-300 hover-lift card-transition">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2 bg-amber-100 rounded-lg">
@@ -771,14 +525,10 @@ export default function MiSaldoPage() {
             <span className="text-sm font-medium text-gray-600">Total Consumido</span>
           </div>
           <p className="text-xl font-bold text-amber-700">
-            {formatCurrency(balance?.total_spent || 0)}
-          </p>
-          <p className="text-xs text-amber-500 mt-1">
-            {formatUnits(balance?.total_spent || 0)}
+            {formatCurrency(totals.total_spent)}
           </p>
         </div>
 
-        {/* Total General (Recibido + Becas) */}
         <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border border-green-200 shadow-sm animate-fadeInUp delay-400 hover-lift card-transition">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2 bg-green-100 rounded-lg">
@@ -787,10 +537,7 @@ export default function MiSaldoPage() {
             <span className="text-sm font-medium text-green-700">Total Acreditado</span>
           </div>
           <p className="text-xl font-bold text-green-700">
-            {formatCurrency(balance?.total_received || 0)}
-          </p>
-          <p className="text-xs text-green-600 mt-1">
-            {formatUnits(balance?.total_received || 0)}
+            {formatCurrency(totals.total_received)}
           </p>
         </div>
       </div>
@@ -825,41 +572,43 @@ export default function MiSaldoPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {recentRequests.map((request) => (
+                {recentRequests.map((req) => (
                   <Link
-                    key={request.id}
-                    to={`/mi-saldo/solicitud/${request.id}`}
+                    key={req.id}
+                    to={`/mi-saldo/solicitud/${req.id}`}
                     className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer group"
                   >
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          request.request_type === 'beca'
+                          req.request_type === 'beca'
                             ? 'bg-purple-100 text-purple-700'
                             : 'bg-blue-100 text-blue-700'
                         }`}>
-                          {request.request_type_label}
+                          {req.request_type_label}
                         </span>
-                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(request.status)}`}>
-                          {getStatusLabel(request.status)}
+                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(req.status)}`}>
+                          {getStatusLabel(req.status)}
                         </span>
+                        {req.group && (
+                          <span className="text-xs text-gray-500">
+                            → {req.group.name}
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {new Date(request.requested_at).toLocaleDateString()}
+                        {new Date(req.requested_at).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <p className="font-semibold text-gray-800">
-                          {formatCurrency(request.amount_requested)}
+                          {formatCurrency(req.amount_requested)}
                         </p>
-                        <p className="text-xs text-gray-500">
-                          ≈ {formatUnits(calculateUnits(request.amount_requested))} certs
-                        </p>
-                        {request.amount_approved && request.status === 'approved' && (
+                        {req.amount_approved && req.status === 'approved' && (
                           <p className="text-xs text-green-600">
-                            Aprobado: {formatCurrency(request.amount_approved)} ({formatUnits(calculateUnits(request.amount_approved))} certs)
+                            Aprobado: {formatCurrency(req.amount_approved)}
                           </p>
                         )}
                       </div>
@@ -917,6 +666,7 @@ export default function MiSaldoPage() {
                         </p>
                         <p className="text-xs text-gray-500">
                           {new Date(tx.created_at).toLocaleDateString()}
+                          {tx.group && <span className="ml-1">· {tx.group.name}</span>}
                         </p>
                       </div>
                     </div>
@@ -929,9 +679,6 @@ export default function MiSaldoPage() {
                         {tx.transaction_type === 'credit' ? '+' : '-'}
                         {formatCurrency(Math.abs(tx.amount))}
                       </p>
-                      <p className="text-xs text-gray-500">
-                        ≈ {formatUnits(calculateUnits(Math.abs(tx.amount)))} certs
-                      </p>
                     </div>
                   </div>
                 ))}
@@ -941,7 +688,7 @@ export default function MiSaldoPage() {
         </div>
       </div>
 
-      {/* Acceso rápido a Historial de Asignaciones */}
+      {/* Historial de Asignaciones */}
       <div className="mt-6 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
@@ -949,7 +696,7 @@ export default function MiSaldoPage() {
           </div>
           <div>
             <p className="font-medium text-emerald-800">Historial de Asignaciones</p>
-            <p className="text-sm text-emerald-600">Rastrea cada peso invertido en certificaciones: grupos, exámenes, candidatos y costos</p>
+            <p className="text-sm text-emerald-600">Rastrea cada peso invertido en certificaciones</p>
           </div>
         </div>
         <Link
@@ -961,7 +708,7 @@ export default function MiSaldoPage() {
       </div>
 
       {/* Alerta de saldo bajo */}
-      {balance && balance.current_balance < (balance.total_received * 0.2) && balance.total_received > 0 && (
+      {totals.current_balance > 0 && totals.current_balance < (totals.total_received * 0.2) && totals.total_received > 0 && (
         <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5" />
           <div>

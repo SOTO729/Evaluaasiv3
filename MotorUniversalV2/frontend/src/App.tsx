@@ -71,9 +71,19 @@ const ExamTestResultsRouter = () => {
 }
 
 // Componente que redirige al coordinador si intenta acceder a rutas restringidas
+// @ts-ignore: Reserved for future use
 const RestrictedForCoordinator = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuthStore()
   if (user?.role === 'coordinator') {
+    return <Navigate to="/dashboard" replace />
+  }
+  return <>{children}</>
+}
+
+// Componente que redirige a gerente/financiero si intenta acceder a rutas restringidas
+const RestrictedForGerenteFin = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuthStore()
+  if (user?.role === 'coordinator' || user?.role === 'gerente' || user?.role === 'financiero') {
     return <Navigate to="/dashboard" replace />
   }
   return <>{children}</>
@@ -117,14 +127,17 @@ const ExamAssignMembersPage = lazy(() => import('./pages/partners/exam-assignmen
 const ExamAssignmentReviewPage = lazy(() => import('./pages/partners/exam-assignment/ExamAssignmentReviewPage'))
 const GroupAssignMaterialsPage = lazy(() => import('./pages/partners/GroupAssignMaterialsPage'))
 const GroupEditAssignmentMembersPage = lazy(() => import('./pages/partners/GroupEditAssignmentMembersPage'))
+const AssignmentDetailPage = lazy(() => import('./pages/partners/AssignmentDetailPage'))
 const CampusActivationPage = lazy(() => import('./pages/partners/CampusActivationPage'))
 const SchoolCycleDetailPage = lazy(() => import('./pages/partners/SchoolCycleDetailPage'))
 const EcmAssignmentsPage = lazy(() => import('./pages/partners/EcmAssignmentsPage'))
 const EcmAssignmentDetailPage = lazy(() => import('./pages/partners/EcmAssignmentDetailPage'))
+const CandidateAssignmentDetailPage = lazy(() => import('./pages/partners/CandidateAssignmentDetailPage'))
 const ConocerTramitesPage = lazy(() => import('./pages/partners/ConocerTramitesPage'))
 const ConocerUploadPage = lazy(() => import('./pages/partners/ConocerUploadPage'))
 const ConocerUploadHistoryPage = lazy(() => import('./pages/partners/ConocerUploadHistoryPage'))
 const ConocerUploadDetailPage = lazy(() => import('./pages/partners/ConocerUploadDetailPage'))
+const ConocerContactsPage = lazy(() => import('./pages/partners/ConocerContactsPage'))
 
 // Responsable de Plantel
 const MiPlantelPage = lazy(() => import('./pages/responsable/MiPlantelPage'))
@@ -148,6 +161,7 @@ const GerenteApprovalDetailPage = lazy(() => import('./pages/gerente/GerenteAppr
 const GerenteActivityLogsPage = lazy(() => import('./pages/gerente/GerenteActivityLogsPage'))
 const GerenteSecurityPage = lazy(() => import('./pages/gerente/GerenteSecurityPage'))
 const GerenteReportsPage = lazy(() => import('./pages/gerente/GerenteReportsPage'))
+const GerenteDelegacionesPage = lazy(() => import('./pages/gerente/GerenteDelegacionesPage'))
 
 // Coordinador - Saldo
 const MiSaldoPage = lazy(() => import('./pages/coordinador/MiSaldoPage'))
@@ -218,55 +232,55 @@ function App() {
               <Route path="/profile" element={<ProfilePage />} />
               
               {/* Study Contents Preview - con navbar */}
-              <Route path="/study-contents/:id/preview" element={<RestrictedForCoordinator><StudyContentPreviewPage /></RestrictedForCoordinator>} />
+              <Route path="/study-contents/:id/preview" element={<RestrictedForGerenteFin><StudyContentPreviewPage /></RestrictedForGerenteFin>} />
               
-              {/* Exams - Restringido para coordinador */}
-              <Route path="/exams" element={<RestrictedForCoordinator><ExamsListPage /></RestrictedForCoordinator>} />
-              <Route path="/exams/create" element={<RestrictedForCoordinator><ExamCreatePage /></RestrictedForCoordinator>} />
-              <Route path="/exams/:id/edit" element={<RestrictedForCoordinator><ExamEditPage /></RestrictedForCoordinator>} />
-              <Route path="/exams/:id/select-mode" element={<RestrictedForCoordinator><ExamModeSelectorPage /></RestrictedForCoordinator>} />
-              <Route path="/exams/:id/preview/:mode" element={<RestrictedForCoordinator><ExamPreviewPage /></RestrictedForCoordinator>} />
-              <Route path="/exams/:id/preview" element={<RestrictedForCoordinator><ExamPreviewPage /></RestrictedForCoordinator>} />
-              <Route path="/exams/:id/onboarding/:mode" element={<RestrictedForCoordinator><ExamOnboardingPage /></RestrictedForCoordinator>} />
+              {/* Exams - Restringido para coordinador, gerente y financiero */}
+              <Route path="/exams" element={<RestrictedForGerenteFin><ExamsListPage /></RestrictedForGerenteFin>} />
+              <Route path="/exams/create" element={<RestrictedForGerenteFin><ExamCreatePage /></RestrictedForGerenteFin>} />
+              <Route path="/exams/:id/edit" element={<RestrictedForGerenteFin><ExamEditPage /></RestrictedForGerenteFin>} />
+              <Route path="/exams/:id/select-mode" element={<RestrictedForGerenteFin><ExamModeSelectorPage /></RestrictedForGerenteFin>} />
+              <Route path="/exams/:id/preview/:mode" element={<RestrictedForGerenteFin><ExamPreviewPage /></RestrictedForGerenteFin>} />
+              <Route path="/exams/:id/preview" element={<RestrictedForGerenteFin><ExamPreviewPage /></RestrictedForGerenteFin>} />
+              <Route path="/exams/:id/onboarding/:mode" element={<RestrictedForGerenteFin><ExamOnboardingPage /></RestrictedForGerenteFin>} />
               
-              {/* Categories - Restringido para coordinador */}
-              <Route path="/exams/:examId/categories/:categoryId" element={<RestrictedForCoordinator><CategoryDetailPage /></RestrictedForCoordinator>} />
+              {/* Categories - Restringido para coordinador, gerente y financiero */}
+              <Route path="/exams/:examId/categories/:categoryId" element={<RestrictedForGerenteFin><CategoryDetailPage /></RestrictedForGerenteFin>} />
               
-              {/* Topics - Restringido para coordinador */}
-              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId" element={<RestrictedForCoordinator><TopicDetailPage /></RestrictedForCoordinator>} />
+              {/* Topics - Restringido para coordinador, gerente y financiero */}
+              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId" element={<RestrictedForGerenteFin><TopicDetailPage /></RestrictedForGerenteFin>} />
               
-              {/* Answers - Restringido para coordinador */}
-              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/answer" element={<RestrictedForCoordinator><TrueFalseAnswerPage /></RestrictedForCoordinator>} />
-              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/multiple-choice" element={<RestrictedForCoordinator><MultipleChoiceAnswerPage /></RestrictedForCoordinator>} />
-              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/multiple-select" element={<RestrictedForCoordinator><MultipleSelectAnswerPage /></RestrictedForCoordinator>} />
-              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/ordering" element={<RestrictedForCoordinator><OrderingAnswerPage /></RestrictedForCoordinator>} />
-              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/drag-drop" element={<RestrictedForCoordinator><DragDropAnswerPage /></RestrictedForCoordinator>} />
-              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/column-grouping" element={<RestrictedForCoordinator><ColumnGroupingAnswerPage /></RestrictedForCoordinator>} />
+              {/* Answers - Restringido para coordinador, gerente y financiero */}
+              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/answer" element={<RestrictedForGerenteFin><TrueFalseAnswerPage /></RestrictedForGerenteFin>} />
+              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/multiple-choice" element={<RestrictedForGerenteFin><MultipleChoiceAnswerPage /></RestrictedForGerenteFin>} />
+              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/multiple-select" element={<RestrictedForGerenteFin><MultipleSelectAnswerPage /></RestrictedForGerenteFin>} />
+              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/ordering" element={<RestrictedForGerenteFin><OrderingAnswerPage /></RestrictedForGerenteFin>} />
+              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/drag-drop" element={<RestrictedForGerenteFin><DragDropAnswerPage /></RestrictedForGerenteFin>} />
+              <Route path="/exams/:examId/categories/:categoryId/topics/:topicId/questions/:questionId/column-grouping" element={<RestrictedForGerenteFin><ColumnGroupingAnswerPage /></RestrictedForGerenteFin>} />
               
-              {/* Study Contents - Restringido para coordinador */}
-              <Route path="/study-contents" element={<RestrictedForCoordinator><StudyContentsListPage /></RestrictedForCoordinator>} />
-              <Route path="/study-contents/create" element={<RestrictedForCoordinator><StudyContentCreatePage /></RestrictedForCoordinator>} />
-              <Route path="/study-contents/:id" element={<RestrictedForCoordinator><StudyContentDetailRouter /></RestrictedForCoordinator>} />
-              <Route path="/study-contents/:id/edit" element={<RestrictedForCoordinator><StudyContentCreatePage /></RestrictedForCoordinator>} />
-              <Route path="/study-contents/:id/reading" element={<RestrictedForCoordinator><ReadingEditorPage /></RestrictedForCoordinator>} />
-              <Route path="/study-contents/:id/video" element={<RestrictedForCoordinator><VideoEditorPage /></RestrictedForCoordinator>} />
-              <Route path="/study-contents/:id/downloadable" element={<RestrictedForCoordinator><DownloadableEditorPage /></RestrictedForCoordinator>} />
-              <Route path="/study-contents/:id/sessions/:sessionId/topics/:topicId/interactive" element={<RestrictedForCoordinator><StudyInteractiveExercisePage /></RestrictedForCoordinator>} />
+              {/* Study Contents - Restringido para coordinador, gerente y financiero */}
+              <Route path="/study-contents" element={<RestrictedForGerenteFin><StudyContentsListPage /></RestrictedForGerenteFin>} />
+              <Route path="/study-contents/create" element={<RestrictedForGerenteFin><StudyContentCreatePage /></RestrictedForGerenteFin>} />
+              <Route path="/study-contents/:id" element={<RestrictedForGerenteFin><StudyContentDetailRouter /></RestrictedForGerenteFin>} />
+              <Route path="/study-contents/:id/edit" element={<RestrictedForGerenteFin><StudyContentCreatePage /></RestrictedForGerenteFin>} />
+              <Route path="/study-contents/:id/reading" element={<RestrictedForGerenteFin><ReadingEditorPage /></RestrictedForGerenteFin>} />
+              <Route path="/study-contents/:id/video" element={<RestrictedForGerenteFin><VideoEditorPage /></RestrictedForGerenteFin>} />
+              <Route path="/study-contents/:id/downloadable" element={<RestrictedForGerenteFin><DownloadableEditorPage /></RestrictedForGerenteFin>} />
+              <Route path="/study-contents/:id/sessions/:sessionId/topics/:topicId/interactive" element={<RestrictedForGerenteFin><StudyInteractiveExercisePage /></RestrictedForGerenteFin>} />
               
-              {/* Standards (ECM) - Restringido para coordinador */}
-              <Route path="/standards" element={<RestrictedForCoordinator><StandardsListPage /></RestrictedForCoordinator>} />
-              <Route path="/standards/new" element={<RestrictedForCoordinator><StandardFormPage /></RestrictedForCoordinator>} />
-              <Route path="/standards/brands" element={<RestrictedForCoordinator><BrandsListPage /></RestrictedForCoordinator>} />
-              <Route path="/standards/brands/new" element={<RestrictedForCoordinator><BrandFormPage /></RestrictedForCoordinator>} />
-              <Route path="/standards/brands/:id/edit" element={<RestrictedForCoordinator><BrandFormPage /></RestrictedForCoordinator>} />
-              <Route path="/standards/:id" element={<RestrictedForCoordinator><StandardDetailPage /></RestrictedForCoordinator>} />
-              <Route path="/standards/:id/edit" element={<RestrictedForCoordinator><StandardFormPage /></RestrictedForCoordinator>} />
-              <Route path="/standards/deletion-requests" element={<RestrictedForCoordinator><DeletionRequestsPage /></RestrictedForCoordinator>} />
+              {/* Standards (ECM) - Restringido para coordinador, gerente y financiero */}
+              <Route path="/standards" element={<RestrictedForGerenteFin><StandardsListPage /></RestrictedForGerenteFin>} />
+              <Route path="/standards/new" element={<RestrictedForGerenteFin><StandardFormPage /></RestrictedForGerenteFin>} />
+              <Route path="/standards/brands" element={<RestrictedForGerenteFin><BrandsListPage /></RestrictedForGerenteFin>} />
+              <Route path="/standards/brands/new" element={<RestrictedForGerenteFin><BrandFormPage /></RestrictedForGerenteFin>} />
+              <Route path="/standards/brands/:id/edit" element={<RestrictedForGerenteFin><BrandFormPage /></RestrictedForGerenteFin>} />
+              <Route path="/standards/:id" element={<RestrictedForGerenteFin><StandardDetailPage /></RestrictedForGerenteFin>} />
+              <Route path="/standards/:id/edit" element={<RestrictedForGerenteFin><StandardFormPage /></RestrictedForGerenteFin>} />
+              <Route path="/standards/deletion-requests" element={<RestrictedForGerenteFin><DeletionRequestsPage /></RestrictedForGerenteFin>} />
               
-              {/* Certificates - Restringido para coordinador */}
-              <Route path="/certificates" element={<RestrictedForCoordinator><CertificatesPage /></RestrictedForCoordinator>} />
-              <Route path="/certificates/evaluation-report/:examId" element={<RestrictedForCoordinator><EvaluationReportDetailPage /></RestrictedForCoordinator>} />
-              <Route path="/certificates/evaluation-report/:examId/result/:resultId" element={<RestrictedForCoordinator><ResultDetailPage /></RestrictedForCoordinator>} />
+              {/* Certificates - Restringido para coordinador, gerente y financiero */}
+              <Route path="/certificates" element={<RestrictedForGerenteFin><CertificatesPage /></RestrictedForGerenteFin>} />
+              <Route path="/certificates/evaluation-report/:examId" element={<RestrictedForGerenteFin><EvaluationReportDetailPage /></RestrictedForGerenteFin>} />
+              <Route path="/certificates/evaluation-report/:examId/result/:resultId" element={<RestrictedForGerenteFin><ResultDetailPage /></RestrictedForGerenteFin>} />
               
               {/* Partners (Coordinador) */}
               <Route path="/partners/dashboard" element={<PartnersDashboardPage />} />
@@ -297,17 +311,20 @@ function App() {
               <Route path="/partners/groups/:groupId/assign-exam/members" element={<ExamAssignMembersPage />} />
               <Route path="/partners/groups/:groupId/assign-exam/review" element={<ExamAssignmentReviewPage />} />
               <Route path="/partners/groups/:groupId/assign-materials" element={<GroupAssignMaterialsPage />} />
+              <Route path="/partners/groups/:groupId/assignments/:examId/detail" element={<AssignmentDetailPage />} />
               <Route path="/partners/groups/:groupId/assignments/:assignmentId/edit-members" element={<GroupEditAssignmentMembersPage />} />
               
               {/* Asignaciones por ECM */}
               <Route path="/asignaciones-ecm" element={<EcmAssignmentsPage />} />
               <Route path="/asignaciones-ecm/:ecmId" element={<EcmAssignmentDetailPage />} />
+              <Route path="/asignaciones-ecm/candidato/:ecaId" element={<CandidateAssignmentDetailPage />} />
               
               {/* Trámites CONOCER */}
               <Route path="/tramites-conocer" element={<ConocerTramitesPage />} />
               <Route path="/tramites-conocer/subir" element={<ConocerUploadPage />} />
               <Route path="/tramites-conocer/historial" element={<ConocerUploadHistoryPage />} />
               <Route path="/tramites-conocer/historial/:batchId" element={<ConocerUploadDetailPage />} />
+              <Route path="/tramites-conocer/contactos" element={<ConocerContactsPage />} />
               
               {/* Responsable de Plantel */}
               <Route path="/mi-plantel" element={<MiPlantelPage />} />
@@ -331,6 +348,7 @@ function App() {
               <Route path="/gerente/actividad" element={<GerenteActivityLogsPage />} />
               <Route path="/gerente/seguridad" element={<GerenteSecurityPage />} />
               <Route path="/gerente/reportes" element={<GerenteReportsPage />} />
+              <Route path="/gerente/delegaciones" element={<GerenteDelegacionesPage />} />
               
               {/* Coordinador - Gestión de Saldo */}
               <Route path="/mi-saldo" element={<MiSaldoPage />} />

@@ -86,6 +86,8 @@ export default function HistorialSolicitudesPage() {
       case 'recommended_approve':
       case 'recommended_reject':
         return <Clock className="w-4 h-4 text-amber-500" />;
+      case 'cancelled':
+        return <XCircle className="w-4 h-4 text-gray-500" />;
       default:
         return <AlertCircle className="w-4 h-4 text-gray-500" />;
     }
@@ -138,6 +140,7 @@ export default function HistorialSolicitudesPage() {
               <option value="recommended_reject">Recomendada rechazar</option>
               <option value="approved">Aprobada</option>
               <option value="rejected">Rechazada</option>
+              <option value="cancelled">Cancelada</option>
             </select>
           </div>
 

@@ -7,7 +7,7 @@
  * Accesible por admin y coordinator.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Search,
@@ -45,6 +45,7 @@ import { formatCurrency } from '../../services/balanceService';
 
 export default function EcmAssignmentDetailPage() {
   const { ecmId } = useParams();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<EcmAssignmentDetailResponse | null>(null);
@@ -274,7 +275,7 @@ export default function EcmAssignmentDetailPage() {
   const filters = data?.filters;
 
   return (
-    <div className="w-full px-4 xl:px-6 2xl:px-8 animate-fade-in-up">
+    <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Header */}
       <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl">
         <div className="flex items-center justify-between flex-wrap fluid-gap-4">
@@ -612,7 +613,11 @@ export default function EcmAssignmentDetailPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {assignments.map((a, idx) => (
-                  <tr key={`${a.user_id}-${a.exam_id}-${a.group_id}-${idx}`} className="hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={`${a.user_id}-${a.exam_id}-${a.group_id}-${idx}`}
+                    className={`hover:bg-sky-50/50 transition-colors ${a.ecm_assignment_id ? 'cursor-pointer' : ''}`}
+                    onClick={() => a.ecm_assignment_id && navigate(`/asignaciones-ecm/candidato/${a.ecm_assignment_id}`)}
+                  >
                     {/* Usuario */}
                     <td className="py-3 px-3">
                       <div>
@@ -643,6 +648,7 @@ export default function EcmAssignmentDetailPage() {
                         <Link
                           to={`/partners/groups/${a.group_id}`}
                           className="font-medium text-blue-600 hover:text-blue-800 fluid-text-sm"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           {a.group_name}
                         </Link>

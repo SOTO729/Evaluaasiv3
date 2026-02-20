@@ -57,7 +57,7 @@ export default function HistorialMovimientosPage() {
       ]);
       
       setTransactions(transactionsData.transactions || []);
-      setCurrentBalance(balanceData.current_balance || 0);
+      setCurrentBalance(balanceData.totals?.current_balance || 0);
 
       // Calcular estadísticas
       const now = new Date();

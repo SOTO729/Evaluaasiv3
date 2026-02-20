@@ -33,6 +33,7 @@ import {
   getBalanceRequest,
   approveRequest,
   rejectRequest,
+  reviewRequest,
   BalanceRequest,
   formatCurrency,
 } from '../../services/balanceService';
@@ -47,6 +48,12 @@ export default function GerenteApprovalDetailPage() {
   const [approvedAmount, setApprovedAmount] = useState<number>(0);
   const [processing, setProcessing] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState<'approve' | 'reject' | null>(null);
+  // Review state (similar to financiero)
+  const [reviewMode, setReviewMode] = useState(false);
+  const [reviewAction, setReviewAction] = useState<'recommend_approve' | 'recommend_reject' | null>(null);
+  const [reviewNotes, setReviewNotes] = useState('');
+  const [reviewRecommendedAmount, setReviewRecommendedAmount] = useState<number>(0);
+  const [reviewProcessing, setReviewProcessing] = useState(false);
 
   useEffect(() => {
     loadRequest();
@@ -60,6 +67,7 @@ export default function GerenteApprovalDetailPage() {
       const data = await getBalanceRequest(parseInt(id));
       setRequest(data);
       setApprovedAmount(data.financiero_recommended_amount || data.amount_requested);
+      setReviewRecommendedAmount(data.amount_requested);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar solicitud');
     } finally {
@@ -105,6 +113,32 @@ export default function GerenteApprovalDetailPage() {
     }
   };
 
+  const handleReview = async () => {
+    if (!id || !reviewAction) return;
+    if (reviewAction === 'recommend_reject' && !reviewNotes.trim()) {
+      setError('Debe proporcionar un motivo para recomendar el rechazo');
+      return;
+    }
+    try {
+      setReviewProcessing(true);
+      setError(null);
+      await reviewRequest(parseInt(id), {
+        action: reviewAction,
+        notes: reviewNotes || undefined,
+        recommended_amount: reviewAction === 'recommend_approve' ? reviewRecommendedAmount : undefined,
+      });
+      // Reload request to show updated data
+      await loadRequest();
+      setReviewMode(false);
+      setReviewAction(null);
+      setReviewNotes('');
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al emitir revisión');
+    } finally {
+      setReviewProcessing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -133,9 +167,12 @@ export default function GerenteApprovalDetailPage() {
 
   if (!request) return null;
 
-  const canProcess = ['recommended_approve', 'recommended_reject', 'in_review'].includes(request.status);
+  const canProcess = ['pending', 'in_review', 'recommended_approve', 'recommended_reject'].includes(request.status);
+  const isPending = request.status === 'pending';
+  // const isInReview = request.status === 'in_review';  // reserved for future use
   const isRecommendedApprove = request.status === 'recommended_approve';
   const isRecommendedReject = request.status === 'recommended_reject';
+  const hasFinancieroReview = !!request.financiero;
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
@@ -163,11 +200,14 @@ export default function GerenteApprovalDetailPage() {
                 ? 'bg-green-100 text-green-700'
                 : isRecommendedReject
                 ? 'bg-red-100 text-red-700'
-                : 'bg-yellow-100 text-yellow-700'
+                : isPending
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-blue-100 text-blue-700'
             }`}>
               {isRecommendedApprove && <ThumbsUp className="w-4 h-4 inline mr-1" />}
               {isRecommendedReject && <ThumbsDown className="w-4 h-4 inline mr-1" />}
-              {isRecommendedApprove ? 'Recomienda Aprobar' : isRecommendedReject ? 'Recomienda Rechazar' : 'En Revisión'}
+              {isPending && <Clock className="w-4 h-4 inline mr-1" />}
+              {isRecommendedApprove ? 'Recomienda Aprobar' : isRecommendedReject ? 'Recomienda Rechazar' : isPending ? 'Pendiente' : 'En Revisión'}
             </span>
           </div>
         )}
@@ -304,6 +344,142 @@ export default function GerenteApprovalDetailPage() {
                     </span>
                   )}
                 </p>
+              )}
+            </div>
+          )}
+
+          {/* Aviso: sin revisión financiera */}
+          {canProcess && !hasFinancieroReview && (
+            <div className="bg-amber-50 rounded-xl border border-amber-200 p-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold text-amber-800">Sin revisión financiera</h3>
+                  <p className="text-sm text-amber-700 mt-1">
+                    Esta solicitud aún no ha sido revisada por el área financiera. Puede aprobarla directamente si lo considera pertinente.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Sección de Revisión del Gerente (similar a financiero) */}
+          {canProcess && (
+            <div className="bg-white rounded-xl border shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-blue-500" />
+                  Revisión del Gerente
+                </h2>
+                {!reviewMode && (
+                  <button
+                    onClick={() => setReviewMode(true)}
+                    className="text-sm px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    {hasFinancieroReview ? 'Emitir mi propia revisión' : 'Revisar solicitud'}
+                  </button>
+                )}
+              </div>
+
+              {hasFinancieroReview && !reviewMode && (
+                <p className="text-sm text-gray-500">
+                  Ya existe una revisión del financiero. Puede emitir su propia revisión si lo desea, o proceder directamente a la decisión final.
+                </p>
+              )}
+
+              {reviewMode && (
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-600">
+                    Emita su recomendación sobre esta solicitud antes de tomar la decisión final.
+                  </p>
+
+                  {/* Botones de recomendación */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setReviewAction('recommend_approve')}
+                      className={`flex-1 p-3 rounded-lg border-2 transition-all text-sm font-medium ${
+                        reviewAction === 'recommend_approve'
+                          ? 'border-green-500 bg-green-50 text-green-700'
+                          : 'border-gray-200 hover:border-green-300 text-gray-600'
+                      }`}
+                    >
+                      <ThumbsUp className="w-5 h-5 mx-auto mb-1" />
+                      Recomendar Aprobar
+                    </button>
+                    <button
+                      onClick={() => setReviewAction('recommend_reject')}
+                      className={`flex-1 p-3 rounded-lg border-2 transition-all text-sm font-medium ${
+                        reviewAction === 'recommend_reject'
+                          ? 'border-red-500 bg-red-50 text-red-700'
+                          : 'border-gray-200 hover:border-red-300 text-gray-600'
+                      }`}
+                    >
+                      <ThumbsDown className="w-5 h-5 mx-auto mb-1" />
+                      Recomendar Rechazar
+                    </button>
+                  </div>
+
+                  {/* Monto recomendado (solo si aprueba) */}
+                  {reviewAction === 'recommend_approve' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Monto Recomendado
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={reviewRecommendedAmount}
+                          onChange={(e) => setReviewRecommendedAmount(parseFloat(e.target.value) || 0)}
+                          className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Solicitado: {formatCurrency(request.amount_requested)}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Notas de revisión */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Notas de revisión {reviewAction === 'recommend_reject' && <span className="text-red-500">*</span>}
+                    </label>
+                    <textarea
+                      value={reviewNotes}
+                      onChange={(e) => setReviewNotes(e.target.value)}
+                      rows={3}
+                      placeholder={reviewAction === 'recommend_reject' ? 'Motivo del rechazo (obligatorio)...' : 'Notas opcionales...'}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleReview}
+                      disabled={!reviewAction || reviewProcessing || (reviewAction === 'recommend_reject' && !reviewNotes.trim())}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {reviewProcessing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Enviando...
+                        </>
+                      ) : (
+                        'Enviar Revisión'
+                      )}
+                    </button>
+                    <button
+                      onClick={() => { setReviewMode(false); setReviewAction(null); setReviewNotes(''); }}
+                      disabled={reviewProcessing}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           )}

@@ -61,10 +61,27 @@ def check_vm_access():
         })
     
     if user.role == 'coordinator':
+        # Obtener lista de campuses del coordinador
+        from app.models.partner import Campus as CampusModel, Partner
+        campus_list = CampusModel.query.filter_by(
+            responsable_id=str(user_id)
+        ).all()
+        if not campus_list:
+            partner_ids = db.session.query(db.text("partner_id")).from_statement(
+                db.text("SELECT partner_id FROM user_partners WHERE user_id = :uid")
+            ).params(uid=str(user_id)).all()
+            p_ids = [p[0] for p in partner_ids]
+            if p_ids:
+                campus_list = CampusModel.query.filter(
+                    CampusModel.partner_id.in_(p_ids)
+                ).all()
+        
         return jsonify({
             'has_access': True,
             'role': user.role,
-            'scope': 'campuses'
+            'scope': 'campuses',
+            'campuses': [{'id': c.id, 'name': c.name} for c in campus_list],
+            'read_only': True,
         })
     
     if user.role == 'candidato':
@@ -441,14 +458,36 @@ def get_available_slots():
         if not vm_enabled or c_campus_id != campus_id:
             return jsonify({'error': 'Sin acceso a este campus'}), 403
     
-    # Obtener horas ocupadas
-    occupied = db.session.query(VmSession.start_hour).filter(
-        VmSession.campus_id == campus_id,
-        VmSession.session_date == target_date,
-        VmSession.status == 'scheduled',
-    ).all()
+    # Obtener horas ocupadas (con detalles para admin/coordinator)
+    show_details = user.role in ['admin', 'developer', 'coordinator']
     
-    occupied_hours = {row.start_hour for row in occupied}
+    if show_details:
+        occupied_sessions = VmSession.query.filter(
+            VmSession.campus_id == campus_id,
+            VmSession.session_date == target_date,
+            VmSession.status == 'scheduled',
+        ).all()
+        occupied_hours = {s.start_hour for s in occupied_sessions}
+        occupied_details = {}
+        for s in occupied_sessions:
+            occupied_details[s.start_hour] = {
+                'session_id': s.id,
+                'user_name': s.user.full_name if s.user else 'Desconocido',
+                'user_email': s.user.email if s.user else '',
+                'user_role': s.user.role if s.user else '',
+                'group_name': s.group.name if s.group else None,
+                'campus_name': s.campus.name if s.campus else None,
+                'notes': s.notes,
+                'created_at': s.created_at.isoformat() if s.created_at else None,
+            }
+    else:
+        occupied = db.session.query(VmSession.start_hour).filter(
+            VmSession.campus_id == campus_id,
+            VmSession.session_date == target_date,
+            VmSession.status == 'scheduled',
+        ).all()
+        occupied_hours = {row.start_hour for row in occupied}
+        occupied_details = {}
     
     # Generar slots disponibles
     now = datetime.utcnow()
@@ -457,13 +496,19 @@ def get_available_slots():
         is_past = (target_date < now.date()) or (target_date == now.date() and hour <= now.hour)
         is_occupied = hour in occupied_hours
         
-        slots.append({
+        slot_data = {
             'hour': hour,
             'label': f'{hour:02d}:00 - {hour + 1:02d}:00',
             'available': not is_occupied and not is_past,
             'is_past': is_past,
             'is_occupied': is_occupied,
-        })
+        }
+        
+        # Incluir detalles de quién ocupa el slot para admin/coordinator
+        if is_occupied and hour in occupied_details:
+            slot_data['occupied_by'] = occupied_details[hour]
+        
+        slots.append(slot_data)
     
     return jsonify({
         'campus_id': campus_id,

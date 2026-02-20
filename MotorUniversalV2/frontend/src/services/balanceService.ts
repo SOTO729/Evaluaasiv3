@@ -15,6 +15,7 @@ import api from './api';
 export interface CoordinatorBalance {
   id: number;
   coordinator_id: string;
+  group_id: number;
   current_balance: number;
   total_received: number;
   total_spent: number;
@@ -29,6 +30,31 @@ export interface CoordinatorBalance {
     full_name: string;
     email: string;
   };
+  group?: {
+    id: number;
+    name: string;
+    code: string;
+    campus_id: number;
+    campus_name?: string;
+    certification_cost?: number;
+  };
+}
+
+export interface MyBalanceResponse {
+  balances: CoordinatorBalance[];
+  totals: {
+    current_balance: number;
+    total_received: number;
+    total_spent: number;
+    total_scholarships: number;
+  };
+  coordinator: {
+    id: string;
+    name: string;
+    first_surname: string;
+    full_name: string;
+    email: string;
+  };
 }
 
 export type RequestStatus = 
@@ -37,7 +63,8 @@ export type RequestStatus =
   | 'recommended_approve' 
   | 'recommended_reject' 
   | 'approved' 
-  | 'rejected';
+  | 'rejected'
+  | 'cancelled';
 
 export type RequestType = 'saldo' | 'beca';
 
@@ -112,6 +139,7 @@ export interface Attachment {
 export interface BalanceTransaction {
   id: number;
   coordinator_id: string;
+  group_id: number | null;
   transaction_type: TransactionType;
   transaction_type_label: string;
   concept: TransactionConcept;
@@ -172,9 +200,9 @@ export interface PaginatedResponse<T> {
 // =====================================================
 
 /**
- * Obtener saldo actual del coordinador logueado
+ * Obtener saldos por grupo del coordinador logueado
  */
-export async function getMyBalance(): Promise<CoordinatorBalance> {
+export async function getMyBalance(): Promise<MyBalanceResponse> {
   const response = await api.get('/balance/my-balance');
   return response.data;
 }
@@ -185,6 +213,7 @@ export async function getMyBalance(): Promise<CoordinatorBalance> {
 export async function getMyTransactions(params?: {
   page?: number;
   per_page?: number;
+  group_id?: number;
 }): Promise<PaginatedResponse<BalanceTransaction> & { transactions: BalanceTransaction[] }> {
   const response = await api.get('/balance/my-transactions', { params });
   return response.data;
@@ -210,11 +239,28 @@ export async function createBalanceRequest(data: {
   amount_requested: number;
   justification: string;
   campus_id: number;
-  group_id?: number;
+  group_id: number;
   request_type?: RequestType;
   attachments?: Attachment[];
 }): Promise<{ message: string; request: BalanceRequest }> {
   const response = await api.post('/balance/request', data);
+  return response.data;
+}
+
+/**
+ * Crear múltiples solicitudes de saldo/beca en lote (un solo email consolidado)
+ */
+export async function createBatchBalanceRequest(data: {
+  items: {
+    campus_id: number;
+    group_id: number;
+    amount_requested: number;
+    request_type?: RequestType;
+  }[];
+  justification: string;
+  attachments?: Attachment[];
+}): Promise<{ message: string; requests: BalanceRequest[] }> {
+  const response = await api.post('/balance/request-batch', data);
   return response.data;
 }
 
@@ -270,9 +316,10 @@ export async function getRequestsForApproval(params?: {
   page?: number;
   per_page?: number;
   show_all?: boolean;
+  status?: string;
 }): Promise<PaginatedResponse<BalanceRequest> & { 
   requests: BalanceRequest[];
-  stats: { recommended_approve: number; recommended_reject: number; approved: number; rejected: number };
+  stats: { pending: number; in_review: number; recommended_approve: number; recommended_reject: number; approved: number; rejected: number };
 }> {
   const response = await api.get('/balance/requests-for-approval', { params });
   return response.data;
@@ -299,6 +346,16 @@ export async function rejectRequest(requestId: number, data: {
   return response.data;
 }
 
+/**
+ * Cancelar una solicitud de saldo (coordinador o financiero)
+ */
+export async function cancelRequest(requestId: number, data?: {
+  reason?: string;
+}): Promise<{ message: string; request: BalanceRequest }> {
+  const response = await api.put(`/balance/requests/${requestId}/cancel`, data || {});
+  return response.data;
+}
+
 // =====================================================
 // ENDPOINTS DE REPORTES
 // =====================================================
@@ -314,7 +371,8 @@ export async function getCoordinatorsBalances(params?: {
 }): Promise<PaginatedResponse<any> & { 
   coordinators: Array<{
     coordinator: { id: string; full_name: string; email: string };
-    balance: CoordinatorBalance;
+    balances: CoordinatorBalance[];
+    totals: { current_balance: number; total_received: number; total_spent: number; total_scholarships: number };
   }>;
 }> {
   const response = await api.get('/balance/coordinators', { params });
@@ -326,6 +384,7 @@ export async function getCoordinatorsBalances(params?: {
  */
 export async function createAdjustment(data: {
   coordinator_id: string;
+  group_id: number;
   amount: number;
   notes: string;
 }): Promise<{ message: string; transaction: BalanceTransaction; new_balance: number }> {
@@ -356,6 +415,7 @@ export function getStatusColor(status: RequestStatus): string {
     recommended_reject: 'bg-red-100 text-red-800',
     approved: 'bg-emerald-100 text-emerald-800',
     rejected: 'bg-red-200 text-red-900',
+    cancelled: 'bg-gray-200 text-gray-700',
   };
   return colors[status] || 'bg-gray-100 text-gray-800';
 }
@@ -371,6 +431,7 @@ export function getStatusLabel(status: RequestStatus): string {
     recommended_reject: 'Recomendado rechazar',
     approved: 'Aprobado',
     rejected: 'Rechazado',
+    cancelled: 'Cancelado',
   };
   return labels[status] || status;
 }
@@ -575,5 +636,42 @@ export async function getAssignmentCostPreview(
   data: { assignment_type: 'all' | 'selected'; member_ids?: string[] }
 ): Promise<CostPreviewData> {
   const response = await api.post(`/partners/groups/${groupId}/assignment-cost-preview`, data);
+  return response.data;
+}
+
+
+// =====================================================
+// DELEGACIÓN DE APROBACIÓN (Gerente → Financiero)
+// =====================================================
+
+export interface DelegatedFinanciero {
+  id: string;
+  name: string;
+  first_surname: string;
+  second_surname?: string;
+  full_name: string;
+  email: string;
+  can_approve_balance: boolean;
+  last_login?: string;
+}
+
+/**
+ * Obtener lista de financieros con su estado de delegación
+ */
+export async function getFinancierosForDelegation(): Promise<DelegatedFinanciero[]> {
+  const response = await api.get('/balance/delegation/financieros');
+  return response.data.financieros;
+}
+
+/**
+ * Activar/desactivar delegación de aprobación para un financiero
+ */
+export async function toggleFinancieroDelegation(
+  financieroId: string,
+  canApprove: boolean
+): Promise<{ message: string; financiero: DelegatedFinanciero }> {
+  const response = await api.put(`/balance/delegation/financieros/${financieroId}/toggle`, {
+    can_approve_balance: canApprove,
+  });
   return response.data;
 }

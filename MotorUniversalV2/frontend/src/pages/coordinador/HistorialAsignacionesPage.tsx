@@ -68,7 +68,7 @@ export default function HistorialAsignacionesPage() {
       ]);
 
       setData(historyData);
-      setCurrentBalance(balanceData.current_balance || 0);
+      setCurrentBalance(balanceData.totals?.current_balance || 0);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar el historial');
     } finally {

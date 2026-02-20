@@ -26,11 +26,18 @@ import {
   Image,
   File,
   ExternalLink,
+  ShieldCheck,
+  Loader2,
+  Ban,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { useAuthStore } from '../../store/authStore';
 import {
   getBalanceRequest,
   reviewRequest,
+  cancelRequest,
+  approveRequest,
+  rejectRequest,
   BalanceRequest,
   getStatusColor,
   getStatusLabel,
@@ -40,16 +47,28 @@ import {
 export default function FinancieroSolicitudDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [request, setRequest] = useState<BalanceRequest | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Form state
+  // Form state (review)
   const [action, setAction] = useState<'recommend_approve' | 'recommend_reject' | 'request_docs' | null>(null);
   const [recommendedAmount, setRecommendedAmount] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [docsRequested, setDocsRequested] = useState('');
+
+  // Approval state (delegated financiero)
+  const [approvedAmount, setApprovedAmount] = useState<number>(0);
+  const [approverNotes, setApproverNotes] = useState('');
+  const [approving, setApproving] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState<'approve' | 'reject' | null>(null);
+
+  // Cancel state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     loadRequest();
@@ -63,6 +82,7 @@ export default function FinancieroSolicitudDetailPage() {
       if (found) {
         setRequest(found);
         setRecommendedAmount(String(found.amount_requested));
+        setApprovedAmount(found.financiero_recommended_amount || found.amount_requested);
       } else {
         setError('Solicitud no encontrada');
       }
@@ -112,6 +132,58 @@ export default function FinancieroSolicitudDetailPage() {
     }
   };
 
+  // --- Approval handlers (delegated financiero) ---
+  const handleApprove = async () => {
+    if (!request) return;
+    try {
+      setApproving(true);
+      await approveRequest(request.id, {
+        amount_approved: approvedAmount,
+        notes: approverNotes || undefined,
+      });
+      navigate('/financiero/solicitudes', {
+        state: { message: 'Solicitud aprobada exitosamente', type: 'success' },
+      });
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al aprobar');
+      setApproving(false);
+      setShowConfirmModal(null);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!request || !approverNotes.trim()) {
+      setError('Debe proporcionar una razón para el rechazo');
+      return;
+    }
+    try {
+      setApproving(true);
+      await rejectRequest(request.id, { notes: approverNotes });
+      navigate('/financiero/solicitudes', {
+        state: { message: 'Solicitud rechazada', type: 'info' },
+      });
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al rechazar');
+      setApproving(false);
+      setShowConfirmModal(null);
+    }
+  };
+
+  const handleCancelRequest = async () => {
+    if (!request) return;
+    try {
+      setCancelling(true);
+      await cancelRequest(request.id, { reason: cancelReason });
+      navigate('/financiero/solicitudes', {
+        state: { message: 'Solicitud cancelada exitosamente', type: 'success' },
+      });
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al cancelar la solicitud');
+      setCancelling(false);
+      setShowCancelModal(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -139,6 +211,10 @@ export default function FinancieroSolicitudDetailPage() {
   }
 
   const canReview = ['pending', 'in_review'].includes(request.status);
+  const canApprove =
+    user?.can_approve_balance === true &&
+    ['recommended_approve', 'recommended_reject'].includes(request.status);
+  const canCancelRequest = ['pending', 'in_review', 'recommended_approve', 'recommended_reject'].includes(request.status);
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
@@ -514,6 +590,95 @@ export default function FinancieroSolicitudDetailPage() {
                 </button>
               )}
             </div>
+          ) : canApprove ? (
+            /* Approval Panel for delegated financiero */
+            <div className="bg-white rounded-xl shadow-sm border-2 border-amber-300 p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <ShieldCheck className="w-5 h-5 text-amber-600" />
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Aprobación Delegada
+                </h2>
+              </div>
+
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+                Usted tiene permisos delegados para aprobar o rechazar esta solicitud.
+              </div>
+
+              {/* Financiero recommendation summary */}
+              {request.financiero_notes && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs font-medium text-blue-600 mb-1">Recomendación previa</p>
+                  <p className="text-sm text-blue-800">{request.financiero_notes}</p>
+                  {request.financiero_recommended_amount && (
+                    <p className="text-sm font-medium text-blue-800 mt-1">
+                      Monto recomendado: {formatCurrency(request.financiero_recommended_amount)}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  {error}
+                </div>
+              )}
+
+              {/* Approved amount */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Monto a Aprobar
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                  <input
+                    type="number"
+                    value={approvedAmount}
+                    onChange={(e) => setApprovedAmount(parseFloat(e.target.value) || 0)}
+                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Notas del aprobador
+                </label>
+                <textarea
+                  value={approverNotes}
+                  onChange={(e) => setApproverNotes(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                  placeholder="Comentarios sobre la aprobación o rechazo..."
+                />
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowConfirmModal('approve')}
+                  className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  Aprobar
+                </button>
+                <button
+                  onClick={() => {
+                    if (!approverNotes.trim()) {
+                      setError('Debe proporcionar una razón para el rechazo');
+                      return;
+                    }
+                    setShowConfirmModal('reject');
+                  }}
+                  className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Rechazar
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="bg-gray-50 rounded-xl border border-gray-200 p-6 text-center">
               <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -548,8 +713,118 @@ export default function FinancieroSolicitudDetailPage() {
               </div>
             </dl>
           </div>
+
+          {/* Cancel Button */}
+          {canCancelRequest && (
+            <button
+              onClick={() => setShowCancelModal(true)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-600 rounded-xl border border-red-200 hover:bg-red-100 transition-colors font-medium"
+            >
+              <Ban className="w-4 h-4" />
+              Cancelar Solicitud
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              {showConfirmModal === 'approve'
+                ? 'Confirmar Aprobación'
+                : 'Confirmar Rechazo'}
+            </h3>
+            <p className="text-gray-600 mb-4">
+              {showConfirmModal === 'approve'
+                ? `¿Está seguro de aprobar esta solicitud por ${formatCurrency(approvedAmount)}?`
+                : '¿Está seguro de rechazar esta solicitud?'}
+            </p>
+            {showConfirmModal === 'approve' && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg mb-4">
+                <p className="text-sm text-green-800">
+                  Se acreditará <strong>{formatCurrency(approvedAmount)}</strong> al saldo del coordinador.
+                </p>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowConfirmModal(null)}
+                disabled={approving}
+                className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={showConfirmModal === 'approve' ? handleApprove : handleReject}
+                disabled={approving}
+                className={`flex-1 py-2 rounded-lg text-white font-medium flex items-center justify-center gap-2 disabled:opacity-50 ${
+                  showConfirmModal === 'approve'
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                {approving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : showConfirmModal === 'approve' ? (
+                  'Aprobar'
+                ) : (
+                  'Rechazar'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Cancel Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Cancelar Solicitud
+            </h3>
+            <p className="text-gray-600 mb-4">
+              ¿Está seguro de cancelar la solicitud #{request.id} por {formatCurrency(request.amount_requested)}? Esta acción no se puede deshacer.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Motivo de cancelación (opcional)
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                placeholder="Explique por qué desea cancelar..."
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCancelModal(false)}
+                disabled={cancelling}
+                className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                No, mantener
+              </button>
+              <button
+                onClick={handleCancelRequest}
+                disabled={cancelling}
+                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {cancelling ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Ban className="w-4 h-4" />
+                    Sí, cancelar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

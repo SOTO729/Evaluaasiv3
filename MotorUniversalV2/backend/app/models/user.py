@@ -87,6 +87,9 @@ class User(db.Model):
     can_manage_groups = db.Column(db.Boolean, default=False, nullable=False)  # Puede crear grupos y asignar exámenes/materiales
     can_view_reports = db.Column(db.Boolean, default=True, nullable=False)  # Puede ver reportes (habilitado por default)
     
+    # Delegación de aprobación de saldos (gerente -> financiero)
+    can_approve_balance = db.Column(db.Boolean, default=False, nullable=False)  # Financiero puede aprobar/rechazar solicitudes de saldo
+    
     # Opciones de documentos/certificados habilitados para el usuario
     # El reporte de evaluación está habilitado por default para todos
     enable_evaluation_report = db.Column(db.Boolean, default=True, nullable=False)
@@ -177,6 +180,7 @@ class User(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None,
             # Opciones de documentos habilitados
+            'can_approve_balance': self.can_approve_balance if self.role == 'financiero' else None,
             'document_options': {
                 'evaluation_report': self.enable_evaluation_report,
                 'certificate': self.enable_certificate,

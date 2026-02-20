@@ -260,6 +260,8 @@ export async function getAvailablePartners(): Promise<{
 export const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
   developer: 'Desarrollador',
+  gerente: 'Gerente',
+  financiero: 'Financiero',
   editor: 'Editor',
   editor_invitado: 'Editor Invitado',
   soporte: 'Soporte',
@@ -273,6 +275,8 @@ export const ROLE_LABELS: Record<string, string> = {
 export const ROLE_COLORS: Record<string, string> = {
   admin: 'bg-red-100 text-red-800',
   developer: 'bg-orange-100 text-orange-800',
+  gerente: 'bg-emerald-100 text-emerald-800',
+  financiero: 'bg-cyan-100 text-cyan-800',
   editor: 'bg-purple-100 text-purple-800',
   editor_invitado: 'bg-teal-100 text-teal-800',
   soporte: 'bg-blue-100 text-blue-800',

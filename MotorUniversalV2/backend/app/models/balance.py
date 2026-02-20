@@ -13,17 +13,23 @@ from decimal import Decimal
 
 
 class CoordinatorBalance(db.Model):
-    """Saldo actual de un coordinador para asignar certificaciones"""
+    """Saldo de un coordinador para un grupo específico.
+    
+    Cada registro representa el saldo disponible de un coordinador
+    para un grupo en particular. El saldo solo se puede usar en el
+    grupo para el que fue solicitado.
+    """
     
     __tablename__ = 'coordinator_balances'
     
     id = db.Column(db.Integer, primary_key=True)
-    coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
+    coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='CASCADE'), nullable=False)
     
-    # Saldo actual en pesos
+    # Saldo actual en pesos (para este grupo)
     current_balance = db.Column(db.Numeric(12, 2), default=0, nullable=False)
     
-    # Totales históricos
+    # Totales históricos (para este grupo)
     total_received = db.Column(db.Numeric(12, 2), default=0, nullable=False)  # Total recibido (aprobaciones)
     total_spent = db.Column(db.Numeric(12, 2), default=0, nullable=False)  # Total gastado (asignaciones)
     total_scholarships = db.Column(db.Numeric(12, 2), default=0, nullable=False)  # Total en becas recibidas
@@ -32,13 +38,20 @@ class CoordinatorBalance(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
-    # Relación con usuario
-    coordinator = db.relationship('User', backref=db.backref('balance', uselist=False))
+    # Unique constraint: un registro por coordinador+grupo
+    __table_args__ = (
+        db.UniqueConstraint('coordinator_id', 'group_id', name='uq_coordinator_group_balance'),
+    )
     
-    def to_dict(self, include_coordinator=False):
+    # Relaciones
+    coordinator = db.relationship('User', backref=db.backref('balances', lazy='dynamic'))
+    group = db.relationship('CandidateGroup', backref=db.backref('coordinator_balances', lazy='dynamic'))
+    
+    def to_dict(self, include_coordinator=False, include_group=False):
         data = {
             'id': self.id,
             'coordinator_id': self.coordinator_id,
+            'group_id': self.group_id,
             'current_balance': float(self.current_balance) if self.current_balance else 0,
             'total_received': float(self.total_received) if self.total_received else 0,
             'total_spent': float(self.total_spent) if self.total_spent else 0,
@@ -57,10 +70,28 @@ class CoordinatorBalance(db.Model):
                 'email': self.coordinator.email,
             }
         
+        if include_group and self.group:
+            # Resolver el costo real de certificación (override del grupo → costo del campus → 0)
+            cert_cost = 0.0
+            if self.group.certification_cost_override is not None:
+                cert_cost = float(self.group.certification_cost_override)
+            elif self.group.campus and self.group.campus.certification_cost is not None:
+                cert_cost = float(self.group.campus.certification_cost)
+            
+            data['group'] = {
+                'id': self.group.id,
+                'name': self.group.name,
+                'code': self.group.code,
+                'campus_id': self.group.campus_id,
+                'certification_cost': cert_cost,
+            }
+            if self.group.campus:
+                data['group']['campus_name'] = self.group.campus.name
+        
         return data
     
     def add_balance(self, amount, is_scholarship=False):
-        """Agregar saldo al coordinador"""
+        """Agregar saldo al coordinador para este grupo"""
         self.current_balance = (self.current_balance or Decimal('0')) + Decimal(str(amount))
         self.total_received = (self.total_received or Decimal('0')) + Decimal(str(amount))
         if is_scholarship:
@@ -68,13 +99,13 @@ class CoordinatorBalance(db.Model):
         self.updated_at = datetime.utcnow()
     
     def deduct_balance(self, amount):
-        """Descontar saldo del coordinador"""
+        """Descontar saldo del coordinador para este grupo"""
         self.current_balance = (self.current_balance or Decimal('0')) - Decimal(str(amount))
         self.total_spent = (self.total_spent or Decimal('0')) + Decimal(str(amount))
         self.updated_at = datetime.utcnow()
     
     def has_sufficient_balance(self, amount):
-        """Verificar si tiene saldo suficiente"""
+        """Verificar si tiene saldo suficiente en este grupo"""
         return (self.current_balance or Decimal('0')) >= Decimal(str(amount))
 
 
@@ -85,7 +116,8 @@ REQUEST_STATUS = {
     'recommended_approve': 'Recomendado aprobar',
     'recommended_reject': 'Recomendado rechazar',
     'approved': 'Aprobado',
-    'rejected': 'Rechazado'
+    'rejected': 'Rechazado',
+    'cancelled': 'Cancelado'
 }
 
 # Tipos de solicitud
@@ -105,9 +137,9 @@ class BalanceRequest(db.Model):
     # Solicitante
     coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     
-    # Destino (para trazabilidad)
+    # Destino (grupo obligatorio para vincular saldo)
     campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id'), nullable=True)  # Para qué plantel
-    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id'), nullable=True)  # Para qué grupo (opcional)
+    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id'), nullable=False)  # Para qué grupo (obligatorio)
     
     # Tipo de solicitud
     request_type = db.Column(db.String(20), default='saldo', nullable=False)  # 'saldo' o 'beca'
@@ -245,6 +277,9 @@ class BalanceTransaction(db.Model):
     # A quién pertenece el movimiento
     coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     
+    # Grupo al que pertenece el movimiento
+    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='SET NULL'), nullable=True)
+    
     # Tipo y concepto
     transaction_type = db.Column(db.String(20), nullable=False)  # credit, debit, adjustment
     concept = db.Column(db.String(50), nullable=False)  # saldo_aprobado, beca, asignacion, etc.
@@ -270,11 +305,13 @@ class BalanceTransaction(db.Model):
     # Relaciones
     coordinator = db.relationship('User', foreign_keys=[coordinator_id], backref=db.backref('balance_transactions', lazy='dynamic'))
     created_by = db.relationship('User', foreign_keys=[created_by_id])
+    group = db.relationship('CandidateGroup', backref=db.backref('balance_transactions', lazy='dynamic'))
     
-    def to_dict(self, include_coordinator=False, include_created_by=False):
+    def to_dict(self, include_coordinator=False, include_created_by=False, include_group=False):
         data = {
             'id': self.id,
             'coordinator_id': self.coordinator_id,
+            'group_id': self.group_id,
             'transaction_type': self.transaction_type,
             'transaction_type_label': TRANSACTION_TYPES.get(self.transaction_type, self.transaction_type),
             'concept': self.concept,
@@ -301,19 +338,29 @@ class BalanceTransaction(db.Model):
                 'full_name': self.created_by.full_name,
             }
         
+        if include_group and self.group:
+            data['group'] = {
+                'id': self.group.id,
+                'name': self.group.name,
+                'code': self.group.code,
+            }
+        
         return data
 
 
-def create_balance_transaction(coordinator_id, transaction_type, concept, amount, 
+def create_balance_transaction(coordinator_id, group_id, transaction_type, concept, amount, 
                                reference_type=None, reference_id=None, notes=None, 
                                created_by_id=None):
-    """Helper para crear una transacción de saldo con todos los datos correctos"""
+    """Helper para crear una transacción de saldo vinculada a un grupo específico"""
     from app.models.balance import CoordinatorBalance
     
-    # Obtener o crear el balance del coordinador
-    balance = CoordinatorBalance.query.filter_by(coordinator_id=coordinator_id).first()
+    # Obtener o crear el balance del coordinador para este grupo
+    balance = CoordinatorBalance.query.filter_by(
+        coordinator_id=coordinator_id,
+        group_id=group_id
+    ).first()
     if not balance:
-        balance = CoordinatorBalance(coordinator_id=coordinator_id)
+        balance = CoordinatorBalance(coordinator_id=coordinator_id, group_id=group_id)
         db.session.add(balance)
         db.session.flush()
     
@@ -333,6 +380,7 @@ def create_balance_transaction(coordinator_id, transaction_type, concept, amount
     # Crear el registro de transacción
     transaction = BalanceTransaction(
         coordinator_id=coordinator_id,
+        group_id=group_id,
         transaction_type=transaction_type,
         concept=concept,
         amount=abs(amount),  # Siempre positivo, el tipo indica dirección

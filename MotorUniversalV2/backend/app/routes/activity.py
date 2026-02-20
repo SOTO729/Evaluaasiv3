@@ -83,9 +83,10 @@ def get_activity_logs():
         
         query = ActivityLog.query
         
-        # El gerente no puede ver actividad del admin
+        # El gerente no puede ver actividad de candidatos, responsables ni responsables de partner
+        excluded_roles = ['candidato', 'responsable', 'responsable_partner']
         if current_user.role == 'gerente':
-            query = query.filter(ActivityLog.user_role != 'admin')
+            query = query.filter(~ActivityLog.user_role.in_(excluded_roles))
         
         # Aplicar filtros
         if user_filter:
@@ -197,9 +198,10 @@ def get_activity_summary():
         
         query = ActivityLog.query.filter(ActivityLog.created_at >= start_date)
         
-        # El gerente no puede ver actividad del admin
+        # El gerente no puede ver actividad de candidatos, responsables ni responsables de partner
+        excluded_roles = ['candidato', 'responsable', 'responsable_partner']
         if current_user.role == 'gerente':
-            query = query.filter(ActivityLog.user_role != 'admin')
+            query = query.filter(~ActivityLog.user_role.in_(excluded_roles))
         
         # Conteos por tipo de acción
         action_counts = db.session.query(
@@ -219,7 +221,7 @@ def get_activity_summary():
         )
         
         if current_user.role == 'gerente':
-            user_counts = user_counts.filter(ActivityLog.user_role != 'admin')
+            user_counts = user_counts.filter(~ActivityLog.user_role.in_(excluded_roles))
         
         user_counts = user_counts.group_by(
             ActivityLog.user_id, ActivityLog.user_email
@@ -235,7 +237,7 @@ def get_activity_summary():
         today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
         today_query = ActivityLog.query.filter(ActivityLog.created_at >= today_start)
         if current_user.role == 'gerente':
-            today_query = today_query.filter(ActivityLog.user_role != 'admin')
+            today_query = today_query.filter(~ActivityLog.user_role.in_(excluded_roles))
         today_count = today_query.count()
         
         # Últimas acciones importantes
@@ -246,7 +248,7 @@ def get_activity_summary():
             ActivityLog.created_at >= start_date
         )
         if current_user.role == 'gerente':
-            recent_important = recent_important.filter(ActivityLog.user_role != 'admin')
+            recent_important = recent_important.filter(~ActivityLog.user_role.in_(excluded_roles))
         recent_important = recent_important.order_by(desc(ActivityLog.created_at)).limit(10).all()
         
         return jsonify({
@@ -277,10 +279,8 @@ def get_personal_users():
         user_id = get_jwt_identity()
         current_user = User.query.get(user_id)
         
-        # Roles de personal que el gerente puede ver
-        visible_roles = ['gerente', 'financiero', 'coordinator', 'editor', 'soporte', 'auxiliar']
-        if current_user.role == 'admin':
-            visible_roles.append('admin')
+        # Roles visibles para el gerente (todos menos candidato, responsable, responsable_partner)
+        visible_roles = ['admin', 'developer', 'gerente', 'financiero', 'coordinator', 'editor', 'editor_invitado', 'soporte', 'auxiliar']
         
         users = User.query.filter(
             User.role.in_(visible_roles),

@@ -557,7 +557,7 @@ export default function UserFormPage() {
             />
           </div>
 
-          {formData.role !== 'editor' && formData.role !== 'editor_invitado' && (
+          {formData.role !== 'editor' && formData.role !== 'editor_invitado' && formData.role !== 'gerente' && formData.role !== 'financiero' && (
             <div>
               <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                 CURP {formData.role === 'responsable' && <span className="text-red-500">*</span>}

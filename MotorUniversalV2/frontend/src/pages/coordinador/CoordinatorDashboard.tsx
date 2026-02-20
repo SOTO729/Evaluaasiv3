@@ -39,7 +39,7 @@ import {
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useAuthStore } from '../../store/authStore';
 import { getPartnersDashboard, DashboardStats } from '../../services/partnersService';
-import { getMyBalance, CoordinatorBalance, formatCurrency } from '../../services/balanceService';
+import { getMyBalance, MyBalanceResponse, formatCurrency } from '../../services/balanceService';
 
 // Colores para los gráficos
 const CHART_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
@@ -52,7 +52,7 @@ export default function CoordinatorDashboard() {
   
   // Data states
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
-  const [balance, setBalance] = useState<CoordinatorBalance | null>(null);
+  const [balance, setBalance] = useState<MyBalanceResponse | null>(null);
 
   useEffect(() => {
     loadData();
@@ -181,7 +181,7 @@ export default function CoordinatorDashboard() {
                 <div>
                   <p className="text-white/80 fluid-text-sm">Mi Saldo Actual</p>
                   <p className="text-white fluid-text-3xl font-bold">
-                    {balance ? formatCurrency(balance.current_balance) : '$0.00'}
+                    {balance ? formatCurrency(balance.totals.current_balance) : '$0.00'}
                   </p>
                 </div>
               </div>
@@ -192,13 +192,13 @@ export default function CoordinatorDashboard() {
                   <div>
                     <p className="text-gray-500 fluid-text-xs">Total Recibido</p>
                     <p className="text-green-600 font-semibold fluid-text-base">
-                      {formatCurrency(balance.total_received)}
+                      {formatCurrency(balance.totals.total_received)}
                     </p>
                   </div>
                   <div>
                     <p className="text-gray-500 fluid-text-xs">Total Usado</p>
                     <p className="text-gray-700 font-semibold fluid-text-base">
-                      {formatCurrency(balance.total_spent)}
+                      {formatCurrency(balance.totals.total_spent)}
                     </p>
                   </div>
                 </div>

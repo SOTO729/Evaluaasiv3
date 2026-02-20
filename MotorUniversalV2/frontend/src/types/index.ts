@@ -23,6 +23,7 @@ export interface User {
   can_manage_groups?: boolean
   can_bulk_create_candidates?: boolean
   can_view_reports?: boolean
+  can_approve_balance?: boolean | null
 }
 
 export interface Exam {

@@ -220,6 +220,10 @@ class Campus(db.Model):
     daily_exam_pin = db.Column(db.String(4))  # PIN de 4 dígitos
     daily_exam_pin_date = db.Column(db.Date)  # Fecha en que se generó el PIN
     
+    # Calendario de sesiones
+    enable_session_calendar = db.Column(db.Boolean, default=False)  # Habilitar calendario de sesiones
+    session_scheduling_mode = db.Column(db.String(20), default='leader_only')  # 'leader_only' o 'candidate_self'
+    
     # Vigencia del plantel (licencia)
     license_start_date = db.Column(db.Date)  # Fecha de inicio de vigencia (legacy)
     license_end_date = db.Column(db.Date)  # Fecha de fin de vigencia (legacy)
@@ -228,7 +232,7 @@ class Campus(db.Model):
     # Costos
     certification_cost = db.Column(db.Numeric(10, 2), default=0)  # Costo por certificación
     retake_cost = db.Column(db.Numeric(10, 2), default=0)  # Costo por retoma
-    max_retakes = db.Column(db.Integer, default=1)  # Máximo de retomas por asignación ECM
+    max_retakes = db.Column(db.Integer, default=0)  # Máximo de retomas por asignación ECM (0 = ilimitado)
     
     # Configuración completada
     configuration_completed = db.Column(db.Boolean, default=False)
@@ -293,6 +297,8 @@ class Campus(db.Model):
             'enable_candidate_certificates': self.enable_candidate_certificates if self.enable_candidate_certificates is not None else False,
             'require_exam_pin': self.require_exam_pin if self.require_exam_pin is not None else False,
             'daily_exam_pin': self.get_daily_pin() if self.require_exam_pin else None,
+            'enable_session_calendar': self.enable_session_calendar if self.enable_session_calendar is not None else False,
+            'session_scheduling_mode': self.session_scheduling_mode or 'leader_only',
             'assignment_validity_months': self.assignment_validity_months or 12,
             'certification_cost': float(self.certification_cost) if self.certification_cost else 0,
             'retake_cost': float(self.retake_cost) if self.retake_cost else 0,
@@ -313,6 +319,8 @@ class Campus(db.Model):
                 'enable_candidate_certificates': self.enable_candidate_certificates if self.enable_candidate_certificates is not None else False,
                 'require_exam_pin': self.require_exam_pin if self.require_exam_pin is not None else False,
                 'daily_exam_pin': self.get_daily_pin() if self.require_exam_pin else None,
+                'enable_session_calendar': self.enable_session_calendar if self.enable_session_calendar is not None else False,
+                'session_scheduling_mode': self.session_scheduling_mode or 'leader_only',
                 'assignment_validity_months': self.assignment_validity_months or 12,
                 'certification_cost': float(self.certification_cost) if self.certification_cost else 0,
                 'retake_cost': float(self.retake_cost) if self.retake_cost else 0,
@@ -517,6 +525,10 @@ class CandidateGroup(db.Model):
     # PIN de seguridad para exámenes
     require_exam_pin_override = db.Column(db.Boolean)
     
+    # Calendario de sesiones
+    enable_session_calendar_override = db.Column(db.Boolean)
+    session_scheduling_mode_override = db.Column(db.String(20))
+    
     # Costos
     certification_cost_override = db.Column(db.Numeric(10, 2))
     retake_cost_override = db.Column(db.Numeric(10, 2))
@@ -566,6 +578,8 @@ class CandidateGroup(db.Model):
                 'enable_online_payments_override': self.enable_online_payments_override,
                 'enable_candidate_certificates_override': self.enable_candidate_certificates_override,
                 'require_exam_pin_override': self.require_exam_pin_override,
+                'enable_session_calendar_override': self.enable_session_calendar_override,
+                'session_scheduling_mode_override': self.session_scheduling_mode_override,
                 'certification_cost_override': float(self.certification_cost_override) if self.certification_cost_override is not None else None,
                 'retake_cost_override': float(self.retake_cost_override) if self.retake_cost_override is not None else None,
                 'max_retakes_override': self.max_retakes_override,
@@ -586,9 +600,11 @@ class CandidateGroup(db.Model):
                     'enable_online_payments': self.enable_online_payments_override if self.enable_online_payments_override is not None else self.campus.enable_online_payments,
                     'enable_candidate_certificates': self.enable_candidate_certificates_override if self.enable_candidate_certificates_override is not None else (self.campus.enable_candidate_certificates if self.campus.enable_candidate_certificates is not None else False),
                     'require_exam_pin': self.require_exam_pin_override if self.require_exam_pin_override is not None else (self.campus.require_exam_pin if self.campus.require_exam_pin is not None else False),
+                    'enable_session_calendar': self.enable_session_calendar_override if self.enable_session_calendar_override is not None else (self.campus.enable_session_calendar if self.campus.enable_session_calendar is not None else False),
+                    'session_scheduling_mode': self.session_scheduling_mode_override if self.session_scheduling_mode_override else (self.campus.session_scheduling_mode or 'leader_only'),
                     'certification_cost': float(self.certification_cost_override) if self.certification_cost_override is not None else (float(self.campus.certification_cost) if self.campus.certification_cost else 0),
                     'retake_cost': float(self.retake_cost_override) if self.retake_cost_override is not None else (float(self.campus.retake_cost) if self.campus.retake_cost else 0),
-                    'max_retakes': self.max_retakes_override if self.max_retakes_override is not None else (self.campus.max_retakes if self.campus.max_retakes is not None else 1),
+                    'max_retakes': self.max_retakes_override if self.max_retakes_override is not None else (self.campus.max_retakes if self.campus.max_retakes is not None else 0),
                     'assignment_validity_months': self.assignment_validity_months_override if self.assignment_validity_months_override is not None else (self.campus.assignment_validity_months or 12),
                 }
         
@@ -1063,7 +1079,7 @@ class EcmCandidateAssignment(db.Model):
     """Asignación permanente de un ECM a un candidato.
     
     Cada vez que se asigna un examen (que tiene competency_standard_id) a candidatos,
-    se crea un registro aquí con un número de asignación único de 12 caracteres.
+    se crea un registro aquí con un número de asignación único de 14 caracteres.
     Estas asignaciones son PERMANENTES: no se borran aunque el grupo sea eliminado
     o el candidato cambie de grupo.
     """
@@ -1071,7 +1087,7 @@ class EcmCandidateAssignment(db.Model):
     __tablename__ = 'ecm_candidate_assignments'
     
     id = db.Column(db.Integer, primary_key=True)
-    assignment_number = db.Column(db.String(12), unique=True, nullable=False, index=True)
+    assignment_number = db.Column(db.String(14), unique=True, nullable=False, index=True)
     user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
     competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id'), nullable=False)
     exam_id = db.Column(db.Integer, db.ForeignKey('exams.id'), nullable=False)
@@ -1082,6 +1098,9 @@ class EcmCandidateAssignment(db.Model):
     assigned_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     assigned_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
     assignment_source = db.Column(db.String(20), default='bulk', nullable=False)  # 'bulk' o 'selected'
+    
+    # Estado del trámite CONOCER
+    tramite_status = db.Column(db.String(20), default='pendiente', nullable=False)  # pendiente, en_tramite, entregado
     
     # Vigencia de la asignación
     validity_months = db.Column(db.Integer, nullable=True)  # Meses de vigencia (snapshot al asignar)
@@ -1118,12 +1137,12 @@ class EcmCandidateAssignment(db.Model):
     
     @staticmethod
     def generate_assignment_number():
-        """Genera un número de asignación único de 12 caracteres alfanuméricos"""
+        """Genera un número de asignación único de 14 caracteres alfanuméricos"""
         import secrets
         import string
         chars = string.ascii_uppercase + string.digits
         while True:
-            number = ''.join(secrets.choice(chars) for _ in range(12))
+            number = ''.join(secrets.choice(chars) for _ in range(14))
             existing = EcmCandidateAssignment.query.filter_by(assignment_number=number).first()
             if not existing:
                 return number
@@ -1151,6 +1170,69 @@ class EcmCandidateAssignment(db.Model):
             'expires_at': self.effective_expires_at.isoformat() if self.effective_expires_at else None,
             'extended_months': self.extended_months or 0,
             'is_expired': self.is_expired,
+            'tramite_status': self.tramite_status,
+        }
+
+
+class ConocerEmailContact(db.Model):
+    """Contactos de correo para solicitudes de línea de captura CONOCER."""
+    
+    __tablename__ = 'conocer_email_contacts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    email = db.Column(db.String(200), nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    
+    created_by = db.relationship('User', foreign_keys=[created_by_id])
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'email': self.email,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'created_by_id': self.created_by_id,
+            'created_by_name': self.created_by.full_name if self.created_by else None,
+        }
+
+
+class ConocerSolicitudLog(db.Model):
+    """Log de solicitudes de línea de captura enviadas por correo."""
+    
+    __tablename__ = 'conocer_solicitud_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    sent_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    sent_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    recipients = db.Column(db.Text, nullable=False)  # JSON array of email addresses
+    total_certificates = db.Column(db.Integer, default=0, nullable=False)
+    ecm_summary = db.Column(db.Text, nullable=True)  # JSON: [{code, count}]
+    attachment_names = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(20), default='sent', nullable=False)
+    error_message = db.Column(db.Text, nullable=True)
+    assignment_ids = db.Column(db.Text, nullable=True)  # JSON array of ECA ids
+    
+    sent_by = db.relationship('User', foreign_keys=[sent_by_id])
+    
+    def to_dict(self):
+        import json
+        return {
+            'id': self.id,
+            'sent_at': self.sent_at.isoformat() if self.sent_at else None,
+            'sent_by_id': self.sent_by_id,
+            'sent_by_name': self.sent_by.full_name if self.sent_by else None,
+            'recipients': json.loads(self.recipients) if self.recipients else [],
+            'total_certificates': self.total_certificates,
+            'ecm_summary': json.loads(self.ecm_summary) if self.ecm_summary else [],
+            'attachment_names': self.attachment_names,
+            'status': self.status,
+            'error_message': self.error_message,
         }
 
 

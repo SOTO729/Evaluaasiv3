@@ -360,7 +360,7 @@ export default function GroupDetailPage() {
 
           <div className="divide-y divide-gray-100 max-h-[420px] overflow-y-auto">
             {assignedExams.map((assignment) => (
-              <Link key={assignment.id} to={`/partners/groups/${groupId}/assignments/${assignment.exam_id}/edit-members?type=exam&name=${encodeURIComponent(assignment.exam?.name || 'Examen')}`}
+              <Link key={assignment.id} to={`/partners/groups/${groupId}/assignments/${assignment.exam_id}/detail`}
                 className="fluid-px-6 fluid-py-4 flex items-center justify-between hover:bg-blue-50/50 transition-colors block group">
                 <div className="flex items-center fluid-gap-4 flex-1 min-w-0">
                   <div className="fluid-p-2 bg-blue-100 rounded-fluid-lg flex-shrink-0">

@@ -4,7 +4,7 @@ Rutas para gestión de usuarios (admin y coordinadores)
 from flask import Blueprint, request, jsonify, g
 from functools import wraps
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from sqlalchemy import or_, and_, func, case
+from sqlalchemy import or_, and_, func, case, text
 from datetime import datetime
 from app import db, cache
 from app.models import User
@@ -15,12 +15,12 @@ import re
 bp = Blueprint('user_management', __name__, url_prefix='/api/user-management')
 
 # Roles disponibles en el sistema (sin alumno)
-AVAILABLE_ROLES = ['admin', 'developer', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar']
+AVAILABLE_ROLES = ['admin', 'developer', 'gerente', 'financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar']
 
 # Roles que puede crear cada tipo de usuario
 ROLE_CREATE_PERMISSIONS = {
-    'admin': ['developer', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin
-    'developer': ['editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin y developer
+    'admin': ['developer', 'gerente', 'financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin
+    'developer': ['gerente', 'financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin y developer
     'coordinator': ['responsable', 'responsable_partner', 'candidato']  # Responsables, Responsables del Partner y candidatos
 }
 
@@ -450,8 +450,8 @@ def create_user():
             else:
                 return jsonify({'error': f'No tienes permiso para crear usuarios con rol {role}'}), 403
         
-        # Verificar CURP único si se proporciona (solo para roles diferentes a editor/editor_invitado)
-        if data.get('curp') and role not in ['editor', 'editor_invitado']:
+        # Verificar CURP único si se proporciona (solo para roles diferentes a editor/editor_invitado/gerente/financiero)
+        if data.get('curp') and role not in ['editor', 'editor_invitado', 'gerente', 'financiero']:
             curp = data['curp'].upper().strip()
             if User.query.filter_by(curp=curp).first():
                 return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
@@ -471,17 +471,17 @@ def create_user():
         username = generate_unique_username()
         
         # Para usuarios tipo editor o candidato, no guardar phone
-        # Para usuarios tipo editor, no guardar CURP ni phone
+        # Para usuarios tipo editor/gerente/financiero, no guardar CURP ni phone
         user_curp = None
         user_phone = None
         user_date_of_birth = None
         user_campus_id = None
         
-        if role not in ['editor', 'editor_invitado', 'candidato']:
+        if role not in ['editor', 'editor_invitado', 'candidato', 'gerente', 'financiero']:
             # Solo admin/coordinator/responsable pueden tener teléfono
             user_phone = data.get('phone', '').strip() or None
-        if role not in ['editor', 'editor_invitado']:
-            # Solo candidatos, responsables y otros roles (no editor) pueden tener CURP
+        if role not in ['editor', 'editor_invitado', 'gerente', 'financiero']:
+            # Solo candidatos, responsables y otros roles (no editor/gerente/financiero) pueden tener CURP
             user_curp = data.get('curp', '').upper().strip() or None
         
         # Para responsables, campos adicionales
@@ -886,7 +886,11 @@ def update_user_document_options(user_id):
 @jwt_required()
 @admin_required
 def delete_user(user_id):
-    """Eliminar un usuario permanentemente (solo admin, no developer)"""
+    """Eliminar un usuario permanentemente (solo admin, no developer).
+    
+    Limpia todas las referencias FK antes de eliminar para evitar
+    errores de constraint en MSSQL.
+    """
     try:
         current_user = g.current_user
         
@@ -904,8 +908,88 @@ def delete_user(user_id):
         user_email = user.email
         user_name = user.full_name
         
-        # Eliminar usuario
-        db.session.delete(user)
+        # Expulsar el objeto User de la sesión ORM para evitar que
+        # SQLAlchemy intente SET NULL en backrefs con NOT NULL constraints
+        db.session.expunge(user)
+        
+        # ── Limpiar todas las referencias FK con NO_ACTION ──
+        # SET NULL en columnas que son nullable (created_by, updated_by, assigned_by, etc.)
+        # DELETE en tablas de relación directa (activity_logs, ecm_assignments, etc.)
+        
+        nullable_refs = [
+            ('answers', 'created_by'),
+            ('answers', 'updated_by'),
+            ('balance_requests', 'approved_by_id'),
+            ('balance_requests', 'financiero_id'),
+            ('balance_transactions', 'created_by_id'),
+            ('categories', 'created_by'),
+            ('categories', 'updated_by'),
+            ('conocer_upload_batches', 'uploaded_by'),
+            ('ecm_candidate_assignments', 'assigned_by_id'),
+            ('ecm_retakes', 'applied_by_id'),
+            ('exams', 'created_by'),
+            ('exams', 'updated_by'),
+            ('exercises', 'created_by'),
+            ('exercises', 'updated_by'),
+            ('questions', 'created_by'),
+            ('questions', 'updated_by'),
+            ('study_contents', 'created_by'),
+            ('study_contents', 'updated_by'),
+            ('study_interactive_exercises', 'created_by'),
+            ('study_interactive_exercises', 'updated_by'),
+            ('study_materials', 'created_by'),
+            ('study_materials', 'updated_by'),
+            ('topics', 'created_by'),
+            ('topics', 'updated_by'),
+            ('vm_sessions', 'cancelled_by_id'),
+            ('vm_sessions', 'created_by_id'),
+        ]
+        
+        for table, col in nullable_refs:
+            try:
+                db.session.execute(
+                    text(f"UPDATE {table} SET {col} = NULL WHERE {col} = :uid"),
+                    {'uid': user_id}
+                )
+            except Exception:
+                pass  # Tabla podría no existir en algunos entornos
+        
+        # SET NULL en users.coordinator_id (auto-referencia)
+        db.session.execute(
+            text("UPDATE users SET coordinator_id = NULL WHERE coordinator_id = :uid"),
+            {'uid': user_id}
+        )
+        
+        # DELETE en tablas de datos directos del usuario
+        # (tablas con user_id NOT NULL que no tienen CASCADE en la DB)
+        delete_refs = [
+            ('group_exam_members', 'user_id'),
+            ('activity_logs', 'user_id'),
+            ('balance_transactions', 'coordinator_id'),
+            ('ecm_candidate_assignments', 'user_id'),
+            ('ecm_retakes', 'user_id'),
+            ('student_content_progress', 'user_id'),
+            ('student_topic_progress', 'user_id'),
+            ('vm_sessions', 'user_id'),
+            ('vouchers', 'user_id'),
+            ('results', 'user_id'),
+        ]
+        
+        for table, col in delete_refs:
+            try:
+                db.session.execute(
+                    text(f"DELETE FROM {table} WHERE {col} = :uid"),
+                    {'uid': user_id}
+                )
+            except Exception:
+                pass
+        
+        # Eliminar usuario via SQL directo para evitar que el ORM
+        # intente SET NULL en backrefs con NOT NULL constraints
+        db.session.execute(
+            text("DELETE FROM users WHERE id = :uid"),
+            {'uid': user_id}
+        )
         db.session.commit()
         
         return jsonify({
@@ -1036,6 +1120,8 @@ def get_available_roles():
         
         role_descriptions = {
             'admin': 'Administrador - Acceso total al sistema',
+            'gerente': 'Gerente - Supervisión general y aprobación de operaciones',
+            'financiero': 'Financiero - Gestión de saldos y aprobaciones financieras',
             'editor': 'Editor - Gestión de exámenes y contenidos',
             'editor_invitado': 'Editor Invitado - Gestión de exámenes con contenido aislado',
             'soporte': 'Soporte - Atención a usuarios y vouchers',

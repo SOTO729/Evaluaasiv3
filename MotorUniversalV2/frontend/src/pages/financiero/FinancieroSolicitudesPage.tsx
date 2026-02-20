@@ -83,6 +83,7 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'in_review', label: 'En revisión' },
   { value: 'recommended_approve', label: 'Recomendadas aprobar' },
   { value: 'recommended_reject', label: 'Recomendadas rechazar' },
+  { value: 'cancelled', label: 'Canceladas' },
   { value: 'all', label: 'Todas' },
 ];
 

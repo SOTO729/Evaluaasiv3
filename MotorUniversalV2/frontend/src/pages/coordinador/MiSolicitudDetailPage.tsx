@@ -5,7 +5,7 @@
  * el estado y detalles de sus solicitudes
  */
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   DollarSign,
@@ -26,10 +26,12 @@ import {
   ThumbsUp,
   ThumbsDown,
   Loader2,
+  Ban,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
   getBalanceRequest,
+  cancelRequest,
   BalanceRequest,
   getStatusColor,
   getStatusLabel,
@@ -53,9 +55,13 @@ const formatFileSize = (bytes: number) => {
 
 export default function MiSolicitudDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [request, setRequest] = useState<BalanceRequest | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     loadRequest();
@@ -72,6 +78,23 @@ export default function MiSolicitudDetailPage() {
       setError(err.response?.data?.error || 'Error al cargar solicitud');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const canCancel = request && ['pending', 'in_review', 'recommended_approve', 'recommended_reject'].includes(request.status);
+
+  const handleCancel = async () => {
+    if (!request) return;
+    try {
+      setCancelling(true);
+      await cancelRequest(request.id, { reason: cancelReason });
+      navigate('/historial-solicitudes', {
+        state: { message: 'Solicitud cancelada exitosamente', type: 'success' },
+      });
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al cancelar la solicitud');
+      setCancelling(false);
+      setShowCancelModal(false);
     }
   };
 
@@ -109,7 +132,8 @@ export default function MiSolicitudDetailPage() {
       case 'recommended_approve':
       case 'recommended_reject': return 3;
       case 'approved':
-      case 'rejected': return 4;
+      case 'rejected':
+      case 'cancelled': return 4;
       default: return 1;
     }
   };
@@ -513,10 +537,68 @@ export default function MiSolicitudDetailPage() {
                 <FileText className="w-4 h-4" />
                 Ver Historial
               </Link>
+              {canCancel && (
+                <button
+                  onClick={() => setShowCancelModal(true)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                >
+                  <Ban className="w-4 h-4" />
+                  Cancelar Solicitud
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Cancel Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Cancelar Solicitud
+            </h3>
+            <p className="text-gray-600 mb-4">
+              ¿Está seguro de que desea cancelar esta solicitud por {formatCurrency(request.amount_requested)}? Esta acción no se puede deshacer.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Motivo de cancelación (opcional)
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                placeholder="Explique por qué desea cancelar..."
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCancelModal(false)}
+                disabled={cancelling}
+                className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                No, mantener
+              </button>
+              <button
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {cancelling ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Ban className="w-4 h-4" />
+                    Sí, cancelar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

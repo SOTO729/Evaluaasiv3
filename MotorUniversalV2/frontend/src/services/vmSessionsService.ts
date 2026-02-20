@@ -9,6 +9,16 @@ export interface VmSlot {
   available: boolean;
   is_past: boolean;
   is_occupied: boolean;
+  occupied_by?: {
+    session_id: number;
+    user_name: string;
+    user_email: string;
+    user_role: string;
+    group_name: string | null;
+    campus_name: string | null;
+    notes: string | null;
+    created_at: string | null;
+  };
 }
 
 export interface VmSession {
@@ -37,6 +47,8 @@ export interface VmAccessInfo {
   scope: string;
   campus_id?: number;
   group_id?: number;
+  campuses?: { id: number; name: string }[];
+  read_only?: boolean;
 }
 
 /** Verificar si el usuario tiene acceso a VMs */

@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Shield,
   BarChart3,
+  Users,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -323,7 +324,7 @@ export default function GerenteDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-5 gap-4">
         <Link
           to="/gerente/aprobaciones"
           className="flex items-center gap-3 p-4 bg-white rounded-xl border hover:border-purple-300 hover:shadow-md transition-all"
@@ -373,6 +374,19 @@ export default function GerenteDashboard() {
           <div>
             <p className="font-medium text-gray-800">Seguridad</p>
             <p className="text-sm text-gray-500">Alertas y riesgos</p>
+          </div>
+        </Link>
+
+        <Link
+          to="/gerente/delegaciones"
+          className="flex items-center gap-3 p-4 bg-white rounded-xl border hover:border-amber-300 hover:shadow-md transition-all"
+        >
+          <div className="p-3 bg-amber-100 rounded-lg">
+            <Users className="w-6 h-6 text-amber-600" />
+          </div>
+          <div>
+            <p className="font-medium text-gray-800">Delegaciones</p>
+            <p className="text-sm text-gray-500">Delegar aprobadores</p>
           </div>
         </Link>
       </div>

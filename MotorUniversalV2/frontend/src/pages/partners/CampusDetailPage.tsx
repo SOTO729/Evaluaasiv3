@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   MapPin,
   ArrowLeft,
@@ -60,8 +60,12 @@ import { useAuthStore } from '../../store/authStore';
 export default function CampusDetailPage() {
   const { campusId } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'admin';
+  
+  // Modal de cambios guardados (viene de CampusFormPage)
+  const [showSavedModal, setShowSavedModal] = useState(false);
   
   const [campus, setCampus] = useState<Campus | null>(null);
   const [cycles, setCycles] = useState<SchoolCycle[]>([]);
@@ -169,11 +173,15 @@ export default function CampusDetailPage() {
     loadData();
   }, [campusId]);
 
+  // Detectar ?saved=true para mostrar modal de cambios guardados
   useEffect(() => {
-    if (campus && !campus.is_active) {
-      setShowNewCycleModal(false);
+    if (searchParams.get('saved') === 'true') {
+      setShowSavedModal(true);
+      // Limpiar el query param sin recargar
+      searchParams.delete('saved');
+      setSearchParams(searchParams, { replace: true });
     }
-  }, [campus?.is_active]);
+  }, []);
 
   const loadData = async () => {
     try {
@@ -322,6 +330,17 @@ export default function CampusDetailPage() {
     }
   };
 
+  const handleReactivateCampus = async () => {
+    if (!campus) return;
+    try {
+      const { activateCampus } = await import('../../services/partnersService');
+      await activateCampus(campus.id);
+      window.location.reload();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al reactivar el plantel');
+    }
+  };
+
   const handlePermanentDeleteCampus = async () => {
     if (!campus || !isAdmin) return;
     if (deleteConfirmText !== campus.name) {
@@ -436,6 +455,10 @@ export default function CampusDetailPage() {
                 <span className="inline-flex items-center fluid-gap-1 fluid-text-sm font-medium text-green-100 bg-green-500/30 fluid-px-3 fluid-py-1 rounded-full border border-green-400/50">
                   <CheckCircle2 className="fluid-icon-sm" />Activo
                 </span>
+              ) : campus.configuration_completed ? (
+                <span className="inline-flex items-center fluid-gap-1 fluid-text-sm font-medium text-gray-100 bg-gray-500/30 fluid-px-3 fluid-py-1 rounded-full border border-gray-400/50">
+                  <Power className="fluid-icon-sm" />Desactivado
+                </span>
               ) : (
                 <span className="inline-flex items-center fluid-gap-1 fluid-text-sm font-medium text-amber-100 bg-amber-500/30 fluid-px-3 fluid-py-1 rounded-full border border-amber-400/50">
                   <Zap className="fluid-icon-sm" />Pendiente
@@ -461,6 +484,15 @@ export default function CampusDetailPage() {
                 Desactivar
               </button>
             )}
+            {!campus.is_active && campus.configuration_completed && (
+              <button
+                onClick={handleReactivateCampus}
+                className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-3 bg-green-500/80 hover:bg-green-600 text-white rounded-fluid-xl font-medium fluid-text-base transition-all duration-300"
+              >
+                <Power className="fluid-icon-base" />
+                Reactivar
+              </button>
+            )}
             {/* Botón de eliminación permanente - Solo visible para administradores */}
             {isAdmin && (
               <button
@@ -476,8 +508,27 @@ export default function CampusDetailPage() {
         </div>
       </div>
 
-      {/* Banner de Activación Pendiente */}
-      {!campus.is_active && (
+      {/* Banner de Activación Pendiente o Plantel Desactivado */}
+      {!campus.is_active && campus.configuration_completed && (
+        <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-fluid-2xl border border-gray-300 fluid-p-6 fluid-mb-6 shadow-sm">
+          <div className="flex items-start fluid-gap-5">
+            <div className="fluid-p-3 bg-gray-200 rounded-fluid-xl">
+              <Power className="fluid-icon-xl text-gray-600" />
+            </div>
+            <div className="flex-1">
+              <h2 className="fluid-text-xl font-bold text-gray-900 fluid-mb-1">Plantel Desactivado</h2>
+              <p className="fluid-text-base text-gray-600">El plantel está desactivado temporalmente. Puedes reactivarlo o seguir editando su configuración.</p>
+            </div>
+            <button
+              onClick={handleReactivateCampus}
+              className="inline-flex items-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-fluid-xl font-semibold fluid-text-base transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+            >
+              <Power className="fluid-icon-lg" />Reactivar Plantel
+            </button>
+          </div>
+        </div>
+      )}
+      {!campus.is_active && !campus.configuration_completed && (
         <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-fluid-2xl border border-amber-200 fluid-p-6 fluid-mb-6 shadow-sm">
           <div className="flex items-start fluid-gap-5 fluid-mb-5">
             <div className="fluid-p-3 bg-amber-100 rounded-fluid-xl">
@@ -647,6 +698,13 @@ export default function CampusDetailPage() {
                   </div>
                   {campus.require_exam_pin && <CheckCircle2 className="fluid-icon-sm text-amber-600" />}
                 </div>
+                <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${campus.enable_session_calendar ? 'bg-cyan-100 text-cyan-800 border-2 border-cyan-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
+                  <div className="flex items-center fluid-gap-2">
+                    <Calendar className="fluid-icon-sm" />
+                    <span className="fluid-text-xs font-semibold">Calendario</span>
+                  </div>
+                  {campus.enable_session_calendar && <CheckCircle2 className="fluid-icon-sm text-cyan-600" />}
+                </div>
               </div>
             </div>
 
@@ -665,6 +723,23 @@ export default function CampusDetailPage() {
                   </div>
                   <div className="bg-white rounded-fluid-xl fluid-px-5 fluid-py-3 border-2 border-amber-300 shadow-sm">
                     <p className="fluid-text-2xl font-mono font-black text-amber-800 tracking-[0.3em]">{campus.daily_exam_pin}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Calendario de Sesiones */}
+            {campus.enable_session_calendar && (
+              <div className="bg-gradient-to-r from-cyan-50 to-sky-50 rounded-fluid-xl fluid-p-5 border-2 border-cyan-200">
+                <div className="flex items-center fluid-gap-3">
+                  <div className="fluid-p-2.5 bg-cyan-200 rounded-fluid-lg">
+                    <Calendar className="fluid-icon-sm text-cyan-700" />
+                  </div>
+                  <div>
+                    <p className="fluid-text-xs font-bold text-cyan-700 uppercase tracking-wide">Calendario de Sesiones</p>
+                    <p className="fluid-text-sm text-cyan-600 font-medium">
+                      {campus.session_scheduling_mode === 'candidate_self' ? 'El candidato agenda sus propias sesiones' : 'Solo el líder agenda las sesiones'}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -691,7 +766,7 @@ export default function CampusDetailPage() {
                 <p className="fluid-text-sm text-blue-600 font-semibold fluid-mt-2">Retoma</p>
               </div>
               <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-fluid-xl fluid-p-5 text-center border border-purple-100 hover:shadow-md transition-all duration-200">
-                <p className="fluid-text-2xl font-bold text-purple-700">{(campus as any).max_retakes ?? 1}</p>
+                <p className="fluid-text-2xl font-bold text-purple-700">{(campus as any).max_retakes === 0 || (campus as any).max_retakes == null ? '∞' : (campus as any).max_retakes}</p>
                 <p className="fluid-text-sm text-purple-600 font-semibold fluid-mt-2">Máx. Retomas</p>
               </div>
             </div>
@@ -830,7 +905,7 @@ export default function CampusDetailPage() {
         </div>
 
         {/* Columna Derecha: Ciclos Escolares */}
-        {campus.is_active && cyclesAvailable ? (
+        {cyclesAvailable ? (
           <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300">
               <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4">
@@ -962,7 +1037,7 @@ export default function CampusDetailPage() {
       </div>
 
       {/* Modal para crear ciclo escolar */}
-      {showNewCycleModal && campus.is_active && createPortal(
+      {showNewCycleModal && createPortal(
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:fluid-p-4 overflow-y-auto" onClick={handleModalBackdropClick}>
           <div ref={modalRef} className="bg-white rounded-3xl shadow-2xl max-w-xl w-full my-auto overflow-visible animate-fade-in-up border border-gray-100">
             <div className="fluid-p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-3xl">
@@ -1155,6 +1230,29 @@ export default function CampusDetailPage() {
                   Continuar sin crear grupo
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de cambios guardados */}
+      {showSavedModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 fluid-p-4" onClick={() => setShowSavedModal(false)}>
+          <div className="bg-white rounded-fluid-2xl shadow-2xl max-w-md w-full overflow-hidden animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
+            <div className="fluid-p-8 text-center">
+              <div className="fluid-w-20 fluid-h-20 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto fluid-mb-5 shadow-lg animate-bounce-once">
+                <CheckCircle2 className="fluid-icon-2xl text-white" />
+              </div>
+              <h3 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-3">¡Cambios Guardados!</h3>
+              <p className="fluid-text-base text-gray-600 fluid-mb-6">
+                Los cambios del plantel se han guardado exitosamente.
+              </p>
+              <button
+                onClick={() => setShowSavedModal(false)}
+                className="fluid-px-6 fluid-py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-fluid-xl transition-all fluid-text-sm font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+              >
+                Aceptar
+              </button>
             </div>
           </div>
         </div>

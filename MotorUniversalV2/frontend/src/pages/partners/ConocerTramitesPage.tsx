@@ -28,11 +28,15 @@ import {
   X,
   Loader2,
   Upload,
+  Send,
+  Settings,
+  Truck,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
   getConocerTramites,
   exportConocerTramitesExcel,
+  sendConocerSolicitud,
   getPartners,
   getAvailableCompetencyStandards,
   ConocerTramiteCandidate,
@@ -62,6 +66,10 @@ export default function ConocerTramitesPage() {
   const [selectedPartnerId, setSelectedPartnerId] = useState<number | undefined>();
   const [selectedEcmId, setSelectedEcmId] = useState<number | undefined>();
   const [showFilters, setShowFilters] = useState(false);
+
+  // Send solicitud
+  const [sendingSolicitud, setSendingSolicitud] = useState(false);
+  const [solicitudResult, setSolicitudResult] = useState<string | null>(null);
 
   // Sort
   const [sortBy, setSortBy] = useState('name');
@@ -259,6 +267,35 @@ export default function ConocerTramitesPage() {
               <Clock className="fluid-icon-sm" />
               Historial
             </Link>
+            <Link
+              to="/tramites-conocer/contactos"
+              className="fluid-px-4 fluid-py-2 bg-white/10 hover:bg-white/20 rounded-fluid-xl flex items-center fluid-gap-2 fluid-text-sm transition-all"
+            >
+              <Settings className="fluid-icon-sm" />
+              Contactos
+            </Link>
+            <button
+              onClick={async () => {
+                if (!confirm('¿Enviar solicitud de línea de captura con todos los trámites pendientes?')) return;
+                try {
+                  setSendingSolicitud(true);
+                  setError(null);
+                  setSolicitudResult(null);
+                  const result = await sendConocerSolicitud();
+                  setSolicitudResult(result.message);
+                  loadData();
+                } catch (err: any) {
+                  setError(err.response?.data?.error || 'Error al enviar solicitud');
+                } finally {
+                  setSendingSolicitud(false);
+                }
+              }}
+              disabled={sendingSolicitud}
+              className="fluid-px-4 fluid-py-2 bg-amber-500 hover:bg-amber-600 rounded-fluid-xl flex items-center fluid-gap-2 fluid-text-sm transition-all font-semibold disabled:opacity-50"
+            >
+              {sendingSolicitud ? <Loader2 className="fluid-icon-sm animate-spin" /> : <Send className="fluid-icon-sm" />}
+              Enviar Solicitud
+            </button>
             <button
               onClick={handleRefresh}
               disabled={refreshing}
@@ -285,9 +322,23 @@ export default function ConocerTramitesPage() {
         </div>
       )}
 
+      {/* Success */}
+      {solicitudResult && (
+        <div className="bg-green-50 border border-green-200 rounded-fluid-xl fluid-p-4 fluid-mb-6 flex items-start fluid-gap-3">
+          <CheckCircle2 className="fluid-icon-base text-green-500 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="font-medium text-green-700 fluid-text-base">Solicitud enviada</p>
+            <p className="fluid-text-sm text-green-600">{solicitudResult}</p>
+          </div>
+          <button onClick={() => setSolicitudResult(null)} className="text-green-400 hover:text-green-600">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 fluid-mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 fluid-mb-6">
           <div className="bg-white rounded-fluid-xl fluid-p-4 shadow-sm border border-gray-100">
             <div className="flex items-center gap-2 mb-1">
               <Users className="w-4 h-4 text-emerald-600" />
@@ -301,6 +352,13 @@ export default function ConocerTramitesPage() {
               <span className="fluid-text-xs text-gray-500">Pendientes</span>
             </div>
             <p className="fluid-text-xl font-bold text-amber-600">{summary.pending}</p>
+          </div>
+          <div className="bg-white rounded-fluid-xl fluid-p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2 mb-1">
+              <Truck className="w-4 h-4 text-blue-500" />
+              <span className="fluid-text-xs text-gray-500">En Trámite</span>
+            </div>
+            <p className="fluid-text-xl font-bold text-blue-600">{summary.en_tramite}</p>
           </div>
           <div className="bg-white rounded-fluid-xl fluid-p-4 shadow-sm border border-gray-100">
             <div className="flex items-center gap-2 mb-1">
@@ -650,10 +708,15 @@ export default function ConocerTramitesPage() {
 
                       {/* Estatus */}
                       <td className="px-3 py-3 text-center">
-                        {c.tramite_status === 'certificado' ? (
+                        {c.tramite_status === 'certificado' || c.tramite_status === 'entregado' ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
                             <CheckCircle2 className="w-3 h-3" />
-                            Certificado
+                            {c.tramite_status === 'certificado' ? 'Certificado' : 'Entregado'}
+                          </span>
+                        ) : c.tramite_status === 'en_tramite' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                            <Truck className="w-3 h-3" />
+                            En Trámite
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">

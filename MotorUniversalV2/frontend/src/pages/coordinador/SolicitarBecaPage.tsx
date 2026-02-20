@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
-  createBalanceRequest,
+  createBatchBalanceRequest,
   formatCurrency,
   uploadAttachment,
   validateFile,
@@ -63,7 +63,7 @@ interface RequestLine {
   campusId: number;
   campusName: string;
   campusPartner: string;
-  groupId: number | null;
+  groupId: number | null; // null only before selection
   groupName: string;
   units: number;
   pricePerUnit: number;
@@ -291,6 +291,7 @@ export default function SolicitarBecaPage() {
 
   const handleAddLine = (campus: AvailableCampus) => {
     if (newLineUnits <= 0) return;
+    if (newLineGroupId === null) return; // Grupo obligatorio
 
     const price = getGroupPrice(campus.id, newLineGroupId);
     const newLine: RequestLine = {
@@ -378,18 +379,16 @@ export default function SolicitarBecaPage() {
       setSubmitting(true);
       setError(null);
 
-      const promises = requestLines.map(line => 
-        createBalanceRequest({
+      await createBatchBalanceRequest({
+        items: requestLines.map(line => ({
           request_type: line.type,
           amount_requested: line.units * line.pricePerUnit,
           campus_id: line.campusId,
-          justification: justification.trim(),
-          group_id: line.groupId || undefined,
-          attachments: attachments,
-        })
-      );
-
-      await Promise.all(promises);
+          group_id: line.groupId!,
+        })),
+        justification: justification.trim(),
+        attachments: attachments,
+      });
 
       const uniqueCampusCount = new Set(requestLines.map(l => l.campusId)).size;
 
@@ -411,9 +410,7 @@ export default function SolicitarBecaPage() {
     const baseCost = campus?.certification_cost || groupsCache[campusId]?.campusCertificationCost || DEFAULT_PRICE_PER_CERTIFICATION;
     const groups = groupsCache[campusId]?.groups || [];
 
-    const options: { id: number | null; name: string; price: number; hasDifferentPrice: boolean }[] = [
-      { id: null, name: 'Plantel (todos los grupos)', price: baseCost, hasDifferentPrice: false }
-    ];
+    const options: { id: number | null; name: string; price: number; hasDifferentPrice: boolean }[] = [];
     
     groups.forEach(g => {
       const price = g.effective_config?.certification_cost ?? baseCost;
@@ -949,14 +946,15 @@ export default function SolicitarBecaPage() {
 
                                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                         <div>
-                                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Grupo (opcional)</label>
+                                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Grupo <span className="text-red-500">*</span></label>
                                           <select
-                                            value={newLineGroupId ?? 'null'}
-                                            onChange={(e) => setNewLineGroupId(e.target.value === 'null' ? null : parseInt(e.target.value))}
+                                            value={newLineGroupId ?? ''}
+                                            onChange={(e) => setNewLineGroupId(e.target.value === '' ? null : parseInt(e.target.value))}
                                             className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm bg-white"
                                           >
+                                            <option value="">Seleccionar grupo...</option>
                                             {getGroupOptions(campus.id).map(opt => (
-                                              <option key={opt.id ?? 'null'} value={opt.id ?? 'null'}>
+                                              <option key={opt.id ?? ''} value={opt.id ?? ''}>
                                                 {opt.name} {opt.hasDifferentPrice ? `(${formatCurrency(opt.price)})` : ''}
                                               </option>
                                             ))}
@@ -984,7 +982,7 @@ export default function SolicitarBecaPage() {
                                         <div className="flex items-end">
                                           <button
                                             onClick={() => handleAddLine(campus)}
-                                            disabled={newLineUnits <= 0}
+                                            disabled={newLineUnits <= 0 || newLineGroupId === null}
                                             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all shadow-sm hover:shadow-md"
                                           >
                                             <Plus className="w-4 h-4" />

@@ -30,6 +30,7 @@ import {
   RefreshCw,
   Filter,
   RotateCcw,
+  Eye,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
@@ -735,6 +736,16 @@ export default function GroupEditAssignmentMembersPage() {
                       {/* Acción */}
                       <td className="fluid-px-4 fluid-py-3 text-center">
                         <div className="flex items-center justify-center fluid-gap-1">
+                          {member.ecm_assignment_id && (
+                            <Link
+                              to={`/asignaciones-ecm/candidato/${member.ecm_assignment_id}`}
+                              className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1.5 text-sky-600 hover:bg-sky-50 rounded-fluid-lg transition-colors fluid-text-xs font-medium border border-sky-200 hover:border-sky-300"
+                              title="Ver detalle de la asignación"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              <span className="hidden xl:inline">Detalle</span>
+                            </Link>
+                          )}
                           {!member.is_locked && (
                             <button
                               onClick={() => handleInitSwap(member)}
@@ -755,7 +766,7 @@ export default function GroupEditAssignmentMembersPage() {
                               <span className="hidden xl:inline">Retoma</span>
                             </button>
                           )}
-                          {member.is_locked && !member.can_retake && (
+                          {member.is_locked && !member.can_retake && !member.ecm_assignment_id && (
                             <span className="fluid-text-xs text-gray-400">—</span>
                           )}
                         </div>
@@ -1056,7 +1067,7 @@ export default function GroupEditAssignmentMembersPage() {
                     <div className="p-3 bg-purple-50 rounded-xl">
                       <p className="text-xs text-purple-600 font-medium">Retomas aplicadas</p>
                       <p className="text-lg font-bold text-purple-800">
-                        {retakePreview.retakes_count} / {retakePreview.max_retakes}
+                        {retakePreview.retakes_count} / {retakePreview.max_retakes === 0 ? '∞' : retakePreview.max_retakes}
                       </p>
                     </div>
                   </div>

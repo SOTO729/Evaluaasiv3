@@ -1563,26 +1563,39 @@ def remove_campus_responsable(campus_id, user_id):
 @jwt_required()
 @coordinator_required
 def activate_campus(campus_id):
-    """Activar un plantel después de completar el proceso de configuración"""
+    """Activar un plantel después de completar el proceso de configuración, o reactivar uno previamente configurado"""
     try:
         campus = Campus.query.get_or_404(campus_id)
-        
-        # Verificar que el plantel tenga un responsable asignado
-        if not campus.responsable_id:
-            return jsonify({
-                'error': 'El plantel debe tener un responsable asignado antes de activarse'
-            }), 400
-        
-        # Verificar que la configuración esté completada
-        if not campus.configuration_completed:
-            return jsonify({
-                'error': 'Debe completar la configuración del plantel antes de activarlo'
-            }), 400
         
         # Verificar que el plantel no esté ya activo
         if campus.is_active:
             return jsonify({
                 'error': 'El plantel ya está activo'
+            }), 400
+        
+        # Si ya fue configurado previamente, permitir reactivación directa
+        if campus.configuration_completed:
+            campus.is_active = True
+            campus.activation_status = 'active'
+            if not campus.activated_at:
+                campus.activated_at = datetime.utcnow()
+            
+            db.session.commit()
+            
+            return jsonify({
+                'message': 'Plantel reactivado exitosamente',
+                'campus': campus.to_dict(include_config=True)
+            })
+        
+        # Primera activación: verificar requisitos
+        if not campus.responsable_id:
+            return jsonify({
+                'error': 'El plantel debe tener un responsable asignado antes de activarse'
+            }), 400
+        
+        if not campus.configuration_completed:
+            return jsonify({
+                'error': 'Debe completar la configuración del plantel antes de activarlo'
             }), 400
         
         # Activar el plantel
@@ -1657,6 +1670,14 @@ def configure_campus(campus_id):
         if 'require_exam_pin' in data:
             campus.require_exam_pin = bool(data['require_exam_pin'])
         
+        # Calendario de sesiones
+        if 'enable_session_calendar' in data:
+            campus.enable_session_calendar = bool(data['enable_session_calendar'])
+        if 'session_scheduling_mode' in data:
+            mode = data['session_scheduling_mode']
+            if mode in ('leader_only', 'candidate_self'):
+                campus.session_scheduling_mode = mode
+        
         # Vigencia de asignaciones (meses)
         if 'assignment_validity_months' in data:
             val = data['assignment_validity_months']
@@ -1669,7 +1690,7 @@ def configure_campus(campus_id):
             campus.retake_cost = float(data['retake_cost']) if data['retake_cost'] else 0
         if 'max_retakes' in data:
             val = data['max_retakes']
-            campus.max_retakes = int(val) if val else 1
+            campus.max_retakes = int(val) if val else 0
         
         # ECM (Estándares de Competencia) asignados al plantel
         if 'competency_standard_ids' in data:
@@ -1762,10 +1783,12 @@ def get_campus_config(campus_id):
                 'enable_candidate_certificates': campus.enable_candidate_certificates or False,
             'require_exam_pin': campus.require_exam_pin or False,
             'daily_exam_pin': campus.get_daily_pin() if campus.require_exam_pin else None,
+                'enable_session_calendar': campus.enable_session_calendar or False,
+                'session_scheduling_mode': campus.session_scheduling_mode or 'leader_only',
                 'assignment_validity_months': campus.assignment_validity_months or 12,
                 'certification_cost': float(campus.certification_cost) if campus.certification_cost else 0,
                 'retake_cost': float(campus.retake_cost) if campus.retake_cost else 0,
-                'max_retakes': campus.max_retakes if campus.max_retakes is not None else 1,
+                'max_retakes': campus.max_retakes if campus.max_retakes is not None else 0,
                 'configuration_completed': campus.configuration_completed or False,
                 'configuration_completed_at': campus.configuration_completed_at.isoformat() if campus.configuration_completed_at else None,
             }
@@ -1779,21 +1802,18 @@ def get_campus_config(campus_id):
 @jwt_required()
 @coordinator_required
 def deactivate_campus(campus_id):
-    """Desactivar un plantel (para pruebas - requiere volver a activar)"""
+    """Desactivar un plantel (preserva configuración para reactivación rápida)"""
     try:
         campus = Campus.query.get_or_404(campus_id)
         
-        # Desactivar el plantel y resetear configuración
+        # Solo desactivar, preservar toda la configuración
         campus.is_active = False
-        campus.activation_status = 'pending'
-        campus.activated_at = None
-        campus.configuration_completed = False
-        campus.configuration_completed_at = None
+        campus.activation_status = 'inactive'
         
         db.session.commit()
         
         return jsonify({
-            'message': 'Plantel desactivado. Debe completar el proceso de activación nuevamente.',
+            'message': 'Plantel desactivado. Puede reactivarlo en cualquier momento.',
             'campus': campus.to_dict(include_config=True)
         })
         
@@ -2671,9 +2691,11 @@ def get_group_config(group_id):
             'enable_online_payments': campus.enable_online_payments,
             'enable_candidate_certificates': campus.enable_candidate_certificates if campus.enable_candidate_certificates is not None else False,
             'require_exam_pin': campus.require_exam_pin or False,
+            'enable_session_calendar': campus.enable_session_calendar or False,
+            'session_scheduling_mode': campus.session_scheduling_mode or 'leader_only',
             'certification_cost': float(campus.certification_cost) if campus.certification_cost else 0,
             'retake_cost': float(campus.retake_cost) if campus.retake_cost else 0,
-            'max_retakes': campus.max_retakes if campus.max_retakes is not None else 1,
+            'max_retakes': campus.max_retakes if campus.max_retakes is not None else 0,
             'assignment_validity_months': campus.assignment_validity_months or 12,
         }
         
@@ -2690,6 +2712,8 @@ def get_group_config(group_id):
             'enable_online_payments_override': group.enable_online_payments_override,
             'enable_candidate_certificates_override': group.enable_candidate_certificates_override,
             'require_exam_pin_override': group.require_exam_pin_override,
+            'enable_session_calendar_override': group.enable_session_calendar_override,
+            'session_scheduling_mode_override': group.session_scheduling_mode_override,
             'certification_cost_override': float(group.certification_cost_override) if group.certification_cost_override is not None else None,
             'retake_cost_override': float(group.retake_cost_override) if group.retake_cost_override is not None else None,
             'max_retakes_override': group.max_retakes_override,
@@ -2709,9 +2733,11 @@ def get_group_config(group_id):
             'enable_online_payments': group.enable_online_payments_override if group.enable_online_payments_override is not None else campus.enable_online_payments,
             'enable_candidate_certificates': group.enable_candidate_certificates_override if group.enable_candidate_certificates_override is not None else (campus.enable_candidate_certificates or False),
             'require_exam_pin': group.require_exam_pin_override if group.require_exam_pin_override is not None else (campus.require_exam_pin or False),
+            'enable_session_calendar': group.enable_session_calendar_override if group.enable_session_calendar_override is not None else (campus.enable_session_calendar or False),
+            'session_scheduling_mode': group.session_scheduling_mode_override if group.session_scheduling_mode_override else (campus.session_scheduling_mode or 'leader_only'),
             'certification_cost': float(group.certification_cost_override) if group.certification_cost_override is not None else (float(campus.certification_cost) if campus.certification_cost else 0),
             'retake_cost': float(group.retake_cost_override) if group.retake_cost_override is not None else (float(campus.retake_cost) if campus.retake_cost else 0),
-            'max_retakes': group.max_retakes_override if group.max_retakes_override is not None else (campus.max_retakes if campus.max_retakes is not None else 1),
+            'max_retakes': group.max_retakes_override if group.max_retakes_override is not None else (campus.max_retakes if campus.max_retakes is not None else 0),
             'assignment_validity_months': group.assignment_validity_months_override if group.assignment_validity_months_override is not None else (campus.assignment_validity_months or 12),
         }
         
@@ -2805,11 +2831,18 @@ def update_group_config(group_id):
             'enable_online_payments_override',
             'enable_candidate_certificates_override',
             'require_exam_pin_override',
+            'enable_session_calendar_override',
         ]
         
         for field in bool_fields:
             if field in data:
                 setattr(group, field, data[field])
+        
+        # Modo de calendario de sesiones
+        if 'session_scheduling_mode_override' in data:
+            mode = data['session_scheduling_mode_override']
+            if mode in ('leader_only', 'candidate_self', None):
+                group.session_scheduling_mode_override = mode
         
         # Campo de versión de office
         if 'office_version_override' in data:
@@ -2873,6 +2906,8 @@ def reset_group_config(group_id):
         group.enable_online_payments_override = None
         group.enable_candidate_certificates_override = None
         group.require_exam_pin_override = None
+        group.enable_session_calendar_override = None
+        group.session_scheduling_mode_override = None
         group.certification_cost_override = None
         group.retake_cost_override = None
         group.max_retakes_override = None
@@ -4595,6 +4630,213 @@ def get_group_exams(group_id):
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/groups/<int:group_id>/exams/<int:exam_id>/detail', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_group_exam_detail(group_id, exam_id):
+    """Detalle completo de una asignación de examen a grupo.
+    Incluye: config del plantel, config del grupo, config del examen,
+    ECM asignado, materiales de estudio, resumen de miembros y resultados.
+    """
+    try:
+        from app.models import GroupExam, Exam, Result
+        from app.models.partner import EcmCandidateAssignment, EcmRetake, GroupExamMember, GroupExamMaterial
+        from app.models.study_content import StudyMaterial
+        from sqlalchemy import func
+        
+        group = CandidateGroup.query.get_or_404(group_id)
+        group_exam = GroupExam.query.filter_by(
+            group_id=group_id, exam_id=exam_id, is_active=True
+        ).first_or_404()
+        
+        campus = group.campus
+        exam = group_exam.exam
+        
+        # --- Datos base de la asignación ---
+        assignment_data = group_exam.to_dict(include_exam=True, include_materials=True, include_members=True)
+        
+        # --- Quién asignó ---
+        assigned_by_info = None
+        if group_exam.assigned_by_id:
+            from app.models import User
+            assigner = User.query.get(group_exam.assigned_by_id)
+            if assigner:
+                assigned_by_info = {
+                    'id': assigner.id,
+                    'name': assigner.name,
+                    'first_surname': assigner.first_surname or '',
+                    'full_name': assigner.full_name,
+                    'email': assigner.email,
+                }
+        
+        # --- ECM info ---
+        ecm_info = None
+        if exam and exam.competency_standard_id:
+            cs = exam.competency_standard
+            if cs:
+                ecm_info = {
+                    'id': cs.id,
+                    'code': cs.code,
+                    'name': cs.name,
+                    'description': getattr(cs, 'description', None),
+                    'logo_url': cs.logo_url if hasattr(cs, 'logo_url') else None,
+                    'brand_id': cs.brand_id if hasattr(cs, 'brand_id') else None,
+                    'brand_name': cs.brand.name if hasattr(cs, 'brand') and cs.brand else None,
+                    'brand_logo_url': cs.brand.logo_url if hasattr(cs, 'brand') and cs.brand and hasattr(cs.brand, 'logo_url') else None,
+                }
+        
+        # --- Examen info completa ---
+        exam_info = None
+        if exam:
+            exam_info = {
+                'id': exam.id,
+                'name': exam.name,
+                'version': exam.version,
+                'standard': getattr(exam, 'standard', None),
+                'description': exam.description,
+                'duration_minutes': exam.duration_minutes,
+                'passing_score': exam.passing_score,
+                'is_published': exam.is_published,
+                'total_questions': getattr(exam, 'total_questions', None),
+                'total_exercises': getattr(exam, 'total_exercises', None),
+            }
+        
+        # --- Miembros y estadísticas ---
+        # Total de miembros asignados
+        if group_exam.assignment_type == 'selected':
+            total_members = GroupExamMember.query.filter_by(group_exam_id=group_exam.id).count()
+        else:
+            total_members = group.members.count()
+        
+        # Asignaciones ECM vinculadas
+        ecm_assignments_count = 0
+        ecm_stats = {}
+        if exam and exam.competency_standard_id:
+            ecm_query = EcmCandidateAssignment.query.filter_by(
+                group_exam_id=group_exam.id
+            )
+            ecm_assignments_count = ecm_query.count()
+            
+            # Stats de vigencia
+            expired_count = sum(1 for a in ecm_query.all() if a.is_expired)
+            
+            # Retomas
+            retakes_query = db.session.query(func.count(EcmRetake.id)).filter(
+                EcmRetake.assignment_id.in_(
+                    db.session.query(EcmCandidateAssignment.id).filter_by(group_exam_id=group_exam.id)
+                )
+            ).scalar() or 0
+            
+            ecm_stats = {
+                'total_assignments': ecm_assignments_count,
+                'expired_count': expired_count,
+                'active_count': ecm_assignments_count - expired_count,
+                'total_retakes': retakes_query,
+            }
+        
+        # Resultados de examen
+        results_count = 0
+        passed_count = 0
+        avg_score = None
+        try:
+            results = db.session.query(
+                func.count(Result.id),
+                func.sum(db.case((Result.score >= (group_exam.passing_score or exam.passing_score or 70), 1), else_=0)),
+                func.avg(Result.score)
+            ).filter(
+                Result.exam_id == exam_id,
+                Result.is_active == True
+            ).first()
+            if results:
+                results_count = results[0] or 0
+                passed_count = results[1] or 0
+                avg_score = round(float(results[2]), 1) if results[2] else None
+        except Exception:
+            pass
+        
+        # --- Config del plantel ---
+        campus_config = {
+            'id': campus.id,
+            'name': campus.name,
+            'code': campus.code,
+            'office_version': campus.office_version or 'office_365',
+            'enable_tier_basic': campus.enable_tier_basic if campus.enable_tier_basic is not None else True,
+            'enable_tier_standard': campus.enable_tier_standard if campus.enable_tier_standard is not None else True,
+            'enable_tier_advanced': campus.enable_tier_advanced if campus.enable_tier_advanced is not None else False,
+            'enable_digital_badge': campus.enable_digital_badge or False,
+            'enable_partial_evaluations': campus.enable_partial_evaluations or False,
+            'enable_unscheduled_partials': campus.enable_unscheduled_partials or False,
+            'enable_virtual_machines': campus.enable_virtual_machines or False,
+            'enable_online_payments': campus.enable_online_payments or False,
+            'enable_candidate_certificates': campus.enable_candidate_certificates or False,
+            'require_exam_pin': campus.require_exam_pin or False,
+            'enable_session_calendar': campus.enable_session_calendar or False,
+            'session_scheduling_mode': campus.session_scheduling_mode or 'leader_only',
+            'certification_cost': float(campus.certification_cost) if campus.certification_cost else 0,
+            'retake_cost': float(campus.retake_cost) if campus.retake_cost else 0,
+            'max_retakes': campus.max_retakes if campus.max_retakes is not None else 0,
+            'assignment_validity_months': campus.assignment_validity_months or 12,
+        }
+        
+        # --- Config del grupo (overrides + effective) ---
+        group_config = group.to_dict(include_config=True)
+        
+        # --- Materiales personalizados ---
+        has_custom_materials = GroupExamMaterial.query.filter_by(group_exam_id=group_exam.id).count() > 0
+        
+        # --- Enrich assigned_members with assignment_number and ecm_assignment_id ---
+        if assignment_data.get('assigned_members'):
+            member_user_ids = [m['user_id'] for m in assignment_data['assigned_members']]
+            if member_user_ids and exam and exam.competency_standard_id:
+                from sqlalchemy import text as sa_text
+                uid_str = ','.join(f"'{uid}'" for uid in member_user_ids)
+                eca_rows = db.session.execute(sa_text(
+                    f"SELECT id, user_id, assignment_number "
+                    f"FROM ecm_candidate_assignments "
+                    f"WHERE user_id IN ({uid_str}) AND competency_standard_id = :cs_id"
+                ), {'cs_id': exam.competency_standard_id}).fetchall()
+                eca_map = {r.user_id: {'assignment_number': r.assignment_number, 'ecm_assignment_id': r.id} for r in eca_rows}
+                for m in assignment_data['assigned_members']:
+                    eca_info = eca_map.get(m['user_id'], {})
+                    m['assignment_number'] = eca_info.get('assignment_number')
+                    m['ecm_assignment_id'] = eca_info.get('ecm_assignment_id')
+        
+        return jsonify({
+            'assignment': assignment_data,
+            'assigned_by': assigned_by_info,
+            'ecm': ecm_info,
+            'exam': exam_info,
+            'campus_config': campus_config,
+            'group': {
+                'id': group.id,
+                'name': group.name,
+                'code': group.code,
+                'member_count': total_members,
+                'use_custom_config': group_config.get('use_custom_config', False),
+                'config': group_config.get('config', {}),
+                'effective_config': group_config.get('effective_config', {}),
+            },
+            'members_summary': {
+                'total': total_members,
+                'assignment_type': group_exam.assignment_type or 'all',
+            },
+            'ecm_stats': ecm_stats,
+            'results_summary': {
+                'total_results': results_count,
+                'passed': passed_count,
+                'failed': results_count - passed_count,
+                'avg_score': avg_score,
+                'pass_rate': round((passed_count / results_count * 100), 1) if results_count > 0 else None,
+            },
+            'has_custom_materials': has_custom_materials,
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/groups/<int:group_id>/assignment-cost-preview', methods=['POST'])
 @jwt_required()
 @coordinator_required
@@ -4654,9 +4896,12 @@ def assignment_cost_preview(group_id):
         billable_count = units - already_assigned_count
         total_cost = unit_cost * billable_count
         
-        # Obtener saldo actual del coordinador
+        # Obtener saldo actual del coordinador para este grupo
         coordinator_id = g.current_user.id
-        balance = CoordinatorBalance.query.filter_by(coordinator_id=coordinator_id).first()
+        balance = CoordinatorBalance.query.filter_by(
+            coordinator_id=coordinator_id,
+            group_id=group_id
+        ).first()
         current_balance = float(balance.current_balance) if balance else 0.0
         
         remaining_balance = current_balance - total_cost
@@ -4786,49 +5031,9 @@ def assign_exam_to_group(group_id):
                         )
                         db.session.add(material)
                 
-                # ========== VERIFICACIÓN Y DEDUCCIÓN DE SALDO (Reactivación) ==========
-                campus = Campus.query.get(group.campus_id)
-                if group.certification_cost_override is not None:
-                    r_unit_cost = float(group.certification_cost_override)
-                elif campus and campus.certification_cost is not None:
-                    r_unit_cost = float(campus.certification_cost)
-                else:
-                    r_unit_cost = 0.0
-                
-                r_assigned_count = len(member_ids) if assignment_type == 'selected' else group.members.count()
-                r_total_cost = r_unit_cost * r_assigned_count
-                
-                if r_total_cost > 0:
-                    coordinator_id = g.current_user.id
-                    balance = CoordinatorBalance.query.filter_by(coordinator_id=coordinator_id).first()
-                    current_bal = float(balance.current_balance) if balance else 0.0
-                    
-                    if current_bal < r_total_cost:
-                        db.session.rollback()
-                        return jsonify({
-                            'error': f'Saldo insuficiente. Necesitas ${r_total_cost:,.2f} pero tu saldo es ${current_bal:,.2f}',
-                            'error_type': 'insufficient_balance',
-                            'required': r_total_cost,
-                            'available': current_bal,
-                            'deficit': r_total_cost - current_bal
-                        }), 400
-                    
-                    exam_name = exam.name if exam else f'Examen #{exam_id}'
-                    notes = f'Reasignación de "{exam_name}" a grupo "{group.name}" - {r_assigned_count} unidad(es) x ${r_unit_cost:,.2f}'
-                    
-                    create_balance_transaction(
-                        coordinator_id=coordinator_id,
-                        transaction_type='debit',
-                        concept='asignacion_certificacion',
-                        amount=r_total_cost,
-                        reference_type='group_exam',
-                        reference_id=existing.id,
-                        notes=notes,
-                        created_by_id=coordinator_id
-                    )
-                
-                # ========== ASIGNACIONES ECM PERMANENTES (Reactivación) ==========
+                # ========== ASIGNACIONES ECM PERMANENTES (Reactivación - verificar primero para cobrar correctamente) ==========
                 r_already_assigned = []
+                r_new_ecm_user_ids = []
                 r_ecm_id = exam.competency_standard_id
                 
                 if r_ecm_id:
@@ -4857,22 +5062,86 @@ def assign_exam_to_group(group_id):
                                 'original_group': existing_ecm.group_name,
                             })
                         else:
-                            new_ecm = EcmCandidateAssignment(
-                                assignment_number=EcmCandidateAssignment.generate_assignment_number(),
-                                user_id=uid,
-                                competency_standard_id=r_ecm_id,
-                                exam_id=exam_id,
-                                campus_id=group.campus_id,
-                                group_id=group_id,
-                                group_name=group.name,
-                                group_exam_id=existing.id,
-                                assigned_by_id=g.current_user.id,
-                                assignment_source='selected' if assignment_type == 'selected' else 'bulk',
-                                validity_months=r_validity_months,
-                                assigned_at=r_assigned_at_now,
-                                expires_at=r_assigned_at_now + relativedelta(months=r_validity_months),
-                            )
-                            db.session.add(new_ecm)
+                            r_new_ecm_user_ids.append(uid)
+                else:
+                    # Sin ECM, todos son "nuevos" para el cobro
+                    if assignment_type == 'selected':
+                        r_new_ecm_user_ids = member_ids
+                    else:
+                        r_new_ecm_user_ids = [m.user_id for m in group.members.all()]
+                
+                # ========== VERIFICACIÓN Y DEDUCCIÓN DE SALDO (Reactivación) ==========
+                # Solo cobrar por candidatos que NO tienen ya el ECM asignado
+                # Admins y developers no requieren verificación de saldo
+                user_role = g.current_user.role if hasattr(g.current_user, 'role') else ''
+                is_admin_or_dev = user_role in ('admin', 'developer')
+                
+                campus = Campus.query.get(group.campus_id)
+                if group.certification_cost_override is not None:
+                    r_unit_cost = float(group.certification_cost_override)
+                elif campus and campus.certification_cost is not None:
+                    r_unit_cost = float(campus.certification_cost)
+                else:
+                    r_unit_cost = 0.0
+                
+                r_billable_count = len(r_new_ecm_user_ids)
+                r_total_cost = r_unit_cost * r_billable_count
+                
+                if r_total_cost > 0 and not is_admin_or_dev:
+                    coordinator_id = g.current_user.id
+                    balance = CoordinatorBalance.query.filter_by(
+                        coordinator_id=coordinator_id,
+                        group_id=group_id
+                    ).first()
+                    current_bal = float(balance.current_balance) if balance else 0.0
+                    
+                    if current_bal < r_total_cost:
+                        db.session.rollback()
+                        return jsonify({
+                            'error': f'Saldo insuficiente para este grupo. Necesitas ${r_total_cost:,.2f} pero tu saldo es ${current_bal:,.2f}',
+                            'error_type': 'insufficient_balance',
+                            'required': r_total_cost,
+                            'available': current_bal,
+                            'deficit': r_total_cost - current_bal,
+                            'already_assigned_count': len(r_already_assigned),
+                            'billable_count': r_billable_count
+                        }), 400
+                    
+                    exam_name = exam.name if exam else f'Examen #{exam_id}'
+                    skipped_note = f' ({len(r_already_assigned)} omitido(s) por ya tener ECM)' if r_already_assigned else ''
+                    notes = f'Reasignación de "{exam_name}" a grupo "{group.name}" - {r_billable_count} unidad(es) x ${r_unit_cost:,.2f}{skipped_note}'
+                    
+                    create_balance_transaction(
+                        coordinator_id=coordinator_id,
+                        group_id=group_id,
+                        transaction_type='debit',
+                        concept='asignacion_certificacion',
+                        amount=r_total_cost,
+                        reference_type='group_exam',
+                        reference_id=existing.id,
+                        notes=notes,
+                        created_by_id=coordinator_id
+                    )
+                
+                # Crear EcmCandidateAssignment para los nuevos
+                if r_ecm_id:
+                    for uid in r_new_ecm_user_ids:
+                        new_ecm = EcmCandidateAssignment(
+                            assignment_number=EcmCandidateAssignment.generate_assignment_number(),
+                            user_id=uid,
+                            competency_standard_id=r_ecm_id,
+                            exam_id=exam_id,
+                            campus_id=group.campus_id,
+                            group_id=group_id,
+                            group_name=group.name,
+                            group_exam_id=existing.id,
+                            assigned_by_id=g.current_user.id,
+                            assignment_source='selected' if assignment_type == 'selected' else 'bulk',
+                            validity_months=r_validity_months,
+                            assigned_at=r_assigned_at_now,
+                            expires_at=r_assigned_at_now + relativedelta(months=r_validity_months),
+                        )
+                        db.session.add(new_ecm)
                 
                 db.session.commit()
                 
@@ -5005,6 +5274,10 @@ def assign_exam_to_group(group_id):
         
         # ========== VERIFICACIÓN Y DEDUCCIÓN DE SALDO ==========
         # Solo cobrar por candidatos que NO tienen ya el ECM asignado
+        # Admins y developers no requieren verificación de saldo
+        user_role = g.current_user.role if hasattr(g.current_user, 'role') else ''
+        is_admin_or_dev = user_role in ('admin', 'developer')
+        
         campus = Campus.query.get(group.campus_id)
         if group.certification_cost_override is not None:
             unit_cost = float(group.certification_cost_override)
@@ -5016,16 +5289,19 @@ def assign_exam_to_group(group_id):
         billable_count = len(new_ecm_user_ids)
         total_cost = unit_cost * billable_count
         
-        # Solo verificar y deducir si hay costo > 0
-        if total_cost > 0:
+        # Solo verificar y deducir si hay costo > 0 y el usuario es coordinador (no admin/dev)
+        if total_cost > 0 and not is_admin_or_dev:
             coordinator_id = g.current_user.id
-            balance = CoordinatorBalance.query.filter_by(coordinator_id=coordinator_id).first()
+            balance = CoordinatorBalance.query.filter_by(
+                coordinator_id=coordinator_id,
+                group_id=group_id
+            ).first()
             current_balance = float(balance.current_balance) if balance else 0.0
             
             if current_balance < total_cost:
                 db.session.rollback()
                 return jsonify({
-                    'error': f'Saldo insuficiente. Necesitas ${total_cost:,.2f} pero tu saldo es ${current_balance:,.2f}',
+                    'error': f'Saldo insuficiente para este grupo. Necesitas ${total_cost:,.2f} pero tu saldo es ${current_balance:,.2f}',
                     'error_type': 'insufficient_balance',
                     'required': total_cost,
                     'available': current_balance,
@@ -5041,6 +5317,7 @@ def assign_exam_to_group(group_id):
             
             create_balance_transaction(
                 coordinator_id=coordinator_id,
+                group_id=group_id,
                 transaction_type='debit',
                 concept='asignacion_certificacion',
                 amount=total_cost,
@@ -5579,8 +5856,9 @@ def get_group_exam_members_detail(group_id, exam_id):
                 }
         
         # Config de retomas
+        group = CandidateGroup.query.get(group_id)
         campus_for_config = Campus.query.get(group.campus_id) if group else None
-        max_retakes_config = group.max_retakes_override if group.max_retakes_override is not None else (campus_for_config.max_retakes if campus_for_config and campus_for_config.max_retakes is not None else 1)
+        max_retakes_config = group.max_retakes_override if group and group.max_retakes_override is not None else (campus_for_config.max_retakes if campus_for_config and campus_for_config.max_retakes is not None else 0)
         
         page_members = []
         max_attempts = group_exam.max_attempts or 1
@@ -5964,14 +6242,14 @@ def apply_ecm_retake(group_id, exam_id, user_id):
                 'remaining': remaining
             }), 400
 
-        # Verificar máximo de retomas
-        max_retakes = 1  # Default
+        # Verificar máximo de retomas (0 = ilimitado)
+        max_retakes = 0  # Default: ilimitado
         if group.max_retakes_override is not None:
             max_retakes = group.max_retakes_override
         elif campus and campus.max_retakes is not None:
             max_retakes = campus.max_retakes
         
-        if active_retakes >= max_retakes:
+        if max_retakes > 0 and active_retakes >= max_retakes:
             return jsonify({
                 'error': f'Se alcanzó el máximo de retomas permitidas ({max_retakes}) para esta asignación.',
                 'max_retakes': max_retakes,
@@ -5995,16 +6273,23 @@ def apply_ecm_retake(group_id, exam_id, user_id):
         else:
             retake_cost = 0.0
 
-        # Verificar saldo del coordinador
+        # Verificar saldo del coordinador para este grupo
+        # Admins y developers no requieren verificación de saldo
+        user_role = g.current_user.role if hasattr(g.current_user, 'role') else ''
+        is_admin_or_dev = user_role in ('admin', 'developer')
+        
         transaction_id = None
-        if retake_cost > 0:
+        if retake_cost > 0 and not is_admin_or_dev:
             coordinator_id = g.current_user.id
-            balance = CoordinatorBalance.query.filter_by(coordinator_id=coordinator_id).first()
+            balance = CoordinatorBalance.query.filter_by(
+                coordinator_id=coordinator_id,
+                group_id=group_id
+            ).first()
             current_balance = float(balance.current_balance) if balance else 0.0
             
             if current_balance < retake_cost:
                 return jsonify({
-                    'error': f'Saldo insuficiente. La retoma cuesta ${retake_cost:,.2f} pero tu saldo es ${current_balance:,.2f}',
+                    'error': f'Saldo insuficiente para este grupo. La retoma cuesta ${retake_cost:,.2f} pero tu saldo es ${current_balance:,.2f}',
                     'error_type': 'insufficient_balance',
                     'required': retake_cost,
                     'available': current_balance,
@@ -6019,6 +6304,7 @@ def apply_ecm_retake(group_id, exam_id, user_id):
             
             transaction = create_balance_transaction(
                 coordinator_id=coordinator_id,
+                group_id=group_id,
                 transaction_type='debit',
                 concept='asignacion_retoma',
                 amount=retake_cost,
@@ -6109,12 +6395,15 @@ def preview_ecm_retake(group_id, exam_id):
         total_allowed = (group_exam.max_attempts or 1) + active_retakes
 
         # Configuración
-        max_retakes = group.max_retakes_override if group.max_retakes_override is not None else (campus.max_retakes if campus and campus.max_retakes is not None else 1)
+        max_retakes = group.max_retakes_override if group.max_retakes_override is not None else (campus.max_retakes if campus and campus.max_retakes is not None else 0)
         retake_cost = float(group.retake_cost_override) if group.retake_cost_override is not None else (float(campus.retake_cost) if campus and campus.retake_cost else 0)
 
-        # Saldo
+        # Saldo del grupo específico
         from app.models.balance import CoordinatorBalance
-        balance = CoordinatorBalance.query.filter_by(coordinator_id=g.current_user.id).first()
+        balance = CoordinatorBalance.query.filter_by(
+            coordinator_id=g.current_user.id,
+            group_id=group_id
+        ).first()
         current_balance = float(balance.current_balance) if balance else 0.0
 
         # Verificar si aprobó
@@ -6126,7 +6415,7 @@ def preview_ecm_retake(group_id, exam_id):
             ecm_id is not None
             and ecm_assignment is not None
             and results_count >= total_allowed
-            and active_retakes < max_retakes
+            and (max_retakes == 0 or active_retakes < max_retakes)
             and not approved
             and current_balance >= retake_cost
         )
@@ -6144,7 +6433,7 @@ def preview_ecm_retake(group_id, exam_id):
             'attempts_remaining': max(0, total_allowed - results_count),
             'current_retakes': active_retakes,
             'max_retakes': max_retakes,
-            'retakes_remaining': max(0, max_retakes - active_retakes),
+            'retakes_remaining': -1 if max_retakes == 0 else max(0, max_retakes - active_retakes),
             'has_approved': approved,
             'has_ecm': ecm_id is not None,
             'has_assignment': ecm_assignment is not None,
@@ -6169,7 +6458,7 @@ def _get_retake_block_reasons(ecm_id, ecm_assignment, results_count, total_allow
     if results_count < total_allowed:
         remaining = total_allowed - results_count
         reasons.append(f'Aún tiene {remaining} intento(s) disponible(s)')
-    if active_retakes >= max_retakes:
+    if active_retakes >= max_retakes and max_retakes > 0:
         reasons.append(f'Alcanzó el máximo de retomas ({max_retakes})')
     if approved:
         reasons.append('Ya aprobó el examen')
@@ -12028,6 +12317,7 @@ def get_ecm_assignment_detail(ecm_id):
         # ── Build JSON response ──
         # Batch-fetch assignment numbers for this page
         assignment_number_map = {}
+        eca_id_map = {}
         vigencia_map = {}  # group_exam_id -> {validity_months, expires_at, extended_months, is_expired}
         ecm_vigencia_map = {}  # (user_id, ecm_id) -> {validity_months, expires_at, extended_months, is_expired}
         if data_rows:
@@ -12036,12 +12326,13 @@ def get_ecm_assignment_detail(ecm_id):
             if page_uids:
                 uid_placeholders = ','.join(f"'{str(u)}'" for u in page_uids)
                 ecm_assigns = db.session.execute(text(
-                    f"SELECT user_id, assignment_number, validity_months, expires_at, extended_months "
+                    f"SELECT id, user_id, assignment_number, validity_months, expires_at, extended_months "
                     f"FROM ecm_candidate_assignments "
                     f"WHERE user_id IN ({uid_placeholders}) AND competency_standard_id = :ecm_id"
                 ), {'ecm_id': ecm_id}).fetchall()
                 for ea in ecm_assigns:
                     assignment_number_map[ea.user_id] = ea.assignment_number
+                    eca_id_map[ea.user_id] = ea.id
                     # Calculate effective expires for ECM assignments
                     ecm_expires = ea.expires_at
                     ecm_extended = ea.extended_months or 0
@@ -12149,6 +12440,7 @@ def get_ecm_assignment_detail(ecm_id):
                 'certificate_types': cert_types,
                 'vigencia': ecm_vigencia_map.get(row.user_id) or vigencia_map.get(row.group_exam_id),
                 'group_exam_id': row.group_exam_id,
+                'ecm_assignment_id': eca_id_map.get(row.user_id),
             })
 
         # ── Filter options (lightweight) ──
@@ -12591,6 +12883,296 @@ def export_ecm_assignments_excel(ecm_id):
             as_attachment=True,
             download_name=filename,
         )
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+# ═══════════════════════════════════════════════════════════════
+# DETALLE DE ASIGNACIÓN INDIVIDUAL POR CANDIDATO
+# ═══════════════════════════════════════════════════════════════
+
+@bp.route('/ecm-assignments/candidate/<int:eca_id>', methods=['GET'])
+@jwt_required()
+def get_candidate_assignment_detail(eca_id):
+    """Detalle completo de una EcmCandidateAssignment para trazabilidad individual.
+    
+    Retorna: datos del candidato, ECM, examen, grupo, plantel, partner,
+    configuración de la asignación, todos los intentos de resultado,
+    historial de retomas, y progreso de material de estudio.
+    """
+    try:
+        from app.models.exam import Exam
+        from app.models import Result
+        from app.models.partner import EcmCandidateAssignment, EcmRetake
+        from sqlalchemy import text
+        from dateutil.relativedelta import relativedelta
+
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user or user.role not in ['admin', 'developer', 'coordinator']:
+            return jsonify({'error': 'Acceso denegado'}), 403
+
+        eca = EcmCandidateAssignment.query.get(eca_id)
+        if not eca:
+            return jsonify({'error': 'Asignación no encontrada'}), 404
+
+        # ── User ──
+        candidate = User.query.get(eca.user_id)
+        if not candidate:
+            return jsonify({'error': 'Candidato no encontrado'}), 404
+
+        # ── ECM ──
+        ecm = CompetencyStandard.query.get(eca.competency_standard_id)
+
+        # ── Exam ──
+        exam = Exam.query.get(eca.exam_id) if eca.exam_id else None
+
+        # ── Group Exam (assignment config) ──
+        group_exam = GroupExam.query.get(eca.group_exam_id) if eca.group_exam_id else None
+
+        # ── Group ──
+        group = CandidateGroup.query.get(eca.group_id) if eca.group_id else None
+
+        # ── Campus ──
+        campus = Campus.query.get(eca.campus_id) if eca.campus_id else None
+
+        # ── Partner ──
+        partner = None
+        if campus and campus.partner_id:
+            partner = Partner.query.get(campus.partner_id)
+
+        # ── Assigned by ──
+        assigned_by_user = User.query.get(eca.assigned_by_id) if eca.assigned_by_id else None
+
+        # ── Vigencia ──
+        ecm_expires = eca.expires_at
+        ecm_extended = eca.extended_months or 0
+        effective_expires = None
+        is_expired = False
+        if ecm_expires:
+            effective_expires = ecm_expires + relativedelta(months=ecm_extended)
+            is_expired = datetime.utcnow() > effective_expires
+
+        # ── All results for this user + exam ──
+        results_list = []
+        if eca.exam_id:
+            results_query = Result.query.filter_by(
+                user_id=eca.user_id,
+                exam_id=eca.exam_id,
+            ).order_by(Result.created_at.desc()).all()
+            for r in results_query:
+                results_list.append({
+                    'id': r.id,
+                    'score': r.score,
+                    'status': r.status,
+                    'result': r.result,
+                    'start_date': r.start_date.isoformat() if r.start_date else None,
+                    'end_date': r.end_date.isoformat() if r.end_date else None,
+                    'duration_seconds': r.duration_seconds,
+                    'certificate_code': r.certificate_code,
+                    'certificate_url': r.certificate_url,
+                    'report_url': r.report_url,
+                    'created_at': r.created_at.isoformat() if r.created_at else None,
+                })
+
+        # ── Retakes ──
+        retakes_list = []
+        retakes = EcmRetake.query.filter_by(assignment_id=eca.id).order_by(EcmRetake.applied_at.desc()).all()
+        for rt in retakes:
+            applied_by = User.query.get(rt.applied_by_id) if rt.applied_by_id else None
+            retakes_list.append({
+                'id': rt.id,
+                'cost': float(rt.cost) if rt.cost else 0,
+                'status': rt.status,
+                'result_id': rt.result_id,
+                'applied_at': rt.applied_at.isoformat() if rt.applied_at else None,
+                'used_at': rt.used_at.isoformat() if rt.used_at else None,
+                'applied_by': {
+                    'id': applied_by.id,
+                    'name': applied_by.full_name,
+                } if applied_by else None,
+            })
+
+        # ── Material progress ──
+        material_progress = None
+        materials_detail = []
+        if group_exam and exam:
+            # Custom materials for this group_exam
+            custom_mats = db.session.execute(text(
+                "SELECT study_material_id FROM group_exam_materials "
+                "WHERE group_exam_id = :ge_id AND is_included = 1"
+            ), {'ge_id': group_exam.id}).fetchall()
+            mat_ids = [r.study_material_id for r in custom_mats]
+
+            # Fallback: linked materials from exam
+            if not mat_ids:
+                linked = db.session.execute(text(
+                    "SELECT study_material_id FROM study_material_exams WHERE exam_id = :eid"
+                ), {'eid': exam.id}).fetchall()
+                mat_ids = [r.study_material_id for r in linked]
+
+            if mat_ids:
+                mat_ids_str = ','.join(str(int(x)) for x in mat_ids)
+                # Get materials info
+                mat_rows = db.session.execute(text(
+                    f"SELECT id, title FROM study_contents WHERE id IN ({mat_ids_str})"
+                )).fetchall()
+                mat_name_map = {r.id: r.title for r in mat_rows}
+
+                # Get topics per material
+                topics_rows = db.session.execute(text(
+                    f"SELECT st.id AS topic_id, ss.material_id "
+                    f"FROM study_topics st "
+                    f"JOIN study_sessions ss ON ss.id = st.session_id "
+                    f"WHERE ss.material_id IN ({mat_ids_str})"
+                )).fetchall()
+
+                material_topics = {}
+                all_topic_ids = set()
+                for t in topics_rows:
+                    material_topics.setdefault(t.material_id, []).append(t.topic_id)
+                    all_topic_ids.add(t.topic_id)
+
+                # Get completions for this user
+                completed_topics = set()
+                if all_topic_ids:
+                    topic_ids_str = ','.join(str(int(x)) for x in all_topic_ids)
+                    completions = db.session.execute(text(
+                        f"SELECT topic_id FROM student_topic_progress "
+                        f"WHERE user_id = :uid AND topic_id IN ({topic_ids_str}) AND is_completed = 1"
+                    ), {'uid': eca.user_id}).fetchall()
+                    completed_topics = {c.topic_id for c in completions}
+
+                total_topics = 0
+                completed_count = 0
+                for mid in mat_ids:
+                    m_topics = material_topics.get(mid, [])
+                    m_completed = sum(1 for tid in m_topics if tid in completed_topics)
+                    total_topics += len(m_topics)
+                    completed_count += m_completed
+                    materials_detail.append({
+                        'id': mid,
+                        'name': mat_name_map.get(mid, f'Material {mid}'),
+                        'topics_total': len(m_topics),
+                        'topics_completed': m_completed,
+                        'percentage': round(m_completed / len(m_topics) * 100, 1) if m_topics else 0,
+                    })
+
+                if total_topics > 0:
+                    material_progress = {
+                        'total': total_topics,
+                        'completed': completed_count,
+                        'percentage': round(completed_count / total_topics * 100, 1),
+                    }
+
+        # ── Certificate types from campus config ──
+        cert_types = ['reporte_evaluacion']
+        if campus:
+            # Effective config (group override → campus default)
+            eff_standard = (group.enable_tier_standard_override if group and group.enable_tier_standard_override is not None
+                            else (campus.enable_tier_standard if campus.enable_tier_standard is not None else False))
+            eff_advanced = (group.enable_tier_advanced_override if group and group.enable_tier_advanced_override is not None
+                           else (campus.enable_tier_advanced if campus.enable_tier_advanced is not None else False))
+            eff_badge = (group.enable_digital_badge_override if group and group.enable_digital_badge_override is not None
+                         else (campus.enable_digital_badge if campus.enable_digital_badge is not None else False))
+            if eff_standard:
+                cert_types.append('certificado_eduit')
+            if eff_badge:
+                cert_types.append('insignia_digital')
+            if eff_advanced:
+                cert_types.append('certificado_conocer')
+
+        # ── Cost (effective certification_cost from group override → campus default) ──
+        certification_cost = 0
+        retake_cost = 0
+        if group and hasattr(group, 'certification_cost_override') and group.certification_cost_override is not None:
+            certification_cost = float(group.certification_cost_override)
+        elif campus and campus.certification_cost is not None:
+            certification_cost = float(campus.certification_cost)
+        if group and hasattr(group, 'retake_cost_override') and group.retake_cost_override is not None:
+            retake_cost = float(group.retake_cost_override)
+        elif campus and campus.retake_cost is not None:
+            retake_cost = float(campus.retake_cost)
+
+        return jsonify({
+            'assignment': {
+                'id': eca.id,
+                'assignment_number': eca.assignment_number,
+                'assignment_source': eca.assignment_source,
+                'validity_months': eca.validity_months,
+                'expires_at': effective_expires.isoformat() if effective_expires else None,
+                'extended_months': ecm_extended,
+                'is_expired': is_expired,
+                'assigned_at': eca.assigned_at.isoformat() if eca.assigned_at else None,
+                'certification_cost': certification_cost,
+                'retake_cost': retake_cost,
+            },
+            'user': {
+                'id': candidate.id,
+                'name': candidate.name,
+                'full_name': candidate.full_name,
+                'email': candidate.email,
+                'curp': candidate.curp,
+                'role': candidate.role,
+                'username': candidate.username,
+            },
+            'ecm': {
+                'id': ecm.id,
+                'code': ecm.code,
+                'name': ecm.name,
+                'sector': ecm.sector,
+                'level': ecm.level,
+                'certifying_body': ecm.certifying_body,
+                'logo_url': ecm.logo_url,
+            } if ecm else None,
+            'exam': {
+                'id': exam.id,
+                'name': exam.name,
+                'version': exam.version,
+                'duration_minutes': exam.duration_minutes,
+                'passing_score': exam.passing_score,
+                'description': exam.description,
+                'total_questions': exam.get_total_questions() if hasattr(exam, 'get_total_questions') else None,
+            } if exam else None,
+            'group_exam': {
+                'id': group_exam.id,
+                'assignment_type': group_exam.assignment_type,
+                'max_attempts': group_exam.max_attempts,
+                'time_limit_minutes': group_exam.time_limit_minutes,
+                'passing_score': group_exam.passing_score,
+                'content_type': group_exam.exam_content_type,
+                'assigned_at': group_exam.assigned_at.isoformat() if group_exam.assigned_at else None,
+                'max_retakes': group.max_retakes_override if group and group.max_retakes_override is not None else (campus.max_retakes if campus and campus.max_retakes is not None else 0),
+                'validity_months': group_exam.validity_months,
+            } if group_exam else None,
+            'group': {
+                'id': group.id,
+                'name': group.name,
+                'code': group.code,
+            } if group else {'id': eca.group_id, 'name': eca.group_name, 'code': None},
+            'campus': {
+                'id': campus.id,
+                'name': campus.name,
+                'state_name': campus.state_name,
+            } if campus else None,
+            'partner': {
+                'id': partner.id,
+                'name': partner.name,
+            } if partner else None,
+            'assigned_by': {
+                'id': assigned_by_user.id,
+                'name': assigned_by_user.full_name,
+                'email': assigned_by_user.email,
+            } if assigned_by_user else None,
+            'results': results_list,
+            'retakes': retakes_list,
+            'material_progress': material_progress,
+            'materials_detail': materials_detail,
+            'certificate_types': cert_types,
+        })
 
     except Exception as e:
         import traceback
@@ -13710,6 +14292,7 @@ def get_conocer_tramites():
                     p.id AS partner_id,
                     p.name AS partner_name,
                     eca.assignment_number,
+                    COALESCE(eca.tramite_status, 'pendiente') AS eca_tramite_status,
                     ROW_NUMBER() OVER (
                         PARTITION BY u.id, cs.id
                         ORDER BY r.score DESC, r.created_at DESC
@@ -13727,6 +14310,7 @@ def get_conocer_tramites():
                   AND r.result = 1
                   AND u.curp IS NOT NULL
                   AND LEN(u.curp) >= 10
+                  AND u.enable_conocer_certificate = 1
                   AND (
                       (cg.enable_tier_advanced_override = 1)
                       OR (cg.enable_tier_advanced_override IS NULL AND c.enable_tier_advanced = 1)
@@ -13754,9 +14338,13 @@ def get_conocer_tramites():
         """
 
         if conocer_status == 'pending':
-            status_where = "WHERE wcs.conocer_cert_id IS NULL"
+            status_where = "WHERE wcs.conocer_cert_id IS NULL AND wcs.eca_tramite_status = 'pendiente'"
+        elif conocer_status == 'en_tramite':
+            status_where = "WHERE wcs.eca_tramite_status = 'en_tramite'"
         elif conocer_status == 'has_certificate':
             status_where = "WHERE wcs.conocer_cert_id IS NOT NULL"
+        elif conocer_status == 'entregado':
+            status_where = "WHERE wcs.eca_tramite_status = 'entregado'"
         else:
             status_where = "WHERE 1=1"
 
@@ -13785,6 +14373,7 @@ def get_conocer_tramites():
                 wcs.campus_id, wcs.campus_name,
                 wcs.partner_id, wcs.partner_name,
                 wcs.assignment_number,
+                wcs.eca_tramite_status,
                 wcs.conocer_cert_id, wcs.conocer_cert_number,
                 wcs.conocer_cert_status, wcs.conocer_issue_date
             FROM with_conocer_status wcs
@@ -13800,7 +14389,8 @@ def get_conocer_tramites():
         summary_sql = text(cte_sql + """
             SELECT
                 COUNT(*) AS total_candidates,
-                SUM(CASE WHEN wcs.conocer_cert_id IS NULL THEN 1 ELSE 0 END) AS pending,
+                SUM(CASE WHEN wcs.conocer_cert_id IS NULL AND wcs.eca_tramite_status = 'pendiente' THEN 1 ELSE 0 END) AS pending,
+                SUM(CASE WHEN wcs.eca_tramite_status = 'en_tramite' THEN 1 ELSE 0 END) AS en_tramite,
                 SUM(CASE WHEN wcs.conocer_cert_id IS NOT NULL THEN 1 ELSE 0 END) AS with_certificate,
                 COUNT(DISTINCT wcs.ecm_code) AS total_ecms,
                 COUNT(DISTINCT wcs.group_id) AS total_groups,
@@ -13838,7 +14428,7 @@ def get_conocer_tramites():
                 'conocer_cert_number': row.conocer_cert_number,
                 'conocer_cert_status': row.conocer_cert_status,
                 'conocer_issue_date': row.conocer_issue_date.isoformat() if row.conocer_issue_date else None,
-                'tramite_status': 'certificado' if row.conocer_cert_id else 'pendiente',
+                'tramite_status': 'certificado' if row.conocer_cert_id else (row.eca_tramite_status or 'pendiente'),
             })
 
         return jsonify({
@@ -13850,6 +14440,7 @@ def get_conocer_tramites():
             'summary': {
                 'total_candidates': summary_row.total_candidates if summary_row else 0,
                 'pending': summary_row.pending if summary_row else 0,
+                'en_tramite': summary_row.en_tramite if summary_row else 0,
                 'with_certificate': summary_row.with_certificate if summary_row else 0,
                 'total_ecms': summary_row.total_ecms if summary_row else 0,
                 'total_groups': summary_row.total_groups if summary_row else 0,
@@ -13869,28 +14460,36 @@ def get_conocer_tramites():
 @coordinator_required
 def export_conocer_tramites_excel():
     """
-    Exportar candidatos elegibles para trámite CONOCER a Excel.
-    Acepta user_ids para exportar solo los seleccionados.
+    Exportar candidatos certificados CONOCER a Excel en formato Válidos RENAPO.
+    11 columnas exactas del formato oficial CONOCER.
+    Solo incluye candidatos que ya tienen certificado activo.
     """
     try:
         from sqlalchemy import text
         from openpyxl import Workbook
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.utils import get_column_letter
         from io import BytesIO
+        import unicodedata
 
         user_id_jwt = get_jwt_identity()
         user = User.query.get(user_id_jwt)
         if not user or user.role not in ['admin', 'developer', 'coordinator']:
             return jsonify({'error': 'Acceso denegado'}), 403
 
+        # ── Helpers ──
+        def strip_accents(s: str) -> str:
+            """Remove diacritical marks (accents) from text for RENAPO compatibility."""
+            if not s:
+                return s
+            nfkd = unicodedata.normalize('NFKD', s)
+            return ''.join(c for c in nfkd if not unicodedata.category(c).startswith('M'))
+
+        # ── Parámetros de filtro ──
         search = request.args.get('search', '').strip()
         partner_id = request.args.get('partner_id', type=int)
         campus_id = request.args.get('campus_id', type=int)
-        group_id = request.args.get('group_id', type=int)
         ecm_id = request.args.get('ecm_id', type=int)
-        sort_by = request.args.get('sort_by', 'name')
-        sort_dir = request.args.get('sort_dir', 'asc')
-        conocer_status = request.args.get('conocer_status', 'pending')
         user_ids_param = request.args.get('user_ids', '').strip()
 
         params = {}
@@ -13899,169 +14498,172 @@ def export_conocer_tramites_excel():
         if search:
             where_parts.append(
                 "AND (LOWER(u.name + ' ' + COALESCE(u.first_surname, '') + ' ' + COALESCE(u.second_surname, '')) LIKE :search "
-                "OR LOWER(u.email) LIKE :search OR LOWER(u.curp) LIKE :search)"
+                "OR LOWER(u.curp) LIKE :search)"
             )
             params['search'] = f'%{search.lower()}%'
         if partner_id:
-            where_parts.append("AND p.id = :partner_id")
+            where_parts.append("AND ci.partner_id = :partner_id")
             params['partner_id'] = partner_id
         if campus_id:
-            where_parts.append("AND c.id = :campus_id")
+            where_parts.append("AND COALESCE(ci.campus_id, u.campus_id) = :campus_id")
             params['campus_id'] = campus_id
-        if group_id:
-            where_parts.append("AND cg.id = :group_id")
-            params['group_id'] = group_id
         if ecm_id:
             where_parts.append("AND cs.id = :ecm_id")
             params['ecm_id'] = ecm_id
-
-        where_sql = '\n                '.join(where_parts)
-
-        cte_sql = f"""
-            WITH conocer_candidates AS (
-                SELECT
-                    u.id AS user_id,
-                    CONCAT(u.name, ' ', COALESCE(u.first_surname, ''), ' ', COALESCE(u.second_surname, '')) AS full_name,
-                    u.email, u.curp, u.username,
-                    cs.id AS ecm_id, cs.code AS ecm_code, cs.name AS ecm_name,
-                    e.id AS exam_id, e.name AS exam_name,
-                    r.score, r.end_date AS exam_date,
-                    cg.id AS group_id, cg.name AS group_name, cg.code AS group_code,
-                    c.id AS campus_id, c.name AS campus_name,
-                    p.id AS partner_id, p.name AS partner_name,
-                    eca.assignment_number,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY u.id, cs.id ORDER BY r.score DESC, r.created_at DESC
-                    ) AS rn
-                FROM results r
-                JOIN users u ON u.id = r.user_id
-                JOIN exams e ON e.id = r.exam_id
-                JOIN competency_standards cs ON cs.id = e.competency_standard_id
-                JOIN group_members gm ON gm.user_id = u.id AND gm.status = 'active'
-                JOIN candidate_groups cg ON cg.id = gm.group_id AND cg.is_active = 1
-                LEFT JOIN campuses c ON c.id = cg.campus_id
-                LEFT JOIN partners p ON p.id = c.partner_id
-                LEFT JOIN ecm_candidate_assignments eca ON eca.user_id = u.id AND eca.competency_standard_id = cs.id
-                WHERE r.status = 1 AND r.result = 1
-                  AND u.curp IS NOT NULL AND LEN(u.curp) >= 10
-                  AND (
-                      (cg.enable_tier_advanced_override = 1)
-                      OR (cg.enable_tier_advanced_override IS NULL AND c.enable_tier_advanced = 1)
-                  )
-                  AND EXISTS (SELECT 1 FROM group_exams ge WHERE ge.group_id = cg.id AND ge.exam_id = e.id)
-                  {where_sql}
-            ),
-            with_conocer_status AS (
-                SELECT cc.*,
-                    kc.certificate_number AS conocer_cert_number,
-                    kc.issue_date AS conocer_issue_date
-                FROM conocer_candidates cc
-                LEFT JOIN conocer_certificates kc
-                    ON kc.user_id = cc.user_id AND kc.standard_code = cc.ecm_code AND kc.status = 'active'
-                WHERE cc.rn = 1
-            )
-        """
-
-        if conocer_status == 'pending':
-            status_where = "WHERE wcs.conocer_cert_number IS NULL"
-        elif conocer_status == 'has_certificate':
-            status_where = "WHERE wcs.conocer_cert_number IS NOT NULL"
-        else:
-            status_where = "WHERE 1=1"
-
         if user_ids_param:
             uid_list = [uid.strip() for uid in user_ids_param.split(',') if uid.strip()]
             if uid_list:
                 placeholders = ','.join(f"'{uid}'" for uid in uid_list[:5000])
-                status_where += f" AND wcs.user_id IN ({placeholders})"
+                where_parts.append(f"AND u.id IN ({placeholders})")
 
-        sort_map = {
-            'name': 'wcs.full_name', 'curp': 'wcs.curp', 'ecm': 'wcs.ecm_code',
-            'group': 'wcs.group_name', 'campus': 'wcs.campus_name', 'score': 'wcs.score',
-        }
-        sort_col = sort_map.get(sort_by, 'wcs.full_name')
-        sort_direction = 'DESC' if sort_dir == 'desc' else 'ASC'
+        where_sql = '\n                '.join(where_parts)
 
-        data_sql = text(cte_sql + f"""
-            SELECT wcs.full_name, wcs.email, wcs.curp, wcs.username,
-                wcs.assignment_number,
-                wcs.ecm_code, wcs.ecm_name, wcs.exam_name, wcs.score, wcs.exam_date,
-                wcs.group_name, wcs.group_code, wcs.campus_name, wcs.partner_name,
-                wcs.conocer_cert_number, wcs.conocer_issue_date
-            FROM with_conocer_status wcs {status_where}
-            ORDER BY {sort_col} {sort_direction}
+        sql = text(f"""
+            SELECT
+                u.curp,
+                u.name AS first_name,
+                u.first_surname,
+                u.second_surname,
+                u.gender,
+                COALESCE(cs.code, kc.standard_code) AS ecm_code,
+                COALESCE(cs.name, kc.standard_name) AS ecm_name,
+                COALESCE(cs.level, TRY_CAST(kc.competency_level AS INT)) AS ecm_level,
+                kc.issue_date AS cert_date,
+                kc.certificate_number AS folio,
+                eca.assignment_number,
+                COALESCE(ci.state_name, uc.state_name) AS state_name,
+                COALESCE(ci.country, uc.country) AS country
+            FROM conocer_certificates kc
+            JOIN users u ON u.id = kc.user_id
+            LEFT JOIN competency_standards cs ON cs.code = kc.standard_code
+            LEFT JOIN campuses uc ON uc.id = u.campus_id
+            LEFT JOIN ecm_candidate_assignments eca
+                ON eca.user_id = u.id AND eca.competency_standard_id = cs.id
+            OUTER APPLY (
+                SELECT TOP 1 c.state_name, c.country, c.id AS campus_id, p.id AS partner_id
+                FROM group_members gm
+                JOIN candidate_groups cg ON cg.id = gm.group_id
+                JOIN campuses c ON c.id = cg.campus_id
+                LEFT JOIN partners p ON p.id = c.partner_id
+                WHERE gm.user_id = u.id AND gm.status = 'active'
+                ORDER BY cg.created_at DESC
+            ) ci
+            WHERE kc.status = 'active'
+                {where_sql}
+            ORDER BY u.name, u.first_surname, u.second_surname
         """)
 
-        rows = db.session.execute(data_sql, params).fetchall()
+        rows = db.session.execute(sql, params).fetchall()
 
+        # ── Valor fijo del Centro Evaluador ──
+        CE_NAME = 'ENTRENAMIENTO INFORMATICO AVANZADO S A  DE C V '
+
+        # Países considerados nacionales (para la regla de extranjeros)
+        NATIONAL_COUNTRIES = {'México', 'Mexico', 'MEXICO', 'MÉXICO', 'mexico', 'méxico'}
+
+        # ── Generar Excel en formato RENAPO ──
         wb = Workbook()
         ws = wb.active
-        ws.title = "Tramites CONOCER"
+        ws.title = 'Válidos'
 
-        header_font = Font(bold=True, color="FFFFFF", size=11)
-        header_fill = PatternFill(start_color="065F46", end_color="065F46", fill_type="solid")
-        header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-        thin_border = Border(
-            left=Side(style='thin', color='D1D5DB'), right=Side(style='thin', color='D1D5DB'),
-            top=Side(style='thin', color='D1D5DB'), bottom=Side(style='thin', color='D1D5DB'),
-        )
-        center_align = Alignment(horizontal='center', vertical='center')
-
-        ws.merge_cells('A1:O1')
-        title_cell = ws['A1']
-        title_cell.value = "Reporte de Tramites CONOCER - Candidatos Elegibles"
-        title_cell.font = Font(bold=True, size=14, color="065F46")
-        title_cell.alignment = Alignment(horizontal='center')
-
-        ws.merge_cells('A2:O2')
-        subtitle = ws['A2']
-        subtitle.value = f"Total registros: {len(rows)} | Exportado: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-        subtitle.font = Font(size=10, color="6B7280")
-        subtitle.alignment = Alignment(horizontal='center')
+        # Estilos de header (azul RENAPO #4472C4, texto blanco, centrado, wrap)
+        header_font = Font(bold=True, color='FFFFFF')
+        header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+        header_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
 
         headers_list = [
-            'Nombre Completo', 'CURP', 'Email', 'Usuario', 'No. Asignacion',
-            'Codigo ECM', 'Estandar de Competencia', 'Examen',
-            'Calificacion', 'Fecha de Evaluacion',
-            'Grupo', 'Codigo Grupo', 'Plantel', 'Partner',
-            'Estatus CONOCER',
+            'Núm.', 'CURP/NIP', 'Nombre(s)', 'Apellidos', 'Entidad Federativa',
+            'Código del ECM', 'Título del ECM', 'Nivel de Competencia del ECM',
+            'Fecha de Certificación', 'Folio Certificado Marca',
+            'Nombre o Razón Social del CE/EI',
         ]
-        for col, header in enumerate(headers_list, 1):
-            cell = ws.cell(row=4, column=col, value=header)
+        for col, h in enumerate(headers_list, 1):
+            cell = ws.cell(row=1, column=col, value=h)
             cell.font = header_font
             cell.fill = header_fill
-            cell.alignment = header_alignment
-            cell.border = thin_border
+            cell.alignment = header_align
 
-        for idx, row in enumerate(rows, 5):
-            status_text = f"Certificado: {row.conocer_cert_number}" if row.conocer_cert_number else "Pendiente de tramite"
-            exam_date_str = row.exam_date.strftime('%Y-%m-%d') if row.exam_date else ''
-            data_row = [
-                (row.full_name or '').strip(), row.curp or '', row.email or '', row.username or '',
-                row.assignment_number or '',
-                row.ecm_code or '', row.ecm_name or '', row.exam_name or '',
-                row.score, exam_date_str,
-                row.group_name or '', row.group_code or '', row.campus_name or '', row.partner_name or '',
-                status_text,
-            ]
-            for col, val in enumerate(data_row, 1):
-                cell = ws.cell(row=idx, column=col, value=val)
-                cell.border = thin_border
-                if col in (5, 9):
-                    cell.alignment = center_align
+        # ── Rellenar datos ──
+        for idx, row in enumerate(rows, 2):
+            num = idx - 1
 
-        from openpyxl.utils import get_column_letter
-        widths = [35, 22, 30, 20, 15, 12, 40, 35, 12, 16, 25, 15, 25, 25, 30]
+            # Determinar si es candidato extranjero
+            country = (row.country or '').strip()
+            is_foreign = bool(country) and country not in NATIONAL_COUNTRIES
+
+            # Col 2: CURP/NIP — extranjeros usan placeholder temporal
+            if is_foreign:
+                curp = 'A' if (row.gender or '').upper() == 'M' else 'B'
+            else:
+                curp = (row.curp or '').upper()
+
+            # Col 3-4: Nombres y apellidos en MAYÚSCULAS sin acentos
+            first_name = strip_accents((row.first_name or '').upper().strip())
+            apellidos = strip_accents(
+                f"{(row.first_surname or '').upper()} {(row.second_surname or '').upper()}".strip()
+            )
+
+            # Col 5: Entidad Federativa — extranjeros → Ciudad de Mexico
+            if is_foreign:
+                state = 'Ciudad de Mexico'
+            else:
+                state = strip_accents((row.state_name or 'Ciudad de Mexico').strip())
+
+            # Col 6-7: ECM código y título sin acentos
+            ecm_code = (row.ecm_code or '')
+            ecm_name = strip_accents(row.ecm_name or '')
+
+            # Col 8: Nivel de competencia (entero)
+            ecm_level = row.ecm_level if row.ecm_level is not None else ''
+
+            # Col 9: Fecha de certificación (formato YYYY-MM-DD como texto)
+            if row.cert_date:
+                cert_date = row.cert_date.strftime('%Y-%m-%d') if hasattr(row.cert_date, 'strftime') else str(row.cert_date)
+            else:
+                cert_date = ''
+
+            # Col 10: Folio Certificado Marca → el número de asignación
+            folio = row.assignment_number or row.folio or ''
+
+            # ── Escribir fila ──
+            # Núm. (int, format 0)
+            c = ws.cell(row=idx, column=1, value=num)
+            c.number_format = '0'
+
+            # CURP/NIP .. Título del ECM (text, format @)
+            for col_i, val in enumerate([curp, first_name, apellidos, state, ecm_code, ecm_name], 2):
+                c = ws.cell(row=idx, column=col_i, value=val)
+                c.number_format = '@'
+
+            # Nivel de Competencia (int, format @)
+            c = ws.cell(row=idx, column=8, value=ecm_level)
+            c.number_format = '@'
+
+            # Fecha de Certificación (texto con formato visual dd/mm/yyyy)
+            c = ws.cell(row=idx, column=9, value=cert_date)
+            c.number_format = 'dd/mm/yyyy'
+
+            # Folio Certificado Marca (text @)
+            c = ws.cell(row=idx, column=10, value=folio)
+            c.number_format = '@'
+
+            # CE/EI (text @, valor fijo)
+            c = ws.cell(row=idx, column=11, value=CE_NAME)
+            c.number_format = '@'
+
+        # ── Anchos de columna (idénticos al template) ──
+        widths = [6, 20, 27, 27, 21, 16, 50, 30, 24, 25, 49]
         for i, w in enumerate(widths, 1):
             ws.column_dimensions[get_column_letter(i)].width = w
 
-        ws.freeze_panes = 'A5'
+        # Congelar primera fila (headers siempre visibles)
+        ws.freeze_panes = 'A2'
 
         output = BytesIO()
         wb.save(output)
         output.seek(0)
 
-        filename = f"Tramites_CONOCER_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+        filename = f"validos_renapo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         return send_file(
             output,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -14073,3 +14675,426 @@ def export_conocer_tramites_excel():
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+# ============== CONOCER EMAIL CONTACTS ==============
+
+@bp.route('/conocer-contacts', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_conocer_contacts():
+    """Obtener contactos de correo para solicitudes CONOCER."""
+    from app.models.partner import ConocerEmailContact
+    contacts = ConocerEmailContact.query.order_by(ConocerEmailContact.name).all()
+    return jsonify({'contacts': [c.to_dict() for c in contacts]})
+
+
+@bp.route('/conocer-contacts', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def create_conocer_contact():
+    """Crear un nuevo contacto de correo CONOCER."""
+    from app.models.partner import ConocerEmailContact
+    data = request.get_json()
+    if not data or not data.get('name') or not data.get('email'):
+        return jsonify({'error': 'Nombre y email son requeridos'}), 400
+    
+    contact = ConocerEmailContact(
+        name=data['name'].strip(),
+        email=data['email'].strip().lower(),
+        is_active=data.get('is_active', True),
+        created_by_id=get_jwt_identity(),
+    )
+    db.session.add(contact)
+    db.session.commit()
+    return jsonify({'contact': contact.to_dict()}), 201
+
+
+@bp.route('/conocer-contacts/<int:contact_id>', methods=['PUT'])
+@jwt_required()
+@coordinator_required
+def update_conocer_contact(contact_id):
+    """Actualizar un contacto de correo CONOCER."""
+    from app.models.partner import ConocerEmailContact
+    contact = ConocerEmailContact.query.get_or_404(contact_id)
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Datos requeridos'}), 400
+    
+    if 'name' in data:
+        contact.name = data['name'].strip()
+    if 'email' in data:
+        contact.email = data['email'].strip().lower()
+    if 'is_active' in data:
+        contact.is_active = data['is_active']
+    contact.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({'contact': contact.to_dict()})
+
+
+@bp.route('/conocer-contacts/<int:contact_id>', methods=['DELETE'])
+@jwt_required()
+@coordinator_required
+def delete_conocer_contact(contact_id):
+    """Eliminar un contacto de correo CONOCER."""
+    from app.models.partner import ConocerEmailContact
+    contact = ConocerEmailContact.query.get_or_404(contact_id)
+    db.session.delete(contact)
+    db.session.commit()
+    return jsonify({'message': 'Contacto eliminado'})
+
+
+# ============== CONOCER SOLICITUD (SEND EMAIL) ==============
+
+@bp.route('/conocer-tramites/send-solicitud', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def send_conocer_solicitud():
+    """
+    Enviar correo de solicitud de línea de captura a los contactos CONOCER.
+    
+    1. Obtiene candidatos con tramite_status='pendiente' que tienen assignment_number
+    2. Genera tabla resumen por ECM
+    3. Genera el Excel RENAPO como adjunto
+    4. Descarga el PDF COSU del blob como adjunto
+    5. Envía correo a todos los contactos activos
+    6. Cambia tramite_status de 'pendiente' a 'en_tramite'
+    """
+    import json
+    import base64
+    from sqlalchemy import text
+    from app.models.partner import ConocerEmailContact, ConocerSolicitudLog, EcmCandidateAssignment
+    from app.services.email_service import send_email as send_email_fn
+    from app.services.email_service import LOGO_URL
+
+    try:
+        # 1. Get active contacts
+        contacts = ConocerEmailContact.query.filter_by(is_active=True).all()
+        if not contacts:
+            return jsonify({'error': 'No hay contactos activos configurados. Agrega contactos en la sección de configuración.'}), 400
+
+        # 2. Get pending assignments with their ECM data
+        pending_sql = text("""
+            SELECT 
+                eca.id AS eca_id,
+                eca.assignment_number,
+                eca.user_id,
+                u.curp,
+                u.name AS user_name,
+                COALESCE(u.first_surname, '') AS first_surname,
+                COALESCE(u.second_surname, '') AS second_surname,
+                u.gender,
+                COALESCE(uc.country, '') AS country,
+                cs.id AS ecm_id,
+                cs.code AS ecm_code,
+                cs.name AS ecm_name,
+                cs.level AS competency_level
+            FROM ecm_candidate_assignments eca
+            JOIN users u ON u.id = eca.user_id
+            LEFT JOIN campuses uc ON uc.id = u.campus_id
+            JOIN competency_standards cs ON cs.id = eca.competency_standard_id
+            LEFT JOIN candidate_groups cg ON cg.id = eca.group_id
+            LEFT JOIN campuses c ON c.id = eca.campus_id
+            WHERE eca.tramite_status = 'pendiente'
+              AND eca.assignment_number IS NOT NULL
+              AND u.enable_conocer_certificate = 1
+              AND (
+                  (cg.enable_tier_advanced_override = 1)
+                  OR (cg.enable_tier_advanced_override IS NULL AND c.enable_tier_advanced = 1)
+              )
+            ORDER BY cs.code, u.name
+        """)
+        pending_rows = db.session.execute(pending_sql).fetchall()
+
+        if not pending_rows:
+            return jsonify({'error': 'No hay trámites pendientes para enviar.'}), 400
+
+        # 3. Build ECM summary table
+        ecm_counts = {}
+        eca_ids = []
+        for row in pending_rows:
+            eca_ids.append(row.eca_id)
+            code = row.ecm_code
+            if code not in ecm_counts:
+                ecm_counts[code] = 0
+            ecm_counts[code] += 1
+
+        total_certs = sum(ecm_counts.values())
+        ecm_summary = [{'code': code, 'count': count} for code, count in sorted(ecm_counts.items())]
+
+        # 4. Generate RENAPO Excel attachment
+        excel_base64, excel_filename = _generate_renapo_excel_for_pending(pending_rows)
+
+        # 5. Download COSU PDF from blob
+        cosu_base64 = _download_cosu_pdf_from_blob()
+
+        # 6. Build email HTML
+        table_rows_html = ''
+        for item in ecm_summary:
+            table_rows_html += f'''
+                <tr>
+                    <td style="padding:10px 16px;border:1px solid #d1d5db;font-size:14px;color:#374151;">{item['code']}</td>
+                    <td style="padding:10px 16px;border:1px solid #d1d5db;font-size:14px;color:#374151;text-align:center;">{item['count']}</td>
+                </tr>'''
+        table_rows_html += f'''
+                <tr style="background-color:#f3f4f6;font-weight:bold;">
+                    <td style="padding:10px 16px;border:1px solid #d1d5db;font-size:14px;color:#111827;">Total</td>
+                    <td style="padding:10px 16px;border:1px solid #d1d5db;font-size:14px;color:#111827;text-align:center;">{total_certs}</td>
+                </tr>'''
+
+        email_body = f'''
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.07);">
+    <div style="background:linear-gradient(135deg,#1e40af 0%,#2563eb 100%);padding:28px 32px;text-align:center;">
+        <img src="{LOGO_URL}" alt="Evaluaasi" style="height:40px;margin-bottom:8px;" />
+        <h1 style="color:#ffffff;font-size:20px;margin:0;">Solicitud de L\u00ednea de Captura</h1>
+    </div>
+    <div style="padding:32px;">
+        <p style="font-size:15px;color:#374151;line-height:1.7;margin:0 0 20px;">Buen d\u00eda estimados,</p>
+        <p style="font-size:15px;color:#374151;line-height:1.7;margin:0 0 24px;">
+            Por favor solicito la l\u00ednea de captura para <strong>{total_certs}</strong> certificados sin fotograf\u00eda con descuento.
+        </p>
+        <table style="width:100%;border-collapse:collapse;margin:0 0 24px;border-radius:8px;overflow:hidden;">
+            <thead>
+                <tr style="background-color:#2563eb;">
+                    <th style="padding:12px 16px;color:#ffffff;font-size:14px;font-weight:600;text-align:left;border:1px solid #2563eb;">Est\u00e1ndar</th>
+                    <th style="padding:12px 16px;color:#ffffff;font-size:14px;font-weight:600;text-align:center;border:1px solid #2563eb;">Cantidad</th>
+                </tr>
+            </thead>
+            <tbody>
+                {table_rows_html}
+            </tbody>
+        </table>
+        <p style="font-size:15px;color:#374151;line-height:1.7;margin:0 0 8px;">Agradezco sus comentarios.</p>
+        <p style="font-size:15px;color:#374151;line-height:1.7;margin:0;">Saludos.</p>
+    </div>
+    <div style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
+        <p style="font-size:12px;color:#94a3b8;margin:0;">Enviado desde Evaluaasi &bull; {datetime.now().strftime('%d/%m/%Y %H:%M')}</p>
+    </div>
+</div>'''
+
+        # 7. Prepare attachments
+        attachments = []
+        if excel_base64:
+            attachments.append({
+                'name': excel_filename,
+                'content_type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'content_base64': excel_base64,
+            })
+        if cosu_base64:
+            attachments.append({
+                'name': 'COSU_229_2026_GRUPO_EDUIT.pdf',
+                'content_type': 'application/pdf',
+                'content_base64': cosu_base64,
+            })
+
+        # 8. Send email to all contacts
+        recipient_emails = [c.email for c in contacts]
+        primary_to = recipient_emails[0]
+        cc_list = recipient_emails[1:] if len(recipient_emails) > 1 else None
+
+        success = send_email_fn(
+            to=primary_to,
+            subject='[Evaluaasi] Solicitud de línea de captura',
+            html=email_body,
+            attachments=attachments,
+            cc=cc_list,
+        )
+
+        if not success:
+            log = ConocerSolicitudLog(
+                sent_by_id=get_jwt_identity(),
+                recipients=json.dumps(recipient_emails),
+                total_certificates=total_certs,
+                ecm_summary=json.dumps(ecm_summary),
+                attachment_names=', '.join([a['name'] for a in attachments]),
+                status='failed',
+                error_message='Error al enviar el correo',
+                assignment_ids=json.dumps(eca_ids),
+            )
+            db.session.add(log)
+            db.session.commit()
+            return jsonify({'error': 'Error al enviar el correo. Verifica la configuración de ACS.'}), 500
+
+        # 9. Update tramite_status to 'en_tramite'
+        if eca_ids:
+            ids_str = ','.join(str(i) for i in eca_ids)
+            db.session.execute(text(f"""
+                UPDATE ecm_candidate_assignments 
+                SET tramite_status = 'en_tramite'
+                WHERE id IN ({ids_str}) AND tramite_status = 'pendiente'
+            """))
+            db.session.commit()
+
+        # 10. Log the solicitud
+        log = ConocerSolicitudLog(
+            sent_by_id=get_jwt_identity(),
+            recipients=json.dumps(recipient_emails),
+            total_certificates=total_certs,
+            ecm_summary=json.dumps(ecm_summary),
+            attachment_names=', '.join([a['name'] for a in attachments]),
+            status='sent',
+            assignment_ids=json.dumps(eca_ids),
+        )
+        db.session.add(log)
+        db.session.commit()
+
+        return jsonify({
+            'message': f'Solicitud enviada exitosamente a {len(recipient_emails)} contacto(s)',
+            'total_certificates': total_certs,
+            'ecm_summary': ecm_summary,
+            'recipients': recipient_emails,
+            'solicitud_id': log.id,
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/conocer-solicitud-logs', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_conocer_solicitud_logs():
+    """Obtener historial de solicitudes enviadas."""
+    from app.models.partner import ConocerSolicitudLog
+    logs = ConocerSolicitudLog.query.order_by(ConocerSolicitudLog.sent_at.desc()).limit(50).all()
+    return jsonify({'logs': [l.to_dict() for l in logs]})
+
+
+def _generate_renapo_excel_for_pending(pending_rows):
+    """
+    Genera el Excel en formato RENAPO para los candidatos pendientes.
+    Returns (base64_string, filename).
+    """
+    import base64
+    import unicodedata
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+
+    def strip_accents(s):
+        if not s:
+            return s
+        nfkd = unicodedata.normalize('NFKD', s)
+        return ''.join(c for c in nfkd if not unicodedata.combining(c))
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Válidos'
+
+    headers = [
+        'Núm.', 'CURP/NIP de la Persona Certificada', 'Nombre(s)',
+        'Apellidos', 'Entidad Federativa de Nacimiento',
+        'Código del ECM', 'Título del ECM',
+        'Nivel de Competencia del ECM',
+        'Fecha de Certificación',
+        'Folio Certificado Marca',
+        'Nombre o Razón Social del CE / EI y/o del OC / OC-OPCION'
+    ]
+
+    header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+    header_font = Font(color='FFFFFF', bold=True, size=10)
+    header_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+    col_widths = [6, 20, 27, 27, 21, 16, 50, 30, 24, 25, 49]
+
+    for col_idx, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = header_align
+        cell.border = thin_border
+
+    for i, w in enumerate(col_widths, 1):
+        ws.column_dimensions[chr(64 + i) if i <= 26 else 'A' + chr(64 + i - 26)].width = w
+
+    CURP_STATE_MAP = {
+        'AS': 'Aguascalientes', 'BC': 'Baja California', 'BS': 'Baja California Sur',
+        'CC': 'Campeche', 'CL': 'Coahuila de Zaragoza', 'CM': 'Colima',
+        'CS': 'Chiapas', 'CH': 'Chihuahua', 'DF': 'Ciudad de Mexico',
+        'DG': 'Durango', 'GT': 'Guanajuato', 'GR': 'Guerrero',
+        'HG': 'Hidalgo', 'JC': 'Jalisco', 'MC': 'Mexico',
+        'MN': 'Michoacan de Ocampo', 'MS': 'Morelos', 'NT': 'Nayarit',
+        'NL': 'Nuevo Leon', 'OC': 'Oaxaca', 'PL': 'Puebla',
+        'QT': 'Queretaro', 'QR': 'Quintana Roo', 'SP': 'San Luis Potosi',
+        'SL': 'Sinaloa', 'SR': 'Sonora', 'TC': 'Tabasco',
+        'TS': 'Tamaulipas', 'TL': 'Tlaxcala', 'VZ': 'Veracruz de Ignacio de la Llave',
+        'YN': 'Yucatan', 'ZS': 'Zacatecas', 'NE': 'Nacido en el Extranjero',
+    }
+
+    ce_ei = 'ENTRENAMIENTO INFORMATICO AVANZADO S A  DE C V '
+    cert_date = datetime.now().strftime('%Y-%m-%d')
+
+    for idx, row in enumerate(pending_rows, 1):
+        curp = (row.curp or '').strip().upper()
+        is_foreigner = (row.country or '').strip().lower() not in ('', 'méxico', 'mexico', 'mx')
+        if is_foreigner:
+            curp_val = 'A' if (row.gender or '').upper() == 'M' else 'B'
+            state = 'Ciudad de Mexico'
+        else:
+            curp_val = curp
+            state_code = curp[11:13] if len(curp) >= 13 else ''
+            state = strip_accents(CURP_STATE_MAP.get(state_code, ''))
+
+        first = strip_accents((row.user_name or '').strip().upper())
+        surnames = strip_accents(f"{row.first_surname} {row.second_surname}".strip().upper())
+        ecm_title = strip_accents((row.ecm_name or '').upper())
+
+        data_row = [
+            idx,
+            curp_val,
+            first,
+            surnames,
+            state,
+            (row.ecm_code or '').upper(),
+            ecm_title,
+            str(row.competency_level or ''),
+            cert_date,
+            row.assignment_number or '',
+            ce_ei,
+        ]
+
+        for col_idx, val in enumerate(data_row, 1):
+            cell = ws.cell(row=idx + 1, column=col_idx, value=val)
+            cell.border = thin_border
+            cell.alignment = Alignment(vertical='center')
+
+    ws.freeze_panes = 'A2'
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    excel_bytes = output.getvalue()
+
+    filename = f"validos_renapo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return base64.b64encode(excel_bytes).decode('utf-8'), filename
+
+
+def _download_cosu_pdf_from_blob():
+    """
+    Download the COSU PDF from Azure Blob Storage.
+    Returns base64-encoded content or None if not found.
+    """
+    import base64
+    try:
+        from azure.storage.blob import BlobServiceClient
+        from config import Config
+        conn_str = Config.AZURE_STORAGE_CONNECTION_STRING
+        if not conn_str:
+            print("[COSU PDF] No AZURE_STORAGE_CONNECTION_STRING configured")
+            return None
+        
+        blob_service = BlobServiceClient.from_connection_string(conn_str)
+        blob_client = blob_service.get_blob_client(
+            container='conocer-certificates',
+            blob='documentos/COSU_229_2026_GRUPO_EDUIT.pdf'
+        )
+        download = blob_client.download_blob()
+        pdf_bytes = download.readall()
+        return base64.b64encode(pdf_bytes).decode('utf-8')
+    except Exception as e:
+        print(f"[COSU PDF] Error downloading: {e}")
+        return None

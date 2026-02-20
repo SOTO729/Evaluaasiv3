@@ -132,10 +132,12 @@ export default function CampusActivationPage() {
     enable_online_payments: false,
     enable_candidate_certificates: false,
     require_exam_pin: false,
+    enable_session_calendar: false,
+    session_scheduling_mode: 'leader_only' as 'leader_only' | 'candidate_self',
     assignment_validity_months: 12,
     certification_cost: 0,
     retake_cost: 0,
-    max_retakes: 1,
+    max_retakes: 0,
     competency_standard_ids: [],
   });
   
@@ -184,6 +186,8 @@ export default function CampusActivationPage() {
         enable_online_payments: campus.enable_online_payments ?? prev.enable_online_payments,
         enable_candidate_certificates: campus.enable_candidate_certificates ?? prev.enable_candidate_certificates,
         require_exam_pin: campus.require_exam_pin ?? prev.require_exam_pin,
+        enable_session_calendar: campus.enable_session_calendar ?? prev.enable_session_calendar,
+        session_scheduling_mode: campus.session_scheduling_mode ?? prev.session_scheduling_mode,
         assignment_validity_months: campus.assignment_validity_months ?? prev.assignment_validity_months,
         certification_cost: campus.certification_cost ?? prev.certification_cost,
         retake_cost: campus.retake_cost ?? prev.retake_cost,
@@ -1820,6 +1824,65 @@ export default function CampusActivationPage() {
                           colorScheme="amber"
                         />
                       </div>
+
+                      {/* Calendario de Sesiones */}
+                      <div className={`border-2 rounded-xl transition-all ${
+                        configData.enable_session_calendar ? 'border-cyan-500 bg-cyan-50' : 'border-gray-200 hover:border-gray-300'
+                      }`}>
+                        <div className="flex items-center justify-between p-4">
+                          <div className="flex items-center gap-3">
+                            <Calendar className="w-5 h-5 text-cyan-600" />
+                            <div>
+                              <span className="font-medium text-gray-800">Calendario de Sesiones</span>
+                              <p className="text-xs text-gray-500 mt-0.5">Permite agendar sesiones de capacitación o evaluación</p>
+                            </div>
+                          </div>
+                          <ToggleSwitch
+                            checked={configData.enable_session_calendar ?? false}
+                            onChange={(v) => setConfigData(prev => ({ ...prev, enable_session_calendar: v }))}
+                            colorScheme="cyan"
+                          />
+                        </div>
+                        {configData.enable_session_calendar && (
+                          <div className="px-4 pb-4 pt-1 border-t border-cyan-200">
+                            <p className="text-xs text-gray-600 mb-3 font-medium">¿Quién puede agendar sesiones?</p>
+                            <div className="space-y-2">
+                              <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                                configData.session_scheduling_mode === 'leader_only' ? 'border-cyan-400 bg-white shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                              }`}>
+                                <input
+                                  type="radio"
+                                  name="session_scheduling_mode"
+                                  value="leader_only"
+                                  checked={configData.session_scheduling_mode === 'leader_only'}
+                                  onChange={() => setConfigData(prev => ({ ...prev, session_scheduling_mode: 'leader_only' }))}
+                                  className="text-cyan-600 focus:ring-cyan-500"
+                                />
+                                <div>
+                                  <span className="text-sm font-medium text-gray-800">Solo el líder agenda</span>
+                                  <p className="text-xs text-gray-500">El coordinador o responsable agenda las sesiones para los candidatos</p>
+                                </div>
+                              </label>
+                              <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                                configData.session_scheduling_mode === 'candidate_self' ? 'border-cyan-400 bg-white shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                              }`}>
+                                <input
+                                  type="radio"
+                                  name="session_scheduling_mode"
+                                  value="candidate_self"
+                                  checked={configData.session_scheduling_mode === 'candidate_self'}
+                                  onChange={() => setConfigData(prev => ({ ...prev, session_scheduling_mode: 'candidate_self' }))}
+                                  className="text-cyan-600 focus:ring-cyan-500"
+                                />
+                                <div>
+                                  <span className="text-sm font-medium text-gray-800">El candidato agenda</span>
+                                  <p className="text-xs text-gray-500">Cada candidato puede agendar sus propias sesiones</p>
+                                </div>
+                              </label>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -1920,20 +1983,23 @@ export default function CampusActivationPage() {
                         <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                           Máx. Retomas por Asignación
                         </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="99"
+                        <select
                           name="max_retakes"
-                          value={configData.max_retakes ?? 1}
+                          value={configData.max_retakes ?? 0}
                           onChange={(e) => {
                             const val = parseInt(e.target.value, 10);
-                            if (!isNaN(val) && val >= 1) {
-                              setConfigData(prev => ({ ...prev, max_retakes: val }));
-                            }
+                            setConfigData(prev => ({ ...prev, max_retakes: val }));
                           }}
                           className="w-full fluid-px-3 fluid-py-2 border border-gray-300 fluid-rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        />
+                        >
+                          <option value={0}>Ilimitado</option>
+                          <option value={1}>1</option>
+                          <option value={2}>2</option>
+                          <option value={3}>3</option>
+                          <option value={4}>4</option>
+                          <option value={5}>5</option>
+                          <option value={10}>10</option>
+                        </select>
                         <p className="fluid-text-xs text-gray-500 fluid-mt-1">Máximo de retomas que un candidato puede solicitar por asignación ECM</p>
                       </div>
                     </div>

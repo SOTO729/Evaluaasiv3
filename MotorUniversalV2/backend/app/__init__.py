@@ -160,6 +160,14 @@ def create_app(config_name='development'):
     with app.app_context():
         ensure_label_style_column(app)
     
+    # Initialize CONOCER weekly scheduler
+    try:
+        from app.services.conocer_scheduler import init_scheduler
+        init_scheduler(app)
+        print("[INIT] ✅ CONOCER scheduler initialized")
+    except Exception as e:
+        print(f"[INIT] ⚠️ CONOCER scheduler failed to initialize: {e}")
+    
     # Manejadores de errores
     register_error_handlers(app)
     

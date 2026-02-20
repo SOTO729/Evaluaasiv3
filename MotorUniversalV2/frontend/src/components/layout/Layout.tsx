@@ -231,7 +231,7 @@ const Layout = ({ children }: LayoutProps) => {
                 >
                   Inicio
                 </Link>
-                {user?.role !== 'editor' && user?.role !== 'editor_invitado' && user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && (
+                {user?.role !== 'editor' && user?.role !== 'editor_invitado' && user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && (
                   <Link 
                     to="/certificates" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -243,7 +243,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Certificados
                   </Link>
                 )}
-                {user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && (
+                {user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && (
                   <Link 
                     to="/exams" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -255,7 +255,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Exámenes
                   </Link>
                 )}
-                {user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && (
+                {user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && (
                   <Link 
                     to="/study-contents" 
                   className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -279,7 +279,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Sesiones
                   </Link>
                 )}
-                {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && user?.role !== 'responsable_partner' && (
+                {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && (
                   <Link 
                     to="/standards" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -557,7 +557,7 @@ const Layout = ({ children }: LayoutProps) => {
                   Inicio
                 </div>
               </Link>
-              {user?.role !== 'editor' && user?.role !== 'editor_invitado' && user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && (
+              {user?.role !== 'editor' && user?.role !== 'editor_invitado' && user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && (
                 <Link 
                   to="/certificates" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -574,7 +574,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && (
+              {user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && (
                 <Link 
                   to="/exams" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -591,7 +591,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && (
+              {user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && (
                 <Link 
                   to="/study-contents" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -626,7 +626,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && user?.role !== 'responsable_partner' && (
+              {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && (
                 <Link 
                   to="/standards" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${

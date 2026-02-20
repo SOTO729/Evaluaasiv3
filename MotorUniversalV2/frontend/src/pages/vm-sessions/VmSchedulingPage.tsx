@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Clock, Calendar, X, AlertCircle, CheckCircle, Loader2, Monitor } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Calendar, X, AlertCircle, CheckCircle, Loader2, Monitor, Eye, Building2, User as UserIcon } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useAuthStore } from '../../store/authStore';
 import {
@@ -65,6 +65,8 @@ type WeekSlotsMap = Record<string, VmSlot[]>;
 export default function VmSchedulingPage() {
   const { user } = useAuthStore();
   const isAdminOrCoord = user?.role === 'admin' || user?.role === 'coordinator';
+  const isCoordinator = user?.role === 'coordinator';
+  const isReadOnly = isCoordinator; // Coordinadores solo pueden observar
 
   // Access
   const [access, setAccess] = useState<VmAccessInfo | null>(null);
@@ -93,9 +95,13 @@ export default function VmSchedulingPage() {
   // Toast
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Campus selector para coordinadores
+  const [selectedCampusId, setSelectedCampusId] = useState<number | null>(null);
+  const [campusList, setCampusList] = useState<{ id: number; name: string }[]>([]);
+
   const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate]);
   const weekKey = useMemo(() => formatDateStr(weekDays[0]), [weekDays]);
-  const campusId = access?.campus_id;
+  const campusId = selectedCampusId || access?.campus_id;
   const monthDays = useMemo(() => getMonthDays(currentDate.getFullYear(), currentDate.getMonth()), [currentDate]);
 
   // Check access
@@ -104,6 +110,11 @@ export default function VmSchedulingPage() {
       try {
         const info = await checkVmAccess();
         setAccess(info);
+        // Si es coordinador, guardar lista de campuses y seleccionar el primero
+        if (info.campuses && info.campuses.length > 0) {
+          setCampusList(info.campuses);
+          setSelectedCampusId(info.campuses[0].id);
+        }
       } catch {
         setAccess({ has_access: false, role: '', scope: '' });
       } finally {
@@ -115,6 +126,7 @@ export default function VmSchedulingPage() {
   // Load week slots sequentially to avoid connection exhaustion
   const loadWeekSlots = useCallback(async () => {
     if (!campusId && !isAdminOrCoord) return;
+    if (isCoordinator && !campusId) return; // Esperar selección de campus
     const targetCampusId = campusId || 1;
     const days = getWeekDays(currentDate);
     setSlotsLoading(true);
@@ -132,7 +144,7 @@ export default function VmSchedulingPage() {
       setSlotsLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [campusId, weekKey, isAdminOrCoord]);
+  }, [campusId, weekKey, isAdminOrCoord, isCoordinator]);
 
   // Load my sessions
   const loadMySessions = useCallback(async () => {
@@ -160,9 +172,9 @@ export default function VmSchedulingPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  // Book slot
+  // Book slot (only for non-read-only users)
   const handleBook = async () => {
-    if (!bookingSlot) return;
+    if (!bookingSlot || isReadOnly) return;
     setBookingLoading(true);
     setBookingError('');
     try {
@@ -184,9 +196,9 @@ export default function VmSchedulingPage() {
     }
   };
 
-  // Cancel session
+  // Cancel session (only for non-read-only users)
   const handleCancel = async () => {
-    if (!cancelSession) return;
+    if (!cancelSession || isReadOnly) return;
     setCancelLoading(true);
     try {
       await cancelVmSession(cancelSession.id, cancelReason);
@@ -270,46 +282,92 @@ export default function VmSchedulingPage() {
             {/* Título y descripción */}
             <div className="flex items-center fluid-gap-4">
               <div className="fluid-p-3 bg-white/15 rounded-fluid-2xl backdrop-blur-sm border border-white/10">
-                <Monitor className="fluid-icon-xl text-white" />
+                {isReadOnly ? <Eye className="fluid-icon-xl text-white" /> : <Monitor className="fluid-icon-xl text-white" />}
               </div>
               <div>
-                <h1 className="fluid-text-2xl font-bold tracking-tight">Calendario de Sesiones</h1>
+                <h1 className="fluid-text-2xl font-bold tracking-tight">
+                  {isReadOnly ? 'Sesiones Agendadas' : 'Calendario de Sesiones'}
+                </h1>
                 <p className="fluid-text-sm text-white/70 fluid-mt-1">
-                  Agenda tus sesiones de práctica. Solo una sesión por hora y sin empalmes.
+                  {isReadOnly
+                    ? 'Vista de todas las sesiones agendadas en tus planteles.'
+                    : 'Agenda tus sesiones de práctica. Solo una sesión por hora y sin empalmes.'}
                 </p>
               </div>
             </div>
 
             {/* Leyenda — alineada a la derecha, compacta */}
             <div className="flex items-center fluid-gap-3 bg-white/10 rounded-fluid-xl fluid-px-4 fluid-py-2.5 backdrop-blur-sm border border-white/10 flex-shrink-0">
-              <div className="flex items-center fluid-gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-sm bg-blue-300/80 border border-blue-200/40"></div>
-                <span className="fluid-text-xs text-white/80">Disponible</span>
-              </div>
-              <div className="w-px h-3 bg-white/20"></div>
-              <div className="flex items-center fluid-gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-sm bg-green-400"></div>
-                <span className="fluid-text-xs text-white/80">Tu sesión</span>
-              </div>
-              <div className="w-px h-3 bg-white/20"></div>
-              <div className="flex items-center fluid-gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-sm bg-red-300/80 border border-red-200/40"></div>
-                <span className="fluid-text-xs text-white/80">Ocupado</span>
-              </div>
-              <div className="w-px h-3 bg-white/20"></div>
-              <div className="flex items-center fluid-gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-sm bg-white/20 border border-white/20"></div>
-                <span className="fluid-text-xs text-white/80">Pasado</span>
-              </div>
+              {isReadOnly ? (
+                <>
+                  <div className="flex items-center fluid-gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-sm bg-green-300/80 border border-green-200/40"></div>
+                    <span className="fluid-text-xs text-white/80">Disponible</span>
+                  </div>
+                  <div className="w-px h-3 bg-white/20"></div>
+                  <div className="flex items-center fluid-gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-sm bg-purple-400"></div>
+                    <span className="fluid-text-xs text-white/80">Ocupado</span>
+                  </div>
+                  <div className="w-px h-3 bg-white/20"></div>
+                  <div className="flex items-center fluid-gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-sm bg-white/20 border border-white/20"></div>
+                    <span className="fluid-text-xs text-white/80">Pasado</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center fluid-gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-sm bg-blue-300/80 border border-blue-200/40"></div>
+                    <span className="fluid-text-xs text-white/80">Disponible</span>
+                  </div>
+                  <div className="w-px h-3 bg-white/20"></div>
+                  <div className="flex items-center fluid-gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-sm bg-green-400"></div>
+                    <span className="fluid-text-xs text-white/80">Tu sesión</span>
+                  </div>
+                  <div className="w-px h-3 bg-white/20"></div>
+                  <div className="flex items-center fluid-gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-sm bg-red-300/80 border border-red-200/40"></div>
+                    <span className="fluid-text-xs text-white/80">Ocupado</span>
+                  </div>
+                  <div className="w-px h-3 bg-white/20"></div>
+                  <div className="flex items-center fluid-gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-sm bg-white/20 border border-white/20"></div>
+                    <span className="fluid-text-xs text-white/80">Pasado</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
-          {/* Fila 2: Stats — separada con línea sutil */}
-          <div className="grid grid-cols-3 fluid-gap-4 fluid-mt-5 fluid-pt-5 border-t border-white/10">
-            <div className="bg-white/10 rounded-fluid-xl fluid-py-3 fluid-px-4 text-center backdrop-blur-sm border border-white/5">
-              <p className="fluid-text-2xl font-bold">{mySessions.length}</p>
-              <p className="fluid-text-xs text-white/60 font-medium">Mis Sesiones</p>
-            </div>
+          {/* Fila 2: Campus selector (coordinators) + Stats */}
+          <div className="fluid-mt-5 fluid-pt-5 border-t border-white/10">
+            {/* Campus selector for coordinators */}
+            {isCoordinator && campusList.length > 0 && (
+              <div className="fluid-mb-4 flex items-center fluid-gap-3">
+                <Building2 className="w-5 h-5 text-white/60" />
+                <select
+                  value={selectedCampusId || ''}
+                  onChange={(e) => setSelectedCampusId(Number(e.target.value))}
+                  className="bg-white/15 text-white border border-white/20 rounded-fluid-lg fluid-px-4 fluid-py-2 fluid-text-sm backdrop-blur-sm focus:ring-2 focus:ring-white/30 focus:outline-none appearance-none cursor-pointer"
+                  style={{ minWidth: '200px' }}
+                >
+                  {campusList.map((c) => (
+                    <option key={c.id} value={c.id} className="text-gray-800 bg-white">
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <span className="fluid-text-xs text-white/50">Plantel</span>
+              </div>
+            )}
+            
+            <div className="grid grid-cols-3 fluid-gap-4">
+              <div className="bg-white/10 rounded-fluid-xl fluid-py-3 fluid-px-4 text-center backdrop-blur-sm border border-white/5">
+                <p className="fluid-text-2xl font-bold">{mySessions.length}</p>
+                <p className="fluid-text-xs text-white/60 font-medium">{isReadOnly ? 'Sesiones' : 'Mis Sesiones'}</p>
+              </div>
             <div className="bg-white/10 rounded-fluid-xl fluid-py-3 fluid-px-4 text-center backdrop-blur-sm border border-white/5">
               <p className="fluid-text-2xl font-bold">{Object.values(weekSlots).reduce((sum, slots) => sum + slots.filter(s => s.available).length, 0)}</p>
               <p className="fluid-text-xs text-white/60 font-medium">Disponibles</p>
@@ -319,6 +377,7 @@ export default function VmSchedulingPage() {
                 {weekDays[0].getDate()}-{weekDays[6].getDate()} {MONTHS_ES[weekDays[0].getMonth()].substring(0, 3)}
               </p>
               <p className="fluid-text-xs text-white/60 font-medium">Semana Actual</p>
+            </div>
             </div>
           </div>
         </div>
@@ -383,7 +442,7 @@ export default function VmSchedulingPage() {
             <div className="fluid-mt-5 border-t border-gray-100 fluid-pt-4">
               <h4 className="fluid-text-xs font-semibold text-gray-500 uppercase fluid-mb-3 flex items-center fluid-gap-1.5">
                 <Clock className="w-3.5 h-3.5" />
-                Mis sesiones
+                {isReadOnly ? 'Sesiones esta semana' : 'Mis sesiones'}
               </h4>
               {mySessions.length === 0 ? (
                 <p className="fluid-text-xs text-gray-400 text-center fluid-py-3">Sin sesiones esta semana</p>
@@ -392,27 +451,34 @@ export default function VmSchedulingPage() {
                   {mySessions.map((session) => (
                     <div
                       key={session.id}
-                      className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg fluid-px-3 fluid-py-2 group"
+                      className={`flex items-center justify-between ${isReadOnly ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'} border rounded-lg fluid-px-3 fluid-py-2 group`}
                     >
                       <div className="min-w-0">
-                        <p className="fluid-text-xs font-bold text-green-800 truncate">
+                        <p className={`fluid-text-xs font-bold ${isReadOnly ? 'text-blue-800' : 'text-green-800'} truncate`}>
                           {session.start_hour_label}
                         </p>
-                        <p className="text-[10px] text-green-600">
+                        <p className={`text-[10px] ${isReadOnly ? 'text-blue-600' : 'text-green-600'}`}>
                           {(() => {
                             const d = new Date(session.session_date + 'T12:00:00');
                             return `${DAYS_SHORT[d.getDay()]} ${d.getDate()}`;
                           })()}
-                          {isAdminOrCoord && session.user_name && ` · ${session.user_name}`}
                         </p>
+                        {(isAdminOrCoord && session.user_name) && (
+                          <p className="text-[10px] text-gray-500 truncate flex items-center fluid-gap-0.5 mt-0.5">
+                            <UserIcon className="w-2.5 h-2.5" />
+                            {session.user_name}
+                          </p>
+                        )}
                       </div>
-                      <button
-                        onClick={() => setCancelSession(session)}
-                        className="text-red-400 hover:text-red-600 p-0.5 opacity-0 group-hover:opacity-100 transition-all"
-                        title="Cancelar"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                      {!isReadOnly && (
+                        <button
+                          onClick={() => setCancelSession(session)}
+                          className="text-red-400 hover:text-red-600 p-0.5 opacity-0 group-hover:opacity-100 transition-all"
+                          title="Cancelar"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -512,8 +578,8 @@ export default function VmSchedulingPage() {
                                 isTodayCol ? 'bg-blue-50/30' : ''
                               }`}
                             >
-                              {isMine ? (
-                                // Mi sesión agendada
+                              {isMine && !isReadOnly ? (
+                                // Mi sesión agendada (solo si puede interactuar)
                                 <button
                                   onClick={() => setCancelSession(mySession!)}
                                   className="absolute inset-0.5 bg-green-500 hover:bg-green-600 rounded-md flex items-center justify-center transition-all group/cell cursor-pointer shadow-sm"
@@ -526,8 +592,8 @@ export default function VmSchedulingPage() {
                                     </span>
                                   </div>
                                 </button>
-                              ) : isAvailable ? (
-                                // Disponible
+                              ) : isAvailable && !isReadOnly ? (
+                                // Disponible — solo para quienes pueden agendar
                                 <button
                                   onClick={() => {
                                     setBookingSlot({ slot: slot!, date: day });
@@ -542,12 +608,31 @@ export default function VmSchedulingPage() {
                                   </span>
                                 </button>
                               ) : isOccupied ? (
-                                // Ocupado por otro
+                                // Ocupado — con detalle para coordinadores/admin
                                 <div
-                                  className="absolute inset-0.5 bg-red-50 border border-red-200 rounded-md flex items-center justify-center"
-                                  title={`Ocupado · ${hour}:00 – ${hour + 1}:00`}
+                                  className="absolute inset-0.5 bg-purple-50 border border-purple-200 rounded-md flex items-center justify-center overflow-hidden"
+                                  title={slot?.occupied_by
+                                    ? `${slot.occupied_by.user_name}${slot.occupied_by.group_name ? ` · ${slot.occupied_by.group_name}` : ''} · ${hour}:00 – ${hour + 1}:00`
+                                    : `Ocupado · ${hour}:00 – ${hour + 1}:00`}
                                 >
-                                  <div className="w-2 h-2 bg-red-300 rounded-full"></div>
+                                  {slot?.occupied_by ? (
+                                    <div className="text-center px-1">
+                                      <UserIcon className="w-3 h-3 text-purple-500 mx-auto" />
+                                      <span className="text-[8px] text-purple-700 font-medium block truncate leading-tight mt-0.5" style={{ maxWidth: '80px' }}>
+                                        {slot.occupied_by.user_name.split(' ').slice(0, 2).join(' ')}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div className="w-2 h-2 bg-purple-300 rounded-full"></div>
+                                  )}
+                                </div>
+                              ) : isAvailable && isReadOnly ? (
+                                // Disponible en modo lectura — solo visual sin interacción
+                                <div
+                                  className="absolute inset-0.5 bg-green-50/50 border border-green-100 rounded-md flex items-center justify-center"
+                                  title={`Disponible · ${hour}:00 – ${hour + 1}:00`}
+                                >
+                                  <div className="w-1.5 h-1.5 bg-green-300 rounded-full"></div>
                                 </div>
                               ) : isPast ? (
                                 // Hora pasada
@@ -568,8 +653,8 @@ export default function VmSchedulingPage() {
         </div>
       </div>
 
-      {/* Modal: Confirmar Reserva */}
-      {bookingSlot && (
+      {/* Modal: Confirmar Reserva (solo para usuarios que pueden agendar) */}
+      {bookingSlot && !isReadOnly && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4">
           <div className="bg-white rounded-fluid-2xl shadow-2xl fluid-p-6 max-w-md w-full animate-fadeSlideIn">
             <div className="flex items-center justify-between fluid-mb-4">
@@ -629,8 +714,8 @@ export default function VmSchedulingPage() {
         </div>
       )}
 
-      {/* Modal: Cancelar Sesión */}
-      {cancelSession && (
+      {/* Modal: Cancelar Sesión (solo para usuarios que pueden cancelar) */}
+      {cancelSession && !isReadOnly && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4">
           <div className="bg-white rounded-fluid-2xl shadow-2xl fluid-p-6 max-w-md w-full animate-fadeSlideIn">
             <div className="flex items-center justify-between fluid-mb-4">

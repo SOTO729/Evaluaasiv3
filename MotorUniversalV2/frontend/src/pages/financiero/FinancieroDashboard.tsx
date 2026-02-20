@@ -18,8 +18,10 @@ import {
   TrendingUp,
   ArrowRight,
   RefreshCw,
+  ShieldCheck,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { useAuthStore } from '../../store/authStore';
 import {
   getPendingRequests,
   getBalanceStats,
@@ -31,6 +33,7 @@ import {
 } from '../../services/balanceService';
 
 export default function FinancieroDashboard() {
+  const user = useAuthStore((s) => s.user);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<BalanceStats | null>(null);
@@ -109,6 +112,27 @@ export default function FinancieroDashboard() {
           Actualizar
         </button>
       </div>
+
+      {/* Delegation Banner */}
+      {user?.can_approve_balance && (
+        <div className="mb-6 bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-center gap-3 animate-fade-in-up">
+          <div className="p-2 bg-amber-100 rounded-lg">
+            <ShieldCheck className="w-6 h-6 text-amber-600" />
+          </div>
+          <div className="flex-1">
+            <p className="font-medium text-amber-800">Aprobador Delegado Activo</p>
+            <p className="text-sm text-amber-600">
+              Tiene permisos para aprobar o rechazar solicitudes de saldo. Revise las solicitudes recomendadas.
+            </p>
+          </div>
+          <Link
+            to="/financiero/solicitudes?status=recommended_approve"
+            className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium whitespace-nowrap"
+          >
+            Ver pendientes de aprobación
+          </Link>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

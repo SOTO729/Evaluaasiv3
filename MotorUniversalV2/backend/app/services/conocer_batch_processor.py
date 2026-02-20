@@ -466,6 +466,9 @@ def _process_batch(batch_id: int):
                 db.session.add(log)
                 batch.replaced_files = (batch.replaced_files or 0) + 1
                 
+                # Update ECA tramite_status to 'entregado'
+                _update_eca_tramite_status(user.id, standard.id, 'entregado')
+                
             else:
                 # === CREAR nuevo certificado ===
                 certificate = ConocerCertificate(
@@ -500,6 +503,9 @@ def _process_batch(batch_id: int):
                 )
                 db.session.add(log)
                 batch.matched_files = (batch.matched_files or 0) + 1
+                
+                # Update ECA tramite_status to 'entregado'
+                _update_eca_tramite_status(user.id, standard.id, 'entregado')
             
             batch.processed_files = (batch.processed_files or 0) + 1
             db.session.commit()
@@ -598,3 +604,23 @@ def _check_pending_tramite(user_id: str, competency_standard_id: int) -> bool:
     }).fetchone()
     
     return result is not None
+
+
+def _update_eca_tramite_status(user_id: str, competency_standard_id: int, new_status: str):
+    """
+    Update the tramite_status of an EcmCandidateAssignment when a certificate is matched.
+    """
+    from app import db
+    from app.models.partner import EcmCandidateAssignment
+    
+    try:
+        eca = EcmCandidateAssignment.query.filter_by(
+            user_id=user_id,
+            competency_standard_id=competency_standard_id
+        ).first()
+        if eca:
+            eca.tramite_status = new_status
+            db.session.flush()
+            print(f"[CONOCER-BATCH] ECA {eca.assignment_number} → tramite_status={new_status}")
+    except Exception as e:
+        print(f"[CONOCER-BATCH] Error updating ECA tramite_status: {e}")

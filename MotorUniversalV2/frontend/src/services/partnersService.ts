@@ -112,6 +112,8 @@ export interface Campus {
   enable_candidate_certificates?: boolean;
   require_exam_pin?: boolean;
   daily_exam_pin?: string | null;
+  enable_session_calendar?: boolean;
+  session_scheduling_mode?: 'leader_only' | 'candidate_self';
   license_start_date?: string;
   license_end_date?: string;
   assignment_validity_months?: number;
@@ -638,6 +640,10 @@ export interface CampusConfiguration {
   require_exam_pin: boolean;   // Requerir PIN diario para iniciar examenes
   daily_exam_pin?: string | null;  // PIN de 4 dígitos generado diariamente
   
+  // Calendario de sesiones
+  enable_session_calendar: boolean;  // Habilitar calendario de sesiones
+  session_scheduling_mode: 'leader_only' | 'candidate_self';  // Modo de agendamiento
+  
   // Vigencia
   assignment_validity_months: number;  // Meses de vigencia tras asignación
   
@@ -662,6 +668,8 @@ export interface ConfigureCampusRequest {
   enable_online_payments?: boolean;
   enable_candidate_certificates?: boolean;
   require_exam_pin?: boolean;
+  enable_session_calendar?: boolean;
+  session_scheduling_mode?: 'leader_only' | 'candidate_self';
   assignment_validity_months?: number;
   certification_cost?: number;
   retake_cost?: number;
@@ -839,6 +847,8 @@ export interface GroupConfigOverrides {
   enable_online_payments_override?: boolean | null;
   enable_candidate_certificates_override?: boolean | null;
   require_exam_pin_override?: boolean | null;
+  enable_session_calendar_override?: boolean | null;
+  session_scheduling_mode_override?: 'leader_only' | 'candidate_self' | null;
   certification_cost_override?: number | null;
   retake_cost_override?: number | null;
   assignment_validity_months_override?: number | null;
@@ -871,6 +881,9 @@ export interface GroupConfigResponse {
     enable_virtual_machines: boolean;
     enable_online_payments: boolean;
     enable_candidate_certificates: boolean;
+    require_exam_pin: boolean;
+    enable_session_calendar: boolean;
+    session_scheduling_mode: 'leader_only' | 'candidate_self';
     certification_cost: number;
     retake_cost: number;
     assignment_validity_months: number;
@@ -887,6 +900,9 @@ export interface GroupConfigResponse {
     enable_virtual_machines: boolean;
     enable_online_payments: boolean;
     enable_candidate_certificates: boolean;
+    require_exam_pin: boolean;
+    enable_session_calendar: boolean;
+    session_scheduling_mode: 'leader_only' | 'candidate_self';
     certification_cost: number;
     retake_cost: number;
     assignment_validity_months: number;
@@ -1368,6 +1384,12 @@ export interface GroupExamAssignment {
   max_attempts?: number;
   max_disconnections?: number;
   exam_content_type?: ExamContentType;
+  exam_questions_count?: number;
+  exam_exercises_count?: number;
+  simulator_questions_count?: number;
+  simulator_exercises_count?: number;
+  security_pin?: string | null;
+  require_security_pin?: boolean;
   // Vigencia
   validity_months?: number;
   expires_at?: string;
@@ -1403,6 +1425,8 @@ export interface GroupExamAssignment {
     id: number;
     user_id: string;
     assigned_at: string;
+    assignment_number?: string | null;
+    ecm_assignment_id?: number | null;
     user?: {
       id: string;
       email: string;
@@ -1483,6 +1507,35 @@ export async function getGroupExams(groupId: number): Promise<{
   total: number;
 }> {
   const response = await api.get(`/partners/groups/${groupId}/exams`);
+  return response.data;
+}
+
+/** Detalle completo de una asignación de examen a grupo */
+export interface AssignmentDetailResponse {
+  assignment: GroupExamAssignment;
+  assigned_by: { id: number; name: string; first_surname: string; full_name: string; email: string } | null;
+  ecm: { id: number; code: string; name: string; description?: string; logo_url?: string; brand_id?: number; brand_name?: string; brand_logo_url?: string } | null;
+  exam: { id: number; name: string; version?: string; standard?: string; description?: string; duration_minutes: number; passing_score: number; is_published: boolean; total_questions?: number; total_exercises?: number } | null;
+  campus_config: {
+    id: number; name: string; code: string; office_version: string;
+    enable_tier_basic: boolean; enable_tier_standard: boolean; enable_tier_advanced: boolean;
+    enable_digital_badge: boolean; enable_partial_evaluations: boolean; enable_unscheduled_partials: boolean;
+    enable_virtual_machines: boolean; enable_online_payments: boolean; enable_candidate_certificates: boolean;
+    require_exam_pin: boolean; enable_session_calendar: boolean; session_scheduling_mode: string;
+    certification_cost: number; retake_cost: number; max_retakes: number; assignment_validity_months: number;
+  };
+  group: {
+    id: number; name: string; code: string; member_count: number;
+    use_custom_config: boolean; config: Record<string, any>; effective_config: Record<string, any>;
+  };
+  members_summary: { total: number; assignment_type: string };
+  ecm_stats: { total_assignments?: number; expired_count?: number; active_count?: number; total_retakes?: number };
+  results_summary: { total_results: number; passed: number; failed: number; avg_score: number | null; pass_rate: number | null };
+  has_custom_materials: boolean;
+}
+
+export async function getGroupExamDetail(groupId: number, examId: number): Promise<AssignmentDetailResponse> {
+  const response = await api.get(`/partners/groups/${groupId}/exams/${examId}/detail`);
   return response.data;
 }
 
@@ -2905,6 +2958,7 @@ export interface EcmAssignmentDetail {
   passing_score: number | null;
   certificate_types: string[];
   group_exam_id?: number;
+  ecm_assignment_id?: number | null;
   vigencia?: {
     validity_months: number;
     expires_at: string;
@@ -3011,6 +3065,120 @@ export async function exportEcmAssignmentsExcel(ecmId: number, params?: {
   link.click();
   link.remove();
   window.URL.revokeObjectURL(url);
+}
+
+/**
+ * Detalle individual de asignación por candidato
+ */
+export interface CandidateAssignmentDetailResponse {
+  assignment: {
+    id: number;
+    assignment_number: string;
+    assignment_source: string;
+    validity_months: number | null;
+    expires_at: string | null;
+    extended_months: number;
+    is_expired: boolean;
+    assigned_at: string | null;
+    unit_cost: number;
+  };
+  user: {
+    id: string;
+    name: string;
+    full_name: string;
+    email: string;
+    curp: string | null;
+    role: string;
+    username: string;
+  };
+  ecm: {
+    id: number;
+    code: string;
+    name: string;
+    sector: string | null;
+    level: number | null;
+    certifying_body: string | null;
+    logo_url: string | null;
+  } | null;
+  exam: {
+    id: number;
+    name: string;
+    version: string | null;
+    duration_minutes: number;
+    passing_score: number;
+    description: string | null;
+    total_questions: number | null;
+  } | null;
+  group_exam: {
+    id: number;
+    assignment_type: string;
+    max_attempts: number;
+    time_limit_minutes: number | null;
+    passing_score: number | null;
+    content_type: string | null;
+    assigned_at: string | null;
+    max_retakes: number;
+    validity_months: number | null;
+  } | null;
+  group: {
+    id: number;
+    name: string;
+    code: string | null;
+  } | null;
+  campus: {
+    id: number;
+    name: string;
+    state_name: string | null;
+  } | null;
+  partner: {
+    id: number;
+    name: string;
+  } | null;
+  assigned_by: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+  results: Array<{
+    id: string;
+    score: number | null;
+    status: number;
+    result: number;
+    start_date: string | null;
+    end_date: string | null;
+    duration_seconds: number | null;
+    certificate_code: string | null;
+    certificate_url: string | null;
+    report_url: string | null;
+    created_at: string | null;
+  }>;
+  retakes: Array<{
+    id: number;
+    cost: number;
+    status: string;
+    result_id: string | null;
+    applied_at: string | null;
+    used_at: string | null;
+    applied_by: { id: string; name: string } | null;
+  }>;
+  material_progress: {
+    total: number;
+    completed: number;
+    percentage: number;
+  } | null;
+  materials_detail: Array<{
+    id: number;
+    name: string;
+    topics_total: number;
+    topics_completed: number;
+    percentage: number;
+  }>;
+  certificate_types: string[];
+}
+
+export async function getCandidateAssignmentDetail(ecaId: number): Promise<CandidateAssignmentDetailResponse> {
+  const response = await api.get(`/partners/ecm-assignments/candidate/${ecaId}`);
+  return response.data;
 }
 
 /**
@@ -3182,12 +3350,13 @@ export interface ConocerTramiteCandidate {
   conocer_cert_number: string | null;
   conocer_cert_status: string | null;
   conocer_issue_date: string | null;
-  tramite_status: 'pendiente' | 'certificado';
+  tramite_status: 'pendiente' | 'en_tramite' | 'entregado' | 'certificado';
 }
 
 export interface ConocerTramiteSummary {
   total_candidates: number;
   pending: number;
+  en_tramite: number;
   with_certificate: number;
   total_ecms: number;
   total_groups: number;
@@ -3214,7 +3383,7 @@ export interface ConocerTramitesParams {
   ecm_id?: number;
   sort_by?: string;
   sort_dir?: string;
-  conocer_status?: 'all' | 'pending' | 'has_certificate';
+  conocer_status?: 'all' | 'pending' | 'en_tramite' | 'has_certificate' | 'entregado';
 }
 
 /**
@@ -3237,7 +3406,7 @@ export async function exportConocerTramitesExcel(params?: ConocerTramitesParams 
   const link = document.createElement('a');
   link.href = url;
   const contentDisposition = response.headers['content-disposition'];
-  let filename = 'tramites_conocer.xlsx';
+  let filename = 'validos_renapo.xlsx';
   if (contentDisposition) {
     const match = contentDisposition.match(/filename=(.+)/);
     if (match) filename = match[1].replace(/"/g, '');
@@ -3250,6 +3419,69 @@ export async function exportConocerTramitesExcel(params?: ConocerTramitesParams 
 }
 
 // ============== CARGA MASIVA CERTIFICADOS CONOCER ==============
+
+// ============== CONOCER EMAIL CONTACTS ==============
+
+export interface ConocerEmailContact {
+  id: number;
+  name: string;
+  email: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by_id: string | null;
+  created_by_name: string | null;
+}
+
+export interface ConocerSolicitudLog {
+  id: number;
+  sent_at: string;
+  sent_by_id: string | null;
+  sent_by_name: string | null;
+  recipients: string[];
+  total_certificates: number;
+  ecm_summary: { code: string; count: number }[];
+  attachment_names: string;
+  status: string;
+  error_message: string | null;
+}
+
+export async function getConocerContacts(): Promise<{ contacts: ConocerEmailContact[] }> {
+  const response = await api.get('/partners/conocer-contacts');
+  return response.data;
+}
+
+export async function createConocerContact(data: { name: string; email: string; is_active?: boolean }): Promise<{ contact: ConocerEmailContact }> {
+  const response = await api.post('/partners/conocer-contacts', data);
+  return response.data;
+}
+
+export async function updateConocerContact(id: number, data: Partial<{ name: string; email: string; is_active: boolean }>): Promise<{ contact: ConocerEmailContact }> {
+  const response = await api.put(`/partners/conocer-contacts/${id}`, data);
+  return response.data;
+}
+
+export async function deleteConocerContact(id: number): Promise<void> {
+  await api.delete(`/partners/conocer-contacts/${id}`);
+}
+
+export async function sendConocerSolicitud(): Promise<{
+  message: string;
+  total_certificates: number;
+  ecm_summary: { code: string; count: number }[];
+  recipients: string[];
+  solicitud_id: number;
+}> {
+  const response = await api.post('/partners/conocer-tramites/send-solicitud');
+  return response.data;
+}
+
+export async function getConocerSolicitudLogs(): Promise<{ logs: ConocerSolicitudLog[] }> {
+  const response = await api.get('/partners/conocer-solicitud-logs');
+  return response.data;
+}
+
+// ============== CARGA MASIVA CERTIFICADOS CONOCER (UPLOAD) ==============
 
 export interface ConocerUploadBatch {
   id: number;

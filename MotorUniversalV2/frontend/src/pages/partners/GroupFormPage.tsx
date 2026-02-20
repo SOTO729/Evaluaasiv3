@@ -86,6 +86,8 @@ export default function GroupFormPage() {
     enable_online_payments_override: null as boolean | null,
     enable_candidate_certificates_override: null as boolean | null,
     require_exam_pin_override: null as boolean | null,
+    enable_session_calendar_override: null as boolean | null,
+    session_scheduling_mode_override: null as 'leader_only' | 'candidate_self' | null,
     certification_cost_override: null as number | null,
     retake_cost_override: null as number | null,
     max_retakes_override: null as number | null,
@@ -181,6 +183,8 @@ export default function GroupFormPage() {
         enable_online_payments_override: config.group_overrides.enable_online_payments_override ?? null,
         enable_candidate_certificates_override: config.group_overrides.enable_candidate_certificates_override ?? null,
         require_exam_pin_override: config.group_overrides.require_exam_pin_override ?? null,
+        enable_session_calendar_override: config.group_overrides.enable_session_calendar_override ?? null,
+        session_scheduling_mode_override: (config.group_overrides.session_scheduling_mode_override as 'leader_only' | 'candidate_self' | null) ?? null,
         certification_cost_override: config.group_overrides.certification_cost_override ?? null,
         retake_cost_override: config.group_overrides.retake_cost_override ?? null,
         max_retakes_override: (config.group_overrides as any).max_retakes_override ?? null,
@@ -706,19 +710,24 @@ export default function GroupFormPage() {
                           )}
                         </div>
                         <p className="fluid-text-xs text-gray-500 fluid-mb-2">
-                          Número máximo de retomas permitidas por candidato.
+                          Número máximo de retomas permitidas por candidato (0 = ilimitado).
                           {(groupConfig?.campus_config as any)?.max_retakes != null && (
-                            <span className="text-purple-600 font-medium"> (Campus: {(groupConfig.campus_config as any).max_retakes})</span>
+                            <span className="text-purple-600 font-medium"> (Campus: {(groupConfig.campus_config as any).max_retakes === 0 ? 'Ilimitado' : (groupConfig.campus_config as any).max_retakes})</span>
                           )}
                         </p>
-                        <input
-                          type="number"
-                          min="1"
-                          max="99"
-                          value={configOverrides.max_retakes_override ?? (groupConfig?.campus_config as any)?.max_retakes ?? 1}
+                        <select
+                          value={configOverrides.max_retakes_override ?? (groupConfig?.campus_config as any)?.max_retakes ?? 0}
                           onChange={(e) => handleConfigChange('max_retakes_override', e.target.value ? parseInt(e.target.value, 10) : null)}
                           className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm"
-                        />
+                        >
+                          <option value={0}>Ilimitado</option>
+                          <option value={1}>1</option>
+                          <option value={2}>2</option>
+                          <option value={3}>3</option>
+                          <option value={4}>4</option>
+                          <option value={5}>5</option>
+                          <option value={10}>10</option>
+                        </select>
                       </div>
 
                       {/* Vigencia de Asignaciones */}
@@ -796,10 +805,35 @@ export default function GroupFormPage() {
                         <div className="fluid-space-y-2">
                           <ConfigSelect field="enable_partial_evaluations_override" label="Evaluaciones Parciales" icon={FileText} />
                           <ConfigSelect field="enable_unscheduled_partials_override" label="Parciales Sin Agendar" icon={Calendar} />
-                          <ConfigSelect field="enable_virtual_machines_override" label="Calendario de Sesiones" icon={Calendar} />
+                          <ConfigSelect field="enable_virtual_machines_override" label="Máquinas Virtuales" icon={Monitor} />
                           <ConfigSelect field="enable_online_payments_override" label="Pagos en Línea" icon={CreditCard} />
                           <ConfigSelect field="enable_candidate_certificates_override" label="Certificados Visibles" icon={Award} />
                           <ConfigSelect field="require_exam_pin_override" label="PIN de Examen" icon={Lock} />
+                          <ConfigSelect field="enable_session_calendar_override" label="Calendario de Sesiones" icon={Calendar} />
+                          
+                          {/* Modo de calendario - solo si está habilitado */}
+                          {(configOverrides.enable_session_calendar_override === true || 
+                            (configOverrides.enable_session_calendar_override === null && groupConfig?.campus_config?.enable_session_calendar)) && (
+                            <div className="ml-10 mt-1 p-3 bg-cyan-50 border border-cyan-200 rounded-lg">
+                              <p className="text-xs text-cyan-700 font-medium mb-2">¿Quién agenda sesiones?</p>
+                              <select
+                                value={configOverrides.session_scheduling_mode_override ?? 'inherited'}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setConfigOverrides(prev => ({
+                                    ...prev,
+                                    session_scheduling_mode_override: val === 'inherited' ? null : val as 'leader_only' | 'candidate_self'
+                                  }));
+                                  setConfigChanged(true);
+                                }}
+                                className="w-full px-3 py-2 border border-cyan-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 bg-white"
+                              >
+                                <option value="inherited">Heredado ({groupConfig?.campus_config?.session_scheduling_mode === 'candidate_self' ? 'Candidato agenda' : 'Solo líder'})</option>
+                                <option value="leader_only">Solo el líder agenda</option>
+                                <option value="candidate_self">El candidato agenda</option>
+                              </select>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
