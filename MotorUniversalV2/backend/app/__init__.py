@@ -44,10 +44,9 @@ def create_app(config_name='development'):
     CORS(app, 
          origins=app.config['CORS_ORIGINS'],
          supports_credentials=app.config['CORS_SUPPORTS_CREDENTIALS'],
-         allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control'],
+         allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
          methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-         expose_headers=['Content-Type', 'Authorization'],
-         max_age=86400)
+         expose_headers=['Content-Type', 'Authorization'])
     
     # Registrar blueprints con logging
     print("[INIT] Importando blueprints...")
@@ -87,26 +86,12 @@ def create_app(config_name='development'):
     except Exception as e:
         print(f"[INIT] ❌ Error importando partners_bp: {e}")
         raise
-    
+
     try:
-        from app.routes.verify import bp as verify_bp
-        print("[INIT] ✅ verify_bp importado")
+        from app.routes.support import bp as support_bp
+        print("[INIT] ✅ support_bp importado")
     except Exception as e:
-        print(f"[INIT] ❌ Error importando verify_bp: {e}")
-        raise
-    
-    try:
-        from app.routes.balance import bp as balance_bp
-        print("[INIT] ✅ balance_bp importado")
-    except Exception as e:
-        print(f"[INIT] ❌ Error importando balance_bp: {e}")
-        raise
-    
-    try:
-        from app.routes.activity import bp as activity_bp
-        print("[INIT] ✅ activity_bp importado")
-    except Exception as e:
-        print(f"[INIT] ❌ Error importando activity_bp: {e}")
+        print(f"[INIT] ❌ Error importando support_bp: {e}")
         raise
     
     print("[INIT] Registrando blueprints...")
@@ -132,22 +117,8 @@ def create_app(config_name='development'):
     print("[INIT] ✅ standards registrado")
     app.register_blueprint(partners_bp, url_prefix='/api/partners')
     print("[INIT] ✅ partners registrado")
-    app.register_blueprint(verify_bp, url_prefix='/api/verify')
-    print("[INIT] ✅ verify registrado (rutas públicas)")
-    app.register_blueprint(balance_bp, url_prefix='/api/balance')
-    print("[INIT] ✅ balance registrado (saldos y solicitudes)")
-    app.register_blueprint(activity_bp, url_prefix='/api/activity')
-    print("[INIT] ✅ activity registrado (logs de actividad)")
-    
-    try:
-        from app.routes.vm_sessions import bp as vm_sessions_bp
-        print("[INIT] ✅ vm_sessions_bp importado")
-    except Exception as e:
-        print(f"[INIT] ❌ Error importando vm_sessions_bp: {e}")
-        raise
-    
-    app.register_blueprint(vm_sessions_bp, url_prefix='/api/vm-sessions')
-    print("[INIT] ✅ vm-sessions registrado (máquinas virtuales)")
+    app.register_blueprint(support_bp)
+    print("[INIT] ✅ support registrado")
     
     # Importar y registrar user_management
     from app.routes.user_management import bp as user_management_bp
@@ -158,15 +129,8 @@ def create_app(config_name='development'):
     
     # Verificar y agregar columna label_style si no existe
     with app.app_context():
+        ensure_sqlite_schema(app)
         ensure_label_style_column(app)
-    
-    # Initialize CONOCER weekly scheduler
-    try:
-        from app.services.conocer_scheduler import init_scheduler
-        init_scheduler(app)
-        print("[INIT] ✅ CONOCER scheduler initialized")
-    except Exception as e:
-        print(f"[INIT] ⚠️ CONOCER scheduler failed to initialize: {e}")
     
     # Manejadores de errores
     register_error_handlers(app)
@@ -188,27 +152,6 @@ def create_app(config_name='development'):
             'Answer': Answer,
             'Exercise': Exercise
         }
-    
-    # Security headers
-    @app.after_request
-    def add_security_headers(response):
-        """Agregar headers de seguridad a todas las respuestas"""
-        # Prevenir MIME type sniffing
-        response.headers['X-Content-Type-Options'] = 'nosniff'
-        # Prevenir clickjacking
-        response.headers['X-Frame-Options'] = 'DENY'
-        # Prevenir XSS (legacy, pero útil para navegadores antiguos)
-        response.headers['X-XSS-Protection'] = '1; mode=block'
-        # Forzar HTTPS (solo en producción)
-        if not app.debug:
-            response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-        # Referrer policy
-        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-        # Permissions policy (deshabilitar APIs peligrosas)
-        response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
-        return response
-    
-    print("[INIT] ✅ Security headers configurados")
     
     return app
 
@@ -260,391 +203,72 @@ def register_jwt_callbacks(app):
 
 def ensure_label_style_column(app):
     """Verificar y agregar la columna label_style si no existe"""
-    from sqlalchemy import text, inspect
-    
-    # Detectar tipo de base de datos
-    db_url = str(db.engine.url)
-    is_postgres = 'postgresql' in db_url or 'postgres' in db_url
-    
+    from sqlalchemy import text
     try:
-        # Usar inspector de SQLAlchemy (más portable)
-        inspector = inspect(db.engine)
-        tables = inspector.get_table_names()
+        # Verificar si la columna existe
+        result = db.session.execute(text("""
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_NAME = 'study_interactive_exercise_actions' 
+            AND COLUMN_NAME = 'label_style'
+        """))
+        exists = result.scalar()
         
-        if 'study_interactive_exercise_actions' in tables:
-            existing_columns = [col['name'] for col in inspector.get_columns('study_interactive_exercise_actions')]
-            
-            if 'label_style' not in existing_columns:
-                print("[AUTO-MIGRATE] La columna label_style NO existe. Agregando...")
-                if is_postgres:
-                    db.session.execute(text("""
-                        ALTER TABLE study_interactive_exercise_actions 
-                        ADD COLUMN IF NOT EXISTS label_style VARCHAR(20) DEFAULT 'invisible'
-                    """))
-                else:
-                    db.session.execute(text("""
-                        ALTER TABLE study_interactive_exercise_actions 
-                        ADD label_style VARCHAR(20) DEFAULT 'invisible'
-                    """))
-                db.session.commit()
-                print("[AUTO-MIGRATE] Columna label_style agregada exitosamente")
-            else:
-                print("[AUTO-MIGRATE] Columna label_style ya existe")
+        if exists == 0:
+            print("[AUTO-MIGRATE] La columna label_style NO existe. Agregando...")
+            db.session.execute(text("""
+                ALTER TABLE study_interactive_exercise_actions 
+                ADD label_style VARCHAR(20) DEFAULT 'invisible'
+            """))
+            db.session.commit()
+            print("[AUTO-MIGRATE] Columna label_style agregada exitosamente")
+        else:
+            print("[AUTO-MIGRATE] Columna label_style ya existe")
     except Exception as e:
         db.session.rollback()
         print(f"[AUTO-MIGRATE] Error verificando/agregando label_style: {e}")
     
     # Verificar y agregar columna pdf_status en results
     try:
-        inspector = inspect(db.engine)
-        tables = inspector.get_table_names()
+        result = db.session.execute(text("""
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_NAME = 'results' 
+            AND COLUMN_NAME = 'pdf_status'
+        """))
+        exists = result.scalar()
         
-        if 'results' in tables:
-            existing_columns = [col['name'] for col in inspector.get_columns('results')]
-            
-            if 'pdf_status' not in existing_columns:
-                print("[AUTO-MIGRATE] La columna pdf_status NO existe en results. Agregando...")
-                if is_postgres:
-                    db.session.execute(text("""
-                        ALTER TABLE results 
-                        ADD COLUMN IF NOT EXISTS pdf_status VARCHAR(50) DEFAULT 'pending'
-                    """))
-                else:
-                    db.session.execute(text("""
-                        ALTER TABLE results 
-                        ADD pdf_status VARCHAR(50) DEFAULT 'pending'
-                    """))
-                db.session.commit()
-                print("[AUTO-MIGRATE] Columna pdf_status agregada exitosamente a results")
-            else:
-                print("[AUTO-MIGRATE] Columna pdf_status ya existe en results")
+        if exists == 0:
+            print("[AUTO-MIGRATE] La columna pdf_status NO existe en results. Agregando...")
+            db.session.execute(text("""
+                ALTER TABLE results 
+                ADD pdf_status VARCHAR(50) DEFAULT 'pending'
+            """))
+            db.session.commit()
+            print("[AUTO-MIGRATE] Columna pdf_status agregada exitosamente a results")
+        else:
+            print("[AUTO-MIGRATE] Columna pdf_status ya existe en results")
     except Exception as e:
         db.session.rollback()
         print(f"[AUTO-MIGRATE] Error verificando/agregando pdf_status: {e}")
-    
-    # Verificar y crear tabla school_cycles
-    _ensure_school_cycles_table()
-    
-    # Verificar y agregar columna school_cycle_id en candidate_groups
-    _ensure_school_cycle_id_column()
-    
-    # Verificar y agregar columnas para activación de planteles
-    _ensure_campus_activation_columns()
-    
-    # Verificar y agregar columna eduit_certificate_code en results
-    _ensure_eduit_certificate_code_column()
-    
-    # Verificar y crear tabla campus_competency_standards
-    _ensure_campus_competency_standards_table()
-    
-    # Verificar y crear tabla brands + brand_id en competency_standards
-    _ensure_brands_table()
-    
-    # Verificar y agregar columna logo_url en competency_standards
-    _ensure_competency_standard_logo_column()
-    
-    # Hacer email nullable para candidatos sin email
-    _ensure_email_nullable()
-    
-    # Agregar columna attachments a balance_requests
-    _ensure_balance_attachments_column()
-    
-    # Verificar y crear tabla ecm_candidate_assignments
-    _ensure_ecm_candidate_assignments_table()
-    
-    # Agregar columnas de config de asignación por defecto a exams
-    _ensure_exam_default_config_columns()
-
-    # Crear tabla certificate_code_history para QR persistentes
-    _ensure_certificate_code_history_table()
 
 
-def _ensure_balance_attachments_column():
-    """Agregar columna attachments a balance_requests"""
-    from app.auto_migrate import check_and_add_balance_attachments_column
-    
+def ensure_sqlite_schema(app):
+    """Crear tablas automáticamente en SQLite local si no existen."""
+    from sqlalchemy import inspect
+
     try:
-        print("[AUTO-MIGRATE] Ejecutando migración de attachments en balance_requests...")
-        check_and_add_balance_attachments_column()
-    except Exception as e:
-        print(f"[AUTO-MIGRATE] Error en migración de attachments: {e}")
-
-
-def _ensure_exam_default_config_columns():
-    """Agregar columnas de configuración de asignación por defecto a exams"""
-    from app.auto_migrate import check_and_add_exam_default_config_columns
-    
-    try:
-        print("[AUTO-MIGRATE] Ejecutando migración de config de asignación en exams...")
-        check_and_add_exam_default_config_columns()
-    except Exception as e:
-        print(f"[AUTO-MIGRATE] Error en migración de config de asignación: {e}")
-
-
-def _ensure_email_nullable():
-    """Hacer email nullable en users para permitir candidatos sin email"""
-    from app.auto_migrate import check_and_make_email_nullable
-    
-    try:
-        print("[AUTO-MIGRATE] Ejecutando migración de email nullable...")
-        check_and_make_email_nullable()
-    except Exception as e:
-        print(f"[AUTO-MIGRATE] Error en migración de email nullable: {e}")
-
-
-def _ensure_campus_competency_standards_table():
-    """Verificar y crear tabla campus_competency_standards"""
-    from app.auto_migrate import check_and_create_campus_competency_standards_table
-    
-    try:
-        print("[AUTO-MIGRATE] Ejecutando migración de campus_competency_standards...")
-        check_and_create_campus_competency_standards_table()
-    except Exception as e:
-        print(f"[AUTO-MIGRATE] Error en migración de campus_competency_standards: {e}")
-
-
-def _ensure_brands_table():
-    """Verificar y crear tabla brands + brand_id en competency_standards"""
-    from app.auto_migrate import check_and_create_brands_table
-    
-    try:
-        print("[AUTO-MIGRATE] Ejecutando migración de brands...")
-        check_and_create_brands_table()
-    except Exception as e:
-        print(f"[AUTO-MIGRATE] Error en migración de brands: {e}")
-
-
-def _ensure_competency_standard_logo_column():
-    """Verificar y agregar columna logo_url en competency_standards"""
-    from app.auto_migrate import check_and_add_competency_standard_logo_column
-    
-    try:
-        print("[AUTO-MIGRATE] Ejecutando migración de logo_url (competency_standards)...")
-        check_and_add_competency_standard_logo_column()
-    except Exception as e:
-        print(f"[AUTO-MIGRATE] Error en migración de logo_url: {e}")
-
-
-def _ensure_eduit_certificate_code_column():
-    """Verificar y agregar columna eduit_certificate_code en results"""
-    from app.auto_migrate import check_and_add_eduit_certificate_code
-    
-    try:
-        print("[AUTO-MIGRATE] Ejecutando migración de eduit_certificate_code...")
-        check_and_add_eduit_certificate_code()
-    except Exception as e:
-        print(f"[AUTO-MIGRATE] Error en migración de eduit_certificate_code: {e}")
-
-
-def _ensure_campus_activation_columns():
-    """Verificar y agregar columnas para activación de planteles y responsables"""
-    from sqlalchemy import text, inspect
-    from app.auto_migrate import check_and_add_campus_activation_columns
-    
-    try:
-        print("[AUTO-MIGRATE] Ejecutando migración de activación de planteles...")
-        check_and_add_campus_activation_columns()
-    except Exception as e:
-        print(f"[AUTO-MIGRATE] Error en migración de activación de planteles: {e}")
-
-
-def _ensure_school_cycles_table():
-    """Verificar y crear tabla school_cycles si no existe (PostgreSQL y SQL Server compatible)"""
-    from sqlalchemy import text, inspect
-    
-    # Detectar tipo de base de datos
-    db_url = str(db.engine.url)
-    is_postgres = 'postgresql' in db_url or 'postgres' in db_url
-    
-    try:
-        print("[AUTO-MIGRATE] Verificando tabla school_cycles...")
-        inspector = inspect(db.engine)
-        tables = inspector.get_table_names()
-        exists = 'school_cycles' in tables
-        print(f"[AUTO-MIGRATE] school_cycles existe: {exists}")
-        
-        if not exists:
-            print(f"[AUTO-MIGRATE] Tabla school_cycles NO existe. Creando para {'PostgreSQL' if is_postgres else 'SQL Server'}...")
-            if is_postgres:
-                db.session.execute(text("""
-                    CREATE TABLE IF NOT EXISTS school_cycles (
-                        id SERIAL PRIMARY KEY,
-                        campus_id INTEGER NOT NULL,
-                        name VARCHAR(100) NOT NULL,
-                        cycle_type VARCHAR(20) NOT NULL DEFAULT 'annual',
-                        start_date DATE NOT NULL,
-                        end_date DATE NOT NULL,
-                        is_active BOOLEAN DEFAULT TRUE,
-                        is_current BOOLEAN DEFAULT FALSE,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        CONSTRAINT FK_school_cycles_campus FOREIGN KEY (campus_id) 
-                            REFERENCES campuses(id) ON DELETE CASCADE
-                    )
-                """))
-            else:
-                db.session.execute(text("""
-                    CREATE TABLE school_cycles (
-                        id INT IDENTITY(1,1) PRIMARY KEY,
-                        campus_id INT NOT NULL,
-                        name NVARCHAR(100) NOT NULL,
-                        cycle_type NVARCHAR(20) NOT NULL DEFAULT 'annual',
-                        start_date DATE NOT NULL,
-                        end_date DATE NOT NULL,
-                        is_active BIT DEFAULT 1,
-                        is_current BIT DEFAULT 0,
-                        created_at DATETIME2 DEFAULT GETDATE(),
-                        updated_at DATETIME2 DEFAULT GETDATE(),
-                        CONSTRAINT FK_school_cycles_campus FOREIGN KEY (campus_id) 
-                            REFERENCES campuses(id) ON DELETE CASCADE
-                    )
-                """))
-            db.session.commit()
-            print("[AUTO-MIGRATE] ✅ Tabla school_cycles creada exitosamente")
-        else:
-            print("[AUTO-MIGRATE] ✅ Tabla school_cycles ya existe")
-    except Exception as e:
-        db.session.rollback()
-        print(f"[AUTO-MIGRATE] ❌ Error creando school_cycles: {e}")
-
-
-def _ensure_school_cycle_id_column():
-    """Verificar y agregar columna school_cycle_id en candidate_groups (PostgreSQL y SQL Server compatible)"""
-    from sqlalchemy import text, inspect
-    
-    # Detectar tipo de base de datos
-    db_url = str(db.engine.url)
-    is_postgres = 'postgresql' in db_url or 'postgres' in db_url
-    
-    try:
-        print("[AUTO-MIGRATE] Verificando columna school_cycle_id en candidate_groups...")
-        inspector = inspect(db.engine)
-        tables = inspector.get_table_names()
-        
-        if 'candidate_groups' not in tables:
-            print("[AUTO-MIGRATE] ⚠️ Tabla candidate_groups no existe, saltando...")
+        if db.engine.dialect.name != 'sqlite':
             return
-            
-        existing_columns = [col['name'] for col in inspector.get_columns('candidate_groups')]
-        exists = 'school_cycle_id' in existing_columns
-        print(f"[AUTO-MIGRATE] school_cycle_id existe: {exists}")
-        
-        if not exists:
-            print("[AUTO-MIGRATE] Columna school_cycle_id NO existe. Agregando...")
-            if is_postgres:
-                db.session.execute(text("""
-                    ALTER TABLE candidate_groups 
-                    ADD COLUMN IF NOT EXISTS school_cycle_id INTEGER NULL
-                """))
-            else:
-                db.session.execute(text("""
-                    ALTER TABLE candidate_groups 
-                    ADD school_cycle_id INT NULL
-                """))
-            db.session.commit()
-            
-            # Agregar constraint FK en paso separado
-            try:
-                if is_postgres:
-                    db.session.execute(text("""
-                        ALTER TABLE candidate_groups
-                        ADD CONSTRAINT FK_candidate_groups_school_cycle 
-                        FOREIGN KEY (school_cycle_id) REFERENCES school_cycles(id)
-                        ON DELETE SET NULL
-                    """))
-                else:
-                    db.session.execute(text("""
-                        ALTER TABLE candidate_groups
-                        ADD CONSTRAINT FK_candidate_groups_school_cycle 
-                        FOREIGN KEY (school_cycle_id) REFERENCES school_cycles(id)
-                        ON DELETE SET NULL
-                    """))
-                db.session.commit()
-                print("[AUTO-MIGRATE] ✅ FK constraint agregada a school_cycle_id")
-            except Exception as fk_err:
-                print(f"[AUTO-MIGRATE] ⚠️ FK constraint no agregada: {fk_err}")
-            
-            print("[AUTO-MIGRATE] ✅ Columna school_cycle_id agregada a candidate_groups")
-        else:
-            print("[AUTO-MIGRATE] ✅ Columna school_cycle_id ya existe en candidate_groups")
+
+        inspector = inspect(db.engine)
+        if 'users' in inspector.get_table_names():
+            return
+
+        print("[INIT] ⚠️  SQLite sin tablas detectado, creando schema...")
+        db.create_all()
+        print("[INIT] ✅ Schema SQLite creado")
     except Exception as e:
         db.session.rollback()
-        print(f"[AUTO-MIGRATE] ❌ Error agregando school_cycle_id: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"[INIT] ❌ Error creando schema SQLite: {e}")
 
 # Force reload at Sat Jan  3 16:25:57 UTC 2026
-# Force deploy Tue Jan 28 03:10:00 UTC 2026
-
-
-def _ensure_ecm_candidate_assignments_table():
-    """Verificar y crear tabla ecm_candidate_assignments para asignaciones permanentes de ECM a candidatos"""
-    from sqlalchemy import text, inspect
-    
-    try:
-        inspector = inspect(db.engine)
-        existing = inspector.get_table_names()
-        
-        if 'ecm_candidate_assignments' in existing:
-            print("[AUTO-MIGRATE] ✅ Tabla ecm_candidate_assignments ya existe")
-            return
-        
-        print("[AUTO-MIGRATE] Creando tabla ecm_candidate_assignments...")
-        
-        db.session.execute(text("""
-            CREATE TABLE ecm_candidate_assignments (
-                id INT IDENTITY(1,1) PRIMARY KEY,
-                assignment_number NVARCHAR(12) NOT NULL,
-                user_id NVARCHAR(36) NOT NULL,
-                competency_standard_id INT NOT NULL,
-                exam_id INT NOT NULL,
-                campus_id INT NULL,
-                group_id INT NULL,
-                group_name NVARCHAR(200) NULL,
-                group_exam_id INT NULL,
-                assigned_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-                assigned_by_id NVARCHAR(36) NULL,
-                assignment_source NVARCHAR(20) NOT NULL DEFAULT 'bulk',
-                
-                CONSTRAINT uq_ecm_assignment_number UNIQUE (assignment_number),
-                CONSTRAINT fk_ecm_assign_user FOREIGN KEY (user_id) REFERENCES users(id),
-                CONSTRAINT fk_ecm_assign_standard FOREIGN KEY (competency_standard_id) REFERENCES competency_standards(id),
-                CONSTRAINT fk_ecm_assign_exam FOREIGN KEY (exam_id) REFERENCES exams(id),
-                CONSTRAINT fk_ecm_assign_campus FOREIGN KEY (campus_id) REFERENCES campuses(id) ON DELETE SET NULL,
-                CONSTRAINT fk_ecm_assign_by FOREIGN KEY (assigned_by_id) REFERENCES users(id)
-            )
-        """))
-        
-        db.session.execute(text("""
-            CREATE INDEX ix_ecm_candidate_user_ecm 
-            ON ecm_candidate_assignments (user_id, competency_standard_id)
-        """))
-        
-        db.session.execute(text("""
-            CREATE INDEX ix_ecm_candidate_assignment_number 
-            ON ecm_candidate_assignments (assignment_number)
-        """))
-        
-        db.session.execute(text("""
-            CREATE INDEX ix_ecm_candidate_campus 
-            ON ecm_candidate_assignments (campus_id)
-        """))
-        
-        db.session.commit()
-        print("[AUTO-MIGRATE] ✅ Tabla ecm_candidate_assignments creada exitosamente")
-    except Exception as e:
-        db.session.rollback()
-        print(f"[AUTO-MIGRATE] ❌ Error creando ecm_candidate_assignments: {e}")
-
-
-def _ensure_certificate_code_history_table():
-    """Crear tabla certificate_code_history para mantener códigos QR anteriores válidos"""
-    from app.auto_migrate import check_and_create_certificate_code_history_table
-
-    try:
-        print("[AUTO-MIGRATE] Ejecutando migración de certificate_code_history...")
-        check_and_create_certificate_code_history_table()
-    except Exception as e:
-        print(f"[AUTO-MIGRATE] Error en migración de certificate_code_history: {e}")
-        import traceback
-        traceback.print_exc()
+# Force deploy Sun Jan  4 21:04:10 UTC 2026
