@@ -54,6 +54,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
   const [showCreated, setShowCreated] = useState(true);
   const [showErrors, setShowErrors] = useState(true);
   const [showSkipped, setShowSkipped] = useState(false);
+  const [showExistingAssigned, setShowExistingAssigned] = useState(true);
   
   // Estado para copiar contraseñas
   const [copiedRow, setCopiedRow] = useState<number | null>(null);
@@ -165,14 +166,17 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
         const uploadResult = await bulkUploadCandidates(file, selectedGroupId ? Number(selectedGroupId) : undefined);
         
         // Actualizar notificación con resultado
-        if (uploadResult.summary.created > 0) {
+        if (uploadResult.summary.created > 0 || uploadResult.summary.existing_assigned > 0) {
           const groupMsg = uploadResult.group_assignment
             ? ` | ${uploadResult.group_assignment.assigned} asignados a ${uploadResult.group_assignment.group_name}`
+            : '';
+          const existingMsg = uploadResult.summary.existing_assigned > 0
+            ? `, ${uploadResult.summary.existing_assigned} existentes asignados al grupo`
             : '';
           updateNotification(notificationId, {
             type: 'success',
             title: 'Carga masiva completada',
-            message: `${uploadResult.summary.created} candidatos creados, ${uploadResult.summary.errors} errores${groupMsg}`,
+            message: `${uploadResult.summary.created} candidatos creados${existingMsg}, ${uploadResult.summary.errors} errores${groupMsg}`,
             dismissible: true,
             duration: 10000,
           });
@@ -213,7 +217,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
         const uploadResult = await bulkUploadCandidates(file, selectedGroupId ? Number(selectedGroupId) : undefined);
         setResult(uploadResult);
         
-        if (uploadResult.summary.created > 0) {
+        if (uploadResult.summary.created > 0 || uploadResult.summary.existing_assigned > 0) {
           onSuccess();
         }
       } catch (err: any) {
@@ -625,7 +629,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
           {result && (
             <div className="space-y-4">
               {/* Resumen */}
-              <div className="grid grid-cols-4 gap-3">
+              <div className={`grid gap-3 ${result.summary.existing_assigned > 0 ? 'grid-cols-5' : 'grid-cols-4'}`}>
                 <div className="p-3 bg-gray-50 rounded-xl text-center">
                   <p className="text-2xl font-bold text-gray-800">{result.summary.total_processed}</p>
                   <p className="text-xs text-gray-500">Procesados</p>
@@ -634,6 +638,12 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                   <p className="text-2xl font-bold text-green-600">{result.summary.created}</p>
                   <p className="text-xs text-green-700">Creados</p>
                 </div>
+                {result.summary.existing_assigned > 0 && (
+                  <div className="p-3 bg-blue-50 rounded-xl text-center">
+                    <p className="text-2xl font-bold text-blue-600">{result.summary.existing_assigned}</p>
+                    <p className="text-xs text-blue-700">Ya existían</p>
+                  </div>
+                )}
                 <div className="p-3 bg-yellow-50 rounded-xl text-center">
                   <p className="text-2xl font-bold text-yellow-600">{result.summary.skipped}</p>
                   <p className="text-xs text-yellow-700">Omitidos</p>
@@ -655,6 +665,16 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                   </div>
                   <p className="text-sm text-purple-700">
                     {result.group_assignment.assigned} candidato(s) asignados exitosamente
+                    {result.group_assignment.assigned_new > 0 && (
+                      <span className="text-green-600 ml-1">
+                        ({result.group_assignment.assigned_new} nuevos)
+                      </span>
+                    )}
+                    {result.group_assignment.assigned_existing > 0 && (
+                      <span className="text-blue-600 ml-1">
+                        ({result.group_assignment.assigned_existing} ya existían)
+                      </span>
+                    )}
                     {result.group_assignment.errors && result.group_assignment.errors.length > 0 && (
                       <span className="text-red-600 ml-2">
                         • {result.group_assignment.errors.length} error(es)
@@ -739,6 +759,55 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                                   <span className="text-gray-400 text-xs">(proporcionada)</span>
                                 )}
                               </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Usuarios existentes asignados al grupo */}
+              {result.details.existing_assigned && result.details.existing_assigned.length > 0 && (
+                <div className="border border-blue-200 rounded-xl overflow-hidden">
+                  <button
+                    onClick={() => setShowExistingAssigned(!showExistingAssigned)}
+                    className="w-full flex items-center justify-between p-4 bg-blue-50 hover:bg-blue-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-blue-600" />
+                      <span className="font-medium text-blue-800">
+                        Ya existían y se asignaron al grupo ({result.details.existing_assigned.length})
+                      </span>
+                    </div>
+                    {showExistingAssigned ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                  </button>
+                  
+                  {showExistingAssigned && (
+                    <div className="max-h-60 overflow-y-auto">
+                      <div className="p-3 bg-blue-50/50 border-b border-blue-100">
+                        <p className="text-xs text-blue-700">
+                          <AlertCircle className="inline h-3 w-3 mr-1" />
+                          Estos candidatos ya tenían cuenta en la plataforma. Se asignaron al grupo seleccionado.
+                        </p>
+                      </div>
+                      <table className="w-full text-sm">
+                        <thead className="bg-blue-50 sticky top-0">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-blue-800">Fila</th>
+                            <th className="px-4 py-2 text-left text-blue-800">Email</th>
+                            <th className="px-4 py-2 text-left text-blue-800">Nombre</th>
+                            <th className="px-4 py-2 text-left text-blue-800">Usuario</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-blue-100">
+                          {result.details.existing_assigned.map((item, idx) => (
+                            <tr key={idx} className="hover:bg-blue-50/50">
+                              <td className="px-4 py-2 text-gray-600">{item.row}</td>
+                              <td className="px-4 py-2 text-gray-800">{item.email || '(sin email)'}</td>
+                              <td className="px-4 py-2 text-gray-800">{item.name}</td>
+                              <td className="px-4 py-2 text-gray-600">{item.username}</td>
                             </tr>
                           ))}
                         </tbody>

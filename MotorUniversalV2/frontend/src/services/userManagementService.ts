@@ -294,6 +294,7 @@ export interface BulkUploadResult {
   summary: {
     total_processed: number;
     created: number;
+    existing_assigned: number;
     errors: number;
     skipped: number;
   };
@@ -304,6 +305,13 @@ export interface BulkUploadResult {
       name: string;
       username: string;
       password: string | null;
+    }>;
+    existing_assigned: Array<{
+      row: number;
+      email: string;
+      name: string;
+      username: string;
+      user_id: string;
     }>;
     errors: Array<{
       row: number;
@@ -321,6 +329,8 @@ export interface BulkUploadResult {
     group_id: number;
     group_name: string;
     assigned: number;
+    assigned_new: number;
+    assigned_existing: number;
     errors: Array<{ username: string; error: string }>;
   };
 }

@@ -1343,6 +1343,7 @@ def bulk_upload_candidates():
             'created': [],
             'errors': [],
             'skipped': [],
+            'existing_assigned': [],  # Usuarios que ya existían y se asignaron al grupo
             'total_processed': 0
         }
         
@@ -1397,12 +1398,34 @@ def bulk_upload_candidates():
                     })
                     continue
                 # Verificar si el email ya existe
-                if User.query.filter_by(email=email).first():
-                    results['skipped'].append({
-                        'row': row_idx,
-                        'email': email,
-                        'reason': 'Email ya registrado'
-                    })
+                existing_user_by_email = User.query.filter_by(email=email).first()
+                if existing_user_by_email:
+                    if target_group:
+                        # Si hay grupo seleccionado, intentar asignar al usuario existente
+                        from app.models.partner import GroupMember as GM_check
+                        already_member = GM_check.query.filter_by(
+                            group_id=target_group.id, user_id=existing_user_by_email.id
+                        ).first()
+                        if already_member:
+                            results['skipped'].append({
+                                'row': row_idx,
+                                'email': email,
+                                'reason': 'Email ya registrado y ya es miembro del grupo'
+                            })
+                        else:
+                            results['existing_assigned'].append({
+                                'row': row_idx,
+                                'email': email,
+                                'name': existing_user_by_email.full_name,
+                                'username': existing_user_by_email.username,
+                                'user_id': existing_user_by_email.id
+                            })
+                    else:
+                        results['skipped'].append({
+                            'row': row_idx,
+                            'email': email,
+                            'reason': 'Email ya registrado'
+                        })
                     continue
             
             # Validar y verificar CURP (opcional - sin CURP no puede recibir certificado CONOCER)
@@ -1415,12 +1438,40 @@ def bulk_upload_candidates():
                         'error': f'CURP inválido: debe tener 18 caracteres (tiene {len(curp)})'
                     })
                     continue
-                if User.query.filter_by(curp=curp).first():
-                    results['skipped'].append({
-                        'row': row_idx,
-                        'email': email or '(sin email)',
-                        'reason': f'CURP {curp} ya registrado'
-                    })
+                existing_user_by_curp = User.query.filter_by(curp=curp).first()
+                if existing_user_by_curp:
+                    if target_group:
+                        # Si hay grupo seleccionado, intentar asignar al usuario existente
+                        from app.models.partner import GroupMember as GM_check2
+                        already_member = GM_check2.query.filter_by(
+                            group_id=target_group.id, user_id=existing_user_by_curp.id
+                        ).first()
+                        # Evitar duplicar si ya fue marcado por email
+                        already_in_existing = any(
+                            ea.get('user_id') == existing_user_by_curp.id 
+                            for ea in results['existing_assigned']
+                        )
+                        if already_member or already_in_existing:
+                            if not already_in_existing:
+                                results['skipped'].append({
+                                    'row': row_idx,
+                                    'email': email or '(sin email)',
+                                    'reason': f'CURP {curp} ya registrado y ya es miembro del grupo'
+                                })
+                        else:
+                            results['existing_assigned'].append({
+                                'row': row_idx,
+                                'email': existing_user_by_curp.email or email or '(sin email)',
+                                'name': existing_user_by_curp.full_name,
+                                'username': existing_user_by_curp.username,
+                                'user_id': existing_user_by_curp.id
+                            })
+                    else:
+                        results['skipped'].append({
+                            'row': row_idx,
+                            'email': email or '(sin email)',
+                            'reason': f'CURP {curp} ya registrado'
+                        })
                     continue
             
             # Normalizar género (ya validado que existe)
@@ -1499,52 +1550,72 @@ def bulk_upload_candidates():
                 import logging
                 logging.getLogger(__name__).error(f'Error enviando welcome emails bulk: {email_err}')
         
-        # Si se especificó un grupo, agregar los candidatos creados como miembros
+        # Si se especificó un grupo, agregar candidatos creados + existentes como miembros
         group_assignment = None
-        if target_group and results['created']:
+        if target_group and (results['created'] or results['existing_assigned']):
             from app.models.partner import GroupMember
-            assigned_count = 0
+            assigned_new_count = 0
+            assigned_existing_count = 0
             assignment_errors = []
             
-            # Obtener IDs de usuarios recién creados
-            created_emails = [c['email'] for c in results['created'] if c.get('email')]
-            created_usernames = [c['username'] for c in results['created']]
+            # 1. Asignar usuarios recién creados
+            if results['created']:
+                created_usernames = [c['username'] for c in results['created']]
+                created_users = User.query.filter(User.username.in_(created_usernames)).all()
+                
+                for user in created_users:
+                    try:
+                        existing = GroupMember.query.filter_by(
+                            group_id=target_group.id, user_id=user.id
+                        ).first()
+                        if not existing:
+                            member = GroupMember(
+                                group_id=target_group.id,
+                                user_id=user.id,
+                                status='active'
+                            )
+                            db.session.add(member)
+                            assigned_new_count += 1
+                    except Exception as e:
+                        assignment_errors.append({'username': user.username, 'error': str(e)})
             
-            # Buscar los usuarios por username (más confiable que email ya que algunos no tienen)
-            created_users = User.query.filter(User.username.in_(created_usernames)).all()
-            
-            for user in created_users:
+            # 2. Asignar usuarios que ya existían
+            for existing_info in results['existing_assigned']:
                 try:
-                    # Verificar que no sea ya miembro
+                    user_id = existing_info['user_id']
                     existing = GroupMember.query.filter_by(
-                        group_id=target_group.id, user_id=user.id
+                        group_id=target_group.id, user_id=user_id
                     ).first()
                     if not existing:
                         member = GroupMember(
                             group_id=target_group.id,
-                            user_id=user.id,
+                            user_id=user_id,
                             status='active'
                         )
                         db.session.add(member)
-                        assigned_count += 1
+                        assigned_existing_count += 1
                 except Exception as e:
-                    assignment_errors.append({'username': user.username, 'error': str(e)})
+                    assignment_errors.append({'username': existing_info.get('username', '?'), 'error': str(e)})
             
-            if assigned_count > 0:
+            total_assigned = assigned_new_count + assigned_existing_count
+            if total_assigned > 0:
                 db.session.commit()
             
             group_assignment = {
                 'group_id': target_group.id,
                 'group_name': target_group.name,
-                'assigned': assigned_count,
+                'assigned': total_assigned,
+                'assigned_new': assigned_new_count,
+                'assigned_existing': assigned_existing_count,
                 'errors': assignment_errors,
             }
         
         response_data = {
-            'message': f'Proceso completado: {len(results["created"])} usuarios creados',
+            'message': f'Proceso completado: {len(results["created"])} usuarios creados, {len(results["existing_assigned"])} existentes asignados al grupo',
             'summary': {
                 'total_processed': results['total_processed'],
                 'created': len(results['created']),
+                'existing_assigned': len(results['existing_assigned']),
                 'errors': len(results['errors']),
                 'skipped': len(results['skipped'])
             },
