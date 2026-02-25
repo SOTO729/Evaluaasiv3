@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { BadgeCheck, Download, ExternalLink, Award } from 'lucide-react';
+import { BadgeCheck, Download, ExternalLink, Award, FileSpreadsheet } from 'lucide-react';
 import CertificateTypePage from './CertificateTypePage';
 import { badgeService, type IssuedBadge } from '../../../services/badgeService';
 
@@ -12,6 +12,27 @@ export default function GroupCertInsigniaPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const [badges, setBadges] = useState<IssuedBadge[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportExcel = async () => {
+    if (!groupId) return;
+    setExporting(true);
+    try {
+      const blob = await badgeService.exportGroupBadgesToExcel(Number(groupId));
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Insignias_grupo_${groupId}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error exporting badges:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     if (groupId) {
@@ -44,6 +65,18 @@ export default function GroupCertInsigniaPage() {
                 <Award className="fluid-icon-sm text-amber-600" />
                 Insignias Emitidas ({badges.length})
               </h3>
+              <button
+                onClick={handleExportExcel}
+                disabled={exporting}
+                className="inline-flex items-center fluid-gap-2 fluid-px-4 py-2 bg-amber-600 text-white rounded-fluid-lg font-medium hover:bg-amber-700 disabled:opacity-50 transition-all fluid-text-xs shadow-sm"
+              >
+                {exporting ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="w-4 h-4" />
+                )}
+                {exporting ? 'Exportando…' : 'Exportar Excel'}
+              </button>
             </div>
             <div className="divide-y divide-gray-100">
               {badges.map(badge => (

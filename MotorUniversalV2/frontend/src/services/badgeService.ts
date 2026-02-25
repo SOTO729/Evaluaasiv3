@@ -160,6 +160,11 @@ export const badgeService = {
     return resp.data
   },
 
+  exportGroupBadgesToExcel: async (groupId: number) => {
+    const resp = await api.get(`/badges/group/${groupId}/export-excel`, { responseType: 'blob' })
+    return resp.data as Blob
+  },
+
   // ── Public / verify ──
 
   verifyBadge: async (code: string) => {

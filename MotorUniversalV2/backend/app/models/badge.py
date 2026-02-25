@@ -114,6 +114,9 @@ class IssuedBadge(db.Model):
             'verify_count': self.verify_count,
             'claimed_at': self.claimed_at.isoformat() if self.claimed_at else None,
             'template': self.template.to_dict() if self.template else None,
+            'template_name': self.template.name if self.template else None,
+            'verify_url': self.verify_url,
+            'credential_url': self.credential_url,
         }
         if include_credential:
             data['credential_json'] = self.credential_json

@@ -490,3 +490,113 @@ def group_badges(group_id):
         result_list.append(d)
 
     return jsonify({'badges': result_list, 'total': len(result_list)})
+
+
+@bp.route('/group/<int:group_id>/export-excel', methods=['GET'])
+@jwt_required()
+def export_group_badges_excel(group_id):
+    """Exportar insignias del grupo a Excel — una fila por insignia"""
+    _require_roles('admin', 'editor', 'coordinator')
+
+    from io import BytesIO
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from flask import send_file
+    from app.models.partner import GroupMember, CandidateGroup
+
+    group = CandidateGroup.query.get_or_404(group_id)
+    member_ids = [m.user_id for m in GroupMember.query.filter_by(group_id=group_id).all()]
+    if not member_ids:
+        return jsonify({'error': 'El grupo no tiene miembros'}), 404
+
+    badges = IssuedBadge.query.filter(
+        IssuedBadge.user_id.in_(member_ids)
+    ).order_by(IssuedBadge.issued_at.desc()).all()
+
+    if not badges:
+        return jsonify({'error': 'No hay insignias emitidas para este grupo'}), 404
+
+    # Build user cache
+    user_map = {}
+    for uid in set(b.user_id for b in badges):
+        u = User.query.get(str(uid))
+        if u:
+            user_map[uid] = u
+
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Insignias'
+
+    header_font = Font(bold=True, color='FFFFFF', size=11)
+    header_fill = PatternFill(start_color='D97706', end_color='D97706', fill_type='solid')  # amber-600
+    header_align = Alignment(horizontal='center', vertical='center')
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+    link_font = Font(color='0563C1', underline='single', size=10)
+
+    headers = [
+        'Nombre Completo', 'Email', 'CURP',
+        'Insignia', 'Código', 'Estado',
+        'Fecha Emisión', 'Fecha Expiración',
+        'URL Verificación'
+    ]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+        cell.border = thin_border
+
+    row_num = 2
+    for b in badges:
+        u = user_map.get(b.user_id)
+        full_name = f"{u.name or ''} {u.first_surname or ''} {u.second_surname or ''}".strip() if u else ''
+        email = u.email if u else ''
+        curp = (u.curp or '') if u else ''
+        tpl_name = b.template.name if b.template else ''
+        status_text = 'Activa' if b.status == 'active' else ('Expirada' if b.status == 'expired' else 'Revocada')
+        issued = b.issued_at.strftime('%Y-%m-%d') if b.issued_at else ''
+        expires = b.expires_at.strftime('%Y-%m-%d') if b.expires_at else 'Sin expiración'
+        verify = b.verify_url
+
+        ws.cell(row=row_num, column=1, value=full_name).border = thin_border
+        ws.cell(row=row_num, column=2, value=email).border = thin_border
+        ws.cell(row=row_num, column=3, value=curp).border = thin_border
+        ws.cell(row=row_num, column=4, value=tpl_name).border = thin_border
+        ws.cell(row=row_num, column=5, value=b.badge_code).border = thin_border
+        c_status = ws.cell(row=row_num, column=6, value=status_text)
+        c_status.border = thin_border
+        if b.status == 'active':
+            c_status.font = Font(color='15803D')  # green-700
+        elif b.status == 'revoked':
+            c_status.font = Font(color='DC2626')  # red-600
+        ws.cell(row=row_num, column=7, value=issued).border = thin_border
+        ws.cell(row=row_num, column=8, value=expires).border = thin_border
+        c_url = ws.cell(row=row_num, column=9, value=verify)
+        c_url.border = thin_border
+        c_url.font = link_font
+        c_url.hyperlink = verify
+        row_num += 1
+
+    # Column widths
+    widths = [35, 30, 22, 30, 16, 14, 16, 16, 55]
+    for i, w in enumerate(widths):
+        ws.column_dimensions[chr(65 + i)].width = w
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    safe_name = group.name.replace(' ', '_').replace('/', '-')[:30]
+    from datetime import datetime
+    filename = f'Insignias_{safe_name}_{datetime.now().strftime("%Y%m%d")}.xlsx'
+
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
