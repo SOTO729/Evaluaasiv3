@@ -218,8 +218,8 @@ export default function BadgeTemplatesPage() {
                 className="h-44 bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center relative cursor-pointer"
                 onClick={() => navigate(`/badges/templates/${t.id}/edit`)}
               >
-                {t.badge_image_url ? (
-                  <img src={t.badge_image_url} alt={t.name} className="h-full w-full object-contain p-5 group-hover:scale-105 transition-transform duration-300" />
+                {(t.display_image_url || t.badge_image_url) ? (
+                  <img src={(t.display_image_url || t.badge_image_url)!} alt={t.name} className="h-full w-full object-contain p-5 group-hover:scale-105 transition-transform duration-300" />
                 ) : (
                   <div className="flex flex-col items-center">
                     <BadgeCheck className="fluid-icon-2xl text-blue-200" />

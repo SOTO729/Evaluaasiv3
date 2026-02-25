@@ -92,7 +92,8 @@ export default function BadgeTemplateFormPage() {
           expiry_months: t.expiry_months,
           is_active: t.is_active,
         })
-        if (t.badge_image_url) setImagePreview(t.badge_image_url)
+        const previewUrl = t.display_image_url || t.badge_image_url
+        if (previewUrl) setImagePreview(previewUrl)
       }).catch(err => {
         console.error(err)
         navigate('/badges/templates')

@@ -39,8 +39,14 @@ class BadgeTemplate(db.Model):
 
     # Relationships
     issued_badges = db.relationship('IssuedBadge', backref='template', lazy='dynamic', cascade='all, delete-orphan')
+    competency_standard = db.relationship('CompetencyStandard', backref='badge_templates', lazy='joined',
+                                          foreign_keys=[competency_standard_id])
 
     def to_dict(self):
+        # Fallback chain for badge display image
+        display_image = (self.badge_image_url
+                         or self.issuer_image_url
+                         or (self.competency_standard.logo_url if self.competency_standard else None))
         return {
             'id': self.id,
             'name': self.name,
@@ -49,6 +55,7 @@ class BadgeTemplate(db.Model):
             'exam_id': self.exam_id,
             'competency_standard_id': self.competency_standard_id,
             'badge_image_url': self.badge_image_url,
+            'display_image_url': display_image,
             'issuer_name': self.issuer_name,
             'issuer_url': self.issuer_url,
             'issuer_image_url': self.issuer_image_url,

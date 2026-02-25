@@ -15,6 +15,7 @@ export interface BadgeTemplate {
   exam_id: number | null
   competency_standard_id: number | null
   badge_image_url: string | null
+  display_image_url: string | null
   badge_image_blob_name: string | null
   issuer_name: string | null
   issuer_url: string | null
