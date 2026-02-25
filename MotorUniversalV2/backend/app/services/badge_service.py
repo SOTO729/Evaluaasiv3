@@ -137,16 +137,13 @@ def generate_qr_code_image(url, size=200):
 
 def bake_badge_image(template, issued_badge, user):
     """
-    Genera imagen de la insignia con QR code embebido.
+    Genera imagen de la insignia.
 
-    Si template tiene badge_image_url, descarga y embebe QR.
-    Si no, genera una imagen procedural con gradiente, nombre y QR.
+    Si template tiene badge_image_url, descarga la imagen.
+    Si no, genera una imagen procedural con gradiente y nombre.
 
     Retorna: BytesIO con PNG
     """
-    verify_url = f"{SWA_BASE}/verify/{issued_badge.badge_code}"
-    qr_img = generate_qr_code_image(verify_url, size=140)
-
     # Intentar descargar imagen de template
     template_img = None
     if template.badge_image_url:
@@ -161,19 +158,11 @@ def bake_badge_image(template, issued_badge, user):
     if template_img:
         # Resize to standard badge size
         template_img = template_img.resize((600, 600), Image.LANCZOS)
-        canvas = Image.new('RGBA', (600, 750), (255, 255, 255, 255))
+        canvas = Image.new('RGBA', (600, 600), (255, 255, 255, 255))
         canvas.paste(template_img, (0, 0), template_img)
-
-        # QR in bottom center
-        qr_x = (600 - 140) // 2
-        qr_y = 600 + 5
-        # White background for QR
-        draw = ImageDraw.Draw(canvas)
-        draw.rectangle([qr_x - 5, qr_y - 5, qr_x + 145, qr_y + 145], fill=(255, 255, 255, 255))
-        canvas.paste(qr_img, (qr_x, qr_y), qr_img)
     else:
         # Procedural badge image
-        canvas = Image.new('RGBA', (600, 750), (255, 255, 255, 255))
+        canvas = Image.new('RGBA', (600, 600), (255, 255, 255, 255))
         draw = ImageDraw.Draw(canvas)
 
         # Gradient background (top area)
@@ -244,17 +233,16 @@ def bake_badge_image(template, issued_badge, user):
         text_w6 = bbox6[2] - bbox6[0]
         draw.text(((600 - text_w6) / 2, 515), code_text, fill=(156, 163, 175, 255), font=code_font)
 
-        # QR at bottom
-        qr_x = (600 - 140) // 2
-        qr_y = 560
-        canvas.paste(qr_img, (qr_x, qr_y), qr_img)
-
-        # Verify text under QR
-        verify_text = "Escanea para verificar"
-        bbox7 = draw.textbbox((0, 0), verify_text, font=code_font)
+        # Verify URL text at bottom
+        verify_text = f"Verificar: {SWA_BASE}/verify/{issued_badge.badge_code}"
+        try:
+            url_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 11)
+        except Exception:
+            url_font = code_font
+        bbox7 = draw.textbbox((0, 0), verify_text, font=url_font)
         text_w7 = bbox7[2] - bbox7[0]
         draw = ImageDraw.Draw(canvas)
-        draw.text(((600 - text_w7) / 2, 705), verify_text, fill=(156, 163, 175, 255), font=code_font)
+        draw.text(((600 - text_w7) / 2, 570), verify_text, fill=(156, 163, 175, 255), font=url_font)
 
     # Convert to PNG bytes
     output = BytesIO()
