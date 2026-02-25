@@ -393,7 +393,7 @@ export default function BadgeTemplateFormPage() {
                     <span className="inline-flex items-center fluid-px-2 fluid-py-0.5 bg-blue-100 text-blue-700 rounded-full fluid-text-2xs font-bold tracking-wide">
                       {selectedStandard.code}
                     </span>
-                    {selectedStandard.validity_years && (
+                    {selectedStandard.validity_years != null && selectedStandard.validity_years > 0 && (
                       <span className="inline-flex items-center fluid-gap-1 fluid-text-2xs text-gray-500">
                         <Clock className="w-3 h-3" /> {selectedStandard.validity_years} año{selectedStandard.validity_years > 1 ? 's' : ''}
                       </span>
@@ -474,7 +474,7 @@ export default function BadgeTemplateFormPage() {
                             </div>
                             <p className="fluid-text-sm text-gray-700 truncate group-hover:text-blue-700">{s.name}</p>
                           </div>
-                          {s.validity_years && (
+                          {s.validity_years != null && s.validity_years > 0 && (
                             <span className="fluid-text-2xs text-gray-400 flex-shrink-0">{s.validity_years}a</span>
                           )}
                         </button>
@@ -751,7 +751,7 @@ export default function BadgeTemplateFormPage() {
                           {form.expiry_months % 12 > 0 && ` y ${form.expiry_months % 12} mes${form.expiry_months % 12 > 1 ? 'es' : ''}`}
                         </p>
                       )}
-                      {selectedStandard?.validity_years && form.expiry_months !== selectedStandard.validity_years * 12 && (
+                      {selectedStandard?.validity_years != null && selectedStandard.validity_years > 0 && form.expiry_months !== selectedStandard.validity_years * 12 && (
                         <button
                           type="button"
                           onClick={() => setForm({ ...form, expiry_months: selectedStandard.validity_years! * 12 })}
