@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { BadgeCheck, Download, ExternalLink, Award, FileSpreadsheet } from 'lucide-react';
+import { BadgeCheck, Award, FileSpreadsheet, Image as ImageIcon, Code, X } from 'lucide-react';
 import CertificateTypePage from './CertificateTypePage';
 import { badgeService, type IssuedBadge } from '../../../services/badgeService';
 
@@ -15,6 +15,10 @@ export default function GroupCertInsigniaPage() {
   const [exporting, setExporting] = useState(false);
   const [issueMessage, setIssueMessage] = useState<string | null>(null);
   const issuedRef = useRef(false);
+
+  // Modal state
+  const [imageModal, setImageModal] = useState<{ url: string; name: string } | null>(null);
+  const [jsonModal, setJsonModal] = useState<{ json: string; name: string } | null>(null);
 
   // Auto-issue pending badges on mount, then load all badges
   useEffect(() => {
@@ -139,33 +143,77 @@ export default function GroupCertInsigniaPage() {
                     }`}>
                       {badge.status === 'active' ? 'Activa' : badge.status === 'expired' ? 'Expirada' : 'Revocada'}
                     </span>
-                    {/* Actions */}
+                    {/* Actions: Ver Imagen + Ver JSON */}
                     <div className="flex fluid-gap-1">
-                      {badge.badge_image_url && (
-                        <a
-                          href={badge.badge_image_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                      {((badge as any).template_image_url || badge.badge_image_url) && (
+                        <button
+                          onClick={() => setImageModal({
+                            url: (badge as any).template_image_url || badge.badge_image_url!,
+                            name: badge.candidate_name || badge.badge_code,
+                          })}
                           className="fluid-p-2 text-gray-400 hover:text-amber-600 rounded-fluid-lg hover:bg-amber-50 transition-colors"
-                          title="Descargar insignia"
+                          title="Ver imagen"
                         >
-                          <Download className="fluid-icon-xs" />
-                        </a>
+                          <ImageIcon className="fluid-icon-xs" />
+                        </button>
                       )}
-                      <a
-                        href={badge.verify_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="fluid-p-2 text-gray-400 hover:text-blue-600 rounded-fluid-lg hover:bg-blue-50 transition-colors"
-                        title="Verificar"
-                      >
-                        <ExternalLink className="fluid-icon-xs" />
-                      </a>
+                      {badge.credential_json && (
+                        <button
+                          onClick={() => {
+                            try {
+                              const formatted = JSON.stringify(JSON.parse(badge.credential_json!), null, 2);
+                              setJsonModal({ json: formatted, name: badge.candidate_name || badge.badge_code });
+                            } catch {
+                              setJsonModal({ json: badge.credential_json!, name: badge.candidate_name || badge.badge_code });
+                            }
+                          }}
+                          className="fluid-p-2 text-gray-400 hover:text-blue-600 rounded-fluid-lg hover:bg-blue-50 transition-colors"
+                          title="Ver JSON"
+                        >
+                          <Code className="fluid-icon-xs" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Image Modal */}
+      {imageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setImageModal(null)}>
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+              <h3 className="font-semibold text-gray-800 text-sm">Insignia — {imageModal.name}</h3>
+              <button onClick={() => setImageModal(null)} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 flex items-center justify-center bg-gray-50">
+              <img src={imageModal.url} alt={imageModal.name} className="max-h-[60vh] max-w-full object-contain rounded-xl" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* JSON Modal */}
+      {jsonModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setJsonModal(null)}>
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+              <h3 className="font-semibold text-gray-800 text-sm">Credencial JSON-LD — {jsonModal.name}</h3>
+              <button onClick={() => setJsonModal(null)} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 max-h-[70vh] overflow-auto">
+              <pre className="text-xs font-mono text-gray-700 bg-gray-50 rounded-xl p-4 whitespace-pre-wrap break-words border border-gray-200">
+                {jsonModal.json}
+              </pre>
+            </div>
           </div>
         </div>
       )}

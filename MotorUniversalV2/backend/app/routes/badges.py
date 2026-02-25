@@ -539,11 +539,13 @@ def group_badges(group_id):
 
     result_list = []
     for b in badges:
-        d = b.to_dict()
+        d = b.to_dict(include_credential=True)
         u = User.query.get(str(b.user_id))
         if u:
             d['candidate_name'] = f"{u.name or ''} {u.first_surname or ''} {u.second_surname or ''}".strip()
             d['candidate_email'] = u.email
+        # Include template image (the one uploaded in badge module)
+        d['template_image_url'] = b.template.badge_image_url if b.template else None
         result_list.append(d)
 
     return jsonify({'badges': result_list, 'total': len(result_list)})
