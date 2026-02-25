@@ -327,7 +327,7 @@ const Layout = ({ children }: LayoutProps) => {
                     CONOCER
                   </Link>
                 )}
-                {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'editor' || user?.role === 'coordinator') && (
+                {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator' || user?.role === 'editor') && (
                   <Link 
                     to="/badges/templates" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -706,7 +706,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'editor' || user?.role === 'coordinator') && (
+              {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator' || user?.role === 'editor') && (
                 <Link 
                   to="/badges/templates" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${

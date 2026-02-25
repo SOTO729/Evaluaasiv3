@@ -89,11 +89,10 @@ const RestrictedForGerenteFin = ({ children }: { children: React.ReactNode }) =>
   return <>{children}</>
 }
 
-// Componente que solo permite admin, developer, editor y coordinator (bloquea gerente/financiero/candidato)
-const AllowBadgeRoles = ({ children }: { children: React.ReactNode }) => {
+// Componente que solo bloquea gerente/financiero (permite coordinator y editor)
+const RestrictedForGerenteFinOnly = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuthStore()
-  const allowed = ['admin', 'developer', 'editor', 'coordinator']
-  if (!allowed.includes(user?.role || '')) {
+  if (user?.role === 'gerente' || user?.role === 'financiero') {
     return <Navigate to="/dashboard" replace />
   }
   return <>{children}</>
@@ -296,10 +295,10 @@ function App() {
               <Route path="/certificates/evaluation-report/:examId" element={<RestrictedForGerenteFin><EvaluationReportDetailPage /></RestrictedForGerenteFin>} />
               <Route path="/certificates/evaluation-report/:examId/result/:resultId" element={<RestrictedForGerenteFin><ResultDetailPage /></RestrictedForGerenteFin>} />
               
-              {/* Badges (Insignias Digitales) - admin, developer, editor, coordinator */}
-              <Route path="/badges/templates" element={<AllowBadgeRoles><BadgeTemplatesPage /></AllowBadgeRoles>} />
-              <Route path="/badges/templates/new" element={<AllowBadgeRoles><BadgeTemplateFormPage /></AllowBadgeRoles>} />
-              <Route path="/badges/templates/:id/edit" element={<AllowBadgeRoles><BadgeTemplateFormPage /></AllowBadgeRoles>} />
+              {/* Badges (Insignias Digitales) - Permitido para admin, developer, coordinator, editor */}
+              <Route path="/badges/templates" element={<RestrictedForGerenteFinOnly><BadgeTemplatesPage /></RestrictedForGerenteFinOnly>} />
+              <Route path="/badges/templates/new" element={<RestrictedForGerenteFinOnly><BadgeTemplateFormPage /></RestrictedForGerenteFinOnly>} />
+              <Route path="/badges/templates/:id/edit" element={<RestrictedForGerenteFinOnly><BadgeTemplateFormPage /></RestrictedForGerenteFinOnly>} />
               
               {/* Partners (Coordinador) */}
               <Route path="/partners/dashboard" element={<PartnersDashboardPage />} />
