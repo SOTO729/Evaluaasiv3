@@ -4070,6 +4070,7 @@ def upload_group_members(group_id):
         user_by_identifier, ambiguous = _resolve_identifiers_to_users(all_identifiers)
         
         # Batch: obtener membresías existentes en ESTE grupo
+        CHUNK_SIZE = 500
         found_user_ids = list(set(u.id for u in user_by_identifier.values()))
         existing_in_target_map = {}
         if found_user_ids:

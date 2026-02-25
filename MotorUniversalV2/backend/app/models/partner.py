@@ -637,7 +637,7 @@ class GroupMember(db.Model):
     user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     
     # Estado en el grupo
-    status = db.Column(db.String(20), default='active', nullable=False, withdrawn
+    status = db.Column(db.String(20), default='active', nullable=False)  # active, inactive, completed)  # active, inactive, completed, withdrawn
     
     # Notas sobre el candidato en este grupo
     notes = db.Column(db.Text)
