@@ -66,6 +66,7 @@ export default function BadgeTemplateFormPage() {
   const [toast, setToast] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>({ ...EMPTY_FORM })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [imageRemoved, setImageRemoved] = useState(false)
 
   const dropdownRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -204,6 +205,7 @@ export default function BadgeTemplateFormPage() {
     if (file) {
       setImageFile(file)
       setImagePreview(URL.createObjectURL(file))
+      setImageRemoved(false)
       setImageFromEcm(false)
     }
   }
@@ -216,7 +218,15 @@ export default function BadgeTemplateFormPage() {
       setImageFile(file)
       setImagePreview(URL.createObjectURL(file))
       setImageFromEcm(false)
+      setImageRemoved(false)
     }
+  }
+
+  const handleRemoveImage = () => {
+    setImageFile(null)
+    setImagePreview(null)
+    setImageFromEcm(false)
+    setImageRemoved(true)
   }
 
   /* ═══════════════ validation ═══════════════ */
@@ -253,6 +263,8 @@ export default function BadgeTemplateFormPage() {
 
       if (imageFile && templateId) {
         await badgeService.uploadTemplateImage(templateId, imageFile)
+      } else if (imageRemoved && isEdit && templateId) {
+        await badgeService.deleteTemplateImage(templateId)
       }
 
       navigate('/badges/templates')
@@ -656,6 +668,14 @@ export default function BadgeTemplateFormPage() {
                         <Sparkles className="w-3 h-3" /> ECM
                       </span>
                     )}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleRemoveImage() }}
+                      className="absolute top-2 right-2 w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-colors z-10"
+                      title="Eliminar imagen"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                     <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
                       <span className="fluid-px-3 fluid-py-1.5 bg-white/90 rounded-fluid-lg fluid-text-xs font-medium text-gray-700 shadow">
                         Cambiar imagen
@@ -668,7 +688,7 @@ export default function BadgeTemplateFormPage() {
                     <p className="fluid-text-xs text-gray-500 font-medium">
                       {dragActive ? 'Suelta aquí' : 'Arrastra o haz clic'}
                     </p>
-                    <p className="fluid-text-2xs text-gray-400 fluid-mt-1">PNG 600×750px recomendado</p>
+                    <p className="fluid-text-2xs text-gray-400 fluid-mt-1">Cualquier formato de imagen (se convierte a WebP)</p>
                   </div>
                 )}
                 <input

@@ -244,9 +244,9 @@ def bake_badge_image(template, issued_badge, user):
         draw = ImageDraw.Draw(canvas)
         draw.text(((600 - text_w7) / 2, 570), verify_text, fill=(156, 163, 175, 255), font=url_font)
 
-    # Convert to PNG bytes
+    # Convert to WebP bytes
     output = BytesIO()
-    canvas.convert('RGB').save(output, format='PNG', quality=95)
+    canvas.save(output, format='WEBP', quality=90, lossless=False)
     output.seek(0)
     return output
 
@@ -370,17 +370,17 @@ def issue_badge_for_result(result, user, exam):
         credential = build_ob3_credential(issued, template, user, result)
         issued.credential_json = json.dumps(credential, ensure_ascii=False)
 
-        # Generate baked badge image
+        # Generate baked badge image (WebP)
         try:
             image_bytes = bake_badge_image(template, issued, user)
-            blob_name = f"badges/{badge_uuid}.png"
+            blob_name = f"badges/{badge_uuid}.webp"
 
             from app.utils.azure_storage import AzureStorageService
             storage = AzureStorageService()
             image_url = storage.upload_bytes(
                 image_bytes.read(),
                 blob_name,
-                content_type='image/png'
+                content_type='image/webp'
             )
             issued.badge_image_url = image_url
             issued.badge_image_blob_name = blob_name

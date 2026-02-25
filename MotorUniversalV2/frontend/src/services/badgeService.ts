@@ -124,6 +124,11 @@ export const badgeService = {
     return resp.data
   },
 
+  deleteTemplateImage: async (id: number) => {
+    const resp = await api.delete<{ message: string }>(`/badges/templates/${id}/image`)
+    return resp.data
+  },
+
   // ── Issue ──
 
   issueBadge: async (resultId: string) => {

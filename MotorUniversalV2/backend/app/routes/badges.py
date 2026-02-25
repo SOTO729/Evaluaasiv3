@@ -168,7 +168,8 @@ def delete_template(template_id):
 @bp.route('/templates/<int:template_id>/image', methods=['POST'])
 @jwt_required()
 def upload_template_image(template_id):
-    """Subir imagen personalizada para la plantilla"""
+    """Subir imagen personalizada para la plantilla (convertida a WebP).
+    Sobreescribe el blob anterior si existe."""
     _require_roles('admin', 'editor', 'coordinator')
     template = BadgeTemplate.query.get_or_404(template_id)
 
@@ -179,16 +180,72 @@ def upload_template_image(template_id):
     if not file.filename:
         return jsonify({'error': 'Archivo vacío'}), 400
 
+    from PIL import Image as PILImage
+    import io
     from app.utils.azure_storage import AzureStorageService
     storage = AzureStorageService()
-    url = storage.upload_file(file, folder='badge-templates')
+
+    # Convertir a WebP
+    try:
+        img = PILImage.open(file)
+        if img.mode in ('RGBA', 'LA', 'P'):
+            bg = PILImage.new('RGBA', img.size, (255, 255, 255, 0))
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            bg.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+            img = bg
+        webp_buf = io.BytesIO()
+        img.save(webp_buf, format='WEBP', quality=90, lossless=False)
+        webp_bytes = webp_buf.getvalue()
+    except Exception as e:
+        return jsonify({'error': f'Error al procesar la imagen: {e}'}), 400
+
+    # Blob name estable por template: siempre sobreescribe el mismo archivo
+    blob_name = template.badge_image_blob_name or f"badge-templates/template-{template_id}.webp"
+    # Garantizar extensión .webp
+    if not blob_name.endswith('.webp'):
+        blob_name = blob_name.rsplit('.', 1)[0] + '.webp'
+
+    # Si tenía otro blob distinto, eliminar el anterior
+    if template.badge_image_url and template.badge_image_blob_name and template.badge_image_blob_name != blob_name:
+        try:
+            storage.delete_file(template.badge_image_url)
+        except Exception:
+            pass
+
+    url = storage.upload_bytes(webp_bytes, blob_name, content_type='image/webp')
     if not url:
         return jsonify({'error': 'Error al subir la imagen'}), 500
 
     template.badge_image_url = url
+    template.badge_image_blob_name = blob_name
     db.session.commit()
 
-    return jsonify({'message': 'Imagen subida', 'image_url': url})
+    return jsonify({'message': 'Imagen subida (WebP)', 'image_url': url})
+
+
+@bp.route('/templates/<int:template_id>/image', methods=['DELETE'])
+@jwt_required()
+def delete_template_image(template_id):
+    """Eliminar imagen de la plantilla (borra blob y limpia campos)"""
+    _require_roles('admin', 'editor', 'coordinator')
+    template = BadgeTemplate.query.get_or_404(template_id)
+
+    if not template.badge_image_url:
+        return jsonify({'message': 'La plantilla no tiene imagen'}), 200
+
+    from app.utils.azure_storage import AzureStorageService
+    storage = AzureStorageService()
+    try:
+        storage.delete_file(template.badge_image_url)
+    except Exception:
+        pass  # Si falla el borrado del blob, igualmente limpiamos la referencia
+
+    template.badge_image_url = None
+    template.badge_image_blob_name = None
+    db.session.commit()
+
+    return jsonify({'message': 'Imagen eliminada'})
 
 
 # ═══════════════════════════════════════════════
