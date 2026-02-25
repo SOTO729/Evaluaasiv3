@@ -73,16 +73,27 @@ def create_template():
     if not name:
         return jsonify({'error': 'El nombre es requerido'}), 400
 
+    # Normalize tags: accept string or list
+    raw_tags = data.get('tags', '')
+    if isinstance(raw_tags, list):
+        raw_tags = ', '.join(str(t).strip() for t in raw_tags if str(t).strip())
+    tags_str = (raw_tags or '').strip() or None
+
+    # issuer_name is NOT NULL — use default if empty
+    issuer_name = data.get('issuer_name', '').strip() if isinstance(data.get('issuer_name'), str) else ''
+    if not issuer_name:
+        issuer_name = 'ENTRENAMIENTO INFORMATICO AVANZADO S.A. DE C.V.'
+
     template = BadgeTemplate(
         name=name,
         description=data.get('description', '').strip() or None,
         criteria_narrative=data.get('criteria_narrative', '').strip() or None,
         exam_id=data.get('exam_id'),
         competency_standard_id=data.get('competency_standard_id'),
-        issuer_name=data.get('issuer_name', '').strip() or None,
+        issuer_name=issuer_name,
         issuer_url=data.get('issuer_url', '').strip() or None,
         issuer_image_url=data.get('issuer_image_url', '').strip() or None,
-        tags=data.get('tags', '').strip() or None,
+        tags=tags_str,
         expiry_months=data.get('expiry_months'),
         is_active=data.get('is_active', True),
         created_by_id=user.id,
@@ -110,10 +121,27 @@ def update_template(template_id):
     template = BadgeTemplate.query.get_or_404(template_id)
     data = request.get_json(silent=True) or {}
 
-    for field in ('name', 'description', 'criteria_narrative', 'issuer_name',
-                  'issuer_url', 'issuer_image_url', 'tags'):
+    for field in ('name', 'description', 'criteria_narrative',
+                  'issuer_url', 'issuer_image_url'):
         if field in data:
-            setattr(template, field, (data[field] or '').strip() or None)
+            val = data[field]
+            if isinstance(val, str):
+                setattr(template, field, val.strip() or None)
+            else:
+                setattr(template, field, val or None)
+
+    # issuer_name is NOT NULL — never set to None
+    if 'issuer_name' in data:
+        val = data['issuer_name']
+        val = val.strip() if isinstance(val, str) else ''
+        template.issuer_name = val or 'ENTRENAMIENTO INFORMATICO AVANZADO S.A. DE C.V.'
+
+    # tags: accept string or list
+    if 'tags' in data:
+        raw = data['tags']
+        if isinstance(raw, list):
+            raw = ', '.join(str(t).strip() for t in raw if str(t).strip())
+        template.tags = (raw or '').strip() or None
 
     for int_field in ('exam_id', 'competency_standard_id', 'expiry_months'):
         if int_field in data:
