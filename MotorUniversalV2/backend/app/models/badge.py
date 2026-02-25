@@ -128,4 +128,4 @@ class IssuedBadge(db.Model):
 
     @property
     def credential_url(self):
-        return f"https://evaluaasi-motorv2-api.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api/badges/{self.badge_uuid}/credential.json"
+        return f"https://app.evaluaasi.com

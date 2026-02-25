@@ -17,9 +17,8 @@ from dateutil.relativedelta import relativedelta
 from app import db
 from app.models.badge import BadgeTemplate, IssuedBadge
 
-# Base URLs
+# Base URL
 SWA_BASE = "https://app.evaluaasi.com"
-API_BASE = "https://evaluaasi-motorv2-api.purpleocean-384694c4.southcentralus.azurecontainerapps.io"
 
 
 def generate_badge_code():
@@ -44,7 +43,7 @@ def build_ob3_credential(issued_badge, template, user, result=None):
 
     # Build issuer Profile
     issuer = {
-        "id": f"{API_BASE}/api/badges/issuer",
+        "id": f"{SWA_BASE}/api/badges/issuer",
         "type": ["Profile"],
         "name": template.issuer_name or "ENTRENAMIENTO INFORMATICO AVANZADO S.A. DE C.V.",
         "url": template.issuer_url or "https://evaluaasi.com",
@@ -57,7 +56,7 @@ def build_ob3_credential(issued_badge, template, user, result=None):
 
     # Build Achievement (BadgeClass)
     achievement = {
-        "id": f"{API_BASE}/api/badges/templates/{template.id}/achievement",
+        "id": f"{SWA_BASE}/api/badges/templates/{template.id}/achievement",
         "type": ["Achievement"],
         "name": template.name,
         "criteria": {
