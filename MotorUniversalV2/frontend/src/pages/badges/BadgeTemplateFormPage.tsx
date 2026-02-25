@@ -1,16 +1,15 @@
 /**
  * BadgeTemplateFormPage — Crear/Editar plantilla de insignia digital
+ * Asocia insignias a ECM (Estándares de Competencia) en lugar de exámenes.
  */
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Award, ArrowLeft, Save, Upload, Image as ImageIcon,
-  Tag, Clock, Globe, FileText, BookOpen
+  Tag, Clock, Globe, FileText, BookOpen, Sparkles, Search
 } from 'lucide-react'
 import { badgeService } from '../../services/badgeService'
-import { examService } from '../../services/examService'
-
-interface ExamOption { id: number; name: string }
+import { getStandards, type CompetencyStandard } from '../../services/standardsService'
 
 export default function BadgeTemplateFormPage() {
   const navigate = useNavigate()
@@ -19,9 +18,12 @@ export default function BadgeTemplateFormPage() {
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [exams, setExams] = useState<ExamOption[]>([])
+  const [standards, setStandards] = useState<CompetencyStandard[]>([])
+  const [standardSearch, setStandardSearch] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imageFromEcm, setImageFromEcm] = useState(false)
+  const [selectedStandard, setSelectedStandard] = useState<CompetencyStandard | null>(null)
 
   const [form, setForm] = useState({
     name: '',
@@ -38,9 +40,9 @@ export default function BadgeTemplateFormPage() {
   })
 
   useEffect(() => {
-    // Load exams for selector
-    examService.getExams(1, 200, '', false).then(data => {
-      setExams(data.items?.map((e: any) => ({ id: e.id, name: e.name })) || [])
+    // Load ECM standards
+    getStandards({ active_only: true, include_stats: false }).then(data => {
+      setStandards(data.standards || [])
     }).catch(() => {})
 
     // Load template if editing
@@ -68,11 +70,66 @@ export default function BadgeTemplateFormPage() {
     }
   }, [id, isEdit, navigate])
 
+  // When standards load + we're editing, find the selected standard
+  useEffect(() => {
+    if (form.competency_standard_id && standards.length > 0) {
+      const s = standards.find(s => s.id === form.competency_standard_id)
+      if (s) setSelectedStandard(s)
+    }
+  }, [form.competency_standard_id, standards])
+
+  const handleStandardSelect = (standardId: number | null) => {
+    if (!standardId) {
+      setSelectedStandard(null)
+      setForm(prev => ({ ...prev, competency_standard_id: null }))
+      return
+    }
+
+    const std = standards.find(s => s.id === standardId)
+    if (!std) return
+
+    setSelectedStandard(std)
+
+    // Pre-fill fields from ECM data
+    const updates: Partial<typeof form> = {
+      competency_standard_id: std.id,
+    }
+
+    // Only pre-fill empty fields (don't overwrite user edits)
+    if (!form.name.trim()) {
+      updates.name = `${std.code} — ${std.name}`
+    }
+    if (!form.description?.trim() && std.description) {
+      updates.description = std.description
+    }
+    if (!form.criteria_narrative?.trim()) {
+      updates.criteria_narrative = `Aprobó la evaluación del estándar de competencia ${std.code} "${std.name}" con resultado competente.`
+    }
+    if (form.expiry_months === null && std.validity_years) {
+      updates.expiry_months = std.validity_years * 12
+    }
+    if (!form.tags?.trim()) {
+      const tagParts = [std.code]
+      if (std.sector) tagParts.push(std.sector)
+      if (std.certifying_body) tagParts.push(std.certifying_body)
+      updates.tags = tagParts.join(', ')
+    }
+
+    setForm(prev => ({ ...prev, ...updates }))
+
+    // Set ECM logo as default image if no custom image uploaded
+    if (!imageFile && std.logo_url) {
+      setImagePreview(std.logo_url)
+      setImageFromEcm(true)
+    }
+  }
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       setImageFile(file)
       setImagePreview(URL.createObjectURL(file))
+      setImageFromEcm(false)
     }
   }
 
@@ -84,14 +141,20 @@ export default function BadgeTemplateFormPage() {
     try {
       let templateId = isEdit ? Number(id) : 0
 
+      // If using ECM image as default, pass the logo_url
+      const formData = { ...form }
+      if (imageFromEcm && selectedStandard?.logo_url && !imageFile) {
+        formData.issuer_image_url = selectedStandard.logo_url
+      }
+
       if (isEdit) {
-        await badgeService.updateTemplate(templateId, form)
+        await badgeService.updateTemplate(templateId, formData)
       } else {
-        const result = await badgeService.createTemplate(form)
+        const result = await badgeService.createTemplate(formData)
         templateId = result.template.id
       }
 
-      // Upload image if selected
+      // Upload image if selected (custom file overrides ECM logo)
       if (imageFile && templateId) {
         await badgeService.uploadTemplateImage(templateId, imageFile)
       }
@@ -105,10 +168,18 @@ export default function BadgeTemplateFormPage() {
     }
   }
 
+  // Filter standards by search
+  const filteredStandards = standards.filter(s =>
+    !standardSearch ||
+    s.code.toLowerCase().includes(standardSearch.toLowerCase()) ||
+    s.name.toLowerCase().includes(standardSearch.toLowerCase()) ||
+    (s.sector || '').toLowerCase().includes(standardSearch.toLowerCase())
+  )
+
   if (loading) {
     return (
       <div className="flex justify-center fluid-py-20">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-600" />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
       </div>
     )
   }
@@ -123,7 +194,7 @@ export default function BadgeTemplateFormPage() {
         >
           <ArrowLeft className="fluid-icon-sm text-gray-600" />
         </button>
-        <div className="fluid-p-2 bg-gradient-to-br from-amber-500 to-amber-700 rounded-fluid-lg shadow">
+        <div className="fluid-p-2 bg-gradient-to-br from-blue-500 to-blue-700 rounded-fluid-lg shadow">
           <Award className="fluid-icon-md text-white" />
         </div>
         <div>
@@ -135,10 +206,80 @@ export default function BadgeTemplateFormPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Basic Info */}
+
+        {/* ── ECM Association (first, so it can pre-fill) ── */}
         <div className="bg-white rounded-fluid-2xl border border-gray-200 fluid-p-5 space-y-4">
           <h2 className="font-semibold text-gray-800 flex items-center fluid-gap-2">
-            <FileText className="fluid-icon-sm text-amber-600" />
+            <BookOpen className="fluid-icon-sm text-blue-600" />
+            Estándar de Competencia (ECM)
+          </h2>
+
+          {/* Search box for standards */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar ECM por código, nombre o sector..."
+              value={standardSearch}
+              onChange={e => setStandardSearch(e.target.value)}
+              className="w-full fluid-pl-10 fluid-pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 fluid-text-sm"
+            />
+          </div>
+
+          <select
+            value={form.competency_standard_id || ''}
+            onChange={e => handleStandardSelect(e.target.value ? Number(e.target.value) : null)}
+            className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">— Seleccionar ECM —</option>
+            {filteredStandards.map(s => (
+              <option key={s.id} value={s.id}>
+                {s.code} — {s.name}
+                {s.sector ? ` (${s.sector})` : ''}
+              </option>
+            ))}
+          </select>
+
+          {/* Selected ECM summary */}
+          {selectedStandard && (
+            <div className="flex items-start fluid-gap-3 fluid-p-3 bg-blue-50 rounded-fluid-lg border border-blue-100">
+              {selectedStandard.logo_url ? (
+                <img
+                  src={selectedStandard.logo_url}
+                  alt={selectedStandard.code}
+                  className="w-12 h-12 rounded-fluid-lg object-contain bg-white border border-gray-200 flex-shrink-0"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-fluid-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <BookOpen className="fluid-icon-sm text-blue-500" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-blue-900 fluid-text-sm">{selectedStandard.code}</p>
+                <p className="text-blue-700 fluid-text-xs truncate">{selectedStandard.name}</p>
+                {selectedStandard.sector && (
+                  <p className="text-blue-500 fluid-text-xs">Sector: {selectedStandard.sector}</p>
+                )}
+                {selectedStandard.validity_years && (
+                  <p className="text-blue-500 fluid-text-xs">Vigencia: {selectedStandard.validity_years} años</p>
+                )}
+              </div>
+              <div className="flex items-center fluid-gap-1">
+                <Sparkles className="fluid-icon-xs text-blue-400" />
+                <span className="fluid-text-xs text-blue-500">Datos prellenados</span>
+              </div>
+            </div>
+          )}
+
+          <p className="fluid-text-xs text-gray-400">
+            Al seleccionar un ECM, se prellenarán los campos con sus datos. Puedes modificarlos libremente.
+          </p>
+        </div>
+
+        {/* ── Basic Info ── */}
+        <div className="bg-white rounded-fluid-2xl border border-gray-200 fluid-p-5 space-y-4">
+          <h2 className="font-semibold text-gray-800 flex items-center fluid-gap-2">
+            <FileText className="fluid-icon-sm text-blue-600" />
             Información Básica
           </h2>
 
@@ -148,8 +289,8 @@ export default function BadgeTemplateFormPage() {
               type="text"
               value={form.name}
               onChange={e => setForm({ ...form, name: e.target.value })}
-              className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-              placeholder="Ej: Competencia en Administración de Proyectos"
+              className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Ej: EC0217 — Impartición de cursos de formación del capital humano"
               required
             />
           </div>
@@ -160,7 +301,7 @@ export default function BadgeTemplateFormPage() {
               value={form.description}
               onChange={e => setForm({ ...form, description: e.target.value })}
               rows={3}
-              className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+              className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Descripción de la insignia..."
             />
           </div>
@@ -171,54 +312,36 @@ export default function BadgeTemplateFormPage() {
               value={form.criteria_narrative}
               onChange={e => setForm({ ...form, criteria_narrative: e.target.value })}
               rows={2}
-              className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-              placeholder="Aprobó la evaluación con puntaje mínimo de..."
+              className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Aprobó la evaluación con resultado competente..."
             />
           </div>
         </div>
 
-        {/* Association */}
+        {/* ── Badge Image ── */}
         <div className="bg-white rounded-fluid-2xl border border-gray-200 fluid-p-5 space-y-4">
           <h2 className="font-semibold text-gray-800 flex items-center fluid-gap-2">
-            <BookOpen className="fluid-icon-sm text-amber-600" />
-            Asociación con Examen
-          </h2>
-
-          <div>
-            <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Examen Asociado</label>
-            <select
-              value={form.exam_id || ''}
-              onChange={e => setForm({ ...form, exam_id: e.target.value ? Number(e.target.value) : null })}
-              className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-            >
-              <option value="">— Sin examen asociado —</option>
-              {exams.map(ex => (
-                <option key={ex.id} value={ex.id}>{ex.name}</option>
-              ))}
-            </select>
-            <p className="fluid-text-xs text-gray-400 mt-1">
-              La insignia se emitirá automáticamente al aprobar este examen.
-            </p>
-          </div>
-        </div>
-
-        {/* Image */}
-        <div className="bg-white rounded-fluid-2xl border border-gray-200 fluid-p-5 space-y-4">
-          <h2 className="font-semibold text-gray-800 flex items-center fluid-gap-2">
-            <ImageIcon className="fluid-icon-sm text-amber-600" />
+            <ImageIcon className="fluid-icon-sm text-blue-600" />
             Imagen de la Insignia
           </h2>
 
           <div className="flex items-start fluid-gap-5">
-            <div className="w-32 h-32 bg-gray-100 rounded-fluid-xl flex items-center justify-center overflow-hidden border-2 border-dashed border-gray-300">
+            <div className="w-32 h-32 bg-gray-50 rounded-fluid-xl flex items-center justify-center overflow-hidden border-2 border-dashed border-gray-300 relative">
               {imagePreview ? (
-                <img src={imagePreview} alt="Preview" className="w-full h-full object-contain" />
+                <>
+                  <img src={imagePreview} alt="Preview" className="w-full h-full object-contain" />
+                  {imageFromEcm && (
+                    <span className="absolute bottom-1 right-1 fluid-px-1 fluid-py-0.5 text-[10px] font-medium bg-blue-100 text-blue-600 rounded">
+                      ECM
+                    </span>
+                  )}
+                </>
               ) : (
                 <Award className="fluid-icon-xl text-gray-300" />
               )}
             </div>
             <div className="flex-1">
-              <label className="cursor-pointer inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-gray-100 text-gray-700 rounded-fluid-lg font-medium hover:bg-gray-200 transition-colors">
+              <label className="cursor-pointer inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-50 text-blue-700 rounded-fluid-lg font-medium hover:bg-blue-100 transition-colors">
                 <Upload className="fluid-icon-sm" />
                 Subir Imagen
                 <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
@@ -226,14 +349,20 @@ export default function BadgeTemplateFormPage() {
               <p className="fluid-text-xs text-gray-400 mt-2">
                 Recomendado: PNG 600×750px. Si no subes imagen, se generará automáticamente.
               </p>
+              {imageFromEcm && (
+                <p className="fluid-text-xs text-blue-500 mt-1 flex items-center fluid-gap-1">
+                  <Sparkles className="fluid-icon-xs" />
+                  Usando logo del ECM como predefinido. Sube otra para reemplazarla.
+                </p>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Issuer */}
+        {/* ── Issuer ── */}
         <div className="bg-white rounded-fluid-2xl border border-gray-200 fluid-p-5 space-y-4">
           <h2 className="font-semibold text-gray-800 flex items-center fluid-gap-2">
-            <Globe className="fluid-icon-sm text-amber-600" />
+            <Globe className="fluid-icon-sm text-blue-600" />
             Emisor (Issuer)
           </h2>
 
@@ -244,7 +373,7 @@ export default function BadgeTemplateFormPage() {
                 type="text"
                 value={form.issuer_name}
                 onChange={e => setForm({ ...form, issuer_name: e.target.value })}
-                className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="EIA / EduIT"
               />
             </div>
@@ -254,17 +383,17 @@ export default function BadgeTemplateFormPage() {
                 type="url"
                 value={form.issuer_url}
                 onChange={e => setForm({ ...form, issuer_url: e.target.value })}
-                className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="https://evaluaasi.com"
               />
             </div>
           </div>
         </div>
 
-        {/* Extra config */}
+        {/* ── Extra Config ── */}
         <div className="bg-white rounded-fluid-2xl border border-gray-200 fluid-p-5 space-y-4">
           <h2 className="font-semibold text-gray-800 flex items-center fluid-gap-2">
-            <Clock className="fluid-icon-sm text-amber-600" />
+            <Clock className="fluid-icon-sm text-blue-600" />
             Configuración Adicional
           </h2>
 
@@ -276,9 +405,14 @@ export default function BadgeTemplateFormPage() {
                 min={0}
                 value={form.expiry_months ?? ''}
                 onChange={e => setForm({ ...form, expiry_months: e.target.value ? Number(e.target.value) : null })}
-                className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="0 = sin expiración"
               />
+              {selectedStandard?.validity_years && (
+                <p className="fluid-text-xs text-blue-500 mt-1">
+                  ECM sugiere {selectedStandard.validity_years} año{selectedStandard.validity_years > 1 ? 's' : ''} ({selectedStandard.validity_years * 12} meses)
+                </p>
+              )}
             </div>
             <div>
               <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Etiquetas</label>
@@ -288,8 +422,8 @@ export default function BadgeTemplateFormPage() {
                   type="text"
                   value={form.tags}
                   onChange={e => setForm({ ...form, tags: e.target.value })}
-                  className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                  placeholder="competencia, administración, ..."
+                  className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="EC0217, administración, CONOCER, ..."
                 />
               </div>
             </div>
@@ -303,13 +437,13 @@ export default function BadgeTemplateFormPage() {
                 onChange={e => setForm({ ...form, is_active: e.target.checked })}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-amber-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600" />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600" />
             </label>
             <span className="fluid-text-sm font-medium text-gray-700">Plantilla activa</span>
           </div>
         </div>
 
-        {/* Submit */}
+        {/* ── Submit ── */}
         <div className="flex justify-end fluid-gap-3">
           <button
             type="button"
@@ -321,7 +455,7 @@ export default function BadgeTemplateFormPage() {
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-2 bg-amber-600 text-white rounded-fluid-lg font-medium hover:bg-amber-700 disabled:opacity-50 transition-colors shadow-md"
+            className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-2 bg-blue-600 text-white rounded-fluid-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-md"
           >
             {saving ? (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />

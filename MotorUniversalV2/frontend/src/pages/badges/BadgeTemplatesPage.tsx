@@ -59,7 +59,7 @@ export default function BadgeTemplatesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-mb-6">
         <div className="flex items-center fluid-gap-3">
-          <div className="fluid-p-3 bg-gradient-to-br from-amber-500 to-amber-700 rounded-fluid-xl shadow-lg">
+          <div className="fluid-p-3 bg-gradient-to-br from-blue-500 to-blue-700 rounded-fluid-xl shadow-lg">
             <Award className="fluid-icon-lg text-white" />
           </div>
           <div>
@@ -69,7 +69,7 @@ export default function BadgeTemplatesPage() {
         </div>
         <button
           onClick={() => navigate('/badges/templates/new')}
-          className="mt-3 sm:mt-0 inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-amber-600 text-white rounded-fluid-lg font-medium hover:bg-amber-700 transition-colors shadow-md"
+          className="mt-3 sm:mt-0 inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 text-white rounded-fluid-lg font-medium hover:bg-blue-700 transition-colors shadow-md"
         >
           <Plus className="fluid-icon-sm" />
           Nueva Plantilla
@@ -84,14 +84,14 @@ export default function BadgeTemplatesPage() {
           placeholder="Buscar plantillas..."
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1) }}
-          className="w-full fluid-pl-10 fluid-pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-gray-900"
+          className="w-full fluid-pl-10 fluid-pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
         />
       </div>
 
       {/* Loading */}
       {loading && (
         <div className="flex justify-center fluid-py-12">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-600" />
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
         </div>
       )}
 
@@ -103,7 +103,7 @@ export default function BadgeTemplatesPage() {
           <p className="text-gray-500 fluid-mb-4">Crea tu primera plantilla de insignia digital.</p>
           <button
             onClick={() => navigate('/badges/templates/new')}
-            className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-amber-600 text-white rounded-fluid-lg font-medium hover:bg-amber-700"
+            className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 text-white rounded-fluid-lg font-medium hover:bg-blue-700"
           >
             <Plus className="fluid-icon-sm" />
             Crear Plantilla
@@ -117,14 +117,14 @@ export default function BadgeTemplatesPage() {
           {templates.map(t => (
             <div
               key={t.id}
-              className={`bg-white border-2 rounded-fluid-2xl overflow-hidden hover:shadow-xl transition-all group ${t.is_active ? 'border-gray-200 hover:border-amber-300' : 'border-red-200 opacity-70'}`}
+              className={`bg-white border-2 rounded-fluid-2xl overflow-hidden hover:shadow-xl transition-all group ${t.is_active ? 'border-gray-200 hover:border-blue-300' : 'border-red-200 opacity-70'}`}
             >
               {/* Image */}
-              <div className="h-40 bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center relative">
+              <div className="h-40 bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center relative">
                 {t.badge_image_url ? (
                   <img src={t.badge_image_url} alt={t.name} className="h-full w-full object-contain p-4" />
                 ) : (
-                  <BadgeCheck className="fluid-icon-2xl text-amber-300" />
+                  <BadgeCheck className="fluid-icon-2xl text-blue-300" />
                 )}
                 {!t.is_active && (
                   <span className="absolute top-2 right-2 fluid-px-2 fluid-py-1 text-xs font-bold bg-red-100 text-red-700 rounded-full">
@@ -135,7 +135,7 @@ export default function BadgeTemplatesPage() {
 
               {/* Info */}
               <div className="fluid-p-4">
-                <h3 className="font-bold text-gray-900 truncate fluid-mb-1 group-hover:text-amber-700 transition-colors">
+                <h3 className="font-bold text-gray-900 truncate fluid-mb-1 group-hover:text-blue-700 transition-colors">
                   {t.name}
                 </h3>
                 {t.description && (
@@ -154,14 +154,14 @@ export default function BadgeTemplatesPage() {
                 <div className="flex fluid-gap-2">
                   <button
                     onClick={() => navigate(`/badges/templates/${t.id}/edit`)}
-                    className="flex-1 inline-flex items-center justify-center fluid-gap-1 fluid-py-1.5 fluid-text-sm font-medium text-amber-700 bg-amber-50 rounded-fluid-lg hover:bg-amber-100 transition-colors"
+                    className="flex-1 inline-flex items-center justify-center fluid-gap-1 fluid-py-1.5 fluid-text-sm font-medium text-blue-700 bg-blue-50 rounded-fluid-lg hover:bg-blue-100 transition-colors"
                   >
                     <Edit2 className="fluid-icon-xs" />
                     Editar
                   </button>
                   <button
                     onClick={() => handleToggleActive(t)}
-                    className="fluid-p-1.5 text-gray-500 hover:text-amber-600 rounded-fluid-lg hover:bg-gray-100 transition-colors"
+                    className="fluid-p-1.5 text-gray-500 hover:text-blue-600 rounded-fluid-lg hover:bg-gray-100 transition-colors"
                     title={t.is_active ? 'Desactivar' : 'Activar'}
                   >
                     {t.is_active ? <ToggleRight className="fluid-icon-sm text-green-500" /> : <ToggleLeft className="fluid-icon-sm" />}
