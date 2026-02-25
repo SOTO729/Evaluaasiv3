@@ -28,6 +28,7 @@ interface VerificationData {
     description: string | null
     issuer_name: string
     image_url: string | null
+    template_image_url: string | null
     issued_date: string | null
     expires_date?: string | null
     badge_uuid: string
@@ -178,19 +179,16 @@ const VerifyPage = () => {
             {/* Badge-specific section */}
             {data.document_type === 'digital_badge' && data.badge && (
               <>
-                {/* Badge image */}
-                {data.badge.image_url && (
-                  <div className="flex justify-center">
-                    <img src={data.badge.image_url} alt={data.badge.name} className="h-48 object-contain rounded-xl shadow-lg" />
+                {/* Badge info with template image */}
+                <div className="flex items-start gap-4">
+                  <div className="w-20 h-20 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden bg-amber-50 border border-amber-200">
+                    {data.badge.template_image_url ? (
+                      <img src={data.badge.template_image_url} alt={data.badge.name} className="w-full h-full object-contain" />
+                    ) : (
+                      <Award className="w-8 h-8 text-amber-600" />
+                    )}
                   </div>
-                )}
-
-                {/* Badge info */}
-                <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Award className="w-6 h-6 text-amber-600" />
-                  </div>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-500">Insignia Digital</p>
                     <p className="font-semibold text-gray-900 text-lg">{data.badge.name}</p>
                     {data.badge.description && (

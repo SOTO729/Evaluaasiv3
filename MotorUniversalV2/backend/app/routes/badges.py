@@ -412,28 +412,9 @@ def verify_badge(code):
     from datetime import datetime
     is_expired = badge.expires_at and badge.expires_at < datetime.utcnow()
 
-    return jsonify({
-        'valid': badge.status == 'active' and not is_expired,
-        'document_type': 'digital_badge',
-        'document_name': 'Insignia Digital',
-        'verification_code': code,
-        'status': 'expired' if is_expired else badge.status,
-        'candidate': {
-            'full_name': full_name,
-        },
-        'badge': {
-            'name': template.name if template else 'N/A',
-            'description': template.description if template else None,
-            'issuer_name': template.issuer_name if template else 'EduIT / Evaluaasi',
-            'image_url': badge.badge_image_url,
-            'issued_date': formatted_date,
-            'expires_date': expires_date,
-            'badge_uuid': badge.badge_uuid,
-            'credential_url': badge.credential_url,
-            'verify_count': badge.verify_count,
-            'share_count': badge.share_count,
-        },
-    })
+    #   resp['badge']['ecm_name'] = ecm.name
+        resp['badge']['ecm_logo_url'] = ecm.logo_url
+    return jsonify(resp)
 
 
 # ═══════════════════════════════════════════════
