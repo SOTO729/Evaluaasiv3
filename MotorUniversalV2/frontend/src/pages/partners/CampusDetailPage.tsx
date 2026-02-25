@@ -749,47 +749,54 @@ export default function CampusDetailPage() {
 
         {/* Costos y Vigencia */}
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5 hover:shadow-lg hover:border-green-200 transition-all duration-300">
-          <h3 className="fluid-text-sm font-bold text-gray-700 uppercase tracking-wide fluid-mb-4 flex items-center fluid-gap-2">
+          <h3 className="fluid-text-sm font-bold text-gray-700 uppercase tracking-wide fluid-mb-3 flex items-center fluid-gap-2">
             <div className="fluid-p-2 bg-green-100 rounded-fluid-lg">
               <DollarSign className="fluid-icon-sm text-green-600" />
             </div>
             Costos y Vigencia
           </h3>
-          <div className="fluid-space-y-6">
-            <div className="grid grid-cols-3 fluid-gap-5">
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-fluid-xl fluid-p-5 text-center border border-green-100 hover:shadow-md transition-all duration-200">
-                <p className="fluid-text-2xl font-bold text-green-700">${campus.certification_cost || 0}</p>
-                <p className="fluid-text-sm text-green-600 font-semibold fluid-mt-2">Certificación</p>
+          <div className="space-y-3">
+            {/* Costos - grid compacto */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-fluid-lg p-2.5 text-center border border-green-100">
+                <p className="text-lg font-bold text-green-700 leading-tight">${campus.certification_cost || 0}</p>
+                <p className="text-[11px] text-green-600 font-semibold mt-0.5">Certificación</p>
               </div>
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-fluid-xl fluid-p-5 text-center border border-blue-100 hover:shadow-md transition-all duration-200">
-                <p className="fluid-text-2xl font-bold text-blue-700">${campus.retake_cost || 0}</p>
-                <p className="fluid-text-sm text-blue-600 font-semibold fluid-mt-2">Retoma</p>
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-fluid-lg p-2.5 text-center border border-blue-100">
+                <p className="text-lg font-bold text-blue-700 leading-tight">${campus.retake_cost || 0}</p>
+                <p className="text-[11px] text-blue-600 font-semibold mt-0.5">Retoma</p>
               </div>
-              <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-fluid-xl fluid-p-5 text-center border border-purple-100 hover:shadow-md transition-all duration-200">
-                <p className="fluid-text-2xl font-bold text-purple-700">{(campus as any).max_retakes === 0 || (campus as any).max_retakes == null ? '∞' : (campus as any).max_retakes}</p>
-                <p className="fluid-text-sm text-purple-600 font-semibold fluid-mt-2">Máx. Retomas</p>
+              <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-fluid-lg p-2.5 text-center border border-purple-100">
+                <p className="text-lg font-bold text-purple-700 leading-tight">{(campus as any).max_retakes === 0 || (campus as any).max_retakes == null ? '∞' : (campus as any).max_retakes}</p>
+                <p className="text-[11px] text-purple-600 font-semibold mt-0.5">Máx. Retomas</p>
               </div>
             </div>
+
+            {/* Vigencia */}
             {campus.assignment_validity_months ? (
-              <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-fluid-xl fluid-p-5 border border-purple-100">
-                <div className="flex items-center fluid-gap-3 fluid-mb-4">
-                  <CalendarRange className="fluid-icon-base text-purple-600" />
-                  <span className="fluid-text-sm font-bold text-purple-700">Vigencia de Asignaciones</span>
+              <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-fluid-lg p-3 border border-purple-100">
+                <div className="flex items-center gap-2">
+                  <CalendarRange className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                  <span className="text-xs font-bold text-purple-700">Vigencia</span>
+                  <span className="text-xs text-purple-900 font-medium ml-auto">
+                    {campus.assignment_validity_months} {campus.assignment_validity_months === 1 ? 'mes' : 'meses'}
+                  </span>
                 </div>
-                <p className="fluid-text-sm text-purple-900 font-medium">
-                  {campus.assignment_validity_months} {campus.assignment_validity_months === 1 ? 'mes' : 'meses'} tras cada asignación
-                </p>
               </div>
             ) : (
-              <div className="bg-gray-50 rounded-fluid-xl fluid-p-5 text-center border border-gray-100">
-                <CalendarRange className="fluid-icon-lg text-gray-300 mx-auto" />
-                <p className="fluid-text-sm text-gray-400 fluid-mt-4 font-medium">Sin vigencia configurada</p>
+              <div className="bg-gray-50 rounded-fluid-lg p-3 text-center border border-gray-100">
+                <div className="flex items-center justify-center gap-2">
+                  <CalendarRange className="w-4 h-4 text-gray-300" />
+                  <p className="text-xs text-gray-400 font-medium">Sin vigencia configurada</p>
+                </div>
               </div>
             )}
-            <div className="fluid-pt-5 border-t border-gray-100">
-              <div className="text-center fluid-p-5 bg-blue-50/50 rounded-fluid-xl hover:bg-blue-50 transition-colors border border-blue-100/50">
-                <p className="fluid-text-2xl font-bold text-blue-700">{cycles.filter(c => c.is_active).length}</p>
-                <p className="fluid-text-sm text-gray-600 font-semibold fluid-mt-2">Ciclos Activos</p>
+
+            {/* Ciclos Activos */}
+            <div className="pt-2 border-t border-gray-100">
+              <div className="text-center p-3 bg-blue-50/50 rounded-fluid-lg border border-blue-100/50">
+                <p className="text-lg font-bold text-blue-700">{cycles.filter(c => c.is_active).length}</p>
+                <p className="text-[11px] text-gray-600 font-semibold mt-0.5">Ciclos Activos</p>
               </div>
             </div>
           </div>
