@@ -1,11 +1,11 @@
 /**
  * GroupCertInsigniaPage – Insignia Digital (digital_badge)
- * Tabla de seguimiento + Generación batch + Descarga de insignias.
+ * Tabla unificada de candidatos con info de insignias emitidas.
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { BadgeCheck, Award, FileSpreadsheet, Image as ImageIcon, Code, X } from 'lucide-react';
-import CertificateTypePage from './CertificateTypePage';
+import { BadgeCheck, FileSpreadsheet, Image as ImageIcon, Code, X } from 'lucide-react';
+import CertificateTypePage, { type CandidateCertificateStats } from './CertificateTypePage';
 import { badgeService, type IssuedBadge } from '../../../services/badgeService';
 
 export default function GroupCertInsigniaPage() {
@@ -20,6 +20,15 @@ export default function GroupCertInsigniaPage() {
   const [imageModal, setImageModal] = useState<{ url: string; name: string } | null>(null);
   const [jsonModal, setJsonModal] = useState<{ json: string; name: string } | null>(null);
 
+  // Build lookup: user_id → IssuedBadge (with template_image_url)
+  const badgeMap = useMemo(() => {
+    const map = new Map<string, IssuedBadge & { template_image_url?: string }>();
+    for (const b of badges) {
+      map.set(b.user_id, b as any);
+    }
+    return map;
+  }, [badges]);
+
   // Auto-issue pending badges on mount, then load all badges
   useEffect(() => {
     if (!groupId) return;
@@ -27,7 +36,6 @@ export default function GroupCertInsigniaPage() {
 
     (async () => {
       try {
-        // 1) Issue any pending badges (only once per mount)
         if (!issuedRef.current) {
           issuedRef.current = true;
           try {
@@ -37,7 +45,6 @@ export default function GroupCertInsigniaPage() {
             }
           } catch { /* silently ignore */ }
         }
-        // 2) Load badges
         const data = await badgeService.getGroupBadges(gid);
         setBadges(data.badges);
       } catch (err) {
@@ -68,6 +75,152 @@ export default function GroupCertInsigniaPage() {
     }
   };
 
+  // ── Custom table headers ──
+  const renderHeaders = ({ handleSort, renderSortIcon }: {
+    handleSort: (col: string) => void;
+    renderSortIcon: (col: string) => React.ReactNode;
+  }) => (
+    <>
+      <th
+        onClick={() => handleSort('full_name')}
+        className="text-left fluid-px-4 fluid-py-3 text-gray-600 font-medium cursor-pointer hover:text-gray-900 select-none whitespace-nowrap"
+      >
+        Candidato{renderSortIcon('full_name')}
+      </th>
+      <th
+        onClick={() => handleSort('email')}
+        className="text-left fluid-px-4 fluid-py-3 text-gray-600 font-medium cursor-pointer hover:text-gray-900 select-none whitespace-nowrap hidden md:table-cell"
+      >
+        Email{renderSortIcon('email')}
+      </th>
+      <th
+        onClick={() => handleSort('curp')}
+        className="text-left fluid-px-4 fluid-py-3 text-gray-600 font-medium cursor-pointer hover:text-gray-900 select-none whitespace-nowrap hidden lg:table-cell"
+      >
+        CURP{renderSortIcon('curp')}
+      </th>
+      <th className="text-center fluid-px-4 fluid-py-3 text-gray-600 font-medium whitespace-nowrap">
+        Insignia
+      </th>
+      <th className="text-center fluid-px-4 fluid-py-3 text-gray-600 font-medium whitespace-nowrap">
+        Código
+      </th>
+      <th className="text-center fluid-px-4 fluid-py-3 text-gray-600 font-medium whitespace-nowrap">
+        Estado
+      </th>
+      <th className="text-center fluid-px-4 fluid-py-3 text-gray-600 font-medium whitespace-nowrap">
+        Acciones
+      </th>
+    </>
+  );
+
+  // ── Custom row renderer ──
+  const renderRow = (c: CandidateCertificateStats) => {
+    const badge = badgeMap.get(c.user_id);
+    const imgUrl = badge ? ((badge as any).template_image_url || badge.badge_image_url) : null;
+
+    return (
+      <>
+        {/* Candidato */}
+        <td className="fluid-px-4 fluid-py-3">
+          <div className="flex items-center fluid-gap-3">
+            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <span className="text-xs font-bold text-amber-700">
+                {c.full_name.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div className="min-w-0">
+              <p className="font-medium text-gray-900 truncate">{c.full_name}</p>
+              <p className="fluid-text-xs text-gray-500 md:hidden truncate">{c.email || '-'}</p>
+            </div>
+          </div>
+        </td>
+        {/* Email */}
+        <td className="fluid-px-4 fluid-py-3 text-gray-600 hidden md:table-cell">
+          <span className="truncate block max-w-[200px]">{c.email || '-'}</span>
+        </td>
+        {/* CURP */}
+        <td className="fluid-px-4 fluid-py-3 text-gray-500 font-mono text-xs hidden lg:table-cell">
+          {c.curp || '-'}
+        </td>
+        {/* Mini badge image */}
+        <td className="fluid-px-4 fluid-py-3 text-center">
+          {imgUrl ? (
+            <div className="w-10 h-10 mx-auto rounded-fluid-lg bg-amber-50 overflow-hidden">
+              <img src={imgUrl} alt="" className="w-full h-full object-contain" />
+            </div>
+          ) : (
+            <div className="w-10 h-10 mx-auto rounded-fluid-lg bg-gray-100 flex items-center justify-center">
+              <BadgeCheck className="w-5 h-5 text-gray-300" />
+            </div>
+          )}
+        </td>
+        {/* Badge code */}
+        <td className="fluid-px-4 fluid-py-3 text-center">
+          {badge ? (
+            <span className="font-mono text-xs text-gray-600">{badge.badge_code}</span>
+          ) : (
+            <span className="text-xs text-gray-300">—</span>
+          )}
+        </td>
+        {/* Status */}
+        <td className="fluid-px-4 fluid-py-3 text-center">
+          {badge ? (
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+              badge.status === 'active' ? 'bg-green-100 text-green-700' :
+              badge.status === 'expired' ? 'bg-red-100 text-red-700' :
+              badge.status === 'revoked' ? 'bg-red-100 text-red-700' :
+              'bg-gray-100 text-gray-500'
+            }`}>
+              {badge.status === 'active' ? 'Activa' : badge.status === 'expired' ? 'Expirada' : 'Revocada'}
+            </span>
+          ) : (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-400">
+              Sin emitir
+            </span>
+          )}
+        </td>
+        {/* Actions */}
+        <td className="fluid-px-4 fluid-py-3 text-center">
+          {badge ? (
+            <div className="flex items-center justify-center fluid-gap-1">
+              {imgUrl && (
+                <button
+                  onClick={() => setImageModal({
+                    url: imgUrl,
+                    name: c.full_name || badge.badge_code,
+                  })}
+                  className="fluid-p-2 text-gray-400 hover:text-amber-600 rounded-fluid-lg hover:bg-amber-50 transition-colors"
+                  title="Ver imagen"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                </button>
+              )}
+              {badge.credential_json && (
+                <button
+                  onClick={() => {
+                    try {
+                      const formatted = JSON.stringify(JSON.parse(badge.credential_json!), null, 2);
+                      setJsonModal({ json: formatted, name: c.full_name || badge.badge_code });
+                    } catch {
+                      setJsonModal({ json: badge.credential_json!, name: c.full_name || badge.badge_code });
+                    }
+                  }}
+                  className="fluid-p-2 text-gray-400 hover:text-blue-600 rounded-fluid-lg hover:bg-blue-50 transition-colors"
+                  title="Ver JSON"
+                >
+                  <Code className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          ) : (
+            <span className="text-xs text-gray-300">—</span>
+          )}
+        </td>
+      </>
+    );
+  };
+
   return (
     <div>
       <CertificateTypePage
@@ -93,91 +246,18 @@ export default function GroupCertInsigniaPage() {
             {exporting ? 'Exportando…' : 'Exportar Excel'}
           </button>
         }
+        customTableContent={{
+          renderHeaders,
+          renderRow,
+          emptyColSpan: 7,
+        }}
       />
 
-      {/* Badges detail section — always visible */}
-      {!loading && (
-        <div className="fluid-px-6 fluid-pb-6">
-          {issueMessage && (
-            <div className="fluid-mb-4 fluid-p-3 bg-green-50 border border-green-200 rounded-fluid-lg text-green-700 fluid-text-sm font-medium">
-              {issueMessage}
-            </div>
-          )}
-          <div className="bg-white rounded-fluid-2xl border border-gray-200 overflow-hidden">
-            <div className="fluid-p-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-800 flex items-center fluid-gap-2">
-                <Award className="fluid-icon-sm text-amber-600" />
-                Insignias Emitidas ({badges.length})
-              </h3>
-            </div>
-
-            {badges.length === 0 ? (
-              <div className="fluid-p-8 text-center">
-                <BadgeCheck className="fluid-icon-xl text-gray-200 mx-auto fluid-mb-3" />
-                <p className="fluid-text-sm text-gray-500 font-medium">No hay insignias emitidas aún</p>
-                <p className="fluid-text-xs text-gray-400 fluid-mt-1">Las insignias se emiten automáticamente cuando un candidato aprueba un examen vinculado a una plantilla activa</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {badges.map(badge => (
-                  <div key={badge.id} className="fluid-p-4 flex items-center fluid-gap-4 hover:bg-gray-50 transition-colors">
-                    {/* Mini badge image */}
-                    <div className="w-12 h-12 rounded-fluid-lg bg-amber-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                      {badge.badge_image_url ? (
-                        <img src={badge.badge_image_url} alt="" className="w-full h-full object-contain" />
-                      ) : (
-                        <BadgeCheck className="fluid-icon-md text-amber-400" />
-                      )}
-                    </div>
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{badge.candidate_name || 'Candidato'}</p>
-                      <p className="fluid-text-xs text-gray-500">{badge.candidate_email}</p>
-                      <p className="fluid-text-xs text-gray-400">
-                        Código: {badge.badge_code} · {badge.template_name}
-                      </p>
-                    </div>
-                    {/* Status */}
-                    <span className={`fluid-px-2 fluid-py-1 fluid-text-xs font-medium rounded-full ${
-                      badge.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      {badge.status === 'active' ? 'Activa' : badge.status === 'expired' ? 'Expirada' : 'Revocada'}
-                    </span>
-                    {/* Actions: Ver Imagen + Ver JSON */}
-                    <div className="flex fluid-gap-1">
-                      {((badge as any).template_image_url || badge.badge_image_url) && (
-                        <button
-                          onClick={() => setImageModal({
-                            url: (badge as any).template_image_url || badge.badge_image_url!,
-                            name: badge.candidate_name || badge.badge_code,
-                          })}
-                          className="fluid-p-2 text-gray-400 hover:text-amber-600 rounded-fluid-lg hover:bg-amber-50 transition-colors"
-                          title="Ver imagen"
-                        >
-                          <ImageIcon className="fluid-icon-xs" />
-                        </button>
-                      )}
-                      {badge.credential_json && (
-                        <button
-                          onClick={() => {
-                            try {
-                              const formatted = JSON.stringify(JSON.parse(badge.credential_json!), null, 2);
-                              setJsonModal({ json: formatted, name: badge.candidate_name || badge.badge_code });
-                            } catch {
-                              setJsonModal({ json: badge.credential_json!, name: badge.candidate_name || badge.badge_code });
-                            }
-                          }}
-                          className="fluid-p-2 text-gray-400 hover:text-blue-600 rounded-fluid-lg hover:bg-blue-50 transition-colors"
-                          title="Ver JSON"
-                        >
-                          <Code className="fluid-icon-xs" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+      {/* Issue message */}
+      {!loading && issueMessage && (
+        <div className="fluid-px-6 fluid-pb-4">
+          <div className="fluid-p-3 bg-green-50 border border-green-200 rounded-fluid-lg text-green-700 fluid-text-sm font-medium">
+            {issueMessage}
           </div>
         </div>
       )}

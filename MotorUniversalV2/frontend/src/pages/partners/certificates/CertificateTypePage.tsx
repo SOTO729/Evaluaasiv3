@@ -31,6 +31,8 @@ import {
   CandidateGroup,
 } from '../../../services/partnersService';
 
+export type { CandidateCertificateStats };
+
 type CertificateType = 'tier_basic' | 'tier_standard' | 'tier_advanced' | 'digital_badge';
 
 interface CertificateTypePageProps {
@@ -43,6 +45,12 @@ interface CertificateTypePageProps {
   downloadEnabled: boolean;
   canGenerate: boolean;         // tier_basic/tier_standard can generate on-demand
   extraHeaderActions?: React.ReactNode;
+  /** Custom table: replaces default <thead> and <tbody> row rendering */
+  customTableContent?: {
+    renderHeaders: (sort: { handleSort: (col: string) => void; renderSortIcon: (col: string) => React.ReactNode }) => React.ReactNode;
+    renderRow: (c: CandidateCertificateStats) => React.ReactNode;
+    emptyColSpan?: number;
+  };
 }
 
 export default function CertificateTypePage({
@@ -50,6 +58,7 @@ export default function CertificateTypePage({
   headerGradient, accentColor,
   downloadEnabled, canGenerate,
   extraHeaderActions,
+  customTableContent,
 }: CertificateTypePageProps) {
   const { groupId } = useParams();
 
@@ -634,6 +643,31 @@ export default function CertificateTypePage({
 
         <div className="overflow-x-auto">
           <table className="w-full fluid-text-sm">
+            {customTableContent ? (
+              <>
+                <thead className="bg-gray-50 sticky top-0 z-10">
+                  <tr>{customTableContent.renderHeaders({ handleSort, renderSortIcon })}</tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {candidates.map(c => (
+                    <tr key={c.user_id} className="hover:bg-gray-50 transition-colors">
+                      {customTableContent.renderRow(c)}
+                    </tr>
+                  ))}
+                  {candidates.length === 0 && !searching && (
+                    <tr>
+                      <td colSpan={customTableContent.emptyColSpan || 7} className="fluid-px-4 fluid-py-12 text-center text-gray-400">
+                        <Users className="fluid-icon-lg mx-auto mb-2 text-gray-300" />
+                        <p className="fluid-text-sm">
+                          {searchQuery || filterStatus !== 'all' ? 'No se encontraron candidatos para los filtros aplicados' : 'No hay candidatos certificados aún'}
+                        </p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </>
+            ) : (
+              <>
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
                 {/* Checkbox column */}
@@ -770,6 +804,8 @@ export default function CertificateTypePage({
                 </tr>
               )}
             </tbody>
+              </>
+            )}
           </table>
         </div>
 
