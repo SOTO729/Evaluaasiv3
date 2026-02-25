@@ -10,7 +10,7 @@ Endpoints:
   Verificación      → /api/badges/verify/<code>
   Analytics         → POST /api/badges/<id>/share, /api/badges/<id>/verify-count
 """
-from flask import Blueprint, request, jsonify, abort
+from flask import Blueprint, request, jsonify, abort, g
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models.badge import BadgeTemplate, IssuedBadge
@@ -28,6 +28,26 @@ def _require_roles(*allowed):
     if not user or user.role not in allowed:
         abort(403, description='No tienes permisos para esta acción')
     return user
+
+
+def _verify_badge_group_access(group_id, user):
+    """Verifica que el coordinador tenga acceso al grupo para operaciones de badges.
+    Admin/editor/developer ven todo. Coordinador solo sus grupos."""
+    if user.role in ('admin', 'editor', 'developer'):
+        return None  # sin restricción
+    if user.role == 'coordinator':
+        from app.models.partner import CandidateGroup, Campus
+        from app.models.partner import Partner
+        group = CandidateGroup.query.get(group_id)
+        if not group:
+            return jsonify({'error': 'Grupo no encontrado'}), 404
+        campus = Campus.query.get(group.campus_id)
+        if campus:
+            partner = Partner.query.get(campus.partner_id)
+            if partner and partner.coordinator_id == user.id:
+                return None  # tiene acceso
+        return jsonify({'error': 'No tienes acceso a este grupo'}), 403
+    return jsonify({'error': 'No tienes permisos'}), 403
 
 
 # ═══════════════════════════════════════════════
@@ -412,8 +432,25 @@ def verify_badge(code):
     from datetime import datetime
     is_expired = badge.expires_at and badge.expires_at < datetime.utcnow()
 
-    #   resp['badge']['ecm_name'] = ecm.name
-        resp['badge']['ecm_logo_url'] = ecm.logo_url
+    resp = {
+        'valid': True,
+        'badge': {
+            'name': template.name if template else 'N/A',
+            'description': template.description if template else None,
+            'template_image_url': template.image_url if template else None,
+            'candidate_name': full_name,
+            'issuer_name': 'ENTRENAMIENTO INFORMATICO AVANZADO S.A. DE C.V.',
+            'issued_date': formatted_date,
+            'expires_date': expires_date,
+            'is_expired': bool(is_expired),
+            'status': badge.status,
+            'badge_code': badge.badge_code,
+            'verify_url': badge.verify_url,
+            'credential_url': badge.credential_url,
+            'share_count': badge.share_count or 0,
+            'verify_count': badge.verify_count or 0,
+        }
+    }
     return jsonify(resp)
 
 
@@ -422,6 +459,7 @@ def verify_badge(code):
 # ═══════════════════════════════════════════════
 
 @bp.route('/<int:badge_id>/share', methods=['POST'])
+@jwt_required()
 def track_share(badge_id):
     """Incrementar contador de compartido"""
     badge = IssuedBadge.query.get_or_404(badge_id)
@@ -507,7 +545,12 @@ def linkedin_share_url(badge_id):
 @jwt_required()
 def group_badges(group_id):
     """Obtener insignias emitidas para miembros de un grupo"""
-    _require_roles('admin', 'editor', 'coordinator')
+    user = _require_roles('admin', 'editor', 'coordinator')
+
+    # Multi-tenant: verificar acceso del coordinador al grupo
+    access_error = _verify_badge_group_access(group_id, user)
+    if access_error:
+        return access_error
 
     from app.models.partner import GroupMember
     member_ids = [m.user_id for m in GroupMember.query.filter_by(group_id=group_id).all()]
@@ -536,7 +579,12 @@ def group_badges(group_id):
 @jwt_required()
 def export_group_badges_excel(group_id):
     """Exportar insignias del grupo a Excel — una fila por insignia"""
-    _require_roles('admin', 'editor', 'coordinator')
+    user = _require_roles('admin', 'editor', 'coordinator')
+
+    # Multi-tenant: verificar acceso del coordinador al grupo
+    access_error = _verify_badge_group_access(group_id, user)
+    if access_error:
+        return access_error
 
     from io import BytesIO
     from openpyxl import Workbook
@@ -649,7 +697,12 @@ def issue_pending_group_badges(group_id):
     Emite retroactivamente insignias para resultados aprobados de un grupo
     que aún no tienen insignia emitida.
     """
-    _require_roles('admin', 'editor', 'coordinator')
+    user = _require_roles('admin', 'editor', 'coordinator')
+
+    # Multi-tenant: verificar acceso del coordinador al grupo
+    access_error = _verify_badge_group_access(group_id, user)
+    if access_error:
+        return access_error
 
     from app.models.partner import GroupMember, CandidateGroup
     from app.models.result import Result

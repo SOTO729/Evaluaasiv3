@@ -465,7 +465,7 @@ def cancel_request(request_id):
     if balance_request.status not in cancellable_statuses:
         return jsonify({'error': f'No se puede cancelar una solicitud con estado "{REQUEST_STATUS.get(balance_request.status, balance_request.status)}"'}), 400
     
-    if user.role == 'coordinador':
+    if user.role == 'coordinator':
         # Coordinators can only cancel their own requests
         if balance_request.coordinator_id != user.id:
             return jsonify({'error': 'No tiene permiso para cancelar esta solicitud'}), 403

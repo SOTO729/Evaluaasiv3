@@ -43,10 +43,11 @@ def exercises_ping():
     return jsonify({'status': 'ok', 'message': 'exercises routes loaded'}), 200
 
 
-# Endpoint temporal para crear las tablas de ejercicios
-@bp.route('/migrate-exercise-tables', methods=['POST', 'OPTIONS'])
-def migrate_exercise_tables():
-    """Crear tablas exercise_steps y exercise_actions si no existen"""
+# SECURITY: Endpoint deshabilitado — ejecutaba db.create_all() sin autenticación
+# @bp.route('/migrate-exercise-tables', methods=['POST', 'OPTIONS'])
+# def migrate_exercise_tables(): REMOVED — was public without auth
+def _disabled_migrate_exercise_tables():
+    """DISABLED: Crear tablas exercise_steps y exercise_actions si no existen"""
     if request.method == 'OPTIONS':
         return jsonify({'status': 'ok'}), 200
     
@@ -65,10 +66,11 @@ def migrate_exercise_tables():
         }), 500
 
 
-# Endpoint para arreglar answer_number NULL en respuestas de preguntas de ordenamiento
-@bp.route('/fix-ordering-answers', methods=['POST', 'OPTIONS'])
-def fix_ordering_answers():
-    """Arreglar answer_number NULL en respuestas existentes"""
+# SECURITY: Endpoint deshabilitado — modificaba datos sin autenticación
+# @bp.route('/fix-ordering-answers', methods=['POST', 'OPTIONS'])
+# def fix_ordering_answers(): REMOVED — was public without auth
+def _disabled_fix_ordering_answers():
+    """DISABLED: Arreglar answer_number NULL en respuestas existentes"""
     if request.method == 'OPTIONS':
         return jsonify({'status': 'ok'}), 200
     

@@ -39,7 +39,7 @@ class Partner(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     legal_name = db.Column(db.String(300))  # Razón social
-    rfc = db.Column(db.String(13), unique=True)
+    rfc = db.Column(db.String(20), unique=True)  # 13 persona moral, 12 física + margen
     
     # País de origen
     country = db.Column(db.String(100), default='México', nullable=False)
@@ -154,7 +154,7 @@ class Campus(db.Model):
     partner_id = db.Column(db.Integer, db.ForeignKey('partners.id', ondelete='CASCADE'), nullable=False)
     
     name = db.Column(db.String(200), nullable=False)
-    code = db.Column(db.String(15), unique=True, nullable=False)  # Código único auto-generado
+    code = db.Column(db.String(50), unique=True, nullable=False)  # Código único auto-generado
     
     # Ubicación
     country = db.Column(db.String(100), default='México', nullable=False)  # País
@@ -282,8 +282,8 @@ class Campus(db.Model):
             'configuration_completed_at': self.configuration_completed_at.isoformat() if self.configuration_completed_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'group_count': self.groups.count() if self.groups else 0,
-            'cycle_count': self.school_cycles.count() if self.school_cycles else 0,
+            'group_count': self.groups.with_entities(db.func.count()).scalar() if self.groups else 0,
+            'cycle_count': self.school_cycles.with_entities(db.func.count()).scalar() if self.school_cycles else 0,
             # Campos de configuración siempre incluidos (con valores por defecto si son None)
             'office_version': self.office_version or 'office_365',
             'enable_tier_basic': self.enable_tier_basic if self.enable_tier_basic is not None else True,
@@ -371,11 +371,17 @@ class Campus(db.Model):
         return self.daily_exam_pin
     
     def get_competency_standards_list(self):
-        """Obtener lista de estándares de competencia con info básica"""
+        """Obtener lista de estándares de competencia con info básica (optimizado)"""
         from app.models.competency_standard import CompetencyStandard
+        # Join directo en vez de N+1 queries individuales
+        cs_entries = self.competency_standards.all()
+        if not cs_entries:
+            return []
+        cs_ids = [cs.competency_standard_id for cs in cs_entries]
+        standards_map = {s.id: s for s in CompetencyStandard.query.filter(CompetencyStandard.id.in_(cs_ids)).all()}
         result = []
-        for cs in self.competency_standards.all():
-            standard = CompetencyStandard.query.get(cs.competency_standard_id)
+        for cs in cs_entries:
+            standard = standards_map.get(cs.competency_standard_id)
             if standard:
                 result.append({
                     'id': standard.id,
@@ -448,8 +454,9 @@ class SchoolCycle(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
-    # Relaciones
-    groups = db.relationship('CandidateGroup', backref='school_cycle', lazy='dynamic', cascade='all, delete-orphan')
+    # Relaciones — passive_deletes=True para respetar ON DELETE SET NULL de la FK en BD
+    groups = db.relationship('CandidateGroup', backref='school_cycle', lazy='dynamic',
+                             passive_deletes=True)
     
     def to_dict(self, include_groups=False, include_campus=False):
         data = {
@@ -630,7 +637,7 @@ class GroupMember(db.Model):
     user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     
     # Estado en el grupo
-    status = db.Column(db.String(20), default='active')  # active, inactive, completed, withdrawn
+    status = db.Column(db.String(20), default='active', nullable=False, withdrawn
     
     # Notas sobre el candidato en este grupo
     notes = db.Column(db.Text)

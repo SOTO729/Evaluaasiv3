@@ -30,19 +30,24 @@ from app.models.conocer_upload import ConocerUploadBatch, ConocerUploadLog
 from app.models.competency_standard import CompetencyStandard, DeletionRequest
 from app.models.brand import Brand
 from app.models.vm_session import VmSession
+from app.models.badge import BadgeTemplate, IssuedBadge
 from app.models.partner import (
     Partner,
     PartnerStatePresence,
     Campus,
+    CampusCompetencyStandard,
     SchoolCycle,
     CandidateGroup,
     GroupMember,
     GroupExam,
     GroupExamMaterial,
+    GroupExamMember,
     GroupStudyMaterial,
     GroupStudyMaterialMember,
     EcmCandidateAssignment,
     EcmRetake,
+    ConocerEmailContact,
+    ConocerSolicitudLog,
     MEXICAN_STATES,
     user_partners
 )
@@ -96,17 +101,23 @@ __all__ = [
     'DeletionRequest',
     'Brand',
     'VmSession',
+    'BadgeTemplate',
+    'IssuedBadge',
     'Partner',
     'PartnerStatePresence',
     'Campus',
+    'CampusCompetencyStandard',
     'CandidateGroup',
     'GroupMember',
     'GroupExam',
     'GroupExamMaterial',
+    'GroupExamMember',
     'GroupStudyMaterial',
     'GroupStudyMaterialMember',
     'EcmCandidateAssignment',
     'EcmRetake',
+    'ConocerEmailContact',
+    'ConocerSolicitudLog',
     'MEXICAN_STATES',
     'user_partners',
     # Balance models

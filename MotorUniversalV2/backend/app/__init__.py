@@ -1,6 +1,7 @@
 """
 Factory de la aplicación Flask
 """
+import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -118,12 +119,18 @@ def create_app(config_name='development'):
     print("[INIT] ✅ users registrado")
     app.register_blueprint(health.bp, url_prefix='/api')
     print("[INIT] ✅ health registrado")
-    app.register_blueprint(init.init_bp, url_prefix='/api')
-    print("[INIT] ✅ init registrado")
-    app.register_blueprint(reset.reset_bp, url_prefix='/api')
-    print("[INIT] ✅ reset registrado")
-    app.register_blueprint(debug.debug_bp, url_prefix='/api')
-    print("[INIT] ✅ debug registrado")
+    # SECURITY: init, reset y debug deshabilitados en producción
+    # Estos blueprints contienen endpoints destructivos (drop_all, create_all)
+    # Solo habilitar temporalmente durante mantenimiento con ENABLE_DEV_ENDPOINTS=true
+    if os.environ.get('ENABLE_DEV_ENDPOINTS', 'false').lower() == 'true':
+        app.register_blueprint(init.init_bp, url_prefix='/api')
+        print("[INIT] ⚠️ init registrado (DEV MODE)")
+        app.register_blueprint(reset.reset_bp, url_prefix='/api')
+        print("[INIT] ⚠️ reset registrado (DEV MODE)")
+        app.register_blueprint(debug.debug_bp, url_prefix='/api')
+        print("[INIT] ⚠️ debug registrado (DEV MODE)")
+    else:
+        print("[INIT] 🔒 init/reset/debug DESHABILITADOS (producción)")
     app.register_blueprint(study_contents_bp, url_prefix='/api/study-contents')
     print("[INIT] ✅ study-contents registrado")
     app.register_blueprint(conocer_bp, url_prefix='/api/conocer')

@@ -34,7 +34,7 @@ class BadgeTemplate(db.Model):
 
     # Auditoría
     created_by_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
@@ -95,7 +95,7 @@ class IssuedBadge(db.Model):
     verify_count = db.Column(db.Integer, default=0, nullable=False)
     claimed_at = db.Column(db.DateTime, nullable=True)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     def to_dict(self, include_credential=False):
         data = {
@@ -128,4 +128,4 @@ class IssuedBadge(db.Model):
 
     @property
     def credential_url(self):
-        return f"https://app.evaluaasi.com
+        return f"https://app.evaluaasi.com/api/badges/{self.id}/credential.json"

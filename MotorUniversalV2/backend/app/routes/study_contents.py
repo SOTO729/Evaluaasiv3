@@ -128,70 +128,26 @@ def migrate_exams_table():
         return jsonify({'error': str(e)}), 500
 
 
-# Endpoint público temporal para crear la tabla (ELIMINAR DESPUÉS DE USAR)
-@study_contents_bp.route('/setup-exams-table', methods=['GET'])
-def setup_exams_table_public():
-    """Crear la tabla study_material_exams - endpoint público temporal"""
-    try:
-        created = ensure_study_material_exams_table()
-        if created:
-            return jsonify({'message': 'Tabla study_material_exams creada exitosamente', 'created': True}), 201
-        else:
-            return jsonify({'message': 'La tabla ya existe', 'created': False}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+# SECURITY: Endpoint deshabilitado — usar migrate-exams-table con auth
+# @study_contents_bp.route('/setup-exams-table', methods=['GET'])
+# def setup_exams_table_public(): REMOVED — was public without auth
 
 
-# Endpoint público para listar materiales (solo IDs y títulos) - diagnóstico
-@study_contents_bp.route('/list-materials', methods=['GET'])
-def list_materials_public():
-    """Listar todos los materiales - endpoint público de diagnóstico"""
-    try:
-        materials = StudyMaterial.query.all()
-        return jsonify([{'id': m.id, 'title': m.title, 'exam_ids': m.to_dict().get('exam_ids', [])} for m in materials]), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+# SECURITY: Endpoint deshabilitado — exponía datos sin autenticación
+# @study_contents_bp.route('/list-materials', methods=['GET'])
+# def list_materials_public(): REMOVED — was public without auth
 
 
-# Endpoint público de diagnóstico para verificar relaciones de exámenes
-@study_contents_bp.route('/debug-exams/<int:material_id>', methods=['GET'])
-def debug_material_exams(material_id):
-    """Verificar las relaciones de exámenes de un material - endpoint público de diagnóstico"""
-    try:
-        material = StudyMaterial.query.get_or_404(material_id)
-        
-        # Verificar directamente en la tabla de relación
-        direct_query = db.session.execute(text("""
-            SELECT sme.exam_id, e.title as exam_title
-            FROM study_material_exams sme
-            JOIN exams e ON sme.exam_id = e.id
-            WHERE sme.study_material_id = :material_id
-        """), {'material_id': material_id})
-        direct_exams = [{'exam_id': row[0], 'exam_title': row[1]} for row in direct_query.fetchall()]
-        
-        # Verificar a través de SQLAlchemy
-        orm_exams = []
-        try:
-            orm_exams = [{'id': e.id, 'title': e.title} for e in material.exams]
-        except Exception as orm_error:
-            orm_exams = f"Error: {str(orm_error)}"
-        
-        return jsonify({
-            'material_id': material_id,
-            'material_title': material.title,
-            'exam_id_legacy': material.exam_id,
-            'direct_query_exams': direct_exams,
-            'orm_exams': orm_exams,
-            'linked_exams_from_to_dict': material.to_dict().get('linked_exams', [])
-        }), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+# SECURITY: Endpoint deshabilitado — exponía relaciones de exámenes sin autenticación
+# @study_contents_bp.route('/debug-exams/<int:material_id>', methods=['GET'])
+# def debug_material_exams(): REMOVED — was public without auth
 
 
-# Endpoint público temporal para crear tablas de sesiones y temas
-@study_contents_bp.route('/setup-sessions-tables', methods=['GET'])
-def setup_sessions_tables_public():
-    """Crear las tablas study_sessions y study_topics - endpoint público temporal"""
+# SECURITY: Endpoint deshabilitado — creaba tablas sin autenticación
+# @study_contents_bp.route('/setup-sessions-tables', methods=['GET'])
+# def setup_sessions_tables_public(): REMOVED — was public without auth
+def _disabled_setup_sessions_tables_public():
+    """DISABLED: Crear las tablas study_sessions y study_topics - endpoint público temporal"""
     try:
         results = []
         
@@ -251,10 +207,11 @@ def setup_sessions_tables_public():
         return jsonify({'error': str(e)}), 500
 
 
-# Endpoint para corregir la FK de study_sessions
-@study_contents_bp.route('/fix-sessions-fk', methods=['GET'])
-def fix_sessions_fk():
-    """Corregir la FK de study_sessions para que apunte a study_contents"""
+# SECURITY: Endpoint deshabilitado — modificaba FK sin autenticación
+# @study_contents_bp.route('/fix-sessions-fk', methods=['GET'])
+# def fix_sessions_fk(): REMOVED — was public without auth
+def _disabled_fix_sessions_fk():
+    """DISABLED: Corregir la FK de study_sessions para que apunte a study_contents"""
     try:
         results = []
         
@@ -2334,10 +2291,11 @@ def ensure_student_progress_tables():
         return False
 
 
-# Endpoint para crear las tablas de progreso
-@study_contents_bp.route('/setup-progress-tables', methods=['GET'])
-def setup_progress_tables():
-    """Crear las tablas de progreso si no existen (endpoint público temporal)"""
+# SECURITY: Endpoint deshabilitado — creaba tablas sin autenticación
+# @study_contents_bp.route('/setup-progress-tables', methods=['GET'])
+# def setup_progress_tables(): REMOVED — was public without auth
+def _disabled_setup_progress_tables():
+    """DISABLED: Crear las tablas de progreso si no existen (endpoint público temporal)"""
     try:
         errors = []
         

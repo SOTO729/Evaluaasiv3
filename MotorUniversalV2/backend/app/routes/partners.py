@@ -277,7 +277,9 @@ def delete_partner(partner_id):
 def get_partner_states(partner_id):
     """Obtener estados donde tiene presencia un partner"""
     try:
-        partner = Partner.query.get_or_404(partner_id)
+        partner, error = _verify_partner_access(partner_id, g.current_user)
+        if error:
+            return error
         presences = PartnerStatePresence.query.filter_by(partner_id=partner_id).all()
         
         return jsonify({
@@ -296,7 +298,9 @@ def get_partner_states(partner_id):
 def add_partner_state(partner_id):
     """Agregar presencia en un estado"""
     try:
-        partner = Partner.query.get_or_404(partner_id)
+        partner, error = _verify_partner_access(partner_id, g.current_user)
+        if error:
+            return error
         data = request.get_json()
         
         state_name = data.get('state_name')
@@ -342,6 +346,9 @@ def add_partner_state(partner_id):
 def remove_partner_state(partner_id, presence_id):
     """Eliminar presencia en un estado"""
     try:
+        partner, error = _verify_partner_access(partner_id, g.current_user)
+        if error:
+            return error
         presence = PartnerStatePresence.query.filter_by(
             id=presence_id,
             partner_id=partner_id
