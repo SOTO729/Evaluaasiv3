@@ -126,6 +126,15 @@ export default function BadgeTemplateFormPage() {
     if (!form.issuer_image_url?.trim() && std.brand?.logo_url) {
       updates.issuer_image_url = std.brand.logo_url
     }
+    // Pre-fill issuer URL based on certifying body
+    if (!form.issuer_url?.trim()) {
+      const body = (std.certifying_body || '').toLowerCase()
+      if (body.includes('conocer')) {
+        updates.issuer_url = 'https://www.conocer.gob.mx'
+      } else {
+        updates.issuer_url = 'https://evaluaasi.com'
+      }
+    }
 
     setForm(prev => ({ ...prev, ...updates }))
 
