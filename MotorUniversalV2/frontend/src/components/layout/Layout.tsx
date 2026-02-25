@@ -293,7 +293,7 @@ const Layout = ({ children }: LayoutProps) => {
                 )}
                 {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
                   <Link 
-                    to="/partners/dashboard" 
+                    to="/partners" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/partners') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
@@ -657,7 +657,7 @@ const Layout = ({ children }: LayoutProps) => {
               )}
               {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
                 <Link 
-                  to="/partners/dashboard" 
+                  to="/partners" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
                     location.pathname.startsWith('/partners') 
                       ? 'bg-primary-50 text-primary-600 font-medium' 

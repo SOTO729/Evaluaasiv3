@@ -237,7 +237,7 @@ export default function ConocerTramitesPage() {
         <div className="flex items-center justify-between flex-wrap fluid-gap-4">
           <div className="flex items-center fluid-gap-4">
             <Link
-              to="/partners/dashboard"
+              to="/partners"
               className="p-2 rounded-fluid-xl bg-white/10 hover:bg-white/20 transition-all"
             >
               <ArrowLeft className="fluid-icon-base" />

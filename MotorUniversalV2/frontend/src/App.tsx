@@ -112,7 +112,6 @@ const BrandsListPage = lazy(() => import('./pages/standards/BrandsListPage'))
 const BrandFormPage = lazy(() => import('./pages/standards/BrandFormPage'))
 
 // Partners (Coordinador)
-const PartnersDashboardPage = lazy(() => import('./pages/partners/PartnersDashboardPage'))
 const PartnersListPage = lazy(() => import('./pages/partners/PartnersListPage'))
 const PartnerFormPage = lazy(() => import('./pages/partners/PartnerFormPage'))
 const PartnerDetailPage = lazy(() => import('./pages/partners/PartnerDetailPage'))
@@ -301,7 +300,6 @@ function App() {
               <Route path="/badges/templates/:id/edit" element={<RestrictedForGerenteFinOnly><BadgeTemplateFormPage /></RestrictedForGerenteFinOnly>} />
               
               {/* Partners (Coordinador) */}
-              <Route path="/partners/dashboard" element={<PartnersDashboardPage />} />
               <Route path="/partners" element={<PartnersListPage />} />
               <Route path="/partners/new" element={<PartnerFormPage />} />
               <Route path="/partners/:partnerId" element={<PartnerDetailPage />} />
