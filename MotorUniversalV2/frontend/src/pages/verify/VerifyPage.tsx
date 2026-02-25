@@ -8,6 +8,7 @@ interface VerificationData {
   document_type?: string
   document_name?: string
   verification_code?: string
+  status?: string
   candidate?: {
     full_name: string
   }
@@ -21,6 +22,18 @@ interface VerificationData {
     completion_date: string | null
     score: number | null
     result: string
+  }
+  badge?: {
+    name: string
+    description: string | null
+    issuer_name: string
+    image_url: string | null
+    issued_date: string | null
+    expires_date?: string | null
+    badge_uuid: string
+    credential_url: string
+    verify_count?: number
+    share_count?: number
   }
 }
 
@@ -147,7 +160,9 @@ const VerifyPage = () => {
             {/* Tipo de documento */}
             <div className="flex items-center gap-3 pb-4 border-b">
               <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
-                {data.document_type === 'eduit_certificate' ? (
+                {data.document_type === 'digital_badge' ? (
+                  <Award className="w-6 h-6 text-amber-600" />
+                ) : data.document_type === 'eduit_certificate' ? (
                   <Award className="w-6 h-6 text-primary-600" />
                 ) : (
                   <BookOpen className="w-6 h-6 text-primary-600" />
@@ -159,7 +174,91 @@ const VerifyPage = () => {
               </div>
             </div>
 
-            {/* Información del candidato */}
+            {/* Badge-specific section */}
+            {data.document_type === 'digital_badge' && data.badge && (
+              <>
+                {/* Badge image */}
+                {data.badge.image_url && (
+                  <div className="flex justify-center">
+                    <img src={data.badge.image_url} alt={data.badge.name} className="h-48 object-contain rounded-xl shadow-lg" />
+                  </div>
+                )}
+
+                {/* Badge info */}
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Award className="w-6 h-6 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Insignia Digital</p>
+                    <p className="font-semibold text-gray-900 text-lg">{data.badge.name}</p>
+                    {data.badge.description && (
+                      <p className="text-sm text-gray-600 mt-1">{data.badge.description}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Candidato */}
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <User className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Titular</p>
+                    <p className="font-semibold text-gray-900 text-lg">{data.candidate?.full_name}</p>
+                  </div>
+                </div>
+
+                {/* Issuer */}
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Shield className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Emitida por</p>
+                    <p className="font-semibold text-gray-900">{data.badge.issuer_name}</p>
+                  </div>
+                </div>
+
+                {/* Dates */}
+                <div className="grid grid-cols-2 gap-4">
+                  {data.badge.issued_date && (
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <p className="text-sm text-gray-500">Fecha de Emisión</p>
+                      <p className="font-semibold text-gray-900">{data.badge.issued_date}</p>
+                    </div>
+                  )}
+                  {data.badge.expires_date && (
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <p className="text-sm text-gray-500">Expira</p>
+                      <p className={`font-semibold ${data.status === 'expired' ? 'text-red-600' : 'text-gray-900'}`}>
+                        {data.badge.expires_date}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* OB3 credential link */}
+                {data.badge.credential_url && (
+                  <div className="bg-blue-50 rounded-xl p-4 text-center">
+                    <p className="text-sm text-blue-600 mb-1">Credencial Open Badges 3.0</p>
+                    <a
+                      href={data.badge.credential_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-700 underline font-mono text-sm break-all"
+                    >
+                      Ver Credencial JSON-LD
+                    </a>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Regular certificate content (non-badge) */}
+            {data.document_type !== 'digital_badge' && (
+              <>
+                {/* Información del candidato */}
             <div className="flex items-start gap-3">
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
                 <User className="w-6 h-6 text-blue-600" />
@@ -228,6 +327,8 @@ const VerifyPage = () => {
                   <p className="font-bold text-2xl text-gray-900">{data.certification.score}%</p>
                 </div>
               </div>
+            )}
+              </>
             )}
 
             {/* Código de verificación */}

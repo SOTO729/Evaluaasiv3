@@ -635,6 +635,45 @@ class AzureStorageService:
             print(f"Error uploading WebP image to Azure: {str(e)}")
             return None
 
+    def upload_bytes(self, data, blob_name, content_type='application/octet-stream'):
+        """
+        Subir bytes crudos a Azure Blob Storage con blob_name explícito.
+
+        Args:
+            data: bytes o BytesIO con el contenido
+            blob_name: ruta completa del blob (e.g. 'badges/uuid.png')
+            content_type: MIME type
+
+        Returns:
+            str: URL del archivo subido o None si falla
+        """
+        client = self.blob_service_client
+        container = self.container_name
+
+        if not client and self.video_blob_client:
+            client = self.video_blob_client
+            container = self.video_container_name
+
+        if not client:
+            print("No Azure storage client available for upload_bytes")
+            return None
+
+        try:
+            blob_client = client.get_blob_client(
+                container=container,
+                blob=blob_name
+            )
+            blob_client.upload_blob(
+                data,
+                overwrite=True,
+                content_settings=ContentSettings(content_type=content_type)
+            )
+            print(f"Bytes subidos exitosamente: {blob_client.url}")
+            return blob_client.url
+        except AzureError as e:
+            print(f"Error uploading bytes to Azure: {str(e)}")
+            return None
+
 
 # Instancia global
 azure_storage = AzureStorageService()

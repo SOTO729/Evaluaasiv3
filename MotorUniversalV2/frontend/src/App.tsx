@@ -183,6 +183,10 @@ const UsersListPage = lazy(() => import('./pages/users/UsersListPage'))
 const UserFormPage = lazy(() => import('./pages/users/UserFormPage'))
 const UserDetailPage = lazy(() => import('./pages/users/UserDetailPage'))
 
+// Badges (Insignias Digitales)
+const BadgeTemplatesPage = lazy(() => import('./pages/badges/BadgeTemplatesPage'))
+const BadgeTemplateFormPage = lazy(() => import('./pages/badges/BadgeTemplateFormPage'))
+
 function App() {
   const { isAuthenticated } = useAuthStore()
 
@@ -281,6 +285,11 @@ function App() {
               <Route path="/certificates" element={<RestrictedForGerenteFin><CertificatesPage /></RestrictedForGerenteFin>} />
               <Route path="/certificates/evaluation-report/:examId" element={<RestrictedForGerenteFin><EvaluationReportDetailPage /></RestrictedForGerenteFin>} />
               <Route path="/certificates/evaluation-report/:examId/result/:resultId" element={<RestrictedForGerenteFin><ResultDetailPage /></RestrictedForGerenteFin>} />
+              
+              {/* Badges (Insignias Digitales) - Restringido para coordinador, gerente y financiero */}
+              <Route path="/badges/templates" element={<RestrictedForGerenteFin><BadgeTemplatesPage /></RestrictedForGerenteFin>} />
+              <Route path="/badges/templates/new" element={<RestrictedForGerenteFin><BadgeTemplateFormPage /></RestrictedForGerenteFin>} />
+              <Route path="/badges/templates/:id/edit" element={<RestrictedForGerenteFin><BadgeTemplateFormPage /></RestrictedForGerenteFin>} />
               
               {/* Partners (Coordinador) */}
               <Route path="/partners/dashboard" element={<PartnersDashboardPage />} />

@@ -186,6 +186,7 @@ def verify_certificate(code):
     Códigos:
     - ZC... = Reporte de Evaluación
     - EC... = Certificado Eduit
+    - BD... = Insignia Digital (Open Badges 3.0)
     """
     from app.models.result import Result
     from app.models.user import User
@@ -198,6 +199,64 @@ def verify_certificate(code):
 
     # Determinar tipo de documento por prefijo
     prefix = code[:2].upper()
+
+    # ── Insignia Digital → delegar a badge routes ──
+    if prefix == 'BD':
+        try:
+            from app.models.badge import IssuedBadge, BadgeTemplate
+            badge = IssuedBadge.query.filter_by(badge_code=code).first()
+            if not badge:
+                return jsonify({'valid': False, 'error': 'Código de insignia no encontrado'}), 404
+
+            badge.verify_count = (badge.verify_count or 0) + 1
+            db.session.commit()
+
+            template = BadgeTemplate.query.get(badge.badge_template_id)
+            user = User.query.get(str(badge.user_id))
+
+            name_parts = [user.name or ''] if user else ['N/A']
+            if user and user.first_surname:
+                name_parts.append(user.first_surname)
+            if user and user.second_surname:
+                name_parts.append(user.second_surname)
+            full_name = ' '.join(name_parts).strip() or 'N/A'
+
+            meses = {
+                1: 'enero', 2: 'febrero', 3: 'marzo', 4: 'abril',
+                5: 'mayo', 6: 'junio', 7: 'julio', 8: 'agosto',
+                9: 'septiembre', 10: 'octubre', 11: 'noviembre', 12: 'diciembre'
+            }
+            issued_date = badge.issued_at
+            formatted_date = f"{issued_date.day} de {meses[issued_date.month]} de {issued_date.year}" if issued_date else None
+
+            from datetime import datetime
+            is_expired = badge.expires_at and badge.expires_at < datetime.utcnow()
+
+            return jsonify({
+                'valid': badge.status == 'active' and not is_expired,
+                'document_type': 'digital_badge',
+                'document_name': 'Insignia Digital',
+                'verification_code': code,
+                'status': 'expired' if is_expired else badge.status,
+                'candidate': {'full_name': full_name},
+                'badge': {
+                    'name': template.name if template else 'N/A',
+                    'description': template.description if template else None,
+                    'issuer_name': template.issuer_name if template else 'EduIT / Evaluaasi',
+                    'image_url': badge.badge_image_url,
+                    'issued_date': formatted_date,
+                    'badge_uuid': badge.badge_uuid,
+                    'credential_url': badge.credential_url,
+                },
+                'certification': {
+                    'exam_name': template.name if template else 'N/A',
+                    'completion_date': formatted_date,
+                    'result': 'Verificada' if badge.status == 'active' and not is_expired else 'Expirada/Revocada',
+                },
+            }), 200
+        except Exception as e:
+            print(f"[VERIFY] Error verificando badge {code}: {e}")
+            return jsonify({'valid': False, 'error': 'Error al verificar insignia'}), 500
 
     if prefix == 'ZC':
         document_type = 'evaluation_report'

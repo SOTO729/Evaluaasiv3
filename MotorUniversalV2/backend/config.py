@@ -108,6 +108,7 @@ class TestingConfig(Config):
     """Configuración de testing"""
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_ENGINE_OPTIONS = {}  # SQLite no soporta pool_size/max_overflow
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(seconds=60)
     WTF_CSRF_ENABLED = False
 

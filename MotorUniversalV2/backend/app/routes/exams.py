@@ -3282,14 +3282,35 @@ def save_exam_result(exam_id):
         except Exception as email_err:
             print(f"Error enviando email de resultado: {email_err}")
         
+        # ── Emisión automática de Insignia Digital (Open Badges 3.0) ──
+        issued_badge_data = None
+        if result_value == 1:
+            try:
+                from app.services.badge_service import issue_badge_for_result
+                exam_user_badge = exam_user if exam_user else User.query.get(str(user_id))
+                badge = issue_badge_for_result(result, exam_user_badge, exam)
+                if badge:
+                    issued_badge_data = {
+                        'badge_code': badge.badge_code,
+                        'badge_image_url': badge.badge_image_url,
+                        'badge_uuid': badge.badge_uuid,
+                    }
+                    print(f"🏅 Insignia digital emitida: {badge.badge_code}")
+            except Exception as badge_err:
+                print(f"Error emitiendo insignia digital: {badge_err}")
+        
         print(f"✅ Resultado guardado: id={result.id}, score={score}, percentage={percentage}, aprobado={result_value == 1}")
         print(f"=== FIN GUARDAR RESULTADO ===\n")
         
-        return jsonify({
+        response_data = {
             'message': 'Resultado guardado exitosamente',
             'result': result.to_dict(),
             'is_approved': result_value == 1
-        }), 201
+        }
+        if issued_badge_data:
+            response_data['badge'] = issued_badge_data
+        
+        return jsonify(response_data), 201
         
     except Exception as e:
         db.session.rollback()

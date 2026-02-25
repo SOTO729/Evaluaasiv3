@@ -549,7 +549,62 @@ const ApprovalCertificateSection = ({ exams, formatDate }: { exams: any[], forma
 
 // Sección de Insignias Digitales
 const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: (date: string) => string }) => {
-  if (exams.length === 0) {
+  const [badges, setBadges] = useState<any[]>([])
+  const [badgesLoading, setBadgesLoading] = useState(true)
+  const [sharingId, setSharingId] = useState<number | null>(null)
+
+  useEffect(() => {
+    const loadBadges = async () => {
+      try {
+        const { default: badgeService } = await import('../../services/badgeService')
+        const data = await badgeService.getMyBadges()
+        setBadges(data.badges)
+      } catch (err) {
+        console.error('Error loading badges:', err)
+      } finally {
+        setBadgesLoading(false)
+      }
+    }
+    loadBadges()
+  }, [])
+
+  const handleDownload = (badge: any) => {
+    if (badge.badge_image_url) {
+      window.open(badge.badge_image_url, '_blank')
+    }
+  }
+
+  const handleShare = async (badge: any) => {
+    setSharingId(badge.id)
+    try {
+      const { default: badgeService } = await import('../../services/badgeService')
+      const linkedinUrl = await badgeService.getLinkedInUrl(badge.id)
+      await badgeService.trackShare(badge.id)
+      window.open(linkedinUrl, '_blank', 'noopener')
+    } catch (err) {
+      // Fallback: copy verify URL
+      const verifyUrl = badge.verify_url || `https://thankful-stone-07fbe5410.6.azurestaticapps.net/verify/${badge.badge_code}`
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(verifyUrl)
+        alert('URL de verificación copiada al portapapeles')
+      }
+    } finally {
+      setSharingId(null)
+    }
+  }
+
+  if (badgesLoading) {
+    return (
+      <div className="flex justify-center fluid-py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+      </div>
+    )
+  }
+
+  // Fall back to exam-based display if no badges from API
+  const displayItems = badges.length > 0 ? badges : exams
+
+  if (displayItems.length === 0) {
     return (
       <div className="text-center fluid-py-12 animate-fade-in">
         <BadgeCheck className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-4" />
@@ -561,52 +616,118 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 fluid-gap-5">
-      {exams.map((exam, index) => (
-        <div
-          key={exam.id}
-          className="bg-white border-2 border-gray-200 rounded-fluid-2xl fluid-p-5 text-center hover:border-primary-300 hover:shadow-xl transition-all duration-300 group animate-stagger-in relative overflow-hidden"
-          style={{ animationDelay: `${index * 75}ms` }}
-        >
-          {/* Decoración de fondo */}
-          <div className="absolute inset-0 bg-gradient-to-br from-primary-50/0 via-transparent to-primary-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-          {/* Badge Visual */}
-          <div className="relative mx-auto fluid-icon-2xl fluid-mb-4 z-10">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full animate-pulse group-hover:animate-none group-hover:scale-110 transition-transform duration-500" />
-            <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center shadow-inner">
-              <div className="w-full h-full bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center group-hover:from-primary-600 group-hover:to-primary-800 transition-all duration-300">
-                <BadgeCheck className="fluid-icon-xl text-white" />
+      {badges.length > 0 ? (
+        // Real badges from API
+        badges.map((badge, index) => (
+          <div
+            key={badge.id}
+            className="bg-white border-2 border-gray-200 rounded-fluid-2xl fluid-p-5 text-center hover:border-amber-300 hover:shadow-xl transition-all duration-300 group animate-stagger-in relative overflow-hidden"
+            style={{ animationDelay: `${index * 75}ms` }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-50/0 via-transparent to-amber-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+            
+            {/* Badge Image or Visual */}
+            <div className="relative mx-auto w-24 h-24 fluid-mb-4 z-10">
+              {badge.badge_image_url ? (
+                <img src={badge.badge_image_url} alt={badge.template_name || 'Insignia'} className="w-full h-full object-contain rounded-fluid-xl" />
+              ) : (
+                <>
+                  <div className="absolute inset-0 bg-gradient-to-br from-amber-500 to-amber-700 rounded-full" />
+                  <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center shadow-inner">
+                    <div className="w-full h-full bg-gradient-to-br from-amber-500 to-amber-700 rounded-full flex items-center justify-center">
+                      <BadgeCheck className="fluid-icon-xl text-white" />
+                    </div>
+                  </div>
+                  <div className="absolute -top-1 -right-1 fluid-icon-sm bg-yellow-400 rounded-full flex items-center justify-center shadow-md">
+                    <span className="text-white fluid-text-xs">★</span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <h3 className="font-bold text-gray-900 mb-1 relative z-10 group-hover:text-amber-700 transition-colors">
+              {badge.template_name || 'Insignia Digital'}
+            </h3>
+            <p className="fluid-text-xs text-gray-400 fluid-mb-2 relative z-10">
+              Código: {badge.badge_code}
+            </p>
+            
+            <div className={`inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1 rounded-full fluid-text-sm font-medium fluid-mb-3 relative z-10 ${
+              badge.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+            }`}>
+              <CheckCircle className="fluid-icon-xs" />
+              {badge.status === 'active' ? 'Verificada' : badge.status === 'expired' ? 'Expirada' : 'Revocada'}
+            </div>
+
+            {badge.issued_at && (
+              <p className="fluid-text-xs text-gray-400 fluid-mb-3 relative z-10">
+                Emitida: {formatDate(badge.issued_at)}
+              </p>
+            )}
+
+            {/* Stats */}
+            <div className="flex justify-center fluid-gap-4 fluid-mb-3 relative z-10">
+              <span className="fluid-text-xs text-gray-400" title="Verificaciones">
+                <Eye className="inline fluid-icon-xs mr-1" />{badge.verify_count || 0}
+              </span>
+              <span className="fluid-text-xs text-gray-400" title="Compartidas">
+                <ExternalLink className="inline fluid-icon-xs mr-1" />{badge.share_count || 0}
+              </span>
+            </div>
+
+            <div className="flex fluid-gap-2 relative z-10">   
+              <button
+                onClick={() => handleDownload(badge)}
+                className="flex-1 flex items-center justify-center fluid-gap-2 fluid-px-3 fluid-py-2 bg-amber-600 text-white rounded-fluid-lg fluid-text-sm font-medium hover:bg-amber-700 transition-all duration-200 hover:shadow-md hover:scale-105 active:scale-95"
+              >
+                <Download className="fluid-icon-xs" /> 
+                Descargar
+              </button>        
+              <button
+                onClick={() => handleShare(badge)}
+                disabled={sharingId === badge.id}
+                className="fluid-px-3 fluid-py-2 border border-gray-300 text-gray-600 rounded-fluid-lg fluid-text-sm hover:bg-gray-100 hover:border-gray-400 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50"
+                title="Compartir en LinkedIn"
+              >
+                <ExternalLink className="fluid-icon-xs" />
+              </button>
+            </div>
+          </div>
+        ))
+      ) : (
+        // Fallback to exam-based display (no real badges yet)
+        exams.map((exam, index) => (
+          <div
+            key={exam.id}
+            className="bg-white border-2 border-gray-200 rounded-fluid-2xl fluid-p-5 text-center hover:border-primary-300 hover:shadow-xl transition-all duration-300 group animate-stagger-in relative overflow-hidden"
+            style={{ animationDelay: `${index * 75}ms` }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-primary-50/0 via-transparent to-primary-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+            <div className="relative mx-auto fluid-icon-2xl fluid-mb-4 z-10">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full animate-pulse group-hover:animate-none group-hover:scale-110 transition-transform duration-500" />
+              <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center shadow-inner">
+                <div className="w-full h-full bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center">
+                  <BadgeCheck className="fluid-icon-xl text-white" />
+                </div>
+              </div>
+              <div className="absolute -top-1 -right-1 fluid-icon-sm bg-yellow-400 rounded-full flex items-center justify-center shadow-md">
+                <span className="text-white fluid-text-xs">★</span>
               </div>
             </div>
-            {/* Stars decoration */}
-            <div className="absolute -top-1 -right-1 fluid-icon-sm bg-yellow-400 rounded-full flex items-center justify-center shadow-md group-hover:scale-125 group-hover:rotate-12 transition-all duration-300">
-              <span className="text-white fluid-text-xs">★</span>
+            <h3 className="font-bold text-gray-900 mb-1 relative z-10">{exam.name}</h3>
+            <p className="fluid-text-sm text-gray-500 fluid-mb-2 relative z-10">Insignia pendiente de generación</p>
+            {exam.user_stats.last_attempt && (
+              <p className="fluid-text-xs text-gray-400 fluid-mb-4 relative z-10">
+                Aprobado: {formatDate(exam.user_stats.last_attempt.end_date || exam.user_stats.last_attempt.start_date)}
+              </p>
+            )}
+            <div className="inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1 bg-gray-100 text-gray-500 rounded-full fluid-text-sm font-medium relative z-10">
+              <Clock className="fluid-icon-xs" />
+              Pendiente
             </div>
           </div>
-
-          <h3 className="font-bold text-gray-900 mb-1 relative z-10 group-hover:text-primary-700 transition-colors">{exam.name}</h3>
-          <p className="fluid-text-sm text-gray-500 fluid-mb-2 relative z-10">Insignia de Competencia</p>
-          
-          <div className="inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1 bg-green-100 text-green-700 rounded-full fluid-text-sm font-medium fluid-mb-4 relative z-10 group-hover:bg-green-200 transition-colors">
-            <CheckCircle className="fluid-icon-xs" />
-            Verificada
-          </div>
-
-          {exam.user_stats.last_attempt && (
-            <p className="fluid-text-xs text-gray-400 fluid-mb-4 relative z-10">
-              Obtenida: {formatDate(exam.user_stats.last_attempt.end_date || exam.user_stats.last_attempt.start_date)}
-            </p>
-          )}
-          <div className="flex fluid-gap-2 relative z-10">   
-            <button className="flex-1 flex items-center justify-center fluid-gap-2 fluid-px-3 fluid-py-2 bg-primary-600 text-white rounded-fluid-lg fluid-text-sm font-medium hover:bg-primary-700 transition-all duration-200 hover:shadow-md hover:scale-105 active:scale-95">
-              <Download className="fluid-icon-xs" /> 
-              Descargar
-            </button>        
-            <button className="fluid-px-3 fluid-py-2 border border-gray-300 text-gray-600 rounded-fluid-lg fluid-text-sm hover:bg-gray-100 hover:border-gray-400 transition-all duration-200 hover:scale-105 active:scale-95">
-              <ExternalLink className="fluid-icon-xs" />
-            </button>
-          </div>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   )
 } 
