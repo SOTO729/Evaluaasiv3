@@ -600,3 +600,78 @@ def export_group_badges_excel(group_id):
         as_attachment=True,
         download_name=filename
     )
+
+
+@bp.route('/group/<int:group_id>/issue-pending', methods=['POST'])
+@jwt_required()
+def issue_pending_group_badges(group_id):
+    """
+    Emite retroactivamente insignias para resultados aprobados de un grupo
+    que aún no tienen insignia emitida.
+    """
+    _require_roles('admin', 'editor', 'coordinator')
+
+    from app.models.partner import GroupMember, CandidateGroup
+    from app.models.result import Result
+    from app.models.exam import Exam
+    from app.services.badge_service import issue_badge_for_result
+
+    group = CandidateGroup.query.get_or_404(group_id)
+    members = GroupMember.query.filter_by(group_id=group_id).all()
+    member_ids = [m.user_id for m in members]
+
+    if not member_ids:
+        return jsonify({'message': 'No hay miembros en el grupo', 'issued': 0}), 200
+
+    # Buscar resultados aprobados de miembros de este grupo
+    approved_results = Result.query.filter(
+        Result.user_id.in_(member_ids),
+        Result.result == 1,
+        Result.status == 1
+    ).all()
+
+    issued_count = 0
+    errors_list = []
+
+    for result in approved_results:
+        # Verificar si ya tiene insignia para este resultado
+        existing = IssuedBadge.query.filter_by(result_id=result.id).first()
+        if existing:
+            continue
+
+        user = User.query.get(str(result.user_id))
+        if not user:
+            continue
+
+        exam = Exam.query.get(result.exam_id) if result.exam_id else None
+        if not exam:
+            continue
+
+        # Buscar plantilla activa
+        template = BadgeTemplate.query.filter_by(exam_id=exam.id, is_active=True).first()
+        if not template and hasattr(exam, 'competency_standard_id') and exam.competency_standard_id:
+            template = BadgeTemplate.query.filter_by(
+                competency_standard_id=exam.competency_standard_id, is_active=True
+            ).first()
+        if not template:
+            continue
+
+        # Verificar que no haya duplicado user+template
+        existing2 = IssuedBadge.query.filter_by(
+            user_id=user.id, badge_template_id=template.id, status='active'
+        ).first()
+        if existing2:
+            continue
+
+        try:
+            badge = issue_badge_for_result(result, user, exam)
+            if badge:
+                issued_count += 1
+        except Exception as e:
+            errors_list.append(f"{user.email}: {str(e)}")
+
+    return jsonify({
+        'message': f'Se emitieron {issued_count} insignia(s)',
+        'issued': issued_count,
+        'errors': errors_list[:20] if errors_list else [],
+    }), 200

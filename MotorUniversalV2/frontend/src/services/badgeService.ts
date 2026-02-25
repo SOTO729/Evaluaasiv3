@@ -165,6 +165,11 @@ export const badgeService = {
     return resp.data as Blob
   },
 
+  issuePendingGroupBadges: async (groupId: number) => {
+    const resp = await api.post<{ message: string; issued: number; errors: string[] }>(`/badges/group/${groupId}/issue-pending`)
+    return resp.data
+  },
+
   // ── Public / verify ──
 
   verifyBadge: async (code: string) => {

@@ -277,6 +277,41 @@ def _draw_star(draw, center, size, fill):
     draw.polygon(points, fill=fill)
 
 
+def _is_badge_enabled_for_result(result, user):
+    """
+    Determina si las insignias digitales están habilitadas para un resultado.
+
+    Prioridad:
+      1) result.group_id → config efectiva del grupo (override o campus)
+      2) Membresía del usuario en cualquier grupo con badge activado
+      3) user.enable_digital_badge (legacy, campo directo)
+    """
+    from app.models.partner import CandidateGroup, GroupMember
+
+    # 1) Si el resultado tiene group_id, usar la config efectiva de ese grupo
+    if result and getattr(result, 'group_id', None):
+        group = CandidateGroup.query.get(result.group_id)
+        if group:
+            if group.enable_digital_badge_override is not None:
+                return group.enable_digital_badge_override
+            if group.campus and group.campus.enable_digital_badge:
+                return True
+
+    # 2) Buscar en todas las membresías activas del usuario
+    if user:
+        memberships = GroupMember.query.filter_by(user_id=user.id, status='active').all()
+        for m in memberships:
+            g = CandidateGroup.query.get(m.group_id)
+            if g:
+                if g.enable_digital_badge_override is not None and g.enable_digital_badge_override:
+                    return True
+                if g.enable_digital_badge_override is None and g.campus and g.campus.enable_digital_badge:
+                    return True
+
+    # 3) Legacy: campo directo del usuario
+    return getattr(user, 'enable_digital_badge', False)
+
+
 def issue_badge_for_result(result, user, exam):
     """
     Emite una insignia para un resultado aprobado.
@@ -289,7 +324,7 @@ def issue_badge_for_result(result, user, exam):
     if not result or result.result != 1:
         return None
 
-    if not getattr(user, 'enable_digital_badge', False):
+    if not _is_badge_enabled_for_result(result, user):
         return None
 
     if not user.email:

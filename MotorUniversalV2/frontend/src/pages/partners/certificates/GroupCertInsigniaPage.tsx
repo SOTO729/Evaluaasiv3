@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { BadgeCheck, Download, ExternalLink, Award, FileSpreadsheet } from 'lucide-react';
+import { BadgeCheck, Download, ExternalLink, Award, FileSpreadsheet, Sparkles } from 'lucide-react';
 import CertificateTypePage from './CertificateTypePage';
 import { badgeService, type IssuedBadge } from '../../../services/badgeService';
 
@@ -13,6 +13,8 @@ export default function GroupCertInsigniaPage() {
   const [badges, setBadges] = useState<IssuedBadge[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [issuing, setIssuing] = useState(false);
+  const [issueMessage, setIssueMessage] = useState<string | null>(null);
 
   const handleExportExcel = async () => {
     if (!groupId) return;
@@ -31,6 +33,23 @@ export default function GroupCertInsigniaPage() {
       console.error('Error exporting badges:', err);
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleIssuePending = async () => {
+    if (!groupId) return;
+    setIssuing(true);
+    setIssueMessage(null);
+    try {
+      const data = await badgeService.issuePendingGroupBadges(Number(groupId));
+      setIssueMessage(data.message);
+      // Reload badges
+      const updated = await badgeService.getGroupBadges(Number(groupId));
+      setBadges(updated.badges);
+    } catch (err: any) {
+      setIssueMessage(err.response?.data?.error || 'Error al emitir insignias');
+    } finally {
+      setIssuing(false);
     }
   };
 
@@ -55,42 +74,49 @@ export default function GroupCertInsigniaPage() {
         downloadEnabled={false}
         canGenerate={false}
         extraHeaderActions={
-          <button
-            onClick={handleExportExcel}
-            disabled={exporting || badges.length === 0}
-            className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 rounded-fluid-xl text-white font-medium fluid-text-sm transition-colors disabled:opacity-50"
-          >
-            {exporting ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <FileSpreadsheet className="w-4 h-4" />
-            )}
-            {exporting ? 'Exportando…' : 'Exportar Excel'}
-          </button>
+          <div className="flex items-center fluid-gap-3">
+            <button
+              onClick={handleIssuePending}
+              disabled={issuing}
+              className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 rounded-fluid-xl text-white font-medium fluid-text-sm transition-colors disabled:opacity-50"
+            >
+              {issuing ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4" />
+              )}
+              {issuing ? 'Emitiendo…' : 'Emitir Pendientes'}
+            </button>
+            <button
+              onClick={handleExportExcel}
+              disabled={exporting || badges.length === 0}
+              className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 rounded-fluid-xl text-white font-medium fluid-text-sm transition-colors disabled:opacity-50"
+            >
+              {exporting ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <FileSpreadsheet className="w-4 h-4" />
+              )}
+              {exporting ? 'Exportando…' : 'Exportar Excel'}
+            </button>
+          </div>
         }
       />
 
       {/* Badges detail section — always visible */}
       {!loading && (
         <div className="fluid-px-6 fluid-pb-6">
+          {issueMessage && (
+            <div className="fluid-mb-4 fluid-p-3 bg-green-50 border border-green-200 rounded-fluid-lg text-green-700 fluid-text-sm font-medium">
+              {issueMessage}
+            </div>
+          )}
           <div className="bg-white rounded-fluid-2xl border border-gray-200 overflow-hidden">
             <div className="fluid-p-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="font-semibold text-gray-800 flex items-center fluid-gap-2">
                 <Award className="fluid-icon-sm text-amber-600" />
                 Insignias Emitidas ({badges.length})
               </h3>
-              <button
-                onClick={handleExportExcel}
-                disabled={exporting || badges.length === 0}
-                className="inline-flex items-center fluid-gap-2 fluid-px-4 py-2 bg-amber-600 text-white rounded-fluid-lg font-medium hover:bg-amber-700 disabled:opacity-50 transition-all fluid-text-xs shadow-sm"
-              >
-                {exporting ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <FileSpreadsheet className="w-4 h-4" />
-                )}
-                {exporting ? 'Exportando…' : 'Exportar Excel'}
-              </button>
             </div>
 
             {badges.length === 0 ? (
