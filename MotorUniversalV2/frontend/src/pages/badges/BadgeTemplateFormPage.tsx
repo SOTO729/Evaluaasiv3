@@ -285,7 +285,7 @@ export default function BadgeTemplateFormPage() {
 
   /* ═══════════════ render ═══════════════ */
   return (
-    <div className="max-w-4xl mx-auto fluid-px-6 fluid-py-6 animate-fade-in-up">
+    <div className="max-w-[1600px] mx-auto fluid-px-6 fluid-py-6 animate-fade-in-up">
 
       {/* ── Toast notification ── */}
       {toast && (
@@ -348,12 +348,18 @@ export default function BadgeTemplateFormPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="flex flex-col fluid-gap-6">
+      <form onSubmit={handleSubmit}>
 
         {/* ════════════════════════════════════════════
-            SECTION 1: ECM Association
+            MAIN 2-COL LAYOUT: Left (content) + Right (sidebar)
         ════════════════════════════════════════════ */}
-        <section className="bg-white rounded-fluid-2xl border-2 border-gray-200 fluid-p-6 shadow-sm">
+        <div className="grid grid-cols-1 xl:grid-cols-12 fluid-gap-6">
+
+          {/* ━━━━━━━━━━━━━━ LEFT COLUMN (8/12) ━━━━━━━━━━━━━━ */}
+          <div className="xl:col-span-8 flex flex-col fluid-gap-6">
+
+            {/* ── SECTION: ECM Association ── */}
+            <section className="bg-white rounded-fluid-2xl border-2 border-gray-200 fluid-p-6 shadow-sm">
           <div className="flex items-center fluid-gap-3 fluid-mb-4">
             <div className="fluid-p-2 bg-blue-50 rounded-fluid-lg">
               <BookOpen className="fluid-icon-sm text-blue-600" />
@@ -487,13 +493,8 @@ export default function BadgeTemplateFormPage() {
           </div>
         </section>
 
-        {/* ════════════════════════════════════════════
-            SECTION 2: Basic Info + Image (2 column on lg)
-        ════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 fluid-gap-6">
-
-          {/* Left: Basic info (2/3 width) */}
-          <section className="lg:col-span-2 bg-white rounded-fluid-2xl border-2 border-gray-200 fluid-p-6 shadow-sm">
+            {/* ── SECTION: Basic Info ── */}
+            <section className="bg-white rounded-fluid-2xl border-2 border-gray-200 fluid-p-6 shadow-sm">
             <div className="flex items-center fluid-gap-3 fluid-mb-5">
               <div className="fluid-p-2 bg-blue-50 rounded-fluid-lg">
                 <FileText className="fluid-icon-sm text-blue-600" />
@@ -521,273 +522,300 @@ export default function BadgeTemplateFormPage() {
                 )}
               </div>
 
-              {/* Description */}
-              <div>
-                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Descripción</label>
-                <textarea
-                  value={form.description}
-                  onChange={e => setForm({ ...form, description: e.target.value })}
-                  rows={3}
-                  className="w-full fluid-px-4 py-2.5 border-2 border-gray-200 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm hover:border-gray-300 transition-colors resize-none"
-                  placeholder="Descripción de lo que certifica esta insignia…"
-                />
-              </div>
-
-              {/* Criteria */}
-              <div>
-                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Criterios de Obtención</label>
-                <textarea
-                  value={form.criteria_narrative}
-                  onChange={e => setForm({ ...form, criteria_narrative: e.target.value })}
-                  rows={2}
-                  className="w-full fluid-px-4 py-2.5 border-2 border-gray-200 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm hover:border-gray-300 transition-colors resize-none"
-                  placeholder="Aprobó la evaluación con resultado competente…"
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* Right: Badge Image (1/3 width) */}
-          <section className="bg-white rounded-fluid-2xl border-2 border-gray-200 fluid-p-6 shadow-sm flex flex-col">
-            <div className="flex items-center fluid-gap-3 fluid-mb-5">
-              <div className="fluid-p-2 bg-blue-50 rounded-fluid-lg">
-                <ImageIcon className="fluid-icon-sm text-blue-600" />
-              </div>
-              <h2 className="fluid-text-lg font-semibold text-gray-900">Imagen</h2>
-            </div>
-
-            {/* Drop zone */}
-            <div
-              className={`relative flex-1 min-h-[180px] rounded-fluid-xl flex flex-col items-center justify-center overflow-hidden transition-all cursor-pointer ${
-                dragActive
-                  ? 'border-2 border-blue-500 bg-blue-50 scale-[1.02]'
-                  : imagePreview
-                    ? 'border-2 border-gray-200 bg-gray-50'
-                    : 'border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50/50'
-              }`}
-              onDragOver={e => { e.preventDefault(); setDragActive(true) }}
-              onDragLeave={() => setDragActive(false)}
-              onDrop={handleDrop}
-              onClick={() => document.getElementById('badge-image-input')?.click()}
-            >
-              {imagePreview ? (
-                <>
-                  <img src={imagePreview} alt="Preview" className="w-full h-full object-contain p-3" />
-                  {imageFromEcm && (
-                    <span className="absolute bottom-2 right-2 inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 text-[10px] font-bold bg-blue-100 text-blue-700 rounded-full shadow-sm">
-                      <Sparkles className="w-3 h-3" /> ECM
-                    </span>
-                  )}
-                  <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
-                    <span className="fluid-px-3 fluid-py-1.5 bg-white/90 rounded-fluid-lg fluid-text-xs font-medium text-gray-700 shadow">
-                      Cambiar imagen
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center fluid-p-4">
-                  <Upload className="fluid-icon-lg text-gray-300 mx-auto fluid-mb-2" />
-                  <p className="fluid-text-xs text-gray-500 font-medium">
-                    {dragActive ? 'Suelta aquí' : 'Arrastra o haz clic'}
-                  </p>
-                  <p className="fluid-text-2xs text-gray-400 fluid-mt-1">PNG 600×750px</p>
+              {/* Description + Criteria side by side on large */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 fluid-gap-4">
+                <div>
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Descripción</label>
+                  <textarea
+                    value={form.description}
+                    onChange={e => setForm({ ...form, description: e.target.value })}
+                    rows={4}
+                    className="w-full fluid-px-4 py-2.5 border-2 border-gray-200 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm hover:border-gray-300 transition-colors resize-none"
+                    placeholder="Descripción de lo que certifica esta insignia…"
+                  />
                 </div>
-              )}
-              <input
-                id="badge-image-input"
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="hidden"
-              />
-            </div>
 
-            {imageFromEcm && (
-              <p className="fluid-text-xs text-blue-500 fluid-mt-2 flex items-center fluid-gap-1">
-                <Sparkles className="w-3 h-3" />
-                Usando logo del ECM. Sube otra para reemplazar.
-              </p>
-            )}
-            {!imagePreview && (
-              <p className="fluid-text-2xs text-gray-400 fluid-mt-2 text-center">
-                Si no subes imagen, se generará automáticamente
-              </p>
-            )}
+                <div>
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Criterios de Obtención</label>
+                  <textarea
+                    value={form.criteria_narrative}
+                    onChange={e => setForm({ ...form, criteria_narrative: e.target.value })}
+                    rows={4}
+                    className="w-full fluid-px-4 py-2.5 border-2 border-gray-200 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm hover:border-gray-300 transition-colors resize-none"
+                    placeholder="Aprobó la evaluación con resultado competente…"
+                  />
+                </div>
+              </div>
+            </div>
           </section>
+
+            {/* ── SECTION: Issuer Info ── */}
+            <section className="bg-white rounded-fluid-2xl border-2 border-gray-200 fluid-p-6 shadow-sm">
+              <div className="flex items-center fluid-gap-3 fluid-mb-5">
+                <div className="fluid-p-2 bg-blue-50 rounded-fluid-lg">
+                  <Globe className="fluid-icon-sm text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="fluid-text-lg font-semibold text-gray-900">Emisor (Issuer)</h2>
+                  <p className="fluid-text-xs text-gray-500">Organización que emite las insignias</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
+                {/* Issuer Name */}
+                <div>
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                    <User className="w-3.5 h-3.5 inline-block mr-1.5 text-gray-400" />
+                    Nombre del Emisor
+                  </label>
+                  <input
+                    type="text"
+                    value={form.issuer_name}
+                    onChange={e => setForm({ ...form, issuer_name: e.target.value })}
+                    className="w-full fluid-px-4 py-2.5 border-2 border-gray-200 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm hover:border-gray-300 transition-colors"
+                    placeholder="CONOCER / EIA / EduIT"
+                  />
+                </div>
+
+                {/* Issuer URL */}
+                <div>
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                    <Link2 className="w-3.5 h-3.5 inline-block mr-1.5 text-gray-400" />
+                    URL del Emisor
+                  </label>
+                  <input
+                    type="url"
+                    value={form.issuer_url}
+                    onChange={e => { setForm({ ...form, issuer_url: e.target.value }); if (errors.issuer_url) setErrors(prev => { const { issuer_url, ...rest } = prev; return rest }) }}
+                    className={`w-full fluid-px-4 py-2.5 border-2 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm transition-colors ${errors.issuer_url ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:border-gray-300'}`}
+                    placeholder="https://evaluaasi.com"
+                  />
+                  {errors.issuer_url && (
+                    <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium flex items-center fluid-gap-1">
+                      <AlertCircle className="w-3 h-3" /> {errors.issuer_url}
+                    </p>
+                  )}
+                </div>
+
+                {/* Issuer Logo Preview */}
+                {form.issuer_image_url && (
+                  <div className="md:col-span-2">
+                    <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Logo del Emisor</label>
+                    <div className="flex items-center fluid-gap-3 fluid-p-3 bg-gray-50 rounded-fluid-lg border border-gray-100">
+                      <img
+                        src={form.issuer_image_url}
+                        alt="Issuer logo"
+                        className="w-10 h-10 rounded-lg object-contain bg-white border border-gray-200"
+                      />
+                      <span className="fluid-text-xs text-gray-500 truncate flex-1">{form.issuer_image_url}</span>
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, issuer_image_url: '' })}
+                        className="text-gray-400 hover:text-red-500"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+
+          {/* ━━━━━━━━━━━━━━ RIGHT COLUMN / SIDEBAR (4/12) ━━━━━━━━━━━━━━ */}
+          <div className="xl:col-span-4 flex flex-col fluid-gap-6">
+
+            {/* ── Badge Image ── */}
+            <section className="bg-white rounded-fluid-2xl border-2 border-gray-200 fluid-p-6 shadow-sm">
+              <div className="flex items-center fluid-gap-3 fluid-mb-4">
+                <div className="fluid-p-2 bg-blue-50 rounded-fluid-lg">
+                  <ImageIcon className="fluid-icon-sm text-blue-600" />
+                </div>
+                <h2 className="fluid-text-lg font-semibold text-gray-900">Imagen de la Insignia</h2>
+              </div>
+
+              {/* Drop zone */}
+              <div
+                className={`relative min-h-[220px] rounded-fluid-xl flex flex-col items-center justify-center overflow-hidden transition-all cursor-pointer ${
+                  dragActive
+                    ? 'border-2 border-blue-500 bg-blue-50 scale-[1.02]'
+                    : imagePreview
+                      ? 'border-2 border-gray-200 bg-gray-50'
+                      : 'border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50/50'
+                }`}
+                onDragOver={e => { e.preventDefault(); setDragActive(true) }}
+                onDragLeave={() => setDragActive(false)}
+                onDrop={handleDrop}
+                onClick={() => document.getElementById('badge-image-input')?.click()}
+              >
+                {imagePreview ? (
+                  <>
+                    <img src={imagePreview} alt="Preview" className="w-full h-full object-contain p-4" />
+                    {imageFromEcm && (
+                      <span className="absolute bottom-2 right-2 inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 text-[10px] font-bold bg-blue-100 text-blue-700 rounded-full shadow-sm">
+                        <Sparkles className="w-3 h-3" /> ECM
+                      </span>
+                    )}
+                    <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
+                      <span className="fluid-px-3 fluid-py-1.5 bg-white/90 rounded-fluid-lg fluid-text-xs font-medium text-gray-700 shadow">
+                        Cambiar imagen
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center fluid-p-4">
+                    <Upload className="fluid-icon-lg text-gray-300 mx-auto fluid-mb-2" />
+                    <p className="fluid-text-xs text-gray-500 font-medium">
+                      {dragActive ? 'Suelta aquí' : 'Arrastra o haz clic'}
+                    </p>
+                    <p className="fluid-text-2xs text-gray-400 fluid-mt-1">PNG 600×750px recomendado</p>
+                  </div>
+                )}
+                <input
+                  id="badge-image-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+              </div>
+
+              {imageFromEcm && (
+                <p className="fluid-text-xs text-blue-500 fluid-mt-2 flex items-center fluid-gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  Usando logo del ECM. Sube otra para reemplazar.
+                </p>
+              )}
+              {!imagePreview && (
+                <p className="fluid-text-2xs text-gray-400 fluid-mt-2 text-center">
+                  Si no subes imagen, se generará automáticamente
+                </p>
+              )}
+            </section>
+
+            {/* ── Configuration ── */}
+            <section className="bg-white rounded-fluid-2xl border-2 border-gray-200 fluid-p-6 shadow-sm">
+              <div className="flex items-center fluid-gap-3 fluid-mb-4">
+                <div className="fluid-p-2 bg-blue-50 rounded-fluid-lg">
+                  <Clock className="fluid-icon-sm text-blue-600" />
+                </div>
+                <h2 className="fluid-text-lg font-semibold text-gray-900">Configuración</h2>
+              </div>
+
+              <div className="flex flex-col fluid-gap-4">
+                {/* Expiry */}
+                <div>
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                    <Clock className="w-3.5 h-3.5 inline-block mr-1.5 text-gray-400" />
+                    Vigencia (meses)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.expiry_months ?? ''}
+                    onChange={e => setForm({ ...form, expiry_months: e.target.value ? Number(e.target.value) : null })}
+                    className="w-full fluid-px-4 py-2.5 border-2 border-gray-200 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm hover:border-gray-300 transition-colors"
+                    placeholder="0 = sin expiración"
+                  />
+                  {selectedStandard?.validity_years && (
+                    <p className="fluid-text-xs text-blue-500 fluid-mt-1 flex items-center fluid-gap-1">
+                      <Info className="w-3 h-3" />
+                      ECM sugiere {selectedStandard.validity_years} año{selectedStandard.validity_years > 1 ? 's' : ''} ({selectedStandard.validity_years * 12} meses)
+                    </p>
+                  )}
+                </div>
+
+                {/* Tags */}
+                <div>
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                    <Tag className="w-3.5 h-3.5 inline-block mr-1.5 text-gray-400" />
+                    Etiquetas
+                  </label>
+                  <input
+                    type="text"
+                    value={form.tags}
+                    onChange={e => setForm({ ...form, tags: e.target.value })}
+                    className="w-full fluid-px-4 py-2.5 border-2 border-gray-200 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm hover:border-gray-300 transition-colors"
+                    placeholder="EC0217, administración…"
+                  />
+                  {form.tags && (
+                    <div className="flex flex-wrap fluid-gap-1 fluid-mt-2">
+                      {tagArray(form.tags).map((tag, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center fluid-px-2 fluid-py-0.5 bg-blue-50 text-blue-700 rounded-full fluid-text-2xs font-medium border border-blue-100"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-gray-100" />
+
+                {/* Active toggle */}
+                <div className="flex items-center fluid-gap-3 fluid-p-3 bg-gray-50 rounded-fluid-lg">
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, is_active: !form.is_active })}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex-shrink-0 ${form.is_active ? 'bg-blue-600' : 'bg-gray-300'}`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${form.is_active ? 'translate-x-6' : 'translate-x-1'}`}
+                    />
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <span className="fluid-text-sm font-medium text-gray-700">
+                      {form.is_active ? 'Activa' : 'Inactiva'}
+                    </span>
+                    <p className="fluid-text-xs text-gray-400">
+                      {form.is_active
+                        ? 'Se emitirán insignias al aprobar'
+                        : 'No se emitirán insignias'}
+                    </p>
+                  </div>
+                  {form.is_active ? (
+                    <Eye className="fluid-icon-sm text-green-500 flex-shrink-0" />
+                  ) : (
+                    <EyeOff className="fluid-icon-sm text-gray-400 flex-shrink-0" />
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* ── Actions (sidebar, sticky on xl) ── */}
+            <div className="hidden xl:block sticky top-6">
+              <div className="bg-white rounded-fluid-2xl border-2 border-gray-200 fluid-p-5 shadow-sm">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="w-full inline-flex items-center justify-center fluid-gap-2 fluid-px-6 py-3 bg-blue-600 text-white rounded-fluid-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-all shadow-md hover:shadow-lg fluid-text-sm active:scale-[0.98]"
+                >
+                  {saving ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Save className="fluid-icon-sm" />
+                  )}
+                  {saving ? 'Guardando…' : isEdit ? 'Guardar Cambios' : 'Crear Plantilla'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/badges/templates')}
+                  className="w-full fluid-mt-3 fluid-px-6 py-2.5 border-2 border-gray-200 text-gray-700 rounded-fluid-lg font-medium hover:bg-gray-50 transition-colors fluid-text-sm text-center"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* ════════════════════════════════════════════
-            SECTION 3: Issuer Info
+            FOOTER ACTIONS (visible on mobile / smaller screens)
         ════════════════════════════════════════════ */}
-        <section className="bg-white rounded-fluid-2xl border-2 border-gray-200 fluid-p-6 shadow-sm">
-          <div className="flex items-center fluid-gap-3 fluid-mb-5">
-            <div className="fluid-p-2 bg-blue-50 rounded-fluid-lg">
-              <Globe className="fluid-icon-sm text-blue-600" />
-            </div>
-            <div>
-              <h2 className="fluid-text-lg font-semibold text-gray-900">Emisor (Issuer)</h2>
-              <p className="fluid-text-xs text-gray-500">Organización que emite las insignias</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
-            {/* Issuer Name */}
-            <div>
-              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                <User className="w-3.5 h-3.5 inline-block mr-1.5 text-gray-400" />
-                Nombre del Emisor
-              </label>
-              <input
-                type="text"
-                value={form.issuer_name}
-                onChange={e => setForm({ ...form, issuer_name: e.target.value })}
-                className="w-full fluid-px-4 py-2.5 border-2 border-gray-200 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm hover:border-gray-300 transition-colors"
-                placeholder="CONOCER / EIA / EduIT"
-              />
-            </div>
-
-            {/* Issuer URL */}
-            <div>
-              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                <Link2 className="w-3.5 h-3.5 inline-block mr-1.5 text-gray-400" />
-                URL del Emisor
-              </label>
-              <input
-                type="url"
-                value={form.issuer_url}
-                onChange={e => { setForm({ ...form, issuer_url: e.target.value }); if (errors.issuer_url) setErrors(prev => { const { issuer_url, ...rest } = prev; return rest }) }}
-                className={`w-full fluid-px-4 py-2.5 border-2 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm transition-colors ${errors.issuer_url ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:border-gray-300'}`}
-                placeholder="https://evaluaasi.com"
-              />
-              {errors.issuer_url && (
-                <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium flex items-center fluid-gap-1">
-                  <AlertCircle className="w-3 h-3" /> {errors.issuer_url}
-                </p>
-              )}
-            </div>
-
-            {/* Issuer Logo Preview */}
-            {form.issuer_image_url && (
-              <div className="md:col-span-2">
-                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Logo del Emisor</label>
-                <div className="flex items-center fluid-gap-3 fluid-p-3 bg-gray-50 rounded-fluid-lg border border-gray-100">
-                  <img
-                    src={form.issuer_image_url}
-                    alt="Issuer logo"
-                    className="w-10 h-10 rounded-lg object-contain bg-white border border-gray-200"
-                  />
-                  <span className="fluid-text-xs text-gray-500 truncate flex-1">{form.issuer_image_url}</span>
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, issuer_image_url: '' })}
-                    className="text-gray-400 hover:text-red-500"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* ════════════════════════════════════════════
-            SECTION 4: Additional Config
-        ════════════════════════════════════════════ */}
-        <section className="bg-white rounded-fluid-2xl border-2 border-gray-200 fluid-p-6 shadow-sm">
-          <div className="flex items-center fluid-gap-3 fluid-mb-5">
-            <div className="fluid-p-2 bg-blue-50 rounded-fluid-lg">
-              <Clock className="fluid-icon-sm text-blue-600" />
-            </div>
-            <h2 className="fluid-text-lg font-semibold text-gray-900">Configuración</h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-5">
-            {/* Expiry */}
-            <div>
-              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                <Clock className="w-3.5 h-3.5 inline-block mr-1.5 text-gray-400" />
-                Vigencia (meses)
-              </label>
-              <input
-                type="number"
-                min={0}
-                value={form.expiry_months ?? ''}
-                onChange={e => setForm({ ...form, expiry_months: e.target.value ? Number(e.target.value) : null })}
-                className="w-full fluid-px-4 py-2.5 border-2 border-gray-200 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm hover:border-gray-300 transition-colors"
-                placeholder="0 = sin expiración"
-              />
-              {selectedStandard?.validity_years && (
-                <p className="fluid-text-xs text-blue-500 fluid-mt-1 flex items-center fluid-gap-1">
-                  <Info className="w-3 h-3" />
-                  ECM sugiere {selectedStandard.validity_years} año{selectedStandard.validity_years > 1 ? 's' : ''} ({selectedStandard.validity_years * 12} meses)
-                </p>
-              )}
-            </div>
-
-            {/* Tags */}
-            <div>
-              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                <Tag className="w-3.5 h-3.5 inline-block mr-1.5 text-gray-400" />
-                Etiquetas
-              </label>
-              <input
-                type="text"
-                value={form.tags}
-                onChange={e => setForm({ ...form, tags: e.target.value })}
-                className="w-full fluid-px-4 py-2.5 border-2 border-gray-200 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm hover:border-gray-300 transition-colors"
-                placeholder="EC0217, administración, CONOCER…"
-              />
-              {/* Tag pills */}
-              {form.tags && (
-                <div className="flex flex-wrap fluid-gap-1 fluid-mt-2">
-                  {tagArray(form.tags).map((tag, i) => (
-                    <span
-                      key={i}
-                      className="inline-flex items-center fluid-px-2 fluid-py-0.5 bg-blue-50 text-blue-700 rounded-full fluid-text-2xs font-medium border border-blue-100"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Active toggle */}
-            <div className="md:col-span-2">
-              <div className="flex items-center fluid-gap-3 fluid-p-3 bg-gray-50 rounded-fluid-lg">
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, is_active: !form.is_active })}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${form.is_active ? 'bg-blue-600' : 'bg-gray-300'}`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${form.is_active ? 'translate-x-6' : 'translate-x-1'}`}
-                  />
-                </button>
-                <div>
-                  <span className="fluid-text-sm font-medium text-gray-700">
-                    {form.is_active ? 'Plantilla activa' : 'Plantilla inactiva'}
-                  </span>
-                  <p className="fluid-text-xs text-gray-400">
-                    {form.is_active
-                      ? 'Las insignias se emitirán automáticamente al aprobar el ECM'
-                      : 'No se emitirán insignias con esta plantilla'}
-                  </p>
-                </div>
-                {form.is_active ? (
-                  <Eye className="fluid-icon-sm text-green-500 ml-auto" />
-                ) : (
-                  <EyeOff className="fluid-icon-sm text-gray-400 ml-auto" />
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ════════════════════════════════════════════
-            FOOTER ACTIONS
-        ════════════════════════════════════════════ */}
-        <div className="flex items-center justify-end fluid-gap-4 fluid-pt-4 border-t border-gray-200">
+        <div className="flex xl:hidden items-center justify-end fluid-gap-4 fluid-pt-6 fluid-mt-6 border-t border-gray-200">
           <button
             type="button"
             onClick={() => navigate('/badges/templates')}
