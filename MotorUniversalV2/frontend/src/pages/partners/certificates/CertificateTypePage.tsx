@@ -42,12 +42,14 @@ interface CertificateTypePageProps {
   accentColor: string;          // e.g. 'blue', 'purple', 'emerald', 'amber'
   downloadEnabled: boolean;
   canGenerate: boolean;         // tier_basic/tier_standard can generate on-demand
+  extraHeaderActions?: React.ReactNode;
 }
 
 export default function CertificateTypePage({
   certType, title, subtitle, icon: Icon,
   headerGradient, accentColor,
   downloadEnabled, canGenerate,
+  extraHeaderActions,
 }: CertificateTypePageProps) {
   const { groupId } = useParams();
 
@@ -495,6 +497,7 @@ export default function CertificateTypePage({
                 Descargar Todo ({totalReady})
               </button>
             )}
+            {extraHeaderActions}
           </div>
         </div>
 

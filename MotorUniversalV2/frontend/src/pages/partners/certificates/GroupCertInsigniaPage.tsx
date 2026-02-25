@@ -54,6 +54,20 @@ export default function GroupCertInsigniaPage() {
         accentColor="amber"
         downloadEnabled={false}
         canGenerate={false}
+        extraHeaderActions={
+          <button
+            onClick={handleExportExcel}
+            disabled={exporting || badges.length === 0}
+            className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 rounded-fluid-xl text-white font-medium fluid-text-sm transition-colors disabled:opacity-50"
+          >
+            {exporting ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <FileSpreadsheet className="w-4 h-4" />
+            )}
+            {exporting ? 'Exportando…' : 'Exportar Excel'}
+          </button>
+        }
       />
 
       {/* Badges detail section — always visible */}
