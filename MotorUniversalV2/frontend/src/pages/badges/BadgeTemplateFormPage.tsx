@@ -44,8 +44,8 @@ const EMPTY_FORM: FormState = {
 }
 
 /* ═══════════════ helpers ═══════════════ */
-const tagArray = (tags: string) =>
-  tags.split(',').map(t => t.trim()).filter(Boolean)
+const tagArray = (tags: unknown) =>
+  (typeof tags === 'string' ? tags : '').split(',').map(t => t.trim()).filter(Boolean)
 
 export default function BadgeTemplateFormPage() {
   const navigate = useNavigate()
