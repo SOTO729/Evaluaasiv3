@@ -204,6 +204,7 @@ def verify_certificate(code):
     if prefix == 'BD':
         try:
             from app.models.badge import IssuedBadge, BadgeTemplate
+            from app.models.competency_standard import CompetencyStandard
             badge = IssuedBadge.query.filter_by(badge_code=code).first()
             if not badge:
                 return jsonify({'valid': False, 'error': 'Código de insignia no encontrado'}), 404
@@ -229,8 +230,23 @@ def verify_certificate(code):
             issued_date = badge.issued_at
             formatted_date = f"{issued_date.day} de {meses[issued_date.month]} de {issued_date.year}" if issued_date else None
 
+            expires_formatted = None
+            if badge.expires_at:
+                expires_formatted = f"{badge.expires_at.day} de {meses[badge.expires_at.month]} de {badge.expires_at.year}"
+
             from datetime import datetime
             is_expired = badge.expires_at and badge.expires_at < datetime.utcnow()
+
+            # ECM info from template → competency_standard
+            ecm_code = None
+            ecm_name = None
+            ecm_logo_url = None
+            if template and template.competency_standard_id:
+                cs = CompetencyStandard.query.get(template.competency_standard_id)
+                if cs:
+                    ecm_code = cs.code
+                    ecm_name = cs.name
+                    ecm_logo_url = cs.logo_url
 
             return jsonify({
                 'valid': badge.status == 'active' and not is_expired,
@@ -245,8 +261,14 @@ def verify_certificate(code):
                     'issuer_name': template.issuer_name if template else 'EduIT / Evaluaasi',
                     'image_url': badge.badge_image_url,
                     'issued_date': formatted_date,
+                    'expires_date': expires_formatted,
                     'badge_uuid': badge.badge_uuid,
                     'credential_url': badge.credential_url,
+                    'verify_count': badge.verify_count,
+                    'share_count': badge.share_count,
+                    'ecm_code': ecm_code,
+                    'ecm_name': ecm_name,
+                    'ecm_logo_url': ecm_logo_url,
                 },
                 'certification': {
                     'exam_name': template.name if template else 'N/A',

@@ -34,6 +34,9 @@ interface VerificationData {
     credential_url: string
     verify_count?: number
     share_count?: number
+    ecm_code?: string | null
+    ecm_name?: string | null
+    ecm_logo_url?: string | null
   }
 }
 
@@ -159,9 +162,13 @@ const VerifyPage = () => {
           <div className="p-6 space-y-6">
             {/* Tipo de documento */}
             <div className="flex items-center gap-3 pb-4 border-b">
-              <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                data.document_type === 'digital_badge'
+                  ? 'bg-blue-100 ring-2 ring-blue-400'
+                  : 'bg-primary-100'
+              }`}>
                 {data.document_type === 'digital_badge' ? (
-                  <Award className="w-6 h-6 text-amber-600" />
+                  <Award className="w-6 h-6 text-blue-600" />
                 ) : data.document_type === 'eduit_certificate' ? (
                   <Award className="w-6 h-6 text-primary-600" />
                 ) : (
@@ -250,6 +257,34 @@ const VerifyPage = () => {
                     >
                       Ver Credencial JSON-LD
                     </a>
+                  </div>
+                )}
+
+                {/* ECM info */}
+                {(data.badge.ecm_code || data.badge.ecm_name) && (
+                  <div className="flex items-start gap-3">
+                    {data.badge.ecm_logo_url ? (
+                      <img
+                        src={data.badge.ecm_logo_url}
+                        alt={data.badge.ecm_code || 'ECM'}
+                        className="w-12 h-12 rounded-xl flex-shrink-0 object-contain bg-gray-50 p-1"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden') }}
+                      />
+                    ) : null}
+                    <div className={`w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0 ${data.badge.ecm_logo_url ? 'hidden' : ''}`}>
+                      <BookOpen className="w-6 h-6 text-indigo-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">
+                        Estándar de Competencia
+                        {data.badge.ecm_code && (
+                          <span className="font-mono bg-gray-100 px-2 py-0.5 rounded ml-2 text-gray-700">{data.badge.ecm_code}</span>
+                        )}
+                      </p>
+                      {data.badge.ecm_name && (
+                        <p className="font-semibold text-gray-900">{data.badge.ecm_name}</p>
+                      )}
+                    </div>
                   </div>
                 )}
               </>
