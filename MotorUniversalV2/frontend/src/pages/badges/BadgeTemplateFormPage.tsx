@@ -114,6 +114,18 @@ export default function BadgeTemplateFormPage() {
       if (std.certifying_body) tagParts.push(std.certifying_body)
       updates.tags = tagParts.join(', ')
     }
+    // Pre-fill issuer from ECM certifying body + brand
+    if (!form.issuer_name?.trim()) {
+      const issuerParts: string[] = []
+      if (std.certifying_body) issuerParts.push(std.certifying_body)
+      if (std.brand?.name) issuerParts.push(std.brand.name)
+      if (issuerParts.length > 0) {
+        updates.issuer_name = issuerParts.join(' / ')
+      }
+    }
+    if (!form.issuer_image_url?.trim() && std.brand?.logo_url) {
+      updates.issuer_image_url = std.brand.logo_url
+    }
 
     setForm(prev => ({ ...prev, ...updates }))
 
