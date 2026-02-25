@@ -18,7 +18,7 @@ from app import db
 from app.models.badge import BadgeTemplate, IssuedBadge
 
 # Base URLs
-SWA_BASE = "https://thankful-stone-07fbe5410.6.azurestaticapps.net"
+SWA_BASE = "https://app.evaluaasi.com"
 API_BASE = "https://evaluaasi-motorv2-api.purpleocean-384694c4.southcentralus.azurecontainerapps.io"
 
 

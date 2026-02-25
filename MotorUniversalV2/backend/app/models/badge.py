@@ -124,7 +124,7 @@ class IssuedBadge(db.Model):
 
     @property
     def verify_url(self):
-        return f"https://thankful-stone-07fbe5410.6.azurestaticapps.net/verify/{self.badge_code}"
+        return f"https://app.evaluaasi.com/verify/{self.badge_code}"
 
     @property
     def credential_url(self):
