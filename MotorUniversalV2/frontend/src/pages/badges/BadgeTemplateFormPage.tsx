@@ -691,25 +691,77 @@ export default function BadgeTemplateFormPage() {
               </div>
 
               <div className="flex flex-col fluid-gap-4">
-                {/* Expiry */}
+                {/* Expiry — toggle indefinida + meses */}
                 <div>
-                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                     <Clock className="w-3.5 h-3.5 inline-block mr-1.5 text-gray-400" />
-                    Vigencia (meses)
+                    Vigencia
                   </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={form.expiry_months ?? ''}
-                    onChange={e => setForm({ ...form, expiry_months: e.target.value ? Number(e.target.value) : null })}
-                    className="w-full fluid-px-4 py-2.5 border-2 border-gray-200 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm hover:border-gray-300 transition-colors"
-                    placeholder="0 = sin expiración"
-                  />
-                  {selectedStandard?.validity_years && (
-                    <p className="fluid-text-xs text-blue-500 fluid-mt-1 flex items-center fluid-gap-1">
-                      <Info className="w-3 h-3" />
-                      ECM sugiere {selectedStandard.validity_years} año{selectedStandard.validity_years > 1 ? 's' : ''} ({selectedStandard.validity_years * 12} meses)
-                    </p>
+
+                  {/* Toggle indefinida */}
+                  <div className="flex items-center fluid-gap-3 fluid-p-3 bg-gray-50 rounded-fluid-lg fluid-mb-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const isCurrentlyIndefinite = form.expiry_months === null || form.expiry_months === 0
+                        if (isCurrentlyIndefinite) {
+                          // Switch to definite — suggest ECM value or 12 months
+                          const suggested = selectedStandard?.validity_years ? selectedStandard.validity_years * 12 : 12
+                          setForm({ ...form, expiry_months: suggested })
+                        } else {
+                          setForm({ ...form, expiry_months: null })
+                        }
+                      }}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex-shrink-0 ${
+                        form.expiry_months === null || form.expiry_months === 0 ? 'bg-blue-600' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                        form.expiry_months === null || form.expiry_months === 0 ? 'translate-x-6' : 'translate-x-1'
+                      }`} />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <span className="fluid-text-sm font-medium text-gray-700">
+                        {form.expiry_months === null || form.expiry_months === 0 ? 'Vigencia indefinida' : 'Vigencia definida'}
+                      </span>
+                      <p className="fluid-text-2xs text-gray-400">
+                        {form.expiry_months === null || form.expiry_months === 0
+                          ? 'La insignia no expira'
+                          : 'La insignia expira después del tiempo indicado'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Months input — only if not indefinite */}
+                  {form.expiry_months !== null && form.expiry_months !== 0 && (
+                    <div className="fluid-mt-1">
+                      <label className="block fluid-text-xs font-medium text-gray-500 fluid-mb-1">Meses de vigencia</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={form.expiry_months}
+                        onChange={e => setForm({ ...form, expiry_months: e.target.value ? Math.max(1, Number(e.target.value)) : 1 })}
+                        className="w-full fluid-px-4 py-2.5 border-2 border-gray-200 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm hover:border-gray-300 transition-colors"
+                        placeholder="Número de meses"
+                      />
+                      {/* Helper: translate to years + months */}
+                      {form.expiry_months >= 12 && (
+                        <p className="fluid-text-2xs text-gray-400 fluid-mt-1">
+                          = {Math.floor(form.expiry_months / 12)} año{Math.floor(form.expiry_months / 12) > 1 ? 's' : ''}
+                          {form.expiry_months % 12 > 0 && ` y ${form.expiry_months % 12} mes${form.expiry_months % 12 > 1 ? 'es' : ''}`}
+                        </p>
+                      )}
+                      {selectedStandard?.validity_years && form.expiry_months !== selectedStandard.validity_years * 12 && (
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, expiry_months: selectedStandard.validity_years! * 12 })}
+                          className="fluid-text-xs text-blue-500 hover:text-blue-700 fluid-mt-1 flex items-center fluid-gap-1 underline"
+                        >
+                          <Info className="w-3 h-3" />
+                          Usar vigencia del ECM ({selectedStandard.validity_years} año{selectedStandard.validity_years > 1 ? 's' : ''})
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
 
