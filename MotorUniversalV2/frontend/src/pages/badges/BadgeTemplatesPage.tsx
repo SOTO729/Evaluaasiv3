@@ -264,7 +264,7 @@ export default function BadgeTemplatesPage() {
                 </div>
 
                 {/* Tags preview */}
-                {t.tags && (
+                {typeof t.tags === 'string' && t.tags.trim() && (
                   <div className="flex flex-wrap fluid-gap-1 fluid-mb-3">
                     {t.tags.split(',').slice(0, 3).map((tag, i) => (
                       <span key={i} className="fluid-px-1.5 fluid-py-0.5 bg-gray-50 text-gray-500 rounded fluid-text-2xs border border-gray-100">
