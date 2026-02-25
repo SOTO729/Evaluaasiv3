@@ -87,7 +87,7 @@ export default function BadgeTemplateFormPage() {
           issuer_name: t.issuer_name || '',
           issuer_url: t.issuer_url || '',
           tags: Array.isArray(t.tags) ? t.tags.join(', ') : (t.tags || ''),
-          expiry_months: t.expiry_months,
+          expiry_months: t.expiry_months || null,
           is_active: t.is_active,
         })
         const previewUrl = t.display_image_url || t.badge_image_url
