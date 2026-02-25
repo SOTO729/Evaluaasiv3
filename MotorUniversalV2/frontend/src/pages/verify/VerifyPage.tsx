@@ -162,14 +162,8 @@ const VerifyPage = () => {
           <div className="p-6 space-y-6">
             {/* Tipo de documento */}
             <div className="flex items-center gap-3 pb-4 border-b">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                data.document_type === 'digital_badge'
-                  ? 'bg-blue-100 ring-2 ring-blue-400'
-                  : 'bg-primary-100'
-              }`}>
-                {data.document_type === 'digital_badge' ? (
-                  <Award className="w-6 h-6 text-blue-600" />
-                ) : data.document_type === 'eduit_certificate' ? (
+              <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
+                {data.document_type === 'digital_badge' || data.document_type === 'eduit_certificate' ? (
                   <Award className="w-6 h-6 text-primary-600" />
                 ) : (
                   <BookOpen className="w-6 h-6 text-primary-600" />
