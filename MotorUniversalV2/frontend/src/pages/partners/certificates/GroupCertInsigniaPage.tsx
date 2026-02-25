@@ -56,8 +56,8 @@ export default function GroupCertInsigniaPage() {
         canGenerate={false}
       />
 
-      {/* Additional badges detail section */}
-      {!loading && badges.length > 0 && (
+      {/* Badges detail section — always visible */}
+      {!loading && (
         <div className="fluid-px-6 fluid-pb-6">
           <div className="bg-white rounded-fluid-2xl border border-gray-200 overflow-hidden">
             <div className="fluid-p-4 border-b border-gray-100 flex items-center justify-between">
@@ -67,7 +67,7 @@ export default function GroupCertInsigniaPage() {
               </h3>
               <button
                 onClick={handleExportExcel}
-                disabled={exporting}
+                disabled={exporting || badges.length === 0}
                 className="inline-flex items-center fluid-gap-2 fluid-px-4 py-2 bg-amber-600 text-white rounded-fluid-lg font-medium hover:bg-amber-700 disabled:opacity-50 transition-all fluid-text-xs shadow-sm"
               >
                 {exporting ? (
@@ -78,57 +78,66 @@ export default function GroupCertInsigniaPage() {
                 {exporting ? 'Exportando…' : 'Exportar Excel'}
               </button>
             </div>
-            <div className="divide-y divide-gray-100">
-              {badges.map(badge => (
-                <div key={badge.id} className="fluid-p-4 flex items-center fluid-gap-4 hover:bg-gray-50 transition-colors">
-                  {/* Mini badge image */}
-                  <div className="w-12 h-12 rounded-fluid-lg bg-amber-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {badge.badge_image_url ? (
-                      <img src={badge.badge_image_url} alt="" className="w-full h-full object-contain" />
-                    ) : (
-                      <BadgeCheck className="fluid-icon-md text-amber-400" />
-                    )}
-                  </div>
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{badge.candidate_name || 'Candidato'}</p>
-                    <p className="fluid-text-xs text-gray-500">{badge.candidate_email}</p>
-                    <p className="fluid-text-xs text-gray-400">
-                      Código: {badge.badge_code} · {badge.template_name}
-                    </p>
-                  </div>
-                  {/* Status */}
-                  <span className={`fluid-px-2 fluid-py-1 fluid-text-xs font-medium rounded-full ${
-                    badge.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                  }`}>
-                    {badge.status === 'active' ? 'Activa' : badge.status === 'expired' ? 'Expirada' : 'Revocada'}
-                  </span>
-                  {/* Actions */}
-                  <div className="flex fluid-gap-1">
-                    {badge.badge_image_url && (
+
+            {badges.length === 0 ? (
+              <div className="fluid-p-8 text-center">
+                <BadgeCheck className="fluid-icon-xl text-gray-200 mx-auto fluid-mb-3" />
+                <p className="fluid-text-sm text-gray-500 font-medium">No hay insignias emitidas aún</p>
+                <p className="fluid-text-xs text-gray-400 fluid-mt-1">Las insignias se emiten automáticamente cuando un candidato aprueba un examen vinculado a una plantilla activa</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {badges.map(badge => (
+                  <div key={badge.id} className="fluid-p-4 flex items-center fluid-gap-4 hover:bg-gray-50 transition-colors">
+                    {/* Mini badge image */}
+                    <div className="w-12 h-12 rounded-fluid-lg bg-amber-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {badge.badge_image_url ? (
+                        <img src={badge.badge_image_url} alt="" className="w-full h-full object-contain" />
+                      ) : (
+                        <BadgeCheck className="fluid-icon-md text-amber-400" />
+                      )}
+                    </div>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 truncate">{badge.candidate_name || 'Candidato'}</p>
+                      <p className="fluid-text-xs text-gray-500">{badge.candidate_email}</p>
+                      <p className="fluid-text-xs text-gray-400">
+                        Código: {badge.badge_code} · {badge.template_name}
+                      </p>
+                    </div>
+                    {/* Status */}
+                    <span className={`fluid-px-2 fluid-py-1 fluid-text-xs font-medium rounded-full ${
+                      badge.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                    }`}>
+                      {badge.status === 'active' ? 'Activa' : badge.status === 'expired' ? 'Expirada' : 'Revocada'}
+                    </span>
+                    {/* Actions */}
+                    <div className="flex fluid-gap-1">
+                      {badge.badge_image_url && (
+                        <a
+                          href={badge.badge_image_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="fluid-p-2 text-gray-400 hover:text-amber-600 rounded-fluid-lg hover:bg-amber-50 transition-colors"
+                          title="Descargar insignia"
+                        >
+                          <Download className="fluid-icon-xs" />
+                        </a>
+                      )}
                       <a
-                        href={badge.badge_image_url}
+                        href={badge.verify_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="fluid-p-2 text-gray-400 hover:text-amber-600 rounded-fluid-lg hover:bg-amber-50 transition-colors"
-                        title="Descargar insignia"
+                        className="fluid-p-2 text-gray-400 hover:text-blue-600 rounded-fluid-lg hover:bg-blue-50 transition-colors"
+                        title="Verificar"
                       >
-                        <Download className="fluid-icon-xs" />
+                        <ExternalLink className="fluid-icon-xs" />
                       </a>
-                    )}
-                    <a
-                      href={badge.verify_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="fluid-p-2 text-gray-400 hover:text-blue-600 rounded-fluid-lg hover:bg-blue-50 transition-colors"
-                      title="Verificar"
-                    >
-                      <ExternalLink className="fluid-icon-xs" />
-                    </a>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
