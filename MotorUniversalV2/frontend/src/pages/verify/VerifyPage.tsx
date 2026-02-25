@@ -180,12 +180,12 @@ const VerifyPage = () => {
             {data.document_type === 'digital_badge' && data.badge && (
               <>
                 {/* Badge info with template image */}
-                <div className="flex items-start gap-4">
-                  <div className="w-20 h-20 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden bg-amber-50 border border-amber-200">
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden bg-amber-50">
                     {data.badge.template_image_url ? (
                       <img src={data.badge.template_image_url} alt={data.badge.name} className="w-full h-full object-contain" />
                     ) : (
-                      <Award className="w-8 h-8 text-amber-600" />
+                      <Award className="w-6 h-6 text-amber-600" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
