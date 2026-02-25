@@ -473,7 +473,7 @@ export default function ExamAssignMembersPage() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400" />
                   <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Buscar por nombre, email o CURP..."
-                    className="w-full pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 fluid-text-sm" />
+                    className="w-full fluid-pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 fluid-text-sm" />
                 </div>
                 <select value={searchField} onChange={(e) => setSearchField(e.target.value)}
                   className="fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500">
@@ -735,7 +735,7 @@ export default function ExamAssignMembersPage() {
                   <div className="relative max-w-md">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 fluid-icon-sm" />
                     <input type="text" placeholder="Buscar en resultados..." value={resultSearch} onChange={(e) => setResultSearch(e.target.value)}
-                      className="w-full pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400" />
+                      className="w-full fluid-pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400" />
                     {resultSearch && (
                       <button onClick={() => setResultSearch('')} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
                         <X className="fluid-icon-sm" />

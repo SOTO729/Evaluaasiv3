@@ -93,6 +93,9 @@ class Partner(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
         
+        # Siempre incluir campus_count (es solo un COUNT, muy ligero)
+        data['campus_count'] = self.campuses.count()
+
         if include_states:
             # Obtener estados únicos desde los campus del partner
             campus_states = db.session.query(Campus.state_name).filter(
@@ -104,7 +107,6 @@ class Partner(db.Model):
             
         if include_campuses:
             data['campuses'] = [c.to_dict() for c in self.campuses.all()]
-            data['campus_count'] = self.campuses.count()
             
         return data
 

@@ -288,7 +288,7 @@ const StudyContentsListPage = () => {
       <div className="bg-white rounded-fluid-lg shadow fluid-p-5 fluid-mb-6">
         <div className="flex flex-col sm:flex-row fluid-gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400" />
             <input
               type="text"
               placeholder="Buscar materiales..."
@@ -299,7 +299,7 @@ const StudyContentsListPage = () => {
                   fetchMaterials()
                 }
               }}
-              className="w-full pl-10 fluid-pr-4 fluid-py-3 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-base"
+              className="w-full fluid-pl-10 fluid-pr-4 fluid-py-3 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-base"
             />
           </div>
           <button

@@ -301,7 +301,7 @@ export default function ExamSelectConfigPage() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 fluid-icon-sm" />
             <input type="text" placeholder="Buscar ECM por código, nombre o sector..."
               value={ecmSearchQuery} onChange={(e) => setEcmSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 fluid-py-3 border border-gray-300 rounded-fluid-xl fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+              className="w-full fluid-pl-10 pr-4 fluid-py-3 border border-gray-300 rounded-fluid-xl fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             {ecmSearchQuery && (
               <button onClick={() => setEcmSearchQuery('')}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"><X className="fluid-icon-sm" /></button>
@@ -417,7 +417,7 @@ export default function ExamSelectConfigPage() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 fluid-icon-sm" />
             <input type="text" placeholder="Buscar examen por nombre..."
               value={examSearchQuery} onChange={(e) => setExamSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 fluid-py-3 border border-gray-300 rounded-fluid-xl fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+              className="w-full fluid-pl-10 pr-4 fluid-py-3 border border-gray-300 rounded-fluid-xl fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             {examSearchQuery && (
               <button onClick={() => setExamSearchQuery('')}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"><X className="fluid-icon-sm" /></button>

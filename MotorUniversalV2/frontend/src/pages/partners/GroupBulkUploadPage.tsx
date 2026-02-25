@@ -446,7 +446,7 @@ export default function GroupBulkUploadPage() {
                 value={previewSearch}
                 onChange={(e) => setPreviewSearch(e.target.value)}
                 placeholder="Buscar en la previsualización por nombre, email, CURP..."
-                className="w-full pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className="w-full fluid-pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               />
               {previewSearch && (
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 fluid-text-xs text-gray-400">
