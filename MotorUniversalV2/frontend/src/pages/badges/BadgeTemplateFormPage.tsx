@@ -23,7 +23,6 @@ interface FormState {
   competency_standard_id: number | null
   issuer_name: string
   issuer_url: string
-  issuer_image_url: string
   tags: string
   expiry_months: number | null
   is_active: boolean
@@ -37,7 +36,6 @@ const EMPTY_FORM: FormState = {
   competency_standard_id: null,
   issuer_name: '',
   issuer_url: '',
-  issuer_image_url: '',
   tags: '',
   expiry_months: null,
   is_active: true,
@@ -88,7 +86,6 @@ export default function BadgeTemplateFormPage() {
           competency_standard_id: t.competency_standard_id,
           issuer_name: t.issuer_name || '',
           issuer_url: t.issuer_url || '',
-          issuer_image_url: t.issuer_image_url || '',
           tags: Array.isArray(t.tags) ? t.tags.join(', ') : (t.tags || ''),
           expiry_months: t.expiry_months,
           is_active: t.is_active,
@@ -170,10 +167,6 @@ export default function BadgeTemplateFormPage() {
         prefilled.push('emisor')
       }
     }
-    if (!form.issuer_image_url?.trim() && std.brand?.logo_url) {
-      updates.issuer_image_url = std.brand.logo_url
-      prefilled.push('logo emisor')
-    }
     if (!form.issuer_url?.trim()) {
       const body = (std.certifying_body || '').toLowerCase()
       updates.issuer_url = body.includes('conocer')
@@ -250,9 +243,6 @@ export default function BadgeTemplateFormPage() {
       let templateId = isEdit ? Number(id) : 0
 
       const formData = { ...form }
-      if (imageFromEcm && selectedStandard?.logo_url && !imageFile) {
-        formData.issuer_image_url = selectedStandard.logo_url
-      }
 
       if (isEdit) {
         await badgeService.updateTemplate(templateId, formData)
@@ -608,28 +598,6 @@ export default function BadgeTemplateFormPage() {
                     </p>
                   )}
                 </div>
-
-                {/* Issuer Logo Preview */}
-                {form.issuer_image_url && (
-                  <div className="md:col-span-2">
-                    <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Logo del Emisor</label>
-                    <div className="flex items-center fluid-gap-3 fluid-p-3 bg-gray-50 rounded-fluid-lg border border-gray-100">
-                      <img
-                        src={form.issuer_image_url}
-                        alt="Issuer logo"
-                        className="w-10 h-10 rounded-lg object-contain bg-white border border-gray-200"
-                      />
-                      <span className="fluid-text-xs text-gray-500 truncate flex-1">{form.issuer_image_url}</span>
-                      <button
-                        type="button"
-                        onClick={() => setForm({ ...form, issuer_image_url: '' })}
-                        className="text-gray-400 hover:text-red-500"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             </section>
           </div>
