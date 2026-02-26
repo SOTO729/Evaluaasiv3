@@ -231,6 +231,19 @@ const Layout = ({ children }: LayoutProps) => {
                 >
                   Inicio
                 </Link>
+                {/* ── Bloque coordinador: orden personalizado ── */}
+                {user?.role === 'coordinator' && (
+                  <>
+                    <Link to="/partners" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/partners') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Partners</Link>
+                    <Link to="/grupos" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/grupos') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Grupos</Link>
+                    <Link to="/user-management" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/user-management') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Usuarios</Link>
+                    <Link to="/asignaciones-ecm" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/asignaciones-ecm') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Asignaciones</Link>
+                    <Link to="/mi-saldo" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/mi-saldo') || location.pathname.startsWith('/solicitar-') || location.pathname.startsWith('/historial-') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Mi Saldo</Link>
+                    <Link to="/badges/templates" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/badges') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Insignias</Link>
+                    <Link to="/standards" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/standards') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>ECM</Link>
+                    <Link to="/tramites-conocer" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/tramites-conocer') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>CONOCER</Link>
+                  </>
+                )}
                 {user?.role !== 'editor' && user?.role !== 'editor_invitado' && user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && (
                   <Link 
                     to="/certificates" 
@@ -267,7 +280,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Materiales
                   </Link>
                 )}
-                {['candidato', 'admin', 'developer', 'coordinator', 'responsable'].includes(user?.role ?? '') && (
+                {['candidato', 'admin', 'developer', 'responsable'].includes(user?.role ?? '') && (
                   <Link 
                     to="/vm-sessions" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -291,7 +304,7 @@ const Layout = ({ children }: LayoutProps) => {
                     ECM
                   </Link>
                 )}
-                {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
+                {(user?.role === 'admin' || user?.role === 'developer') && (
                   <Link 
                     to="/partners" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -303,7 +316,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Partners
                   </Link>
                 )}
-                {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
+                {(user?.role === 'admin' || user?.role === 'developer') && (
                   <Link 
                     to="/asignaciones-ecm" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -315,7 +328,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Asignaciones
                   </Link>
                 )}
-                {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
+                {(user?.role === 'admin' || user?.role === 'developer') && (
                   <Link 
                     to="/tramites-conocer" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -327,7 +340,7 @@ const Layout = ({ children }: LayoutProps) => {
                     CONOCER
                   </Link>
                 )}
-                {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator' || user?.role === 'editor') && (
+                {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'editor') && (
                   <Link 
                     to="/badges/templates" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -411,7 +424,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Gerencia
                   </Link>
                 )}
-                {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
+                {(user?.role === 'admin' || user?.role === 'developer') && (
                   <Link 
                     to="/grupos" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -423,7 +436,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Grupos
                   </Link>
                 )}
-                {['coordinator', 'admin', 'developer'].includes(user?.role ?? '') && (
+                {['admin', 'developer'].includes(user?.role ?? '') && (
                   <Link 
                     to="/mi-saldo" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -435,7 +448,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Mi Saldo
                   </Link>
                 )}
-                {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
+                {(user?.role === 'admin' || user?.role === 'developer') && (
                   <Link 
                     to="/user-management" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -569,6 +582,59 @@ const Layout = ({ children }: LayoutProps) => {
                   Inicio
                 </div>
               </Link>
+              {/* ── Bloque coordinador mobile: orden personalizado ── */}
+              {user?.role === 'coordinator' && (
+                <>
+                  <Link to="/partners" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/partners') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="flex items-center">
+                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                      Partners
+                    </div>
+                  </Link>
+                  <Link to="/grupos" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/grupos') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="flex items-center">
+                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                      Grupos
+                    </div>
+                  </Link>
+                  <Link to="/user-management" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/user-management') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="flex items-center">
+                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                      Usuarios
+                    </div>
+                  </Link>
+                  <Link to="/asignaciones-ecm" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/asignaciones-ecm') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="flex items-center">
+                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                      Asignaciones
+                    </div>
+                  </Link>
+                  <Link to="/mi-saldo" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/mi-saldo') || location.pathname.startsWith('/solicitar-') || location.pathname.startsWith('/historial-') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="flex items-center">
+                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                      Mi Saldo
+                    </div>
+                  </Link>
+                  <Link to="/badges/templates" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/badges') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="flex items-center">
+                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
+                      Insignias
+                    </div>
+                  </Link>
+                  <Link to="/standards" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/standards') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="flex items-center">
+                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      ECM
+                    </div>
+                  </Link>
+                  <Link to="/tramites-conocer" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/tramites-conocer') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="flex items-center">
+                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                      CONOCER
+                    </div>
+                  </Link>
+                </>
+              )}
               {user?.role !== 'editor' && user?.role !== 'editor_invitado' && user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && (
                 <Link 
                   to="/certificates" 
@@ -620,7 +686,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {['candidato', 'admin', 'developer', 'coordinator', 'responsable'].includes(user?.role ?? '') && (
+              {['candidato', 'admin', 'developer', 'responsable'].includes(user?.role ?? '') && (
                 <Link 
                   to="/vm-sessions" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -655,7 +721,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
+              {(user?.role === 'admin' || user?.role === 'developer') && (
                 <Link 
                   to="/partners" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -672,7 +738,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
+              {(user?.role === 'admin' || user?.role === 'developer') && (
                 <Link 
                   to="/asignaciones-ecm" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -689,7 +755,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
+              {(user?.role === 'admin' || user?.role === 'developer') && (
                 <Link 
                   to="/tramites-conocer" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -706,7 +772,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator' || user?.role === 'editor') && (
+              {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'editor') && (
                 <Link 
                   to="/badges/templates" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -825,7 +891,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
+              {(user?.role === 'admin' || user?.role === 'developer') && (
                 <Link 
                   to="/grupos" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -842,7 +908,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {['coordinator', 'admin', 'developer'].includes(user?.role ?? '') && (
+              {['admin', 'developer'].includes(user?.role ?? '') && (
                 <Link 
                   to="/mi-saldo"
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -859,7 +925,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {(user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator') && (
+              {(user?.role === 'admin' || user?.role === 'developer') && (
                 <Link 
                   to="/user-management" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${

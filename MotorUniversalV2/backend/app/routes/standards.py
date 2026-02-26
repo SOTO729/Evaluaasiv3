@@ -844,3 +844,394 @@ def delete_brand_logo(brand_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al eliminar logo: {str(e)}'}), 500
+
+
+# ============================================================================
+# CERTIFICATE TEMPLATE ENDPOINTS
+# ============================================================================
+
+@standards_bp.route('/<int:standard_id>/certificate-template', methods=['GET'])
+@jwt_required()
+def get_certificate_template(standard_id):
+    """
+    Obtener la plantilla de certificado de un ECM
+    """
+    from app.models.certificate_template import CertificateTemplate
+    
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'editor_invitado']:
+        return jsonify({'error': 'No tiene permisos'}), 403
+    
+    standard = CompetencyStandard.query.get(standard_id)
+    if not standard:
+        return jsonify({'error': 'Estándar no encontrado'}), 404
+    
+    template = CertificateTemplate.query.filter_by(competency_standard_id=standard_id).first()
+    
+    if not template:
+        return jsonify({'template': None, 'has_template': False})
+    
+    return jsonify({
+        'template': template.to_dict(),
+        'has_template': True
+    })
+
+
+@standards_bp.route('/<int:standard_id>/certificate-template', methods=['POST'])
+@jwt_required()
+def upload_certificate_template(standard_id):
+    """
+    Subir plantilla PDF de certificado para un ECM.
+    Detecta automáticamente las dimensiones del PDF.
+    """
+    import json
+    from app.models.certificate_template import CertificateTemplate
+    from app.utils.azure_storage import azure_storage
+    
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
+        return jsonify({'error': 'No tiene permisos para subir plantillas'}), 403
+    
+    standard = CompetencyStandard.query.get(standard_id)
+    if not standard:
+        return jsonify({'error': 'Estándar no encontrado'}), 404
+    
+    # Verificar que no exista ya una plantilla
+    existing = CertificateTemplate.query.filter_by(competency_standard_id=standard_id).first()
+    if existing:
+        return jsonify({'error': 'Ya existe una plantilla para este ECM. Elimínela primero.'}), 409
+    
+    # Obtener archivo PDF
+    if 'file' not in request.files:
+        return jsonify({'error': 'No se envió archivo PDF'}), 400
+    
+    file = request.files['file']
+    if not file.filename or not file.filename.lower().endswith('.pdf'):
+        return jsonify({'error': 'El archivo debe ser un PDF'}), 400
+    
+    try:
+        # Leer el PDF para obtener dimensiones
+        from pypdf import PdfReader
+        from io import BytesIO
+        
+        file_bytes = file.read()
+        pdf_reader = PdfReader(BytesIO(file_bytes))
+        
+        if len(pdf_reader.pages) == 0:
+            return jsonify({'error': 'El PDF no tiene páginas'}), 400
+        
+        page = pdf_reader.pages[0]
+        pdf_width = float(page.mediabox.width)
+        pdf_height = float(page.mediabox.height)
+        
+        # Subir a Azure Blob Storage
+        file.seek(0)
+        file.stream = BytesIO(file_bytes)
+        blob_url = azure_storage.upload_file(file, folder=f'certificate-templates/{standard.code}')
+        
+        if not blob_url:
+            return jsonify({'error': 'Error al subir archivo a Azure Storage'}), 500
+        
+        # Configuración por defecto adaptada a las dimensiones del PDF
+        default_config = {}
+        
+        # Ajustar posiciones proporcionales al tamaño del PDF
+        name_center_x = pdf_width / 2
+        name_width = pdf_width * 0.7
+        name_x = name_center_x - (name_width / 2)
+        
+        default_config['name_field'] = {
+            'x': round(name_x, 1),
+            'y': round(pdf_height * 0.47, 1),
+            'width': round(name_width, 1),
+            'height': 50.0,
+            'maxFontSize': 36,
+            'color': '#1a365d'
+        }
+        default_config['cert_name_field'] = {
+            'x': round(name_x, 1),
+            'y': round(pdf_height * 0.38, 1),
+            'width': round(name_width, 1),
+            'height': 30.0,
+            'maxFontSize': 18,
+            'color': '#1a365d'
+        }
+        default_config['qr_field'] = {
+            'x': 30.0,
+            'y': 25.0,
+            'size': 50.0,
+            'background': 'transparent',
+            'showCode': True,
+            'showText': True
+        }
+        
+        # Crear registro
+        template = CertificateTemplate(
+            competency_standard_id=standard_id,
+            template_blob_url=blob_url,
+            pdf_width=pdf_width,
+            pdf_height=pdf_height,
+            created_by=current_user_id
+        )
+        template.set_config(default_config)
+        
+        db.session.add(template)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Plantilla subida exitosamente',
+            'template': template.to_dict()
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al procesar plantilla: {str(e)}'}), 500
+
+
+@standards_bp.route('/<int:standard_id>/certificate-template', methods=['PUT'])
+@jwt_required()
+def update_certificate_template(standard_id):
+    """
+    Actualizar la configuración (posiciones de campos) de la plantilla de certificado.
+    """
+    import json
+    from app.models.certificate_template import CertificateTemplate
+    
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
+        return jsonify({'error': 'No tiene permisos para editar plantillas'}), 403
+    
+    standard = CompetencyStandard.query.get(standard_id)
+    if not standard:
+        return jsonify({'error': 'Estándar no encontrado'}), 404
+    
+    template = CertificateTemplate.query.filter_by(competency_standard_id=standard_id).first()
+    if not template:
+        return jsonify({'error': 'No existe plantilla para este ECM'}), 404
+    
+    data = request.get_json()
+    if not data or 'config' not in data:
+        return jsonify({'error': 'Se requiere el campo config'}), 400
+    
+    try:
+        config = data['config']
+        
+        # Validar estructura del config
+        required_fields = ['name_field', 'cert_name_field', 'qr_field']
+        for field in required_fields:
+            if field not in config:
+                return jsonify({'error': f'Falta el campo {field} en la configuración'}), 400
+        
+        # Validar campos de texto
+        for text_field in ['name_field', 'cert_name_field']:
+            f = config[text_field]
+            for prop in ['x', 'y', 'width', 'height']:
+                if prop not in f or not isinstance(f[prop], (int, float)):
+                    return jsonify({'error': f'Campo {text_field}.{prop} inválido'}), 400
+        
+        # Validar QR
+        qr = config['qr_field']
+        for prop in ['x', 'y', 'size']:
+            if prop not in qr or not isinstance(qr[prop], (int, float)):
+                return jsonify({'error': f'Campo qr_field.{prop} inválido'}), 400
+        
+        if 'background' in qr and qr['background'] not in ['white', 'transparent']:
+            return jsonify({'error': 'qr_field.background debe ser "white" o "transparent"'}), 400
+        
+        template.set_config(config)
+        template.updated_by = current_user_id
+        template.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Plantilla actualizada exitosamente',
+            'template': template.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al actualizar plantilla: {str(e)}'}), 500
+
+
+@standards_bp.route('/<int:standard_id>/certificate-template', methods=['DELETE'])
+@jwt_required()
+def delete_certificate_template(standard_id):
+    """
+    Eliminar la plantilla de certificado de un ECM.
+    Los certificados ya generados no se ven afectados.
+    """
+    from app.models.certificate_template import CertificateTemplate
+    from app.utils.azure_storage import azure_storage
+    
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
+        return jsonify({'error': 'No tiene permisos para eliminar plantillas'}), 403
+    
+    standard = CompetencyStandard.query.get(standard_id)
+    if not standard:
+        return jsonify({'error': 'Estándar no encontrado'}), 404
+    
+    template = CertificateTemplate.query.filter_by(competency_standard_id=standard_id).first()
+    if not template:
+        return jsonify({'error': 'No existe plantilla para este ECM'}), 404
+    
+    try:
+        # Intentar eliminar el blob
+        try:
+            azure_storage.delete_file(template.template_blob_url)
+        except:
+            pass  # No es crítico
+        
+        db.session.delete(template)
+        db.session.commit()
+        
+        return jsonify({'message': 'Plantilla eliminada exitosamente'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al eliminar plantilla: {str(e)}'}), 500
+
+
+@standards_bp.route('/<int:standard_id>/certificate-template/preview', methods=['GET'])
+@jwt_required()
+def preview_certificate_template(standard_id):
+    """
+    Genera una vista previa del certificado con datos de ejemplo.
+    Retorna el PDF generado.
+    """
+    from flask import send_file
+    from io import BytesIO
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.colors import HexColor
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    from pypdf import PdfReader, PdfWriter
+    from app.models.certificate_template import CertificateTemplate
+    import qrcode
+    from reportlab.lib.utils import ImageReader
+    
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'editor_invitado']:
+        return jsonify({'error': 'No tiene permisos'}), 403
+    
+    standard = CompetencyStandard.query.get(standard_id)
+    if not standard:
+        return jsonify({'error': 'Estándar no encontrado'}), 404
+    
+    template = CertificateTemplate.query.filter_by(competency_standard_id=standard_id).first()
+    if not template:
+        return jsonify({'error': 'No existe plantilla para este ECM'}), 404
+    
+    try:
+        config = template.get_config()
+        
+        # Descargar plantilla de Azure
+        from app.utils.azure_storage import azure_storage
+        template_bytes = azure_storage.download_file(template.template_blob_url)
+        
+        if not template_bytes:
+            return jsonify({'error': 'No se pudo descargar la plantilla'}), 500
+        
+        reader = PdfReader(BytesIO(template_bytes))
+        page = reader.pages[0]
+        width = float(page.mediabox.width)
+        height = float(page.mediabox.height)
+        
+        # Crear overlay
+        buffer_overlay = BytesIO()
+        c = canvas.Canvas(buffer_overlay, pagesize=(width, height))
+        
+        # Función para dibujar texto ajustado
+        def draw_fitted_text(canv, text, cfg, font_name='Helvetica-Bold'):
+            color = cfg.get('color', '#1a365d')
+            canv.setFillColor(HexColor(color))
+            
+            cx = cfg['x'] + cfg['width'] / 2
+            y = cfg['y']
+            max_w = cfg['width']
+            max_fs = cfg.get('maxFontSize', 36)
+            
+            font_size = max_fs
+            while font_size >= 8:
+                text_width = stringWidth(text, font_name, font_size)
+                if text_width <= max_w:
+                    canv.setFont(font_name, font_size)
+                    canv.drawCentredString(cx, y, text)
+                    return
+                font_size -= 1
+            canv.setFont(font_name, 8)
+            canv.drawCentredString(cx, y, text)
+        
+        # Nombre de ejemplo
+        name_cfg = config['name_field']
+        draw_fitted_text(c, 'Juan Pérez García', name_cfg)
+        
+        # Nombre del ECM
+        cert_cfg = config['cert_name_field']
+        draw_fitted_text(c, standard.name.upper() if standard.name else 'NOMBRE DEL ECM', cert_cfg)
+        
+        # QR de ejemplo
+        qr_cfg = config['qr_field']
+        qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=3, border=1)
+        qr.add_data('https://app.evaluaasi.com/verify/EC-PREVIEW-123')
+        qr.make(fit=True)
+        
+        bg = 'white' if qr_cfg.get('background') == 'white' else 'transparent'
+        qr_img = qr.make_image(fill_color='black', back_color=bg)
+        if bg == 'transparent':
+            qr_img = qr_img.convert('RGBA')
+        
+        qr_buffer = BytesIO()
+        qr_img.save(qr_buffer, format='PNG')
+        qr_buffer.seek(0)
+        
+        qr_image = ImageReader(qr_buffer)
+        qr_size = qr_cfg['size']
+        c.drawImage(qr_image, qr_cfg['x'], qr_cfg['y'], width=qr_size, height=qr_size, mask='auto')
+        
+        # Código debajo del QR
+        if qr_cfg.get('showCode', True):
+            c.setFillColor(HexColor('#666666'))
+            c.setFont('Helvetica', 5)
+            c.drawCentredString(qr_cfg['x'] + qr_size / 2, qr_cfg['y'] - 6, 'EC-PREVIEW-123')
+        
+        if qr_cfg.get('showText', True):
+            c.setFont('Helvetica', 4)
+            c.drawCentredString(qr_cfg['x'] + qr_size / 2, qr_cfg['y'] - 11, 'Escanea para verificar')
+        
+        c.save()
+        
+        # Merge
+        buffer_overlay.seek(0)
+        overlay = PdfReader(buffer_overlay)
+        
+        reader2 = PdfReader(BytesIO(template_bytes))
+        page2 = reader2.pages[0]
+        page2.merge_page(overlay.pages[0])
+        
+        writer = PdfWriter()
+        writer.add_page(page2)
+        
+        buffer_final = BytesIO()
+        writer.write(buffer_final)
+        buffer_final.seek(0)
+        
+        return send_file(
+            buffer_final,
+            mimetype='application/pdf',
+            as_attachment=False,
+            download_name=f'preview_{standard.code}.pdf'
+        )
+        
+    except Exception as e:
+        return jsonify({'error': f'Error al generar vista previa: {str(e)}'}), 500

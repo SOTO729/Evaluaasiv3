@@ -28,6 +28,7 @@ from app.models.student_progress import (
 from app.models.conocer_certificate import ConocerCertificate
 from app.models.conocer_upload import ConocerUploadBatch, ConocerUploadLog
 from app.models.competency_standard import CompetencyStandard, DeletionRequest
+from app.models.certificate_template import CertificateTemplate
 from app.models.brand import Brand
 from app.models.vm_session import VmSession
 from app.models.badge import BadgeTemplate, IssuedBadge
@@ -99,6 +100,7 @@ __all__ = [
     'ConocerUploadLog',
     'CompetencyStandard',
     'DeletionRequest',
+    'CertificateTemplate',
     'Brand',
     'VmSession',
     'BadgeTemplate',

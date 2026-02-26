@@ -110,6 +110,7 @@ const StandardDetailPage = lazy(() => import('./pages/standards/StandardDetailPa
 const DeletionRequestsPage = lazy(() => import('./pages/standards/DeletionRequestsPage'))
 const BrandsListPage = lazy(() => import('./pages/standards/BrandsListPage'))
 const BrandFormPage = lazy(() => import('./pages/standards/BrandFormPage'))
+const CertificateTemplateEditorPage = lazy(() => import('./pages/standards/CertificateTemplateEditorPage'))
 
 // Partners (Coordinador)
 const PartnersListPage = lazy(() => import('./pages/partners/PartnersListPage'))
@@ -279,15 +280,16 @@ function App() {
               <Route path="/study-contents/:id/downloadable" element={<RestrictedForGerenteFin><DownloadableEditorPage /></RestrictedForGerenteFin>} />
               <Route path="/study-contents/:id/sessions/:sessionId/topics/:topicId/interactive" element={<RestrictedForGerenteFin><StudyInteractiveExercisePage /></RestrictedForGerenteFin>} />
               
-              {/* Standards (ECM) - Restringido para coordinador, gerente y financiero */}
-              <Route path="/standards" element={<RestrictedForGerenteFin><StandardsListPage /></RestrictedForGerenteFin>} />
-              <Route path="/standards/new" element={<RestrictedForGerenteFin><StandardFormPage /></RestrictedForGerenteFin>} />
-              <Route path="/standards/brands" element={<RestrictedForGerenteFin><BrandsListPage /></RestrictedForGerenteFin>} />
-              <Route path="/standards/brands/new" element={<RestrictedForGerenteFin><BrandFormPage /></RestrictedForGerenteFin>} />
-              <Route path="/standards/brands/:id/edit" element={<RestrictedForGerenteFin><BrandFormPage /></RestrictedForGerenteFin>} />
-              <Route path="/standards/:id" element={<RestrictedForGerenteFin><StandardDetailPage /></RestrictedForGerenteFin>} />
-              <Route path="/standards/:id/edit" element={<RestrictedForGerenteFin><StandardFormPage /></RestrictedForGerenteFin>} />
-              <Route path="/standards/deletion-requests" element={<RestrictedForGerenteFin><DeletionRequestsPage /></RestrictedForGerenteFin>} />
+              {/* Standards (ECM) - Restringido para gerente y financiero (coordinador tiene acceso) */}
+              <Route path="/standards" element={<RestrictedForGerenteFinOnly><StandardsListPage /></RestrictedForGerenteFinOnly>} />
+              <Route path="/standards/new" element={<RestrictedForGerenteFinOnly><StandardFormPage /></RestrictedForGerenteFinOnly>} />
+              <Route path="/standards/brands" element={<RestrictedForGerenteFinOnly><BrandsListPage /></RestrictedForGerenteFinOnly>} />
+              <Route path="/standards/brands/new" element={<RestrictedForGerenteFinOnly><BrandFormPage /></RestrictedForGerenteFinOnly>} />
+              <Route path="/standards/brands/:id/edit" element={<RestrictedForGerenteFinOnly><BrandFormPage /></RestrictedForGerenteFinOnly>} />
+              <Route path="/standards/:id" element={<RestrictedForGerenteFinOnly><StandardDetailPage /></RestrictedForGerenteFinOnly>} />
+              <Route path="/standards/:id/edit" element={<RestrictedForGerenteFinOnly><StandardFormPage /></RestrictedForGerenteFinOnly>} />
+              <Route path="/standards/:id/certificate-template" element={<RestrictedForGerenteFinOnly><CertificateTemplateEditorPage /></RestrictedForGerenteFinOnly>} />
+              <Route path="/standards/deletion-requests" element={<RestrictedForGerenteFinOnly><DeletionRequestsPage /></RestrictedForGerenteFinOnly>} />
               
               {/* Certificates - Restringido para coordinador, gerente y financiero */}
               <Route path="/certificates" element={<RestrictedForGerenteFin><CertificatesPage /></RestrictedForGerenteFin>} />

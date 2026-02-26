@@ -442,6 +442,37 @@ class AzureStorageService:
         except:
             return None
 
+    def download_file(self, blob_url):
+        """
+        Descargar archivo desde Azure Blob Storage
+        
+        Args:
+            blob_url: URL completa del blob
+        
+        Returns:
+            bytes: Contenido del archivo, o None si falla
+        """
+        if not self.blob_service_client:
+            return None
+        
+        try:
+            # Extraer nombre del blob de la URL
+            blob_name = blob_url.split(f'{self.container_name}/')[-1]
+            # Limpiar query string si existe
+            if '?' in blob_name:
+                blob_name = blob_name.split('?')[0]
+            
+            blob_client = self.blob_service_client.get_blob_client(
+                container=self.container_name,
+                blob=blob_name
+            )
+            
+            return blob_client.download_blob().readall()
+        
+        except AzureError as e:
+            print(f"Error downloading from Azure: {str(e)}")
+            return None
+
     def upload_base64_image(self, base64_data, folder='images'):
         """
         Subir imagen desde base64 a Azure Blob Storage

@@ -4066,13 +4066,35 @@ def generate_certificate_pdf(result_id):
             current_app.logger.warning(f'🎓 [CERTIFICADO] Examen no aprobado - Score insuficiente')
             return jsonify({'error': 'Solo se pueden generar certificados para exámenes aprobados'}), 400
         
-        # Cargar plantilla PDF
-        template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'plantilla.pdf')
-        if not os.path.exists(template_path):
-            current_app.logger.error(f'🎓 [CERTIFICADO] Plantilla no encontrada: {template_path}')
-            return jsonify({'error': 'Plantilla de certificado no encontrada'}), 500
+        # === Buscar plantilla personalizada por ECM ===
+        custom_template = None
+        custom_template_bytes = None
+        if exam.competency_standard_id:
+            from app.models.certificate_template import CertificateTemplate
+            custom_template = CertificateTemplate.query.filter_by(
+                competency_standard_id=exam.competency_standard_id
+            ).first()
+            
+            if custom_template:
+                current_app.logger.info(f'🎓 [CERTIFICADO] Usando plantilla personalizada para ECM #{exam.competency_standard_id}')
+                try:
+                    from app.utils.azure_storage import azure_storage as az_storage
+                    custom_template_bytes = az_storage.download_file(custom_template.template_blob_url)
+                except Exception as tmpl_err:
+                    current_app.logger.warning(f'🎓 [CERTIFICADO] Error al descargar plantilla personalizada: {tmpl_err}. Usando plantilla global.')
+                    custom_template = None
+                    custom_template_bytes = None
         
-        reader = PdfReader(template_path)
+        # Cargar plantilla PDF (personalizada o global)
+        if custom_template_bytes:
+            reader = PdfReader(BytesIO(custom_template_bytes))
+        else:
+            template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'plantilla.pdf')
+            if not os.path.exists(template_path):
+                current_app.logger.error(f'🎓 [CERTIFICADO] Plantilla no encontrada: {template_path}')
+                return jsonify({'error': 'Plantilla de certificado no encontrada'}), 500
+            reader = PdfReader(template_path)
+        
         page = reader.pages[0]
         width = float(page.mediabox.width)
         height = float(page.mediabox.height)
@@ -4083,25 +4105,36 @@ def generate_certificate_pdf(result_id):
         
         c.setFillColor(HexColor('#1a365d'))
         
-        # Configuración del área compartida para nombre y certificado
-        x_min = 85
-        x_max = 540
-        max_width = x_max - x_min
-        center_x = (x_min + x_max) / 2
+        # === Obtener posiciones (config personalizada o default) ===
+        if custom_template:
+            tmpl_config = custom_template.get_config()
+            name_cfg = tmpl_config['name_field']
+            cert_cfg = tmpl_config['cert_name_field']
+            qr_cfg = tmpl_config['qr_field']
+        else:
+            name_cfg = {'x': 85, 'y': 375, 'width': 455, 'height': 50, 'maxFontSize': 36, 'color': '#1a365d'}
+            cert_cfg = {'x': 85, 'y': 300, 'width': 455, 'height': 30, 'maxFontSize': 18, 'color': '#1a365d'}
+            qr_cfg = {'x': 30, 'y': 25, 'size': 50, 'background': 'transparent', 'showCode': True, 'showText': True}
         
         # Función para ajustar tamaño de fuente
-        def draw_fitted_text(canv, text, cx, y, mw, font_name, max_font_size, min_font_size=8):
+        def draw_fitted_text_cfg(canv, text, cfg, font_name='Helvetica-Bold'):
+            color = cfg.get('color', '#1a365d')
+            canv.setFillColor(HexColor(color))
+            cx = cfg['x'] + cfg['width'] / 2
+            y = cfg['y']
+            mw = cfg['width']
+            max_font_size = cfg.get('maxFontSize', 36)
             font_size = max_font_size
-            while font_size >= min_font_size:
+            while font_size >= 8:
                 text_width = stringWidth(text, font_name, font_size)
                 if text_width <= mw:
                     canv.setFont(font_name, font_size)
                     canv.drawCentredString(cx, y, text)
                     return font_size
                 font_size -= 1
-            canv.setFont(font_name, min_font_size)
+            canv.setFont(font_name, 8)
             canv.drawCentredString(cx, y, text)
-            return min_font_size
+            return 8
         
         # Construir nombre completo del usuario (Title Case)
         name_parts = [user.name or '']
@@ -4113,30 +4146,27 @@ def generate_certificate_pdf(result_id):
         # Convertir a Title Case
         student_name = student_name.title()
         
-        # NOMBRE en (center_x, 375), max 36pt
-        draw_fitted_text(c, student_name, center_x, 375, max_width, 'Helvetica-Bold', 36)
+        # NOMBRE según config
+        draw_fitted_text_cfg(c, student_name, name_cfg)
         
         # Construir nombre del certificado (MAYÚSCULAS)
-        # Usar solo el nombre del examen (sin código ECM)
         if exam.name:
             cert_name = exam.name.upper()
         else:
             cert_name = "CERTIFICADO DE COMPETENCIA"
         
-        # CERTIFICADO en (center_x, 300), max 18pt
-        draw_fitted_text(c, cert_name, center_x, 300, max_width, 'Helvetica-Bold', 18)
+        # CERTIFICADO según config
+        draw_fitted_text_cfg(c, cert_name, cert_cfg)
         
-        # === QR DE VERIFICACIÓN PARA CERTIFICADO EDUIT ===
+        # === QR DE VERIFICACIÓN ===
         verification_code = result.eduit_certificate_code
         if verification_code:
             import qrcode
             from io import BytesIO as QRBuffer
             from reportlab.lib.utils import ImageReader
             
-            # URL de verificación
             verify_url = f"https://app.evaluaasi.com/verify/{verification_code}"
             
-            # Crear QR
             qr = qrcode.QRCode(
                 version=1,
                 error_correction=qrcode.constants.ERROR_CORRECT_M,
@@ -4146,27 +4176,33 @@ def generate_certificate_pdf(result_id):
             qr.add_data(verify_url)
             qr.make(fit=True)
             
-            # Crear QR con fondo transparente
-            qr_img = qr.make_image(fill_color="black", back_color="transparent").convert('RGBA')
+            # Fondo según config (white o transparent)
+            bg_color = 'white' if qr_cfg.get('background') == 'white' else 'transparent'
+            qr_img = qr.make_image(fill_color="black", back_color=bg_color)
+            if bg_color == 'transparent':
+                qr_img = qr_img.convert('RGBA')
             
-            # Guardar QR en buffer
             qr_buffer = QRBuffer()
             qr_img.save(qr_buffer, format='PNG')
             qr_buffer.seek(0)
             
-            # Dibujar QR en el PDF (esquina inferior izquierda)
+            # Posición y tamaño según config
             qr_image = ImageReader(qr_buffer)
-            qr_size = 50
-            qr_x = 30  # Lado izquierdo
-            qr_y = 25
+            qr_size = qr_cfg.get('size', 50)
+            qr_x = qr_cfg.get('x', 30)
+            qr_y = qr_cfg.get('y', 25)
             c.drawImage(qr_image, qr_x, qr_y, width=qr_size, height=qr_size, mask='auto')
             
             # Código de verificación debajo del QR
-            c.setFillColor(HexColor('#666666'))
-            c.setFont('Helvetica', 5)
-            c.drawCentredString(qr_x + qr_size/2, qr_y - 6, verification_code)
-            c.setFont('Helvetica', 4)
-            c.drawCentredString(qr_x + qr_size/2, qr_y - 11, 'Escanea para verificar')
+            if qr_cfg.get('showCode', True):
+                c.setFillColor(HexColor('#666666'))
+                c.setFont('Helvetica', 5)
+                c.drawCentredString(qr_x + qr_size/2, qr_y - 6, verification_code)
+            
+            if qr_cfg.get('showText', True):
+                c.setFillColor(HexColor('#666666'))
+                c.setFont('Helvetica', 4)
+                c.drawCentredString(qr_x + qr_size/2, qr_y - 11, 'Escanea para verificar')
         
         c.save()
         
@@ -4175,7 +4211,10 @@ def generate_certificate_pdf(result_id):
         overlay = PdfReader(buffer_overlay)
         
         # Recargar plantilla para combinar
-        reader2 = PdfReader(template_path)
+        if custom_template_bytes:
+            reader2 = PdfReader(BytesIO(custom_template_bytes))
+        else:
+            reader2 = PdfReader(template_path)
         page2 = reader2.pages[0]
         page2.merge_page(overlay.pages[0])
         
