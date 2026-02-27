@@ -1753,24 +1753,6 @@ export default function CampusActivationPage() {
                       Características Adicionales
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Calendario de Sesiones */}
-                      <div className={`flex items-center justify-between p-4 border-2 rounded-xl transition-all ${
-                        configData.enable_virtual_machines ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'
-                      }`}>
-                        <div className="flex items-center gap-3">
-                          <Monitor className="w-5 h-5 text-emerald-600" />
-                          <div>
-                            <span className="font-medium text-gray-800">Calendario de Sesiones</span>
-                            <p className="text-xs text-gray-500 mt-0.5">Permite a los candidatos agendar sesiones de práctica</p>
-                          </div>
-                        </div>
-                        <ToggleSwitch
-                          checked={configData.enable_virtual_machines}
-                          onChange={(v) => setConfigData(prev => ({ ...prev, enable_virtual_machines: v }))}
-                          colorScheme="emerald"
-                        />
-                      </div>
-
                       {/* Pagos en Línea */}
                       <div className={`flex items-center justify-between p-4 border-2 rounded-xl transition-all ${
                         configData.enable_online_payments ? 'border-rose-500 bg-rose-50' : 'border-gray-200 hover:border-gray-300'
