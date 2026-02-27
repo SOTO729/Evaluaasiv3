@@ -53,19 +53,19 @@ export const getCertificateTemplate = async (
 };
 
 /**
- * Subir una nueva plantilla PDF de certificado
+ * Subir una nueva plantilla (PDF o imagen) de certificado.
+ * Si replace=true, reemplaza la plantilla existente.
  */
 export const uploadCertificateTemplate = async (
   standardId: number,
-  file: File
+  file: File,
+  replace = false
 ): Promise<{ message: string; template: CertificateTemplate }> => {
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await api.post(
-    `/competency-standards/${standardId}/certificate-template`,
-    formData
-  );
+  const url = `/competency-standards/${standardId}/certificate-template${replace ? '?replace=true' : ''}`;
+  const response = await api.post(url, formData);
   return response.data;
 };
 
@@ -106,3 +106,7 @@ export const getPreviewUrl = (standardId: number): string => {
       : '/api');
   return `${baseURL}/competency-standards/${standardId}/certificate-template/preview`;
 };
+
+/** Formatos aceptados para subir plantillas */
+export const ACCEPTED_TEMPLATE_FORMATS = '.pdf,.png,.jpg,.jpeg,.webp';
+export const ACCEPTED_TEMPLATE_MIMES = 'application/pdf,image/png,image/jpeg,image/webp';

@@ -883,10 +883,12 @@ def get_certificate_template(standard_id):
 @jwt_required()
 def upload_certificate_template(standard_id):
     """
-    Subir plantilla PDF de certificado para un ECM.
-    Detecta automáticamente las dimensiones del PDF.
+    Subir plantilla de certificado para un ECM.
+    Acepta PDF o imágenes (PNG, JPG). Las imágenes se convierten a PDF automáticamente.
+    Si ya existe una plantilla, permite reemplazarla (query param ?replace=true).
     """
     import json
+    import os as _os
     from app.models.certificate_template import CertificateTemplate
     from app.utils.azure_storage import azure_storage
     
@@ -900,95 +902,166 @@ def upload_certificate_template(standard_id):
     if not standard:
         return jsonify({'error': 'Estándar no encontrado'}), 404
     
-    # Verificar que no exista ya una plantilla
+    # Verificar plantilla existente
     existing = CertificateTemplate.query.filter_by(competency_standard_id=standard_id).first()
-    if existing:
-        return jsonify({'error': 'Ya existe una plantilla para este ECM. Elimínela primero.'}), 409
+    allow_replace = request.args.get('replace', 'false').lower() == 'true'
     
-    # Obtener archivo PDF
+    if existing and not allow_replace:
+        return jsonify({'error': 'Ya existe una plantilla para este ECM. Elimínela primero o use ?replace=true.'}), 409
+    
+    # Obtener archivo
     if 'file' not in request.files:
-        return jsonify({'error': 'No se envió archivo PDF'}), 400
+        return jsonify({'error': 'No se envió archivo'}), 400
     
     file = request.files['file']
-    if not file.filename or not file.filename.lower().endswith('.pdf'):
-        return jsonify({'error': 'El archivo debe ser un PDF'}), 400
+    if not file.filename:
+        return jsonify({'error': 'Nombre de archivo vacío'}), 400
+    
+    # Validar extensión
+    ALLOWED_EXTENSIONS = {'.pdf', '.png', '.jpg', '.jpeg', '.webp'}
+    ext = _os.path.splitext(file.filename)[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        return jsonify({'error': f'Formato no soportado. Use: {", ".join(ALLOWED_EXTENSIONS)}'}), 400
     
     try:
-        # Leer el PDF para obtener dimensiones
-        from pypdf import PdfReader
         from io import BytesIO
-        
         file_bytes = file.read()
-        pdf_reader = PdfReader(BytesIO(file_bytes))
         
-        if len(pdf_reader.pages) == 0:
-            return jsonify({'error': 'El PDF no tiene páginas'}), 400
+        if not file_bytes or len(file_bytes) == 0:
+            return jsonify({'error': 'El archivo está vacío'}), 400
         
-        page = pdf_reader.pages[0]
-        pdf_width = float(page.mediabox.width)
-        pdf_height = float(page.mediabox.height)
+        is_pdf = ext == '.pdf'
+        
+        if is_pdf:
+            # ── PDF: obtener dimensiones con pypdf ──
+            from pypdf import PdfReader
+            
+            pdf_reader = PdfReader(BytesIO(file_bytes))
+            if len(pdf_reader.pages) == 0:
+                return jsonify({'error': 'El PDF no tiene páginas'}), 400
+            
+            page = pdf_reader.pages[0]
+            pdf_width = float(page.mediabox.width)
+            pdf_height = float(page.mediabox.height)
+            upload_bytes_data = file_bytes
+            upload_filename = file.filename
+            upload_content_type = 'application/pdf'
+        else:
+            # ── Imagen: convertir a PDF ──
+            from PIL import Image
+            from reportlab.pdfgen import canvas as rl_canvas
+            from reportlab.lib.utils import ImageReader
+            
+            img = Image.open(BytesIO(file_bytes))
+            img_w, img_h = img.size
+            
+            if img_w < 100 or img_h < 100:
+                return jsonify({'error': 'La imagen es demasiado pequeña (mínimo 100x100 px)'}), 400
+            
+            # Convertir píxeles a puntos PDF. Limitar dimensión máxima a 1500 pts.
+            MAX_DIM = 1500.0
+            ratio = min(1.0, MAX_DIM / max(img_w, img_h))
+            pdf_width = round(img_w * ratio, 1)
+            pdf_height = round(img_h * ratio, 1)
+            
+            # Crear PDF con la imagen de fondo
+            pdf_buffer = BytesIO()
+            c = rl_canvas.Canvas(pdf_buffer, pagesize=(pdf_width, pdf_height))
+            img_reader = ImageReader(BytesIO(file_bytes))
+            c.drawImage(img_reader, 0, 0, width=pdf_width, height=pdf_height, preserveAspectRatio=False)
+            c.save()
+            
+            upload_bytes_data = pdf_buffer.getvalue()
+            upload_filename = _os.path.splitext(file.filename)[0] + '.pdf'
+            upload_content_type = 'application/pdf'
+        
+        # Generar blob_name único
+        import uuid as _uuid
+        safe_ext = upload_filename.rsplit('.', 1)[1].lower() if '.' in upload_filename else 'pdf'
+        blob_name = f"certificate-templates/{standard.code}/{_uuid.uuid4().hex}.{safe_ext}"
         
         # Subir a Azure Blob Storage
-        file.seek(0)
-        file.stream = BytesIO(file_bytes)
-        blob_url = azure_storage.upload_file(file, folder=f'certificate-templates/{standard.code}')
+        from io import BytesIO as _BytesIO
+        blob_url = azure_storage.upload_bytes(
+            data=_BytesIO(upload_bytes_data),
+            blob_name=blob_name,
+            content_type=upload_content_type
+        )
         
         if not blob_url:
             return jsonify({'error': 'Error al subir archivo a Azure Storage'}), 500
         
-        # Configuración por defecto adaptada a las dimensiones del PDF
-        default_config = {}
-        
-        # Ajustar posiciones proporcionales al tamaño del PDF
-        name_center_x = pdf_width / 2
+        # Configuración por defecto adaptada a las dimensiones
         name_width = pdf_width * 0.7
-        name_x = name_center_x - (name_width / 2)
+        name_x = (pdf_width - name_width) / 2
         
-        default_config['name_field'] = {
-            'x': round(name_x, 1),
-            'y': round(pdf_height * 0.47, 1),
-            'width': round(name_width, 1),
-            'height': 50.0,
-            'maxFontSize': 36,
-            'color': '#1a365d'
+        default_config = {
+            'name_field': {
+                'x': round(name_x, 1),
+                'y': round(pdf_height * 0.47, 1),
+                'width': round(name_width, 1),
+                'height': 50.0,
+                'maxFontSize': 36,
+                'color': '#1a365d'
+            },
+            'cert_name_field': {
+                'x': round(name_x, 1),
+                'y': round(pdf_height * 0.38, 1),
+                'width': round(name_width, 1),
+                'height': 30.0,
+                'maxFontSize': 18,
+                'color': '#1a365d'
+            },
+            'qr_field': {
+                'x': 30.0,
+                'y': 25.0,
+                'size': 50.0,
+                'background': 'transparent',
+                'showCode': True,
+                'showText': True
+            }
         }
-        default_config['cert_name_field'] = {
-            'x': round(name_x, 1),
-            'y': round(pdf_height * 0.38, 1),
-            'width': round(name_width, 1),
-            'height': 30.0,
-            'maxFontSize': 18,
-            'color': '#1a365d'
-        }
-        default_config['qr_field'] = {
-            'x': 30.0,
-            'y': 25.0,
-            'size': 50.0,
-            'background': 'transparent',
-            'showCode': True,
-            'showText': True
-        }
         
-        # Crear registro
-        template = CertificateTemplate(
-            competency_standard_id=standard_id,
-            template_blob_url=blob_url,
-            pdf_width=pdf_width,
-            pdf_height=pdf_height,
-            created_by=current_user_id
-        )
-        template.set_config(default_config)
-        
-        db.session.add(template)
-        db.session.commit()
-        
-        return jsonify({
-            'message': 'Plantilla subida exitosamente',
-            'template': template.to_dict()
-        }), 201
+        if existing and allow_replace:
+            # Eliminar blob anterior
+            try:
+                azure_storage.delete_file(existing.template_blob_url)
+            except:
+                pass
+            
+            existing.template_blob_url = blob_url
+            existing.pdf_width = pdf_width
+            existing.pdf_height = pdf_height
+            existing.set_config(default_config)
+            existing.updated_by = current_user_id
+            existing.updated_at = datetime.utcnow()
+            db.session.commit()
+            
+            return jsonify({
+                'message': 'Plantilla reemplazada exitosamente',
+                'template': existing.to_dict()
+            }), 200
+        else:
+            template = CertificateTemplate(
+                competency_standard_id=standard_id,
+                template_blob_url=blob_url,
+                pdf_width=pdf_width,
+                pdf_height=pdf_height,
+                created_by=current_user_id
+            )
+            template.set_config(default_config)
+            db.session.add(template)
+            db.session.commit()
+            
+            return jsonify({
+                'message': 'Plantilla subida exitosamente',
+                'template': template.to_dict()
+            }), 201
         
     except Exception as e:
         db.session.rollback()
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': f'Error al procesar plantilla: {str(e)}'}), 500
 
 
