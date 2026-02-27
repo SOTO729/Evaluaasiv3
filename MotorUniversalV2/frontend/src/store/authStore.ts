@@ -4,8 +4,8 @@ import type { User } from '../types'
 
 // Función para limpiar toda la cache del navegador
 export const clearAllCache = () => {
-  // Preservar preferencias de UI que deben sobrevivir al logout
-  const keysToKeep: string[] = ['evaluaasi_dev_mode'];
+  // Limpiar localStorage (excepto algunas claves del sistema si es necesario)
+  const keysToKeep: string[] = []; // Puedes agregar claves que no quieras borrar
   const allKeys = Object.keys(localStorage);
   allKeys.forEach(key => {
     if (!keysToKeep.includes(key)) {

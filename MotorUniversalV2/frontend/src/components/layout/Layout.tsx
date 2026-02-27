@@ -10,8 +10,6 @@ interface LayoutProps {
   children?: ReactNode;
 }
 
-const DEV_MODE_KEY = 'evaluaasi_dev_mode';
-
 const Layout = ({ children }: LayoutProps) => {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
@@ -20,23 +18,6 @@ const Layout = ({ children }: LayoutProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
-
-  // Toggle de entorno dev/prod (persiste en localStorage)
-  const canToggleEnv = user?.role === 'admin' || user?.role === 'developer' || user?.role === 'coordinator';
-  const [isDevMode, setIsDevMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(DEV_MODE_KEY) === 'true';
-    }
-    return false;
-  });
-
-  const toggleDevMode = useCallback(() => {
-    setIsDevMode(prev => {
-      const next = !prev;
-      localStorage.setItem(DEV_MODE_KEY, String(next));
-      return next;
-    });
-  }, []);
   
   // Refs y estado para scroll horizontal del navbar
   const navScrollRef = useRef<HTMLDivElement>(null)
@@ -180,23 +161,8 @@ const Layout = ({ children }: LayoutProps) => {
     }
   }
 
-  const showDevBanner = isDevMode && canToggleEnv;
-
   return (
     <div className={isFullContentPage ? 'h-screen flex flex-col overflow-hidden' : 'min-h-screen bg-gray-50'}>
-      {/* Banner de entorno de desarrollo */}
-      {showDevBanner && (
-        <div className="bg-amber-500 text-white text-center text-xs font-bold py-1 px-2 z-50 relative select-none tracking-wide flex items-center justify-center gap-2">
-          <span>⚠ MODO DESARROLLO</span>
-          <span className="hidden sm:inline">— Los cambios aquí son de prueba</span>
-          <button
-            onClick={toggleDevMode}
-            className="ml-3 px-2 py-0.5 bg-white/20 hover:bg-white/30 rounded text-[10px] font-semibold transition-colors"
-          >
-            Volver a Producción ✕
-          </button>
-        </div>
-      )}
       {/* Header */}
       <header className="bg-white shadow-sm border-b sticky top-0 z-40 flex-shrink-0">
         <div className="w-full fluid-px-4">
@@ -575,32 +541,6 @@ const Layout = ({ children }: LayoutProps) => {
                       </svg>
                       Mi Perfil
                     </Link>
-
-                    {/* Toggle de entorno dev/prod */}
-                    {canToggleEnv && (
-                      <button
-                        onClick={toggleDevMode}
-                        className="w-full flex items-center justify-between fluid-px-5 fluid-py-4 fluid-text-base text-gray-700 hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="flex items-center">
-                          <svg className="fluid-icon-lg fluid-mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                          </svg>
-                          {isDevMode ? 'Modo Desarrollo' : 'Modo Producción'}
-                        </div>
-                        {/* Toggle switch visual */}
-                        <div className={`relative w-11 h-6 rounded-full transition-colors ${
-                          isDevMode ? 'bg-amber-500' : 'bg-gray-300'
-                        }`}>
-                          <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                            isDevMode ? 'translate-x-5' : 'translate-x-0'
-                          }`} />
-                        </div>
-                      </button>
-                    )}
-
-                    <div className="border-t border-gray-100 my-1"></div>
-
                     <button
                       onClick={() => {
                         setIsDropdownOpen(false)
@@ -1003,31 +943,6 @@ const Layout = ({ children }: LayoutProps) => {
                 </Link>
               )}
               
-              {/* Toggle de entorno dev/prod (móvil) */}
-              {canToggleEnv && (
-                <>
-                  <div className="border-t border-gray-200 fluid-my-2"></div>
-                  <button
-                    onClick={toggleDevMode}
-                    className="w-full flex items-center justify-between fluid-px-3 fluid-py-3 fluid-rounded-lg fluid-text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex items-center">
-                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                      </svg>
-                      {isDevMode ? 'Modo Desarrollo' : 'Modo Producción'}
-                    </div>
-                    <div className={`relative w-10 h-5 rounded-full transition-colors ${
-                      isDevMode ? 'bg-amber-500' : 'bg-gray-300'
-                    }`}>
-                      <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                        isDevMode ? 'translate-x-5' : 'translate-x-0'
-                      }`} />
-                    </div>
-                  </button>
-                </>
-              )}
-
               {/* Separador */}
               <div className="border-t border-gray-200 fluid-my-2"></div>
               
