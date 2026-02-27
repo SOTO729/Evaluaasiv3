@@ -30,7 +30,11 @@ import {
   ACCEPTED_TEMPLATE_FORMATS,
 } from '../../services/certificateTemplateService';
 
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// Worker local de pdfjs-dist (evita carga desde CDN bloqueada por CSP)
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
+).toString();
 
 // ─── Tipos ──────────────────────────────────────────────────
 type FieldKey = 'name_field' | 'cert_name_field' | 'qr_field';
