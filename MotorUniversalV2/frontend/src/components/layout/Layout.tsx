@@ -161,8 +161,16 @@ const Layout = ({ children }: LayoutProps) => {
     }
   }
 
+  const isDevEnvironment = import.meta.env.VITE_APP_ENV === 'development';
+
   return (
     <div className={isFullContentPage ? 'h-screen flex flex-col overflow-hidden' : 'min-h-screen bg-gray-50'}>
+      {/* Banner de entorno de desarrollo */}
+      {isDevEnvironment && (
+        <div className="bg-amber-500 text-white text-center text-xs font-bold py-1 px-2 z-50 relative select-none tracking-wide">
+          ⚠ ENTORNO DE DESARROLLO — Los cambios aquí NO afectan producción
+        </div>
+      )}
       {/* Header */}
       <header className="bg-white shadow-sm border-b sticky top-0 z-40 flex-shrink-0">
         <div className="w-full fluid-px-4">
