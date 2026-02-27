@@ -45,8 +45,9 @@ dist-ssr/
 .env
 .env.local
 .env.*.local
-.env.production
-.env.development
+# .env.production y .env.development se trackean (no contienen secrets)
+!.env.production
+!.env.development
 
 # IDEs
 .vscode/
