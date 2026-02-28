@@ -296,7 +296,28 @@ export default function GroupDetailPage() {
           </div>
         </Link>
 
-        {/* Documentos */}
+        {/* Analítica */}
+        <Link to={`/partners/groups/${groupId}/analytics`}
+          className="block bg-white rounded-fluid-xl border border-gray-200 hover:shadow-lg hover:border-purple-300 transition-all duration-200 group">
+          <div className="fluid-p-4">
+            <div className="flex items-center fluid-gap-3 fluid-mb-3">
+              <div className="fluid-p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-fluid-lg shadow group-hover:scale-110 transition-transform">
+                <BarChart3 className="fluid-icon-sm text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="fluid-text-sm font-bold text-gray-900 group-hover:text-purple-700 transition-colors">Analítica</h3>
+                <p className="fluid-text-xs text-gray-400">Dashboard del grupo</p>
+              </div>
+              <ChevronRight className="fluid-icon-sm text-gray-300 group-hover:text-purple-500 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+            </div>
+            <div className="grid grid-cols-2 fluid-gap-1 fluid-pt-2 border-t border-gray-100">
+              <div className="text-center"><p className="fluid-text-base font-bold text-purple-600">{certRate}%</p><p className="fluid-text-xs text-gray-400">Tasa</p></div>
+              <div className="text-center"><p className="fluid-text-base font-bold text-gray-900">{stats.totalMembers}</p><p className="fluid-text-xs text-gray-400">Miembros</p></div>
+            </div>
+          </div>
+        </Link>
+
+        {/* Certificados */}
         <Link to={`/partners/groups/${groupId}/documents`}
           className="block bg-white rounded-fluid-xl border border-gray-200 hover:shadow-lg hover:border-emerald-300 transition-all duration-200 group">
           <div className="fluid-p-4">
@@ -305,35 +326,14 @@ export default function GroupDetailPage() {
                 <Award className="fluid-icon-sm text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="fluid-text-sm font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">Documentos</h3>
-                <p className="fluid-text-xs text-gray-400">Certificados e insignias</p>
+                <h3 className="fluid-text-sm font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">Certificados</h3>
+                <p className="fluid-text-xs text-gray-400">Descarga certificados, insignias y reportes</p>
               </div>
               <ChevronRight className="fluid-icon-sm text-gray-300 group-hover:text-emerald-500 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
             </div>
             <div className="grid grid-cols-2 fluid-gap-1 fluid-pt-2 border-t border-gray-100">
               <div className="text-center"><p className="fluid-text-base font-bold text-emerald-600">{stats.certified}</p><p className="fluid-text-xs text-gray-400">Listos</p></div>
               <div className="text-center"><p className="fluid-text-base font-bold text-gray-900">{stats.totalExams}</p><p className="fluid-text-xs text-gray-400">Cert.</p></div>
-            </div>
-          </div>
-        </Link>
-
-        {/* Analítica */}
-        <Link to={`/partners/groups/${groupId}/analytics`}
-          className="block bg-white rounded-fluid-xl border border-gray-200 hover:shadow-lg hover:border-indigo-300 transition-all duration-200 group">
-          <div className="fluid-p-4">
-            <div className="flex items-center fluid-gap-3 fluid-mb-3">
-              <div className="fluid-p-2 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-fluid-lg shadow group-hover:scale-110 transition-transform">
-                <BarChart3 className="fluid-icon-sm text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="fluid-text-sm font-bold text-gray-900 group-hover:text-indigo-700 transition-colors">Analítica</h3>
-                <p className="fluid-text-xs text-gray-400">Dashboard del grupo</p>
-              </div>
-              <ChevronRight className="fluid-icon-sm text-gray-300 group-hover:text-indigo-500 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
-            </div>
-            <div className="grid grid-cols-2 fluid-gap-1 fluid-pt-2 border-t border-gray-100">
-              <div className="text-center"><p className="fluid-text-base font-bold text-indigo-600">{certRate}%</p><p className="fluid-text-xs text-gray-400">Tasa</p></div>
-              <div className="text-center"><p className="fluid-text-base font-bold text-gray-900">{stats.totalMembers}</p><p className="fluid-text-xs text-gray-400">Miembros</p></div>
             </div>
           </div>
         </Link>
