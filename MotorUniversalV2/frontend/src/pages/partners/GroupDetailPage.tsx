@@ -63,6 +63,7 @@ export default function GroupDetailPage() {
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const reportMenuRef = useRef<HTMLDivElement>(null);
   const reportBtnRef = useRef<HTMLButtonElement>(null);
+  const reportDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadData();
@@ -140,7 +141,11 @@ export default function GroupDetailPage() {
   // Cerrar menú de reportes al hacer click fuera
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (reportMenuRef.current && !reportMenuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        reportMenuRef.current && !reportMenuRef.current.contains(target) &&
+        reportDropdownRef.current && !reportDropdownRef.current.contains(target)
+      ) {
         setShowReportMenu(false);
       }
     };
@@ -238,7 +243,7 @@ export default function GroupDetailPage() {
                   <ChevronDown className="fluid-icon-xs" />
                 </button>
                 {showReportMenu && createPortal(
-                  <div style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
+                  <div ref={reportDropdownRef} style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
                     className="w-56 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden animate-fade-in-up">
                     <button onClick={handleExportExcel}
                       className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 transition-colors text-left">
