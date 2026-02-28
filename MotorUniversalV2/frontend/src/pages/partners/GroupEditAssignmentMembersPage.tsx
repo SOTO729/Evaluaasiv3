@@ -39,6 +39,7 @@ import {
   getGroupMembers,
   getExamMembersDetail,
   swapExamMember,
+  bulkSwapExamMembers,
   previewEcmRetake,
   applyEcmRetake,
   CandidateGroup,
@@ -46,6 +47,8 @@ import {
   ExamMemberDetail,
   ExamMembersDetailResponse,
   RetakePreviewResponse,
+  BulkSwapPair,
+  BulkSwapResponse,
 } from '../../services/partnersService';
 
 type SortField = 'name' | 'email' | 'curp' | 'assignment_number' | 'progress' | 'status';
@@ -97,9 +100,22 @@ export default function GroupEditAssignmentMembersPage() {
   const [retakeLoading, setRetakeLoading] = useState(false);
   const [applyingRetake, setApplyingRetake] = useState(false);
 
+  // Bulk swap
+  const [selectedForSwap, setSelectedForSwap] = useState<Set<string>>(new Set());
+  const [showBulkSwapModal, setShowBulkSwapModal] = useState(false);
+  const [bulkSwapStep, setBulkSwapStep] = useState<1 | 2>(1);
+  const [bulkReplacements, setBulkReplacements] = useState<string[]>([]);
+  const [bulkSwapping, setBulkSwapping] = useState(false);
+  const [bulkSwapResults, setBulkSwapResults] = useState<BulkSwapResponse | null>(null);
+  const [bulkSwapSearch, setBulkSwapSearch] = useState('');
+  const [bulkSwapCandidates, setBulkSwapCandidates] = useState<GroupMember[]>([]);
+  const [bulkSwapSearching, setBulkSwapSearching] = useState(false);
+  const [bulkSwapTotalResults, setBulkSwapTotalResults] = useState(0);
+
   // Race condition prevention
   const searchRequestRef = useRef(0);
   const swapSearchRef = useRef(0);
+  const bulkSwapSearchRef = useRef(0);
 
   // Carga inicial del grupo
   useEffect(() => {
@@ -141,6 +157,36 @@ export default function GroupEditAssignmentMembersPage() {
     const timer = setTimeout(() => loadSwapCandidates(swapSearch), 400);
     return () => clearTimeout(timer);
   }, [showSwapModal, swapSearch, loadSwapCandidates]);
+
+  // Búsqueda de candidatos para bulk swap
+  const loadBulkSwapCandidates = useCallback(async (search: string) => {
+    const reqId = ++bulkSwapSearchRef.current;
+    try {
+      setBulkSwapSearching(true);
+      const res = await getGroupMembers(Number(groupId), {
+        per_page: 50,
+        search: search || undefined,
+      });
+      if (reqId !== bulkSwapSearchRef.current) return;
+      setBulkSwapCandidates(res.members);
+      setBulkSwapTotalResults(res.total);
+    } catch {
+      if (reqId !== bulkSwapSearchRef.current) return;
+    } finally {
+      if (reqId === bulkSwapSearchRef.current) setBulkSwapSearching(false);
+    }
+  }, [groupId]);
+
+  useEffect(() => {
+    if (!showBulkSwapModal || bulkSwapStep !== 1) return;
+    const timer = setTimeout(() => loadBulkSwapCandidates(bulkSwapSearch), 400);
+    return () => clearTimeout(timer);
+  }, [showBulkSwapModal, bulkSwapStep, bulkSwapSearch, loadBulkSwapCandidates]);
+
+  // Limpiar selección al cambiar página/filtros/búsqueda
+  useEffect(() => {
+    setSelectedForSwap(new Set());
+  }, [currentPage, pageSize, filterStatus, searchQuery, sortCol, sortDir]);
 
   // Búsqueda server-side con paginación
   const handleSearch = useCallback(async (page: number = 1, perPage: number = pageSize) => {
@@ -292,6 +338,83 @@ export default function GroupEditAssignmentMembersPage() {
       setError(err.response?.data?.error || 'Error al realizar la reasignación');
     } finally {
       setSwapping(false);
+    }
+  };
+
+  // ---- Bulk swap handlers ----
+  const swappableMembers = (detailData?.members || []).filter(m => !m.is_locked);
+
+  const handleToggleSelect = (userId: string) => {
+    setSelectedForSwap(prev => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  const handleSelectAllSwappable = () => {
+    const allSwappableIds = swappableMembers.map(m => m.user_id);
+    const allSelected = allSwappableIds.length > 0 && allSwappableIds.every(id => selectedForSwap.has(id));
+    if (allSelected) {
+      setSelectedForSwap(new Set());
+    } else {
+      setSelectedForSwap(new Set(allSwappableIds));
+    }
+  };
+
+  const handleBulkSwapInit = () => {
+    setBulkSwapStep(1);
+    setBulkReplacements([]);
+    setBulkSwapSearch('');
+    setBulkSwapResults(null);
+    setShowBulkSwapModal(true);
+  };
+
+  const handleToggleBulkReplacement = (userId: string) => {
+    setBulkReplacements(prev => {
+      if (prev.includes(userId)) return prev.filter(id => id !== userId);
+      if (prev.length >= selectedForSwap.size) return prev; // max N replacements
+      return [...prev, userId];
+    });
+  };
+
+  const handleConfirmBulkSwap = async () => {
+    // Pair them in order: selectedMembers[i] → bulkReplacements[i]
+    const selectedMembersOrdered = members.filter(m => selectedForSwap.has(m.user_id));
+    const swaps: BulkSwapPair[] = selectedMembersOrdered.map((m, i) => ({
+      from_user_id: m.user_id,
+      to_user_id: bulkReplacements[i],
+    }));
+
+    try {
+      setBulkSwapping(true);
+      setError(null);
+      const result = await bulkSwapExamMembers(Number(groupId), Number(assignmentId), swaps);
+      setBulkSwapResults(result);
+
+      if (result.success_count > 0) {
+        setSuccessMessage(
+          `Reasignación masiva: ${result.success_count} exitosa(s)${result.error_count > 0 ? `, ${result.error_count} con error` : ''}`
+        );
+      }
+      if (result.error_count > 0 && result.success_count === 0) {
+        setError(`Todas las reasignaciones fallaron. ${result.errors.map(e => e.error).join('; ')}`);
+      }
+
+      // Go to step 3 (results) or close
+      if (result.error_count === 0) {
+        setShowBulkSwapModal(false);
+        setSelectedForSwap(new Set());
+        await handleSearch(currentPage, pageSize);
+      } else {
+        // Stay on modal to show partial results
+        setBulkSwapStep(2);
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al realizar la reasignación masiva');
+    } finally {
+      setBulkSwapping(false);
     }
   };
 
@@ -502,6 +625,39 @@ export default function GroupEditAssignmentMembersPage() {
         )}
       </div>
 
+      {/* ===== BARRA DE SELECCIÓN MASIVA ===== */}
+      {selectedForSwap.size > 0 && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-fluid-xl fluid-p-3 fluid-mb-4 flex flex-wrap items-center justify-between fluid-gap-3 animate-fade-in-up">
+          <div className="flex items-center fluid-gap-3">
+            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
+              <Users className="w-4 h-4 text-indigo-600" />
+            </div>
+            <div>
+              <p className="fluid-text-sm font-semibold text-indigo-800">
+                {selectedForSwap.size} candidato{selectedForSwap.size > 1 ? 's' : ''} seleccionado{selectedForSwap.size > 1 ? 's' : ''}
+              </p>
+              <p className="fluid-text-xs text-indigo-600">Selecciona los que deseas reasignar en lote</p>
+            </div>
+          </div>
+          <div className="flex items-center fluid-gap-2">
+            <button
+              onClick={() => setSelectedForSwap(new Set())}
+              className="inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-2 border border-indigo-300 text-indigo-700 rounded-fluid-lg hover:bg-indigo-100 fluid-text-sm font-medium transition-colors"
+            >
+              <X className="h-4 w-4" />
+              Deseleccionar
+            </button>
+            <button
+              onClick={handleBulkSwapInit}
+              className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-fluid-lg fluid-text-sm font-medium transition-colors shadow-sm"
+            >
+              <Repeat2 className="h-4 w-4" />
+              Reasignar {selectedForSwap.size} seleccionado{selectedForSwap.size > 1 ? 's' : ''}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ===== TABLA DE CANDIDATOS ASIGNADOS ===== */}
       {totalResults === 0 && !searching && !searchQuery && filterStatus === 'all' ? (
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 text-center fluid-py-12">
@@ -592,6 +748,15 @@ export default function GroupEditAssignmentMembersPage() {
             <table className="w-full">
               <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
                 <tr>
+                  <th className="fluid-px-3 fluid-py-3 text-center w-10">
+                    <input
+                      type="checkbox"
+                      checked={swappableMembers.length > 0 && swappableMembers.every(m => selectedForSwap.has(m.user_id))}
+                      onChange={handleSelectAllSwappable}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                      title="Seleccionar/deseleccionar todos los reasignables"
+                    />
+                  </th>
                   <th onClick={() => handleSort('name')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase cursor-pointer hover:bg-gray-100 select-none">
                     Candidato{renderSortIcon('name')}
                   </th>
@@ -621,14 +786,27 @@ export default function GroupEditAssignmentMembersPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {searching && members.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center">
+                    <td colSpan={9} className="py-12 text-center">
                       <Loader2 className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-2" />
                       <p className="text-gray-500 text-sm">Cargando candidatos...</p>
                     </td>
                   </tr>
                 ) : (
                   members.map((member) => (
-                    <tr key={member.user_id} className={`transition-colors ${member.is_locked ? 'bg-gray-50/50' : 'hover:bg-blue-50/30'}`}>
+                    <tr key={member.user_id} className={`transition-colors ${selectedForSwap.has(member.user_id) ? 'bg-indigo-50/60' : member.is_locked ? 'bg-gray-50/50' : 'hover:bg-blue-50/30'}`}>
+                      {/* Checkbox */}
+                      <td className="fluid-px-3 fluid-py-3 text-center w-10">
+                        {!member.is_locked ? (
+                          <input
+                            type="checkbox"
+                            checked={selectedForSwap.has(member.user_id)}
+                            onChange={() => handleToggleSelect(member.user_id)}
+                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                          />
+                        ) : (
+                          <span className="w-4 h-4 inline-block" />
+                        )}
+                      </td>
                       {/* Candidato */}
                       <td className="fluid-px-4 fluid-py-3">
                         <div className="flex items-center fluid-gap-3">
@@ -1127,6 +1305,301 @@ export default function GroupEditAssignmentMembersPage() {
                 )}
                 {applyingRetake ? 'Aplicando...' : 'Confirmar Retoma'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL DE REASIGNACIÓN MASIVA (BULK SWAP) ===== */}
+      {showBulkSwapModal && selectedForSwap.size > 0 && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => !bulkSwapping && setShowBulkSwapModal(false)}
+        >
+          <div
+            className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                  <Repeat2 className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Reasignación Masiva</h2>
+                  <p className="text-sm text-gray-500">
+                    {bulkSwapStep === 1
+                      ? `Selecciona ${selectedForSwap.size} reemplazo${selectedForSwap.size > 1 ? 's' : ''}`
+                      : 'Confirma los emparejamientos'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center px-2.5 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-semibold">
+                  Paso {bulkSwapStep} de 2
+                </span>
+                <button
+                  onClick={() => !bulkSwapping && setShowBulkSwapModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+            </div>
+
+            {/* Resumen de seleccionados */}
+            <div className="p-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
+              <p className="text-xs text-gray-500 font-semibold uppercase mb-2">
+                Candidatos a Reasignar ({selectedForSwap.size})
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {members.filter(m => selectedForSwap.has(m.user_id)).map(m => (
+                  <span key={m.user_id} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs">
+                    <span className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
+                      {m.user?.name?.charAt(0).toUpperCase() || '?'}
+                    </span>
+                    <span className="font-medium text-gray-700 max-w-[120px] truncate">{m.user?.full_name || 'Desconocido'}</span>
+                    {m.assignment_number && (
+                      <span className="text-indigo-500 font-mono text-[10px]">#{m.assignment_number}</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* PASO 1: Seleccionar reemplazos */}
+            {bulkSwapStep === 1 && (
+              <>
+                <div className="p-4 border-b border-gray-100 flex-shrink-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-gray-500 font-semibold uppercase">
+                      Seleccionar Reemplazos ({bulkReplacements.length} / {selectedForSwap.size})
+                    </p>
+                    {bulkReplacements.length === selectedForSwap.size && (
+                      <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Completo
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      value={bulkSwapSearch}
+                      onChange={(e) => setBulkSwapSearch(e.target.value)}
+                      placeholder="Buscar miembro del grupo..."
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                    />
+                  </div>
+                  {bulkSwapTotalResults > 0 && (
+                    <p className="text-xs text-gray-400 mt-2">
+                      {bulkSwapTotalResults.toLocaleString()} miembros encontrados
+                      {bulkSwapTotalResults > 50 ? ' (mostrando primeros 50)' : ''}
+                    </p>
+                  )}
+                </div>
+
+                {/* Progress bar */}
+                <div className="px-4 pt-2 flex-shrink-0">
+                  <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+                      style={{ width: `${selectedForSwap.size > 0 ? (bulkReplacements.length / selectedForSwap.size) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Lista de candidatos */}
+                <div className="overflow-y-auto flex-1" style={{ maxHeight: '320px' }}>
+                  {bulkSwapSearching ? (
+                    <div className="p-8 text-center">
+                      <Loader2 className="w-6 h-6 animate-spin text-indigo-500 mx-auto mb-2" />
+                      <p className="text-gray-500 text-sm">Buscando candidatos...</p>
+                    </div>
+                  ) : bulkSwapCandidates.length === 0 ? (
+                    <div className="p-8 text-center">
+                      <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                      <p className="text-gray-500 text-sm">
+                        {bulkSwapSearch ? 'No se encontraron candidatos' : 'Escribe para buscar candidatos'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-100">
+                      {bulkSwapCandidates
+                        .filter(c => !selectedForSwap.has(c.user_id)) // exclude members being replaced
+                        .map((candidate) => {
+                          const isSelected = bulkReplacements.includes(candidate.user_id);
+                          const orderIndex = bulkReplacements.indexOf(candidate.user_id);
+                          const isFull = bulkReplacements.length >= selectedForSwap.size && !isSelected;
+                          return (
+                            <button
+                              key={candidate.user_id}
+                              onClick={() => handleToggleBulkReplacement(candidate.user_id)}
+                              disabled={isFull}
+                              className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${
+                                isSelected
+                                  ? 'bg-indigo-50 border-l-4 border-l-indigo-500'
+                                  : isFull
+                                    ? 'opacity-40 cursor-not-allowed border-l-4 border-l-transparent'
+                                    : 'hover:bg-gray-50 border-l-4 border-l-transparent'
+                              }`}
+                            >
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${
+                                isSelected ? 'bg-gradient-to-br from-indigo-500 to-purple-500' : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                              }`}>
+                                {isSelected ? orderIndex + 1 : candidate.user?.name?.charAt(0).toUpperCase() || '?'}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className={`font-medium text-sm ${isSelected ? 'text-indigo-900' : 'text-gray-900'}`}>
+                                  {candidate.user?.full_name || 'Desconocido'}
+                                </p>
+                                <p className="text-xs text-gray-500 truncate">{candidate.user?.email || '-'}</p>
+                              </div>
+                              {candidate.user?.curp && (
+                                <span className="text-xs text-gray-400 font-mono hidden lg:block">{candidate.user.curp}</span>
+                              )}
+                              {isSelected && (
+                                <CheckCircle2 className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+                              )}
+                            </button>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* PASO 2: Confirmar emparejamientos */}
+            {bulkSwapStep === 2 && (
+              <div className="overflow-y-auto flex-1 p-4" style={{ maxHeight: '400px' }}>
+                <p className="text-xs text-gray-500 font-semibold uppercase mb-3">Emparejamientos</p>
+
+                {/* Show results if we have them (partial failure) */}
+                {bulkSwapResults && (
+                  <div className={`mb-4 p-3 rounded-xl border ${bulkSwapResults.error_count > 0 ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}`}>
+                    <p className={`text-sm font-medium ${bulkSwapResults.error_count > 0 ? 'text-amber-800' : 'text-green-800'}`}>
+                      {bulkSwapResults.success_count} exitosa(s), {bulkSwapResults.error_count} con error
+                    </p>
+                    {bulkSwapResults.errors.map((err, i) => (
+                      <p key={i} className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                        <XCircle className="w-3 h-3 flex-shrink-0" />
+                        {err.error}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {members.filter(m => selectedForSwap.has(m.user_id)).map((fromMember, idx) => {
+                    const toUserId = bulkReplacements[idx];
+                    const toCandidate = bulkSwapCandidates.find(c => c.user_id === toUserId);
+                    return (
+                      <div key={fromMember.user_id} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
+                        {/* FROM */}
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                            {fromMember.user?.name?.charAt(0).toUpperCase() || '?'}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm text-gray-900 truncate">{fromMember.user?.full_name}</p>
+                            {fromMember.assignment_number && (
+                              <p className="text-[10px] text-indigo-500 font-mono">#{fromMember.assignment_number}</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Arrow */}
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
+                          <Repeat2 className="w-4 h-4 text-indigo-600" />
+                        </div>
+
+                        {/* TO */}
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                            {toCandidate?.user?.name?.charAt(0).toUpperCase() || '?'}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm text-gray-900 truncate">{toCandidate?.user?.full_name || 'Desconocido'}</p>
+                            <p className="text-[10px] text-gray-500 truncate">{toCandidate?.user?.email}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Warning */}
+                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-700">
+                    Los números de asignación serán transferidos a los nuevos candidatos.
+                    Los candidatos actuales perderán el acceso a esta certificación.
+                    <strong> Esta acción no se puede deshacer.</strong>
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex items-center justify-between gap-3 p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+              <div>
+                {bulkSwapStep === 2 && !bulkSwapResults && (
+                  <button
+                    onClick={() => setBulkSwapStep(1)}
+                    disabled={bulkSwapping}
+                    className="inline-flex items-center gap-1 px-4 py-2.5 text-gray-600 hover:text-gray-800 font-medium text-sm transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Volver
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    if (!bulkSwapping) {
+                      setShowBulkSwapModal(false);
+                      if (bulkSwapResults && bulkSwapResults.success_count > 0) {
+                        setSelectedForSwap(new Set());
+                        handleSearch(currentPage, pageSize);
+                      }
+                    }
+                  }}
+                  disabled={bulkSwapping}
+                  className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-fluid-xl hover:bg-gray-100 disabled:opacity-50 font-medium text-sm transition-colors"
+                >
+                  {bulkSwapResults ? 'Cerrar' : 'Cancelar'}
+                </button>
+
+                {bulkSwapStep === 1 && (
+                  <button
+                    onClick={() => setBulkSwapStep(2)}
+                    disabled={bulkReplacements.length !== selectedForSwap.size}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium text-sm transition-colors"
+                  >
+                    Siguiente
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                )}
+
+                {bulkSwapStep === 2 && !bulkSwapResults && (
+                  <button
+                    onClick={handleConfirmBulkSwap}
+                    disabled={bulkSwapping}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium text-sm transition-colors"
+                  >
+                    {bulkSwapping ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Repeat2 className="w-4 h-4" />
+                    )}
+                    {bulkSwapping ? 'Reasignando...' : `Confirmar ${selectedForSwap.size} Reasignaciones`}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

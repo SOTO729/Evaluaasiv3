@@ -2085,6 +2085,43 @@ export async function swapExamMember(
   return response.data;
 }
 
+export interface BulkSwapPair {
+  from_user_id: string;
+  to_user_id: string;
+}
+
+export interface BulkSwapResult {
+  from_user_id: string;
+  from_name: string;
+  to_user_id: string;
+  to_name: string;
+  assignment_number?: string | null;
+}
+
+export interface BulkSwapError {
+  index: number;
+  from_user_id?: string;
+  to_user_id?: string;
+  error: string;
+}
+
+export interface BulkSwapResponse {
+  message: string;
+  success_count: number;
+  error_count: number;
+  results: BulkSwapResult[];
+  errors: BulkSwapError[];
+}
+
+export async function bulkSwapExamMembers(
+  groupId: number,
+  examId: number,
+  swaps: BulkSwapPair[]
+): Promise<BulkSwapResponse> {
+  const response = await api.post(`/partners/groups/${groupId}/exams/${examId}/members/bulk-swap`, { swaps });
+  return response.data;
+}
+
 // ============== RETOMAS ECM ==============
 
 export interface RetakePreviewResponse {

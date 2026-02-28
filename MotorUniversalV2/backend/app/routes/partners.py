@@ -6244,6 +6244,248 @@ def swap_exam_member(group_id, exam_id):
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/groups/<int:group_id>/exams/<int:exam_id>/members/bulk-swap', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def bulk_swap_exam_members(group_id, exam_id):
+    """Reasignación masiva: recibe un array de pares {from_user_id, to_user_id}.
+
+    Body JSON:
+    {
+        "swaps": [
+            {"from_user_id": "uuid-a", "to_user_id": "uuid-x"},
+            {"from_user_id": "uuid-b", "to_user_id": "uuid-y"}
+        ]
+    }
+
+    Todas las reasignaciones se ejecutan en una sola transacción.
+    Si alguna falla la validación, se informa del error pero se procesan las demás.
+    """
+    try:
+        from app.models import GroupExam
+        from app.models.partner import GroupExamMember, EcmCandidateAssignment
+        from app.models.result import Result
+        from app.models.student_progress import StudentTopicProgress
+        from app.models.study_content import StudyMaterial
+        from app.models.user import User
+        from sqlalchemy import text
+
+        data = request.get_json()
+        swaps = data.get('swaps', [])
+
+        if not swaps or not isinstance(swaps, list):
+            return jsonify({'error': 'Se requiere un array "swaps" con al menos un par'}), 400
+
+        if len(swaps) > 100:
+            return jsonify({'error': 'Máximo 100 reasignaciones por lote'}), 400
+
+        # Validar duplicados en el lote (antes de buscar en DB)
+        from_ids = [s.get('from_user_id') for s in swaps if s.get('from_user_id')]
+        to_ids = [s.get('to_user_id') for s in swaps if s.get('to_user_id')]
+
+        if len(set(from_ids)) != len(from_ids):
+            return jsonify({'error': 'Hay candidatos origen duplicados en el lote'}), 400
+        if len(set(to_ids)) != len(to_ids):
+            return jsonify({'error': 'Hay candidatos destino duplicados en el lote'}), 400
+
+        overlap = set(from_ids) & set(to_ids)
+        if overlap:
+            return jsonify({'error': f'Los siguientes IDs aparecen como origen y destino a la vez: {list(overlap)}'}), 400
+
+        group_exam = GroupExam.query.filter_by(
+            group_id=group_id,
+            exam_id=exam_id,
+            is_active=True
+        ).first_or_404()
+
+        exam = group_exam.exam
+        ecm_id = exam.competency_standard_id if exam else None
+
+        # Pre-cargar datos necesarios para validaciones
+        # Material de estudio y temas
+        material_ids = []
+        topic_ids = []
+        try:
+            material_ids_rows = db.session.execute(text(
+                'SELECT study_material_id FROM study_material_exams WHERE exam_id = :eid'
+            ), {'eid': exam_id}).fetchall()
+            material_ids = [r[0] for r in material_ids_rows]
+
+            legacy = StudyMaterial.query.filter_by(exam_id=exam_id).all()
+            for m in legacy:
+                if m.id not in material_ids:
+                    material_ids.append(m.id)
+
+            if material_ids:
+                topic_rows = db.session.execute(text('''
+                    SELECT DISTINCT st.id
+                    FROM study_topics st
+                    INNER JOIN study_sessions ss ON st.session_id = ss.id
+                    WHERE ss.study_material_id IN :mids
+                ''').bindparams(mids=tuple(material_ids) if len(material_ids) > 1 else tuple(material_ids + [0]))).fetchall()
+                topic_ids = [r[0] for r in topic_rows]
+        except Exception as e:
+            print(f"⚠️ Error pre-cargando material: {e}")
+
+        results = []
+        errors = []
+        converted_to_selected = False
+
+        for idx, swap in enumerate(swaps):
+            from_user_id = swap.get('from_user_id')
+            to_user_id = swap.get('to_user_id')
+
+            if not from_user_id or not to_user_id:
+                errors.append({'index': idx, 'error': 'Faltan from_user_id o to_user_id'})
+                continue
+
+            if from_user_id == to_user_id:
+                errors.append({'index': idx, 'from_user_id': from_user_id, 'error': 'Origen y destino son iguales'})
+                continue
+
+            # Verificar que from_user está asignado
+            if group_exam.assignment_type == 'selected':
+                from_gem = GroupExamMember.query.filter_by(
+                    group_exam_id=group_exam.id, user_id=from_user_id
+                ).first()
+                if not from_gem:
+                    from_u = User.query.get(from_user_id)
+                    errors.append({'index': idx, 'from_user_id': from_user_id,
+                                   'error': f'{from_u.full_name if from_u else from_user_id} no está asignado a este examen'})
+                    continue
+            else:
+                is_member = GroupMember.query.filter_by(group_id=group_id, user_id=from_user_id).first()
+                if not is_member:
+                    errors.append({'index': idx, 'from_user_id': from_user_id, 'error': 'No es miembro del grupo'})
+                    continue
+
+            # Verificar destino es miembro del grupo
+            to_gm = GroupMember.query.filter_by(group_id=group_id, user_id=to_user_id).first()
+            if not to_gm:
+                to_u = User.query.get(to_user_id)
+                errors.append({'index': idx, 'to_user_id': to_user_id,
+                               'error': f'{to_u.full_name if to_u else to_user_id} no es miembro del grupo'})
+                continue
+
+            # Verificar que destino no está ya asignado
+            if group_exam.assignment_type == 'selected':
+                existing = GroupExamMember.query.filter_by(
+                    group_exam_id=group_exam.id, user_id=to_user_id
+                ).first()
+                if existing:
+                    to_u = User.query.get(to_user_id)
+                    errors.append({'index': idx, 'to_user_id': to_user_id,
+                                   'error': f'{to_u.full_name if to_u else to_user_id} ya está asignado a este examen'})
+                    continue
+
+            # Validar que origen puede ser reasignado
+            has_results = Result.query.filter(
+                Result.user_id == from_user_id,
+                Result.group_exam_id == group_exam.id
+            ).first()
+            if has_results:
+                from_u = User.query.get(from_user_id)
+                errors.append({'index': idx, 'from_user_id': from_user_id,
+                               'error': f'{from_u.full_name if from_u else from_user_id} ya abrió el examen/simulador'})
+                continue
+
+            # Verificar progreso >= 15%
+            if topic_ids:
+                progress_records = StudentTopicProgress.query.filter(
+                    StudentTopicProgress.user_id == from_user_id,
+                    StudentTopicProgress.topic_id.in_(topic_ids)
+                ).all()
+                total_topics = len(topic_ids)
+                sum_pct = sum(pr.progress_percentage or 0.0 for pr in progress_records)
+                avg_progress = sum_pct / total_topics if total_topics > 0 else 0.0
+                if avg_progress >= 15.0:
+                    from_u = User.query.get(from_user_id)
+                    errors.append({'index': idx, 'from_user_id': from_user_id,
+                                   'error': f'{from_u.full_name if from_u else from_user_id} tiene {round(avg_progress, 1)}% de avance'})
+                    continue
+
+            # === REALIZAR EL SWAP ===
+            if group_exam.assignment_type == 'selected':
+                GroupExamMember.query.filter_by(
+                    group_exam_id=group_exam.id, user_id=from_user_id
+                ).delete()
+                db.session.add(GroupExamMember(group_exam_id=group_exam.id, user_id=to_user_id))
+            else:
+                # Convertir a 'selected' solo una vez
+                if not converted_to_selected:
+                    all_members = GroupMember.query.filter_by(group_id=group_id).all()
+                    group_exam.assignment_type = 'selected'
+                    for gm in all_members:
+                        existing = GroupExamMember.query.filter_by(
+                            group_exam_id=group_exam.id, user_id=gm.user_id
+                        ).first()
+                        if not existing:
+                            db.session.add(GroupExamMember(group_exam_id=group_exam.id, user_id=gm.user_id))
+                    converted_to_selected = True
+
+                # Quitar origen, agregar destino
+                GroupExamMember.query.filter_by(
+                    group_exam_id=group_exam.id, user_id=from_user_id
+                ).delete()
+                existing_to = GroupExamMember.query.filter_by(
+                    group_exam_id=group_exam.id, user_id=to_user_id
+                ).first()
+                if not existing_to:
+                    db.session.add(GroupExamMember(group_exam_id=group_exam.id, user_id=to_user_id))
+
+            # Transferir EcmCandidateAssignment
+            transferred_number = None
+            if ecm_id:
+                eca = EcmCandidateAssignment.query.filter_by(
+                    user_id=from_user_id, competency_standard_id=ecm_id, group_exam_id=group_exam.id
+                ).first()
+                if not eca:
+                    eca = EcmCandidateAssignment.query.filter_by(
+                        user_id=from_user_id, competency_standard_id=ecm_id
+                    ).first()
+
+                if eca:
+                    transferred_number = eca.assignment_number
+                    existing_dest_eca = EcmCandidateAssignment.query.filter_by(
+                        user_id=to_user_id, competency_standard_id=ecm_id
+                    ).first()
+                    if existing_dest_eca:
+                        db.session.delete(eca)
+                        transferred_number = existing_dest_eca.assignment_number
+                    else:
+                        eca.user_id = to_user_id
+                        eca.group_exam_id = group_exam.id
+
+            from_u = User.query.get(from_user_id)
+            to_u = User.query.get(to_user_id)
+            results.append({
+                'from_user_id': from_user_id,
+                'from_name': from_u.full_name if from_u else from_user_id,
+                'to_user_id': to_user_id,
+                'to_name': to_u.full_name if to_u else to_user_id,
+                'assignment_number': transferred_number,
+            })
+
+        if results:
+            db.session.commit()
+        else:
+            db.session.rollback()
+
+        return jsonify({
+            'message': f'{len(results)} reasignación(es) completada(s)' + (f', {len(errors)} error(es)' if errors else ''),
+            'success_count': len(results),
+            'error_count': len(errors),
+            'results': results,
+            'errors': errors,
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 # ============== RETOMAS ECM ==============
 
 @bp.route('/groups/<int:group_id>/exams/<int:exam_id>/members/<string:user_id>/retake', methods=['POST'])
