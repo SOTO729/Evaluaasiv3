@@ -8235,6 +8235,139 @@ def export_group_members(group_id):
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/groups/<int:group_id>/export-certifications', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def export_group_certifications(group_id):
+    """
+    Exportar reporte de certificaciones del grupo a Excel.
+    Cada fila = un resultado de examen por candidato (puede haber varias filas por persona).
+    Columnas: Grupo, Usuario, Nombre Completo, Email, CURP, Tipo, Correo del Responsable,
+              Examen, Puntaje, Resultado, Estatus, Fecha
+    """
+    try:
+        from app.models.result import Result
+        from app.models.exam import Exam
+
+        group = CandidateGroup.query.get_or_404(group_id)
+        members = GroupMember.query.filter_by(group_id=group_id).all()
+        group_exams = GroupExam.query.filter_by(group_id=group_id, is_active=True).all()
+        real_exam_ids = [ge.exam_id for ge in group_exams]
+
+        # Mapa de exámenes para obtener nombre
+        exam_map = {}
+        if real_exam_ids:
+            exams = Exam.query.filter(Exam.id.in_(real_exam_ids)).all()
+            exam_map = {e.id: e for e in exams}
+
+        user_ids = [m.user_id for m in members if m.user]
+
+        # Obtener todos los resultados de estos usuarios en estos exámenes
+        results = []
+        if user_ids and real_exam_ids:
+            results = Result.query.filter(
+                Result.user_id.in_(user_ids),
+                Result.exam_id.in_(real_exam_ids)
+            ).order_by(Result.user_id, Result.exam_id, Result.created_at).all()
+
+        # Mapa de usuarios
+        user_map = {m.user_id: m.user for m in members if m.user}
+        member_map = {m.user_id: m for m in members}
+
+        # Obtener correo del responsable
+        responsable_member = GroupMember.query.filter_by(group_id=group_id, role='responsable').first()
+        responsable_email = (responsable_member.user.email if responsable_member and responsable_member.user else '')
+
+        # Crear workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Certificaciones"
+
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        header_alignment = Alignment(horizontal="center", vertical="center")
+        thin_border = Border(
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin')
+        )
+
+        headers = [
+            "Grupo", "Usuario", "Nombre Completo", "Email", "CURP", "Tipo",
+            "Correo del Responsable", "Examen", "Puntaje", "Resultado", "Estatus", "Fecha"
+        ]
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=h)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = thin_border
+
+        row_num = 2
+        for r in results:
+            user = user_map.get(r.user_id)
+            if not user:
+                continue
+
+            exam = exam_map.get(r.exam_id)
+            exam_name = exam.name if exam else f"Examen {r.exam_id}"
+
+            if r.result == 1:
+                resultado_text = "Aprobado"
+            else:
+                resultado_text = "No aprobado"
+
+            if r.status == 0:
+                status_text = "En proceso"
+            elif r.status == 1:
+                status_text = "Completado"
+            elif r.status == 2:
+                status_text = "Abandonado"
+            else:
+                status_text = "Desconocido"
+
+            member = member_map.get(r.user_id)
+            role = (member.role if member and member.role else 'candidato')
+            fecha = r.end_date or r.start_date
+            fecha_str = fecha.strftime('%Y-%m-%d %H:%M') if fecha else ''
+
+            ws.cell(row=row_num, column=1, value=group.name).border = thin_border
+            ws.cell(row=row_num, column=2, value=user.username).border = thin_border
+            ws.cell(row=row_num, column=3, value=user.full_name or f"{user.name or ''} {user.last_name or ''}".strip()).border = thin_border
+            ws.cell(row=row_num, column=4, value=user.email).border = thin_border
+            ws.cell(row=row_num, column=5, value=user.curp or '').border = thin_border
+            ws.cell(row=row_num, column=6, value=role).border = thin_border
+            ws.cell(row=row_num, column=7, value=responsable_email).border = thin_border
+            ws.cell(row=row_num, column=8, value=exam_name).border = thin_border
+            ws.cell(row=row_num, column=9, value=r.score).border = thin_border
+            ws.cell(row=row_num, column=10, value=resultado_text).border = thin_border
+            ws.cell(row=row_num, column=11, value=status_text).border = thin_border
+            ws.cell(row=row_num, column=12, value=fecha_str).border = thin_border
+            row_num += 1
+
+        # Ajustar anchos
+        widths = [25, 20, 35, 30, 22, 15, 30, 30, 12, 16, 16, 20]
+        from openpyxl.utils import get_column_letter
+        for i, w in enumerate(widths, 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        safe_name = group.name.replace(' ', '_').replace('/', '-')[:30]
+        filename = f"Certificaciones_{safe_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # ---------- Helpers para generar filas de reporte ----------
 def _get_responsable_email_map(group_ids):
     """Retorna dict: group_id -> email del primer responsable del grupo."""

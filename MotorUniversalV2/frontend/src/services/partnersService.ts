@@ -1885,6 +1885,13 @@ export async function exportPartnerReport(partnerId: number): Promise<Blob> {
   return response.data;
 }
 
+export async function exportGroupCertifications(groupId: number): Promise<Blob> {
+  const response = await api.get(`/partners/groups/${groupId}/export-certifications`, {
+    responseType: 'blob'
+  });
+  return response.data;
+}
+
 // ============== GESTIÓN DE MIEMBROS DE ASIGNACIONES ==============
 
 /**
