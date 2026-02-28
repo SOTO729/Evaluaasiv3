@@ -8163,7 +8163,7 @@ def export_group_members(group_id):
             cell.border = thin_border
         
         # Obtener correo del responsable del grupo
-        responsable_member = GroupMember.query.filter_by(group_id=group_id, role='responsable').first()
+        responsable_member = GroupMember.query.filter_by(group_id=group_id).join(User, GroupMember.user_id == User.id).filter(User.role == 'responsable').first()
         responsable_email = (responsable_member.user.email if responsable_member and responsable_member.user else '')
         
         # Datos
@@ -8275,7 +8275,7 @@ def export_group_certifications(group_id):
         member_map = {m.user_id: m for m in members}
 
         # Obtener correo del responsable
-        responsable_member = GroupMember.query.filter_by(group_id=group_id, role='responsable').first()
+        responsable_member = GroupMember.query.filter_by(group_id=group_id).join(User, GroupMember.user_id == User.id).filter(User.role == 'responsable').first()
         responsable_email = (responsable_member.user.email if responsable_member and responsable_member.user else '')
 
         # Crear workbook
@@ -8326,7 +8326,7 @@ def export_group_certifications(group_id):
                 status_text = "Desconocido"
 
             member = member_map.get(r.user_id)
-            role = (member.role if member and member.role else 'candidato')
+            role = (user.role if user.role else 'candidato')
             fecha = r.end_date or r.start_date
             fecha_str = fecha.strftime('%Y-%m-%d %H:%M') if fecha else ''
 
@@ -8373,7 +8373,7 @@ def _get_responsable_email_map(group_ids):
     """Retorna dict: group_id -> email del primer responsable del grupo."""
     resp_map = {}
     for gid in set(group_ids):
-        member = GroupMember.query.filter_by(group_id=gid, role='responsable').first()
+        member = GroupMember.query.filter_by(group_id=gid).join(User, GroupMember.user_id == User.id).filter(User.role == 'responsable').first()
         resp_map[gid] = (member.user.email if member and member.user else '')
     return resp_map
 
