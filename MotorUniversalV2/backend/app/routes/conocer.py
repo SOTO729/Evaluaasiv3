@@ -538,7 +538,7 @@ def upload_batch():
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'coordinator']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'coordinator']:
         return jsonify({'error': 'No tiene permisos para esta acción'}), 403
     
     if 'file' not in request.files:
@@ -626,7 +626,7 @@ def list_upload_batches():
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'coordinator']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'coordinator']:
         return jsonify({'error': 'No tiene permisos para esta acción'}), 403
     
     from app.models.conocer_upload import ConocerUploadBatch
@@ -658,7 +658,7 @@ def get_upload_batch_detail(batch_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'coordinator']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'coordinator']:
         return jsonify({'error': 'No tiene permisos para esta acción'}), 403
     
     from app.models.conocer_upload import ConocerUploadBatch
@@ -681,7 +681,7 @@ def get_upload_batch_logs(batch_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'coordinator']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'coordinator']:
         return jsonify({'error': 'No tiene permisos para esta acción'}), 403
     
     from app.models.conocer_upload import ConocerUploadBatch, ConocerUploadLog
@@ -733,7 +733,7 @@ def export_upload_batch_logs(batch_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'coordinator']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'coordinator']:
         return jsonify({'error': 'No tiene permisos para esta acción'}), 403
     
     from app.models.conocer_upload import ConocerUploadBatch, ConocerUploadLog
@@ -827,7 +827,7 @@ def retry_upload_batch(batch_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'coordinator']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'coordinator']:
         return jsonify({'error': 'No tiene permisos para esta acción'}), 403
     
     from app.models.conocer_upload import ConocerUploadBatch, ConocerUploadLog
