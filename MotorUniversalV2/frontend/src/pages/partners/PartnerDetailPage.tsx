@@ -24,6 +24,7 @@ import {
   FileText,
   Hash,
   Info,
+  Download,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
@@ -31,6 +32,7 @@ import {
   getPartner,
   getCampuses,
   deleteCampus,
+  exportPartnerReport,
   Partner,
   Campus,
 } from '../../services/partnersService';
@@ -46,6 +48,7 @@ export default function PartnerDetailPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedState, setSelectedState] = useState<string>('');
   const [campusSearch, setCampusSearch] = useState('');
+  const [exportingReport, setExportingReport] = useState(false);
 
   useEffect(() => {
     if (location.state?.successMessage) {
@@ -85,6 +88,26 @@ export default function PartnerDetailPage() {
     }
   };
   
+  const handleExportReport = async () => {
+    if (!partner) return;
+    try {
+      setExportingReport(true);
+      const blob = await exportPartnerReport(partner.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Reporte_${partner.name.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ ]/g, '')}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error exporting partner report:', err);
+    } finally {
+      setExportingReport(false);
+    }
+  };
+
   const filteredCampuses = campuses.filter(c => {
     if (selectedState && c.state_name !== selectedState) return false;
     if (campusSearch) {
@@ -193,13 +216,23 @@ export default function PartnerDetailPage() {
             </div>
           </div>
           
-          <Link
-            to={`/partners/${partnerId}/edit`}
-            className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-3 bg-white hover:bg-gray-100 text-blue-600 rounded-fluid-xl font-semibold fluid-text-base transition-all duration-300 hover:scale-105 shadow-lg"
-          >
-            <Edit className="fluid-icon-base" />
-            Editar Partner
-          </Link>
+          <div className="flex items-center fluid-gap-3">
+            <button
+              onClick={handleExportReport}
+              disabled={exportingReport}
+              className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-3 bg-white/20 hover:bg-white/30 text-white rounded-fluid-xl font-medium fluid-text-base transition-all duration-300 disabled:opacity-50"
+            >
+              {exportingReport ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Download className="fluid-icon-base" />}
+              <span className="hidden sm:inline">Reporte del Partner</span>
+            </button>
+            <Link
+              to={`/partners/${partnerId}/edit`}
+              className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-3 bg-white hover:bg-gray-100 text-blue-600 rounded-fluid-xl font-semibold fluid-text-base transition-all duration-300 hover:scale-105 shadow-lg"
+            >
+              <Edit className="fluid-icon-base" />
+              Editar Partner
+            </Link>
+          </div>
         </div>
       </div>
 

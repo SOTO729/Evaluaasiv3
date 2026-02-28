@@ -186,7 +186,7 @@ export default function GroupDetailPage() {
               <button onClick={handleExportExcel} disabled={exportingExcel}
                 className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/10 hover:bg-white/20 text-white rounded-fluid-xl font-medium fluid-text-sm transition-all border border-white/20 disabled:opacity-50">
                 {exportingExcel ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Download className="fluid-icon-sm" />}
-                <span className="hidden sm:inline">Exportar</span>
+                <span className="hidden sm:inline">Reporte del Grupo</span>
               </button>
             )}
             <Link to={`/partners/groups/${groupId}/edit`}

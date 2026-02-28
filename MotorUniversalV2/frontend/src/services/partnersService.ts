@@ -1871,6 +1871,20 @@ export async function exportGroupMembersToExcel(groupId: number): Promise<Blob> 
   return response.data;
 }
 
+export async function exportCampusReport(campusId: number): Promise<Blob> {
+  const response = await api.get(`/partners/campuses/${campusId}/export-report`, {
+    responseType: 'blob'
+  });
+  return response.data;
+}
+
+export async function exportPartnerReport(partnerId: number): Promise<Blob> {
+  const response = await api.get(`/partners/partners/${partnerId}/export-report`, {
+    responseType: 'blob'
+  });
+  return response.data;
+}
+
 // ============== GESTIÓN DE MIEMBROS DE ASIGNACIONES ==============
 
 /**

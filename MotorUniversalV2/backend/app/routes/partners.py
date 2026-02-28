@@ -8229,6 +8229,205 @@ def export_group_members(group_id):
         return jsonify({'error': str(e)}), 500
 
 
+# ---------- Helpers para generar filas de reporte ----------
+def _build_member_row(user, group, campus, partner, cert_status_map, include_partner=False, include_campus=False, cycle_name=None):
+    """Genera una lista de valores para una fila del reporte Excel."""
+    password = "No disponible"
+    if user.encrypted_password:
+        try:
+            decrypted = decrypt_password(user.encrypted_password)
+            if decrypted:
+                password = decrypted
+        except Exception:
+            password = "Error al desencriptar"
+
+    cert_info = cert_status_map.get(user.id)
+    if cert_info:
+        if cert_info['result'] == 1 and cert_info['status'] == 1:
+            cert_text = "Certificado"
+        elif cert_info['status'] == 0:
+            cert_text = "En proceso"
+        else:
+            cert_text = "No aprobado"
+    else:
+        cert_text = "Pendiente"
+
+    row = []
+    if include_partner:
+        row.append(partner.name if partner else '')
+        row.append(partner.country if partner else '')
+        row.append(cycle_name or 'Sin ciclo')
+    if include_campus:
+        row.append(campus.name if campus else '')
+        row.append(campus.state_name or campus.country if campus else '')
+    row += [
+        group.name,
+        user.username,
+        password,
+        user.full_name or f"{user.name or ''} {user.last_name or ''}".strip(),
+        user.email,
+        user.curp or '',
+        user.role or 'candidato',
+        cert_text,
+    ]
+    return row
+
+
+def _build_report_headers(include_partner=False, include_campus=False):
+    """Headers del reporte según el nivel."""
+    headers = []
+    if include_partner:
+        headers += ['Partner', 'País Partner', 'Ciclo Escolar']
+    if include_campus:
+        headers += ['Plantel', 'Estado / País']
+    headers += ['Grupo', 'Usuario', 'Contraseña', 'Nombre Completo', 'Email', 'CURP', 'Tipo', 'Estatus Certificación']
+    return headers
+
+
+def _style_report_ws(ws, headers, header_color="4472C4"):
+    """Aplica estilos al worksheet."""
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_fill = PatternFill(start_color=header_color, end_color=header_color, fill_type="solid")
+    header_alignment = Alignment(horizontal="center", vertical="center")
+    thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = thin_border
+    return thin_border
+
+
+def _get_cert_status_map(user_ids, exam_ids):
+    """Calcula mapa de certificación: user_id -> {status, result}"""
+    from app.models.result import Result
+    cert_map = {}
+    if user_ids and exam_ids:
+        results = Result.query.filter(Result.user_id.in_(user_ids), Result.exam_id.in_(exam_ids)).all()
+        for r in results:
+            if r.user_id not in cert_map:
+                cert_map[r.user_id] = {'status': -1, 'result': -1}
+            c = cert_map[r.user_id]
+            if r.result == 1 and r.status == 1:
+                c['status'] = 1; c['result'] = 1
+            elif r.status == 0 and c['result'] != 1:
+                c['status'] = 0; c['result'] = 0
+            elif r.status == 1 and r.result == 0 and c['status'] != 0 and c['result'] != 1:
+                c['status'] = 1; c['result'] = 0
+    return cert_map
+
+
+@bp.route('/campuses/<int:campus_id>/export-report', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def export_campus_report(campus_id):
+    """Exportar reporte del plantel a Excel — todos los grupos y miembros"""
+    try:
+        campus = Campus.query.get_or_404(campus_id)
+        partner = Partner.query.get(campus.partner_id)
+        groups = CandidateGroup.query.filter_by(campus_id=campus_id).all()
+
+        # Recolectar todos los miembros y exam_ids
+        all_members = []  # [(member, group)]
+        all_exam_ids = set()
+        for grp in groups:
+            members = GroupMember.query.filter_by(group_id=grp.id).all()
+            for m in members:
+                all_members.append((m, grp))
+            exams = GroupExam.query.filter_by(group_id=grp.id, is_active=True).all()
+            all_exam_ids.update(ge.exam_id for ge in exams)
+
+        user_ids = list({m.user_id for m, _ in all_members if m.user})
+        cert_map = _get_cert_status_map(user_ids, list(all_exam_ids))
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Reporte del Plantel"
+        headers = _build_report_headers(include_campus=True)
+        thin_border = _style_report_ws(ws, headers)
+
+        row_num = 2
+        for member, grp in all_members:
+            user = member.user
+            if not user:
+                continue
+            vals = _build_member_row(user, grp, campus, partner, cert_map, include_campus=True)
+            for col, val in enumerate(vals, 1):
+                ws.cell(row=row_num, column=col, value=val).border = thin_border
+            row_num += 1
+
+        # Ajustar anchos
+        for i, _ in enumerate(headers, 1):
+            ws.column_dimensions[chr(64 + i) if i <= 26 else 'A'].width = 22
+        from openpyxl.utils import get_column_letter
+        for i in range(1, len(headers) + 1):
+            ws.column_dimensions[get_column_letter(i)].width = 22
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        safe_name = campus.name.replace(' ', '_').replace('/', '-')[:30]
+        filename = f"Reporte_Plantel_{safe_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=filename)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/partners/<int:partner_id>/export-report', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def export_partner_report(partner_id):
+    """Exportar reporte del partner a Excel — todos los planteles, todos los grupos, todos los miembros"""
+    try:
+        partner = Partner.query.get_or_404(partner_id)
+        campuses = Campus.query.filter_by(partner_id=partner_id).all()
+
+        all_members = []  # [(member, group, campus, cycle_name)]
+        all_exam_ids = set()
+        for campus in campuses:
+            groups = CandidateGroup.query.filter_by(campus_id=campus.id).all()
+            for grp in groups:
+                cycle_name = grp.school_cycle.name if grp.school_cycle else 'Sin ciclo'
+                members = GroupMember.query.filter_by(group_id=grp.id).all()
+                for m in members:
+                    all_members.append((m, grp, campus, cycle_name))
+                exams = GroupExam.query.filter_by(group_id=grp.id, is_active=True).all()
+                all_exam_ids.update(ge.exam_id for ge in exams)
+
+        user_ids = list({m.user_id for m, _, _, _ in all_members if m.user})
+        cert_map = _get_cert_status_map(user_ids, list(all_exam_ids))
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Reporte del Partner"
+        headers = _build_report_headers(include_partner=True, include_campus=True)
+        thin_border = _style_report_ws(ws, headers)
+
+        row_num = 2
+        for member, grp, campus, cycle_name in all_members:
+            user = member.user
+            if not user:
+                continue
+            vals = _build_member_row(user, grp, campus, partner, cert_map, include_partner=True, include_campus=True, cycle_name=cycle_name)
+            for col, val in enumerate(vals, 1):
+                ws.cell(row=row_num, column=col, value=val).border = thin_border
+            row_num += 1
+
+        from openpyxl.utils import get_column_letter
+        for i in range(1, len(headers) + 1):
+            ws.column_dimensions[get_column_letter(i)].width = 22
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        safe_name = partner.name.replace(' ', '_').replace('/', '-')[:30]
+        filename = f"Reporte_Partner_{safe_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=filename)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # ============== ENDPOINTS PARA RESPONSABLE DE PLANTEL ==============
 
 def responsable_required(f):

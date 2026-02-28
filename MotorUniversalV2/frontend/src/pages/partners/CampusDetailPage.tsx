@@ -37,6 +37,7 @@ import {
   X,
   Power,
   Lock,
+  Download,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
@@ -50,6 +51,7 @@ import {
   permanentDeleteCampus,
   permanentDeleteCycle,
   getCampusCompetencyStandards,
+  exportCampusReport,
   CyclePermanentDeleteStats,
   Campus,
   SchoolCycle,
@@ -102,6 +104,29 @@ export default function CampusDetailPage() {
   // Estándares de competencia (ECM)
   const [competencyStandards, setCompetencyStandards] = useState<CampusCompetencyStandard[]>([]);
   
+  // Reporte
+  const [exportingReport, setExportingReport] = useState(false);
+  
+  const handleExportReport = async () => {
+    if (!campus) return;
+    try {
+      setExportingReport(true);
+      const blob = await exportCampusReport(campus.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Reporte_${campus.name.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ ]/g, '')}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error exporting campus report:', err);
+    } finally {
+      setExportingReport(false);
+    }
+  };
+
   // Función para generar el nombre del ciclo basado en las fechas
   const generateCycleName = (startDate: string, endDate: string): string => {
     if (!startDate || !endDate) return '';
@@ -468,6 +493,14 @@ export default function CampusDetailPage() {
           </div>
           
           <div className="flex items-center fluid-gap-3">
+            <button
+              onClick={handleExportReport}
+              disabled={exportingReport}
+              className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-3 bg-white/20 hover:bg-white/30 text-white rounded-fluid-xl font-medium fluid-text-base transition-all duration-300 disabled:opacity-50"
+            >
+              {exportingReport ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Download className="fluid-icon-base" />}
+              <span className="hidden sm:inline">Reporte del Plantel</span>
+            </button>
             <Link
               to={`/partners/campuses/${campusId}/edit`}
               className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-3 bg-white hover:bg-gray-100 text-blue-600 rounded-fluid-xl font-semibold fluid-text-base transition-all duration-300 hover:scale-105 shadow-lg"
