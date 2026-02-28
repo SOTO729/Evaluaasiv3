@@ -124,8 +124,8 @@ export default function GroupDetailPage() {
   const wf = getWorkflowStatus();
 
   const colorMap = {
-    purple: { bg: 'from-purple-50 to-indigo-50', border: 'border-purple-200', icon: 'bg-purple-100', text: 'text-purple-600', textDark: 'text-purple-800', btn: 'bg-purple-600 hover:bg-purple-700' },
-    blue: { bg: 'from-blue-50 to-cyan-50', border: 'border-blue-200', icon: 'bg-blue-100', text: 'text-blue-600', textDark: 'text-blue-800', btn: 'bg-blue-600 hover:bg-blue-700' },
+    purple: { bg: 'from-blue-50 to-cyan-50', border: 'border-blue-200', icon: 'bg-blue-100', text: 'text-blue-600', textDark: 'text-blue-800', btn: 'bg-blue-600 hover:bg-blue-700' },
+    blue: { bg: 'from-purple-50 to-indigo-50', border: 'border-purple-200', icon: 'bg-purple-100', text: 'text-purple-600', textDark: 'text-purple-800', btn: 'bg-purple-600 hover:bg-purple-700' },
     amber: { bg: 'from-amber-50 to-orange-50', border: 'border-amber-200', icon: 'bg-amber-100', text: 'text-amber-600', textDark: 'text-amber-800', btn: 'bg-amber-600 hover:bg-amber-700' },
     emerald: { bg: 'from-emerald-50 to-green-50', border: 'border-emerald-200', icon: 'bg-emerald-100', text: 'text-emerald-600', textDark: 'text-emerald-800', btn: 'bg-emerald-600 hover:bg-emerald-700' },
     sky: { bg: 'from-sky-50 to-blue-50', border: 'border-sky-200', icon: 'bg-sky-100', text: 'text-sky-600', textDark: 'text-sky-800', btn: 'bg-sky-600 hover:bg-sky-700' },
@@ -155,7 +155,7 @@ export default function GroupDetailPage() {
       ]} />
 
       {/* ===== HEADER ===== */}
-      <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl relative overflow-hidden">
         {/* Decorative circles */}
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full" />
         <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full" />
@@ -190,7 +190,7 @@ export default function GroupDetailPage() {
               </button>
             )}
             <Link to={`/partners/groups/${groupId}/edit`}
-              className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white hover:bg-gray-100 text-purple-600 rounded-fluid-xl font-medium fluid-text-sm transition-all shadow-lg">
+              className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white hover:bg-gray-100 text-blue-600 rounded-fluid-xl font-medium fluid-text-sm transition-all shadow-lg">
               <Settings className="fluid-icon-sm" /><span className="hidden sm:inline">Configurar</span>
             </Link>
           </div>
@@ -201,7 +201,7 @@ export default function GroupDetailPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 fluid-gap-4 fluid-mb-6">
         <div className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-4 hover:shadow-md transition-shadow">
           <div className="flex items-center fluid-gap-3">
-            <div className="fluid-p-2.5 bg-purple-100 rounded-fluid-lg"><Users className="fluid-icon-base text-purple-600" /></div>
+            <div className="fluid-p-2.5 bg-blue-100 rounded-fluid-lg"><Users className="fluid-icon-base text-blue-600" /></div>
             <div>
               <p className="fluid-text-2xl font-bold text-gray-900">{stats.totalMembers}</p>
               <p className="fluid-text-xs text-gray-500">Miembros</p>
@@ -210,7 +210,7 @@ export default function GroupDetailPage() {
         </div>
         <div className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-4 hover:shadow-md transition-shadow">
           <div className="flex items-center fluid-gap-3">
-            <div className="fluid-p-2.5 bg-blue-100 rounded-fluid-lg"><ClipboardList className="fluid-icon-base text-blue-600" /></div>
+            <div className="fluid-p-2.5 bg-purple-100 rounded-fluid-lg"><ClipboardList className="fluid-icon-base text-purple-600" /></div>
             <div>
               <p className="fluid-text-2xl font-bold text-gray-900">{stats.totalExams}</p>
               <p className="fluid-text-xs text-gray-500">Certificaciones</p>
@@ -276,17 +276,17 @@ export default function GroupDetailPage() {
       <div className="grid grid-cols-3 fluid-gap-4 fluid-mb-6">
         {/* Miembros */}
         <Link to={`/partners/groups/${groupId}/members`}
-          className="block bg-white rounded-fluid-xl border border-gray-200 hover:shadow-lg hover:border-purple-300 transition-all duration-200 group">
+          className="block bg-white rounded-fluid-xl border border-gray-200 hover:shadow-lg hover:border-blue-300 transition-all duration-200 group">
           <div className="fluid-p-4">
             <div className="flex items-center fluid-gap-3 fluid-mb-3">
-              <div className="fluid-p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-fluid-lg shadow group-hover:scale-110 transition-transform">
+              <div className="fluid-p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-fluid-lg shadow group-hover:scale-110 transition-transform">
                 <Users className="fluid-icon-sm text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="fluid-text-sm font-bold text-gray-900 group-hover:text-purple-700 transition-colors">Miembros</h3>
+                <h3 className="fluid-text-sm font-bold text-gray-900 group-hover:text-blue-700 transition-colors">Miembros</h3>
                 <p className="fluid-text-xs text-gray-400">Gestionar integrantes</p>
               </div>
-              <ChevronRight className="fluid-icon-sm text-gray-300 group-hover:text-purple-500 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+              <ChevronRight className="fluid-icon-sm text-gray-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
             </div>
             <div className="grid grid-cols-3 fluid-gap-1 fluid-pt-2 border-t border-gray-100">
               <div className="text-center"><p className="fluid-text-base font-bold text-gray-900">{stats.totalMembers}</p><p className="fluid-text-xs text-gray-400">Total</p></div>
@@ -322,7 +322,7 @@ export default function GroupDetailPage() {
           className="block bg-white rounded-fluid-xl border border-gray-200 hover:shadow-lg hover:border-indigo-300 transition-all duration-200 group">
           <div className="fluid-p-4">
             <div className="flex items-center fluid-gap-3 fluid-mb-3">
-              <div className="fluid-p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-fluid-lg shadow group-hover:scale-110 transition-transform">
+              <div className="fluid-p-2 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-fluid-lg shadow group-hover:scale-110 transition-transform">
                 <BarChart3 className="fluid-icon-sm text-white" />
               </div>
               <div className="flex-1 min-w-0">
@@ -345,9 +345,9 @@ export default function GroupDetailPage() {
           <div className="fluid-px-6 fluid-py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center fluid-gap-3">
-                <ClipboardList className="fluid-icon-base text-blue-600" />
+                <ClipboardList className="fluid-icon-base text-purple-600" />
                 <h3 className="font-semibold text-gray-900">Certificaciones Activas</h3>
-                <span className="fluid-px-2 fluid-py-0.5 bg-blue-100 text-blue-700 fluid-text-xs font-bold rounded-full">{assignedExams.length}</span>
+                <span className="fluid-px-2 fluid-py-0.5 bg-purple-100 text-purple-700 fluid-text-xs font-bold rounded-full">{assignedExams.length}</span>
               </div>
               {stats.totalMembers > 0 && group.is_active && (
                 <Link to={`/partners/groups/${groupId}/assign-exam`}
@@ -361,13 +361,13 @@ export default function GroupDetailPage() {
           <div className="divide-y divide-gray-100 max-h-[420px] overflow-y-auto">
             {assignedExams.map((assignment) => (
               <Link key={assignment.id} to={`/partners/groups/${groupId}/assignments/${assignment.exam_id}/detail`}
-                className="fluid-px-6 fluid-py-4 flex items-center justify-between hover:bg-blue-50/50 transition-colors block group">
+                className="fluid-px-6 fluid-py-4 flex items-center justify-between hover:bg-purple-50/50 transition-colors block group">
                 <div className="flex items-center fluid-gap-4 flex-1 min-w-0">
-                  <div className="fluid-p-2 bg-blue-100 rounded-fluid-lg flex-shrink-0">
-                    <Award className="fluid-icon-base text-blue-600" />
+                  <div className="fluid-p-2 bg-purple-100 rounded-fluid-lg flex-shrink-0">
+                    <Award className="fluid-icon-base text-purple-600" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-medium text-gray-900 truncate group-hover:text-blue-700 transition-colors">{assignment.exam?.name}</p>
+                    <p className="font-medium text-gray-900 truncate group-hover:text-purple-700 transition-colors">{assignment.exam?.name}</p>
                     <div className="flex items-center fluid-gap-3 fluid-text-xs text-gray-500 fluid-mt-0.5">
                       <span className="inline-flex items-center fluid-gap-1"><Clock className="fluid-icon-xs" />{assignment.time_limit_minutes || assignment.exam?.duration_minutes || 0} min</span>
                       <span className="inline-flex items-center fluid-gap-1"><Target className="fluid-icon-xs" />{assignment.passing_score || assignment.exam?.passing_score || 70}%</span>
@@ -391,11 +391,11 @@ export default function GroupDetailPage() {
                     )
                   )}
                   {assignment.exam?.ecm?.code && (
-                    <span className="fluid-px-2 fluid-py-1 bg-purple-100 text-purple-700 fluid-text-xs font-bold rounded-fluid-lg">
+                    <span className="fluid-px-2 fluid-py-1 bg-blue-100 text-blue-700 fluid-text-xs font-bold rounded-fluid-lg">
                       {assignment.exam.ecm.code}
                     </span>
                   )}
-                  <ChevronRight className="fluid-icon-sm text-gray-300 group-hover:text-blue-500 transition-colors" />
+                  <ChevronRight className="fluid-icon-sm text-gray-300 group-hover:text-purple-500 transition-colors" />
                 </div>
               </Link>
             ))}
@@ -405,15 +405,15 @@ export default function GroupDetailPage() {
 
       {/* ===== ESTADO VACÍO ===== */}
       {members.length === 0 && assignedExams.length === 0 && (
-        <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-fluid-2xl border-2 border-dashed border-purple-200 fluid-p-12 text-center">
-          <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto fluid-mb-4">
-            <Users className="fluid-icon-2xl text-purple-500" />
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-fluid-2xl border-2 border-dashed border-blue-200 fluid-p-12 text-center">
+          <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto fluid-mb-4">
+            <Users className="fluid-icon-2xl text-blue-500" />
           </div>
           <h3 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-2">¡Grupo listo para comenzar!</h3>
           <p className="fluid-text-base text-gray-500 max-w-md mx-auto fluid-mb-6">El primer paso es agregar miembros al grupo para luego asignarles certificaciones</p>
           {group.is_active && (
             <Link to={`/partners/groups/${groupId}/assign-candidates`}
-              className="inline-flex items-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-fluid-xl font-semibold transition-colors shadow-lg">
+              className="inline-flex items-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl font-semibold transition-colors shadow-lg">
               <UserPlus className="fluid-icon-base" />Agregar Miembros
             </Link>
           )}
