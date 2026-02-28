@@ -39,6 +39,11 @@ import {
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import DatePickerInput from '../../components/DatePickerInput';
+
+// CURP genérica para planteles en el extranjero
+const FOREIGN_CURP_MALE = 'XEXX010101HNEXXXA4';
+const FOREIGN_CURP_FEMALE = 'XEXX010101MNEXXXA8';
+const getForeignCurp = (gender: string) => gender === 'M' ? FOREIGN_CURP_MALE : FOREIGN_CURP_FEMALE;
 import StyledSelect from '../../components/StyledSelect';
 import ToggleSwitch from '../../components/ui/ToggleSwitch';
 import {
@@ -198,6 +203,21 @@ export default function CampusActivationPage() {
     }
   }, [campus?.configuration_completed]);
 
+  // Auto-fill CURP del responsable principal para planteles extranjeros
+  const isForeign = campus?.country !== 'México';
+  useEffect(() => {
+    if (isForeign && formData.gender) {
+      setFormData(prev => ({ ...prev, curp: getForeignCurp(prev.gender) }));
+    }
+  }, [isForeign, formData.gender]);
+
+  // Auto-fill CURP del responsable adicional para planteles extranjeros
+  useEffect(() => {
+    if (isForeign && addMoreForm.gender) {
+      setAddMoreForm(prev => ({ ...prev, curp: getForeignCurp(prev.gender) }));
+    }
+  }, [isForeign, addMoreForm.gender]);
+
   const loadAvailableEcm = async () => {
     try {
       setLoadingEcm(true);
@@ -312,11 +332,12 @@ export default function CampusActivationPage() {
   };
 
   const validateForm = (): string | null => {
+    const isForeignV = campus?.country !== 'México';
     if (!formData.name.trim()) return 'El nombre es requerido';
     if (!formData.first_surname.trim()) return 'El apellido paterno es requerido';
     if (!formData.second_surname.trim()) return 'El apellido materno es requerido';
     if (!formData.email.trim()) return 'El correo electrónico es requerido';
-    if (!formData.curp.trim()) return 'El CURP es requerido';
+    if (!isForeignV && !formData.curp.trim()) return 'El CURP es requerido';
     if (!formData.date_of_birth) return 'La fecha de nacimiento es requerida';
     
     // Validar formato de email
@@ -325,10 +346,12 @@ export default function CampusActivationPage() {
       return 'Formato de correo electrónico inválido';
     }
     
-    // Validar formato de CURP
-    const curpPattern = /^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$/;
-    if (!curpPattern.test(formData.curp)) {
-      return 'Formato de CURP inválido (18 caracteres)';
+    // Validar formato de CURP (solo para nacionales)
+    if (!isForeignV) {
+      const curpPattern = /^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$/;
+      if (!curpPattern.test(formData.curp)) {
+        return 'Formato de CURP inválido (18 caracteres)';
+      }
     }
     
     return null;
@@ -994,18 +1017,22 @@ export default function CampusActivationPage() {
                     
                     <div>
                       <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                        CURP <span className="text-red-500">*</span>
+                        CURP {!isForeign && <span className="text-red-500">*</span>}
                       </label>
                       <input
                         type="text"
                         name="curp"
                         value={formData.curp}
-                        onChange={handleChange}
+                        onChange={isForeign ? undefined : handleChange}
+                        readOnly={isForeign}
                         maxLength={18}
-                        className="w-full fluid-px-3 fluid-py-2 border border-gray-300 fluid-rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase font-mono"
+                        className={`w-full fluid-px-3 fluid-py-2 border border-gray-300 fluid-rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase font-mono ${isForeign ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                         placeholder="GARL850101HDFRRL09"
                       />
-                      <p className="fluid-text-xs text-gray-500 fluid-mt-1">{formData.curp.length}/18 caracteres</p>
+                      {isForeign
+                        ? <p className="fluid-text-xs text-amber-600 fluid-mt-1">CURP asignada automáticamente (plantel extranjero)</p>
+                        : <p className="fluid-text-xs text-gray-500 fluid-mt-1">{formData.curp.length}/18 caracteres</p>
+                      }
                     </div>
                   </div>
                 </div>
@@ -1302,7 +1329,10 @@ export default function CampusActivationPage() {
                       </div>
                       <div className="grid grid-cols-2 gap-3 mb-3">
                         <input type="email" placeholder="Correo*" value={addMoreForm.email} onChange={e => setAddMoreForm(p => ({...p, email: e.target.value}))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-                        <input type="text" maxLength={18} placeholder="CURP*" value={addMoreForm.curp} onChange={e => setAddMoreForm(p => ({...p, curp: e.target.value.toUpperCase()}))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm uppercase" />
+                        <div>
+                          <input type="text" maxLength={18} placeholder={isForeign ? 'CURP (automática)' : 'CURP*'} value={addMoreForm.curp} onChange={e => !isForeign && setAddMoreForm(p => ({...p, curp: e.target.value.toUpperCase()}))} readOnly={isForeign} className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm uppercase ${isForeign ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
+                          {isForeign && <p className="text-xs text-amber-600 mt-0.5">Asignada automáticamente</p>}
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3 mb-3">
                         <select value={addMoreForm.gender} onChange={e => setAddMoreForm(p => ({...p, gender: e.target.value as any}))} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
@@ -1318,7 +1348,7 @@ export default function CampusActivationPage() {
                       <div className="flex gap-2 justify-end">
                         <button type="button" onClick={() => setShowAddMore(false)} className="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-100">Cancelar</button>
                         <button type="button" disabled={addMoreLoading} onClick={async () => {
-                          if (!addMoreForm.name || !addMoreForm.first_surname || !addMoreForm.second_surname || !addMoreForm.email || !addMoreForm.curp || !addMoreForm.gender || !addMoreForm.date_of_birth) { setAddMoreError('Todos los campos son requeridos'); return; }
+                          if (!addMoreForm.name || !addMoreForm.first_surname || !addMoreForm.second_surname || !addMoreForm.email || (!isForeign && !addMoreForm.curp) || !addMoreForm.gender || !addMoreForm.date_of_birth) { setAddMoreError('Todos los campos son requeridos'); return; }
                           setAddMoreLoading(true); setAddMoreError(null);
                           try {
                             const res = await addCampusResponsable(Number(campusId), { name: addMoreForm.name, first_surname: addMoreForm.first_surname, second_surname: addMoreForm.second_surname, email: addMoreForm.email, curp: addMoreForm.curp, gender: addMoreForm.gender as 'M'|'F'|'O', date_of_birth: addMoreForm.date_of_birth, can_bulk_create_candidates: addMoreForm.can_bulk_create_candidates, can_manage_groups: addMoreForm.can_manage_groups, can_view_reports: addMoreForm.can_view_reports });

@@ -45,6 +45,11 @@ import {
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import DatePickerInput from '../../components/DatePickerInput';
+
+// CURP genérica para planteles en el extranjero
+const FOREIGN_CURP_MALE = 'XEXX010101HNEXXXA4';
+const FOREIGN_CURP_FEMALE = 'XEXX010101MNEXXXA8';
+const getForeignCurp = (gender: string) => gender === 'M' ? FOREIGN_CURP_MALE : FOREIGN_CURP_FEMALE;
 import StyledSelect from '../../components/StyledSelect';
 import ToggleSwitch from '../../components/ui/ToggleSwitch';
 import {
@@ -139,6 +144,25 @@ export default function CampusFormPage() {
     certification_cost: 0,
     retake_cost: 0,
   });
+
+  // Auto-fill CURP del director para planteles extranjeros
+  const isForeign = formData.country !== 'México';
+  useEffect(() => {
+    if (isForeign && formData.director_gender) {
+      setFormData(prev => ({ ...prev, director_curp: getForeignCurp(prev.director_gender) }));
+    } else if (!isForeign && (formData.director_curp === FOREIGN_CURP_MALE || formData.director_curp === FOREIGN_CURP_FEMALE)) {
+      setFormData(prev => ({ ...prev, director_curp: '' }));
+    }
+  }, [isForeign, formData.director_gender]);
+
+  // Auto-fill CURP de responsable para planteles extranjeros
+  useEffect(() => {
+    if (isForeign && newResp.gender) {
+      setNewResp(prev => ({ ...prev, curp: getForeignCurp(prev.gender) }));
+    } else if (!isForeign && (newResp.curp === FOREIGN_CURP_MALE || newResp.curp === FOREIGN_CURP_FEMALE)) {
+      setNewResp(prev => ({ ...prev, curp: '' }));
+    }
+  }, [isForeign, newResp.gender]);
 
   useEffect(() => {
     loadInitialData();
@@ -266,7 +290,8 @@ export default function CampusFormPage() {
 
   const handleAddResponsable = async () => {
     if (!campusId) return;
-    if (!newResp.name || !newResp.first_surname || !newResp.second_surname || !newResp.email || !newResp.curp || !newResp.gender || !newResp.date_of_birth) {
+    const isForeignResp = formData.country !== 'México';
+    if (!newResp.name || !newResp.first_surname || !newResp.second_surname || !newResp.email || (!isForeignResp && !newResp.curp) || !newResp.gender || !newResp.date_of_birth) {
       setRespError('Todos los campos son requeridos');
       return;
     }
@@ -355,13 +380,16 @@ export default function CampusFormPage() {
       setError('El segundo apellido del director es requerido');
       return;
     }
-    if (!formData.director_curp.trim()) {
-      setError('El CURP del director es requerido');
-      return;
-    }
-    if (formData.director_curp.trim().length !== 18) {
-      setError('El CURP del director debe tener 18 caracteres');
-      return;
+    const isForeignSubmit = formData.country !== 'México';
+    if (!isForeignSubmit) {
+      if (!formData.director_curp.trim()) {
+        setError('El CURP del director es requerido');
+        return;
+      }
+      if (formData.director_curp.trim().length !== 18) {
+        setError('El CURP del director debe tener 18 caracteres');
+        return;
+      }
     }
     if (!formData.director_gender) {
       setError('El género del director es requerido');
@@ -786,18 +814,22 @@ export default function CampusFormPage() {
             <div>
               <label className="flex items-center fluid-gap-2 fluid-text-sm font-medium text-gray-700 fluid-mb-2">
                 <FileText className="fluid-icon-sm text-gray-400" />
-                CURP <span className="text-red-500">*</span>
+                CURP {!isForeign && <span className="text-red-500">*</span>}
               </label>
               <input
                 type="text"
                 value={formData.director_curp}
-                onChange={(e) => setFormData({ ...formData, director_curp: e.target.value.toUpperCase() })}
-                className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400 uppercase"
+                onChange={(e) => !isForeign && setFormData({ ...formData, director_curp: e.target.value.toUpperCase() })}
+                readOnly={isForeign}
+                className={`w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all duration-200 hover:border-gray-400 uppercase ${isForeign ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 placeholder="XXXX000000XXXXXX00"
                 maxLength={18}
-                required
+                required={!isForeign}
               />
-              <p className="fluid-text-xs text-gray-500 fluid-mt-1">18 caracteres exactos</p>
+              {isForeign
+                ? <p className="fluid-text-xs text-amber-600 fluid-mt-1">CURP asignada automáticamente (plantel extranjero)</p>
+                : <p className="fluid-text-xs text-gray-500 fluid-mt-1">18 caracteres exactos</p>
+              }
             </div>
 
             {/* Género del Director */}
@@ -1491,8 +1523,9 @@ export default function CampusFormPage() {
                               <input type="email" value={newResp.email} onChange={(e) => setNewResp(p => ({ ...p, email: e.target.value }))} className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-indigo-500" placeholder="responsable@correo.com" />
                             </div>
                             <div>
-                              <label className="block fluid-text-xs font-medium text-gray-700 fluid-mb-1">CURP *</label>
-                              <input type="text" maxLength={18} value={newResp.curp} onChange={(e) => setNewResp(p => ({ ...p, curp: e.target.value.toUpperCase() }))} className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-indigo-500 uppercase" placeholder="XXXX000000XXXXXX00" />
+                              <label className="block fluid-text-xs font-medium text-gray-700 fluid-mb-1">CURP {!isForeign && '*'}</label>
+                              <input type="text" maxLength={18} value={newResp.curp} onChange={(e) => !isForeign && setNewResp(p => ({ ...p, curp: e.target.value.toUpperCase() }))} readOnly={isForeign} className={`w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-indigo-500 uppercase ${isForeign ? 'bg-gray-100 cursor-not-allowed' : ''}`} placeholder="XXXX000000XXXXXX00" />
+                              {isForeign && <p className="fluid-text-xs text-amber-600 fluid-mt-1">Asignada automáticamente</p>}
                             </div>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4 fluid-mb-4">

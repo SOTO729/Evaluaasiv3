@@ -42,6 +42,27 @@ def coordinator_required(f):
     return decorated
 
 
+# ============== CURP EXTRANJEROS ==============
+# Personas extranjeras reciben un CURP genérico basado en su género.
+# Estos CURPs pueden repetirse en la app.
+FOREIGN_CURP_MALE = 'XEXX010101HNEXXXA4'
+FOREIGN_CURP_FEMALE = 'XEXX010101MNEXXXA8'
+GENERIC_FOREIGN_CURPS = {FOREIGN_CURP_MALE, FOREIGN_CURP_FEMALE}
+
+
+def _get_foreign_curp(gender: str) -> str:
+    """Asigna CURP genérico de extranjero según género (M=masculino→H, F=femenino→M)."""
+    if gender == 'M':  # Masculino
+        return FOREIGN_CURP_MALE
+    else:  # Femenino u Otro
+        return FOREIGN_CURP_FEMALE
+
+
+def _is_generic_foreign_curp(curp: str) -> bool:
+    """Verifica si un CURP es el genérico de extranjero (puede repetirse)."""
+    return curp and curp.upper().strip() in GENERIC_FOREIGN_CURPS
+
+
 # ============== ESTADOS MEXICANOS ==============
 
 @bp.route('/mexican-states', methods=['GET'])
@@ -457,24 +478,31 @@ def create_campus(partner_id):
         if not data.get('director_phone'):
             return jsonify({'error': 'El teléfono del director es requerido'}), 400
         
-        if not data.get('director_curp'):
-            return jsonify({'error': 'El CURP del director es requerido'}), 400
-        
-        # Validar CURP del director (18 caracteres)
-        director_curp = data['director_curp'].upper().strip()
-        if len(director_curp) != 18:
-            return jsonify({'error': 'El CURP del director debe tener 18 caracteres'}), 400
-        
-        # Verificar que el CURP del director no esté ya registrado como usuario
-        existing_curp_user = User.query.filter_by(curp=director_curp).first()
-        if existing_curp_user:
-            return jsonify({'error': f'Ya existe un usuario registrado con ese CURP ({director_curp}). No se puede usar la misma persona como director en otro plantel.'}), 400
-        
         if not data.get('director_gender'):
             return jsonify({'error': 'El género del director es requerido'}), 400
         
         if data['director_gender'] not in ['M', 'F', 'O']:
             return jsonify({'error': 'Género del director inválido. Use M, F u O'}), 400
+        
+        # Determinar si el plantel es extranjero
+        is_foreign = country != 'México'
+        
+        if is_foreign:
+            # Para planteles extranjeros: asignar CURP genérico según género
+            director_curp = _get_foreign_curp(data['director_gender'])
+        else:
+            if not data.get('director_curp'):
+                return jsonify({'error': 'El CURP del director es requerido'}), 400
+            
+            # Validar CURP del director (18 caracteres)
+            director_curp = data['director_curp'].upper().strip()
+            if len(director_curp) != 18:
+                return jsonify({'error': 'El CURP del director debe tener 18 caracteres'}), 400
+            
+            # Verificar que el CURP del director no esté ya registrado como usuario
+            existing_curp_user = User.query.filter_by(curp=director_curp).first()
+            if existing_curp_user:
+                return jsonify({'error': f'Ya existe un usuario registrado con ese CURP ({director_curp}). No se puede usar la misma persona como director en otro plantel.'}), 400
         
         if not data.get('director_date_of_birth'):
             return jsonify({'error': 'La fecha de nacimiento del director es requerida'}), 400
@@ -641,16 +669,26 @@ def update_campus(campus_id):
         if 'country' in data and data['country'] != 'México' and 'state_name' not in data:
             data['state_name'] = None
         
-        # Validar y procesar campos del director si se envían
-        if 'director_curp' in data and data['director_curp']:
+        # Determinar si el plantel es extranjero
+        is_foreign = country != 'México'
+        
+        # Si el plantel es extranjero y se envía género del director, auto-asignar CURP genérico
+        if is_foreign:
+            director_gender = data.get('director_gender', campus.director_gender)
+            if director_gender:
+                data['director_curp'] = _get_foreign_curp(director_gender)
+        
+        # Validar y procesar campos del director si se envían (solo para México)
+        if 'director_curp' in data and data['director_curp'] and not is_foreign:
             data['director_curp'] = data['director_curp'].upper().strip()
             if len(data['director_curp']) != 18:
                 return jsonify({'error': 'El CURP del director debe tener 18 caracteres'}), 400
-            # Verificar que el CURP no esté ya registrado como otro usuario
-            if data['director_curp'] != (campus.director_curp or '').upper().strip():
-                existing_curp_user = User.query.filter_by(curp=data['director_curp']).first()
-                if existing_curp_user:
-                    return jsonify({'error': f'Ya existe un usuario registrado con ese CURP ({data["director_curp"]}). No se puede usar la misma persona como director en otro plantel.'}), 400
+            # Verificar que el CURP no esté ya registrado como otro usuario (solo si no es genérico de extranjero)
+            if not _is_generic_foreign_curp(data['director_curp']):
+                if data['director_curp'] != (campus.director_curp or '').upper().strip():
+                    existing_curp_user = User.query.filter_by(curp=data['director_curp']).first()
+                    if existing_curp_user:
+                        return jsonify({'error': f'Ya existe un usuario registrado con ese CURP ({data["director_curp"]}). No se puede usar la misma persona como director en otro plantel.'}), 400
         
         if 'director_gender' in data and data['director_gender']:
             if data['director_gender'] not in ['M', 'F', 'O']:
@@ -868,22 +906,31 @@ def create_campus_responsable(campus_id):
                 # Si replace_existing=true, continuamos sin desvincular aún
         
         # Validar campos requeridos
+        # Determinar si el plantel es extranjero (CURP no requerido para extranjeros)
+        is_foreign = (campus.country or 'México') != 'México'
+        
         required_fields = {
             'name': 'Nombre(s)',
             'first_surname': 'Apellido paterno',
             'second_surname': 'Apellido materno',
             'email': 'Correo electrónico',
-            'curp': 'CURP',
             'gender': 'Género',
             'date_of_birth': 'Fecha de nacimiento'
         }
+        if not is_foreign:
+            required_fields['curp'] = 'CURP'
         
         for field, label in required_fields.items():
             if not data.get(field):
                 return jsonify({'error': f'El campo {label} es requerido'}), 400
         
         email = data['email'].strip().lower()
-        curp = data['curp'].upper().strip()
+        
+        # Para extranjeros: auto-asignar CURP genérico según género
+        if is_foreign:
+            curp = _get_foreign_curp(data['gender'])
+        else:
+            curp = data['curp'].upper().strip()
         
         # Validar formato de email
         import re
@@ -891,10 +938,11 @@ def create_campus_responsable(campus_id):
         if not re.match(email_pattern, email):
             return jsonify({'error': 'Formato de correo electrónico inválido'}), 400
         
-        # Validar CURP (18 caracteres alfanuméricos)
-        curp_pattern = r'^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$'
-        if not re.match(curp_pattern, curp):
-            return jsonify({'error': 'Formato de CURP inválido. Debe tener 18 caracteres'}), 400
+        # Validar CURP solo para nacionales (18 caracteres alfanuméricos)
+        if not is_foreign:
+            curp_pattern = r'^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$'
+            if not re.match(curp_pattern, curp):
+                return jsonify({'error': 'Formato de CURP inválido. Debe tener 18 caracteres'}), 400
         
         # Validar género
         if data['gender'] not in ['M', 'F', 'O']:
@@ -948,14 +996,15 @@ def create_campus_responsable(campus_id):
             else:
                 return jsonify({'error': 'Ya existe un usuario con ese correo electrónico'}), 400
         
-        # Verificar CURP único (excepto si es el responsable actual)
-        existing_curp_user = User.query.filter_by(curp=curp).first()
-        if existing_curp_user:
-            if replace_existing and current_responsable_id and existing_curp_user.id == current_responsable_id:
-                # Ya manejado arriba, no debería llegar aquí si el email es el mismo
-                pass
-            else:
-                return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
+        # Verificar CURP único (excepto si es el responsable actual o es CURP genérico de extranjero)
+        if not _is_generic_foreign_curp(curp):
+            existing_curp_user = User.query.filter_by(curp=curp).first()
+            if existing_curp_user:
+                if replace_existing and current_responsable_id and existing_curp_user.id == current_responsable_id:
+                    # Ya manejado arriba, no debería llegar aquí si el email es el mismo
+                    pass
+                else:
+                    return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
         
         # Generar username único de 10 caracteres (letras y números en mayúsculas)
         def generate_unique_username():
@@ -1362,6 +1411,9 @@ def add_campus_responsable(campus_id):
     try:
         campus = Campus.query.get_or_404(campus_id)
         data = request.get_json()
+        
+        # Determinar si el plantel es extranjero
+        is_foreign = (campus.country or 'México') != 'México'
 
         # Validar campos requeridos
         required_fields = {
@@ -1369,17 +1421,23 @@ def add_campus_responsable(campus_id):
             'first_surname': 'Apellido paterno',
             'second_surname': 'Apellido materno',
             'email': 'Correo electrónico',
-            'curp': 'CURP',
             'gender': 'Género',
             'date_of_birth': 'Fecha de nacimiento'
         }
+        if not is_foreign:
+            required_fields['curp'] = 'CURP'
 
         for field, label in required_fields.items():
             if not data.get(field):
                 return jsonify({'error': f'El campo {label} es requerido'}), 400
 
         email = data['email'].strip().lower()
-        curp = data['curp'].upper().strip()
+        
+        # Para extranjeros: auto-asignar CURP genérico según género
+        if is_foreign:
+            curp = _get_foreign_curp(data['gender'])
+        else:
+            curp = data['curp'].upper().strip()
 
         # Validar formato de email
         import re
@@ -1387,10 +1445,11 @@ def add_campus_responsable(campus_id):
         if not re.match(email_pattern, email):
             return jsonify({'error': 'Formato de correo electrónico inválido'}), 400
 
-        # Validar CURP
-        curp_pattern = r'^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$'
-        if not re.match(curp_pattern, curp):
-            return jsonify({'error': 'Formato de CURP inválido. Debe tener 18 caracteres'}), 400
+        # Validar CURP solo para nacionales
+        if not is_foreign:
+            curp_pattern = r'^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$'
+            if not re.match(curp_pattern, curp):
+                return jsonify({'error': 'Formato de CURP inválido. Debe tener 18 caracteres'}), 400
 
         if data['gender'] not in ['M', 'F', 'O']:
             return jsonify({'error': 'Género inválido'}), 400
@@ -1403,9 +1462,11 @@ def add_campus_responsable(campus_id):
         # Verificar unicidad de email y CURP
         if User.query.filter_by(email=email).first():
             return jsonify({'error': 'Ya existe un usuario registrado con ese correo electrónico. No se puede usar el mismo correo para otro responsable.'}), 400
-        existing_curp_user = User.query.filter_by(curp=curp).first()
-        if existing_curp_user:
-            return jsonify({'error': f'Ya existe un usuario registrado con ese CURP ({curp}). No se puede usar la misma persona como responsable en otro plantel.'}), 400
+        # CURP genérico de extranjero puede repetirse
+        if not _is_generic_foreign_curp(curp):
+            existing_curp_user = User.query.filter_by(curp=curp).first()
+            if existing_curp_user:
+                return jsonify({'error': f'Ya existe un usuario registrado con ese CURP ({curp}). No se puede usar la misma persona como responsable en otro plantel.'}), 400
 
         # Generar username y password
         chars = string.ascii_uppercase + string.digits
