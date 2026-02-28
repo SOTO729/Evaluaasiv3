@@ -6023,11 +6023,11 @@ def swap_exam_member(group_id, exam_id):
     }
     
     Validaciones:
-    - El candidato origen debe estar asignado al examen
+    - El candidato origen DEBE tener un número de asignación (EcmCandidateAssignment)
+    - El candidato destino NO debe tener número de asignación
     - El candidato origen NO debe tener ≥15% de progreso en material
     - El candidato origen NO debe haber abierto examen/simulador
     - El candidato destino debe ser miembro del grupo
-    - El candidato destino NO debe estar ya asignado a este examen
     """
     try:
         from app.models import GroupExam
@@ -6083,6 +6083,29 @@ def swap_exam_member(group_id, exam_id):
             ).first()
             if existing:
                 return jsonify({'error': 'El candidato destino ya está asignado a este examen'}), 400
+
+        # === VALIDAR NÚMEROS DE ASIGNACIÓN ===
+        # El origen DEBE tener número de asignación, el destino NO debe tener
+        if ecm_id:
+            from_eca = EcmCandidateAssignment.query.filter_by(
+                user_id=from_user_id,
+                competency_standard_id=ecm_id
+            ).first()
+            if not from_eca:
+                return jsonify({
+                    'error': 'No se puede reasignar: el candidato origen no tiene número de asignación',
+                    'reason': 'no_assignment_number'
+                }), 400
+
+            dest_eca = EcmCandidateAssignment.query.filter_by(
+                user_id=to_user_id,
+                competency_standard_id=ecm_id
+            ).first()
+            if dest_eca:
+                return jsonify({
+                    'error': 'No se puede reasignar: el candidato destino ya tiene un número de asignación',
+                    'reason': 'dest_has_assignment'
+                }), 400
 
         # === VALIDAR QUE EL CANDIDATO ORIGEN PUEDE SER REASIGNADO ===
 
@@ -6372,6 +6395,26 @@ def bulk_swap_exam_members(group_id, exam_id):
                     to_u = User.query.get(to_user_id)
                     errors.append({'index': idx, 'to_user_id': to_user_id,
                                    'error': f'{to_u.full_name if to_u else to_user_id} ya está asignado a este examen'})
+                    continue
+
+            # Validar números de asignación: origen DEBE tener, destino NO debe tener
+            if ecm_id:
+                from_eca_check = EcmCandidateAssignment.query.filter_by(
+                    user_id=from_user_id, competency_standard_id=ecm_id
+                ).first()
+                if not from_eca_check:
+                    from_u = User.query.get(from_user_id)
+                    errors.append({'index': idx, 'from_user_id': from_user_id,
+                                   'error': f'{from_u.full_name if from_u else from_user_id} no tiene número de asignación'})
+                    continue
+
+                dest_eca_check = EcmCandidateAssignment.query.filter_by(
+                    user_id=to_user_id, competency_standard_id=ecm_id
+                ).first()
+                if dest_eca_check:
+                    to_u = User.query.get(to_user_id)
+                    errors.append({'index': idx, 'to_user_id': to_user_id,
+                                   'error': f'{to_u.full_name if to_u else to_user_id} ya tiene número de asignación'})
                     continue
 
             # Validar que origen puede ser reasignado

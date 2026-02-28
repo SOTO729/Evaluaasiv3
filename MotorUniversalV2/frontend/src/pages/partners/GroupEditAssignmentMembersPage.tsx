@@ -36,7 +36,6 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import {
   getGroup,
-  getGroupMembers,
   getExamMembersDetail,
   swapExamMember,
   bulkSwapExamMembers,
@@ -132,24 +131,44 @@ export default function GroupEditAssignmentMembersPage() {
     })();
   }, [groupId]);
 
-  // Búsqueda server-side de candidatos para swap (debounce 400ms)
+  // Búsqueda server-side de candidatos para swap — solo miembros SIN número de asignación
   const loadSwapCandidates = useCallback(async (search: string) => {
     const reqId = ++swapSearchRef.current;
     try {
       setSwapSearching(true);
-      const res = await getGroupMembers(Number(groupId), {
-        per_page: 50,
+      const res = await getExamMembersDetail(Number(groupId), Number(assignmentId), {
+        per_page: 200,
         search: search || undefined,
       });
       if (reqId !== swapSearchRef.current) return;
-      setSwapCandidates(res.members);
-      setSwapTotalResults(res.total);
+      // Only show candidates WITHOUT assignment_number (eligible to receive one)
+      const eligible = res.members
+        .filter(m => !m.assignment_number)
+        .map(m => ({
+          id: 0,
+          group_id: Number(groupId),
+          user_id: m.user_id,
+          status: 'active' as const,
+          joined_at: '',
+          user: m.user ? {
+            id: m.user.id,
+            email: m.user.email,
+            name: m.user.name,
+            first_surname: m.user.first_surname,
+            second_surname: m.user.second_surname || '',
+            full_name: m.user.full_name,
+            curp: m.user.curp || undefined,
+            is_active: true,
+          } : undefined,
+        }));
+      setSwapCandidates(eligible);
+      setSwapTotalResults(eligible.length);
     } catch {
       if (reqId !== swapSearchRef.current) return;
     } finally {
       if (reqId === swapSearchRef.current) setSwapSearching(false);
     }
-  }, [groupId]);
+  }, [groupId, assignmentId]);
 
   // Cargar candidatos cuando se abre el modal o cambia la búsqueda
   useEffect(() => {
@@ -158,24 +177,43 @@ export default function GroupEditAssignmentMembersPage() {
     return () => clearTimeout(timer);
   }, [showSwapModal, swapSearch, loadSwapCandidates]);
 
-  // Búsqueda de candidatos para bulk swap
+  // Búsqueda de candidatos para bulk swap — solo miembros SIN número de asignación
   const loadBulkSwapCandidates = useCallback(async (search: string) => {
     const reqId = ++bulkSwapSearchRef.current;
     try {
       setBulkSwapSearching(true);
-      const res = await getGroupMembers(Number(groupId), {
-        per_page: 50,
+      const res = await getExamMembersDetail(Number(groupId), Number(assignmentId), {
+        per_page: 200,
         search: search || undefined,
       });
       if (reqId !== bulkSwapSearchRef.current) return;
-      setBulkSwapCandidates(res.members);
-      setBulkSwapTotalResults(res.total);
+      const eligible = res.members
+        .filter(m => !m.assignment_number)
+        .map(m => ({
+          id: 0,
+          group_id: Number(groupId),
+          user_id: m.user_id,
+          status: 'active' as const,
+          joined_at: '',
+          user: m.user ? {
+            id: m.user.id,
+            email: m.user.email,
+            name: m.user.name,
+            first_surname: m.user.first_surname,
+            second_surname: m.user.second_surname || '',
+            full_name: m.user.full_name,
+            curp: m.user.curp || undefined,
+            is_active: true,
+          } : undefined,
+        }));
+      setBulkSwapCandidates(eligible);
+      setBulkSwapTotalResults(eligible.length);
     } catch {
       if (reqId !== bulkSwapSearchRef.current) return;
     } finally {
       if (reqId === bulkSwapSearchRef.current) setBulkSwapSearching(false);
     }
-  }, [groupId]);
+  }, [groupId, assignmentId]);
 
   useEffect(() => {
     if (!showBulkSwapModal || bulkSwapStep !== 1) return;
@@ -342,7 +380,7 @@ export default function GroupEditAssignmentMembersPage() {
   };
 
   // ---- Bulk swap handlers ----
-  const swappableMembers = (detailData?.members || []).filter(m => !m.is_locked);
+  const swappableMembers = (detailData?.members || []).filter(m => !m.is_locked && m.assignment_number);
 
   const handleToggleSelect = (userId: string) => {
     setSelectedForSwap(prev => {
@@ -796,7 +834,7 @@ export default function GroupEditAssignmentMembersPage() {
                     <tr key={member.user_id} className={`transition-colors ${selectedForSwap.has(member.user_id) ? 'bg-indigo-50/60' : member.is_locked ? 'bg-gray-50/50' : 'hover:bg-blue-50/30'}`}>
                       {/* Checkbox */}
                       <td className="fluid-px-3 fluid-py-3 text-center w-10">
-                        {!member.is_locked ? (
+                        {!member.is_locked && member.assignment_number ? (
                           <input
                             type="checkbox"
                             checked={selectedForSwap.has(member.user_id)}
@@ -883,10 +921,14 @@ export default function GroupEditAssignmentMembersPage() {
                               ))}
                             </div>
                           </div>
-                        ) : (
+                        ) : member.assignment_number ? (
                           <span className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium bg-green-100 text-green-700">
                             <Repeat2 className="h-3 w-3" />
                             Reasignable
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium bg-gray-100 text-gray-500">
+                            Sin asignación
                           </span>
                         )}
                       </td>
@@ -924,7 +966,7 @@ export default function GroupEditAssignmentMembersPage() {
                               <span className="hidden xl:inline">Detalle</span>
                             </Link>
                           )}
-                          {!member.is_locked && (
+                          {!member.is_locked && member.assignment_number && (
                             <button
                               onClick={() => handleInitSwap(member)}
                               className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1.5 text-indigo-600 hover:bg-indigo-50 rounded-fluid-lg transition-colors fluid-text-xs font-medium border border-indigo-200 hover:border-indigo-300"
@@ -944,7 +986,7 @@ export default function GroupEditAssignmentMembersPage() {
                               <span className="hidden xl:inline">Retoma</span>
                             </button>
                           )}
-                          {member.is_locked && !member.can_retake && !member.ecm_assignment_id && (
+                          {!member.ecm_assignment_id && !member.can_retake && (!member.assignment_number || member.is_locked) && (
                             <span className="fluid-text-xs text-gray-400">—</span>
                           )}
                         </div>
