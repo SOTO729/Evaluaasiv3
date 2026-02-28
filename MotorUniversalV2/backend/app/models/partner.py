@@ -676,6 +676,7 @@ class GroupMember(db.Model):
                 'curp': self.user.curp,
                 'phone': self.user.phone,
                 'is_active': self.user.is_active,
+                'role': self.user.role,
             }
             
         if include_group and self.group:

@@ -3072,6 +3072,7 @@ def get_group_members(group_id):
             'curp': [User.curp],
             'username': [User.username],
             'joined': [GroupMember.joined_at],
+            'role': [User.role],
         }
         sort_cols = sort_options.get(sort_by, sort_options['name'])
         if sort_dir == 'desc':

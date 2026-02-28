@@ -630,6 +630,9 @@ export default function GroupMembersPage() {
                   <th onClick={() => handleSort('curp')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell cursor-pointer hover:bg-gray-100 select-none">
                     CURP{renderSortIcon('curp')}
                   </th>
+                  <th onClick={() => handleSort('role')} className="fluid-px-4 fluid-py-3 text-center fluid-text-xs font-semibold text-gray-600 uppercase hidden md:table-cell cursor-pointer hover:bg-gray-100 select-none">
+                    Tipo{renderSortIcon('role')}
+                  </th>
                   <th onClick={() => handleSort('eligibility')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell cursor-pointer hover:bg-gray-100 select-none">
                     Elegibilidad{renderSortIcon('eligibility')}
                   </th>
@@ -663,6 +666,17 @@ export default function GroupMembersPage() {
                     </td>
                     <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600 hidden lg:table-cell font-mono">
                       {member.user?.curp || <span className="text-gray-400">-</span>}
+                    </td>
+                    <td className="fluid-px-4 fluid-py-3 text-center hidden md:table-cell">
+                      {member.user?.role === 'responsable' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-100 text-indigo-700 border border-indigo-200">
+                          <Shield className="h-3 w-3" />Responsable
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-600 border border-blue-200">
+                          <Users className="h-3 w-3" />Candidato
+                        </span>
+                      )}
                     </td>
                     <td className="fluid-px-4 fluid-py-3 hidden lg:table-cell">
                       {renderEligibilityBadges(member.user?.email, member.user?.curp)}

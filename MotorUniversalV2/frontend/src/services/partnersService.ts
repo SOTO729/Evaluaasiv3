@@ -218,6 +218,7 @@ export interface GroupMember {
     curp?: string;
     phone?: string;
     is_active: boolean;
+    role?: string;
   };
   group?: CandidateGroup;
 }
