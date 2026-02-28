@@ -3,6 +3,7 @@
  * Métricas, flujo de asignación de examen en 4 pasos, y secciones del grupo
  */
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, Link, useSearchParams, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -59,7 +60,9 @@ export default function GroupDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [exportingExcel, setExportingExcel] = useState(false);
   const [showReportMenu, setShowReportMenu] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const reportMenuRef = useRef<HTMLDivElement>(null);
+  const reportBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     loadData();
@@ -124,6 +127,14 @@ export default function GroupDetailPage() {
     } finally {
       setExportingExcel(false);
     }
+  };
+
+  const toggleReportMenu = () => {
+    if (!showReportMenu && reportBtnRef.current) {
+      const rect = reportBtnRef.current.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + 8, left: rect.right - 224 }); // 224 = w-56
+    }
+    setShowReportMenu(!showReportMenu);
   };
 
   // Cerrar menú de reportes al hacer click fuera
@@ -220,31 +231,33 @@ export default function GroupDetailPage() {
           <div className="flex items-center fluid-gap-2">
             {members.length > 0 && (
               <div className="relative" ref={reportMenuRef}>
-                <button onClick={() => setShowReportMenu(!showReportMenu)} disabled={exportingExcel}
+                <button ref={reportBtnRef} onClick={toggleReportMenu} disabled={exportingExcel}
                   className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/10 hover:bg-white/20 text-white rounded-fluid-xl font-medium fluid-text-sm transition-all border border-white/20 disabled:opacity-50">
                   {exportingExcel ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Download className="fluid-icon-sm" />}
                   <span className="hidden sm:inline">Reportes</span>
                   <ChevronDown className="fluid-icon-xs" />
                 </button>
-                {showReportMenu && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-fluid-xl shadow-xl border border-gray-200 overflow-hidden z-50 animate-fade-in-up">
+                {showReportMenu && createPortal(
+                  <div style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
+                    className="w-56 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden animate-fade-in-up">
                     <button onClick={handleExportExcel}
-                      className="w-full flex items-center fluid-gap-3 fluid-px-4 fluid-py-3 hover:bg-blue-50 transition-colors text-left">
-                      <Users className="fluid-icon-sm text-blue-600" />
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 transition-colors text-left">
+                      <Users className="w-4 h-4 text-blue-600" />
                       <div>
-                        <p className="fluid-text-sm font-medium text-gray-900">Reporte del Grupo</p>
-                        <p className="fluid-text-xs text-gray-500">Miembros y contraseñas</p>
+                        <p className="text-sm font-medium text-gray-900">Reporte del Grupo</p>
+                        <p className="text-xs text-gray-500">Miembros y contraseñas</p>
                       </div>
                     </button>
                     <button onClick={handleExportCertifications}
-                      className="w-full flex items-center fluid-gap-3 fluid-px-4 fluid-py-3 hover:bg-purple-50 transition-colors text-left border-t border-gray-100">
-                      <Award className="fluid-icon-sm text-purple-600" />
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-purple-50 transition-colors text-left border-t border-gray-100">
+                      <Award className="w-4 h-4 text-purple-600" />
                       <div>
-                        <p className="fluid-text-sm font-medium text-gray-900">Reporte de Certificaciones</p>
-                        <p className="fluid-text-xs text-gray-500">Puntajes por examen</p>
+                        <p className="text-sm font-medium text-gray-900">Reporte de Certificaciones</p>
+                        <p className="text-xs text-gray-500">Puntajes por examen</p>
                       </div>
                     </button>
-                  </div>
+                  </div>,
+                  document.body
                 )}
               </div>
             )}
