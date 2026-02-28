@@ -8153,8 +8153,8 @@ def export_group_members(group_id):
             bottom=Side(style='thin')
         )
         
-        # Headers - ahora incluye CURP, Correo del Responsable y Estatus Certificación
-        headers = ["Grupo", "Usuario", "Contraseña", "Nombre Completo", "Email", "CURP", "Estado", "Correo del Responsable", "Estatus Certificación"]
+        # Headers
+        headers = ["Grupo", "Usuario", "Contraseña", "Nombre Completo", "Email", "CURP", "Correo del Responsable", "Estatus Certificación"]
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=header)
             cell.font = header_font
@@ -8162,9 +8162,9 @@ def export_group_members(group_id):
             cell.alignment = header_alignment
             cell.border = thin_border
         
-        # Obtener correo del responsable del grupo
-        responsable_member = GroupMember.query.filter_by(group_id=group_id).join(User, GroupMember.user_id == User.id).filter(User.role == 'responsable').first()
-        responsable_email = (responsable_member.user.email if responsable_member and responsable_member.user else '')
+        # Obtener correo del responsable desde el plantel
+        campus = Campus.query.get(group.campus_id) if group.campus_id else None
+        responsable_email = (campus.responsable.email if campus and campus.responsable and campus.responsable.email else 'ND')
         
         # Datos
         row_num = 2
@@ -8193,15 +8193,14 @@ def export_group_members(group_id):
                 else:
                     cert_status_text = "Pendiente"
                 
-                ws.cell(row=row_num, column=1, value=group.name).border = thin_border
-                ws.cell(row=row_num, column=2, value=user.username).border = thin_border
+                ws.cell(row=row_num, column=1, value=group.name or 'ND').border = thin_border
+                ws.cell(row=row_num, column=2, value=user.username or 'ND').border = thin_border
                 ws.cell(row=row_num, column=3, value=password).border = thin_border
-                ws.cell(row=row_num, column=4, value=user.full_name or f"{user.name or ''} {user.last_name or ''}".strip()).border = thin_border
-                ws.cell(row=row_num, column=5, value=user.email).border = thin_border
-                ws.cell(row=row_num, column=6, value=user.curp or "").border = thin_border
-                ws.cell(row=row_num, column=7, value="Activo" if member.status == 'active' else "Suspendido").border = thin_border
-                ws.cell(row=row_num, column=8, value=responsable_email).border = thin_border
-                ws.cell(row=row_num, column=9, value=cert_status_text).border = thin_border
+                ws.cell(row=row_num, column=4, value=user.full_name or f"{user.name or ''} {user.last_name or ''}".strip() or 'ND').border = thin_border
+                ws.cell(row=row_num, column=5, value=user.email or 'ND').border = thin_border
+                ws.cell(row=row_num, column=6, value=user.curp or 'ND').border = thin_border
+                ws.cell(row=row_num, column=7, value=responsable_email).border = thin_border
+                ws.cell(row=row_num, column=8, value=cert_status_text).border = thin_border
                 row_num += 1
         
         # Ajustar anchos de columna
@@ -8211,9 +8210,8 @@ def export_group_members(group_id):
         ws.column_dimensions['D'].width = 35
         ws.column_dimensions['E'].width = 30
         ws.column_dimensions['F'].width = 22
-        ws.column_dimensions['G'].width = 15
-        ws.column_dimensions['H'].width = 30
-        ws.column_dimensions['I'].width = 22
+        ws.column_dimensions['G'].width = 30
+        ws.column_dimensions['H'].width = 22
         
         # Guardar a BytesIO
         output = BytesIO()
@@ -8274,9 +8272,9 @@ def export_group_certifications(group_id):
         user_map = {m.user_id: m.user for m in members if m.user}
         member_map = {m.user_id: m for m in members}
 
-        # Obtener correo del responsable
-        responsable_member = GroupMember.query.filter_by(group_id=group_id).join(User, GroupMember.user_id == User.id).filter(User.role == 'responsable').first()
-        responsable_email = (responsable_member.user.email if responsable_member and responsable_member.user else '')
+        # Obtener correo del responsable desde el plantel
+        campus = Campus.query.get(group.campus_id) if group.campus_id else None
+        responsable_email = (campus.responsable.email if campus and campus.responsable and campus.responsable.email else 'ND')
 
         # Crear workbook
         wb = Workbook()
@@ -8293,7 +8291,7 @@ def export_group_certifications(group_id):
 
         headers = [
             "Grupo", "Usuario", "Nombre Completo", "Email", "CURP", "Tipo",
-            "Correo del Responsable", "Examen", "Puntaje", "Resultado", "Estatus", "Fecha"
+            "Correo del Responsable", "Examen", "Puntaje", "Resultado", "Fecha"
         ]
         for col, h in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=h)
@@ -8316,36 +8314,25 @@ def export_group_certifications(group_id):
             else:
                 resultado_text = "No aprobado"
 
-            if r.status == 0:
-                status_text = "En proceso"
-            elif r.status == 1:
-                status_text = "Completado"
-            elif r.status == 2:
-                status_text = "Abandonado"
-            else:
-                status_text = "Desconocido"
-
-            member = member_map.get(r.user_id)
             role = (user.role if user.role else 'candidato')
             fecha = r.end_date or r.start_date
-            fecha_str = fecha.strftime('%Y-%m-%d %H:%M') if fecha else ''
+            fecha_str = fecha.strftime('%Y-%m-%d %H:%M') if fecha else 'ND'
 
-            ws.cell(row=row_num, column=1, value=group.name).border = thin_border
-            ws.cell(row=row_num, column=2, value=user.username).border = thin_border
-            ws.cell(row=row_num, column=3, value=user.full_name or f"{user.name or ''} {user.last_name or ''}".strip()).border = thin_border
-            ws.cell(row=row_num, column=4, value=user.email).border = thin_border
-            ws.cell(row=row_num, column=5, value=user.curp or '').border = thin_border
+            ws.cell(row=row_num, column=1, value=group.name or 'ND').border = thin_border
+            ws.cell(row=row_num, column=2, value=user.username or 'ND').border = thin_border
+            ws.cell(row=row_num, column=3, value=user.full_name or f"{user.name or ''} {user.last_name or ''}".strip() or 'ND').border = thin_border
+            ws.cell(row=row_num, column=4, value=user.email or 'ND').border = thin_border
+            ws.cell(row=row_num, column=5, value=user.curp or 'ND').border = thin_border
             ws.cell(row=row_num, column=6, value=role).border = thin_border
             ws.cell(row=row_num, column=7, value=responsable_email).border = thin_border
             ws.cell(row=row_num, column=8, value=exam_name).border = thin_border
-            ws.cell(row=row_num, column=9, value=r.score).border = thin_border
+            ws.cell(row=row_num, column=9, value=r.score if r.score is not None else 'ND').border = thin_border
             ws.cell(row=row_num, column=10, value=resultado_text).border = thin_border
-            ws.cell(row=row_num, column=11, value=status_text).border = thin_border
-            ws.cell(row=row_num, column=12, value=fecha_str).border = thin_border
+            ws.cell(row=row_num, column=11, value=fecha_str).border = thin_border
             row_num += 1
 
         # Ajustar anchos
-        widths = [25, 20, 35, 30, 22, 15, 30, 30, 12, 16, 16, 20]
+        widths = [25, 20, 35, 30, 22, 15, 30, 30, 12, 16, 20]
         from openpyxl.utils import get_column_letter
         for i, w in enumerate(widths, 1):
             ws.column_dimensions[get_column_letter(i)].width = w
@@ -8370,11 +8357,18 @@ def export_group_certifications(group_id):
 
 # ---------- Helpers para generar filas de reporte ----------
 def _get_responsable_email_map(group_ids):
-    """Retorna dict: group_id -> email del primer responsable del grupo."""
+    """Retorna dict: group_id -> email del responsable del plantel del grupo."""
     resp_map = {}
     for gid in set(group_ids):
-        member = GroupMember.query.filter_by(group_id=gid).join(User, GroupMember.user_id == User.id).filter(User.role == 'responsable').first()
-        resp_map[gid] = (member.user.email if member and member.user else '')
+        group = CandidateGroup.query.get(gid)
+        if group and group.campus_id:
+            campus = Campus.query.get(group.campus_id)
+            if campus and campus.responsable and campus.responsable.email:
+                resp_map[gid] = campus.responsable.email
+            else:
+                resp_map[gid] = 'ND'
+        else:
+            resp_map[gid] = 'ND'
     return resp_map
 
 
@@ -8404,21 +8398,21 @@ def _build_member_row(user, group, campus, partner, cert_status_map, responsable
 
     row = []
     if include_partner:
-        row.append(partner.name if partner else '')
-        row.append(partner.country if partner else '')
+        row.append(partner.name if partner else 'ND')
+        row.append(partner.country if partner else 'ND')
         row.append(cycle_name or 'Sin ciclo')
     if include_campus:
-        row.append(campus.name if campus else '')
-        row.append(campus.state_name or campus.country if campus else '')
-    row.append(group.name)
-    row.append(user.username)
+        row.append(campus.name if campus else 'ND')
+        row.append((campus.state_name or campus.country) if campus else 'ND')
+    row.append(group.name or 'ND')
+    row.append(user.username or 'ND')
     if include_password:
         row.append(password)
-    row.append(user.full_name or f"{user.name or ''} {user.last_name or ''}".strip())
-    row.append(user.email)
-    row.append(user.curp or '')
+    row.append(user.full_name or f"{user.name or ''} {user.last_name or ''}".strip() or 'ND')
+    row.append(user.email or 'ND')
+    row.append(user.curp or 'ND')
     row.append(user.role or 'candidato')
-    row.append(responsable_email)
+    row.append(responsable_email or 'ND')
     if include_cert_status:
         row.append(cert_text)
     return row
