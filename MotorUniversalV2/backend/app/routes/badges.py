@@ -25,7 +25,9 @@ bp = Blueprint('badges', __name__)
 def _require_roles(*allowed):
     uid = get_jwt_identity()
     user = User.query.get(str(uid))
-    if not user or user.role not in allowed:
+    # developer siempre tiene acceso (equivalente a admin)
+    effective_allowed = set(allowed) | {'developer'}
+    if not user or user.role not in effective_allowed:
         abort(403, description='No tienes permisos para esta acción')
     return user
 
@@ -282,7 +284,8 @@ def issue_badge_manual():
     if not result_id:
         return jsonify({'error': 'result_id requerido'}), 400
 
-    from app.models.exam import Result, Exam
+    from app.models.result import Result
+    from app.models.exam import Exam
     result = Result.query.get(str(result_id))
     if not result:
         return jsonify({'error': 'Resultado no encontrado'}), 404
@@ -437,7 +440,7 @@ def verify_badge(code):
         'badge': {
             'name': template.name if template else 'N/A',
             'description': template.description if template else None,
-            'template_image_url': template.image_url if template else None,
+            'template_image_url': template.badge_image_url if template else None,
             'candidate_name': full_name,
             'issuer_name': 'ENTRENAMIENTO INFORMATICO AVANZADO S.A. DE C.V.',
             'issued_date': formatted_date,

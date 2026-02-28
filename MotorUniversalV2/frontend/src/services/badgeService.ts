@@ -16,17 +16,16 @@ export interface BadgeTemplate {
   competency_standard_id: number | null
   badge_image_url: string | null
   display_image_url: string | null
-  badge_image_blob_name: string | null
   issuer_name: string | null
   issuer_url: string | null
   issuer_image_url: string | null
   tags: string | null
   expiry_months: number | null
   is_active: boolean
+  issued_count: number
   created_by_id: string | null
   created_at: string
   updated_at: string
-  issued_count: number
 }
 
 export interface IssuedBadge {
@@ -38,7 +37,6 @@ export interface IssuedBadge {
   badge_code: string
   credential_json: string | null
   badge_image_url: string | null
-  badge_image_blob_name: string | null
   issued_at: string
   valid_from: string | null
   expires_at: string | null
@@ -49,9 +47,11 @@ export interface IssuedBadge {
   claimed_at: string | null
   verify_url: string
   credential_url: string
+  template?: BadgeTemplate | null
   template_name?: string
   candidate_name?: string
   candidate_email?: string
+  template_image_url?: string | null
 }
 
 export interface BadgeVerification {

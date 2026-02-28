@@ -128,4 +128,4 @@ class IssuedBadge(db.Model):
 
     @property
     def credential_url(self):
-        return f"https://app.evaluaasi.com/api/badges/{self.id}/credential.json"
+        return f"https://app.evaluaasi.com/api/badges/{self.badge_uuid}/credential.json"

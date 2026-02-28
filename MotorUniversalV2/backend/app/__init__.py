@@ -110,6 +110,13 @@ def create_app(config_name='development'):
         raise
 
     try:
+        from app.routes.badges import bp as badges_bp
+        print("[INIT] ✅ badges_bp importado")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando badges_bp: {e}")
+        raise
+
+    try:
         from app.routes.support import bp as support_bp
         print("[INIT] ✅ support_bp importado")
     except Exception as e:
@@ -151,6 +158,8 @@ def create_app(config_name='development'):
     print("[INIT] ✅ balance registrado (saldos y solicitudes)")
     app.register_blueprint(activity_bp, url_prefix='/api/activity')
     print("[INIT] ✅ activity registrado (logs de actividad)")
+    app.register_blueprint(badges_bp, url_prefix='/api/badges')
+    print("[INIT] ✅ badges registrado (insignias digitales)")
     
     try:
         from app.routes.vm_sessions import bp as vm_sessions_bp
