@@ -864,7 +864,7 @@ export default function CampusDetailPage() {
             <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-fluid-xl fluid-p-6 text-center border border-amber-200">
               <AlertCircle className="fluid-icon-xl text-amber-400 mx-auto fluid-mb-4" />
               <p className="fluid-text-sm font-bold text-amber-800">Sin responsable asignado</p>
-              <Link to={`/partners/campuses/${campus.id}/activate`} className="inline-flex items-center fluid-gap-2 fluid-text-sm text-indigo-600 hover:text-indigo-700 fluid-mt-4 font-semibold hover:underline">
+              <Link to={`/partners/campuses/${campus.id}/assign-responsable`} className="inline-flex items-center fluid-gap-2 fluid-text-sm text-indigo-600 hover:text-indigo-700 fluid-mt-4 font-semibold hover:underline">
                 <Plus className="fluid-icon-sm" />Asignar responsable
               </Link>
             </div>

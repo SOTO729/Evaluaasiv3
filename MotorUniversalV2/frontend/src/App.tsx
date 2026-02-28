@@ -138,6 +138,7 @@ const GroupAssignMaterialsPage = lazy(() => import('./pages/partners/GroupAssign
 const GroupEditAssignmentMembersPage = lazy(() => import('./pages/partners/GroupEditAssignmentMembersPage'))
 const AssignmentDetailPage = lazy(() => import('./pages/partners/AssignmentDetailPage'))
 const CampusActivationPage = lazy(() => import('./pages/partners/CampusActivationPage'))
+const AssignResponsablePage = lazy(() => import('./pages/partners/AssignResponsablePage'))
 const SchoolCycleDetailPage = lazy(() => import('./pages/partners/SchoolCycleDetailPage'))
 const EcmAssignmentsPage = lazy(() => import('./pages/partners/EcmAssignmentsPage'))
 const EcmAssignmentDetailPage = lazy(() => import('./pages/partners/EcmAssignmentDetailPage'))
@@ -310,6 +311,7 @@ function App() {
               <Route path="/partners/campuses/:campusId" element={<CampusDetailPage />} />
               <Route path="/partners/campuses/:campusId/edit" element={<CampusFormPage />} />
               <Route path="/partners/campuses/:campusId/activate" element={<CampusActivationPage />} />
+              <Route path="/partners/campuses/:campusId/assign-responsable" element={<AssignResponsablePage />} />
               <Route path="/partners/campuses/:campusId/groups/new" element={<GroupFormPage />} />
               <Route path="/partners/cycles/:cycleId" element={<SchoolCycleDetailPage />} />
               <Route path="/partners/groups/:groupId" element={<GroupDetailPage />} />
