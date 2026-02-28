@@ -6075,16 +6075,9 @@ def swap_exam_member(group_id, exam_id):
         if not to_group_member:
             return jsonify({'error': 'El candidato destino no es miembro del grupo'}), 400
 
-        # Verificar que to_user NO está ya asignado a este examen
-        if group_exam.assignment_type == 'selected':
-            existing = GroupExamMember.query.filter_by(
-                group_exam_id=group_exam.id,
-                user_id=to_user_id
-            ).first()
-            if existing:
-                return jsonify({'error': 'El candidato destino ya está asignado a este examen'}), 400
-
         # === VALIDAR NÚMEROS DE ASIGNACIÓN ===
+        # Nota: No se valida GroupExamMember del destino porque un miembro del
+        # examen puede no tener número de asignación y ser un destino válido.
         # El origen DEBE tener número de asignación, el destino NO debe tener
         if ecm_id:
             from_eca = EcmCandidateAssignment.query.filter_by(
@@ -6162,44 +6155,33 @@ def swap_exam_member(group_id, exam_id):
 
         # === REALIZAR EL SWAP ===
 
-        # Si es 'selected', mover la asignación
+        # Si es 'selected', asegurar que ambos usuarios son miembros del examen
         if group_exam.assignment_type == 'selected':
-            # Quitar al usuario origen
-            GroupExamMember.query.filter_by(
-                group_exam_id=group_exam.id,
-                user_id=from_user_id
-            ).delete()
-            # Agregar al usuario destino
-            new_member = GroupExamMember(
-                group_exam_id=group_exam.id,
-                user_id=to_user_id
-            )
-            db.session.add(new_member)
-        else:
-            # Si era 'all', convertir a 'selected' con todos menos el origen, más el destino
-            all_members = GroupMember.query.filter_by(group_id=group_id).all()
-            group_exam.assignment_type = 'selected'
-            for gm in all_members:
-                if gm.user_id != from_user_id:
-                    existing = GroupExamMember.query.filter_by(
-                        group_exam_id=group_exam.id,
-                        user_id=gm.user_id
-                    ).first()
-                    if not existing:
-                        db.session.add(GroupExamMember(
-                            group_exam_id=group_exam.id,
-                            user_id=gm.user_id
-                        ))
-            # Asegurar que to_user está incluido
-            existing_to = GroupExamMember.query.filter_by(
+            # El origen mantiene su GroupExamMember (sigue siendo miembro del examen)
+            # El destino obtiene GroupExamMember si no lo tiene
+            existing_dest_gem = GroupExamMember.query.filter_by(
                 group_exam_id=group_exam.id,
                 user_id=to_user_id
             ).first()
-            if not existing_to:
+            if not existing_dest_gem:
                 db.session.add(GroupExamMember(
                     group_exam_id=group_exam.id,
                     user_id=to_user_id
                 ))
+        else:
+            # Si era 'all', convertir a 'selected' con TODOS los miembros
+            all_members = GroupMember.query.filter_by(group_id=group_id).all()
+            group_exam.assignment_type = 'selected'
+            for gm in all_members:
+                existing = GroupExamMember.query.filter_by(
+                    group_exam_id=group_exam.id,
+                    user_id=gm.user_id
+                ).first()
+                if not existing:
+                    db.session.add(GroupExamMember(
+                        group_exam_id=group_exam.id,
+                        user_id=gm.user_id
+                    ))
 
         # Transferir la EcmCandidateAssignment si existe
         # El assignment_number se mantiene y pasa del candidato origen al destino
@@ -6386,18 +6368,9 @@ def bulk_swap_exam_members(group_id, exam_id):
                                'error': f'{to_u.full_name if to_u else to_user_id} no es miembro del grupo'})
                 continue
 
-            # Verificar que destino no está ya asignado
-            if group_exam.assignment_type == 'selected':
-                existing = GroupExamMember.query.filter_by(
-                    group_exam_id=group_exam.id, user_id=to_user_id
-                ).first()
-                if existing:
-                    to_u = User.query.get(to_user_id)
-                    errors.append({'index': idx, 'to_user_id': to_user_id,
-                                   'error': f'{to_u.full_name if to_u else to_user_id} ya está asignado a este examen'})
-                    continue
-
             # Validar números de asignación: origen DEBE tener, destino NO debe tener
+            # Nota: No se valida GroupExamMember del destino porque un miembro del
+            # examen puede no tener número de asignación y ser destino válido.
             if ecm_id:
                 from_eca_check = EcmCandidateAssignment.query.filter_by(
                     user_id=from_user_id, competency_standard_id=ecm_id
@@ -6445,10 +6418,12 @@ def bulk_swap_exam_members(group_id, exam_id):
 
             # === REALIZAR EL SWAP ===
             if group_exam.assignment_type == 'selected':
-                GroupExamMember.query.filter_by(
-                    group_exam_id=group_exam.id, user_id=from_user_id
-                ).delete()
-                db.session.add(GroupExamMember(group_exam_id=group_exam.id, user_id=to_user_id))
+                # Asegurar que el destino tenga GroupExamMember (sin quitar al origen)
+                existing_dest_gem = GroupExamMember.query.filter_by(
+                    group_exam_id=group_exam.id, user_id=to_user_id
+                ).first()
+                if not existing_dest_gem:
+                    db.session.add(GroupExamMember(group_exam_id=group_exam.id, user_id=to_user_id))
             else:
                 # Convertir a 'selected' solo una vez
                 if not converted_to_selected:
@@ -6462,10 +6437,7 @@ def bulk_swap_exam_members(group_id, exam_id):
                             db.session.add(GroupExamMember(group_exam_id=group_exam.id, user_id=gm.user_id))
                     converted_to_selected = True
 
-                # Quitar origen, agregar destino
-                GroupExamMember.query.filter_by(
-                    group_exam_id=group_exam.id, user_id=from_user_id
-                ).delete()
+                # Asegurar que destino tenga GroupExamMember (sin quitar al origen)
                 existing_to = GroupExamMember.query.filter_by(
                     group_exam_id=group_exam.id, user_id=to_user_id
                 ).first()
