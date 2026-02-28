@@ -440,9 +440,17 @@ export default function GroupDetailPage() {
               <Link key={assignment.id} to={`/partners/groups/${groupId}/assignments/${assignment.exam_id}/detail`}
                 className="fluid-px-6 fluid-py-4 flex items-center justify-between hover:bg-purple-50/50 transition-colors block group">
                 <div className="flex items-center fluid-gap-4 flex-1 min-w-0">
-                  <div className="fluid-p-2 bg-purple-100 rounded-fluid-lg flex-shrink-0">
-                    <Award className="fluid-icon-base text-purple-600" />
-                  </div>
+                  {assignment.exam?.ecm?.logo_url ? (
+                    <img src={assignment.exam.ecm.logo_url} alt={assignment.exam.ecm.code || 'ECM'}
+                      className="w-10 h-10 rounded-fluid-lg object-contain flex-shrink-0 bg-white border border-gray-100" />
+                  ) : assignment.exam?.ecm?.brand_logo_url ? (
+                    <img src={assignment.exam.ecm.brand_logo_url} alt={assignment.exam.ecm.brand_name || 'Brand'}
+                      className="w-10 h-10 rounded-fluid-lg object-contain flex-shrink-0 bg-white border border-gray-100" />
+                  ) : (
+                    <div className="fluid-p-2 bg-purple-100 rounded-fluid-lg flex-shrink-0">
+                      <Award className="fluid-icon-base text-purple-600" />
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <p className="font-medium text-gray-900 truncate group-hover:text-purple-700 transition-colors">{assignment.exam?.name}</p>
                     <div className="flex items-center fluid-gap-3 fluid-text-xs text-gray-500 fluid-mt-0.5">
