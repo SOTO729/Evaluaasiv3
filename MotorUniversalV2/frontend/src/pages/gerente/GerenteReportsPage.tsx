@@ -53,8 +53,21 @@ export default function GerenteReportsPage() {
       ]);
 
       setStats(statsData);
-      // balancesData.coordinators contains array of {coordinator, balance}
-      setTopCoordinators(balancesData.coordinators?.map((c: any) => c.balance) || []);
+      // Each coordinator has { coordinator, balances[], totals }
+      // Transform to flat CoordinatorBalance-like objects for rendering
+      const mapped: CoordinatorBalance[] = (balancesData.coordinators || []).map((c: any) => ({
+        id: c.coordinator?.id ? Number(c.coordinator.id) : 0,
+        coordinator_id: c.coordinator?.id || '',
+        group_id: 0,
+        current_balance: c.totals?.current_balance || 0,
+        total_received: c.totals?.total_received || 0,
+        total_spent: c.totals?.total_spent || 0,
+        total_scholarships: c.totals?.total_scholarships || 0,
+        created_at: '',
+        updated_at: '',
+        coordinator: c.coordinator,
+      }));
+      setTopCoordinators(mapped);
       setRecentTransactions(transactionsData.transactions || []);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar datos');
@@ -344,6 +357,28 @@ export default function GerenteReportsPage() {
       {/* Actions */}
       <div className="mt-6 flex justify-end gap-4">
         <button
+          onClick={() => {
+            // Export summary as CSV
+            const rows = [
+              ['Métrica', 'Valor'],
+              ['Saldo Total', stats?.totals?.current_balance?.toString() || '0'],
+              ['Total Recibido', stats?.totals?.total_received?.toString() || '0'],
+              ['Total Gastado', stats?.totals?.total_spent?.toString() || '0'],
+              ['Total Becas', stats?.totals?.total_scholarships?.toString() || '0'],
+              ['Coordinadores con saldo', stats?.coordinators_with_balance?.toString() || '0'],
+              ['Solicitudes Pendientes', stats?.requests?.pending?.toString() || '0'],
+              ['En Revisión', stats?.requests?.in_review?.toString() || '0'],
+              ['Esperando Aprobación', stats?.requests?.awaiting_approval?.toString() || '0'],
+            ];
+            const csv = rows.map(r => r.join(',')).join('\n');
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `reporte_saldos_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
           className="flex items-center gap-2 px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
         >
           <Download className="w-5 h-5" />

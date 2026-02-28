@@ -87,7 +87,7 @@ def get_my_balance():
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
-        if user.role not in ['coordinator']:
+        if user.role not in ['coordinator', 'admin', 'developer']:
             return jsonify({'error': 'Solo coordinadores tienen saldo'}), 400
         
         # Obtener todos los balances por grupo
@@ -118,7 +118,6 @@ def get_my_balance():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-        return jsonify({'error': str(e)}), 500
 
 
 @bp.route('/my-transactions', methods=['GET'])
@@ -130,7 +129,7 @@ def get_my_transactions():
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
-        if user.role not in ['coordinator']:
+        if user.role not in ['coordinator', 'admin', 'developer']:
             return jsonify({'error': 'Solo coordinadores tienen transacciones'}), 400
         
         page = request.args.get('page', 1, type=int)
@@ -166,17 +165,21 @@ def get_my_requests():
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
-        if user.role not in ['coordinator']:
+        if user.role not in ['coordinator', 'admin', 'developer']:
             return jsonify({'error': 'Solo coordinadores pueden solicitar saldo'}), 400
         
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
         status = request.args.get('status')  # Filtro opcional
+        request_type = request.args.get('request_type')  # Filtro por tipo (saldo/beca)
         
         query = BalanceRequest.query.filter_by(coordinator_id=user_id)
         
         if status:
             query = query.filter_by(status=status)
+        
+        if request_type:
+            query = query.filter_by(request_type=request_type)
         
         query = query.order_by(desc(BalanceRequest.requested_at))
         
@@ -203,7 +206,7 @@ def create_request():
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
-        if user.role not in ['coordinator']:
+        if user.role not in ['coordinator', 'admin', 'developer']:
             return jsonify({'error': 'Solo coordinadores pueden solicitar saldo'}), 400
         
         data = request.get_json()
@@ -320,7 +323,7 @@ def create_request_batch():
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
 
-        if user.role not in ['coordinator']:
+        if user.role not in ['coordinator', 'admin', 'developer']:
             return jsonify({'error': 'Solo coordinadores pueden solicitar saldo'}), 400
 
         data = request.get_json()
@@ -485,10 +488,11 @@ def cancel_request(request_id):
         
         # Log activity
         log_activity_from_request(
-            user_id=user.id,
-            action='balance_request_cancelled',
+            user=user,
+            action_type='balance_cancel',
             entity_type='balance_request',
-            entity_id=str(balance_request.id),
+            entity_id=balance_request.id,
+            entity_name=f'Cancelación solicitud #{balance_request.id}',
             details={
                 'request_id': balance_request.id,
                 'amount': float(balance_request.amount_requested),
@@ -593,7 +597,7 @@ def get_request_detail(request_id):
         # Verificar permisos: coordinador dueño, financiero, gerente o admin
         if user.role == 'coordinator' and str(balance_request.coordinator_id) != str(user_id):
             return jsonify({'error': 'No tienes permiso para ver esta solicitud'}), 403
-        elif user.role not in ['coordinator', 'financiero', 'gerente', 'admin']:
+        elif user.role not in ['coordinator', 'financiero', 'gerente', 'admin', 'developer']:
             return jsonify({'error': 'No tienes permiso para ver esta solicitud'}), 403
         
         # Obtener datos completos incluyendo attachments
@@ -1180,6 +1184,37 @@ def get_balance_stats():
                 'in_review': in_review_requests,
                 'awaiting_approval': recommended_requests
             }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/transactions', methods=['GET'])
+@jwt_required()
+@financiero_required
+def get_all_transactions():
+    """Obtener historial de transacciones (para financiero, gerente o admin)"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        coordinator_id = request.args.get('coordinator_id')
+        
+        query = BalanceTransaction.query
+        
+        if coordinator_id:
+            query = query.filter_by(coordinator_id=coordinator_id)
+        
+        query = query.order_by(desc(BalanceTransaction.created_at))
+        
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        return jsonify({
+            'transactions': [t.to_dict(include_coordinator=True, include_created_by=True, include_group=True) 
+                            for t in pagination.items],
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'current_page': page
         })
         
     except Exception as e:
