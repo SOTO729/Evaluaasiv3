@@ -18,12 +18,13 @@ import {
   Award,
   ChevronRight,
   UserPlus,
+  Plus,
   AlertTriangle,
   Clock,
   Target,
   Sparkles,
   ArrowRight,
-  TrendingUp,
+  Wallet,
   BarChart3,
   Layers,
   ChevronDown,
@@ -43,6 +44,7 @@ import {
   GroupStudyMaterialAssignment,
   EligibilitySummary,
 } from '../../services/partnersService';
+import { getMyBalance, CoordinatorBalance, formatCurrency } from '../../services/balanceService';
 
 export default function GroupDetailPage() {
   const { groupId } = useParams();
@@ -52,6 +54,7 @@ export default function GroupDetailPage() {
   
   const [showSuccessModal, setShowSuccessModal] = useState(justCreated);
   const [group, setGroup] = useState<CandidateGroup | null>(null);
+  const [groupBalance, setGroupBalance] = useState<CoordinatorBalance | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [assignedExams, setAssignedExams] = useState<GroupExamAssignment[]>([]);
   const [directMaterials, setDirectMaterials] = useState<GroupStudyMaterialAssignment[]>([]);
@@ -72,13 +75,16 @@ export default function GroupDetailPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [groupData, membersData, examsData, materialsData] = await Promise.all([
+      const [groupData, membersData, examsData, materialsData, balanceData] = await Promise.all([
         getGroup(Number(groupId)),
         getGroupMembers(Number(groupId)),
         getGroupExams(Number(groupId)),
         getGroupStudyMaterials(Number(groupId)).catch(() => ({ assigned_materials: [] })),
+        getMyBalance().catch(() => ({ balances: [], totals: {}, coordinator: {} })),
       ]);
       setGroup(groupData);
+      const myBal = (balanceData as any).balances?.find((b: any) => b.group_id === Number(groupId)) || null;
+      setGroupBalance(myBal);
       setMembers(membersData.members);
       setEligibilitySummary(membersData.eligibility_summary || null);
       setAssignedExams(examsData.assigned_exams);
@@ -303,15 +309,23 @@ export default function GroupDetailPage() {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-4 hover:shadow-md transition-shadow">
+        <Link
+          to={`/solicitar-saldo?campusId=${group?.campus_id || ''}&groupId=${groupId}`}
+          className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-4 hover:shadow-md transition-shadow group/balance"
+        >
           <div className="flex items-center fluid-gap-3">
-            <div className="fluid-p-2.5 bg-sky-100 rounded-fluid-lg"><TrendingUp className="fluid-icon-base text-sky-600" /></div>
-            <div>
-              <p className="fluid-text-2xl font-bold text-sky-600">{certRate}%</p>
-              <p className="fluid-text-xs text-gray-500">Tasa certificación</p>
+            <div className="fluid-p-2.5 bg-amber-100 rounded-fluid-lg"><Wallet className="fluid-icon-base text-amber-600" /></div>
+            <div className="flex-1 min-w-0">
+              <p className="fluid-text-2xl font-bold text-amber-600">{groupBalance ? formatCurrency(groupBalance.current_balance) : '$0'}</p>
+              <p className="fluid-text-xs text-gray-500">Saldo del grupo</p>
             </div>
           </div>
-        </div>
+          <div className="fluid-mt-2">
+            <span className="inline-flex items-center fluid-gap-1 fluid-text-xs font-medium text-blue-600 group-hover/balance:text-blue-800 transition-colors">
+              <Plus className="w-3 h-3" /> Solicitar saldo
+            </span>
+          </div>
+        </Link>
       </div>
 
       {/* ===== PRÓXIMO PASO CONTEXTUAL ===== */}

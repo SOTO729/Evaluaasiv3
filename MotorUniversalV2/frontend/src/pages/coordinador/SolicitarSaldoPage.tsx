@@ -11,7 +11,7 @@
  * NOTA: Para solicitar becas, usar /coordinador/solicitar-beca
  */
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   DollarSign,
@@ -84,6 +84,9 @@ type SortDirection = 'asc' | 'desc';
 
 export default function SolicitarSaldoPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselectedCampusId = searchParams.get('campusId') ? Number(searchParams.get('campusId')) : null;
+  const preselectedGroupId = searchParams.get('groupId') ? Number(searchParams.get('groupId')) : null;
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -118,6 +121,29 @@ export default function SolicitarSaldoPage() {
   useEffect(() => {
     loadCampuses();
   }, []);
+
+  // Auto-expand campus and pre-select group from URL params
+  useEffect(() => {
+    if (preselectedCampusId && campuses.length > 0 && !loading) {
+      const campusExists = campuses.some(c => c.id === preselectedCampusId);
+      if (campusExists && expandedCampusId !== preselectedCampusId) {
+        setExpandedCampusId(preselectedCampusId);
+        setNewLineGroupId(null);
+        setNewLineUnits(0);
+        loadGroups(preselectedCampusId);
+      }
+    }
+  }, [preselectedCampusId, campuses, loading]);
+
+  // Pre-select group once groups are loaded for the preselected campus
+  useEffect(() => {
+    if (preselectedGroupId && preselectedCampusId && groupsCache[preselectedCampusId] && !groupsCache[preselectedCampusId].loading) {
+      const groupExists = groupsCache[preselectedCampusId].groups.some(g => g.id === preselectedGroupId);
+      if (groupExists && newLineGroupId !== preselectedGroupId) {
+        setNewLineGroupId(preselectedGroupId);
+      }
+    }
+  }, [preselectedGroupId, preselectedCampusId, groupsCache]);
 
   const loadCampuses = async () => {
     try {
