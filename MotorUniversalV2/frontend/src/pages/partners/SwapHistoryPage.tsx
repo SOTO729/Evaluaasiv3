@@ -55,7 +55,6 @@ export default function SwapHistoryPage() {
 
   // Timeline view state
   const [timeline, setTimeline] = useState<SwapTimelineEntry[]>([]);
-  const [totalMoves, setTotalMoves] = useState(0);
   const [expandedAssignment, setExpandedAssignment] = useState<string | null>(null);
 
   // Filters
@@ -98,7 +97,6 @@ export default function SwapHistoryPage() {
           );
         }
         setTimeline(filtered);
-        setTotalMoves(data.total_moves);
       } else {
         const data = await getSwapHistory(gId, examId, {
           page: currentPage,
@@ -191,21 +189,7 @@ export default function SwapHistoryPage() {
             </div>
           </div>
 
-          {/* Stats en header */}
-          <div className="grid grid-cols-2 fluid-gap-4 fluid-mt-5">
-            <div className="bg-white/10 rounded-fluid-xl fluid-p-3 text-center backdrop-blur-sm">
-              <p className="fluid-text-xl font-bold">
-                {viewMode === 'timeline' ? timeline.length : totalRecords}
-              </p>
-              <p className="fluid-text-xs text-white/70">
-                {viewMode === 'timeline' ? 'Asignaciones con movimientos' : 'Reasignaciones totales'}
-              </p>
-            </div>
-            <div className="bg-white/10 rounded-fluid-xl fluid-p-3 text-center backdrop-blur-sm">
-              <p className="fluid-text-xl font-bold">{totalMoves}</p>
-              <p className="fluid-text-xs text-white/70">Movimientos totales</p>
-            </div>
-          </div>
+
         </div>
       </div>
 
