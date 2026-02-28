@@ -6033,7 +6033,7 @@ def swap_exam_member(group_id, exam_id):
         from app.models import GroupExam
         from app.models.partner import GroupExamMember, EcmCandidateAssignment, EcmSwapHistory
         from app.models.result import Result
-        from app.models.student_progress import StudentTopicProgress
+        from app.models.student_progress import StudentTopicProgress, StudentContentProgress
         from app.models.study_content import StudyMaterial
         from sqlalchemy import text
 
@@ -6114,6 +6114,8 @@ def swap_exam_member(group_id, exam_id):
             }), 400
 
         # 2. Verificar progreso de material de estudio >= 15%
+        material_ids = []
+        topic_ids = []
         try:
             material_ids_rows = db.session.execute(text(
                 'SELECT study_material_id FROM study_material_exams WHERE exam_id = :eid'
@@ -6157,8 +6159,8 @@ def swap_exam_member(group_id, exam_id):
 
         # Si es 'selected', asegurar que ambos usuarios son miembros del examen
         if group_exam.assignment_type == 'selected':
-            # El origen mantiene su GroupExamMember (sigue siendo miembro del examen)
             # El destino obtiene GroupExamMember si no lo tiene
+            # (el origen se eliminará más adelante en la sección de revocación)
             existing_dest_gem = GroupExamMember.query.filter_by(
                 group_exam_id=group_exam.id,
                 user_id=to_user_id
@@ -6225,6 +6227,43 @@ def swap_exam_member(group_id, exam_id):
                     if to_user:
                         print(f"✅ ECA {eca.assignment_number} transferida de {from_user_id} a {to_user.full_name}")
 
+        # === REVOCAR ACCESO DEL ORIGEN ===
+        # Al perder su número de asignación, el origen pierde acceso al examen
+        # y se limpian sus registros de progreso de material de estudio.
+        revoked_items = []
+
+        # 1. Eliminar GroupExamMember del origen (revoca acceso al examen)
+        origin_gem = GroupExamMember.query.filter_by(
+            group_exam_id=group_exam.id,
+            user_id=from_user_id
+        ).first()
+        if origin_gem:
+            db.session.delete(origin_gem)
+            revoked_items.append('exam_access')
+
+        # 2. Eliminar progreso de material de estudio del origen
+        try:
+            if topic_ids:
+                # Eliminar progreso por tema
+                deleted_tp = StudentTopicProgress.query.filter(
+                    StudentTopicProgress.user_id == from_user_id,
+                    StudentTopicProgress.topic_id.in_(topic_ids)
+                ).delete(synchronize_session='fetch')
+
+                # Eliminar progreso por contenido
+                deleted_cp = StudentContentProgress.query.filter(
+                    StudentContentProgress.user_id == from_user_id,
+                    StudentContentProgress.topic_id.in_(topic_ids)
+                ).delete(synchronize_session='fetch')
+
+                if deleted_tp or deleted_cp:
+                    revoked_items.append(f'study_progress({deleted_tp}t,{deleted_cp}c)')
+        except Exception as rev_err:
+            print(f"⚠️ Error limpiando progreso del origen: {rev_err}")
+
+        if revoked_items:
+            print(f"🔒 Revocación para {from_user_id}: {', '.join(revoked_items)}")
+
         # === REGISTRAR EN HISTORIAL ===
         if transferred_assignment_number:
             current_user_id = get_jwt_identity()
@@ -6285,7 +6324,7 @@ def bulk_swap_exam_members(group_id, exam_id):
         from app.models import GroupExam
         from app.models.partner import GroupExamMember, EcmCandidateAssignment, EcmSwapHistory
         from app.models.result import Result
-        from app.models.student_progress import StudentTopicProgress
+        from app.models.student_progress import StudentTopicProgress, StudentContentProgress
         from app.models.study_content import StudyMaterial
         from app.models.user import User
         from sqlalchemy import text
@@ -6437,7 +6476,8 @@ def bulk_swap_exam_members(group_id, exam_id):
 
             # === REALIZAR EL SWAP ===
             if group_exam.assignment_type == 'selected':
-                # Asegurar que el destino tenga GroupExamMember (sin quitar al origen)
+                # Asegurar que el destino tenga GroupExamMember
+                # (el origen se eliminará en la sección de revocación)
                 existing_dest_gem = GroupExamMember.query.filter_by(
                     group_exam_id=group_exam.id, user_id=to_user_id
                 ).first()
@@ -6456,7 +6496,7 @@ def bulk_swap_exam_members(group_id, exam_id):
                             db.session.add(GroupExamMember(group_exam_id=group_exam.id, user_id=gm.user_id))
                     converted_to_selected = True
 
-                # Asegurar que destino tenga GroupExamMember (sin quitar al origen)
+                # Asegurar que destino tenga GroupExamMember
                 existing_to = GroupExamMember.query.filter_by(
                     group_exam_id=group_exam.id, user_id=to_user_id
                 ).first()
@@ -6485,6 +6525,39 @@ def bulk_swap_exam_members(group_id, exam_id):
                     else:
                         eca.user_id = to_user_id
                         eca.group_exam_id = group_exam.id
+
+            # === REVOCAR ACCESO DEL ORIGEN ===
+            revoked_items = []
+
+            # 1. Eliminar GroupExamMember del origen (revoca acceso al examen)
+            origin_gem = GroupExamMember.query.filter_by(
+                group_exam_id=group_exam.id,
+                user_id=from_user_id
+            ).first()
+            if origin_gem:
+                db.session.delete(origin_gem)
+                revoked_items.append('exam_access')
+
+            # 2. Eliminar progreso de material de estudio del origen
+            try:
+                if topic_ids:
+                    deleted_tp = StudentTopicProgress.query.filter(
+                        StudentTopicProgress.user_id == from_user_id,
+                        StudentTopicProgress.topic_id.in_(topic_ids)
+                    ).delete(synchronize_session='fetch')
+
+                    deleted_cp = StudentContentProgress.query.filter(
+                        StudentContentProgress.user_id == from_user_id,
+                        StudentContentProgress.topic_id.in_(topic_ids)
+                    ).delete(synchronize_session='fetch')
+
+                    if deleted_tp or deleted_cp:
+                        revoked_items.append(f'study_progress({deleted_tp}t,{deleted_cp}c)')
+            except Exception as rev_err:
+                print(f"⚠️ Error limpiando progreso del origen {from_user_id}: {rev_err}")
+
+            if revoked_items:
+                print(f"🔒 Revocación bulk para {from_user_id}: {', '.join(revoked_items)}")
 
             # === REGISTRAR EN HISTORIAL ===
             if transferred_number:
