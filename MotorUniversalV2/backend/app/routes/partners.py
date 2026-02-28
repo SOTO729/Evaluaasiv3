@@ -5729,15 +5729,11 @@ def get_group_exam_members_detail(group_id, exam_id):
             print(f"⚠️ Error calculando topics: {prog_err}")
 
         # ── Build base member subquery using SQLAlchemy ──
-        # This gives us user_ids from either all group members or specific assigned members
-        if group_exam.assignment_type == 'all':
-            member_base = db.session.query(
-                GroupMember.user_id
-            ).filter(GroupMember.group_id == group_id).subquery('member_base')
-        else:
-            member_base = db.session.query(
-                GroupExamMember.user_id
-            ).filter(GroupExamMember.group_exam_id == group_exam.id).subquery('member_base')
+        # Always use ALL group members so that after a swap, the source user
+        # still appears with status "Sin asignación" instead of disappearing.
+        member_base = db.session.query(
+            GroupMember.user_id
+        ).filter(GroupMember.group_id == group_id).subquery('member_base')
 
         # ── Subquery: EcmCandidateAssignment ──
         eca_sub = None
