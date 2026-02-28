@@ -185,6 +185,7 @@ export default function StandardFormPage() {
         level: standard.level,
         validity_years: standard.validity_years,
         certifying_body: standard.certifying_body,
+        brand_id: standard.brand_id,
       });
       // Cargar logo si existe
       if (standard.logo_url) {

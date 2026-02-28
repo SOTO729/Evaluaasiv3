@@ -17,7 +17,7 @@ export default function StandardDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'developer';
   const isEditor = user?.role === 'editor' || user?.role === 'editor_invitado';
 
   useEffect(() => {

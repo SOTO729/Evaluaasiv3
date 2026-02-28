@@ -474,7 +474,7 @@ def create_brand():
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
     
-    if not user or user.role not in ['admin', 'developer', 'coordinador']:
+    if not user or user.role not in ['admin', 'developer', 'coordinator']:
         return jsonify({'error': 'No tienes permisos para crear marcas'}), 403
     
     data = request.get_json()
@@ -522,7 +522,7 @@ def update_brand(brand_id):
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
     
-    if not user or user.role not in ['admin', 'developer', 'coordinador']:
+    if not user or user.role not in ['admin', 'developer', 'coordinator']:
         return jsonify({'error': 'No tienes permisos para editar marcas'}), 403
     
     brand = Brand.query.get_or_404(brand_id)

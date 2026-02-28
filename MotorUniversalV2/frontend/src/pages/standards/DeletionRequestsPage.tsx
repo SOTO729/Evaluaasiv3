@@ -24,7 +24,7 @@ export default function DeletionRequestsPage() {
     response: string;
   }>({ show: false, request: null, action: null, response: '' });
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'developer';
 
   useEffect(() => {
     if (!isAdmin) {
