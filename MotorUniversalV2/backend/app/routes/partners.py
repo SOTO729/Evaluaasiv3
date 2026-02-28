@@ -8326,7 +8326,7 @@ def export_group_certifications(group_id):
             ws.cell(row=row_num, column=6, value=role).border = thin_border
             ws.cell(row=row_num, column=7, value=responsable_email).border = thin_border
             ws.cell(row=row_num, column=8, value=exam_name).border = thin_border
-            ws.cell(row=row_num, column=9, value=r.score if r.score is not None else 'ND').border = thin_border
+            ws.cell(row=row_num, column=9, value=(r.score * 10) if r.score is not None else 'ND').border = thin_border
             ws.cell(row=row_num, column=10, value=resultado_text).border = thin_border
             ws.cell(row=row_num, column=11, value=fecha_str).border = thin_border
             row_num += 1
