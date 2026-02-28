@@ -6031,7 +6031,7 @@ def swap_exam_member(group_id, exam_id):
     """
     try:
         from app.models import GroupExam
-        from app.models.partner import GroupExamMember, EcmCandidateAssignment
+        from app.models.partner import GroupExamMember, EcmCandidateAssignment, EcmSwapHistory
         from app.models.result import Result
         from app.models.student_progress import StudentTopicProgress
         from app.models.study_content import StudyMaterial
@@ -6225,6 +6225,25 @@ def swap_exam_member(group_id, exam_id):
                     if to_user:
                         print(f"✅ ECA {eca.assignment_number} transferida de {from_user_id} a {to_user.full_name}")
 
+        # === REGISTRAR EN HISTORIAL ===
+        if transferred_assignment_number:
+            current_user_id = get_jwt_identity()
+            group_obj = CandidateGroup.query.get(group_id)
+            swap_record = EcmSwapHistory(
+                assignment_number=transferred_assignment_number,
+                ecm_assignment_id=eca.id if eca else None,
+                competency_standard_id=ecm_id,
+                group_id=group_id,
+                group_name=group_obj.name if group_obj else None,
+                exam_id=exam_id,
+                group_exam_id=group_exam.id,
+                from_user_id=from_user_id,
+                to_user_id=to_user_id,
+                performed_by_id=current_user_id,
+                swap_type='single',
+            )
+            db.session.add(swap_record)
+
         db.session.commit()
 
         from app.models.user import User
@@ -6264,7 +6283,7 @@ def bulk_swap_exam_members(group_id, exam_id):
     """
     try:
         from app.models import GroupExam
-        from app.models.partner import GroupExamMember, EcmCandidateAssignment
+        from app.models.partner import GroupExamMember, EcmCandidateAssignment, EcmSwapHistory
         from app.models.result import Result
         from app.models.student_progress import StudentTopicProgress
         from app.models.study_content import StudyMaterial
@@ -6467,6 +6486,24 @@ def bulk_swap_exam_members(group_id, exam_id):
                         eca.user_id = to_user_id
                         eca.group_exam_id = group_exam.id
 
+            # === REGISTRAR EN HISTORIAL ===
+            if transferred_number:
+                current_user_id = get_jwt_identity()
+                group_obj = CandidateGroup.query.get(group_id)
+                db.session.add(EcmSwapHistory(
+                    assignment_number=transferred_number,
+                    ecm_assignment_id=eca.id if eca else None,
+                    competency_standard_id=ecm_id,
+                    group_id=group_id,
+                    group_name=group_obj.name if group_obj else None,
+                    exam_id=exam_id,
+                    group_exam_id=group_exam.id,
+                    from_user_id=from_user_id,
+                    to_user_id=to_user_id,
+                    performed_by_id=current_user_id,
+                    swap_type='bulk',
+                ))
+
             from_u = User.query.get(from_user_id)
             to_u = User.query.get(to_user_id)
             results.append({
@@ -6492,6 +6529,142 @@ def bulk_swap_exam_members(group_id, exam_id):
 
     except Exception as e:
         db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+# ============== HISTORIAL DE REASIGNACIONES ==============
+
+@bp.route('/groups/<int:group_id>/exams/<int:exam_id>/swap-history', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_swap_history(group_id, exam_id):
+    """Obtener el historial de reasignaciones para un examen de grupo.
+    
+    Query params:
+    - page (int): Página actual (default 1)
+    - per_page (int): Registros por página (default 50)
+    - assignment_number (str): Filtrar por número de asignación
+    - user_id (str): Filtrar por usuario (origen o destino)
+    - sort (str): Campo de orden (default 'performed_at')
+    - dir (str): Dirección 'asc' o 'desc' (default 'desc')
+    """
+    try:
+        from app.models.partner import EcmSwapHistory
+
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 50, type=int), 200)
+        assignment_number = request.args.get('assignment_number', '').strip()
+        user_id_filter = request.args.get('user_id', '').strip()
+        sort_field = request.args.get('sort', 'performed_at')
+        sort_dir = request.args.get('dir', 'desc')
+
+        query = EcmSwapHistory.query.filter_by(
+            group_id=group_id,
+            exam_id=exam_id,
+        )
+
+        if assignment_number:
+            query = query.filter(EcmSwapHistory.assignment_number.ilike(f'%{assignment_number}%'))
+
+        if user_id_filter:
+            from sqlalchemy import or_
+            query = query.filter(or_(
+                EcmSwapHistory.from_user_id == user_id_filter,
+                EcmSwapHistory.to_user_id == user_id_filter,
+            ))
+
+        # Ordenamiento
+        sort_map = {
+            'performed_at': EcmSwapHistory.performed_at,
+            'assignment_number': EcmSwapHistory.assignment_number,
+        }
+        sort_column = sort_map.get(sort_field, EcmSwapHistory.performed_at)
+        if sort_dir == 'asc':
+            query = query.order_by(sort_column.asc())
+        else:
+            query = query.order_by(sort_column.desc())
+
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+        # Agrupar por assignment_number para la línea de tiempo
+        records = [r.to_dict() for r in pagination.items]
+
+        return jsonify({
+            'history': records,
+            'total': pagination.total,
+            'page': pagination.page,
+            'pages': pagination.pages,
+            'per_page': per_page,
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/groups/<int:group_id>/exams/<int:exam_id>/swap-history/timeline', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_swap_timeline(group_id, exam_id):
+    """Obtener la trazabilidad agrupada por número de asignación.
+    
+    Devuelve cada assignment_number con su cadena completa de movimientos.
+    """
+    try:
+        from app.models.partner import EcmSwapHistory, EcmCandidateAssignment
+        from app.models import GroupExam
+
+        group_exam = GroupExam.query.filter_by(
+            group_id=group_id,
+            exam_id=exam_id,
+            is_active=True
+        ).first_or_404()
+
+        exam = group_exam.exam
+        ecm_id = exam.competency_standard_id if exam else None
+
+        # Todos los registros de historial para este grupo/examen
+        all_records = EcmSwapHistory.query.filter_by(
+            group_id=group_id,
+            exam_id=exam_id,
+        ).order_by(EcmSwapHistory.performed_at.asc()).all()
+
+        # Agrupar por assignment_number
+        timeline = {}
+        for r in all_records:
+            an = r.assignment_number
+            if an not in timeline:
+                timeline[an] = {
+                    'assignment_number': an,
+                    'moves': [],
+                    'current_holder': None,
+                }
+            timeline[an]['moves'].append(r.to_dict())
+
+        # Enriquecer con propietario actual
+        if ecm_id:
+            for an, data in timeline.items():
+                eca = EcmCandidateAssignment.query.filter_by(
+                    assignment_number=an,
+                    competency_standard_id=ecm_id,
+                ).first()
+                if eca and eca.user:
+                    data['current_holder'] = {
+                        'user_id': eca.user_id,
+                        'full_name': eca.user.full_name,
+                        'email': eca.user.email,
+                    }
+
+        return jsonify({
+            'timeline': list(timeline.values()),
+            'total_assignments': len(timeline),
+            'total_moves': len(all_records),
+        })
+
+    except Exception as e:
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500

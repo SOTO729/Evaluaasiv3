@@ -1184,6 +1184,76 @@ class EcmCandidateAssignment(db.Model):
         }
 
 
+class EcmSwapHistory(db.Model):
+    """Historial de reasignaciones (swaps) de números de asignación ECM.
+    
+    Cada registro documenta una transferencia de assignment_number de un
+    candidato a otro dentro de un group_exam.
+    """
+    
+    __tablename__ = 'ecm_swap_history'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    assignment_number = db.Column(db.String(14), nullable=False, index=True)
+    ecm_assignment_id = db.Column(db.Integer, nullable=True)  # Referencia sin FK para que persista
+    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id'), nullable=False)
+    group_id = db.Column(db.Integer, nullable=False)
+    group_name = db.Column(db.String(200), nullable=True)
+    exam_id = db.Column(db.Integer, nullable=False)
+    group_exam_id = db.Column(db.Integer, nullable=True)
+    
+    # Candidato origen (pierde el número)
+    from_user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    # Candidato destino (recibe el número)
+    to_user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    
+    # Quién ejecutó la reasignación
+    performed_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    performed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Tipo de operación
+    swap_type = db.Column(db.String(10), default='single', nullable=False)  # 'single' | 'bulk'
+    
+    # Nota opcional
+    notes = db.Column(db.String(500), nullable=True)
+    
+    # Relaciones
+    from_user = db.relationship('User', foreign_keys=[from_user_id])
+    to_user = db.relationship('User', foreign_keys=[to_user_id])
+    performed_by = db.relationship('User', foreign_keys=[performed_by_id])
+    competency_standard = db.relationship('CompetencyStandard')
+    
+    __table_args__ = (
+        db.Index('ix_ecm_swap_history_assignment', 'assignment_number'),
+        db.Index('ix_ecm_swap_history_group_exam', 'group_id', 'exam_id'),
+        db.Index('ix_ecm_swap_history_from', 'from_user_id'),
+        db.Index('ix_ecm_swap_history_to', 'to_user_id'),
+    )
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'assignment_number': self.assignment_number,
+            'ecm_assignment_id': self.ecm_assignment_id,
+            'competency_standard_id': self.competency_standard_id,
+            'group_id': self.group_id,
+            'group_name': self.group_name,
+            'exam_id': self.exam_id,
+            'group_exam_id': self.group_exam_id,
+            'from_user_id': self.from_user_id,
+            'from_user_name': self.from_user.full_name if self.from_user else None,
+            'from_user_email': self.from_user.email if self.from_user else None,
+            'to_user_id': self.to_user_id,
+            'to_user_name': self.to_user.full_name if self.to_user else None,
+            'to_user_email': self.to_user.email if self.to_user else None,
+            'performed_by_id': self.performed_by_id,
+            'performed_by_name': self.performed_by.full_name if self.performed_by else None,
+            'performed_at': self.performed_at.isoformat() if self.performed_at else None,
+            'swap_type': self.swap_type,
+            'notes': self.notes,
+        }
+
+
 class ConocerEmailContact(db.Model):
     """Contactos de correo para solicitudes de línea de captura CONOCER."""
     

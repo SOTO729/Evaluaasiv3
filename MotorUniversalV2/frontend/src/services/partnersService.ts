@@ -2122,6 +2122,78 @@ export async function bulkSwapExamMembers(
   return response.data;
 }
 
+// ============== HISTORIAL DE REASIGNACIONES ==============
+
+export interface SwapHistoryRecord {
+  id: number;
+  assignment_number: string;
+  ecm_assignment_id: number | null;
+  competency_standard_id: number;
+  group_id: number;
+  group_name: string | null;
+  exam_id: number;
+  group_exam_id: number | null;
+  from_user_id: string;
+  from_user_name: string | null;
+  from_user_email: string | null;
+  to_user_id: string;
+  to_user_name: string | null;
+  to_user_email: string | null;
+  performed_by_id: string | null;
+  performed_by_name: string | null;
+  performed_at: string;
+  swap_type: 'single' | 'bulk';
+  notes: string | null;
+}
+
+export interface SwapHistoryResponse {
+  history: SwapHistoryRecord[];
+  total: number;
+  page: number;
+  pages: number;
+  per_page: number;
+}
+
+export interface SwapTimelineEntry {
+  assignment_number: string;
+  moves: SwapHistoryRecord[];
+  current_holder: {
+    user_id: string;
+    full_name: string;
+    email: string;
+  } | null;
+}
+
+export interface SwapTimelineResponse {
+  timeline: SwapTimelineEntry[];
+  total_assignments: number;
+  total_moves: number;
+}
+
+export async function getSwapHistory(
+  groupId: number,
+  examId: number,
+  params?: {
+    page?: number;
+    per_page?: number;
+    assignment_number?: string;
+    user_id?: string;
+    sort?: string;
+    dir?: 'asc' | 'desc';
+  },
+): Promise<SwapHistoryResponse> {
+  const response = await api.get(`/partners/groups/${groupId}/exams/${examId}/swap-history`, { params });
+  return response.data;
+}
+
+export async function getSwapTimeline(
+  groupId: number,
+  examId: number,
+): Promise<SwapTimelineResponse> {
+  const response = await api.get(`/partners/groups/${groupId}/exams/${examId}/swap-history/timeline`);
+  return response.data;
+}
+
 // ============== RETOMAS ECM ==============
 
 export interface RetakePreviewResponse {

@@ -563,7 +563,7 @@ export default function GroupEditAssignmentMembersPage() {
       {/* ===== POLÍTICA DE PROTECCIÓN ===== */}
       <div className="bg-amber-50 border border-amber-200 rounded-fluid-xl fluid-p-4 fluid-mb-5 flex items-start fluid-gap-3">
         <Shield className="fluid-icon-base text-amber-600 flex-shrink-0 mt-0.5" />
-        <div>
+        <div className="flex-1">
           <p className="font-semibold text-amber-800 fluid-text-sm">Política de Protección de Asignaciones</p>
           <p className="text-amber-700 fluid-text-xs fluid-mt-1">
             Las asignaciones son <strong>inmutables</strong>: no se pueden retirar candidatos.
@@ -571,6 +571,13 @@ export default function GroupEditAssignmentMembersPage() {
             siempre que no tenga al menos 15% de avance en material de estudio ni haya abierto el examen o simulador.
           </p>
         </div>
+        <Link
+          to={`/partners/groups/${groupId}/assignments/${assignmentId}/swap-history?name=${encodeURIComponent(assignmentName)}`}
+          className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition-colors"
+        >
+          <ClipboardList className="w-3.5 h-3.5" />
+          Historial
+        </Link>
       </div>
 
       {/* ===== BARRA DE HERRAMIENTAS ===== */}

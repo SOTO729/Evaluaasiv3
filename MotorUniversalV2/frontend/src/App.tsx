@@ -136,6 +136,7 @@ const ExamAssignMembersPage = lazy(() => import('./pages/partners/exam-assignmen
 const ExamAssignmentReviewPage = lazy(() => import('./pages/partners/exam-assignment/ExamAssignmentReviewPage'))
 const GroupAssignMaterialsPage = lazy(() => import('./pages/partners/GroupAssignMaterialsPage'))
 const GroupEditAssignmentMembersPage = lazy(() => import('./pages/partners/GroupEditAssignmentMembersPage'))
+const SwapHistoryPage = lazy(() => import('./pages/partners/SwapHistoryPage'))
 const AssignmentDetailPage = lazy(() => import('./pages/partners/AssignmentDetailPage'))
 const CampusActivationPage = lazy(() => import('./pages/partners/CampusActivationPage'))
 const AssignResponsablePage = lazy(() => import('./pages/partners/AssignResponsablePage'))
@@ -333,6 +334,7 @@ function App() {
               <Route path="/partners/groups/:groupId/assign-materials" element={<GroupAssignMaterialsPage />} />
               <Route path="/partners/groups/:groupId/assignments/:examId/detail" element={<AssignmentDetailPage />} />
               <Route path="/partners/groups/:groupId/assignments/:assignmentId/edit-members" element={<GroupEditAssignmentMembersPage />} />
+              <Route path="/partners/groups/:groupId/assignments/:assignmentId/swap-history" element={<SwapHistoryPage />} />
               
               {/* Asignaciones por ECM */}
               <Route path="/asignaciones-ecm" element={<EcmAssignmentsPage />} />
