@@ -14,6 +14,8 @@ const Layout = ({ children }: LayoutProps) => {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
   const location = useLocation()
+  const isSupportRole = ['soporte', 'support'].includes(user?.role ?? '')
+  const homePath = isSupportRole ? '/support/dashboard' : '/dashboard'
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -185,7 +187,7 @@ const Layout = ({ children }: LayoutProps) => {
                 )}
               </button>
               
-              <Link to="/dashboard" className="flex items-center fluid-gap-2">
+              <Link to={homePath} className="flex items-center fluid-gap-2">
                 <img src="/logo.webp" alt="Evaluaasi" className="h-[clamp(2.25rem,2rem+1.5vw,4.5rem)] w-auto" />
                 <span className="hidden sm:block fluid-text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">Evaluaasi</span>
               </Link>
@@ -222,15 +224,17 @@ const Layout = ({ children }: LayoutProps) => {
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                 <Link 
-                  to="/dashboard" 
+                  to={homePath} 
                   className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
-                    location.pathname === '/dashboard' 
+                    location.pathname === '/dashboard' || location.pathname.startsWith('/support')
                       ? 'text-primary-600 font-semibold bg-primary-50' 
                       : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
                   }`}
                 >
-                  Inicio
+                  {isSupportRole ? 'Soporte' : 'Inicio'}
                 </Link>
+                {!isSupportRole && (
+                  <>
                 {/* ── Bloque coordinador: orden personalizado ── */}
                 {user?.role === 'coordinator' && (
                   <>
@@ -460,6 +464,8 @@ const Layout = ({ children }: LayoutProps) => {
                     Usuarios
                   </Link>
                 )}
+                  </>
+                )}
               </nav>
 
                 {/* Gradiente derecho */}
@@ -531,6 +537,18 @@ const Layout = ({ children }: LayoutProps) => {
 
                   {/* Opciones del menú */}
                   <div className="fluid-py-2">
+                    {user?.role === 'candidato' && (
+                      <Link
+                        to="/chat-soporte"
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="w-full flex items-center fluid-px-5 fluid-py-4 fluid-text-base text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <svg className="fluid-icon-lg fluid-mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h8m-8 4h5m-8 7l-2-2m0 0l2-2m-2 2h12a3 3 0 003-3V7a3 3 0 00-3-3H6a3 3 0 00-3 3v3" />
+                        </svg>
+                        Chat con Soporte
+                      </Link>
+                    )}
                     <Link
                       to="/profile"
                       onClick={() => setIsDropdownOpen(false)}
@@ -568,9 +586,9 @@ const Layout = ({ children }: LayoutProps) => {
           >
             <nav className="fluid-px-4 fluid-py-3 space-y-1">
               <Link 
-                to="/dashboard" 
+                to={homePath} 
                 className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
-                  location.pathname === '/dashboard' 
+                  location.pathname === '/dashboard' || location.pathname.startsWith('/support')
                     ? 'bg-primary-50 text-primary-600 font-medium' 
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
@@ -579,9 +597,29 @@ const Layout = ({ children }: LayoutProps) => {
                   <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                   </svg>
-                  Inicio
+                  {isSupportRole ? 'Soporte' : 'Inicio'}
                 </div>
               </Link>
+              {!isSupportRole && (
+                <>
+              {user?.role === 'candidato' && (
+                <Link
+                  to="/chat-soporte"
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
+                    location.pathname.startsWith('/chat-soporte')
+                      ? 'bg-primary-50 text-primary-600 font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h8m-8 4h5m4-10H7a2 2 0 00-2 2v10l3-3h9a2 2 0 002-2V6a2 2 0 00-2-2z" />
+                    </svg>
+                    Chat con Soporte
+                  </div>
+                </Link>
+              )}
               {/* ── Bloque coordinador mobile: orden personalizado ── */}
               {user?.role === 'coordinator' && (
                 <>
@@ -941,6 +979,8 @@ const Layout = ({ children }: LayoutProps) => {
                     Usuarios
                   </div>
                 </Link>
+              )}
+                </>
               )}
               
               {/* Separador */}

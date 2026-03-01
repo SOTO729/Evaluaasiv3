@@ -10,6 +10,8 @@ import AuthProvider from './components/auth/AuthProvider'
 // Eager imports (necesarios inmediatamente)
 import Layout from './components/layout/Layout'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+import SupportGuard from './components/support/SupportGuard'
+import SupportLayout from './components/support/SupportLayout'
 
 // Lazy imports (cargados bajo demanda)
 const LandingPage = lazy(() => import('./pages/landing/LandingPage'))
@@ -96,6 +98,16 @@ const RestrictedForGerenteFinOnly = ({ children }: { children: React.ReactNode }
     return <Navigate to="/dashboard" replace />
   }
   return <>{children}</>
+}
+
+// Redirección de dashboard por rol para evitar caer en vista de candidato cuando es soporte.
+const DashboardRouter = () => {
+  const { user } = useAuthStore()
+  const normalizedRole = String(user?.role || '').trim().toLowerCase()
+  if (normalizedRole === 'soporte' || normalizedRole === 'support') {
+    return <Navigate to="/support/dashboard" replace />
+  }
+  return <HomePage />
 }
 
 // Certificates
@@ -197,6 +209,16 @@ const UserDetailPage = lazy(() => import('./pages/users/UserDetailPage'))
 // Badges (Insignias Digitales)
 const BadgeTemplatesPage = lazy(() => import('./pages/badges/BadgeTemplatesPage'))
 const BadgeTemplateFormPage = lazy(() => import('./pages/badges/BadgeTemplateFormPage'))
+const CandidateSupportChatPage = lazy(() => import('./pages/candidate/CandidateSupportChatPage'))
+
+// Soporte
+const SupportDashboardPage = lazy(() => import('./pages/support/SupportDashboardPage'))
+const SupportCampusesPage = lazy(() => import('./pages/support/SupportCampusesPage'))
+const SupportUsersPage = lazy(() => import('./pages/support/SupportUsersPage'))
+const SupportCommunicationPage = lazy(() => import('./pages/support/SupportCommunicationPage'))
+const SupportCalendarPage = lazy(() => import('./pages/support/SupportCalendarPage'))
+const SupportSessionsPage = lazy(() => import('./pages/support/SupportSessionsPage'))
+const SupportSettingsPage = lazy(() => import('./pages/support/SupportSettingsPage'))
 
 function App() {
   const { isAuthenticated } = useAuthStore()
@@ -241,10 +263,36 @@ function App() {
             {/* Rutas de pantalla completa (sin navbar) */}
             <Route path="/test-exams/:examId/run" element={<ExamTestRunPage />} />
             <Route path="/test-exams/:examId/results" element={<ExamTestResultsRouter />} />
+
+            {/* Soporte - ventana especial */}
+            <Route element={<SupportGuard />}>
+              <Route path="/support" element={<SupportLayout />}>
+                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<SupportDashboardPage />} />
+                <Route path="campuses" element={<SupportCampusesPage />} />
+                <Route path="users" element={<SupportUsersPage />} />
+                <Route path="communication" element={<SupportCommunicationPage />} />
+                <Route path="calendar" element={<SupportCalendarPage />} />
+                <Route path="sessions" element={<SupportSessionsPage />} />
+                <Route path="settings" element={<SupportSettingsPage />} />
+              </Route>
+
+              <Route path="/dev/support" element={<SupportLayout />}>
+                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<SupportDashboardPage />} />
+                <Route path="campuses" element={<SupportCampusesPage />} />
+                <Route path="users" element={<SupportUsersPage />} />
+                <Route path="communication" element={<SupportCommunicationPage />} />
+                <Route path="calendar" element={<SupportCalendarPage />} />
+                <Route path="sessions" element={<SupportSessionsPage />} />
+                <Route path="settings" element={<SupportSettingsPage />} />
+              </Route>
+            </Route>
             
             <Route element={<Layout />}>
-              <Route path="/dashboard" element={<HomePage />} />
+              <Route path="/dashboard" element={<DashboardRouter />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/chat-soporte" element={<CandidateSupportChatPage />} />
               
               {/* Study Contents Preview - con navbar */}
               <Route path="/study-contents/:id/preview" element={<RestrictedForGerenteFin><StudyContentPreviewPage /></RestrictedForGerenteFin>} />

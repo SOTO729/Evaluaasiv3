@@ -123,6 +123,13 @@ def create_app(config_name='development'):
         print(f"[INIT] ❌ Error importando support_bp: {e}")
         raise
     
+    try:
+        from app.routes.support_chat import bp as support_chat_bp
+        print("[INIT] ✅ support_chat_bp importado")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando support_chat_bp: {e}")
+        raise
+    
     print("[INIT] Registrando blueprints...")
     app.register_blueprint(auth.bp, url_prefix='/api/auth')
     print("[INIT] ✅ auth registrado")
@@ -172,6 +179,8 @@ def create_app(config_name='development'):
     print("[INIT] ✅ vm-sessions registrado (máquinas virtuales)")
     app.register_blueprint(support_bp)
     print("[INIT] ✅ support registrado")
+    app.register_blueprint(support_chat_bp)
+    print("[INIT] ✅ support-chat registrado")
     
     # Importar y registrar user_management
     from app.routes.user_management import bp as user_management_bp
@@ -184,6 +193,11 @@ def create_app(config_name='development'):
     with app.app_context():
         ensure_sqlite_schema(app)
         ensure_label_style_column(app)
+        try:
+            from app.auto_migrate import check_and_create_support_chat_tables
+            check_and_create_support_chat_tables()
+        except Exception as e:
+            print(f"[AUTO-MIGRATE] Error verificando tablas support chat: {e}")
     
     # Manejadores de errores
     register_error_handlers(app)

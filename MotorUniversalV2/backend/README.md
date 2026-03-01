@@ -54,6 +54,7 @@ pytest -v tests/test_auth.py
 ## Endpoints
 
 Ver documentación en `/api/docs` cuando el servidor esté corriendo.
+Documentación del módulo chat candidato-soporte: `../docs/chat-candidato-soporte-backend.md`
 
 ### Autenticación
 - `POST /api/auth/register` - Registro
@@ -79,4 +80,11 @@ Ver documentación en `/api/docs` cuando el servidor esté corriendo.
 ### Preguntas
 - `GET /api/topics/:id/questions` - Listar preguntas
 - `POST /api/topics/:id/questions` - Crear pregunta
+
+### Soporte Chat
+- `POST /api/support/chat/conversations` - Crear conversación
+- `GET /api/support/chat/conversations` - Listar conversaciones
+- `POST /api/support/chat/conversations/:id/messages` - Enviar mensaje
+- `GET /api/support/chat/conversations/:id/messages` - Historial paginado
+- `POST /api/support/chat/conversations/:id/read` - Marcar mensajes como leídos
 # Deployment timestamp: Tue Dec 23 18:44:57 UTC 2025
